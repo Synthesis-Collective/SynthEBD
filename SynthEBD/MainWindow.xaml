@@ -1,0 +1,39 @@
+﻿<Window x:Class="SynthEBD.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SynthEBD"
+        xmlns:uc="clr-namespace:SynthEBD.Settings_General"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="20"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="5*"/>
+        </Grid.ColumnDefinitions>
+
+        <ContentPresenter Content="{Binding MainWindow_ViewModel.DisplayedViewModel}" Grid.Column="1">
+            <ContentPresenter.Resources>
+                <DataTemplate DataType="{x:Type local:VM_NavPanel}">
+                    <local:UC_NavPanel/>
+                </DataTemplate>
+            </ContentPresenter.Resources>
+        </ContentPresenter>
+        
+        <ContentPresenter Content="{Binding MainWindow_ViewModel.DisplayedViewModel}" Grid.Column="2">
+            <ContentPresenter.Resources>
+                <DataTemplate DataType="{x:Type local:VM_Settings_General}">
+                    <local:Settings_General.UC_Settings_General />
+                </DataTemplate>
+                <DataTemplate DataType="{x:Type local:VM_NavPanel}">
+                    <local:UC_NavPanel/>
+                </DataTemplate>
+            </ContentPresenter.Resources>
+        </ContentPresenter>
+
+        <!-- <Frame Name="Frame_Nav" Source="/NavPanel/Page_Nav.xaml" Grid.Column="1"/>
+        <Frame Name="Frame_MainDisplay" Source="/Settings_General/Page_GeneralSettingsMenu.xaml" Grid.Column="2"/> -->
+    </Grid>
+</Window>
