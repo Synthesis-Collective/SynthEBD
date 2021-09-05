@@ -23,6 +23,7 @@ namespace SynthEBD
         public MainWindow()
         {
             InitializeComponent();
+            this.DataContext = new MainWindow_ViewModel(); // attach ViewModel to View
         }
     }
 

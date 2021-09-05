@@ -8,5 +8,6 @@ namespace SynthEBD.Settings_General
 {
     class VM_Settings_General
     {
+
     }
 }

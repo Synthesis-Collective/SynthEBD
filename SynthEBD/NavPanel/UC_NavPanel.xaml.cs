@@ -13,7 +13,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace SynthEBD
+namespace SynthEBD.NavPanel
 {
     /// <summary>
     /// Interaction logic for UC_NavPanel.xaml
@@ -22,7 +22,7 @@ namespace SynthEBD
     {
         public UC_NavPanel()
         {
-            //InitializeComponent();
+            InitializeComponent();
         }
     }
 }
