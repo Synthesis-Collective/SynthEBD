@@ -4,16 +4,20 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Input;
 
 namespace SynthEBD
 {
     class MainWindow_ViewModel : INotifyPropertyChanged
     {
-        public Settings_General.VM_Settings_General SettingsVm { get; } = new();
+        public Settings_General.VM_Settings_General SettingsVm { get; }
         public NavPanel.VM_NavPanel NavPanel { get; }
 
         public object DisplayedViewModel { get; set; }
         public object NavViewModel { get; set; }
+
+        public Settings_General.Settings_General generalSettings { get; }
 
         public MainWindow_ViewModel()
         {
@@ -22,9 +26,24 @@ namespace SynthEBD
             // Start on the settings VM
             DisplayedViewModel = SettingsVm;
             NavViewModel = NavPanel;
+
+            generalSettings = SettingsIO.SettingsIO_General.loadGeneralSettings();
+
+            SettingsVm = new Settings_General.VM_Settings_General(generalSettings);
+
+            Application.Current.MainWindow.Closing += new CancelEventHandler(MainWindow_Closing);
         }
 
+        void MainWindow_Closing(object sender, CancelEventArgs e)
+        {
+            Settings_General.VM_Settings_General.DumpViewModelToModel(SettingsVm, generalSettings);
+            SettingsIO.SettingsIO_General.saveGeneralSettings(generalSettings);
+        }
+
+
         public event PropertyChangedEventHandler PropertyChanged;
+
+
     }
 
 }

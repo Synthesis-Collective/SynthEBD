@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace SynthEBD.Internal_Data_Classes
 {
-    class raceAlias
+    public class raceAlias
     {
         public raceAlias()
         {

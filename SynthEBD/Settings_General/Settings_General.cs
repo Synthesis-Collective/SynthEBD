@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Mutagen.Bethesda.Plugins;
 
 namespace SynthEBD.Settings_General
 {
-    class Settings_General
+    public class Settings_General
     {
         public Settings_General()
         {
@@ -17,31 +18,31 @@ namespace SynthEBD.Settings_General
             this.bEnableConsistency = true;
             this.bLinkNPCsWithSameName = true;
             this.patchFileName = "SynthEBD.esp";
-            this.bVerboseMode_Assets_Noncompliant = false;
-            this.bVerboseMode_Assets_All = false;
-            this.verboseMode_NPClist = new List<string>();
+            this.bVerboseModeAssetsNoncompliant = false;
+            this.bVerboseModeAssetsAll = false;
+            this.verboseModeNPClist = new List<FormKey>();
             this.bLoadSettingsFromDataFolder = false;
-            this.patchableRaces = new List<string>();
+            this.patchableRaces = new List<FormKey>();
             this.raceAliases = new List<Internal_Data_Classes.raceAlias>();
         }
 
-        bool bShowToolTips { get; set; }
-        bool bChangeMeshesOrTextures { get; set; }
+        public bool bShowToolTips { get; set; }
+        public bool bChangeMeshesOrTextures { get; set; }
 
-        bool bEnableBodyGenIntegration { get; set; }
+        public bool bEnableBodyGenIntegration { get; set; }
 
-        bool bChangeHeight { get; set; }
-        bool bEnableConsistency { get; set; }
-        bool bLinkNPCsWithSameName { get; set; }
-        string patchFileName { get; set; }
+        public bool bChangeHeight { get; set; }
+        public bool bEnableConsistency { get; set; }
+        public bool bLinkNPCsWithSameName { get; set; }
+        public string patchFileName { get; set; }
 
-        bool bVerboseMode_Assets_Noncompliant { get; set; }
-        bool bVerboseMode_Assets_All { get; set; }
-        List<string> verboseMode_NPClist { get; set; } // change to mutagen NPCs
-        bool bLoadSettingsFromDataFolder { get; set; }
-        
-        List<string> patchableRaces { get; set; } // change to mutagen races
+        public bool bVerboseModeAssetsNoncompliant { get; set; }
+        public bool bVerboseModeAssetsAll { get; set; }
+        public List<FormKey> verboseModeNPClist { get; set; } // enable FormKey (multi?) picker for this
+        public bool bLoadSettingsFromDataFolder { get; set; }
 
-        List<Internal_Data_Classes.raceAlias> raceAliases { get; set; }
+        public List<FormKey> patchableRaces { get; set; } // enable FormKey (multi?) picker for this
+
+        public List<Internal_Data_Classes.raceAlias> raceAliases { get; set; }
     }
 }

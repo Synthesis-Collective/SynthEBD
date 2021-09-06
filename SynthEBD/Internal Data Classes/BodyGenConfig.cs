@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Mutagen.Bethesda.Plugins;
 
 namespace SynthEBD.Internal_Data_Classes
 {
@@ -51,8 +52,8 @@ namespace SynthEBD.Internal_Data_Classes
                 this.name = "";
                 this.specs = "";
                 this.gender = Gender.female;
-                this.allowedRaces = new HashSet<string>();
-                this.disallowedRaces = new HashSet<string>();
+                this.allowedRaces = new HashSet<FormKey>();
+                this.disallowedRaces = new HashSet<FormKey>();
                 this.allowedAttributes = new HashSet<string[]>();
                 this.disallowedAttributes = new HashSet<string[]>();
                 this.forceIfAttributes = new HashSet<string[]>();
@@ -66,8 +67,8 @@ namespace SynthEBD.Internal_Data_Classes
             public string name { get; set; }
             public string specs { get; set; } // will need special logic during I/O because in zEBD settings this is called "params" which is reserved in C#
             public Gender gender { get; set; } // might need to convert from string to enum depending on how json deserialization works
-            public HashSet<string> allowedRaces { get; set; }
-            public HashSet<string> disallowedRaces { get; set; }
+            public HashSet<FormKey> allowedRaces { get; set; }
+            public HashSet<FormKey> disallowedRaces { get; set; }
             public HashSet<string[]> allowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
             public HashSet<string[]> disallowedAttributes { get; set; }
             public HashSet<string[]> forceIfAttributes { get; set; }

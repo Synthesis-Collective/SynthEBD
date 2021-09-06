@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Mutagen.Bethesda.Plugins;
 
 namespace SynthEBD.Internal_Data_Classes
 {
@@ -31,8 +32,8 @@ namespace SynthEBD.Internal_Data_Classes
                 this.name = "";
                 this.enabled = true;
                 this.distributionEnabled = true;
-                this.allowedRaces = new HashSet<string>();
-                this.disallowedRaces = new HashSet<string>();
+                this.allowedRaces = new HashSet<FormKey>();
+                this.disallowedRaces = new HashSet<FormKey>();
                 this.allowedAttributes = new HashSet<string[]>();
                 this.disallowedAttributes = new HashSet<string[]>();
                 this.forceIfAttributes = new HashSet<string[]>();
@@ -48,13 +49,13 @@ namespace SynthEBD.Internal_Data_Classes
                 this.weightRange = new string[] { null, null };
                 this.subgroups = new HashSet<Subgroup>();
             }
-
+            
             public string id { get; set; }
             public string name { get; set; }
             public bool enabled { get; set; }
             public bool distributionEnabled { get; set; }
-            public HashSet<string> allowedRaces { get; set; } // consider converting to generic to allow for both Mutagen races and defined collections
-            public HashSet<string> disallowedRaces { get; set; } // same as above
+            public HashSet<FormKey> allowedRaces { get; set; } // consider converting to generic to allow for both Mutagen races and defined collections
+            public HashSet<FormKey> disallowedRaces { get; set; } // same as above
             public HashSet<string[]> allowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
             public HashSet<string[]> disallowedAttributes { get; set; } 
             public HashSet<string[]> forceIfAttributes { get; set; }

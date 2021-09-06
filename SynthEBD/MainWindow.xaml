@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         xmlns:local="clr-namespace:SynthEBD"
         d:DataContext="{local:MainWindow_ViewModel}"
         xmlns:np ="clr-namespace:SynthEBD.NavPanel"
@@ -12,6 +13,10 @@
         xmlns:sh ="clr-namespace:SynthEBD.Settings_Height"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
+
+    <!--xmlns:i is from https://stackoverflow.com/questions/20346746/how-to-use-application-exit-event-in-wpf -->
+    <!--https://stackoverflow.com/questions/20743961/the-name-interaction-does-not-exist-in-the-namespace-http-schemas-microsoft/37906343-->
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="20"/>
@@ -45,4 +50,9 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
     </Grid>
+
+    
 </Window>
+
+
+    
