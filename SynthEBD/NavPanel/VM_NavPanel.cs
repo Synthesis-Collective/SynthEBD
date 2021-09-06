@@ -14,29 +14,26 @@ namespace SynthEBD.NavPanel
         public ICommand ClickTM { get; }
         public ICommand ClickBG { get; }
         public ICommand ClickH { get; }
-        public Settings_General.VM_Settings_General SettingsGeneralVm { get; } = new( new Settings_General.Settings_General() );
-        public Settings_AssetPack.VM_AssetPackSettings APVm { get; } = new();
-        public Settings_BodyGen.VM_BodyGenSettings BGvm { get; } = new();
-        public Settings_Height.VM_HeightSettings Hvm { get; } = new();
+        
 
-        public VM_NavPanel(MainWindow_ViewModel MWVM)
+        public VM_NavPanel(MainWindow_ViewModel MWVM, Settings_General.VM_Settings_General SGVM, Settings_AssetPack.VM_AssetPackSettings APVM, Settings_BodyGen.VM_BodyGenSettings BGVM, Settings_Height.VM_HeightSettings HVM)
         {
             ClickSG = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => MWVM.DisplayedViewModel = SettingsGeneralVm
+                execute: _ => MWVM.DisplayedViewModel = SGVM
                 );
 
             ClickTM = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => MWVM.DisplayedViewModel = APVm
+                execute: _ => MWVM.DisplayedViewModel = APVM
                 ) ;
             ClickBG = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => MWVM.DisplayedViewModel = BGvm
+                execute: _ => MWVM.DisplayedViewModel = BGVM
                 );
             ClickH = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => MWVM.DisplayedViewModel = Hvm
+                execute: _ => MWVM.DisplayedViewModel = HVM
                 );
         }
 
