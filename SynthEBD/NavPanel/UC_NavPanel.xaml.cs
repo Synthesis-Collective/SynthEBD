@@ -24,5 +24,6 @@ namespace SynthEBD.NavPanel
         {
             InitializeComponent();
         }
+
     }
 }

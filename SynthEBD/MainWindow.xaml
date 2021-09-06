@@ -17,6 +17,7 @@
             <ColumnDefinition Width="20"/>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="5*"/>
+            <ColumnDefinition Width="20"/>
         </Grid.ColumnDefinitions>
 
         <ContentPresenter Content="{Binding NavViewModel}" Grid.Column="1">

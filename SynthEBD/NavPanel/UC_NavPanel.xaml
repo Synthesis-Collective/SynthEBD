@@ -8,5 +8,11 @@
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
         <TextBlock>NavPanel</TextBlock>
+        <StackPanel>
+            <Button x:Name="Button_Sgeneral" Command="{Binding ClickSG}">"General Settings"</Button>
+            <Button x:Name="Button_TandM" Command="{Binding ClickTM}">"Textures and Meshes"</Button>
+            <Button x:Name="Button_BG" Command="{Binding ClickBG}">"BodyGen Integration"</Button>
+            <Button x:Name="Button_H" Command="{Binding ClickH}">"Height"</Button>
+        </StackPanel>
     </Grid>
 </UserControl>

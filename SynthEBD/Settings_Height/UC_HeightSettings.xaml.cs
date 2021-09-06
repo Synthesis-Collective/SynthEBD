@@ -22,7 +22,7 @@ namespace SynthEBD.Settings_Height
     {
         public UC_HeightSettings()
         {
-            //InitializeComponent();
+            InitializeComponent();
         }
     }
 }
