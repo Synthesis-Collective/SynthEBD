@@ -27,6 +27,11 @@ namespace SynthEBD.Settings_General
             this.bLoadSettingsFromDataFolder = settings.bLoadSettingsFromDataFolder;
             this.patchableRaces = settings.patchableRaces;
             this.raceAliases = settings.raceAliases;
+
+            AddRaceAlias = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.raceAliases.Add(new())
+                );
         }
 
         public bool bShowToolTips { get;  set;}
@@ -47,6 +52,7 @@ namespace SynthEBD.Settings_General
         public List<FormKey> patchableRaces { get; set;  } 
 
         public List<Internal_Data_Classes.raceAlias> raceAliases { get; set;  }
+        public RelayCommand AddRaceAlias { get; }
 
         public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
         {

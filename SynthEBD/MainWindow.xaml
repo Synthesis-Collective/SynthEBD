@@ -16,16 +16,16 @@
 
     <!--xmlns:i is from https://stackoverflow.com/questions/20346746/how-to-use-application-exit-event-in-wpf -->
     <!--https://stackoverflow.com/questions/20743961/the-name-interaction-does-not-exist-in-the-namespace-http-schemas-microsoft/37906343-->
-
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="20"/>
+            <ColumnDefinition Width="10"/>
             <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="2"/>
             <ColumnDefinition Width="5*"/>
             <ColumnDefinition Width="20"/>
         </Grid.ColumnDefinitions>
 
-        <ContentPresenter Content="{Binding NavViewModel}" Grid.Column="1">
+        <ContentPresenter Content="{Binding NavViewModel}" Grid.Column="1" Margin="0, 0, 10, 0">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type np:VM_NavPanel}">
                     <np:UC_NavPanel/>
@@ -33,7 +33,7 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <ContentPresenter Content="{Binding DisplayedViewModel}" Grid.Column="2">
+        <ContentPresenter Content="{Binding DisplayedViewModel}" Grid.Column="3" Margin="10, 0, 0, 0">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type sg:VM_Settings_General}">
                     <sg:UC_Settings_General/>
@@ -49,9 +49,13 @@
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>
-    </Grid>
 
-    
+        <Rectangle Grid.Column="2">
+            <Rectangle.Fill>black
+
+            </Rectangle.Fill>
+        </Rectangle>
+    </Grid>
 </Window>
 
 

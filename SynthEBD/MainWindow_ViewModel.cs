@@ -1,4 +1,8 @@
-﻿using System;
+﻿using Mutagen.Bethesda;
+using Mutagen.Bethesda.Environments;
+using Mutagen.Bethesda.Plugins.Cache;
+using Mutagen.Bethesda.Skyrim;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -35,6 +39,13 @@ namespace SynthEBD
 
             DisplayedViewModel = SGVM;
             NavViewModel = NavPanel;
+
+            var gameRelease = SkyrimRelease.SkyrimSE;
+            var env = GameEnvironment.Typical.Skyrim(gameRelease, LinkCachePreferences.OnlyIdentifiers());
+            var LinkCache = env.LinkCache;
+            var LoadOrder = env.LoadOrder;
+            //ScopedTypes = typeof(IArmorGetter).AsEnumerable();
+            //LoadOrderVM = loadOrderVm;
 
             Application.Current.MainWindow.Closing += new CancelEventHandler(MainWindow_Closing);
         }

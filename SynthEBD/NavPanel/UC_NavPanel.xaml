@@ -7,12 +7,16 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
-        <TextBlock>NavPanel</TextBlock>
-        <StackPanel>
-            <Button x:Name="Button_Sgeneral" Command="{Binding ClickSG}">"General Settings"</Button>
-            <Button x:Name="Button_TandM" Command="{Binding ClickTM}">"Textures and Meshes"</Button>
-            <Button x:Name="Button_BG" Command="{Binding ClickBG}">"BodyGen Integration"</Button>
-            <Button x:Name="Button_H" Command="{Binding ClickH}">"Height"</Button>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0">SynthEBD</TextBlock>
+        <StackPanel Grid.Row="1">
+            <Button x:Name="Button_Sgeneral" Margin="0, 5, 0, 0" Command="{Binding ClickSG}">General Settings</Button>
+            <Button x:Name="Button_TandM" Margin="0, 5, 0, 0" Command="{Binding ClickTM}">Textures and Meshes</Button>
+            <Button x:Name="Button_BG" Margin="0, 5, 0, 0" Command="{Binding ClickBG}">BodyGen Integration</Button>
+            <Button x:Name="Button_H" Margin="0, 5, 0, 0" Command="{Binding ClickH}">Height</Button>
         </StackPanel>
     </Grid>
 </UserControl>
