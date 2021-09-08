@@ -65,10 +65,8 @@
             <Expander Grid.Column="1" Grid.Row="11" Header="" ExpandDirection="Down" >
                 <ItemsControl  ItemsSource="{Binding raceAliases, UpdateSourceTrigger=PropertyChanged}">
                     <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="{x:Type idcvm:VM_raceAliases}">
-                            <StackPanel Orientation="Vertical" Margin="0 0 0 10">
-                                <np:UC_RaceAlias Background="Black"/>
-                            </StackPanel>
+                        <DataTemplate DataType="{x:Type idcvm:VM_raceAlias}">
+                            <np:UC_RaceAlias Background="Black" Margin="0 0 0 10"/>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

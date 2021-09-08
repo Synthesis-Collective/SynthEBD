@@ -15,6 +15,7 @@ namespace SynthEBD
 {
     class MainWindow_ViewModel : INotifyPropertyChanged
     {
+        public GUI_Aux.GameEnvironmentProvider GameEnvironmentProvider { get; }
         public Settings_General.VM_Settings_General SGVM { get; } = new(new Settings_General.Settings_General());
         public Settings_AssetPack.VM_AssetPackSettings APVM { get; } = new();
         public Settings_BodyGen.VM_BodyGenSettings BGVM { get; } = new();
@@ -30,6 +31,11 @@ namespace SynthEBD
 
         public MainWindow_ViewModel()
         {
+            var gameRelease = SkyrimRelease.SkyrimSE;
+            var env = GameEnvironment.Typical.Skyrim(gameRelease, LinkCachePreferences.OnlyIdentifiers());
+            var LinkCache = env.LinkCache;
+            var LoadOrder = env.LoadOrder;
+
             NavPanel = new SynthEBD.NavPanel.VM_NavPanel(this, SGVM, APVM, BGVM, HVM);
 
             // Start on the settings VM
@@ -39,13 +45,6 @@ namespace SynthEBD
 
             DisplayedViewModel = SGVM;
             NavViewModel = NavPanel;
-
-            var gameRelease = SkyrimRelease.SkyrimSE;
-            var env = GameEnvironment.Typical.Skyrim(gameRelease, LinkCachePreferences.OnlyIdentifiers());
-            var LinkCache = env.LinkCache;
-            var LoadOrder = env.LoadOrder;
-            //ScopedTypes = typeof(IArmorGetter).AsEnumerable();
-            //LoadOrderVM = loadOrderVm;
 
             Application.Current.MainWindow.Closing += new CancelEventHandler(MainWindow_Closing);
         }

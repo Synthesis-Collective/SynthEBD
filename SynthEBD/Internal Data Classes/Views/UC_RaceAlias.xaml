@@ -5,7 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD.Internal_Data_Classes.ViewModels"
              xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
-             d:DataContext="{d:DesignInstance Type=local:VM_raceAliases}"
+             d:DataContext="{d:DesignInstance Type=local:VM_raceAlias}"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <Border BorderBrush="Black" BorderThickness="1">
@@ -25,10 +25,10 @@
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Column="0" Grid.Row="0">Race</TextBlock>
-            <plugins:FormKeyPicker x:Name="RaceFormKeyPicker" Grid.Column="1" Grid.Row="0" /> <!-- Needs something like "{Binding Path=Race}"  -->
+            <plugins:FormKeyPicker x:Name="RaceFormKeyPicker" Grid.Column="1" Grid.Row="0" FormKey="{Binding race}" LinkCache="{Binding lk}" ScopedTypes="{Binding FormKeyPickerTypes}"/> <!-- Needs something like "{Binding Path=Race}"  -->
 
             <TextBlock Grid.Column="0" Grid.Row="1">Alias Race</TextBlock>
-            <plugins:FormKeyPicker x:Name="AliasFormKeyPicker" Grid.Column="1" Grid.Row="1" /> <!-- Needs something like "{Binding Path=AliasRace}"  -->
+            <plugins:FormKeyPicker x:Name="AliasFormKeyPicker" Grid.Column="1" Grid.Row="1" FormKey="{Binding aliasRace}" LinkCache="{Binding lk}" ScopedTypes="{Binding FormKeyPickerTypes}"/> <!-- Needs something like "{Binding Path=AliasRace}"  -->
 
             <TextBlock Grid.Column="0" Grid.Row="2">Apply to Males</TextBlock>
             <CheckBox Grid.Column="1" Grid.Row="2" IsChecked="{Binding Path=bMale, Mode=TwoWay}"></CheckBox>

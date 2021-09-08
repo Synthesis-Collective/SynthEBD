@@ -4,7 +4,9 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD.Settings_General
 {
@@ -26,11 +28,11 @@ namespace SynthEBD.Settings_General
             this.verboseModeNPClist = settings.verboseModeNPClist;
             this.bLoadSettingsFromDataFolder = settings.bLoadSettingsFromDataFolder;
             this.patchableRaces = settings.patchableRaces;
-            this.raceAliases = settings.raceAliases;
+            this.raceAliases = Internal_Data_Classes.ViewModels.VM_raceAlias.GetViewModelsFromModels(settings.raceAliases, new GUI_Aux.GameEnvironmentProvider().MyEnvironment);
 
             AddRaceAlias = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.raceAliases.Add(new())
+                execute: _ => this.raceAliases.Add(new Internal_Data_Classes.ViewModels.VM_raceAlias(new Internal_Data_Classes.raceAlias(), new GUI_Aux.GameEnvironmentProvider().MyEnvironment))
                 );
         }
 
@@ -51,7 +53,7 @@ namespace SynthEBD.Settings_General
 
         public List<FormKey> patchableRaces { get; set;  } 
 
-        public List<Internal_Data_Classes.raceAlias> raceAliases { get; set;  }
+        public List<Internal_Data_Classes.ViewModels.VM_raceAlias> raceAliases { get; set;  }
         public RelayCommand AddRaceAlias { get; }
 
         public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
@@ -68,7 +70,12 @@ namespace SynthEBD.Settings_General
             model.verboseModeNPClist = viewModel.verboseModeNPClist;
             model.bLoadSettingsFromDataFolder = viewModel.bLoadSettingsFromDataFolder;
             model.patchableRaces = viewModel.patchableRaces;
-            model.raceAliases = viewModel.raceAliases;
+
+            model.raceAliases.Clear();
+            foreach (var x in viewModel.raceAliases)
+            {
+                model.raceAliases.Add(Internal_Data_Classes.ViewModels.VM_raceAlias.DumpViewModelToModel(x));
+            }
         }
     }
 }
