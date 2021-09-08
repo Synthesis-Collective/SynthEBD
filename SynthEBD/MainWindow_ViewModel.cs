@@ -16,7 +16,7 @@ namespace SynthEBD
     class MainWindow_ViewModel : INotifyPropertyChanged
     {
         public GUI_Aux.GameEnvironmentProvider GameEnvironmentProvider { get; }
-        public Settings_General.VM_Settings_General SGVM { get; } = new(new Settings_General.Settings_General());
+        public Settings_General.VM_Settings_General SGVM { get; } = new();
         public Settings_AssetPack.VM_AssetPackSettings APVM { get; } = new();
         public Settings_BodyGen.VM_BodyGenSettings BGVM { get; } = new();
         public Settings_Height.VM_HeightSettings HVM { get; } = new();
@@ -41,7 +41,7 @@ namespace SynthEBD
             // Start on the settings VM
             
             generalSettings = SettingsIO.SettingsIO_General.loadGeneralSettings();
-            SGVM = new Settings_General.VM_Settings_General(generalSettings);
+            Settings_General.VM_Settings_General.GetViewModelFromModel(SGVM, generalSettings);
 
             DisplayedViewModel = SGVM;
             NavViewModel = NavPanel;

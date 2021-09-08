@@ -71,6 +71,7 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </Expander>
+            
             <Button Grid.Column="1" Grid.Row="12" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" x:Name="Button_AddRaceAlias" Command="{Binding AddRaceAlias}">Add New</Button>
         </Grid>
     </ScrollViewer>

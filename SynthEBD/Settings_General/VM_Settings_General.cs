@@ -14,21 +14,21 @@ namespace SynthEBD.Settings_General
     {
         public event PropertyChangedEventHandler PropertyChanged;
         
-        public VM_Settings_General(SynthEBD.Settings_General.Settings_General settings)
+        public VM_Settings_General()
         {
-            this.bShowToolTips = settings.bShowToolTips;
-            this.bChangeMeshesOrTextures = settings.bChangeMeshesOrTextures;
-            this.bEnableBodyGenIntegration = settings.bEnableBodyGenIntegration;
-            this.bChangeHeight = settings.bChangeHeight;
-            this.bEnableConsistency = settings.bEnableConsistency;
-            this.bLinkNPCsWithSameName = settings.bLinkNPCsWithSameName;
-            this.patchFileName = settings.patchFileName;
-            this.bVerboseModeAssetsNoncompliant = settings.bVerboseModeAssetsNoncompliant;
-            this.bVerboseModeAssetsAll = settings.bVerboseModeAssetsAll;
-            this.verboseModeNPClist = settings.verboseModeNPClist;
-            this.bLoadSettingsFromDataFolder = settings.bLoadSettingsFromDataFolder;
-            this.patchableRaces = settings.patchableRaces;
-            this.raceAliases = Internal_Data_Classes.ViewModels.VM_raceAlias.GetViewModelsFromModels(settings.raceAliases, new GUI_Aux.GameEnvironmentProvider().MyEnvironment);
+            this.bShowToolTips = true;
+            this.bChangeMeshesOrTextures = true;
+            this.bEnableBodyGenIntegration = false;
+            this.bChangeHeight = false;
+            this.bEnableConsistency = true;
+            this.bLinkNPCsWithSameName = true;
+            this.patchFileName = "SynthEBD.esp";
+            this.bVerboseModeAssetsNoncompliant = false;
+            this.bVerboseModeAssetsAll = false;
+            this.verboseModeNPClist = new List<FormKey>();
+            this.bLoadSettingsFromDataFolder = false;
+            this.patchableRaces = new List<FormKey>();
+            this.raceAliases = new List<Internal_Data_Classes.ViewModels.VM_raceAlias>();
 
             AddRaceAlias = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -56,6 +56,22 @@ namespace SynthEBD.Settings_General
         public List<Internal_Data_Classes.ViewModels.VM_raceAlias> raceAliases { get; set;  }
         public RelayCommand AddRaceAlias { get; }
 
+        public static void GetViewModelFromModel(VM_Settings_General viewModel, SynthEBD.Settings_General.Settings_General model)
+        {
+            viewModel.bShowToolTips = model.bShowToolTips;
+            viewModel.bChangeMeshesOrTextures = model.bChangeMeshesOrTextures;
+            viewModel.bEnableBodyGenIntegration = model.bEnableBodyGenIntegration;
+            viewModel.bChangeHeight = model.bChangeHeight;
+            viewModel.bEnableConsistency = model.bEnableConsistency;
+            viewModel.bLinkNPCsWithSameName = model.bLinkNPCsWithSameName;
+            viewModel.patchFileName = model.patchFileName;
+            viewModel.bVerboseModeAssetsNoncompliant = model.bVerboseModeAssetsNoncompliant;
+            viewModel.bVerboseModeAssetsAll = model.bVerboseModeAssetsAll;
+            viewModel.verboseModeNPClist = model.verboseModeNPClist;
+            viewModel.bLoadSettingsFromDataFolder = model.bLoadSettingsFromDataFolder;
+            viewModel.patchableRaces = model.patchableRaces;
+            viewModel.raceAliases = Internal_Data_Classes.ViewModels.VM_raceAlias.GetViewModelsFromModels(model.raceAliases, new GUI_Aux.GameEnvironmentProvider().MyEnvironment);
+        }
         public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
         {
             model.bShowToolTips = viewModel.bShowToolTips;
