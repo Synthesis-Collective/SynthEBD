@@ -1,12 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
+using Noggog;
 
 namespace SynthEBD.Settings_General
 {
@@ -25,10 +28,14 @@ namespace SynthEBD.Settings_General
             this.patchFileName = "SynthEBD.esp";
             this.bVerboseModeAssetsNoncompliant = false;
             this.bVerboseModeAssetsAll = false;
-            this.verboseModeNPClist = new List<FormKey>();
+            this.verboseModeNPClist = new ObservableCollection<FormKey>();
             this.bLoadSettingsFromDataFolder = false;
-            this.patchableRaces = new List<FormKey>();
-            this.raceAliases = new List<Internal_Data_Classes.ViewModels.VM_raceAlias>();
+            this.patchableRaces = new ObservableCollection<FormKey>();
+            this.raceAliases = new ObservableCollection<Internal_Data_Classes.ViewModels.VM_raceAlias>();
+
+            this.lk = new GUI_Aux.GameEnvironmentProvider().MyEnvironment.LinkCache;
+            this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
+            this.NPCPickerFormKeys = typeof(INpcGetter).AsEnumerable();
 
             AddRaceAlias = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -48,13 +55,17 @@ namespace SynthEBD.Settings_General
 
         public bool bVerboseModeAssetsNoncompliant { get; set;  }
         public bool bVerboseModeAssetsAll { get; set;  }
-        public List<FormKey> verboseModeNPClist { get; set;  }
+        public ObservableCollection<FormKey> verboseModeNPClist { get; set; }
         public bool bLoadSettingsFromDataFolder { get; set;  }
 
-        public List<FormKey> patchableRaces { get; set;  } 
+        public ObservableCollection<FormKey> patchableRaces { get; set; }
 
-        public List<Internal_Data_Classes.ViewModels.VM_raceAlias> raceAliases { get; set;  }
+        public ObservableCollection<Internal_Data_Classes.ViewModels.VM_raceAlias> raceAliases { get; set;  }
         public RelayCommand AddRaceAlias { get; }
+
+        public ILinkCache lk { get; set; }
+        public IEnumerable<Type> RacePickerFormKeys { get; set; }
+        public IEnumerable<Type> NPCPickerFormKeys { get; set; }
 
         public static void GetViewModelFromModel(VM_Settings_General viewModel, SynthEBD.Settings_General.Settings_General model)
         {
@@ -67,9 +78,9 @@ namespace SynthEBD.Settings_General
             viewModel.patchFileName = model.patchFileName;
             viewModel.bVerboseModeAssetsNoncompliant = model.bVerboseModeAssetsNoncompliant;
             viewModel.bVerboseModeAssetsAll = model.bVerboseModeAssetsAll;
-            viewModel.verboseModeNPClist = model.verboseModeNPClist;
+            viewModel.verboseModeNPClist = new ObservableCollection<FormKey>(model.verboseModeNPClist);
             viewModel.bLoadSettingsFromDataFolder = model.bLoadSettingsFromDataFolder;
-            viewModel.patchableRaces = model.patchableRaces;
+            viewModel.patchableRaces = new ObservableCollection<FormKey>(model.patchableRaces);
             viewModel.raceAliases = Internal_Data_Classes.ViewModels.VM_raceAlias.GetViewModelsFromModels(model.raceAliases, new GUI_Aux.GameEnvironmentProvider().MyEnvironment);
         }
         public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
@@ -83,9 +94,9 @@ namespace SynthEBD.Settings_General
             model.patchFileName = viewModel.patchFileName;
             model.bVerboseModeAssetsNoncompliant = viewModel.bVerboseModeAssetsNoncompliant;
             model.bVerboseModeAssetsAll = viewModel.bVerboseModeAssetsAll;
-            model.verboseModeNPClist = viewModel.verboseModeNPClist;
+            model.verboseModeNPClist = viewModel.verboseModeNPClist.ToList();
             model.bLoadSettingsFromDataFolder = viewModel.bLoadSettingsFromDataFolder;
-            model.patchableRaces = viewModel.patchableRaces;
+            model.patchableRaces = viewModel.patchableRaces.ToList();
 
             model.raceAliases.Clear();
             foreach (var x in viewModel.raceAliases)

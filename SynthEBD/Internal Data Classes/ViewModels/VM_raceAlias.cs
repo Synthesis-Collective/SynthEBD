@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
@@ -42,17 +43,17 @@ namespace SynthEBD.Internal_Data_Classes.ViewModels
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static List<VM_raceAlias> GetViewModelsFromModels(List<raceAlias> models, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env)
+        public static ObservableCollection<VM_raceAlias> GetViewModelsFromModels(List<raceAlias> models, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env)
         {
-            var listRAVM = new List<VM_raceAlias>();
+            var RAVM = new ObservableCollection<VM_raceAlias>();
 
             foreach (var x in models)
             {
                 var y = new VM_raceAlias(x, env);
-                listRAVM.Add(y);
+                RAVM.Add(y);
             }
 
-            return listRAVM;
+            return RAVM;
         }
 
         public static raceAlias DumpViewModelToModel(VM_raceAlias viewModel)

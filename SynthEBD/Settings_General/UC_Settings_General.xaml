@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD.Settings_General" d:DataContext="{d:DesignInstance Type=local:VM_Settings_General}"
              xmlns:idcvm="clr-namespace:SynthEBD.Internal_Data_Classes.ViewModels" xmlns:np="clr-namespace:SynthEBD.Internal_Data_Classes.Views"
+             xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <ScrollViewer>
@@ -14,6 +15,7 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
+                <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
@@ -54,15 +56,13 @@
             <TextBlock Grid.Column="0" Grid.Row="8">Link NPCs with Same Name</TextBlock>
             <CheckBox Grid.Column="1" Grid.Row="8" IsChecked="{Binding Path=bLinkNPCsWithSameName, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="9">Verbose Mode for Conflict NPCs</TextBlock>
-            <CheckBox Grid.Column="1" Grid.Row="9" IsChecked="{Binding Path=bVerboseModeAssetsNoncompliant, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="9">Patchable Races</TextBlock>
+            <Expander Grid.Column="1" Grid.Row="9" Header="" ExpandDirection="Down" >
+                <plugins:FormKeyMultiPicker FormKeys="{Binding patchableRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
+            </Expander>
 
-            <TextBlock Grid.Column="0" Grid.Row="10">Verbose Mode for All NPCs</TextBlock>
-            <CheckBox Grid.Column="1" Grid.Row="10" IsChecked="{Binding Path=bVerboseModeAssetsAll, Mode=TwoWay}"></CheckBox>
-
-            <TextBlock Grid.Column="0" Grid.Row="11">Race Aliases</TextBlock>
-
-            <Expander Grid.Column="1" Grid.Row="11" Header="" ExpandDirection="Down" >
+            <TextBlock Grid.Column="0" Grid.Row="10">Race Aliases</TextBlock>
+            <Expander Grid.Column="1" Grid.Row="10" Header="" ExpandDirection="Down" >
                 <ItemsControl  ItemsSource="{Binding raceAliases, UpdateSourceTrigger=PropertyChanged}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type idcvm:VM_raceAlias}">
@@ -71,8 +71,18 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </Expander>
-            
-            <Button Grid.Column="1" Grid.Row="12" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" x:Name="Button_AddRaceAlias" Command="{Binding AddRaceAlias}">Add New</Button>
+            <Button Grid.Column="0" Grid.Row="10" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" x:Name="Button_AddRaceAlias" Command="{Binding AddRaceAlias}">Add New</Button>
+
+            <TextBlock Grid.Column="0" Grid.Row="11">Verbose Mode for Conflict NPCs</TextBlock>
+            <CheckBox Grid.Column="1" Grid.Row="11" IsChecked="{Binding Path=bVerboseModeAssetsNoncompliant, Mode=TwoWay}"></CheckBox>
+
+            <TextBlock Grid.Column="0" Grid.Row="12">Verbose Mode for All NPCs</TextBlock>
+            <CheckBox Grid.Column="1" Grid.Row="12" IsChecked="{Binding Path=bVerboseModeAssetsAll, Mode=TwoWay}"></CheckBox>
+
+            <TextBlock Grid.Column="0" Grid.Row="13">Verbose Mode for Specific NPCs</TextBlock>
+            <Expander Grid.Column="1" Grid.Row="13" Header="" ExpandDirection="Down" >
+                <plugins:FormKeyMultiPicker FormKeys="{Binding verboseModeNPClist}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys}" />
+            </Expander>
         </Grid>
     </ScrollViewer>
 </UserControl>
