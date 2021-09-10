@@ -5,11 +5,11 @@ using System.Text;
 using System.Threading.Tasks;
 using Mutagen.Bethesda.Plugins;
 
-namespace SynthEBD.Internal_Data_Classes
+namespace SynthEBD
 {
-    public class raceAlias
+    public class RaceAlias
     {
-        public raceAlias()
+        public RaceAlias()
         {
             this.race = new FormKey();
             this.aliasRace = new FormKey();

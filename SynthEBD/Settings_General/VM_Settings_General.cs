@@ -11,7 +11,7 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 
-namespace SynthEBD.Settings_General
+namespace SynthEBD
 {
     public class VM_Settings_General : INotifyPropertyChanged
     {
@@ -31,15 +31,15 @@ namespace SynthEBD.Settings_General
             this.verboseModeNPClist = new ObservableCollection<FormKey>();
             this.bLoadSettingsFromDataFolder = false;
             this.patchableRaces = new ObservableCollection<FormKey>();
-            this.raceAliases = new ObservableCollection<Internal_Data_Classes.ViewModels.VM_raceAlias>();
+            this.raceAliases = new ObservableCollection<VM_raceAlias>();
 
-            this.lk = new GUI_Aux.GameEnvironmentProvider().MyEnvironment.LinkCache;
+            this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
             this.NPCPickerFormKeys = typeof(INpcGetter).AsEnumerable();
 
             AddRaceAlias = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.raceAliases.Add(new Internal_Data_Classes.ViewModels.VM_raceAlias(new Internal_Data_Classes.raceAlias(), new GUI_Aux.GameEnvironmentProvider().MyEnvironment))
+                execute: _ => this.raceAliases.Add(new VM_raceAlias(new RaceAlias(), new GameEnvironmentProvider().MyEnvironment, this))
                 );
         }
 
@@ -60,14 +60,14 @@ namespace SynthEBD.Settings_General
 
         public ObservableCollection<FormKey> patchableRaces { get; set; }
 
-        public ObservableCollection<Internal_Data_Classes.ViewModels.VM_raceAlias> raceAliases { get; set;  }
+        public ObservableCollection<VM_raceAlias> raceAliases { get; set;  }
         public RelayCommand AddRaceAlias { get; }
 
         public ILinkCache lk { get; set; }
         public IEnumerable<Type> RacePickerFormKeys { get; set; }
         public IEnumerable<Type> NPCPickerFormKeys { get; set; }
 
-        public static void GetViewModelFromModel(VM_Settings_General viewModel, SynthEBD.Settings_General.Settings_General model)
+        public static void GetViewModelFromModel(VM_Settings_General viewModel, SynthEBD.Settings_General model)
         {
             viewModel.bShowToolTips = model.bShowToolTips;
             viewModel.bChangeMeshesOrTextures = model.bChangeMeshesOrTextures;
@@ -81,7 +81,7 @@ namespace SynthEBD.Settings_General
             viewModel.verboseModeNPClist = new ObservableCollection<FormKey>(model.verboseModeNPClist);
             viewModel.bLoadSettingsFromDataFolder = model.bLoadSettingsFromDataFolder;
             viewModel.patchableRaces = new ObservableCollection<FormKey>(model.patchableRaces);
-            viewModel.raceAliases = Internal_Data_Classes.ViewModels.VM_raceAlias.GetViewModelsFromModels(model.raceAliases, new GUI_Aux.GameEnvironmentProvider().MyEnvironment);
+            viewModel.raceAliases = VM_raceAlias.GetViewModelsFromModels(model.raceAliases, new GameEnvironmentProvider().MyEnvironment, viewModel);
         }
         public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
         {
@@ -101,7 +101,7 @@ namespace SynthEBD.Settings_General
             model.raceAliases.Clear();
             foreach (var x in viewModel.raceAliases)
             {
-                model.raceAliases.Add(Internal_Data_Classes.ViewModels.VM_raceAlias.DumpViewModelToModel(x));
+                model.raceAliases.Add(VM_raceAlias.DumpViewModelToModel(x));
             }
         }
     }

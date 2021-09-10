@@ -13,7 +13,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace SynthEBD.Internal_Data_Classes.Views
+namespace SynthEBD
 {
     /// <summary>
     /// Interaction logic for UC_RaceAlias.xaml

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SynthEBD.Settings_AssetPack
+namespace SynthEBD
 {
     class Settings_AssetPack
     {

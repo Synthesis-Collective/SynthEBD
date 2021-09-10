@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SynthEBD.Settings_BodyGen
+namespace SynthEBD
 {
     class VM_BodyGenSettings : INotifyPropertyChanged
     {

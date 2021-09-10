@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
 
-namespace SynthEBD.NavPanel
+namespace SynthEBD
 {
     class VM_NavPanel : INotifyPropertyChanged
     {
@@ -16,7 +16,7 @@ namespace SynthEBD.NavPanel
         public ICommand ClickH { get; }
         
 
-        public VM_NavPanel(MainWindow_ViewModel MWVM, Settings_General.VM_Settings_General SGVM, Settings_AssetPack.VM_AssetPackSettings APVM, Settings_BodyGen.VM_BodyGenSettings BGVM, Settings_Height.VM_HeightSettings HVM)
+        public VM_NavPanel(MainWindow_ViewModel MWVM, VM_Settings_General SGVM, VM_AssetPackSettings APVM, VM_BodyGenSettings BGVM, VM_HeightSettings HVM)
         {
             ClickSG = new SynthEBD.RelayCommand(
                 canExecute: _ => true,

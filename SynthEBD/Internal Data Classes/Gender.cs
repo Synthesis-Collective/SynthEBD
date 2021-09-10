@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SynthEBD.Internal_Data_Classes
+namespace SynthEBD
 {
     enum Gender
     {

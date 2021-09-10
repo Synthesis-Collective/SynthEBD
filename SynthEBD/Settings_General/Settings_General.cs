@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Mutagen.Bethesda.Plugins;
 
-namespace SynthEBD.Settings_General
+namespace SynthEBD
 {
     public class Settings_General
     {
@@ -23,7 +23,7 @@ namespace SynthEBD.Settings_General
             this.verboseModeNPClist = new List<FormKey>();
             this.bLoadSettingsFromDataFolder = false;
             this.patchableRaces = new List<FormKey>();
-            this.raceAliases = new List<Internal_Data_Classes.raceAlias>();
+            this.raceAliases = new List<RaceAlias>();
         }
 
         public bool bShowToolTips { get; set; }
@@ -43,6 +43,6 @@ namespace SynthEBD.Settings_General
 
         public List<FormKey> patchableRaces { get; set; } // enable FormKey (multi?) picker for this
 
-        public List<Internal_Data_Classes.raceAlias> raceAliases { get; set; }
+        public List<RaceAlias> raceAliases { get; set; }
     }
 }

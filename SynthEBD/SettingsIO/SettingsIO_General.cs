@@ -7,26 +7,26 @@ using System.IO;
 using System.Reflection;
 using Newtonsoft.Json;
 
-namespace SynthEBD.SettingsIO
+namespace SynthEBD
 {
     public class SettingsIO_General
     {
-        public static SynthEBD.Settings_General.Settings_General loadGeneralSettings()
+        public static SynthEBD.Settings_General loadGeneralSettings()
         {
-            Settings_General.Settings_General generalSettings = new Settings_General.Settings_General();
+            Settings_General generalSettings = new Settings_General();
 
             string loadLoc = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), "Settings\\GeneralSettings.json");
 
             if (File.Exists(loadLoc))
             {
                 string text = File.ReadAllText(loadLoc);
-                generalSettings = JsonConvert.DeserializeObject<Settings_General.Settings_General>(text);
+                generalSettings = JsonConvert.DeserializeObject<Settings_General>(text);
             }
 
             return generalSettings;
         }
 
-        public static void saveGeneralSettings(SynthEBD.Settings_General.Settings_General settings)
+        public static void saveGeneralSettings(SynthEBD.Settings_General settings)
         {
             string saveLoc = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), "Settings\\GeneralSettings.json");
 

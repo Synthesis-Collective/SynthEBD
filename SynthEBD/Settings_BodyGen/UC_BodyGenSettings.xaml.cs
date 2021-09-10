@@ -13,7 +13,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace SynthEBD.Settings_BodyGen
+namespace SynthEBD
 {
     /// <summary>
     /// Interaction logic for UC_BodyGenSettings.xaml

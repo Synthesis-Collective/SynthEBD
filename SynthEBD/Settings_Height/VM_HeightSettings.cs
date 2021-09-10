@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SynthEBD.Settings_Height
+namespace SynthEBD
 {
     class VM_HeightSettings : INotifyPropertyChanged
     {

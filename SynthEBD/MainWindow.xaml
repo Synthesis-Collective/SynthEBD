@@ -7,11 +7,6 @@
         xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         xmlns:local="clr-namespace:SynthEBD"
         d:DataContext="{local:MainWindow_ViewModel}"
-        xmlns:np ="clr-namespace:SynthEBD.NavPanel"
-        xmlns:sg ="clr-namespace:SynthEBD.Settings_General"
-        xmlns:sap ="clr-namespace:SynthEBD.Settings_AssetPack"
-        xmlns:sbg ="clr-namespace:SynthEBD.Settings_BodyGen"
-        xmlns:sh ="clr-namespace:SynthEBD.Settings_Height"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
 
@@ -28,25 +23,25 @@
 
         <ContentPresenter Content="{Binding NavViewModel}" Grid.Column="1" Margin="0, 0, 10, 0">
             <ContentPresenter.Resources>
-                <DataTemplate DataType="{x:Type np:VM_NavPanel}">
-                    <np:UC_NavPanel/>
+                <DataTemplate DataType="{x:Type local:VM_NavPanel}">
+                    <local:UC_NavPanel/>
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>
 
         <ContentPresenter Content="{Binding DisplayedViewModel}" Grid.Column="3" Margin="10, 0, 0, 0">
             <ContentPresenter.Resources>
-                <DataTemplate DataType="{x:Type sg:VM_Settings_General}">
-                    <sg:UC_Settings_General/>
+                <DataTemplate DataType="{x:Type local:VM_Settings_General}">
+                    <local:UC_Settings_General/>
                 </DataTemplate>
-                <DataTemplate DataType="{x:Type sap:VM_AssetPackSettings}">
-                    <sap:UC_AssetPackSettings/>
+                <DataTemplate DataType="{x:Type local:VM_AssetPackSettings}">
+                    <local:UC_AssetPackSettings/>
                 </DataTemplate>
-                <DataTemplate DataType="{x:Type sbg:VM_BodyGenSettings}">
-                    <sbg:UC_BodyGenSettings/>
+                <DataTemplate DataType="{x:Type local:VM_BodyGenSettings}">
+                    <local:UC_BodyGenSettings/>
                 </DataTemplate>
-                <DataTemplate DataType="{x:Type sh:VM_HeightSettings}">
-                    <sh:UC_HeightSettings/>
+                <DataTemplate DataType="{x:Type local:VM_HeightSettings}">
+                    <local:UC_HeightSettings/>
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>

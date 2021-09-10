@@ -11,11 +11,11 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 
-namespace SynthEBD.Internal_Data_Classes.ViewModels
+namespace SynthEBD
 {
     public class VM_raceAlias : INotifyPropertyChanged
     {
-        public VM_raceAlias(raceAlias alias, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env)
+        public VM_raceAlias(RaceAlias alias, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env, VM_Settings_General parentVM)
         {
             this.race = alias.race;
             this.aliasRace = alias.aliasRace;
@@ -26,6 +26,8 @@ namespace SynthEBD.Internal_Data_Classes.ViewModels
             this.bApplyToHeight = alias.bApplyToHeight;
             this.FormKeyPickerTypes = typeof(IRaceGetter).AsEnumerable();
             this.lk = env.LinkCache;
+
+            DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.raceAliases.Remove(this));
         }
 
         public FormKey race { get; set; }
@@ -41,24 +43,28 @@ namespace SynthEBD.Internal_Data_Classes.ViewModels
 
         public ILinkCache lk { get; set; }
 
+        public VM_Settings_General ParentVM { get; set; }
+
+        public RelayCommand DeleteCommand { get; }
+
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static ObservableCollection<VM_raceAlias> GetViewModelsFromModels(List<raceAlias> models, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env)
+        public static ObservableCollection<VM_raceAlias> GetViewModelsFromModels(List<RaceAlias> models, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env, VM_Settings_General parentVM)
         {
             var RAVM = new ObservableCollection<VM_raceAlias>();
 
             foreach (var x in models)
             {
-                var y = new VM_raceAlias(x, env);
+                var y = new VM_raceAlias(x, env, parentVM);
                 RAVM.Add(y);
             }
 
             return RAVM;
         }
 
-        public static raceAlias DumpViewModelToModel(VM_raceAlias viewModel)
+        public static RaceAlias DumpViewModelToModel(VM_raceAlias viewModel)
         {
-            raceAlias model = new raceAlias();
+            RaceAlias model = new RaceAlias();
             model.race = viewModel.race;
             model.aliasRace = viewModel.aliasRace;
             model.bMale = viewModel.bMale;

@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Mutagen.Bethesda.Plugins;
 
-namespace SynthEBD.Internal_Data_Classes
+namespace SynthEBD
 {
     class AssetPack
     {
