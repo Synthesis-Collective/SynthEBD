@@ -26,6 +26,7 @@ namespace SynthEBD
         public object DisplayedViewModel { get; set; }
         public object NavViewModel { get; set; }
 
+        public HashSet<AssetPack> assetPacks { get; }
 
         public Settings_General generalSettings { get; }
 
@@ -38,11 +39,14 @@ namespace SynthEBD
 
             NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, APVM, BGVM, HVM);
 
-            // Start on the settings VM
-            
+            // Load general settings
             generalSettings = SettingsIO_General.loadGeneralSettings();
             VM_Settings_General.GetViewModelFromModel(SGVM, generalSettings);
 
+            // load asset packs
+            assetPacks = SettingsIO_AssetPack.loadAssetPacks(generalSettings.RaceGroupings);
+
+            // Start on the settings VM
             DisplayedViewModel = SGVM;
             NavViewModel = NavPanel;
 

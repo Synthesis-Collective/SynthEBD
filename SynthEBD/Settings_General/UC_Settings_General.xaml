@@ -28,6 +28,8 @@
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
             <TextBlock Grid.Column="0" Grid.Row="0">General Settings</TextBlock>
 
@@ -72,14 +74,26 @@
             </Expander>
             <Button Grid.Column="0" Grid.Row="10" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" x:Name="Button_AddRaceAlias" Command="{Binding AddRaceAlias}">Add New</Button>
 
-            <TextBlock Grid.Column="0" Grid.Row="11">Verbose Mode for Conflict NPCs</TextBlock>
-            <CheckBox Grid.Column="1" Grid.Row="11" IsChecked="{Binding Path=bVerboseModeAssetsNoncompliant, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="11">Race Groupings</TextBlock>
+            <Expander Grid.Column="1" Grid.Row="11" Header="" ExpandDirection="Down" >
+                <ItemsControl  ItemsSource="{Binding RaceGroupings, UpdateSourceTrigger=PropertyChanged}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type local:VM_RaceGrouping}">
+                            <local:UC_RaceGrouping Background="Black" Margin="0 0 0 10"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Expander>
+            <Button Grid.Column="0" Grid.Row="11" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" x:Name="Button_AddRaceGrouping" Command="{Binding AddRaceGrouping}">Add New</Button>
 
-            <TextBlock Grid.Column="0" Grid.Row="12">Verbose Mode for All NPCs</TextBlock>
-            <CheckBox Grid.Column="1" Grid.Row="12" IsChecked="{Binding Path=bVerboseModeAssetsAll, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="12">Verbose Mode for Conflict NPCs</TextBlock>
+            <CheckBox Grid.Column="1" Grid.Row="12" IsChecked="{Binding Path=bVerboseModeAssetsNoncompliant, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="13">Verbose Mode for Specific NPCs</TextBlock>
-            <Expander Grid.Column="1" Grid.Row="13" Header="" ExpandDirection="Down" >
+            <TextBlock Grid.Column="0" Grid.Row="13">Verbose Mode for All NPCs</TextBlock>
+            <CheckBox Grid.Column="1" Grid.Row="13" IsChecked="{Binding Path=bVerboseModeAssetsAll, Mode=TwoWay}"></CheckBox>
+
+            <TextBlock Grid.Column="0" Grid.Row="14">Verbose Mode for Specific NPCs</TextBlock>
+            <Expander Grid.Column="1" Grid.Row="14" Header="" ExpandDirection="Down" >
                 <plugins:FormKeyMultiPicker FormKeys="{Binding verboseModeNPClist}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys}" />
             </Expander>
         </Grid>

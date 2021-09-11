@@ -24,6 +24,7 @@ namespace SynthEBD
             this.bLoadSettingsFromDataFolder = false;
             this.patchableRaces = new List<FormKey>();
             this.raceAliases = new List<RaceAlias>();
+            this.RaceGroupings = new List<RaceGrouping>();
         }
 
         public bool bShowToolTips { get; set; }
@@ -44,5 +45,7 @@ namespace SynthEBD
         public List<FormKey> patchableRaces { get; set; } // enable FormKey (multi?) picker for this
 
         public List<RaceAlias> raceAliases { get; set; }
+
+        public List<RaceGrouping> RaceGroupings { get; set; }
     }
 }

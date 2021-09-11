@@ -32,6 +32,7 @@ namespace SynthEBD
             this.bLoadSettingsFromDataFolder = false;
             this.patchableRaces = new ObservableCollection<FormKey>();
             this.raceAliases = new ObservableCollection<VM_raceAlias>();
+            this.RaceGroupings = new ObservableCollection<VM_RaceGrouping>();
 
             this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
@@ -40,6 +41,11 @@ namespace SynthEBD
             AddRaceAlias = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => this.raceAliases.Add(new VM_raceAlias(new RaceAlias(), new GameEnvironmentProvider().MyEnvironment, this))
+                );
+
+            AddRaceGrouping = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.RaceGroupings.Add(new VM_RaceGrouping(new RaceGrouping(), new GameEnvironmentProvider().MyEnvironment, this))
                 );
         }
 
@@ -67,6 +73,9 @@ namespace SynthEBD
         public IEnumerable<Type> RacePickerFormKeys { get; set; }
         public IEnumerable<Type> NPCPickerFormKeys { get; set; }
 
+        public ObservableCollection<VM_RaceGrouping> RaceGroupings { get; set; }
+        public RelayCommand AddRaceGrouping { get; }
+
         public static void GetViewModelFromModel(VM_Settings_General viewModel, SynthEBD.Settings_General model)
         {
             viewModel.bShowToolTips = model.bShowToolTips;
@@ -82,6 +91,7 @@ namespace SynthEBD
             viewModel.bLoadSettingsFromDataFolder = model.bLoadSettingsFromDataFolder;
             viewModel.patchableRaces = new ObservableCollection<FormKey>(model.patchableRaces);
             viewModel.raceAliases = VM_raceAlias.GetViewModelsFromModels(model.raceAliases, new GameEnvironmentProvider().MyEnvironment, viewModel);
+            viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, new GameEnvironmentProvider().MyEnvironment, viewModel);
         }
         public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
         {
@@ -102,6 +112,12 @@ namespace SynthEBD
             foreach (var x in viewModel.raceAliases)
             {
                 model.raceAliases.Add(VM_raceAlias.DumpViewModelToModel(x));
+            }
+
+            model.RaceGroupings.Clear();
+            foreach (var x in viewModel.RaceGroupings)
+            {
+                model.RaceGroupings.Add(VM_RaceGrouping.DumpViewModelToModel(x));
             }
         }
     }

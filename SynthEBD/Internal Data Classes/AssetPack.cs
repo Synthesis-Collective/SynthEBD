@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -32,44 +33,228 @@ namespace SynthEBD
                 this.name = "";
                 this.enabled = true;
                 this.distributionEnabled = true;
-                this.allowedRaces = new HashSet<FormKey>();
-                this.disallowedRaces = new HashSet<FormKey>();
-                this.allowedAttributes = new HashSet<string[]>();
-                this.disallowedAttributes = new HashSet<string[]>();
-                this.forceIfAttributes = new HashSet<string[]>();
+                this.allowedRaces = new ObservableCollection<FormKey>();
+                this.allowedRaceGroupings = new ObservableCollection<RaceGrouping>();
+                this.disallowedRaces = new ObservableCollection<FormKey>();
+                this.disallowedRaceGroupings = new ObservableCollection<RaceGrouping>();
+                this.allowedAttributes = new ObservableCollection<string[]>();
+                this.disallowedAttributes = new ObservableCollection<string[]>();
+                this.forceIfAttributes = new ObservableCollection<string[]>();
                 this.bAllowUnique = true;
                 this.bAllowNonUnique = true;
-                this.requiredSubgroups = new HashSet<string>();
-                this.excludedSubgroups = new HashSet<string>();
-                this.addKeywords = new HashSet<string>();
+                this.requiredSubgroups = new ObservableCollection<string>();
+                this.excludedSubgroups = new ObservableCollection<string>();
+                this.addKeywords = new ObservableCollection<string>();
                 this.probabilityWeighting = 1;
-                this.paths = new string[] { "", "" };
-                this.allowedBodyGenDescriptors = new HashSet<string>();
-                this.disallowedBodyGenDescriptors = new HashSet<string>();
-                this.weightRange = new string[] { null, null };
-                this.subgroups = new HashSet<Subgroup>();
+                this.paths = new ObservableCollection<string[]>();
+                this.allowedBodyGenDescriptors = new ObservableCollection<string>();
+                this.disallowedBodyGenDescriptors = new ObservableCollection<string>();
+                this.weightRange = new int[2];
+                this.subgroups = new ObservableCollection<Subgroup>();
             }
             
             public string id { get; set; }
             public string name { get; set; }
             public bool enabled { get; set; }
             public bool distributionEnabled { get; set; }
-            public HashSet<FormKey> allowedRaces { get; set; } // consider converting to generic to allow for both Mutagen races and defined collections
-            public HashSet<FormKey> disallowedRaces { get; set; } // same as above
-            public HashSet<string[]> allowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
-            public HashSet<string[]> disallowedAttributes { get; set; } 
-            public HashSet<string[]> forceIfAttributes { get; set; }
+            public ObservableCollection<FormKey> allowedRaces { get; set; }
+            public ObservableCollection<RaceGrouping> allowedRaceGroupings { get; set; }
+            public ObservableCollection<FormKey> disallowedRaces { get; set; }
+            public ObservableCollection<RaceGrouping> disallowedRaceGroupings { get; set; }
+            public ObservableCollection<string[]> allowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
+            public ObservableCollection<string[]> disallowedAttributes { get; set; } 
+            public ObservableCollection<string[]> forceIfAttributes { get; set; }
             public bool bAllowUnique { get; set; }
             public bool bAllowNonUnique { get; set; }
-            public HashSet<string> requiredSubgroups { get; set; }
-            public HashSet<string> excludedSubgroups { get; set; }
-            public HashSet<string> addKeywords { get; set; }
+            public ObservableCollection<string> requiredSubgroups { get; set; }
+            public ObservableCollection<string> excludedSubgroups { get; set; }
+            public ObservableCollection<string> addKeywords { get; set; }
             public int probabilityWeighting { get; set; }
-            public string[] paths { get; set; }
-            public HashSet<string> allowedBodyGenDescriptors { get; set; }
-            public HashSet<string> disallowedBodyGenDescriptors { get; set; }
+            public ObservableCollection<string[]> paths { get; set; }
+            public ObservableCollection<string> allowedBodyGenDescriptors { get; set; }
+            public ObservableCollection<string> disallowedBodyGenDescriptors { get; set; }
+            public int[] weightRange { get; set; }
+            public ObservableCollection<Subgroup> subgroups { get; set; }
+        }
+    }
+
+    // Backward compatibility classes for loading zEBD settings files and converting to synthEBD
+    class ZEBDAssetPack
+    {
+        public ZEBDAssetPack()
+        {
+            this.groupName = "";
+            this.gender = Gender.male;
+            this.displayAlerts = true;
+            this.userAlert = "";
+            this.subgroups = new HashSet<ZEBDSubgroup>();
+        }
+
+        public string groupName { get; set; }
+        public Gender gender { get; set; }
+        public bool displayAlerts { get; set; }
+        public string userAlert { get; set; }
+        public HashSet<ZEBDSubgroup> subgroups { get; set; }
+
+        public class ZEBDSubgroup
+        {
+            public ZEBDSubgroup()
+            {
+                this.id = "";
+                this.name = "";
+                this.enabled = true;
+                this.distributionEnabled = true;
+                this.allowedRaces = new List<string>();
+                this.allowedRaceGroupings = new List<RaceGrouping>();
+                this.disallowedRaces = new List<string>();
+                this.disallowedRaceGroupings = new List<RaceGrouping>();
+                this.allowedAttributes = new List<string[]>();
+                this.disallowedAttributes = new List<string[]>();
+                this.forceIfAttributes = new List<string[]>();
+                this.bAllowUnique = true;
+                this.bAllowNonUnique = true;
+                this.requiredSubgroups = new List<string>();
+                this.excludedSubgroups = new List<string>();
+                this.addKeywords = new List<string>();
+                this.probabilityWeighting = 1;
+                this.paths = new List<string[]>();
+                this.allowedBodyGenDescriptors = new List<string>();
+                this.disallowedBodyGenDescriptors = new List<string>();
+                this.weightRange = new string[] { null, null };
+                this.subgroups = new List<ZEBDSubgroup>();
+            }
+
+            public string id { get; set; }
+            public string name { get; set; }
+            public bool enabled { get; set; }
+            public bool distributionEnabled { get; set; }
+            public List<string> allowedRaces { get; set; } 
+            public List<RaceGrouping> allowedRaceGroupings { get; set; }
+            public List<RaceGrouping> disallowedRaceGroupings { get; set; }
+            public List<string> disallowedRaces { get; set; } 
+            public List<string[]> allowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
+            public List<string[]> disallowedAttributes { get; set; }
+            public List<string[]> forceIfAttributes { get; set; }
+            public bool bAllowUnique { get; set; }
+            public bool bAllowNonUnique { get; set; }
+            public List<string> requiredSubgroups { get; set; }
+            public List<string> excludedSubgroups { get; set; }
+            public List<string> addKeywords { get; set; }
+            public int probabilityWeighting { get; set; }
+            public List<string[]> paths { get; set; }
+            public List<string> allowedBodyGenDescriptors { get; set; }
+            public List<string> disallowedBodyGenDescriptors { get; set; }
             public string[] weightRange { get; set; }
-            public HashSet<Subgroup> subgroups { get; set; }
+            public List<ZEBDSubgroup> subgroups { get; set; }
+
+            public string hashKey {get; set;}
+
+            public static AssetPack.Subgroup ToSynthEBDSubgroup(ZEBDSubgroup g, List<RaceGrouping> raceGroupings)
+            {
+                AssetPack.Subgroup s = new AssetPack.Subgroup();
+
+                s.id = g.id;
+                s.name = g.name;
+                s.enabled = g.enabled;
+                s.distributionEnabled = g.distributionEnabled;
+                s.allowedAttributes = new ObservableCollection<string[]>(g.allowedAttributes);
+                s.disallowedAttributes = new ObservableCollection<string[]>(g.disallowedAttributes);
+                s.forceIfAttributes = new ObservableCollection<string[]>(g.forceIfAttributes);
+                s.bAllowUnique = g.bAllowUnique;
+                s.bAllowNonUnique = g.bAllowNonUnique;
+                s.requiredSubgroups = new ObservableCollection<string>(g.requiredSubgroups);
+                s.excludedSubgroups = new ObservableCollection<string>(g.excludedSubgroups);
+                s.addKeywords = new ObservableCollection<string>(g.addKeywords);
+                s.probabilityWeighting = g.probabilityWeighting;
+                s.paths = new ObservableCollection<string[]>(g.paths);
+                s.weightRange = new int[] { 0, 100 };
+                int.TryParse(g.weightRange[0], out s.weightRange[0]);
+                if (!int.TryParse(g.weightRange[1], out s.weightRange[1]))
+                {
+                    s.weightRange[1] = 100;
+                }
+
+                foreach (string id in g.allowedRaces)
+                {
+                    // first see if it belongs to a RaceGrouping
+                    foreach (var group in raceGroupings)
+                    {
+                        if (group.Label == id)
+                        {
+                            s.allowedRaceGroupings.Add(group);
+                        }
+                    }
+
+                    // if not, see if it is a race EditorID
+                    FormKey raceFormKey = RaceEDID2FormKey(id);
+                    if (raceFormKey.IsNull == false)
+                    {
+                        s.allowedRaces.Add(raceFormKey);
+                    }
+                }
+
+                foreach (string id in g.disallowedRaces)
+                {
+                    // first see if it belongs to a RaceGrouping
+                    foreach (var group in raceGroupings)
+                    {
+                        if (group.Label == id)
+                        {
+                            s.disallowedRaceGroupings.Add(group);
+                        }
+                    }
+
+                    // if not, see if it is a race EditorID
+                    FormKey raceFormKey = RaceEDID2FormKey(id);
+                    if (raceFormKey.IsNull == false)
+                    {
+                        s.disallowedRaces.Add(raceFormKey);
+                    }
+                }
+
+                foreach (var sg in g.subgroups)
+                {
+                    s.subgroups.Add(ToSynthEBDSubgroup(sg, raceGroupings));
+                }
+
+                return s;
+            }
+
+            public static FormKey RaceEDID2FormKey(string EDID)
+            {
+                var env = new GameEnvironmentProvider().MyEnvironment;
+
+                foreach (var plugin in env.LoadOrder.ListedOrder)
+                {
+                    if (plugin.Mod != null && plugin.Mod.Races != null)
+                    {
+                        foreach (var race in plugin.Mod.Races)
+                        {
+                            if (race.EditorID.ToLower() == EDID.ToLower())
+                            {
+                                return race.FormKey;
+                            }
+                        }
+                    }
+                }
+
+                return new FormKey();
+            }
+        }
+
+        public static AssetPack ToSynthEBDAssetPack(ZEBDAssetPack z, List<RaceGrouping> raceGroupings)
+        {
+            AssetPack s = new AssetPack();
+            s.groupName = z.groupName;
+            s.gender = z.gender;
+            s.displayAlerts = z.displayAlerts;
+            s.userAlert = z.userAlert;
+            foreach (ZEBDAssetPack.ZEBDSubgroup sg in z.subgroups)
+            {
+                s.subgroups.Add(ZEBDAssetPack.ZEBDSubgroup.ToSynthEBDSubgroup(sg, raceGroupings));
+            }
+
+            return s;
         }
     }
 }
