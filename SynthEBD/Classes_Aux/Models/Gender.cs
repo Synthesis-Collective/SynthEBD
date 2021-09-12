@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
-    enum Gender
+    public enum Gender
     {
         male,
         female

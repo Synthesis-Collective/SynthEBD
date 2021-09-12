@@ -11,9 +11,24 @@ namespace SynthEBD
 {
     class SettingsIO_AssetPack
     {
-        public static HashSet<SynthEBD.AssetPack> loadAssetPacks(List<RaceGrouping> raceGroupings)
+        public static Settings_TexMesh LoadTexMeshSettings()
         {
-            HashSet<SynthEBD.AssetPack> loadedPacks = new HashSet<SynthEBD.AssetPack>();
+            Settings_TexMesh generalSettings = new Settings_TexMesh();
+
+            string loadLoc = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), "Settings\\TexMeshSettings.json");
+
+            if (File.Exists(loadLoc))
+            {
+                string text = File.ReadAllText(loadLoc);
+                generalSettings = JsonConvert.DeserializeObject<Settings_TexMesh>(text);
+            }
+
+            return generalSettings;
+        }
+
+        public static List<SynthEBD.AssetPack> loadAssetPacks(List<RaceGrouping> raceGroupings, List<string> paths)
+        {
+            List<SynthEBD.AssetPack> loadedPacks = new List<SynthEBD.AssetPack>();
 
             string loadLoc = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), "Asset Packs");
 
@@ -43,6 +58,7 @@ namespace SynthEBD
                 }
 
                 loadedPacks.Add(synthEBDconfig);
+                paths.Add(s);
             }
 
             return loadedPacks;

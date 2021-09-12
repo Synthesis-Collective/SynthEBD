@@ -8,7 +8,7 @@ using Mutagen.Bethesda.Plugins;
 
 namespace SynthEBD
 {
-    class AssetPack
+    public class AssetPack
     {
         public AssetPack()
         {
@@ -33,48 +33,48 @@ namespace SynthEBD
                 this.name = "";
                 this.enabled = true;
                 this.distributionEnabled = true;
-                this.allowedRaces = new ObservableCollection<FormKey>();
-                this.allowedRaceGroupings = new ObservableCollection<RaceGrouping>();
-                this.disallowedRaces = new ObservableCollection<FormKey>();
-                this.disallowedRaceGroupings = new ObservableCollection<RaceGrouping>();
-                this.allowedAttributes = new ObservableCollection<string[]>();
-                this.disallowedAttributes = new ObservableCollection<string[]>();
-                this.forceIfAttributes = new ObservableCollection<string[]>();
+                this.allowedRaces = new HashSet<FormKey>();
+                this.allowedRaceGroupings = new HashSet<RaceGrouping>();
+                this.disallowedRaces = new HashSet<FormKey>();
+                this.disallowedRaceGroupings = new HashSet<RaceGrouping>();
+                this.allowedAttributes = new HashSet<string[]>();
+                this.disallowedAttributes = new HashSet<string[]>();
+                this.forceIfAttributes = new HashSet<string[]>();
                 this.bAllowUnique = true;
                 this.bAllowNonUnique = true;
-                this.requiredSubgroups = new ObservableCollection<string>();
-                this.excludedSubgroups = new ObservableCollection<string>();
-                this.addKeywords = new ObservableCollection<string>();
+                this.requiredSubgroups = new HashSet<string>();
+                this.excludedSubgroups = new HashSet<string>();
+                this.addKeywords = new HashSet<string>();
                 this.probabilityWeighting = 1;
-                this.paths = new ObservableCollection<string[]>();
-                this.allowedBodyGenDescriptors = new ObservableCollection<string>();
-                this.disallowedBodyGenDescriptors = new ObservableCollection<string>();
+                this.paths = new HashSet<string[]>();
+                this.allowedBodyGenDescriptors = new HashSet<string>();
+                this.disallowedBodyGenDescriptors = new HashSet<string>();
                 this.weightRange = new int[2];
-                this.subgroups = new ObservableCollection<Subgroup>();
+                this.subgroups = new HashSet<Subgroup>();
             }
             
             public string id { get; set; }
             public string name { get; set; }
             public bool enabled { get; set; }
             public bool distributionEnabled { get; set; }
-            public ObservableCollection<FormKey> allowedRaces { get; set; }
-            public ObservableCollection<RaceGrouping> allowedRaceGroupings { get; set; }
-            public ObservableCollection<FormKey> disallowedRaces { get; set; }
-            public ObservableCollection<RaceGrouping> disallowedRaceGroupings { get; set; }
-            public ObservableCollection<string[]> allowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
-            public ObservableCollection<string[]> disallowedAttributes { get; set; } 
-            public ObservableCollection<string[]> forceIfAttributes { get; set; }
+            public HashSet<FormKey> allowedRaces { get; set; }
+            public HashSet<RaceGrouping> allowedRaceGroupings { get; set; }
+            public HashSet<FormKey> disallowedRaces { get; set; }
+            public HashSet<RaceGrouping> disallowedRaceGroupings { get; set; }
+            public HashSet<string[]> allowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
+            public HashSet<string[]> disallowedAttributes { get; set; } 
+            public HashSet<string[]> forceIfAttributes { get; set; }
             public bool bAllowUnique { get; set; }
             public bool bAllowNonUnique { get; set; }
-            public ObservableCollection<string> requiredSubgroups { get; set; }
-            public ObservableCollection<string> excludedSubgroups { get; set; }
-            public ObservableCollection<string> addKeywords { get; set; }
+            public HashSet<string> requiredSubgroups { get; set; }
+            public HashSet<string> excludedSubgroups { get; set; }
+            public HashSet<string> addKeywords { get; set; }
             public int probabilityWeighting { get; set; }
-            public ObservableCollection<string[]> paths { get; set; }
-            public ObservableCollection<string> allowedBodyGenDescriptors { get; set; }
-            public ObservableCollection<string> disallowedBodyGenDescriptors { get; set; }
+            public HashSet<string[]> paths { get; set; }
+            public HashSet<string> allowedBodyGenDescriptors { get; set; }
+            public HashSet<string> disallowedBodyGenDescriptors { get; set; }
             public int[] weightRange { get; set; }
-            public ObservableCollection<Subgroup> subgroups { get; set; }
+            public HashSet<Subgroup> subgroups { get; set; }
         }
     }
 
@@ -157,16 +157,16 @@ namespace SynthEBD
                 s.name = g.name;
                 s.enabled = g.enabled;
                 s.distributionEnabled = g.distributionEnabled;
-                s.allowedAttributes = new ObservableCollection<string[]>(g.allowedAttributes);
-                s.disallowedAttributes = new ObservableCollection<string[]>(g.disallowedAttributes);
-                s.forceIfAttributes = new ObservableCollection<string[]>(g.forceIfAttributes);
+                s.allowedAttributes = new HashSet<string[]>(g.allowedAttributes);
+                s.disallowedAttributes = new HashSet<string[]>(g.disallowedAttributes);
+                s.forceIfAttributes = new HashSet<string[]>(g.forceIfAttributes);
                 s.bAllowUnique = g.bAllowUnique;
                 s.bAllowNonUnique = g.bAllowNonUnique;
-                s.requiredSubgroups = new ObservableCollection<string>(g.requiredSubgroups);
-                s.excludedSubgroups = new ObservableCollection<string>(g.excludedSubgroups);
-                s.addKeywords = new ObservableCollection<string>(g.addKeywords);
+                s.requiredSubgroups = new HashSet<string>(g.requiredSubgroups);
+                s.excludedSubgroups = new HashSet<string>(g.excludedSubgroups);
+                s.addKeywords = new HashSet<string>(g.addKeywords);
                 s.probabilityWeighting = g.probabilityWeighting;
-                s.paths = new ObservableCollection<string[]>(g.paths);
+                s.paths = new HashSet<string[]>(g.paths);
                 s.weightRange = new int[] { 0, 100 };
                 int.TryParse(g.weightRange[0], out s.weightRange[0]);
                 if (!int.TryParse(g.weightRange[1], out s.weightRange[1]))

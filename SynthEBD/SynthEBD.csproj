@@ -17,4 +17,10 @@
     <PackageReference Include="PropertyChanged.Fody" Version="3.4.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Page Update="Settings_TexMesh\UC_SettingsTexMesh.xaml">
+      <XamlRuntime>$(DefaultXamlRuntime)</XamlRuntime>
+    </Page>
+  </ItemGroup>
+
 </Project>

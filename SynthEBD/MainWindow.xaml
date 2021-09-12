@@ -34,8 +34,8 @@
                 <DataTemplate DataType="{x:Type local:VM_Settings_General}">
                     <local:UC_Settings_General/>
                 </DataTemplate>
-                <DataTemplate DataType="{x:Type local:VM_AssetPackSettings}">
-                    <local:UC_AssetPackSettings/>
+                <DataTemplate DataType="{x:Type local:VM_SettingsTexMesh}">
+                    <local:UC_SettingsTexMesh/>
                 </DataTemplate>
                 <DataTemplate DataType="{x:Type local:VM_BodyGenSettings}">
                     <local:UC_BodyGenSettings/>

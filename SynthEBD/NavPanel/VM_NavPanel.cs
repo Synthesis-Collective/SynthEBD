@@ -16,7 +16,7 @@ namespace SynthEBD
         public ICommand ClickH { get; }
         
 
-        public VM_NavPanel(MainWindow_ViewModel MWVM, VM_Settings_General SGVM, VM_AssetPackSettings APVM, VM_BodyGenSettings BGVM, VM_HeightSettings HVM)
+        public VM_NavPanel(MainWindow_ViewModel MWVM, VM_Settings_General SGVM, VM_SettingsTexMesh TMVM, VM_BodyGenSettings BGVM, VM_HeightSettings HVM)
         {
             ClickSG = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -25,7 +25,7 @@ namespace SynthEBD
 
             ClickTM = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => MWVM.DisplayedViewModel = APVM
+                execute: _ => MWVM.DisplayedViewModel = TMVM
                 ) ;
             ClickBG = new SynthEBD.RelayCommand(
                 canExecute: _ => true,

@@ -25,14 +25,5 @@ namespace SynthEBD
 
             return generalSettings;
         }
-
-        public static void saveGeneralSettings(SynthEBD.Settings_General settings)
-        {
-            string saveLoc = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), "Settings\\GeneralSettings.json");
-
-            string json = JsonConvert.SerializeObject(settings, Formatting.Indented);
-
-            File.WriteAllText(saveLoc, json);
-        }
     }
 }

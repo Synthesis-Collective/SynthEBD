@@ -17,7 +17,7 @@ namespace SynthEBD
     {
         public GameEnvironmentProvider GameEnvironmentProvider { get; }
         public VM_Settings_General SGVM { get; } = new();
-        public VM_AssetPackSettings APVM { get; } = new();
+        public VM_SettingsTexMesh TMVM { get; } = new();
         public VM_BodyGenSettings BGVM { get; } = new();
         public VM_HeightSettings HVM { get; } = new();
 
@@ -26,9 +26,10 @@ namespace SynthEBD
         public object DisplayedViewModel { get; set; }
         public object NavViewModel { get; set; }
 
-        public HashSet<AssetPack> assetPacks { get; }
+        public List<AssetPack> assetPacks { get; }
 
         public Settings_General generalSettings { get; }
+        public Settings_TexMesh texMeshSettings { get; }
 
         public MainWindow_ViewModel()
         {
@@ -37,14 +38,21 @@ namespace SynthEBD
             var LinkCache = env.LinkCache;
             var LoadOrder = env.LoadOrder;
 
-            NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, APVM, BGVM, HVM);
+            NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, HVM);
 
             // Load general settings
             generalSettings = SettingsIO_General.loadGeneralSettings();
             VM_Settings_General.GetViewModelFromModel(SGVM, generalSettings);
 
+            // Load texture and mesh settings
+            texMeshSettings = SettingsIO_AssetPack.LoadTexMeshSettings();
+            VM_SettingsTexMesh.GetViewModelFromModel(TMVM, texMeshSettings);
+
             // load asset packs
-            assetPacks = SettingsIO_AssetPack.loadAssetPacks(generalSettings.RaceGroupings);
+            List<string> assetPackPaths = new List<string>();
+            assetPacks = SettingsIO_AssetPack.loadAssetPacks(generalSettings.RaceGroupings, assetPackPaths); // load asset pack models from json
+            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(assetPacks, assetPackPaths); // add asset pack view models to TexMesh shell view model here
+
 
             // Start on the settings VM
             DisplayedViewModel = SGVM;
@@ -56,7 +64,10 @@ namespace SynthEBD
         void MainWindow_Closing(object sender, CancelEventArgs e)
         {
             VM_Settings_General.DumpViewModelToModel(SGVM, generalSettings);
-            SettingsIO_General.saveGeneralSettings(generalSettings);
+            SerializeToJSON<Settings_General>.SaveJSONFile(generalSettings, "Settings\\GeneralSettings.json");
+
+            VM_SettingsTexMesh.DumpViewModelToModel(TMVM, texMeshSettings);
+            SerializeToJSON<Settings_General>.SaveJSONFile(generalSettings, "Settings\\TexMeshSettings.json");
         }
 
 
