@@ -49,9 +49,39 @@
         <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Allowed Races</TextBlock>
         <plugins:FormKeyMultiPicker Grid.Row="7" Grid.Column="1" MinWidth="150" FormKeys="{Binding allowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
         
-        <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Allowed Race Groupings</TextBlock>
-        <StackPanel Grid.Row="8" Grid.Column="1" MinWidth="150">
-            <ComboBox Grid.Row="8" Grid.Column="1" Name="ARGComboBox" ItemsSource="{Binding Path=allowedRaceGroupings}" />
-        </StackPanel>
+        <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0">Allowed Race Groupings</TextBlock>
+        <ContentPresenter Grid.Row="8" Grid.Column="1"  Content="{Binding AllowedRaceGroupings}">
+            <ContentPresenter.Resources>
+                <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
+                    <local:UC_RaceGroupingCheckboxList Background="Black" Margin="0 0 0 10"/>
+                </DataTemplate>
+            </ContentPresenter.Resources>
+        </ContentPresenter>
+        <!--
+        <ListBox Grid.Row="8" Grid.Column="1" MinWidth="150" ItemsSource="{Binding allowedRaceGroupings}">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <ComboBox ItemsSource="{Binding Path=RaceGroupingList}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Label}"></TextBlock>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        -->
+
+        <!--
+        <ComboBox Grid.Row="8" Grid.Column="1" ItemsSource="{Binding Path=RaceGroupingList}">
+            <ComboBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding Label}"></TextBlock>
+                </DataTemplate>
+            </ComboBox.ItemTemplate>
+        </ComboBox>
+        -->
+        
     </Grid>
 </UserControl>

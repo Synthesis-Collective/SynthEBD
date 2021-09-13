@@ -34,7 +34,7 @@ namespace SynthEBD
                 this.enabled = true;
                 this.distributionEnabled = true;
                 this.allowedRaces = new HashSet<FormKey>();
-                this.allowedRaceGroupings = new HashSet<RaceGrouping>();
+                this.allowedRaceGroupings = new HashSet<string>();
                 this.disallowedRaces = new HashSet<FormKey>();
                 this.disallowedRaceGroupings = new HashSet<RaceGrouping>();
                 this.allowedAttributes = new HashSet<string[]>();
@@ -58,7 +58,7 @@ namespace SynthEBD
             public bool enabled { get; set; }
             public bool distributionEnabled { get; set; }
             public HashSet<FormKey> allowedRaces { get; set; }
-            public HashSet<RaceGrouping> allowedRaceGroupings { get; set; }
+            public HashSet<string> allowedRaceGroupings { get; set; }
             public HashSet<FormKey> disallowedRaces { get; set; }
             public HashSet<RaceGrouping> disallowedRaceGroupings { get; set; }
             public HashSet<string[]> allowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
@@ -181,7 +181,7 @@ namespace SynthEBD
                     {
                         if (group.Label == id)
                         {
-                            s.allowedRaceGroupings.Add(group);
+                            s.allowedRaceGroupings.Add(group.Label);
                         }
                     }
 

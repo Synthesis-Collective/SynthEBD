@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD"
+             d:DataContext="{d:DesignInstance Type=local:VM_RaceGrouping}"
              xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
@@ -18,13 +19,13 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <Expander Grid.Column="0" Grid.Row="0" Header="{Binding Path=Label}" ExpandDirection="Down" Grid.ColumnSpan="2">
+        <Expander Grid.Column="0" Grid.Row="0" Header="{Binding RaceGrouping.Label}" ExpandDirection="Down" Grid.ColumnSpan="2">
             <StackPanel>
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Margin="0 0 15 0" VerticalAlignment="Center">Name</TextBlock>
-                    <TextBox Name="TextBox" Width="150" HorizontalAlignment="Left" Text="{Binding Path=Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+                    <TextBox Name="TextBox" Width="150" HorizontalAlignment="Left" Text="{Binding RaceGrouping.Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
                 </StackPanel>
-                <plugins:FormKeyMultiPicker Grid.Column="0" Grid.Row="2" FormKeys="{Binding Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" MaxHeight="300"/>
+                <plugins:FormKeyMultiPicker Grid.Column="0" Grid.Row="2" FormKeys="{Binding RaceGrouping.Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" MaxHeight="300"/>
                 <Button Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" x:Name="Button_RemoveRaceGrouping" Command="{Binding DeleteCommand}">Remove</Button>
             </StackPanel>
         </Expander>

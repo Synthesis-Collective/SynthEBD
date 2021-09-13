@@ -51,7 +51,7 @@ namespace SynthEBD
             // load asset packs
             List<string> assetPackPaths = new List<string>();
             assetPacks = SettingsIO_AssetPack.loadAssetPacks(generalSettings.RaceGroupings, assetPackPaths); // load asset pack models from json
-            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(assetPacks, assetPackPaths); // add asset pack view models to TexMesh shell view model here
+            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(assetPacks, assetPackPaths, SGVM); // add asset pack view models to TexMesh shell view model here
 
 
             // Start on the settings VM

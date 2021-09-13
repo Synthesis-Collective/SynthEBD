@@ -22,6 +22,8 @@ namespace SynthEBD
             this.userAlert = "";
             this.subgroups = new ObservableCollection<VM_Subgroup>();
             this.FilePath = "";
+
+            this.RaceGroupingList = new ObservableCollection<VM_RaceGrouping>();
         }
 
         public string groupName { get; set; }
@@ -31,6 +33,7 @@ namespace SynthEBD
         public ObservableCollection<VM_Subgroup> subgroups { get; set; }
 
         public string FilePath { get; set; }
+        public ObservableCollection<VM_RaceGrouping> RaceGroupingList { get; set; }
 
         public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>()
         {
@@ -38,19 +41,19 @@ namespace SynthEBD
             {Gender.female, "Female"},
         };
 
-        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, List<string> paths)
+        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, List<string> paths, VM_Settings_General generalSettingsVM)
         {
             ObservableCollection<VM_AssetPack> viewModels = new ObservableCollection<VM_AssetPack>();
 
             for (int i = 0; i < assetPacks.Count; i++)
             {
-                var viewModel = GetViewModelFromModel(assetPacks[i]);
+                var viewModel = GetViewModelFromModel(assetPacks[i], generalSettingsVM);
                 viewModel.FilePath = paths[i];
                 viewModels.Add(viewModel);
             }
             return viewModels;
         }
-        public static VM_AssetPack GetViewModelFromModel(AssetPack model)
+        public static VM_AssetPack GetViewModelFromModel(AssetPack model, VM_Settings_General generalSettingsVM)
         {
             var viewModel = new VM_AssetPack();
             viewModel.groupName = model.groupName;
@@ -58,9 +61,11 @@ namespace SynthEBD
             viewModel.displayAlerts = model.displayAlerts;
             viewModel.userAlert = model.userAlert;
 
+            viewModel.RaceGroupingList = new ObservableCollection<VM_RaceGrouping>(generalSettingsVM.RaceGroupings);
+
             foreach (var sg in model.subgroups)
             {
-                viewModel.subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg));
+                viewModel.subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM));
             }
             return viewModel;
         }
@@ -69,14 +74,14 @@ namespace SynthEBD
     }
     public class VM_Subgroup : INotifyPropertyChanged
     {
-        public VM_Subgroup()
+        public VM_Subgroup(ObservableCollection<VM_RaceGrouping> RaceGroupingVMs)
         {
             this.id = "";
             this.name = "";
             this.enabled = true;
             this.distributionEnabled = true;
             this.allowedRaces = new ObservableCollection<FormKey>();
-            this.allowedRaceGroupings = new ObservableCollection<RaceGrouping>();
+            this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(RaceGroupingVMs);
             this.disallowedRaces = new ObservableCollection<FormKey>();
             this.disallowedRaceGroupings = new ObservableCollection<RaceGrouping>();
             this.allowedAttributes = new ObservableCollection<string[]>();
@@ -96,6 +101,7 @@ namespace SynthEBD
 
             this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
+            
         }
 
         public string id { get; set; }
@@ -103,7 +109,7 @@ namespace SynthEBD
         public bool enabled { get; set; }
         public bool distributionEnabled { get; set; }
         public ObservableCollection<FormKey> allowedRaces { get; set; }
-        public ObservableCollection<RaceGrouping> allowedRaceGroupings { get; set; }
+        public VM_RaceGroupingCheckboxList AllowedRaceGroupings { get; set; }
         public ObservableCollection<FormKey> disallowedRaces { get; set; }
         public ObservableCollection<RaceGrouping> disallowedRaceGroupings { get; set; }
         public ObservableCollection<string[]> allowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
@@ -122,19 +128,21 @@ namespace SynthEBD
         public ObservableCollection<VM_Subgroup> subgroups { get; set; }
         public ILinkCache lk { get; set; }
         public IEnumerable<Type> RacePickerFormKeys { get; set; }
+  
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static VM_Subgroup GetViewModelFromModel(AssetPack.Subgroup model)
+        public static VM_Subgroup GetViewModelFromModel(AssetPack.Subgroup model, VM_Settings_General generalSettingsVM)
         {
-            var viewModel = new VM_Subgroup();
+            var viewModel = new VM_Subgroup(generalSettingsVM.RaceGroupings);
 
             viewModel.id = model.id;
             viewModel.name = model.name;
             viewModel.enabled = model.enabled;
             viewModel.distributionEnabled = model.distributionEnabled;
             viewModel.allowedRaces = new ObservableCollection<FormKey>(model.allowedRaces);
-            viewModel.allowedRaceGroupings = new ObservableCollection<RaceGrouping>(model.allowedRaceGroupings);
+            viewModel.AllowedRaceGroupings = GetRaceGroupingsByLabel(model.allowedRaceGroupings, generalSettingsVM.RaceGroupings);
+
             viewModel.disallowedRaces = new ObservableCollection<FormKey>(model.disallowedRaces);
             viewModel.disallowedRaceGroupings = new ObservableCollection<RaceGrouping>(model.disallowedRaceGroupings);
             viewModel.allowedAttributes = new ObservableCollection<string[]>(model.allowedAttributes);
@@ -151,12 +159,33 @@ namespace SynthEBD
             viewModel.disallowedBodyGenDescriptors = new ObservableCollection<string>(model.disallowedBodyGenDescriptors);
             viewModel.weightRange = model.weightRange;
 
+            //viewModel.RaceGroupingList = new ObservableCollection<RaceGrouping>(generalSettings.RaceGroupings);
+
             foreach (var sg in model.subgroups)
             {
-                viewModel.subgroups.Add(GetViewModelFromModel(sg));
+                viewModel.subgroups.Add(GetViewModelFromModel(sg, generalSettingsVM));
             }
 
             return viewModel;
+        }
+
+        public static VM_RaceGroupingCheckboxList GetRaceGroupingsByLabel(HashSet<string> groupingStrings, ObservableCollection<VM_RaceGrouping> allRaceGroupings)
+        {
+            VM_RaceGroupingCheckboxList checkBoxList = new VM_RaceGroupingCheckboxList(allRaceGroupings);
+
+            foreach (var raceGroupingSelection in checkBoxList.RaceGroupingSelections) // loop through all available RaceGroupings
+            {
+                foreach (string s in groupingStrings) // loop through all of the RaceGrouping labels stored in the models
+                {
+                    if (raceGroupingSelection.Label == s)
+                    {
+                        raceGroupingSelection.IsSelected = true;
+                        break;
+                    }
+                }
+            }
+
+            return checkBoxList;
         }
     }
 }

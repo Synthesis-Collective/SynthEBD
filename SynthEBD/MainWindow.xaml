@@ -8,7 +8,7 @@
         xmlns:local="clr-namespace:SynthEBD"
         d:DataContext="{local:MainWindow_ViewModel}"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="SynthEBD" Left="0" Top="0">
 
     <!--xmlns:i is from https://stackoverflow.com/questions/20346746/how-to-use-application-exit-event-in-wpf -->
     <!--https://stackoverflow.com/questions/20743961/the-name-interaction-does-not-exist-in-the-namespace-http-schemas-microsoft/37906343-->

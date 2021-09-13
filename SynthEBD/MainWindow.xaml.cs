@@ -23,6 +23,11 @@ namespace SynthEBD
         public MainWindow()
         {
             InitializeComponent();
+
+            //https://stackoverflow.com/questions/25426930/how-can-i-set-wpf-window-size-is-25-percent-of-relative-monitor-screen
+            this.Height = (System.Windows.SystemParameters.MaximizedPrimaryScreenHeight);
+            this.Width = (System.Windows.SystemParameters.MaximizedPrimaryScreenWidth * 0.5);
+
             this.DataContext = new MainWindow_ViewModel(); // attach ViewModel to View
         }
     }
