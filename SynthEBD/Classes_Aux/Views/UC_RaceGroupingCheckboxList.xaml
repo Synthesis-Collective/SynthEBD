@@ -4,9 +4,10 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD"
+             d:DataContext="{d:DesignInstance Type=local:VM_RaceGroupingCheckboxList}"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
-    <Expander>
+    <Expander Header="{Binding HeaderCaption}">
     <Grid>
             <ListBox ItemsSource="{Binding RaceGroupingSelections}">
             <ListBox.ItemTemplate>

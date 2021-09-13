@@ -16,10 +16,15 @@ namespace SynthEBD
             this.RaceGroupingSelections = new ObservableCollection<RaceGroupingSelection>();
             foreach (var rgvm in RaceGroupingVMs)
             {
-                this.RaceGroupingSelections.Add(new RaceGroupingSelection(rgvm));
+                this.RaceGroupingSelections.Add(new RaceGroupingSelection(rgvm, this));
             }
+
+            this.HeaderCaption = BuildHeaderCaption(this);
+
             this.SubscribedMasterList = RaceGroupingVMs;
             this.SubscribedMasterList.CollectionChanged += RefreshCheckList;
+
+            //this.PropertyChanged += refreshHeaderCaption;
         }
 
         public ObservableCollection<VM_RaceGrouping> SubscribedMasterList { get; set; } // to fire the CollectionChanged event
@@ -31,15 +36,37 @@ namespace SynthEBD
         }
 
         public ObservableCollection<RaceGroupingSelection> RaceGroupingSelections { get; set; }
+        public string HeaderCaption { get; set; }
+
+        public static string BuildHeaderCaption(VM_RaceGroupingCheckboxList checkList)
+        {
+            string header = "";
+            foreach (var selection in checkList.RaceGroupingSelections)
+            {
+                if (selection.IsSelected)
+                {
+                    header += selection.Label + ", ";
+                }
+            }
+
+            if (header != "")
+            {
+                header = header.Remove(header.Length - 2, 2);
+            }
+            return header;
+        }
 
         public class RaceGroupingSelection : INotifyPropertyChanged
         {
-            public RaceGroupingSelection(VM_RaceGrouping raceGroupingVM)
+            public RaceGroupingSelection(VM_RaceGrouping raceGroupingVM, VM_RaceGroupingCheckboxList parent)
             {
                 this.Label = raceGroupingVM.Label;
                 this.IsSelected = false;
                 this.SubscribedMasterRaceGrouping = raceGroupingVM;
                 this.SubscribedMasterRaceGrouping.PropertyChanged += RefreshRaceGroupingName;
+
+                this.ParentCheckList = parent;
+                this.PropertyChanged += refreshHeaderCaption;
             }
             public string Label { get; set; }
             public bool IsSelected { get; set; }
@@ -49,8 +76,15 @@ namespace SynthEBD
             public void RefreshRaceGroupingName(object sender, PropertyChangedEventArgs e)
             {
                 VM_RaceGrouping updatedMasterRaceGrouping = (VM_RaceGrouping)sender;
-                var updatedSelection = new RaceGroupingSelection(updatedMasterRaceGrouping);
+                var updatedSelection = new RaceGroupingSelection(updatedMasterRaceGrouping, this.ParentCheckList);
                 this.Label = updatedMasterRaceGrouping.Label;
+            }
+
+            public VM_RaceGroupingCheckboxList ParentCheckList { get; set; }
+
+            public void refreshHeaderCaption(object sender, PropertyChangedEventArgs e)
+            {
+                ParentCheckList.HeaderCaption = BuildHeaderCaption(ParentCheckList);
             }
         }
 
