@@ -19,13 +19,13 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <Expander Grid.Column="0" Grid.Row="0" Header="{Binding RaceGrouping.Label}" ExpandDirection="Down" Grid.ColumnSpan="2">
+        <Expander Grid.Column="0" Grid.Row="0" Header="{Binding Label}" ExpandDirection="Down" Grid.ColumnSpan="2">
             <StackPanel>
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Margin="0 0 15 0" VerticalAlignment="Center">Name</TextBlock>
-                    <TextBox Name="TextBox" Width="150" HorizontalAlignment="Left" Text="{Binding RaceGrouping.Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+                    <TextBox Name="TextBox" Width="150" HorizontalAlignment="Left" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
                 </StackPanel>
-                <plugins:FormKeyMultiPicker Grid.Column="0" Grid.Row="2" FormKeys="{Binding RaceGrouping.Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" MaxHeight="300"/>
+                <plugins:FormKeyMultiPicker Grid.Column="0" Grid.Row="2" FormKeys="{Binding Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" MaxHeight="300"/>
                 <Button Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" x:Name="Button_RemoveRaceGrouping" Command="{Binding DeleteCommand}">Remove</Button>
             </StackPanel>
         </Expander>

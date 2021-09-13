@@ -117,8 +117,8 @@ namespace SynthEBD
             model.RaceGroupings.Clear();
             foreach (var x in viewModel.RaceGroupings)
             {
-                model.RaceGroupings.Add(x.RaceGrouping);
-                //model.RaceGroupings.Add(VM_RaceGrouping.DumpViewModelToModel(x));
+                //model.RaceGroupings.Add(x.RaceGrouping);
+                model.RaceGroupings.Add(VM_RaceGrouping.DumpViewModelToModel(x));
             }
         }
     }

@@ -36,7 +36,7 @@ namespace SynthEBD
         {
             public RaceGroupingSelection(VM_RaceGrouping raceGroupingVM)
             {
-                this.Label = raceGroupingVM.RaceGrouping.Label;
+                this.Label = raceGroupingVM.Label;
                 this.IsSelected = false;
                 this.SubscribedMasterRaceGrouping = raceGroupingVM;
                 this.SubscribedMasterRaceGrouping.PropertyChanged += RefreshRaceGroupingName;
@@ -50,7 +50,7 @@ namespace SynthEBD
             {
                 VM_RaceGrouping updatedMasterRaceGrouping = (VM_RaceGrouping)sender;
                 var updatedSelection = new RaceGroupingSelection(updatedMasterRaceGrouping);
-                this.Label = updatedMasterRaceGrouping.RaceGrouping.Label;
+                this.Label = updatedMasterRaceGrouping.Label;
             }
         }
 
