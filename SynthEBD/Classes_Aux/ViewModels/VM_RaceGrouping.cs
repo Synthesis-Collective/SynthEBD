@@ -17,8 +17,6 @@ namespace SynthEBD
     {
         public VM_RaceGrouping(RaceGrouping raceGrouping, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env, VM_Settings_General parentVM)
         {
-            //this.Label = raceGrouping.Label;
-            //this.Races = new ObservableCollection<FormKey>(raceGrouping.Races);
             this.RaceGrouping = raceGrouping;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
             this.lk = env.LinkCache;
@@ -28,8 +26,6 @@ namespace SynthEBD
         }
 
         public RaceGrouping RaceGrouping { get; set;}
-        //public string Label { get; set; }
-        //public ObservableCollection<FormKey> Races { get; set; }
         public IEnumerable<Type> RacePickerFormKeys { get; set; }
         public ILinkCache lk { get; set; }
         public VM_Settings_General ParentVM { get; set; }
@@ -49,23 +45,5 @@ namespace SynthEBD
 
             return RGVM;
         }
-
-        /*No longer needed
-        public static RaceGrouping DumpViewModelToModel(VM_RaceGrouping viewModel)
-        {
-            RaceGrouping model = new RaceGrouping();
-            model.Label = viewModel.Label;
-            model.Races = viewModel.Races.ToHashSet();
-
-            return model;
-        }*/
-
-        
-        /*Not yet implemented
-        public static VM_RaceGrouping Clone(VM_RaceGrouping input)
-        {
-            VM_RaceGrouping clone = new VM_RaceGrouping();
-
-        }*/
     }
 }
