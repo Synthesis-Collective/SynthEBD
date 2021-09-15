@@ -44,13 +44,16 @@ namespace SynthEBD
             generalSettings = SettingsIO_General.loadGeneralSettings();
             VM_Settings_General.GetViewModelFromModel(SGVM, generalSettings);
 
+            // get paths
+            var paths = new Paths(generalSettings.bLoadSettingsFromDataFolder);
+
             // Load texture and mesh settings
-            texMeshSettings = SettingsIO_AssetPack.LoadTexMeshSettings();
+            texMeshSettings = SettingsIO_AssetPack.LoadTexMeshSettings(paths);
             VM_SettingsTexMesh.GetViewModelFromModel(TMVM, texMeshSettings);
 
             // load asset packs
             List<string> assetPackPaths = new List<string>();
-            assetPacks = SettingsIO_AssetPack.loadAssetPacks(generalSettings.RaceGroupings, assetPackPaths); // load asset pack models from json
+            assetPacks = SettingsIO_AssetPack.loadAssetPacks(generalSettings.RaceGroupings, assetPackPaths, paths); // load asset pack models from json
             TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(assetPacks, assetPackPaths, SGVM); // add asset pack view models to TexMesh shell view model here
 
 
@@ -67,13 +70,10 @@ namespace SynthEBD
             SerializeToJSON<Settings_General>.SaveJSONFile(generalSettings, "Settings\\GeneralSettings.json");
 
             VM_SettingsTexMesh.DumpViewModelToModel(TMVM, texMeshSettings);
-            SerializeToJSON<Settings_General>.SaveJSONFile(generalSettings, "Settings\\TexMeshSettings.json");
+            SerializeToJSON<Settings_TexMesh>.SaveJSONFile(texMeshSettings, "Settings\\TexMeshSettings.json");
         }
 
-
         public event PropertyChangedEventHandler PropertyChanged;
-
-
     }
 
 }

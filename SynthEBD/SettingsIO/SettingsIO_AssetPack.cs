@@ -11,28 +11,24 @@ namespace SynthEBD
 {
     class SettingsIO_AssetPack
     {
-        public static Settings_TexMesh LoadTexMeshSettings()
+        public static Settings_TexMesh LoadTexMeshSettings(Paths paths)
         {
-            Settings_TexMesh generalSettings = new Settings_TexMesh();
+            Settings_TexMesh texMeshSettings = new Settings_TexMesh();
 
-            string loadLoc = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), "Settings\\TexMeshSettings.json");
-
-            if (File.Exists(loadLoc))
+            if (File.Exists(paths.TexMeshSettingsPath))
             {
-                string text = File.ReadAllText(loadLoc);
-                generalSettings = JsonConvert.DeserializeObject<Settings_TexMesh>(text);
+                string text = File.ReadAllText(paths.TexMeshSettingsPath);
+                texMeshSettings = JsonConvert.DeserializeObject<Settings_TexMesh>(text);
             }
 
-            return generalSettings;
+            return texMeshSettings;
         }
 
-        public static List<SynthEBD.AssetPack> loadAssetPacks(List<RaceGrouping> raceGroupings, List<string> paths)
+        public static List<SynthEBD.AssetPack> loadAssetPacks(List<RaceGrouping> raceGroupings, List<string> assetPackPaths, Paths paths)
         {
             List<SynthEBD.AssetPack> loadedPacks = new List<SynthEBD.AssetPack>();
 
-            string loadLoc = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), "Asset Packs");
-
-            string[] filePaths = Directory.GetFiles(loadLoc, "*.json");
+            string[] filePaths = Directory.GetFiles(paths.AssetPackPath, "*.json");
 
             foreach (string s in filePaths)
             {
@@ -58,7 +54,7 @@ namespace SynthEBD
                 }
 
                 loadedPacks.Add(synthEBDconfig);
-                paths.Add(s);
+                assetPackPaths.Add(s);
             }
 
             return loadedPacks;

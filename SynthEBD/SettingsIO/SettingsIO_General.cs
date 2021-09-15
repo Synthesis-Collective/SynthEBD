@@ -15,11 +15,11 @@ namespace SynthEBD
         {
             Settings_General generalSettings = new Settings_General();
 
-            string loadLoc = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), "Settings\\GeneralSettings.json");
+            Paths paths = new Paths(false); // argument doesn't matter here; paths.GeneralSettingsPath is static
 
-            if (File.Exists(loadLoc))
+            if (File.Exists(paths.GeneralSettingsPath))
             {
-                string text = File.ReadAllText(loadLoc);
+                string text = File.ReadAllText(paths.GeneralSettingsPath);
                 generalSettings = JsonConvert.DeserializeObject<Settings_General>(text);
             }
 
