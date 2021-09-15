@@ -24,6 +24,7 @@ namespace SynthEBD
         {
             InitializeComponent();
         }
+        
 
         //https://stackoverflow.com/questions/4085471/allow-only-numeric-entry-in-wpf-text-box
         private void NumericOnly(System.Object sender, System.Windows.Input.TextCompositionEventArgs e)

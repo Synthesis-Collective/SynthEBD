@@ -36,10 +36,10 @@ namespace SynthEBD
                 this.allowedRaces = new HashSet<FormKey>();
                 this.allowedRaceGroupings = new HashSet<string>();
                 this.disallowedRaces = new HashSet<FormKey>();
-                this.disallowedRaceGroupings = new HashSet<RaceGrouping>();
-                this.allowedAttributes = new HashSet<string[]>();
-                this.disallowedAttributes = new HashSet<string[]>();
-                this.forceIfAttributes = new HashSet<string[]>();
+                this.disallowedRaceGroupings = new HashSet<string>();
+                this.allowedAttributes = new HashSet<NPCAttribute>();
+                this.disallowedAttributes = new HashSet<NPCAttribute>();
+                this.forceIfAttributes = new HashSet<NPCAttribute>();
                 this.bAllowUnique = true;
                 this.bAllowNonUnique = true;
                 this.requiredSubgroups = new HashSet<string>();
@@ -60,10 +60,10 @@ namespace SynthEBD
             public HashSet<FormKey> allowedRaces { get; set; }
             public HashSet<string> allowedRaceGroupings { get; set; }
             public HashSet<FormKey> disallowedRaces { get; set; }
-            public HashSet<RaceGrouping> disallowedRaceGroupings { get; set; }
-            public HashSet<string[]> allowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
-            public HashSet<string[]> disallowedAttributes { get; set; } 
-            public HashSet<string[]> forceIfAttributes { get; set; }
+            public HashSet<string> disallowedRaceGroupings { get; set; }
+            public HashSet<NPCAttribute> allowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
+            public HashSet<NPCAttribute> disallowedAttributes { get; set; } 
+            public HashSet<NPCAttribute> forceIfAttributes { get; set; }
             public bool bAllowUnique { get; set; }
             public bool bAllowNonUnique { get; set; }
             public HashSet<string> requiredSubgroups { get; set; }
@@ -157,9 +157,9 @@ namespace SynthEBD
                 s.name = g.name;
                 s.enabled = g.enabled;
                 s.distributionEnabled = g.distributionEnabled;
-                s.allowedAttributes = new HashSet<string[]>(g.allowedAttributes);
-                s.disallowedAttributes = new HashSet<string[]>(g.disallowedAttributes);
-                s.forceIfAttributes = new HashSet<string[]>(g.forceIfAttributes);
+                s.allowedAttributes = StringArraysToAttributes(g.allowedAttributes);
+                s.disallowedAttributes = StringArraysToAttributes(g.disallowedAttributes);
+                s.forceIfAttributes = StringArraysToAttributes(g.forceIfAttributes);
                 s.bAllowUnique = g.bAllowUnique;
                 s.bAllowNonUnique = g.bAllowNonUnique;
                 s.requiredSubgroups = new HashSet<string>(g.requiredSubgroups);
@@ -200,7 +200,7 @@ namespace SynthEBD
                     {
                         if (group.Label == id)
                         {
-                            s.disallowedRaceGroupings.Add(group);
+                            s.disallowedRaceGroupings.Add(group.Label);
                         }
                     }
 
@@ -239,6 +239,21 @@ namespace SynthEBD
                 }
 
                 return new FormKey();
+            }
+
+            public static HashSet<NPCAttribute> StringArraysToAttributes(List<string[]> arrList)
+            {
+                HashSet<NPCAttribute> h = new HashSet<NPCAttribute>();
+
+                foreach (string[] arr in arrList)
+                {
+                    NPCAttribute a = new NPCAttribute();
+                    a.Path = arr[0];
+                    a.Value = arr[1];
+                    h.Add(a);
+                }
+
+                return h;
             }
         }
 

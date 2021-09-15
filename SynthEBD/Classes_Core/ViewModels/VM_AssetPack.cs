@@ -83,10 +83,10 @@ namespace SynthEBD
             this.allowedRaces = new ObservableCollection<FormKey>();
             this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(RaceGroupingVMs);
             this.disallowedRaces = new ObservableCollection<FormKey>();
-            this.disallowedRaceGroupings = new ObservableCollection<RaceGrouping>();
-            this.allowedAttributes = new ObservableCollection<string[]>();
-            this.disallowedAttributes = new ObservableCollection<string[]>();
-            this.forceIfAttributes = new ObservableCollection<string[]>();
+            this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(RaceGroupingVMs);
+            this.allowedAttributes = new ObservableCollection<VM_NPCAttribute>();
+            this.disallowedAttributes = new ObservableCollection<VM_NPCAttribute>();
+            this.forceIfAttributes = new ObservableCollection<VM_NPCAttribute>();
             this.bAllowUnique = true;
             this.bAllowNonUnique = true;
             this.requiredSubgroups = new ObservableCollection<string>();
@@ -99,9 +99,25 @@ namespace SynthEBD
             this.weightRange = new int[2];
             this.subgroups = new ObservableCollection<VM_Subgroup>();
 
+            //UI-related
             this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
-            
+
+            AddAllowedAttribute = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.allowedAttributes.Add(new VM_NPCAttribute(this.allowedAttributes))
+                );
+
+            AddDisallowedAttribute = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.disallowedAttributes.Add(new VM_NPCAttribute(this.disallowedAttributes))
+                );
+
+            AddForceIfAttribute = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.forceIfAttributes.Add(new VM_NPCAttribute(this.forceIfAttributes))
+                );
+
         }
 
         public string id { get; set; }
@@ -111,10 +127,10 @@ namespace SynthEBD
         public ObservableCollection<FormKey> allowedRaces { get; set; }
         public VM_RaceGroupingCheckboxList AllowedRaceGroupings { get; set; }
         public ObservableCollection<FormKey> disallowedRaces { get; set; }
-        public ObservableCollection<RaceGrouping> disallowedRaceGroupings { get; set; }
-        public ObservableCollection<string[]> allowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
-        public ObservableCollection<string[]> disallowedAttributes { get; set; }
-        public ObservableCollection<string[]> forceIfAttributes { get; set; }
+        public VM_RaceGroupingCheckboxList DisallowedRaceGroupings { get; set; }
+        public ObservableCollection<VM_NPCAttribute> allowedAttributes { get; set; }
+        public ObservableCollection<VM_NPCAttribute> disallowedAttributes { get; set; }
+        public ObservableCollection<VM_NPCAttribute> forceIfAttributes { get; set; }
         public bool bAllowUnique { get; set; }
         public bool bAllowNonUnique { get; set; }
         public ObservableCollection<string> requiredSubgroups { get; set; }
@@ -126,9 +142,17 @@ namespace SynthEBD
         public ObservableCollection<string> disallowedBodyGenDescriptors { get; set; }
         public int[] weightRange { get; set; }
         public ObservableCollection<VM_Subgroup> subgroups { get; set; }
+        
+        //UI-related
         public ILinkCache lk { get; set; }
         public IEnumerable<Type> RacePickerFormKeys { get; set; }
-  
+
+        public RelayCommand AddAllowedAttribute { get; }
+        public RelayCommand AddDisallowedAttribute { get; }
+        public RelayCommand AddForceIfAttribute { get; }
+
+
+
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -142,12 +166,11 @@ namespace SynthEBD
             viewModel.distributionEnabled = model.distributionEnabled;
             viewModel.allowedRaces = new ObservableCollection<FormKey>(model.allowedRaces);
             viewModel.AllowedRaceGroupings = GetRaceGroupingsByLabel(model.allowedRaceGroupings, generalSettingsVM.RaceGroupings);
-
             viewModel.disallowedRaces = new ObservableCollection<FormKey>(model.disallowedRaces);
-            viewModel.disallowedRaceGroupings = new ObservableCollection<RaceGrouping>(model.disallowedRaceGroupings);
-            viewModel.allowedAttributes = new ObservableCollection<string[]>(model.allowedAttributes);
-            viewModel.disallowedAttributes = new ObservableCollection<string[]>(model.disallowedAttributes);
-            viewModel.forceIfAttributes = new ObservableCollection<string[]>(model.forceIfAttributes);
+            viewModel.DisallowedRaceGroupings = GetRaceGroupingsByLabel(model.disallowedRaceGroupings, generalSettingsVM.RaceGroupings);
+            viewModel.allowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.allowedAttributes);
+            viewModel.disallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.disallowedAttributes);
+            viewModel.forceIfAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.forceIfAttributes);
             viewModel.bAllowUnique = model.bAllowUnique;
             viewModel.bAllowNonUnique = model.bAllowNonUnique;
             viewModel.requiredSubgroups = new ObservableCollection<string>(model.requiredSubgroups);
@@ -158,8 +181,6 @@ namespace SynthEBD
             viewModel.allowedBodyGenDescriptors = new ObservableCollection<string>(model.allowedBodyGenDescriptors);
             viewModel.disallowedBodyGenDescriptors = new ObservableCollection<string>(model.disallowedBodyGenDescriptors);
             viewModel.weightRange = model.weightRange;
-
-            //viewModel.RaceGroupingList = new ObservableCollection<RaceGrouping>(generalSettings.RaceGroupings);
 
             foreach (var sg in model.subgroups)
             {

@@ -23,8 +23,6 @@ namespace SynthEBD
 
             this.SubscribedMasterList = RaceGroupingVMs;
             this.SubscribedMasterList.CollectionChanged += RefreshCheckList;
-
-            //this.PropertyChanged += refreshHeaderCaption;
         }
 
         public ObservableCollection<VM_RaceGrouping> SubscribedMasterList { get; set; } // to fire the CollectionChanged event
