@@ -46,10 +46,10 @@ namespace SynthEBD
                 this.excludedSubgroups = new HashSet<string>();
                 this.addKeywords = new HashSet<string>();
                 this.probabilityWeighting = 1;
-                this.paths = new HashSet<string[]>();
+                this.paths = new HashSet<FilePathReplacement>();
                 this.allowedBodyGenDescriptors = new HashSet<string>();
                 this.disallowedBodyGenDescriptors = new HashSet<string>();
-                this.weightRange = new int[2];
+                this.weightRange = new NPCWeightRange();
                 this.subgroups = new HashSet<Subgroup>();
             }
             
@@ -70,10 +70,10 @@ namespace SynthEBD
             public HashSet<string> excludedSubgroups { get; set; }
             public HashSet<string> addKeywords { get; set; }
             public int probabilityWeighting { get; set; }
-            public HashSet<string[]> paths { get; set; }
+            public HashSet<FilePathReplacement> paths { get; set; }
             public HashSet<string> allowedBodyGenDescriptors { get; set; }
             public HashSet<string> disallowedBodyGenDescriptors { get; set; }
-            public int[] weightRange { get; set; }
+            public NPCWeightRange weightRange { get; set; }
             public HashSet<Subgroup> subgroups { get; set; }
         }
     }
@@ -166,13 +166,28 @@ namespace SynthEBD
                 s.excludedSubgroups = new HashSet<string>(g.excludedSubgroups);
                 s.addKeywords = new HashSet<string>(g.addKeywords);
                 s.probabilityWeighting = g.probabilityWeighting;
-                s.paths = new HashSet<string[]>(g.paths);
-                s.weightRange = new int[] { 0, 100 };
-                int.TryParse(g.weightRange[0], out s.weightRange[0]);
-                if (!int.TryParse(g.weightRange[1], out s.weightRange[1]))
+                
+                s.paths = new HashSet<FilePathReplacement>();
+                foreach (string[] pathPair in g.paths)
                 {
-                    s.weightRange[1] = 100;
+                    s.paths.Add(new FilePathReplacement { Source = pathPair[0], Destination = pathPair[1] });
                 }
+
+                s.weightRange = new NPCWeightRange();
+                int tmpLower = 0;
+                int tmpUpper = 100;
+                int.TryParse(g.weightRange[0], out tmpLower); // (default zEBD value of null gets parsed as 0).
+
+                if (g.weightRange[1] == null) // (default zEBD value of null gets parsed as 0, which is incorrect for .Upper).
+                {
+                    tmpUpper = 100;
+                }
+                else
+                {
+                    int.TryParse(g.weightRange[1], out tmpUpper);
+                }
+                s.weightRange.Lower = tmpLower;
+                s.weightRange.Upper = tmpUpper;
 
                 foreach (string id in g.allowedRaces)
                 {

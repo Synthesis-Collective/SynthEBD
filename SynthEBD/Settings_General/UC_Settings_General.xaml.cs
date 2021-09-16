@@ -20,6 +20,8 @@ namespace SynthEBD
     /// </summary>
     public partial class UC_Settings_General : UserControl
     {
+        private bool _isDragging;
+
         public UC_Settings_General()
         {
             InitializeComponent();

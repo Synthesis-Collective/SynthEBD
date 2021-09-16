@@ -33,7 +33,7 @@
             </Grid.RowDefinitions>
             <TextBlock Grid.Column="0" Grid.Row="0">General Settings</TextBlock>
 
-            <TextBlock Grid.Column="0" Grid.Row="1">Output Name</TextBlock>
+            <TextBlock Grid.Column="0" Grid.Row="1" ToolTip="Click here and something will happen!">Output Name</TextBlock>
             <TextBox Grid.Column="1" Grid.Row="1" Width="150" HorizontalAlignment="Left" Text="{Binding Path=patchFileName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
             <TextBlock Grid.Column="0" Grid.Row="2">Show Tooltips</TextBlock>

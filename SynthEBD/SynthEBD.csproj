@@ -18,6 +18,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="GongSolutions.Wpf.DragDrop">
+      <HintPath>E:\Downloads\gong-wpf-dragdrop\GongSolutions.Wpf.DragDrop\bin\Debug\GongSolutions.Wpf.DragDrop.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
     <Page Update="Settings_TexMesh\UC_SettingsTexMesh.xaml">
       <XamlRuntime>$(DefaultXamlRuntime)</XamlRuntime>
     </Page>

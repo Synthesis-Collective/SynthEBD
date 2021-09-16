@@ -16,18 +16,13 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_AssetPackSettings.xaml
+    /// Interaction logic for UC_FilePathReplacement.xaml
     /// </summary>
-    public partial class UC_AssetPackSettings : UserControl
+    public partial class UC_FilePathReplacement : UserControl
     {
-        public UC_AssetPackSettings()
+        public UC_FilePathReplacement()
         {
             InitializeComponent();
-        }
-
-        private void TreeViewItem_OverRideMouseLPress(object sender, MouseButtonEventArgs e)
-        {
-
         }
     }
 }

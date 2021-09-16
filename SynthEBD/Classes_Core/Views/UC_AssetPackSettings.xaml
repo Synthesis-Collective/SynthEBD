@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD"
+             xmlns:dd="clr-namespace:GongSolutions.Wpf.DragDrop;assembly=GongSolutions.Wpf.DragDrop"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <Expander Grid.Column="0" Grid.Row="0" Header="{Binding Path=groupName}" ExpandDirection="Down" Grid.ColumnSpan="2">
@@ -37,8 +38,12 @@
             <TextBox Grid.Row="3" Grid.Column="1" Name="TextBoxUserAlert" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=userAlert, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
             <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Subgroups</TextBlock>
-            <TreeView Grid.Row="5" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding subgroups}" Margin="0 0 15 0">
+            <!--<TreeView Grid.Row="5" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding subgroups}" Margin="0 0 15 0" PreviewMouseLeftButtonDown="treeView_MouseMove" DragOver="treeView_DragOver" >-->
+            <TreeView Grid.Row="5" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding subgroups}" Margin="0 0 15 0" dd:DragDrop.IsDragSource="True">
                 <TreeView.Resources>
+                    <Style TargetType="TreeViewItem">
+                        <EventSetter Event="MouseLeftButtonDown" Handler="TreeViewItem_OverRideMouseLPress"></EventSetter>
+                    </Style>
                     <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding subgroups}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="{Binding Path=name}" />

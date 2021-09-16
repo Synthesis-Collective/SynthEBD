@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD"
              xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
+             xmlns:dd="clr-namespace:GongSolutions.Wpf.DragDrop;assembly=GongSolutions.Wpf.DragDrop"
              d:DataContext="{d:DesignInstance Type=local:VM_Subgroup}"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
@@ -13,7 +14,13 @@
             <ColumnDefinition Width="auto" MinWidth="215"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
+
         <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
@@ -111,6 +118,41 @@
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
                     <local:UC_NPCAttribute Background="Black" Margin="0 0 0 10"/>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <TextBlock Grid.Row="15" Grid.Column="0" Margin="0 0 15 0">Allowed NPC Weight Range</TextBlock>
+        <StackPanel Grid.Row="15" Grid.Column="1" Orientation="Horizontal">
+            <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=weightRange.Lower}"/>
+            <TextBlock Text="to" Margin="15 0 15 0" VerticalAlignment="Center"/>
+            <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=weightRange.Upper}"/>
+        </StackPanel>
+
+        <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0">Required Subgroups</TextBlock>
+        <ListBox Grid.Row="16" Grid.Column="1" ItemsSource="{Binding requiredSubgroups}" DisplayMemberPath="id" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True">
+            
+        </ListBox>
+        <!--
+        <ItemsControl Name="ICRequiredSubgroups" Grid.Row="16" Grid.Column="1" ItemsSource="{Binding requiredSubgroups}" BorderThickness="1" BorderBrush="#5844b4" AllowDrop="True">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding id}"></TextBlock>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        -->
+
+        <TextBlock Grid.Row="19" Grid.Column="0" Margin="0 0 15 0">Asset Paths</TextBlock>
+        <DockPanel Grid.Row="19" Grid.Column="1">
+            <TextBlock Width="150" TextAlignment="Center" Text="Source File"></TextBlock>
+            <TextBlock DockPanel.Dock="Right" Width="150" TextAlignment="Right" Text="Destination" Margin="100 0 0 0"></TextBlock>
+        </DockPanel>
+        <Button Grid.Row="20" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddPath}">Add New</Button>
+        <ItemsControl Grid.Row="20" Grid.Column="1" ItemsSource="{Binding paths}" BorderThickness="1" BorderBrush="#5844b4">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type local:VM_FilePathReplacement}">
+                    <local:UC_FilePathReplacement Background="Black" Margin="0 0 0 10"/>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
