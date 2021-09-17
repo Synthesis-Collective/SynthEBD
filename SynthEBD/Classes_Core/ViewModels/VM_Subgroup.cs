@@ -31,8 +31,8 @@ namespace SynthEBD
             this.bAllowUnique = true;
             this.bAllowNonUnique = true;
             this.requiredSubgroups = new ObservableCollection<VM_Subgroup>();
-            this.excludedSubgroups = new ObservableCollection<string>();
-            this.addKeywords = new ObservableCollection<string>();
+            this.excludedSubgroups = new ObservableCollection<VM_Subgroup>();
+            this.addKeywords = new ObservableCollection<VM_CollectionMemberString>();
             this.probabilityWeighting = 1;
             this.paths = new ObservableCollection<VM_FilePathReplacement>();
             this.allowedBodyGenDescriptors = new ObservableCollection<string>();
@@ -43,6 +43,8 @@ namespace SynthEBD
             //UI-related
             this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
+            this.RequiredSubgroupIDs = new HashSet<string>();
+            this.ExcludedSubgroupIDs = new HashSet<string>();
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -57,6 +59,11 @@ namespace SynthEBD
             AddForceIfAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => this.forceIfAttributes.Add(new VM_NPCAttribute(this.forceIfAttributes))
+                );
+
+            AddNPCKeyword = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.addKeywords.Add(new VM_CollectionMemberString("", this.addKeywords))
                 );
 
             AddPath = new SynthEBD.RelayCommand(
@@ -81,8 +88,8 @@ namespace SynthEBD
         public bool bAllowUnique { get; set; }
         public bool bAllowNonUnique { get; set; }
         public ObservableCollection<VM_Subgroup> requiredSubgroups { get; set; }
-        public ObservableCollection<string> excludedSubgroups { get; set; }
-        public ObservableCollection<string> addKeywords { get; set; }
+        public ObservableCollection<VM_Subgroup> excludedSubgroups { get; set; }
+        public ObservableCollection<VM_CollectionMemberString> addKeywords { get; set; }
         public int probabilityWeighting { get; set; }
         public ObservableCollection<VM_FilePathReplacement> paths { get; set; }
         public ObservableCollection<string> allowedBodyGenDescriptors { get; set; }
@@ -97,9 +104,11 @@ namespace SynthEBD
         public RelayCommand AddAllowedAttribute { get; }
         public RelayCommand AddDisallowedAttribute { get; }
         public RelayCommand AddForceIfAttribute { get; }
-
+        public RelayCommand AddNPCKeyword { get; }
         public RelayCommand AddPath { get; }
 
+        public HashSet<string> RequiredSubgroupIDs { get; set; } // temporary placeholder for RequiredSubgroups until all subgroups are loaded in
+        public HashSet<string> ExcludedSubgroupIDs { get; set; } // temporary placeholder for ExcludedSubgroups until all subgroups are loaded in
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -120,11 +129,12 @@ namespace SynthEBD
             viewModel.forceIfAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.forceIfAttributes);
             viewModel.bAllowUnique = model.bAllowUnique;
             viewModel.bAllowNonUnique = model.bAllowNonUnique;
-            //viewModel.requiredSubgroups = new ObservableCollection<string>(model.requiredSubgroups);
+            viewModel.RequiredSubgroupIDs = model.requiredSubgroups;
             viewModel.requiredSubgroups = new ObservableCollection<VM_Subgroup>();
-
-            viewModel.excludedSubgroups = new ObservableCollection<string>(model.excludedSubgroups);
-            viewModel.addKeywords = new ObservableCollection<string>(model.addKeywords);
+            viewModel.ExcludedSubgroupIDs = model.excludedSubgroups;
+            viewModel.excludedSubgroups = new ObservableCollection<VM_Subgroup>();
+            viewModel.addKeywords = new ObservableCollection<VM_CollectionMemberString>();
+            getModelKeywords(model, viewModel);
             viewModel.probabilityWeighting = model.probabilityWeighting;
             viewModel.paths = VM_FilePathReplacement.GetViewModelsFromModels(model.paths);
             viewModel.allowedBodyGenDescriptors = new ObservableCollection<string>(model.allowedBodyGenDescriptors);
@@ -156,6 +166,14 @@ namespace SynthEBD
             }
 
             return checkBoxList;
+        }
+
+        public static void getModelKeywords(AssetPack.Subgroup model, VM_Subgroup viewmodel)
+        {
+            foreach (string kw in model.addKeywords)
+            {
+                viewmodel.addKeywords.Add(new VM_CollectionMemberString(kw, viewmodel.addKeywords));
+            }
         }
     }
 }

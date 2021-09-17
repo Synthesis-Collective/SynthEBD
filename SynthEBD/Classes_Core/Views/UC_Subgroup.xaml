@@ -130,18 +130,23 @@
         </StackPanel>
 
         <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0">Required Subgroups</TextBlock>
-        <ListBox Grid.Row="16" Grid.Column="1" ItemsSource="{Binding requiredSubgroups}" DisplayMemberPath="id" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True">
-            
-        </ListBox>
-        <!--
-        <ItemsControl Name="ICRequiredSubgroups" Grid.Row="16" Grid.Column="1" ItemsSource="{Binding requiredSubgroups}" BorderThickness="1" BorderBrush="#5844b4" AllowDrop="True">
-            <ItemsControl.ItemTemplate>
+        <ListBox Grid.Row="16" Grid.Column="1" ItemsSource="{Binding requiredSubgroups}" DisplayMemberPath="id" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4"></ListBox>
+
+        <TextBlock Grid.Row="17" Grid.Column="0" Margin="0 0 15 0">Excluded Subgroups</TextBlock>
+        <ListBox Grid.Row="17" Grid.Column="1" ItemsSource="{Binding excludedSubgroups}" DisplayMemberPath="id" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4"></ListBox>
+
+        <TextBlock Grid.Row="18" Grid.Column="0" Margin="0 0 15 0">Add Keywords to NPC</TextBlock>
+        <Button Grid.Row="18" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddNPCKeyword}">Add New</Button>
+        <ListBox Grid.Row="18" Grid.Column="1" ItemsSource="{Binding addKeywords}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="#5844b4">
+            <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <TextBlock Text="{Binding id}"></TextBlock>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox MinWidth="150" Text="{Binding Mode=TwoWay, Path=., UpdateSourceTrigger=PropertyChanged}" />
+                        <Button Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}">Remove</Button>
+                    </StackPanel>
                 </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        -->
+            </ListBox.ItemTemplate>
+        </ListBox>
 
         <TextBlock Grid.Row="19" Grid.Column="0" Margin="0 0 15 0">Asset Paths</TextBlock>
         <DockPanel Grid.Row="19" Grid.Column="1">

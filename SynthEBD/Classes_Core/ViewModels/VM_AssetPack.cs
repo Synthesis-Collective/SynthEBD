@@ -67,8 +67,60 @@ namespace SynthEBD
             {
                 viewModel.subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM));
             }
+
+            // go back through now that all subgroups have corresponding view models, and link the required and excluded subgroups
+            ObservableCollection<VM_Subgroup> flattenedSubgroupList = flattenSubgroupVMs(viewModel.subgroups, new ObservableCollection<VM_Subgroup>());
+            LinkRequiredSubgroups(flattenedSubgroupList);
+
             return viewModel;
         }
+
+        public static ObservableCollection<VM_Subgroup> flattenSubgroupVMs(ObservableCollection<VM_Subgroup> currentLevelSGs, ObservableCollection<VM_Subgroup> flattened)
+        {
+            foreach(var sg in currentLevelSGs)
+            {
+                flattened.Add(sg);
+                flattenSubgroupVMs(sg.subgroups, flattened);
+            }
+            return flattened;
+        }
+
+        private static void LinkRequiredSubgroups(ObservableCollection<VM_Subgroup> flattenedSubgroups)
+        {
+            foreach (var sg in flattenedSubgroups)
+            {
+                foreach (string id in sg.RequiredSubgroupIDs)
+                {
+                    foreach (var candidate in flattenedSubgroups)
+                    {
+                        if (candidate.id == id)
+                        {
+                            sg.requiredSubgroups.Add(candidate);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void LinkExcludedSubgroups(ObservableCollection<VM_Subgroup> flattenedSubgroups)
+        {
+            foreach (var sg in flattenedSubgroups)
+            {
+                foreach (string id in sg.ExcludedSubgroupIDs)
+                {
+                    foreach (var candidate in flattenedSubgroups)
+                    {
+                        if (candidate.id == id)
+                        {
+                            sg.excludedSubgroups.Add(candidate);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
 
         public event PropertyChangedEventHandler PropertyChanged;
     }
