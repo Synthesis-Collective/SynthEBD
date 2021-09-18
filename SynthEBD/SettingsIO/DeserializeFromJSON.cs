@@ -1,28 +1,25 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Mutagen.Bethesda.Json;
-
+using Newtonsoft.Json;
 
 namespace SynthEBD
 {
-    class SerializeToJSON<T>
+    class DeserializeFromJSON<T>
     {
-        public static void SaveJSONFile(T input, string saveLoc)
+        public static T loadJSONFile(string loadLoc)
         {
             var jsonSettings = new JsonSerializerSettings();
             jsonSettings.AddMutagenConverters();
             jsonSettings.ObjectCreationHandling = ObjectCreationHandling.Replace;
             jsonSettings.Formatting = Formatting.Indented;
 
-            string jsonString = JsonConvert.SerializeObject(input, Formatting.Indented, jsonSettings);
-            File.WriteAllText(saveLoc, jsonString);
+            string text = File.ReadAllText(loadLoc);
+            return JsonConvert.DeserializeObject<T>(text, jsonSettings);
         }
     }
 }

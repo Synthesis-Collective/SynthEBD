@@ -19,8 +19,7 @@ namespace SynthEBD
 
             if (File.Exists(paths.GeneralSettingsPath))
             {
-                string text = File.ReadAllText(paths.GeneralSettingsPath);
-                generalSettings = JsonConvert.DeserializeObject<Settings_General>(text);
+                generalSettings = DeserializeFromJSON<Settings_General>.loadJSONFile(paths.GeneralSettingsPath);
             }
 
             return generalSettings;

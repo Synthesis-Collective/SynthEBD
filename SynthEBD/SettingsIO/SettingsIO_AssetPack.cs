@@ -28,23 +28,25 @@ namespace SynthEBD
         {
             List<SynthEBD.AssetPack> loadedPacks = new List<SynthEBD.AssetPack>();
 
-            string[] filePaths = Directory.GetFiles(paths.AssetPackPath, "*.json");
+            string[] filePaths = Directory.GetFiles(paths.AssetPackDirPath, "*.json");
 
             foreach (string s in filePaths)
             {
-                string text = File.ReadAllText(s);
+                //string text = File.ReadAllText(s);
 
                 var synthEBDconfig = new AssetPack();
 
                 try // first try deserializing to SynthEBD asset pack
                 {
-                    synthEBDconfig = JsonConvert.DeserializeObject<AssetPack>(text);
+                    synthEBDconfig = DeserializeFromJSON<AssetPack>.loadJSONFile(s);
+                    //synthEBDconfig = JsonConvert.DeserializeObject<AssetPack>(text);
                 }
                 catch
                 {
                     try
                     {
-                        var zEBDconfig = JsonConvert.DeserializeObject<ZEBDAssetPack>(text);
+                        var zEBDconfig = DeserializeFromJSON<ZEBDAssetPack>.loadJSONFile(s);
+                        //var zEBDconfig = JsonConvert.DeserializeObject<ZEBDAssetPack>(text);
                         synthEBDconfig = ZEBDAssetPack.ToSynthEBDAssetPack(zEBDconfig, raceGroupings);
                     }
                     catch

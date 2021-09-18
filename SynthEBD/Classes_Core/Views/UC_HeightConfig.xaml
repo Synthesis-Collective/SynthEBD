@@ -1,0 +1,51 @@
+﻿<UserControl x:Class="SynthEBD.UC_HeightConfig"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:SynthEBD"
+             xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
+             d:DataContext="{d:DesignInstance Type=local:VM_HeightConfig}"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Grid.Column="0">Height Group</TextBlock>
+        <TextBox Grid.Row="0" Grid.Column="1" MinWidth="150" TextAlignment="Left" Text="{Binding Path=Label, UpdateSourceTrigger=PropertyChanged}"/>
+        
+        <TextBlock Grid.Row="1" Grid.Column="0">Races</TextBlock>
+        <plugins:FormKeyMultiPicker FormKeys="{Binding Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding FormKeyPickerTypes}" Grid.Row="1" Grid.Column="1" />
+
+        <TextBlock Grid.Row="2" Grid.Column="0">Distribution Mode</TextBlock>
+        <ListBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding DistModes}" SelectedItem="{Binding DistributionMode, Mode=TwoWay}" />
+
+        <TextBlock Grid.Row="3" Grid.Column="0">Base Male Height</TextBlock>
+        <TextBox Grid.Row="3" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=MaleHeightBase}"/>
+
+        <TextBlock Grid.Row="4" Grid.Column="0">Male Height +/-</TextBlock>
+        <TextBox Grid.Row="4" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=MaleHeightRange}"/>
+
+        <TextBlock Grid.Row="5" Grid.Column="0">Base Female Height</TextBlock>
+        <TextBox Grid.Row="5" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=FemaleHeightBase}"/>
+
+        <TextBlock Grid.Row="6" Grid.Column="0">Female Height +/-</TextBlock>
+        <TextBox Grid.Row="6" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=FemaleHeightRange}"/>
+
+        <Button  Grid.Row="7" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}">Remove</Button>
+    </Grid>
+</UserControl>

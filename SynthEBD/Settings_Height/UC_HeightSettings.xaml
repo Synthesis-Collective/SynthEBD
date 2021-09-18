@@ -4,9 +4,47 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD"
+             d:DataContext="{d:DesignInstance Type=local:VM_SettingsHeight}"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
-    <Grid>
-        <TextBlock>Height Settings</TextBlock>
-    </Grid>
+    <ScrollViewer>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0">Change Individual NPC Heights</TextBlock>
+            <CheckBox Grid.Row="0" Grid.Column="1" IsChecked="{Binding Path=bChangeNPCHeight, Mode=TwoWay}"></CheckBox>
+
+            <TextBlock Grid.Row="1" Grid.Column="0">Change Base Race Heights</TextBlock>
+            <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding Path=bChangeRaceHeight, Mode=TwoWay}"></CheckBox>
+
+            <TextBlock Grid.Row="2" Grid.Column="0">Overwrite Non-Default NPC Heights</TextBlock>
+            <CheckBox Grid.Row="2" Grid.Column="1" IsChecked="{Binding Path=bOverwriteNonDefaultNPCHeights, Mode=TwoWay}"></CheckBox>
+
+            <TextBlock Grid.Row="3" Grid.Column="0">Configurations:</TextBlock>
+            <Button Grid.Row="3" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddHeightConfig}">Add New</Button>
+            <ItemsControl Grid.Row="3" Grid.Column="1" ItemsSource="{Binding HeightConfigs}" Margin="20">
+                
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type local:VM_HeightConfig}">
+                        <local:UC_HeightConfig Background="Black" Margin="2" BorderThickness="1" BorderBrush="#5844b4" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Grid>
+    </ScrollViewer>
 </UserControl>

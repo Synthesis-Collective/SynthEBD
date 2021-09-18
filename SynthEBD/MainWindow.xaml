@@ -40,7 +40,7 @@
                 <DataTemplate DataType="{x:Type local:VM_BodyGenSettings}">
                     <local:UC_BodyGenSettings/>
                 </DataTemplate>
-                <DataTemplate DataType="{x:Type local:VM_HeightSettings}">
+                <DataTemplate DataType="{x:Type local:VM_SettingsHeight}">
                     <local:UC_HeightSettings/>
                 </DataTemplate>
             </ContentPresenter.Resources>

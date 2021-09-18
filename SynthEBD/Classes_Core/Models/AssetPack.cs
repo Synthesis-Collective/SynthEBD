@@ -201,7 +201,7 @@ namespace SynthEBD
                     }
 
                     // if not, see if it is a race EditorID
-                    FormKey raceFormKey = RaceEDID2FormKey(id);
+                    FormKey raceFormKey = Converters.RaceEDID2FormKey(id);
                     if (raceFormKey.IsNull == false)
                     {
                         s.allowedRaces.Add(raceFormKey);
@@ -220,7 +220,7 @@ namespace SynthEBD
                     }
 
                     // if not, see if it is a race EditorID
-                    FormKey raceFormKey = RaceEDID2FormKey(id);
+                    FormKey raceFormKey = Converters.RaceEDID2FormKey(id);
                     if (raceFormKey.IsNull == false)
                     {
                         s.disallowedRaces.Add(raceFormKey);
@@ -235,26 +235,7 @@ namespace SynthEBD
                 return s;
             }
 
-            public static FormKey RaceEDID2FormKey(string EDID)
-            {
-                var env = new GameEnvironmentProvider().MyEnvironment;
-
-                foreach (var plugin in env.LoadOrder.ListedOrder)
-                {
-                    if (plugin.Mod != null && plugin.Mod.Races != null)
-                    {
-                        foreach (var race in plugin.Mod.Races)
-                        {
-                            if (race.EditorID.ToLower() == EDID.ToLower())
-                            {
-                                return race.FormKey;
-                            }
-                        }
-                    }
-                }
-
-                return new FormKey();
-            }
+            
 
             public static HashSet<NPCAttribute> StringArraysToAttributes(List<string[]> arrList)
             {
