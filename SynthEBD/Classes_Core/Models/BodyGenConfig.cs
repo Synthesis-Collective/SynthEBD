@@ -4,12 +4,139 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Mutagen.Bethesda.Plugins;
+using System.IO;
 
 namespace SynthEBD
 {
-    class BodyGenConfig
+    public class BodyGenConfigs
+    {
+        public BodyGenConfigs()
+        {
+            this.Male = new HashSet<BodyGenConfig>();
+            this.Female = new HashSet<BodyGenConfig>();
+        }
+        public HashSet<BodyGenConfig> Male { get; set; }
+        public HashSet<BodyGenConfig> Female { get; set; }
+    }
+    public class BodyGenConfig
     {
         public BodyGenConfig()
+        {
+            this.Label = "";
+            this.Gender = Gender.female;
+            this.RacialTemplateGroupMap = new HashSet<RacialSettings>();
+            this.Templates = new HashSet<BodyGenTemplate>();
+            this.TemplateGroups = new HashSet<string>();
+            this.TemplateDescriptors = new HashSet<MorphDescriptor>();
+        }
+
+        public string Label { get; set; }
+        public Gender Gender { get; set; }
+        public HashSet<RacialSettings> RacialTemplateGroupMap { get; set; }
+        public HashSet<BodyGenTemplate> Templates { get; set; }
+        public HashSet<string> TemplateGroups { get; set; }
+        public HashSet<MorphDescriptor> TemplateDescriptors { get; set; }
+
+        public class MorphDescriptor
+        {
+            public MorphDescriptor()
+            {
+                this.Category = "";
+                this.Value = "";
+                this.DispString = "";
+            }
+            public string Category { get; set; }
+            public string Value { get; set; }
+            public string DispString { get; set; }
+        }
+        public class RacialSettings
+        {
+            public RacialSettings()
+            {
+                this.Label = "";
+                this.Races = new HashSet<FormKey>();
+                this.RaceGroupings = new HashSet<string>();
+                this.Combinations = new HashSet<BodyGenCombination>();
+            }
+            public string Label { get; set; }
+            public HashSet<FormKey> Races { get; set; }
+            public HashSet<string> RaceGroupings { get; set; }
+            public HashSet<BodyGenCombination> Combinations { get; set; }
+
+            public class BodyGenCombination
+            {
+                public BodyGenCombination()
+                {
+                    this.Members = new HashSet<string>();
+                    this.ProbabilityWeighting = 1;
+                }
+                public HashSet<string> Members { get; set; }
+                public int ProbabilityWeighting { get; set; }
+            }
+        }
+
+        public class BodyGenTemplate
+        {
+            public BodyGenTemplate()
+            {
+                this.Label = "";
+                this.Notes = "";
+                this.Specs = "";
+                this.MemberOfTemplateGroups = new HashSet<string>();
+                this.MorphDescriptors = new HashSet<string>();
+                this.AllowedRaces = new HashSet<FormKey>();
+                this.AllowedRaceGroupings = new HashSet<string>();
+                this.DisallowedRaces = new HashSet<FormKey>();
+                this.DisallowedRaceGroupings = new HashSet<string>();
+                this.AllowedAttributes = new HashSet<NPCAttribute>();
+                this.DisallowedAttributes = new HashSet<NPCAttribute>();
+                this.ForceIfAttributes = new HashSet<NPCAttribute>();
+                this.bAllowUnique = true;
+                this.bAllowNonUnique = true;
+                this.bAllowRandom = true;
+                this.ProbabilityWeighting = 1;
+                this.RequiredTemplates = new HashSet<string>();
+                this.WeightRange = new NPCWeightRange();
+            }
+
+            public string Label { get; set; }
+            public string Notes { get; set; }
+            public string Specs { get; set; } // will need special logic during I/O because in zEBD settings this is called "params" which is reserved in C#
+            public HashSet<string> MemberOfTemplateGroups { get; set; }
+            public HashSet<string> MorphDescriptors { get; set; }
+            public HashSet<FormKey> AllowedRaces { get; set; }
+            public HashSet<FormKey> DisallowedRaces { get; set; }
+            public HashSet<string> AllowedRaceGroupings { get; set; }
+            public HashSet<string> DisallowedRaceGroupings { get; set; }
+            public HashSet<NPCAttribute> AllowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
+            public HashSet<NPCAttribute> DisallowedAttributes { get; set; }
+            public HashSet<NPCAttribute> ForceIfAttributes { get; set; }
+            public bool bAllowUnique { get; set; }
+            public bool bAllowNonUnique { get; set; }
+            public bool bAllowRandom { get; set; }
+            public int ProbabilityWeighting { get; set; }
+            public HashSet<string> RequiredTemplates { get; set; }
+            public NPCWeightRange WeightRange { get; set; }
+        }
+    }
+
+    public class zEBDSplitBodyGenConfig
+    {
+        public zEBDSplitBodyGenConfig()
+        {
+            this.Male = new BodyGenConfig();
+            this.bMaleInitialized = false;
+            this.Female = new BodyGenConfig();
+            this.bFemaleInitialized = false;
+        }
+        public BodyGenConfig Male { get; set; }
+        public bool bMaleInitialized { get; set; }
+        public BodyGenConfig Female { get; set; }
+        public bool bFemaleInitialized { get; set; }
+    }
+    public class zEBDBodyGenConfig
+    {
+        public zEBDBodyGenConfig()
         {
             this.racialSettingsFemale = new HashSet<racialSettings>();
             this.racialSettingsMale = new HashSet<racialSettings>();
@@ -50,33 +177,224 @@ namespace SynthEBD
             public BodyGenTemplate()
             {
                 this.name = "";
+                this.notes = "";
                 this.specs = "";
-                this.gender = Gender.female;
-                this.allowedRaces = new HashSet<FormKey>();
-                this.disallowedRaces = new HashSet<FormKey>();
-                this.allowedAttributes = new HashSet<string[]>();
-                this.disallowedAttributes = new HashSet<string[]>();
-                this.forceIfAttributes = new HashSet<string[]>();
-                this.bAllowUnique = true;
-                this.bAllowNonUnique = true;
-                this.bAllowRandom = true;
+                this.groups = new HashSet<string>();
+                this.descriptors = new HashSet<string>();
+                this.gender = "";
+                this.allowedRaces = new HashSet<string>();
+                this.disallowedRaces = new HashSet<string>();
+                this.allowedAttributes = new List<string[]>();
+                this.disallowedAttributes = new List<string[]>();
+                this.forceIfAttributes = new List<string[]>();
+                this.allowUnique = true;
+                this.allowNonUnique = true;
+                this.allowRandom = true;
                 this.probabilityWeighting = 1;
+                this.requiredTemplates = new HashSet<string>();
                 this.weightRange = new string[] { null, null };
             }
 
             public string name { get; set; }
+            public string notes { get; set; }
             public string specs { get; set; } // will need special logic during I/O because in zEBD settings this is called "params" which is reserved in C#
-            public Gender gender { get; set; } // might need to convert from string to enum depending on how json deserialization works
-            public HashSet<FormKey> allowedRaces { get; set; }
-            public HashSet<FormKey> disallowedRaces { get; set; }
-            public HashSet<string[]> allowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
-            public HashSet<string[]> disallowedAttributes { get; set; }
-            public HashSet<string[]> forceIfAttributes { get; set; }
-            public bool bAllowUnique { get; set; }
-            public bool bAllowNonUnique { get; set; }
-            public bool bAllowRandom { get; set; }
+            public string gender { get; set; } // might need to convert from string to enum depending on how json deserialization works
+            public HashSet<string> groups { get; set; }
+            public HashSet<string> descriptors { get; set; }
+            public HashSet<string> allowedRaces { get; set; }
+            public HashSet<string> disallowedRaces { get; set; }
+            public List<string[]> allowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
+            public List<string[]> disallowedAttributes { get; set; }
+            public List<string[]> forceIfAttributes { get; set; }
+            public bool allowUnique { get; set; }
+            public bool allowNonUnique { get; set; }
+            public bool allowRandom { get; set; }
             public int probabilityWeighting { get; set; }
+            public HashSet<string> requiredTemplates { get; set; }
             public string[] weightRange { get; set; }
         }
+
+        public static zEBDSplitBodyGenConfig ToSynthEBDConfig(zEBDBodyGenConfig zConfig, List<RaceGrouping> raceGroupings, string filePath)
+        {
+            zEBDSplitBodyGenConfig converted = new zEBDSplitBodyGenConfig();
+
+            List<string> usedMaleDescriptors = new List<string>();
+            List<string> usedFemaleDescriptors = new List<string>();
+
+            HashSet<string> usedMaleGroups = new HashSet<string>();
+            HashSet<string> usedFemaleGroups = new HashSet<string>();
+
+            // handle female section
+            if (zConfig.racialSettingsFemale.Count > 0)
+            {
+                converted.Female.Label = Path.GetFileNameWithoutExtension(filePath) + "_Female";
+
+                foreach (var rs in zConfig.racialSettingsFemale)
+                {
+                    converted.Female.RacialTemplateGroupMap.Add(zEBDBodyGenRacialSettingsToSynthEBD(rs, usedFemaleGroups));
+                }
+
+                foreach (var zTemplate in zConfig.templates)
+                {
+                    if (zTemplate.gender == "female")
+                    {
+                        converted.Female.Templates.Add(zEBDBodyGenRacialTemplateToSynthEBD(zTemplate, raceGroupings, usedFemaleDescriptors));
+                    }
+                }
+
+                converted.Female.TemplateGroups = usedFemaleGroups;
+  
+                foreach (var descriptor in usedFemaleDescriptors)
+                {
+                    var convertedDescriptor = Converters.StringToMorphDescriptor(descriptor);
+                    if (convertedDescriptor.DispString != "")
+                    {
+                        converted.Female.TemplateDescriptors.Add(convertedDescriptor);
+                    }
+                }
+                converted.bFemaleInitialized = true;
+            }
+
+            // handle male section
+            if (zConfig.racialSettingsMale.Count > 0)
+            {
+                converted.Male.Label = Path.GetFileNameWithoutExtension(filePath) + "_Male";
+
+                foreach (var rs in zConfig.racialSettingsMale)
+                {
+                    converted.Male.RacialTemplateGroupMap.Add(zEBDBodyGenRacialSettingsToSynthEBD(rs, usedMaleGroups));
+                }
+
+                foreach (var zTemplate in zConfig.templates)
+                {
+                    if (zTemplate.gender == "male")
+                    {
+                        converted.Male.Templates.Add(zEBDBodyGenRacialTemplateToSynthEBD(zTemplate, raceGroupings, usedMaleDescriptors));
+                    }
+                }
+
+                converted.Male.TemplateGroups = usedMaleGroups;
+
+                foreach (var descriptor in usedMaleDescriptors)
+                {
+                    var convertedDescriptor = Converters.StringToMorphDescriptor(descriptor);
+                    if (convertedDescriptor.DispString != "")
+                    {
+                        converted.Male.TemplateDescriptors.Add(convertedDescriptor);
+                    }
+                }
+                converted.bMaleInitialized = true;
+            }
+
+            return converted;
+        }
+
+        public static BodyGenConfig.RacialSettings zEBDBodyGenRacialSettingsToSynthEBD(zEBDBodyGenConfig.racialSettings rs, HashSet<string> usedGroups)
+        {
+            BodyGenConfig.RacialSettings newRS = new BodyGenConfig.RacialSettings();
+            newRS.Label = rs.EDID;
+            newRS.Races = new HashSet<FormKey> { Converters.RaceEDID2FormKey(rs.EDID) };
+            newRS.RaceGroupings = new HashSet<string>();
+            newRS.Combinations = new HashSet<BodyGenConfig.RacialSettings.BodyGenCombination>();
+            foreach (var combo in rs.combinations)
+            {
+                BodyGenConfig.RacialSettings.BodyGenCombination newCombo = new BodyGenConfig.RacialSettings.BodyGenCombination();
+                newCombo.Members = combo.members;
+                newCombo.ProbabilityWeighting = combo.probabilityWeighting;
+                newRS.Combinations.Add(newCombo);
+
+                foreach (var member in combo.members)
+                {
+                    if (usedGroups.Contains(member) == false)
+                    {
+                        usedGroups.Add(member);
+                    }
+                }
+            }
+            return newRS;
+        }
+
+        public static BodyGenConfig.BodyGenTemplate zEBDBodyGenRacialTemplateToSynthEBD(zEBDBodyGenConfig.BodyGenTemplate zTemplate, List<RaceGrouping> raceGroupings, List<string> usedDescriptors)
+        {
+            BodyGenConfig.BodyGenTemplate newTemplate = new BodyGenConfig.BodyGenTemplate();
+
+            newTemplate.Label = zTemplate.name;
+            newTemplate.Notes = zTemplate.notes;
+            newTemplate.Specs = zTemplate.specs;
+            newTemplate.MemberOfTemplateGroups = zTemplate.groups;
+            newTemplate.MorphDescriptors = zTemplate.descriptors;
+            foreach (string d in zTemplate.descriptors)
+            {
+                if (usedDescriptors.Contains(d) == false)
+                {
+                    usedDescriptors.Add(d);
+                }
+            }
+
+            foreach (string id in zTemplate.allowedRaces)
+            {
+                bool continueSearch = true;
+                // first see if it belongs to a RaceGrouping
+                foreach (var group in raceGroupings)
+                {
+                    if (group.Label == id)
+                    {
+                        newTemplate.AllowedRaceGroupings.Add(group.Label);
+                        continueSearch = false;
+                        break;
+                    }
+                }
+
+                // if not, see if it is a race EditorID
+                if (continueSearch == true)
+                {
+                    FormKey raceFormKey = Converters.RaceEDID2FormKey(id);
+                    if (raceFormKey.IsNull == false)
+                    {
+                        newTemplate.AllowedRaces.Add(raceFormKey);
+                    }
+                }
+            }
+
+            foreach (string id in zTemplate.disallowedRaces)
+            {
+                bool continueSearch = true;
+                // first see if it belongs to a RaceGrouping
+                foreach (var group in raceGroupings)
+                {
+                    if (group.Label == id)
+                    {
+                        newTemplate.DisallowedRaceGroupings.Add(group.Label);
+                        continueSearch = false;
+                        break;
+                    }
+                }
+
+                // if not, see if it is a race EditorID
+                if (continueSearch == true)
+                {
+                    FormKey raceFormKey = Converters.RaceEDID2FormKey(id);
+                    if (raceFormKey.IsNull == false)
+                    {
+                        newTemplate.DisallowedRaces.Add(raceFormKey);
+                    }
+                }
+            }
+
+            newTemplate.AllowedAttributes = Converters.StringArraysToAttributes(zTemplate.allowedAttributes);
+            newTemplate.DisallowedAttributes = Converters.StringArraysToAttributes(zTemplate.disallowedAttributes);
+            newTemplate.ForceIfAttributes = Converters.StringArraysToAttributes(zTemplate.forceIfAttributes);
+
+            newTemplate.WeightRange = Converters.StringArrayToWeightRange(zTemplate.weightRange);
+
+            newTemplate.bAllowUnique = zTemplate.allowUnique;
+            newTemplate.bAllowNonUnique = zTemplate.allowNonUnique;
+            newTemplate.bAllowRandom = zTemplate.allowRandom;
+            newTemplate.RequiredTemplates = zTemplate.requiredTemplates;
+            newTemplate.ProbabilityWeighting = zTemplate.probabilityWeighting;
+
+            return newTemplate;
+        }
     }
+
 }

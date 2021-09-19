@@ -8,5 +8,11 @@ namespace SynthEBD
 {
     class Settings_BodyGen
     {
+        public Settings_BodyGen()
+        {
+            this.CurrentBodyGenConfigName = "";
+        }
+
+        public string CurrentBodyGenConfigName { get; set; }
     }
 }

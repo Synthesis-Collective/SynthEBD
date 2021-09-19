@@ -20,10 +20,12 @@ namespace SynthEBD
             string settingsDirRelPath = "Settings";
             string assetsDirRelPath = "Asset Packs";
             string heightsDirRelPath = "Height Configurations";
+            string bodyGenDirRelPath = "BodyGen Configuration";
 
             string settingsDirPath = Path.Combine(SynthEBDexePath, settingsDirRelPath);
             string assetsDirPath = Path.Combine(SynthEBDexePath, assetsDirRelPath);
             string heightsDirPath = Path.Combine(SynthEBDexePath, heightsDirRelPath);
+            string bodyGenDirPath = Path.Combine(SynthEBDexePath, bodyGenDirRelPath);
 
             if (Directory.Exists(settingsDirPath) == false)
             {
@@ -36,6 +38,10 @@ namespace SynthEBD
             if (Directory.Exists(heightsDirPath) == false)
             {
                 Directory.CreateDirectory(heightsDirPath);
+            }
+            if (Directory.Exists(bodyGenDirPath) == false)
+            {
+                Directory.CreateDirectory(bodyGenDirPath);
             }
 
 
@@ -51,10 +57,13 @@ namespace SynthEBD
             }
 
             this.TexMeshSettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "TexMeshSettings.json");
-            this.AssetPackDirPath = Path.Combine(RelativePath, "Asset Packs");
+            this.AssetPackDirPath = Path.Combine(RelativePath, assetsDirRelPath);
             this.HeightSettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "HeightSettings.json");
-            this.HeightConfigDirPath= Path.Combine(RelativePath, "Height Configurations");
+            this.HeightConfigDirPath= Path.Combine(RelativePath, heightsDirRelPath);
             this.HeightConfigCurrentPath = Path.Combine(this.HeightConfigDirPath, "HeightConfig.json");
+            this.BodyGenSettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "BodyGenSettings.json");
+            this.BodyGenConfigDirPath = Path.Combine(RelativePath, bodyGenDirRelPath);
+
         }
 
         private string RelativePath { get; set; } 
@@ -64,6 +73,8 @@ namespace SynthEBD
         public string HeightSettingsPath { get; set; } // path of the Textures and Meshes settings file
         public string HeightConfigDirPath { get; set; }
         public string HeightConfigCurrentPath { get; set; }
+        public string BodyGenSettingsPath { get; set; }
+        public string BodyGenConfigDirPath { get; set; }
     }
 }
 

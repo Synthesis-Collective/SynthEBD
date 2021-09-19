@@ -157,9 +157,9 @@ namespace SynthEBD
                 s.name = g.name;
                 s.enabled = g.enabled;
                 s.distributionEnabled = g.distributionEnabled;
-                s.allowedAttributes = StringArraysToAttributes(g.allowedAttributes);
-                s.disallowedAttributes = StringArraysToAttributes(g.disallowedAttributes);
-                s.forceIfAttributes = StringArraysToAttributes(g.forceIfAttributes);
+                s.allowedAttributes = Converters.StringArraysToAttributes(g.allowedAttributes);
+                s.disallowedAttributes = Converters.StringArraysToAttributes(g.disallowedAttributes);
+                s.forceIfAttributes = Converters.StringArraysToAttributes(g.forceIfAttributes);
                 s.bAllowUnique = g.bAllowUnique;
                 s.bAllowNonUnique = g.bAllowNonUnique;
                 s.requiredSubgroups = new HashSet<string>(g.requiredSubgroups);
@@ -173,57 +173,55 @@ namespace SynthEBD
                     s.paths.Add(new FilePathReplacement { Source = pathPair[0], Destination = pathPair[1] });
                 }
 
-                s.weightRange = new NPCWeightRange();
-                int tmpLower = 0;
-                int tmpUpper = 100;
-                int.TryParse(g.weightRange[0], out tmpLower); // (default zEBD value of null gets parsed as 0).
-
-                if (g.weightRange[1] == null) // (default zEBD value of null gets parsed as 0, which is incorrect for .Upper).
-                {
-                    tmpUpper = 100;
-                }
-                else
-                {
-                    int.TryParse(g.weightRange[1], out tmpUpper);
-                }
-                s.weightRange.Lower = tmpLower;
-                s.weightRange.Upper = tmpUpper;
+                s.weightRange = Converters.StringArrayToWeightRange(g.weightRange);
 
                 foreach (string id in g.allowedRaces)
                 {
+                    bool continueSearch = true;
                     // first see if it belongs to a RaceGrouping
                     foreach (var group in raceGroupings)
                     {
                         if (group.Label == id)
                         {
                             s.allowedRaceGroupings.Add(group.Label);
+                            continueSearch = false;
+                            break;
                         }
                     }
 
                     // if not, see if it is a race EditorID
-                    FormKey raceFormKey = Converters.RaceEDID2FormKey(id);
-                    if (raceFormKey.IsNull == false)
+                    if (continueSearch == true)
                     {
-                        s.allowedRaces.Add(raceFormKey);
+                        FormKey raceFormKey = Converters.RaceEDID2FormKey(id);
+                        if (raceFormKey.IsNull == false)
+                        {
+                            s.allowedRaces.Add(raceFormKey);
+                        }
                     }
                 }
 
                 foreach (string id in g.disallowedRaces)
                 {
+                    bool continueSearch = true;
                     // first see if it belongs to a RaceGrouping
                     foreach (var group in raceGroupings)
                     {
                         if (group.Label == id)
                         {
                             s.disallowedRaceGroupings.Add(group.Label);
+                            continueSearch = false;
+                            break;
                         }
                     }
 
                     // if not, see if it is a race EditorID
-                    FormKey raceFormKey = Converters.RaceEDID2FormKey(id);
-                    if (raceFormKey.IsNull == false)
+                    if (continueSearch == true)
                     {
-                        s.disallowedRaces.Add(raceFormKey);
+                        FormKey raceFormKey = Converters.RaceEDID2FormKey(id);
+                        if (raceFormKey.IsNull == false)
+                        {
+                            s.disallowedRaces.Add(raceFormKey);
+                        }
                     }
                 }
 
@@ -237,20 +235,7 @@ namespace SynthEBD
 
             
 
-            public static HashSet<NPCAttribute> StringArraysToAttributes(List<string[]> arrList)
-            {
-                HashSet<NPCAttribute> h = new HashSet<NPCAttribute>();
-
-                foreach (string[] arr in arrList)
-                {
-                    NPCAttribute a = new NPCAttribute();
-                    a.Path = arr[0];
-                    a.Value = arr[1];
-                    h.Add(a);
-                }
-
-                return h;
-            }
+            
         }
 
         public static AssetPack ToSynthEBDAssetPack(ZEBDAssetPack z, List<RaceGrouping> raceGroupings)

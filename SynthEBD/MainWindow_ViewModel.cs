@@ -35,6 +35,9 @@ namespace SynthEBD
         public Settings_Height heightSettings { get; }
         public HashSet<HeightConfig> heightConfigs { get; }
 
+        public Settings_BodyGen bodyGenSettings { get; }
+        public BodyGenConfigs bodyGenConfigs { get; }
+
         public MainWindow_ViewModel()
         {
             var gameRelease = SkyrimRelease.SkyrimSE;
@@ -65,6 +68,10 @@ namespace SynthEBD
             VM_SettingsHeight.GetViewModelFromModel(HVM, heightSettings, LinkCache);
             heightConfigs = SettingsIO_Height.loadHeightConfig(Paths.HeightConfigCurrentPath);
             HVM.HeightConfigs = VM_HeightConfig.GetViewModelsFromModels(heightConfigs, LinkCache);
+
+            // load bodygen configs
+            bodyGenSettings = SettingsIO_BodyGen.LoadBodyGenSettings(Paths);
+            bodyGenConfigs = SettingsIO_BodyGen.loadBodyGenConfigs(generalSettings.RaceGroupings, Paths); 
 
             // Start on the settings VM
             DisplayedViewModel = SGVM;

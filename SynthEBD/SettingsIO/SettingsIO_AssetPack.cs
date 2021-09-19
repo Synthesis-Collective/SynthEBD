@@ -32,21 +32,17 @@ namespace SynthEBD
 
             foreach (string s in filePaths)
             {
-                //string text = File.ReadAllText(s);
-
                 var synthEBDconfig = new AssetPack();
 
                 try // first try deserializing to SynthEBD asset pack
                 {
                     synthEBDconfig = DeserializeFromJSON<AssetPack>.loadJSONFile(s);
-                    //synthEBDconfig = JsonConvert.DeserializeObject<AssetPack>(text);
                 }
                 catch
                 {
                     try
                     {
                         var zEBDconfig = DeserializeFromJSON<ZEBDAssetPack>.loadJSONFile(s);
-                        //var zEBDconfig = JsonConvert.DeserializeObject<ZEBDAssetPack>(text);
                         synthEBDconfig = ZEBDAssetPack.ToSynthEBDAssetPack(zEBDconfig, raceGroupings);
                     }
                     catch
