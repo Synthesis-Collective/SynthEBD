@@ -11,30 +11,49 @@ namespace SynthEBD
     {
         public NPCAttribute()
         {
-            this.Path = "";
-            this.Value = "";
+            this.GroupedSubAttributes = new HashSet<NPCAttributeShell>();
         }
 
-        public string Path { get; set; }
-        public string Value { get; set; }
+        public HashSet<NPCAttributeShell> GroupedSubAttributes { get; set; }
+    }
+
+    public enum NPCAttributeType
+    {
+        VoiceType,
+        Class,
+        Factions,
+        FaceTexture,
+        Race,
+        NPC
+    }
+
+    public class NPCAttributeShell
+    {
+       public NPCAttributeShell()
+        {
+            this.Type = NPCAttributeType.Class;
+            this.Attribute = new NPCAttributeClass();
+        }
+        public object Attribute { get; set; }
+        public NPCAttributeType Type { get; set; }
     }
 
     public class NPCAttributeVoiceType
     {
         public NPCAttributeVoiceType()
         {
-            this.VoiceTypeFormKey = new FormKey();
+            this.VoiceTypeFormKeys = new HashSet<FormKey>();
         }
-        public FormKey VoiceTypeFormKey { get; set; }
+        public HashSet<FormKey> VoiceTypeFormKeys { get; set; }
     }
 
     public class NPCAttributeClass
     {
         public NPCAttributeClass()
         {
-            this.ClassFormKey = new FormKey();
+            this.ClassFormKeys = new HashSet<FormKey>();
         }
-        public FormKey ClassFormKey { get; set; }
+        public HashSet<FormKey> ClassFormKeys { get; set; }
     }
 
     public class NPCAttributeFactions
@@ -54,26 +73,26 @@ namespace SynthEBD
     {
         public NPCAttributeFaceTexture()
         {
-            this.FaceTextureFormKey = new FormKey();
+            this.FaceTextureFormKeys = new HashSet<FormKey>();
         }
-        public FormKey FaceTextureFormKey { get; set; }
+        public HashSet<FormKey> FaceTextureFormKeys { get; set; }
     }
 
     public class NPCAttributeRace
     {
         public NPCAttributeRace()
         {
-            this.RaceFormKey = new FormKey();
+            this.RaceFormKeys = new HashSet<FormKey>();
         }
-        public FormKey RaceFormKey { get; set; }
+        public HashSet<FormKey> RaceFormKeys { get; set; }
     }
 
     public class NPCAttributeNPC
     {
         public NPCAttributeNPC()
         {
-            this.NPCFormKey = new FormKey();
+            this.NPCFormKeys = new HashSet<FormKey>();
         }
-        public FormKey NPCFormKey { get; set; }
+        public HashSet<FormKey> NPCFormKeys { get; set; }
     }
 }
