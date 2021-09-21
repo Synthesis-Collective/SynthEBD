@@ -4,10 +4,53 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD"
+             xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              d:DataContext="{d:DesignInstance Type=local:VM_NPCAttributeShell}"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
-            
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="auto"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+        </Grid.RowDefinitions>
+
+        <ListBox Grid.Row="0" Grid.Column="0" SelectedValue="{Binding Type}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:NPCAttributeType}}}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="#5844b4">
+            <i:Interaction.Triggers>
+                <i:EventTrigger EventName="SelectionChanged">
+                    <i:InvokeCommandAction Command="{Binding ChangeType}" />
+                </i:EventTrigger>
+            </i:Interaction.Triggers>
+        </ListBox>
+        <ContentPresenter Content="{Binding Attribute}" Grid.Row="0" Grid.Column="1" Margin="10, 0, 0, 0">
+            <ContentPresenter.Resources>
+                <DataTemplate DataType="{x:Type local:VM_NPCAttributeClass}">
+                    <local:UC_NPCAttributeClass/>
+                </DataTemplate>
+                <DataTemplate DataType="{x:Type local:VM_NPCAttributeFaceTexture}">
+                    <local:UC_NPCAttributeFaceTexture/>
+                </DataTemplate>
+                <DataTemplate DataType="{x:Type local:VM_NPCAttributeFactions}">
+                    <local:UC_NPCAttributeFactions/>
+                </DataTemplate>
+                <DataTemplate DataType="{x:Type local:VM_NPCAttributeNPC}">
+                    <local:UC_NPCAttributeNPC/>
+                </DataTemplate>
+                <DataTemplate DataType="{x:Type local:VM_NPCAttributeRace}">
+                    <local:UC_NPCAttributeRace/>
+                </DataTemplate>
+                <DataTemplate DataType="{x:Type local:VM_NPCAttributeVoiceType}">
+                    <local:UC_NPCAttributeVoiceType/>
+                </DataTemplate>
+            </ContentPresenter.Resources>
+        </ContentPresenter>
+
+        <Button Grid.Row="1" Grid.Column="1" Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AddAdditionalSubAttributeToParent}">AND</Button>
+        <Button Grid.Row="0" Grid.Column="2" Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}">Remove</Button>
+
     </Grid>
 </UserControl>
