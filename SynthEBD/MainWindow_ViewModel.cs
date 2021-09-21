@@ -20,7 +20,7 @@ namespace SynthEBD
         public Paths Paths { get; }
         public VM_Settings_General SGVM { get; } = new();
         public VM_SettingsTexMesh TMVM { get; } = new();
-        public VM_BodyGenSettings BGVM { get; } = new();
+        public VM_SettingsBodyGen BGVM { get; } = new();
         public VM_SettingsHeight HVM { get; } = new();
 
         public VM_NavPanel NavPanel { get; }
@@ -71,7 +71,8 @@ namespace SynthEBD
 
             // load bodygen configs
             bodyGenSettings = SettingsIO_BodyGen.LoadBodyGenSettings(Paths);
-            bodyGenConfigs = SettingsIO_BodyGen.loadBodyGenConfigs(generalSettings.RaceGroupings, Paths); 
+            bodyGenConfigs = SettingsIO_BodyGen.loadBodyGenConfigs(generalSettings.RaceGroupings, Paths);
+            VM_SettingsBodyGen.GetViewModelFromModel(bodyGenConfigs, bodyGenSettings, BGVM);
 
             // Start on the settings VM
             DisplayedViewModel = SGVM;
@@ -92,6 +93,9 @@ namespace SynthEBD
             SerializeToJSON<Settings_Height>.SaveJSONFile(heightSettings, Paths.HeightSettingsPath);
             VM_HeightConfig.DumpViewModelsToModels(heightConfigs, HVM.HeightConfigs);
             SerializeToJSON<HashSet<HeightConfig>>.SaveJSONFile(heightConfigs, Paths.HeightConfigCurrentPath);
+
+            VM_SettingsBodyGen.DumpViewModelToModel(BGVM, bodyGenSettings);
+            SerializeToJSON<Settings_BodyGen>.SaveJSONFile(bodyGenSettings, Paths.BodyGenSettingsPath);
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

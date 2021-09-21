@@ -5,8 +5,39 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD"
              mc:Ignorable="d" 
+             d:DataContext="{d:DesignInstance Type=local:VM_SettingsBodyGen}"
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
-        <TextBlock>BodyGen Settings</TextBlock>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+        </Grid.ColumnDefinitions>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Current Female Config</TextBlock>
+        <ComboBox Grid.Row="0" Grid.Column="1" MinWidth="150" ItemsSource="{Binding FemaleConfigs}" DisplayMemberPath="Label" SelectedValue="{Binding CurrentFemaleConfig}" ></ComboBox>
+        <TextBlock Grid.Row="0" Grid.Column="2" Margin="0 0 15 0" VerticalAlignment="Center">Current Male Config</TextBlock>
+        <ComboBox Grid.Row="0" Grid.Column="3" MinWidth="150" ItemsSource="{Binding MaleConfigs}" DisplayMemberPath="Label" SelectedValue="{Binding CurrentMaleConfig}"></ComboBox>
+
+        <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2">
+            <RadioButton Command="{Binding DisplayFemaleConfig}">Female</RadioButton>
+            <RadioButton Command="{Binding DisplayMaleConfig}">Male</RadioButton>
+        </StackPanel>
+
+        <ContentPresenter Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="4"  Content="{Binding CurrentlyDisplayedConfig}">
+            <ContentPresenter.Resources>
+                <DataTemplate DataType="{x:Type local:VM_BodyGenConfig}">
+                    <local:UC_BodyGenConfig Background="Black" Margin="0 0 0 10"/>
+                </DataTemplate>
+            </ContentPresenter.Resources>
+        </ContentPresenter>
+
     </Grid>
 </UserControl>

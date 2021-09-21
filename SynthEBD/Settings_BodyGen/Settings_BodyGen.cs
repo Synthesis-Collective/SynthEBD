@@ -10,9 +10,12 @@ namespace SynthEBD
     {
         public Settings_BodyGen()
         {
-            this.CurrentBodyGenConfigName = "";
+            this.CurrentMaleConfig = null;
+            this.CurrentFemaleConfig = null;
         }
 
-        public string CurrentBodyGenConfigName { get; set; }
+        public string CurrentMaleConfig { get; set; }
+        public string CurrentFemaleConfig { get; set; }
+
     }
 }

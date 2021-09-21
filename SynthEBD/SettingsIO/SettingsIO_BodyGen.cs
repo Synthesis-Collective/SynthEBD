@@ -14,9 +14,9 @@ namespace SynthEBD
         {
             Settings_BodyGen bodygenSettings = new Settings_BodyGen();
 
-            if (File.Exists(paths.HeightSettingsPath))
+            if (File.Exists(paths.BodyGenSettingsPath))
             {
-                string text = File.ReadAllText(paths.HeightSettingsPath);
+                string text = File.ReadAllText(paths.BodyGenSettingsPath);
                 bodygenSettings = JsonConvert.DeserializeObject<Settings_BodyGen>(text);
             }
 
