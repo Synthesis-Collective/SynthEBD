@@ -155,7 +155,7 @@ namespace SynthEBD
             if (factionAttributes.Count > 0)
             {
                 NPCAttributeShell shell = new NPCAttributeShell();
-                shell.Type = NPCAttributeType.Factions;
+                shell.Type = NPCAttributeType.Faction;
                 NPCAttributeFactions tmpAttr = new NPCAttributeFactions();
                 tmpAttr.FactionFormKeys = factionAttributes;
                 shell.Attribute = tmpAttr;

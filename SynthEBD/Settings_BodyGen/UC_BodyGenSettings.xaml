@@ -31,10 +31,10 @@
             <RadioButton Command="{Binding DisplayMaleConfig}">Male</RadioButton>
         </StackPanel>
 
-        <ContentPresenter Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="4"  Content="{Binding CurrentlyDisplayedConfig}">
+        <ContentPresenter Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="4" Content="{Binding CurrentlyDisplayedConfig}">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_BodyGenConfig}">
-                    <local:UC_BodyGenConfig Background="Black" Margin="0 0 0 10"/>
+                    <local:UC_BodyGenConfig Background="Black" BorderThickness="1" BorderBrush="#5844b4"/>
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>

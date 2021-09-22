@@ -85,15 +85,10 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <StackPanel Grid.Row="11" Grid.Column="1" Orientation="Horizontal">
-            <TextBlock MinWidth="150" Text="Path" TextAlignment="Center"></TextBlock>
-            <TextBlock MinWidth="150" Text="Value" Margin="15 0 0 0" TextAlignment="Center"></TextBlock>
-        </StackPanel>
+        <TextBlock Grid.Row="11" Grid.Column="0" Margin="0 0 15 0">Allowed NPC Attributes</TextBlock>
+        <Button Grid.Row="11" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddAllowedAttribute}">Add New</Button>
 
-        <TextBlock Grid.Row="12" Grid.Column="0" Margin="0 0 15 0">Allowed NPC Attributes</TextBlock>
-        <Button Grid.Row="12" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddAllowedAttribute}">Add New</Button>
-
-        <ItemsControl Grid.Row="12" Grid.Column="1" ItemsSource="{Binding allowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
+        <ItemsControl Grid.Row="11" Grid.Column="1" ItemsSource="{Binding allowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
                     <local:UC_NPCAttribute Background="Black" Margin="0 0 0 10"/>
@@ -102,9 +97,9 @@
         </ItemsControl>
         
 
-        <TextBlock Grid.Row="13" Grid.Column="0" Margin="0 0 15 0">Disallowed NPC Attributes</TextBlock>
-        <Button Grid.Row="13" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDisallowedAttribute}">Add New</Button>
-        <ItemsControl Grid.Row="13" Grid.Column="1" ItemsSource="{Binding disallowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
+        <TextBlock Grid.Row="12" Grid.Column="0" Margin="0 0 15 0">Disallowed NPC Attributes</TextBlock>
+        <Button Grid.Row="12" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDisallowedAttribute}">Add New</Button>
+        <ItemsControl Grid.Row="12" Grid.Column="1" ItemsSource="{Binding disallowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
                     <local:UC_NPCAttribute Background="Black" Margin="0 0 0 10"/>
@@ -112,9 +107,9 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBlock Grid.Row="14" Grid.Column="0" Margin="0 0 15 0">Force If NPC Has Attributes</TextBlock>
-        <Button Grid.Row="14" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddForceIfAttribute}">Add New</Button>
-        <ItemsControl Grid.Row="14" Grid.Column="1" ItemsSource="{Binding forceIfAttributes}" BorderThickness="1" BorderBrush="#5844b4">
+        <TextBlock Grid.Row="13" Grid.Column="0" Margin="0 0 15 0">Force If NPC Has Attributes</TextBlock>
+        <Button Grid.Row="13" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddForceIfAttribute}">Add New</Button>
+        <ItemsControl Grid.Row="13" Grid.Column="1" ItemsSource="{Binding forceIfAttributes}" BorderThickness="1" BorderBrush="#5844b4">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
                     <local:UC_NPCAttribute Background="Black" Margin="0 0 0 10"/>
@@ -122,22 +117,22 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBlock Grid.Row="15" Grid.Column="0" Margin="0 0 15 0">Allowed NPC Weight Range</TextBlock>
-        <StackPanel Grid.Row="15" Grid.Column="1" Orientation="Horizontal">
+        <TextBlock Grid.Row="14" Grid.Column="0" Margin="0 0 15 0">Allowed NPC Weight Range</TextBlock>
+        <StackPanel Grid.Row="14" Grid.Column="1" Orientation="Horizontal">
             <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=weightRange.Lower}"/>
             <TextBlock Text="to" Margin="15 0 15 0" VerticalAlignment="Center"/>
             <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=weightRange.Upper}"/>
         </StackPanel>
 
-        <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0">Required Subgroups</TextBlock>
-        <ListBox Grid.Row="16" Grid.Column="1" ItemsSource="{Binding requiredSubgroups}" DisplayMemberPath="id" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4"></ListBox>
+        <TextBlock Grid.Row="15" Grid.Column="0" Margin="0 0 15 0">Required Subgroups</TextBlock>
+        <ListBox Grid.Row="15" Grid.Column="1" ItemsSource="{Binding requiredSubgroups}" DisplayMemberPath="id" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4"></ListBox>
 
-        <TextBlock Grid.Row="17" Grid.Column="0" Margin="0 0 15 0">Excluded Subgroups</TextBlock>
-        <ListBox Grid.Row="17" Grid.Column="1" ItemsSource="{Binding excludedSubgroups}" DisplayMemberPath="id" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4"></ListBox>
+        <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0">Excluded Subgroups</TextBlock>
+        <ListBox Grid.Row="16" Grid.Column="1" ItemsSource="{Binding excludedSubgroups}" DisplayMemberPath="id" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4"></ListBox>
 
-        <TextBlock Grid.Row="18" Grid.Column="0" Margin="0 0 15 0">Add Keywords to NPC</TextBlock>
-        <Button Grid.Row="18" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddNPCKeyword}">Add New</Button>
-        <ListBox Grid.Row="18" Grid.Column="1" ItemsSource="{Binding addKeywords}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="#5844b4">
+        <TextBlock Grid.Row="17" Grid.Column="0" Margin="0 0 15 0">Add Keywords to NPC</TextBlock>
+        <Button Grid.Row="17" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddNPCKeyword}">Add New</Button>
+        <ListBox Grid.Row="17" Grid.Column="1" ItemsSource="{Binding addKeywords}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="#5844b4">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal">
@@ -148,13 +143,13 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <TextBlock Grid.Row="19" Grid.Column="0" Margin="0 0 15 0">Asset Paths</TextBlock>
-        <DockPanel Grid.Row="19" Grid.Column="1">
+        <TextBlock Grid.Row="18" Grid.Column="0" Margin="0 0 15 0">Asset Paths</TextBlock>
+        <DockPanel Grid.Row="18" Grid.Column="1">
             <TextBlock Width="150" TextAlignment="Center" Text="Source File"></TextBlock>
             <TextBlock DockPanel.Dock="Right" Width="150" TextAlignment="Right" Text="Destination" Margin="100 0 0 0"></TextBlock>
         </DockPanel>
-        <Button Grid.Row="20" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddPath}">Add New</Button>
-        <ItemsControl Grid.Row="20" Grid.Column="1" ItemsSource="{Binding paths}" BorderThickness="1" BorderBrush="#5844b4">
+        <Button Grid.Row="19" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddPath}">Add New</Button>
+        <ItemsControl Grid.Row="19" Grid.Column="1" ItemsSource="{Binding paths}" BorderThickness="1" BorderBrush="#5844b4">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_FilePathReplacement}">
                     <local:UC_FilePathReplacement Background="Black" Margin="0 0 0 10"/>

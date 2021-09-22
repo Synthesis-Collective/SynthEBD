@@ -11,17 +11,74 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
             <ColumnDefinition Width="auto"/>
-            <ColumnDefinition Width="auto"/>
-            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0">This is a BodyGen Config of type</TextBlock>
-        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Gender}"></TextBlock>
+        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Config Name</TextBlock>
+        <TextBox Grid.Row="0" Grid.Column="1" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+        
+        <TextBlock Grid.Row="1" Grid.Column="0">Config Gender</TextBlock>
+        <ComboBox Grid.Row="1" Grid.Column="1" SelectedValue="{Binding Gender}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" IsSynchronizedWithCurrentItem="True"/>
+
+        <Expander Grid.Row="2" Grid.Column="1" Header="Race:Morph Group Mapping" ExpandDirection="Down" Grid.ColumnSpan="2">
+            <ItemsControl ItemsSource="{Binding RacialTemplateGroupMap}" >
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type local:VM_BodyGenRacialMapping}">
+                        <local:UC_BodyGenRacialMapping Background="Black" BorderThickness="1" BorderBrush="Teal" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Expander>
+        
+        <Expander Grid.Row="3" Grid.Column="1" Header="Morph List" ExpandDirection="Down" Grid.ColumnSpan="2">
+            <ItemsControl ItemsSource="{Binding Templates}" >
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type local:VM_BodyGenTemplate}">
+                        <local:UC_BodyGenTemplate Background="Black" BorderThickness="1" BorderBrush="Teal" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Expander>
+
+        <Expander Grid.Row="4" Grid.Column="1" Header="Morph Groups" ExpandDirection="Down" Grid.ColumnSpan="2">
+            <ItemsControl ItemsSource="{Binding TemplateGroups}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <TextBox Text="{Binding ., Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" BorderThickness="1" BorderBrush="Teal"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Expander>
+
+        <Expander Grid.Row="5" Grid.Column="1" Header="Morph Descriptors" ExpandDirection="Down" Grid.ColumnSpan="2">
+            <ItemsControl ItemsSource="{Binding TemplateDescriptors}" >
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type local:VM_BodyGenMorphDescriptor}">
+                        <local:UC_BodyGenMorphDescriptor Background="Black" BorderThickness="1" BorderBrush="Teal" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Expander>
+
     </Grid>
 </UserControl>

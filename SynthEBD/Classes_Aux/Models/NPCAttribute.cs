@@ -19,12 +19,13 @@ namespace SynthEBD
 
     public enum NPCAttributeType
     {
-        VoiceType,
+        
         Class,
-        Factions,
+        Faction,
         FaceTexture,
+        NPC,
         Race,
-        NPC
+        VoiceType
     }
 
     public class NPCAttributeShell

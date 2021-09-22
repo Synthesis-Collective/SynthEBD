@@ -22,14 +22,18 @@ namespace SynthEBD
             startingShell.Type = NPCAttributeType.Class;
             startingShell.Attribute = startingAttributeGroup;
             this.GroupedSubAttributes.Add(startingShell);
+            this.ParentCollection = parentCollection;
 
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
-
+            AddToParent = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Add(new VM_NPCAttribute(parentCollection)));
         }
 
         public ObservableCollection<VM_NPCAttributeShell> GroupedSubAttributes { get; set; } // everything within this collection is evaluated as AND (all must be true)
 
         public RelayCommand DeleteCommand { get; }
+        public RelayCommand AddToParent { get; }
+
+        public ObservableCollection<VM_NPCAttribute> ParentCollection { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -53,7 +57,7 @@ namespace SynthEBD
                 switch (attributeShell.Type)
                 {
                     case NPCAttributeType.Class: shellVM.Attribute = VM_NPCAttributeClass.getViewModelFromModel((NPCAttributeClass)attributeShell.Attribute, viewModel, shellVM); break;
-                    case NPCAttributeType.Factions: shellVM.Attribute = VM_NPCAttributeFactions.getViewModelFromModel((NPCAttributeFactions)attributeShell.Attribute, viewModel, shellVM); break;
+                    case NPCAttributeType.Faction: shellVM.Attribute = VM_NPCAttributeFactions.getViewModelFromModel((NPCAttributeFactions)attributeShell.Attribute, viewModel, shellVM); break;
                     case NPCAttributeType.FaceTexture: shellVM.Attribute = VM_NPCAttributeFaceTexture.getViewModelFromModel((NPCAttributeFaceTexture)attributeShell.Attribute, viewModel, shellVM); break;
                     case NPCAttributeType.Race: shellVM.Attribute = VM_NPCAttributeRace.getViewModelFromModel((NPCAttributeRace)attributeShell.Attribute, viewModel, shellVM); break;
                     case NPCAttributeType.NPC: shellVM.Attribute = VM_NPCAttributeNPC.getViewModelFromModel((NPCAttributeNPC)attributeShell.Attribute, viewModel, shellVM); break;
@@ -80,7 +84,7 @@ namespace SynthEBD
                 execute: _ => parentVM.GroupedSubAttributes.Add(new VM_NPCAttributeShell(parentVM))
                 );
 
-            DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(this));
+            DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(this)); 
 
             ChangeType = new RelayCommand(canExecute: _ => true, execute: _ =>
             {
@@ -88,7 +92,7 @@ namespace SynthEBD
                 {
                     case NPCAttributeType.Class: this.Attribute = new VM_NPCAttributeClass(parentVM, this); break;
                     case NPCAttributeType.FaceTexture: this.Attribute = new VM_NPCAttributeFaceTexture(parentVM, this); break;
-                    case NPCAttributeType.Factions: this.Attribute = new VM_NPCAttributeFactions(parentVM, this); break;
+                    case NPCAttributeType.Faction: this.Attribute = new VM_NPCAttributeFactions(parentVM, this); break;
                     case NPCAttributeType.NPC: this.Attribute = new VM_NPCAttributeNPC(parentVM, this); break;
                     case NPCAttributeType.Race: this.Attribute = new VM_NPCAttributeRace(parentVM, this); break;
                     case NPCAttributeType.VoiceType: this.Attribute = new VM_NPCAttributeVoiceType(parentVM, this); break;
@@ -114,7 +118,16 @@ namespace SynthEBD
         {
             this.VoiceTypeFormKeys = new ObservableCollection<FormKey>();
             this.ParentVM = parentVM;
-            DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
+            DeleteCommand = new RelayCommand(
+                canExecute: _ => true, 
+                execute: _ => 
+                { 
+                    parentVM.GroupedSubAttributes.Remove(parentShell);
+                    if (parentVM.GroupedSubAttributes.Count == 0)
+                    {
+                        parentVM.ParentCollection.Remove(parentVM);
+                    }
+                }) ;
             this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
             this.AllowedFormKeyTypes = typeof(IVoiceTypeGetter).AsEnumerable();
 

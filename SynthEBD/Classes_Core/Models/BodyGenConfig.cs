@@ -24,7 +24,7 @@ namespace SynthEBD
         {
             this.Label = "";
             this.Gender = Gender.female;
-            this.RacialTemplateGroupMap = new HashSet<RacialSettings>();
+            this.RacialTemplateGroupMap = new HashSet<RacialMapping>();
             this.Templates = new HashSet<BodyGenTemplate>();
             this.TemplateGroups = new HashSet<string>();
             this.TemplateDescriptors = new HashSet<MorphDescriptor>();
@@ -32,7 +32,7 @@ namespace SynthEBD
 
         public string Label { get; set; }
         public Gender Gender { get; set; }
-        public HashSet<RacialSettings> RacialTemplateGroupMap { get; set; }
+        public HashSet<RacialMapping> RacialTemplateGroupMap { get; set; }
         public HashSet<BodyGenTemplate> Templates { get; set; }
         public HashSet<string> TemplateGroups { get; set; }
         public HashSet<MorphDescriptor> TemplateDescriptors { get; set; }
@@ -49,9 +49,9 @@ namespace SynthEBD
             public string Value { get; set; }
             public string DispString { get; set; }
         }
-        public class RacialSettings
+        public class RacialMapping
         {
-            public RacialSettings()
+            public RacialMapping()
             {
                 this.Label = "";
                 this.Races = new HashSet<FormKey>();
@@ -289,16 +289,16 @@ namespace SynthEBD
             return converted;
         }
 
-        public static BodyGenConfig.RacialSettings zEBDBodyGenRacialSettingsToSynthEBD(zEBDBodyGenConfig.racialSettings rs, HashSet<string> usedGroups)
+        public static BodyGenConfig.RacialMapping zEBDBodyGenRacialSettingsToSynthEBD(zEBDBodyGenConfig.racialSettings rs, HashSet<string> usedGroups)
         {
-            BodyGenConfig.RacialSettings newRS = new BodyGenConfig.RacialSettings();
+            BodyGenConfig.RacialMapping newRS = new BodyGenConfig.RacialMapping();
             newRS.Label = rs.EDID;
             newRS.Races = new HashSet<FormKey> { Converters.RaceEDID2FormKey(rs.EDID) };
             newRS.RaceGroupings = new HashSet<string>();
-            newRS.Combinations = new HashSet<BodyGenConfig.RacialSettings.BodyGenCombination>();
+            newRS.Combinations = new HashSet<BodyGenConfig.RacialMapping.BodyGenCombination>();
             foreach (var combo in rs.combinations)
             {
-                BodyGenConfig.RacialSettings.BodyGenCombination newCombo = new BodyGenConfig.RacialSettings.BodyGenCombination();
+                BodyGenConfig.RacialMapping.BodyGenCombination newCombo = new BodyGenConfig.RacialMapping.BodyGenCombination();
                 newCombo.Members = combo.members;
                 newCombo.ProbabilityWeighting = combo.probabilityWeighting;
                 newRS.Combinations.Add(newCombo);
