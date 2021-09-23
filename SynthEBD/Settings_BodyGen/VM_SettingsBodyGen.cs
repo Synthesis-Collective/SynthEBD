@@ -20,12 +20,22 @@ namespace SynthEBD
 
             DisplayMaleConfig = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.CurrentlyDisplayedConfig = this.CurrentMaleConfig
+                execute: _ =>
+                {
+                    this.CurrentlyDisplayedConfig = this.CurrentMaleConfig;
+                    this.DisplayedConfigIsFemale = false;
+                    this.DisplayedConfigIsMale = true;
+                    }
                 );
 
             DisplayFemaleConfig = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.CurrentlyDisplayedConfig = this.CurrentFemaleConfig
+                execute: _ =>
+                {
+                    this.CurrentlyDisplayedConfig = this.CurrentFemaleConfig;
+                    this.DisplayedConfigIsFemale = true;
+                    this.DisplayedConfigIsMale = false;
+                }
                 );
         }
 
@@ -34,6 +44,9 @@ namespace SynthEBD
         public VM_BodyGenConfig CurrentMaleConfig { get; set; }
         public VM_BodyGenConfig CurrentFemaleConfig { get; set; }
         public VM_BodyGenConfig CurrentlyDisplayedConfig { get; set; }
+
+        public bool DisplayedConfigIsFemale { get; set; }
+        public bool DisplayedConfigIsMale { get; set; }
 
         public RelayCommand DisplayMaleConfig { get; }
         public RelayCommand DisplayFemaleConfig { get; }
@@ -74,10 +87,14 @@ namespace SynthEBD
             if (viewModel.CurrentFemaleConfig != null)
             {
                 viewModel.CurrentlyDisplayedConfig = viewModel.CurrentFemaleConfig;
+                viewModel.DisplayedConfigIsFemale = true;
+                viewModel.DisplayedConfigIsMale = false;
             }
             else if (viewModel.CurrentMaleConfig != null)
             {
                 viewModel.CurrentlyDisplayedConfig = viewModel.CurrentMaleConfig;
+                viewModel.DisplayedConfigIsFemale = false;
+                viewModel.DisplayedConfigIsMale = true;
             }
         }
 

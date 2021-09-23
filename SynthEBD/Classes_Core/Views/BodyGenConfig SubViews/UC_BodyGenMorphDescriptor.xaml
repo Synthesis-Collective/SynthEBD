@@ -8,6 +8,15 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
-            
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBox Grid.Row="0" Grid.Column="0" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Value, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+        <Button Grid.Row="0" Grid.Column="1" Command="{Binding RemoveDescriptorValue}">Remove</Button>
     </Grid>
 </UserControl>

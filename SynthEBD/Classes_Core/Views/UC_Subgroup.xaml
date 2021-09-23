@@ -136,7 +136,7 @@
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal">
-                        <TextBox MinWidth="150" Text="{Binding Mode=TwoWay, Path=., UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBox MinWidth="150" Text="{Binding Mode=TwoWay, Path=Content, UpdateSourceTrigger=PropertyChanged}" />
                         <Button Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}">Remove</Button>
                     </StackPanel>
                 </DataTemplate>
