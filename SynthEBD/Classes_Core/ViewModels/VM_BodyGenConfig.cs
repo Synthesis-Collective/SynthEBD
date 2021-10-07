@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
@@ -18,9 +19,22 @@ namespace SynthEBD
             this.RacialTemplateGroupMap = new ObservableCollection<VM_BodyGenRacialMapping>();
             this.Templates = new ObservableCollection<VM_BodyGenTemplate>();
             this.TemplateGroups = new ObservableCollection<VM_CollectionMemberString>();
+            this.TemplateGroupsCheckList = new VM_CollectionMemberStringCheckboxList(this.TemplateGroups);
             this.TemplateDescriptors = new ObservableCollection<VM_BodyGenMorphDescriptorShell>();
             this.TemplateDescriptorList = new ObservableCollection<VM_BodyGenMorphDescriptor>();
+
+            this.CurrentlyDisplayedTemplate = new VM_BodyGenTemplate(this.TemplateGroups, this.TemplateDescriptors);
             this.CurrentlyDisplayedTemplateDescriptorShell = new VM_BodyGenMorphDescriptorShell(new ObservableCollection<VM_BodyGenMorphDescriptorShell>());
+
+            AddTemplate = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.Templates.Add(new VM_BodyGenTemplate(this.TemplateGroups, this.TemplateDescriptors))
+                );
+
+            RemoveTemplate = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.Templates.Remove(CurrentlyDisplayedTemplate)
+                );
 
             AddTemplateGroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -43,10 +57,15 @@ namespace SynthEBD
         public ObservableCollection<VM_BodyGenRacialMapping> RacialTemplateGroupMap { get; set; }
         public ObservableCollection<VM_BodyGenTemplate> Templates { get; set; }
         public ObservableCollection<VM_CollectionMemberString> TemplateGroups { get; set; }
+        public VM_CollectionMemberStringCheckboxList TemplateGroupsCheckList { get; set; }
         public ObservableCollection<VM_BodyGenMorphDescriptorShell> TemplateDescriptors { get; set; }
         public ObservableCollection<VM_BodyGenMorphDescriptor> TemplateDescriptorList { get; set; } // hidden flattened list of TemplateDescriptors for presentation to VM_Subgroup and VM_BodyGenTemplate. Needs to be synced with TemplateDescriptors on update.
 
+        public VM_BodyGenTemplate CurrentlyDisplayedTemplate { get; set; }
         public VM_BodyGenMorphDescriptorShell CurrentlyDisplayedTemplateDescriptorShell { get; set; }
+
+        public RelayCommand AddTemplate { get; }
+        public RelayCommand RemoveTemplate { get; }
         public RelayCommand AddTemplateGroup { get; }
         public RelayCommand RemoveTemplateGroup { get; }
         public RelayCommand AddTemplateDescriptorShell { get; }
@@ -64,11 +83,6 @@ namespace SynthEBD
                 viewModel.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.GetViewModelFromModel(RTG));
             }
 
-            foreach (var template in model.Templates)
-            {
-                viewModel.Templates.Add(VM_BodyGenTemplate.GetViewModelFromModel(template));
-            }
-
             viewModel.TemplateGroups = new ObservableCollection<VM_CollectionMemberString>();
             foreach (string group in model.TemplateGroups)
             {
@@ -82,7 +96,58 @@ namespace SynthEBD
                 viewModel.TemplateDescriptorList.Add(VM_BodyGenMorphDescriptor.GetViewModelFromModel(descriptor));
             }
 
+            foreach (var template in model.Templates)
+            {
+                var templateVM = new VM_BodyGenTemplate(viewModel.TemplateGroups, viewModel.TemplateDescriptors);
+                VM_BodyGenTemplate.GetViewModelFromModel(template, templateVM);
+                viewModel.Templates.Add(templateVM);
+            }
+
             return viewModel;
+        }
+    }
+
+    public class VM_BodyGenMorphDescriptorSelector : INotifyPropertyChanged
+    {
+        public VM_BodyGenMorphDescriptorSelector(ObservableCollection<VM_BodyGenMorphDescriptorShell> monitoredCollection)
+        {
+            this.MonitoredCollection = monitoredCollection;
+        }
+
+        public ObservableCollection<VM_BodyGenMorphDescriptorShell> MonitoredCollection { get; set; }
+        public string Header { get; set; }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        void BuildHeader()
+        {
+            string header = "";
+            foreach (var shell in this.MonitoredCollection)
+            {
+                string subHeader = "";
+                string catHeader = shell.Category + ": ";
+                foreach (var descriptor in shell.Descriptors)
+                {
+                    if (descriptor.IsSelected)
+                    {
+                        subHeader += descriptor.Value + ", ";
+                    }
+                }
+                if (subHeader.EndsWith(", "))
+                {
+                    subHeader = subHeader.Remove(subHeader.Length - 2);
+                }
+                if (subHeader != "")
+                {
+                    header = catHeader + subHeader + " | ";
+                }
+            }
+
+            if (header.EndsWith(" | "))
+            {
+                header = header.Remove(header.Length - 3);
+            }
+            this.Header = header;
         }
     }
 
@@ -146,6 +211,7 @@ namespace SynthEBD
             this.Value = "";
             this.DispString = "";
             this.ParentShell = parentShell;
+            this.IsSelected = false;
 
             RemoveDescriptorValue = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -155,6 +221,7 @@ namespace SynthEBD
         public string Category { get; set; }
         public string Value { get; set; }
         public string DispString { get; set; }
+        public bool IsSelected { get; set; }
 
         public VM_BodyGenMorphDescriptorShell ParentShell { get; set; }
 
@@ -225,13 +292,13 @@ namespace SynthEBD
 
     public class VM_BodyGenTemplate : INotifyPropertyChanged
     {
-        public VM_BodyGenTemplate()
+        public VM_BodyGenTemplate(ObservableCollection<VM_CollectionMemberString> templateGroups, ObservableCollection<VM_BodyGenMorphDescriptorShell> morphDescriptors)
         {
             this.Label = "";
             this.Notes = "";
             this.Specs = "";
-            this.MemberOfTemplateGroups = new ObservableCollection<string>();
-            this.MorphDescriptors = new ObservableCollection<string>();
+            this.MemberOfTemplateGroups = new VM_CollectionMemberStringCheckboxList(templateGroups);
+            this.MorphDescriptors = new VM_BodyGenMorphDescriptorSelector(morphDescriptors);
             this.AllowedRaces = new ObservableCollection<FormKey>();
             this.AllowedRaceGroupings = new ObservableCollection<string>();
             this.DisallowedRaces = new ObservableCollection<FormKey>();
@@ -245,13 +312,16 @@ namespace SynthEBD
             this.ProbabilityWeighting = 1;
             this.RequiredTemplates = new ObservableCollection<string>();
             this.WeightRange = new NPCWeightRange();
+
+            this.Caption_MemberOfTemplateGroups = "";
+            this.Caption_MorphDescriptors = "";
         }
 
         public string Label { get; set; }
         public string Notes { get; set; }
         public string Specs { get; set; } // will need special logic during I/O because in zEBD settings this is called "params" which is reserved in C#
-        public ObservableCollection<string> MemberOfTemplateGroups { get; set; }
-        public ObservableCollection<string> MorphDescriptors { get; set; }
+        public VM_CollectionMemberStringCheckboxList MemberOfTemplateGroups { get; set; }
+        public VM_BodyGenMorphDescriptorSelector MorphDescriptors { get; set; }
         public ObservableCollection<FormKey> AllowedRaces { get; set; }
         public ObservableCollection<FormKey> DisallowedRaces { get; set; }
         public ObservableCollection<string> AllowedRaceGroupings { get; set; }
@@ -267,15 +337,16 @@ namespace SynthEBD
         public NPCWeightRange WeightRange { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
+        public string Caption_MemberOfTemplateGroups { get; set; }
+        public string Caption_MorphDescriptors { get; set; }
 
-        public static VM_BodyGenTemplate GetViewModelFromModel(BodyGenConfig.BodyGenTemplate model)
+        public static void GetViewModelFromModel(BodyGenConfig.BodyGenTemplate model, VM_BodyGenTemplate viewModel)
         {
-            VM_BodyGenTemplate viewModel = new VM_BodyGenTemplate();
             viewModel.Label = model.Label;
             viewModel.Notes = model.Notes;
             viewModel.Specs = model.Specs;
-            viewModel.MemberOfTemplateGroups = new ObservableCollection<string>(model.MemberOfTemplateGroups);
-            viewModel.MorphDescriptors = new ObservableCollection<string>(model.MorphDescriptors);
+            viewModel.MemberOfTemplateGroups.InitializeFromHashSet(model.MemberOfTemplateGroups);
+            //viewModel.MorphDescriptors = VM_CollectionMemberString.InitializeFromHashSet(morphDescriptors, model.MorphDescriptors);
             viewModel.AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
             viewModel.AllowedRaceGroupings = new ObservableCollection<string>(model.AllowedRaceGroupings);
             viewModel.DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
@@ -289,7 +360,6 @@ namespace SynthEBD
             viewModel.ProbabilityWeighting = model.ProbabilityWeighting;
             viewModel.RequiredTemplates = new ObservableCollection<string>(model.RequiredTemplates);
             viewModel.WeightRange = model.WeightRange;
-            return viewModel;
         }
     }
 }
