@@ -30,7 +30,6 @@ namespace SynthEBD
         private void NumericOnly(System.Object sender, System.Windows.Input.TextCompositionEventArgs e)
         {
             e.Handled = IsNumeric.IsTextNumeric(e.Text);
-
         }
     }
 }

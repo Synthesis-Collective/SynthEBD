@@ -13,7 +13,7 @@ namespace SynthEBD
 {
     class VM_BodyGenConfig : INotifyPropertyChanged
     {
-        public VM_BodyGenConfig()
+        public VM_BodyGenConfig(ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
             this.Label = "";
             this.Gender = Gender.female;
@@ -21,7 +21,7 @@ namespace SynthEBD
             this.GroupMappingUI = new VM_BodyGenGroupMappingMenu();
             this.GroupUI = new VM_BodyGenGroupsMenu();
             this.DescriptorUI = new VM_BodyGenMorphDescriptorMenu();
-            this.TemplateMorphUI = new VM_BodyGenTemplateMenu(this);
+            this.TemplateMorphUI = new VM_BodyGenTemplateMenu(this, raceGroupingVMs);
             this.DisplayedUI = this.TemplateMorphUI;
 
             ClickTemplateMenu = new SynthEBD.RelayCommand(
@@ -61,9 +61,9 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static VM_BodyGenConfig GetViewModelFromModel(BodyGenConfig model)
+        public static VM_BodyGenConfig GetViewModelFromModel(BodyGenConfig model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
-            VM_BodyGenConfig viewModel = new VM_BodyGenConfig();
+            VM_BodyGenConfig viewModel = new VM_BodyGenConfig(raceGroupingVMs);
             viewModel.Label = model.Label;
             viewModel.Gender = model.Gender;
             foreach (var RTG in model.RacialTemplateGroupMap)
@@ -86,8 +86,8 @@ namespace SynthEBD
 
             foreach (var template in model.Templates)
             {
-                var templateVM = new VM_BodyGenTemplate(viewModel.GroupUI.TemplateGroups, viewModel.DescriptorUI);
-                VM_BodyGenTemplate.GetViewModelFromModel(template, templateVM, viewModel.DescriptorUI);
+                var templateVM = new VM_BodyGenTemplate(viewModel.GroupUI.TemplateGroups, viewModel.DescriptorUI, raceGroupingVMs);
+                VM_BodyGenTemplate.GetViewModelFromModel(template, templateVM, viewModel.DescriptorUI, raceGroupingVMs);
                 viewModel.TemplateMorphUI.Templates.Add(templateVM);
             }
 

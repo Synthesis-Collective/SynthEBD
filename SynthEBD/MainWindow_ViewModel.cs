@@ -72,7 +72,7 @@ namespace SynthEBD
             // load bodygen configs
             bodyGenSettings = SettingsIO_BodyGen.LoadBodyGenSettings(Paths);
             bodyGenConfigs = SettingsIO_BodyGen.loadBodyGenConfigs(generalSettings.RaceGroupings, Paths);
-            VM_SettingsBodyGen.GetViewModelFromModel(bodyGenConfigs, bodyGenSettings, BGVM);
+            VM_SettingsBodyGen.GetViewModelFromModel(bodyGenConfigs, bodyGenSettings, BGVM, SGVM.RaceGroupings);
 
             // Start on the settings VM
             DisplayedViewModel = SGVM;

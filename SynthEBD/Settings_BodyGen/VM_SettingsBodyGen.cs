@@ -53,16 +53,16 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static void GetViewModelFromModel(BodyGenConfigs configModels, Settings_BodyGen model, VM_SettingsBodyGen viewModel)
+        public static void GetViewModelFromModel(BodyGenConfigs configModels, Settings_BodyGen model, VM_SettingsBodyGen viewModel, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
             foreach(var config in configModels.Female)
             {
-                viewModel.FemaleConfigs.Add(VM_BodyGenConfig.GetViewModelFromModel(config));
+                viewModel.FemaleConfigs.Add(VM_BodyGenConfig.GetViewModelFromModel(config, raceGroupingVMs));
             }
 
             foreach(var config in configModels.Male)
             {
-                viewModel.MaleConfigs.Add(VM_BodyGenConfig.GetViewModelFromModel(config));
+                viewModel.MaleConfigs.Add(VM_BodyGenConfig.GetViewModelFromModel(config, raceGroupingVMs));
             }
 
             viewModel.CurrentMaleConfig = GetConfigByLabel(model.CurrentMaleConfig, viewModel.MaleConfigs);

@@ -1,4 +1,7 @@
 ﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
+using Mutagen.Bethesda.Skyrim;
+using Noggog;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -11,13 +14,13 @@ namespace SynthEBD
 {
     class VM_BodyGenTemplateMenu : INotifyPropertyChanged
     {
-        public VM_BodyGenTemplateMenu(VM_BodyGenConfig parentConfig)
+        public VM_BodyGenTemplateMenu(VM_BodyGenConfig parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
             this.Templates = new ObservableCollection<VM_BodyGenTemplate>();
-            this.CurrentlyDisplayedTemplate = new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI);
+            this.CurrentlyDisplayedTemplate = new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs);
             AddTemplate = new SynthEBD.RelayCommand(
     canExecute: _ => true,
-    execute: _ => this.Templates.Add(new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI))
+    execute: _ => this.Templates.Add(new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs))
     );
 
             RemoveTemplate = new SynthEBD.RelayCommand(
@@ -38,7 +41,7 @@ namespace SynthEBD
     
     public class VM_BodyGenTemplate : INotifyPropertyChanged
     {
-        public VM_BodyGenTemplate(ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyGenMorphDescriptorMenu morphDescriptors)
+        public VM_BodyGenTemplate(ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyGenMorphDescriptorMenu morphDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
             this.Label = "";
             this.Notes = "";
@@ -46,12 +49,12 @@ namespace SynthEBD
             this.GroupSelectionCheckList = new VM_CollectionMemberStringCheckboxList(templateGroups);
             this.DescriptorsSelectionMenu = new VM_BodyGenMorphDescriptorSelectionMenu(morphDescriptors);
             this.AllowedRaces = new ObservableCollection<FormKey>();
-            this.AllowedRaceGroupings = new ObservableCollection<string>();
+            this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
             this.DisallowedRaces = new ObservableCollection<FormKey>();
-            this.DisallowedRaceGroupings = new ObservableCollection<string>();
-            this.AllowedAttributes = new ObservableCollection<NPCAttribute>();
-            this.DisallowedAttributes = new ObservableCollection<NPCAttribute>();
-            this.ForceIfAttributes = new ObservableCollection<NPCAttribute>();
+            this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+            this.AllowedAttributes = new ObservableCollection<VM_NPCAttribute>();
+            this.DisallowedAttributes = new ObservableCollection<VM_NPCAttribute>();
+            this.ForceIfAttributes = new ObservableCollection<VM_NPCAttribute>();
             this.bAllowUnique = true;
             this.bAllowNonUnique = true;
             this.bAllowRandom = true;
@@ -61,6 +64,24 @@ namespace SynthEBD
 
             this.Caption_MemberOfTemplateGroups = "";
             this.Caption_MorphDescriptors = "";
+
+            this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
+            this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
+
+            AddAllowedAttribute = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.AllowedAttributes.Add(new VM_NPCAttribute(this.AllowedAttributes))
+                );
+
+            AddDisallowedAttribute = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.DisallowedAttributes.Add(new VM_NPCAttribute(this.DisallowedAttributes))
+                );
+
+            AddForceIfAttribute = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.ForceIfAttributes.Add(new VM_NPCAttribute(this.ForceIfAttributes))
+                );
         }
 
         public string Label { get; set; }
@@ -70,11 +91,11 @@ namespace SynthEBD
         public VM_BodyGenMorphDescriptorSelectionMenu DescriptorsSelectionMenu { get; set; }
         public ObservableCollection<FormKey> AllowedRaces { get; set; }
         public ObservableCollection<FormKey> DisallowedRaces { get; set; }
-        public ObservableCollection<string> AllowedRaceGroupings { get; set; }
-        public ObservableCollection<string> DisallowedRaceGroupings { get; set; }
-        public ObservableCollection<NPCAttribute> AllowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
-        public ObservableCollection<NPCAttribute> DisallowedAttributes { get; set; }
-        public ObservableCollection<NPCAttribute> ForceIfAttributes { get; set; }
+        public VM_RaceGroupingCheckboxList AllowedRaceGroupings { get; set; }
+        public VM_RaceGroupingCheckboxList DisallowedRaceGroupings { get; set; }
+        public ObservableCollection<VM_NPCAttribute> AllowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
+        public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; }
+        public ObservableCollection<VM_NPCAttribute> ForceIfAttributes { get; set; }
         public bool bAllowUnique { get; set; }
         public bool bAllowNonUnique { get; set; }
         public bool bAllowRandom { get; set; }
@@ -85,8 +106,14 @@ namespace SynthEBD
         public event PropertyChangedEventHandler PropertyChanged;
         public string Caption_MemberOfTemplateGroups { get; set; }
         public string Caption_MorphDescriptors { get; set; }
+        public ILinkCache lk { get; set; }
+        public IEnumerable<Type> RacePickerFormKeys { get; set; }
 
-        public static void GetViewModelFromModel(BodyGenConfig.BodyGenTemplate model, VM_BodyGenTemplate viewModel, VM_BodyGenMorphDescriptorMenu descriptorMenu)
+        public RelayCommand AddAllowedAttribute { get; }
+        public RelayCommand AddDisallowedAttribute { get; }
+        public RelayCommand AddForceIfAttribute { get; }
+
+        public static void GetViewModelFromModel(BodyGenConfig.BodyGenTemplate model, VM_BodyGenTemplate viewModel, VM_BodyGenMorphDescriptorMenu descriptorMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
             viewModel.Label = model.Label;
             viewModel.Notes = model.Notes;
@@ -94,12 +121,31 @@ namespace SynthEBD
             viewModel.GroupSelectionCheckList.InitializeFromHashSet(model.MemberOfTemplateGroups);
             viewModel.DescriptorsSelectionMenu = VM_BodyGenMorphDescriptorSelectionMenu.InitializeFromTemplate(model, descriptorMenu);
             viewModel.AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
-            viewModel.AllowedRaceGroupings = new ObservableCollection<string>(model.AllowedRaceGroupings);
+            viewModel.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+            foreach (var grouping in viewModel.AllowedRaceGroupings.RaceGroupingSelections)
+            {
+                if (model.AllowedRaceGroupings.Contains(grouping.Label))
+                {
+                    grouping.IsSelected = true;
+                }
+                else { grouping.IsSelected = false; }
+            }
+
             viewModel.DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
-            viewModel.DisallowedRaceGroupings = new ObservableCollection<string>(model.DisallowedRaceGroupings);
-            viewModel.AllowedAttributes = new ObservableCollection<NPCAttribute>(model.AllowedAttributes);
-            viewModel.DisallowedAttributes = new ObservableCollection<NPCAttribute>(model.DisallowedAttributes);
-            viewModel.ForceIfAttributes = new ObservableCollection<NPCAttribute>(model.ForceIfAttributes);
+            viewModel.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+            
+            foreach (var grouping in viewModel.DisallowedRaceGroupings.RaceGroupingSelections)
+            {
+                if (model.DisallowedRaceGroupings.Contains(grouping.Label))
+                {
+                    grouping.IsSelected = true;
+                }
+                else { grouping.IsSelected = false; }
+            }
+
+            viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes);
+            viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes);
+            viewModel.ForceIfAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.ForceIfAttributes);
             viewModel.bAllowUnique = model.bAllowUnique;
             viewModel.bAllowNonUnique = model.bAllowNonUnique;
             viewModel.bAllowRandom = model.bAllowRandom;
