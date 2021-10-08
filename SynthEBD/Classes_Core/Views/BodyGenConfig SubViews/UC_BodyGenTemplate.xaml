@@ -35,7 +35,7 @@
         <TextBox Grid.Row="2" Grid.Column="1" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Specs, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap"></TextBox>
 
         <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top">Belongs to Groups</TextBlock>
-        <ContentPresenter Grid.Row="3" Grid.Column="1"  Content="{Binding MemberOfTemplateGroups}">
+        <ContentPresenter Grid.Row="3" Grid.Column="1"  Content="{Binding GroupSelectionCheckList}">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_CollectionMemberStringCheckboxList}">
                     <local:UC_CollectionMemberStringCheckboxList Background="Black" Margin="0 0 0 10"/>
@@ -44,10 +44,10 @@
         </ContentPresenter>
 
         <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top">Descriptors</TextBlock>
-        <ContentPresenter Grid.Row="4" Grid.Column="1"  Content="{Binding MorphDescriptors}">
+        <ContentPresenter Grid.Row="4" Grid.Column="1"  Content="{Binding DescriptorsSelectionMenu}">
             <ContentPresenter.Resources>
-                <DataTemplate DataType="{x:Type local:VM_BodyGenMorphDescriptorSelector}">
-                    <local:UC_BodyGenMorphDescriptorSelector Background="Black" Margin="0 0 0 10"/>
+                <DataTemplate DataType="{x:Type local:VM_BodyGenMorphDescriptorSelectionMenu}">
+                    <local:UC_BodyGenMorphDescriptorSelectionMenu Background="Black" Margin="0 0 0 10"/>
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>

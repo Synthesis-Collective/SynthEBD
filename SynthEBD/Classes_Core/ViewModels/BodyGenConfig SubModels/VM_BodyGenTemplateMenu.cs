@@ -14,10 +14,10 @@ namespace SynthEBD
         public VM_BodyGenTemplateMenu(VM_BodyGenConfig parentConfig)
         {
             this.Templates = new ObservableCollection<VM_BodyGenTemplate>();
-            this.CurrentlyDisplayedTemplate = new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI.TemplateDescriptors);
+            this.CurrentlyDisplayedTemplate = new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI);
             AddTemplate = new SynthEBD.RelayCommand(
     canExecute: _ => true,
-    execute: _ => this.Templates.Add(new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI.TemplateDescriptors))
+    execute: _ => this.Templates.Add(new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI))
     );
 
             RemoveTemplate = new SynthEBD.RelayCommand(
@@ -38,13 +38,13 @@ namespace SynthEBD
     
     public class VM_BodyGenTemplate : INotifyPropertyChanged
     {
-        public VM_BodyGenTemplate(ObservableCollection<VM_CollectionMemberString> templateGroups, ObservableCollection<VM_BodyGenMorphDescriptorShell> morphDescriptors)
+        public VM_BodyGenTemplate(ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyGenMorphDescriptorMenu morphDescriptors)
         {
             this.Label = "";
             this.Notes = "";
             this.Specs = "";
-            this.MemberOfTemplateGroups = new VM_CollectionMemberStringCheckboxList(templateGroups);
-            this.MorphDescriptors = new VM_BodyGenMorphDescriptorSelector(morphDescriptors);
+            this.GroupSelectionCheckList = new VM_CollectionMemberStringCheckboxList(templateGroups);
+            this.DescriptorsSelectionMenu = new VM_BodyGenMorphDescriptorSelectionMenu(morphDescriptors);
             this.AllowedRaces = new ObservableCollection<FormKey>();
             this.AllowedRaceGroupings = new ObservableCollection<string>();
             this.DisallowedRaces = new ObservableCollection<FormKey>();
@@ -66,8 +66,8 @@ namespace SynthEBD
         public string Label { get; set; }
         public string Notes { get; set; }
         public string Specs { get; set; } // will need special logic during I/O because in zEBD settings this is called "params" which is reserved in C#
-        public VM_CollectionMemberStringCheckboxList MemberOfTemplateGroups { get; set; }
-        public VM_BodyGenMorphDescriptorSelector MorphDescriptors { get; set; }
+        public VM_CollectionMemberStringCheckboxList GroupSelectionCheckList { get; set; }
+        public VM_BodyGenMorphDescriptorSelectionMenu DescriptorsSelectionMenu { get; set; }
         public ObservableCollection<FormKey> AllowedRaces { get; set; }
         public ObservableCollection<FormKey> DisallowedRaces { get; set; }
         public ObservableCollection<string> AllowedRaceGroupings { get; set; }
@@ -86,13 +86,13 @@ namespace SynthEBD
         public string Caption_MemberOfTemplateGroups { get; set; }
         public string Caption_MorphDescriptors { get; set; }
 
-        public static void GetViewModelFromModel(BodyGenConfig.BodyGenTemplate model, VM_BodyGenTemplate viewModel)
+        public static void GetViewModelFromModel(BodyGenConfig.BodyGenTemplate model, VM_BodyGenTemplate viewModel, VM_BodyGenMorphDescriptorMenu descriptorMenu)
         {
             viewModel.Label = model.Label;
             viewModel.Notes = model.Notes;
             viewModel.Specs = model.Specs;
-            viewModel.MemberOfTemplateGroups.InitializeFromHashSet(model.MemberOfTemplateGroups);
-            //viewModel.MorphDescriptors = VM_CollectionMemberString.InitializeFromHashSet(morphDescriptors, model.MorphDescriptors);
+            viewModel.GroupSelectionCheckList.InitializeFromHashSet(model.MemberOfTemplateGroups);
+            viewModel.DescriptorsSelectionMenu = VM_BodyGenMorphDescriptorSelectionMenu.InitializeFromTemplate(model, descriptorMenu);
             viewModel.AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
             viewModel.AllowedRaceGroupings = new ObservableCollection<string>(model.AllowedRaceGroupings);
             viewModel.DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);

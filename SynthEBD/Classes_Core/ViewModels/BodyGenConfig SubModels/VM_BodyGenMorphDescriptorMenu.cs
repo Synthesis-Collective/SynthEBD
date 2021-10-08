@@ -38,49 +38,7 @@ namespace SynthEBD
     }
 
 
-    public class VM_BodyGenMorphDescriptorSelector : INotifyPropertyChanged
-    {
-        public VM_BodyGenMorphDescriptorSelector(ObservableCollection<VM_BodyGenMorphDescriptorShell> monitoredCollection)
-        {
-            this.MonitoredCollection = monitoredCollection;
-        }
 
-        public ObservableCollection<VM_BodyGenMorphDescriptorShell> MonitoredCollection { get; set; }
-        public string Header { get; set; }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        void BuildHeader()
-        {
-            string header = "";
-            foreach (var shell in this.MonitoredCollection)
-            {
-                string subHeader = "";
-                string catHeader = shell.Category + ": ";
-                foreach (var descriptor in shell.Descriptors)
-                {
-                    if (descriptor.IsSelected)
-                    {
-                        subHeader += descriptor.Value + ", ";
-                    }
-                }
-                if (subHeader.EndsWith(", "))
-                {
-                    subHeader = subHeader.Remove(subHeader.Length - 2);
-                }
-                if (subHeader != "")
-                {
-                    header = catHeader + subHeader + " | ";
-                }
-            }
-
-            if (header.EndsWith(" | "))
-            {
-                header = header.Remove(header.Length - 3);
-            }
-            this.Header = header;
-        }
-    }
 
     public class VM_BodyGenMorphDescriptorShell : INotifyPropertyChanged
     {
@@ -142,7 +100,6 @@ namespace SynthEBD
             this.Value = "";
             this.DispString = "";
             this.ParentShell = parentShell;
-            this.IsSelected = false;
 
             RemoveDescriptorValue = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -152,7 +109,6 @@ namespace SynthEBD
         public string Category { get; set; }
         public string Value { get; set; }
         public string DispString { get; set; }
-        public bool IsSelected { get; set; }
 
         public VM_BodyGenMorphDescriptorShell ParentShell { get; set; }
 

@@ -83,7 +83,7 @@ namespace SynthEBD
                 this.Notes = "";
                 this.Specs = "";
                 this.MemberOfTemplateGroups = new HashSet<string>();
-                this.MorphDescriptors = new HashSet<string>();
+                this.MorphDescriptors = new HashSet<MorphDescriptor>();
                 this.AllowedRaces = new HashSet<FormKey>();
                 this.AllowedRaceGroupings = new HashSet<string>();
                 this.DisallowedRaces = new HashSet<FormKey>();
@@ -103,7 +103,7 @@ namespace SynthEBD
             public string Notes { get; set; }
             public string Specs { get; set; } // will need special logic during I/O because in zEBD settings this is called "params" which is reserved in C#
             public HashSet<string> MemberOfTemplateGroups { get; set; }
-            public HashSet<string> MorphDescriptors { get; set; }
+            public HashSet<MorphDescriptor> MorphDescriptors { get; set; }
             public HashSet<FormKey> AllowedRaces { get; set; }
             public HashSet<FormKey> DisallowedRaces { get; set; }
             public HashSet<string> AllowedRaceGroupings { get; set; }
@@ -218,8 +218,8 @@ namespace SynthEBD
         {
             zEBDSplitBodyGenConfig converted = new zEBDSplitBodyGenConfig();
 
-            List<string> usedMaleDescriptors = new List<string>();
-            List<string> usedFemaleDescriptors = new List<string>();
+            List<BodyGenConfig.MorphDescriptor> usedMaleDescriptors = new List<BodyGenConfig.MorphDescriptor>();
+            List<BodyGenConfig.MorphDescriptor> usedFemaleDescriptors = new List<BodyGenConfig.MorphDescriptor>();
 
             HashSet<string> usedMaleGroups = new HashSet<string>();
             HashSet<string> usedFemaleGroups = new HashSet<string>();
@@ -243,15 +243,7 @@ namespace SynthEBD
                 }
 
                 converted.Female.TemplateGroups = usedFemaleGroups;
-  
-                foreach (var descriptor in usedFemaleDescriptors)
-                {
-                    var convertedDescriptor = Converters.StringToMorphDescriptor(descriptor);
-                    if (convertedDescriptor.DispString != "")
-                    {
-                        converted.Female.TemplateDescriptors.Add(convertedDescriptor);
-                    }
-                }
+                converted.Female.TemplateDescriptors = new HashSet<BodyGenConfig.MorphDescriptor>(usedFemaleDescriptors);
                 converted.bFemaleInitialized = true;
             }
 
@@ -274,15 +266,7 @@ namespace SynthEBD
                 }
 
                 converted.Male.TemplateGroups = usedMaleGroups;
-
-                foreach (var descriptor in usedMaleDescriptors)
-                {
-                    var convertedDescriptor = Converters.StringToMorphDescriptor(descriptor);
-                    if (convertedDescriptor.DispString != "")
-                    {
-                        converted.Male.TemplateDescriptors.Add(convertedDescriptor);
-                    }
-                }
+                converted.Male.TemplateDescriptors = new HashSet<BodyGenConfig.MorphDescriptor>(usedMaleDescriptors);
                 converted.bMaleInitialized = true;
             }
 
@@ -314,7 +298,7 @@ namespace SynthEBD
             return newRS;
         }
 
-        public static BodyGenConfig.BodyGenTemplate zEBDBodyGenRacialTemplateToSynthEBD(zEBDBodyGenConfig.BodyGenTemplate zTemplate, List<RaceGrouping> raceGroupings, List<string> usedDescriptors)
+        public static BodyGenConfig.BodyGenTemplate zEBDBodyGenRacialTemplateToSynthEBD(zEBDBodyGenConfig.BodyGenTemplate zTemplate, List<RaceGrouping> raceGroupings, List<BodyGenConfig.MorphDescriptor> usedDescriptors)
         {
             BodyGenConfig.BodyGenTemplate newTemplate = new BodyGenConfig.BodyGenTemplate();
 
@@ -322,13 +306,14 @@ namespace SynthEBD
             newTemplate.Notes = zTemplate.notes;
             newTemplate.Specs = zTemplate.specs;
             newTemplate.MemberOfTemplateGroups = zTemplate.groups;
-            newTemplate.MorphDescriptors = zTemplate.descriptors;
             foreach (string d in zTemplate.descriptors)
             {
-                if (usedDescriptors.Contains(d) == false)
+                var convertedDescriptor = Converters.StringToMorphDescriptor(d);
+                if(!usedDescriptors.Any(n=> n.DispString == d))
                 {
-                    usedDescriptors.Add(d);
+                    usedDescriptors.Add(convertedDescriptor);
                 }
+                newTemplate.MorphDescriptors.Add(convertedDescriptor);
             }
 
             foreach (string id in zTemplate.allowedRaces)

@@ -86,8 +86,8 @@ namespace SynthEBD
 
             foreach (var template in model.Templates)
             {
-                var templateVM = new VM_BodyGenTemplate(viewModel.GroupUI.TemplateGroups, viewModel.DescriptorUI.TemplateDescriptors);
-                VM_BodyGenTemplate.GetViewModelFromModel(template, templateVM);
+                var templateVM = new VM_BodyGenTemplate(viewModel.GroupUI.TemplateGroups, viewModel.DescriptorUI);
+                VM_BodyGenTemplate.GetViewModelFromModel(template, templateVM, viewModel.DescriptorUI);
                 viewModel.TemplateMorphUI.Templates.Add(templateVM);
             }
 
