@@ -269,7 +269,7 @@ namespace SynthEBD
             int tmpUpper = 100;
             int.TryParse(arr[0], out tmpLower); // (default zEBD value of null gets parsed as 0).
 
-            if (arr[1] == null) // (default zEBD value of null gets parsed as 0, which is incorrect for .Upper).
+            if (arr[1] == null || arr[1] == "") // (default zEBD value of null gets parsed as 0, which is incorrect for .Upper).
             {
                 tmpUpper = 100;
             }

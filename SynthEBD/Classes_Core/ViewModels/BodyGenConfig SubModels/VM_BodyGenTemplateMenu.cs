@@ -17,10 +17,10 @@ namespace SynthEBD
         public VM_BodyGenTemplateMenu(VM_BodyGenConfig parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
             this.Templates = new ObservableCollection<VM_BodyGenTemplate>();
-            this.CurrentlyDisplayedTemplate = new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs);
+            this.CurrentlyDisplayedTemplate = new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, this.Templates);
             AddTemplate = new SynthEBD.RelayCommand(
     canExecute: _ => true,
-    execute: _ => this.Templates.Add(new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs))
+    execute: _ => this.Templates.Add(new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, this.Templates))
     );
 
             RemoveTemplate = new SynthEBD.RelayCommand(
@@ -38,10 +38,10 @@ namespace SynthEBD
         public event PropertyChangedEventHandler PropertyChanged;
     }
 
-    
+
     public class VM_BodyGenTemplate : INotifyPropertyChanged
     {
-        public VM_BodyGenTemplate(ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyGenMorphDescriptorMenu morphDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
+        public VM_BodyGenTemplate(ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyGenMorphDescriptorMenu morphDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodyGenTemplate> parentCollection)
         {
             this.Label = "";
             this.Notes = "";
@@ -59,7 +59,7 @@ namespace SynthEBD
             this.bAllowNonUnique = true;
             this.bAllowRandom = true;
             this.ProbabilityWeighting = 1;
-            this.RequiredTemplates = new ObservableCollection<string>();
+            this.RequiredTemplates = new ObservableCollection<VM_CollectionMemberString>();
             this.WeightRange = new NPCWeightRange();
 
             this.Caption_MemberOfTemplateGroups = "";
@@ -67,6 +67,8 @@ namespace SynthEBD
 
             this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
+
+            this.ParentCollection = parentCollection;
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -81,6 +83,16 @@ namespace SynthEBD
             AddForceIfAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => this.ForceIfAttributes.Add(new VM_NPCAttribute(this.ForceIfAttributes))
+                );
+
+            AddRequiredTemplate = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.RequiredTemplates.Add(new VM_CollectionMemberString("", this.RequiredTemplates))
+                );
+
+            DeleteMe = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.ParentCollection.Remove(this)
                 );
         }
 
@@ -100,7 +112,7 @@ namespace SynthEBD
         public bool bAllowNonUnique { get; set; }
         public bool bAllowRandom { get; set; }
         public int ProbabilityWeighting { get; set; }
-        public ObservableCollection<string> RequiredTemplates { get; set; }
+        public ObservableCollection<VM_CollectionMemberString> RequiredTemplates { get; set; }
         public NPCWeightRange WeightRange { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -112,6 +124,10 @@ namespace SynthEBD
         public RelayCommand AddAllowedAttribute { get; }
         public RelayCommand AddDisallowedAttribute { get; }
         public RelayCommand AddForceIfAttribute { get; }
+        public RelayCommand AddRequiredTemplate { get; }
+        public RelayCommand DeleteMe { get; }
+
+        public ObservableCollection<VM_BodyGenTemplate> ParentCollection {get; set;}
 
         public static void GetViewModelFromModel(BodyGenConfig.BodyGenTemplate model, VM_BodyGenTemplate viewModel, VM_BodyGenMorphDescriptorMenu descriptorMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
@@ -150,7 +166,7 @@ namespace SynthEBD
             viewModel.bAllowNonUnique = model.bAllowNonUnique;
             viewModel.bAllowRandom = model.bAllowRandom;
             viewModel.ProbabilityWeighting = model.ProbabilityWeighting;
-            viewModel.RequiredTemplates = new ObservableCollection<string>(model.RequiredTemplates);
+            viewModel.RequiredTemplates = VM_CollectionMemberString.InitializeCollectionFromHashSet(model.RequiredTemplates);
             viewModel.WeightRange = model.WeightRange;
         }
     }

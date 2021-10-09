@@ -8,6 +8,7 @@
              mc:Ignorable="d" 
              d:DataContext="{d:DesignInstance Type=local:VM_BodyGenTemplate}"
              d:DesignHeight="450" d:DesignWidth="800">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -15,6 +16,12 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
@@ -115,10 +122,37 @@
 
         <TextBlock Grid.Row="12" Grid.Column="0" Margin="0 0 15 0">Allowed NPC Weight Range</TextBlock>
         <StackPanel Grid.Row="12" Grid.Column="2" Orientation="Horizontal">
-            <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=weightRange.Lower}"/>
+            <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=WeightRange.Lower}"/>
             <TextBlock Text="to" Margin="15 0 15 0" VerticalAlignment="Center"/>
-            <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=weightRange.Upper}"/>
+            <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=WeightRange.Upper}"/>
         </StackPanel>
 
+        <TextBlock Grid.Row="13" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Distribute to non-forced NPCs</TextBlock>
+        <CheckBox Grid.Row="13" Grid.Column="2" IsChecked="{Binding Path=bAllowRandom, Mode=TwoWay}"></CheckBox>
+
+        <TextBlock Grid.Row="14" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Allow Unique NPCs</TextBlock>
+        <CheckBox Grid.Row="14" Grid.Column="2" IsChecked="{Binding Path=bAllowUnique, Mode=TwoWay}"></CheckBox>
+
+        <TextBlock Grid.Row="15" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Allow Non-Unique NPCs</TextBlock>
+        <CheckBox Grid.Row="15" Grid.Column="2" IsChecked="{Binding Path=bAllowNonUnique, Mode=TwoWay}"></CheckBox>
+
+        <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Distribution Probability Weighting</TextBlock>
+        <TextBox Grid.Row="16" Grid.Column="2" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ProbabilityWeighting}"/>
+
+        <TextBlock Grid.Row="17" Grid.Column="0" Margin="0 0 15 0">Required Templates</TextBlock>
+        <Button Grid.Row="17" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddRequiredTemplate}">Add New</Button>
+        <ListBox Grid.Row="17" Grid.Column="2" ItemsSource="{Binding RequiredTemplates}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="#5844b4">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                        <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ParentCollection}" SelectedValuePath="Label" DisplayMemberPath="Label" SelectedValue="{Binding Content}"></ComboBox>
+                        <Button Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}">Remove</Button>
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox> 
+
+        <Button Grid.Row="18" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding DeleteMe}">Delete Morph</Button>
     </Grid>
+    </ScrollViewer>
 </UserControl>

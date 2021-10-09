@@ -15,10 +15,10 @@ namespace SynthEBD
 {
     public class VM_Subgroup : INotifyPropertyChanged
     {
-        public VM_Subgroup(ObservableCollection<VM_RaceGrouping> RaceGroupingVMs)
+        public VM_Subgroup(ObservableCollection<VM_RaceGrouping> RaceGroupingVMs, ObservableCollection<VM_Subgroup> parentCollection)
         {
             this.id = "";
-            this.name = "";
+            this.name = "New";
             this.enabled = true;
             this.distributionEnabled = true;
             this.allowedRaces = new ObservableCollection<FormKey>();
@@ -45,6 +45,7 @@ namespace SynthEBD
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
             this.RequiredSubgroupIDs = new HashSet<string>();
             this.ExcludedSubgroupIDs = new HashSet<string>();
+            this.ParentCollection = parentCollection;
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -71,7 +72,15 @@ namespace SynthEBD
                 execute: _ => this.paths.Add(new VM_FilePathReplacement(this.paths))
                 );
 
+            AddSubgroup = new SynthEBD.RelayCommand(
+               canExecute: _ => true,
+               execute: _ => this.subgroups.Add(new VM_Subgroup(RaceGroupingVMs, this.subgroups))
+               );
 
+            DeleteMe = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.ParentCollection.Remove(this)
+                );
         }
 
         public string id { get; set; }
@@ -106,15 +115,19 @@ namespace SynthEBD
         public RelayCommand AddForceIfAttribute { get; }
         public RelayCommand AddNPCKeyword { get; }
         public RelayCommand AddPath { get; }
+        public RelayCommand AddSubgroup { get; }
+        public RelayCommand DeleteMe { get; }
 
         public HashSet<string> RequiredSubgroupIDs { get; set; } // temporary placeholder for RequiredSubgroups until all subgroups are loaded in
         public HashSet<string> ExcludedSubgroupIDs { get; set; } // temporary placeholder for ExcludedSubgroups until all subgroups are loaded in
 
+        ObservableCollection<VM_Subgroup> ParentCollection { get; set; }
+
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static VM_Subgroup GetViewModelFromModel(AssetPack.Subgroup model, VM_Settings_General generalSettingsVM)
+        public static VM_Subgroup GetViewModelFromModel(AssetPack.Subgroup model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_Subgroup> parentCollection)
         {
-            var viewModel = new VM_Subgroup(generalSettingsVM.RaceGroupings);
+            var viewModel = new VM_Subgroup(generalSettingsVM.RaceGroupings, parentCollection);
 
             viewModel.id = model.id;
             viewModel.name = model.name;
@@ -143,7 +156,7 @@ namespace SynthEBD
 
             foreach (var sg in model.subgroups)
             {
-                viewModel.subgroups.Add(GetViewModelFromModel(sg, generalSettingsVM));
+                viewModel.subgroups.Add(GetViewModelFromModel(sg, generalSettingsVM, viewModel.subgroups));
             }
 
             return viewModel;

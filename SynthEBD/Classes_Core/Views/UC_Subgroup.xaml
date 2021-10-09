@@ -157,5 +157,7 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
+        <Button Grid.Row="20" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddSubgroup}">Add Child Subgroup</Button>
+        <Button Grid.Row="21" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding DeleteMe}">Remove</Button>
     </Grid>
 </UserControl>
