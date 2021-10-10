@@ -125,10 +125,42 @@
         </StackPanel>
 
         <TextBlock Grid.Row="15" Grid.Column="0" Margin="0 0 15 0">Required Subgroups</TextBlock>
-        <ListBox Grid.Row="15" Grid.Column="1" ItemsSource="{Binding requiredSubgroups}" DisplayMemberPath="id" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4"></ListBox>
+        <ListBox Grid.Row="15" Grid.Column="1" ItemsSource="{Binding requiredSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock>
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="{}{0}:{1}">
+                                    <Binding Path="id" />
+                                    <Binding Path="name" />
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+                        <Button Width="75" Height="20" Margin="15 0 0 0" VerticalAlignment="Center" HorizontalAlignment="Left"  Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.DeleteRequiredSubgroup}" CommandParameter="{Binding}">Remove</Button>
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
 
         <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0">Excluded Subgroups</TextBlock>
-        <ListBox Grid.Row="16" Grid.Column="1" ItemsSource="{Binding excludedSubgroups}" DisplayMemberPath="id" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4"></ListBox>
+        <ListBox Grid.Row="16" Grid.Column="1" ItemsSource="{Binding excludedSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock>
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="{}{0}:{1}">
+                                    <Binding Path="id" />
+                                    <Binding Path="name" />
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+                        <Button Width="75" Height="20" Margin="15 0 0 0" VerticalAlignment="Center" HorizontalAlignment="Left"  Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.DeleteExcludedSubgroup}" CommandParameter="{Binding}">Remove</Button>
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
 
         <TextBlock Grid.Row="17" Grid.Column="0" Margin="0 0 15 0">Add Keywords to NPC</TextBlock>
         <Button Grid.Row="17" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddNPCKeyword}">Add New</Button>

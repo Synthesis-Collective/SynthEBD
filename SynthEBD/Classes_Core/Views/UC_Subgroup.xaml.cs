@@ -31,5 +31,6 @@ namespace SynthEBD
         {
             e.Handled = IsNumeric.IsTextNumeric(e.Text);
         }
+
     }
 }

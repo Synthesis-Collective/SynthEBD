@@ -176,8 +176,6 @@ namespace SynthEBD
             viewModel.WeightRange = model.WeightRange;
         }
 
-
-
         public void UpdateOtherGroupsTemplateCollection(object sender, NotifyCollectionChangedEventArgs e)
         {
             var excludedCollection = this.UpdateThisOtherGroupsTemplateCollection();

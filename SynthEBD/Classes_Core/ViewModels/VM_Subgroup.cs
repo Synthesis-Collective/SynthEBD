@@ -10,6 +10,8 @@ using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
+using System.Windows;
+using System.Windows.Controls;
 
 namespace SynthEBD
 {
@@ -81,6 +83,16 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ => this.ParentCollection.Remove(this)
                 );
+
+            DeleteRequiredSubgroup = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x => this.requiredSubgroups.Remove((VM_Subgroup)x)
+                );
+
+            DeleteExcludedSubgroup = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x => this.excludedSubgroups.Remove((VM_Subgroup)x)
+                );
         }
 
         public string id { get; set; }
@@ -117,6 +129,8 @@ namespace SynthEBD
         public RelayCommand AddPath { get; }
         public RelayCommand AddSubgroup { get; }
         public RelayCommand DeleteMe { get; }
+        public RelayCommand DeleteRequiredSubgroup { get; }
+        public RelayCommand DeleteExcludedSubgroup { get; }
 
         public HashSet<string> RequiredSubgroupIDs { get; set; } // temporary placeholder for RequiredSubgroups until all subgroups are loaded in
         public HashSet<string> ExcludedSubgroupIDs { get; set; } // temporary placeholder for ExcludedSubgroups until all subgroups are loaded in
