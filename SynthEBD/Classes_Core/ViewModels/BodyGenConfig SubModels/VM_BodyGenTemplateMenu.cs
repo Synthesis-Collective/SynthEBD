@@ -5,6 +5,7 @@ using Noggog;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
@@ -69,6 +70,10 @@ namespace SynthEBD
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
 
             this.ParentCollection = parentCollection;
+            this.OtherGroupsTemplateCollection = new ObservableCollection<VM_BodyGenTemplate>();
+            parentCollection.CollectionChanged += UpdateOtherGroupsTemplateCollection;
+            templateGroups.CollectionChanged += UpdateOtherGroupsTemplateCollection;
+            this.GroupSelectionCheckList.PropertyChanged += UpdateOtherGroupsTemplateCollectionP;
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -128,6 +133,7 @@ namespace SynthEBD
         public RelayCommand DeleteMe { get; }
 
         public ObservableCollection<VM_BodyGenTemplate> ParentCollection {get; set;}
+        public ObservableCollection<VM_BodyGenTemplate> OtherGroupsTemplateCollection { get; set; }
 
         public static void GetViewModelFromModel(BodyGenConfig.BodyGenTemplate model, VM_BodyGenTemplate viewModel, VM_BodyGenMorphDescriptorMenu descriptorMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
@@ -168,6 +174,66 @@ namespace SynthEBD
             viewModel.ProbabilityWeighting = model.ProbabilityWeighting;
             viewModel.RequiredTemplates = VM_CollectionMemberString.InitializeCollectionFromHashSet(model.RequiredTemplates);
             viewModel.WeightRange = model.WeightRange;
+        }
+
+
+
+        public void UpdateOtherGroupsTemplateCollection(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            var excludedCollection = this.UpdateThisOtherGroupsTemplateCollection();
+            foreach(var template in excludedCollection)
+            {
+                template.UpdateThisOtherGroupsTemplateCollection();
+            }
+        }
+
+        public void UpdateOtherGroupsTemplateCollectionP(object sender, PropertyChangedEventArgs e)
+        {
+            var excludedCollection = this.UpdateThisOtherGroupsTemplateCollection();
+            foreach (var template in excludedCollection)
+            {
+                template.UpdateThisOtherGroupsTemplateCollection();
+            }
+        }
+
+        public ObservableCollection<VM_BodyGenTemplate> UpdateThisOtherGroupsTemplateCollection()
+        {
+            var updatedCollection = new ObservableCollection<VM_BodyGenTemplate>();
+            var excludedCollection = new ObservableCollection<VM_BodyGenTemplate>();
+
+            foreach (var template in this.ParentCollection)
+            {
+                bool inGroup = false;
+                foreach (var group in template.GroupSelectionCheckList.CollectionMemberStrings)
+                {
+                    if (group.IsSelected == false) { continue; }
+
+                    foreach (var thisGroup in this.GroupSelectionCheckList.CollectionMemberStrings)
+                    {
+                        if (thisGroup.IsSelected == false) { continue; }
+                        
+                        if (group.SubscribedString == thisGroup.SubscribedString)
+                        {
+                            inGroup = true;
+                            break;
+                        }
+                    }
+                    if (inGroup == true) { break; }
+                }
+
+                if (inGroup == false)
+                {
+                    updatedCollection.Add(template);
+                }
+                else
+                {
+                    excludedCollection.Add(template);
+                }    
+            }
+
+            this.OtherGroupsTemplateCollection = updatedCollection;
+
+            return excludedCollection;
         }
     }
 }

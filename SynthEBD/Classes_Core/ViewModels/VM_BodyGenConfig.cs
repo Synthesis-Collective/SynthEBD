@@ -19,7 +19,7 @@ namespace SynthEBD
             this.Gender = Gender.female;
 
             this.GroupMappingUI = new VM_BodyGenGroupMappingMenu();
-            this.GroupUI = new VM_BodyGenGroupsMenu();
+            this.GroupUI = new VM_BodyGenGroupsMenu(this);
             this.DescriptorUI = new VM_BodyGenMorphDescriptorMenu();
             this.TemplateMorphUI = new VM_BodyGenTemplateMenu(this, raceGroupingVMs);
             this.DisplayedUI = this.TemplateMorphUI;

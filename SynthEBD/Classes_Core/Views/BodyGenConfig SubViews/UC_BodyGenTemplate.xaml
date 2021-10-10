@@ -145,7 +145,7 @@
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal">
-                        <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ParentCollection}" SelectedValuePath="Label" DisplayMemberPath="Label" SelectedValue="{Binding Content}"></ComboBox>
+                        <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.OtherGroupsTemplateCollection}" SelectedValuePath="Label" DisplayMemberPath="Label" SelectedValue="{Binding Content}"></ComboBox>
                         <Button Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}">Remove</Button>
                     </StackPanel>
                 </DataTemplate>

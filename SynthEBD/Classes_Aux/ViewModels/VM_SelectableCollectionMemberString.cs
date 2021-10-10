@@ -63,6 +63,18 @@ namespace SynthEBD
         {
             var updatedMasterList = (ObservableCollection<VM_CollectionMemberString>)sender;
             var newCheckList = new VM_CollectionMemberStringCheckboxList(updatedMasterList);
+
+            foreach (var originalItem in this.CollectionMemberStrings)
+            {
+                foreach (var newItem in newCheckList.CollectionMemberStrings)
+                {
+                    if (originalItem.SubscribedString.Content == newItem.SubscribedString.Content)
+                    {
+                        newItem.IsSelected = originalItem.IsSelected;
+                    }
+                }
+            }
+
             this.CollectionMemberStrings = newCheckList.CollectionMemberStrings;
         }
 
