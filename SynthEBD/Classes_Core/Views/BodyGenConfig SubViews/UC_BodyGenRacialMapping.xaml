@@ -2,7 +2,8 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
              xmlns:local="clr-namespace:SynthEBD"
              mc:Ignorable="d" 
              d:DataContext="{d:DesignInstance Type=local:VM_BodyGenRacialMapping}"
@@ -18,8 +19,25 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        
-            <TextBlock>Mapping</TextBlock>
+        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Races</TextBlock>
+        <plugins:FormKeyMultiPicker Grid.Row="0" Grid.Column="1" MinWidth="150" FormKeys="{Binding Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Race Groupings</TextBlock>
+        <ContentPresenter Grid.Row="1" Grid.Column="1"  Content="{Binding RaceGroupings}">
+            <ContentPresenter.Resources>
+                <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
+                    <local:UC_RaceGroupingCheckboxList Background="Black" Margin="0 0 0 10"/>
+                </DataTemplate>
+            </ContentPresenter.Resources>
+        </ContentPresenter>
+
+        <ItemsControl Grid.Row="2" Grid.Column="1" ItemsSource="{Binding Combinations}" >
+            <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type local:VM_BodyGenCombination}">
+                    <local:UC_BodyGenRacialMappingCombo Background="Black"/>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
 
     </Grid>
 </UserControl>

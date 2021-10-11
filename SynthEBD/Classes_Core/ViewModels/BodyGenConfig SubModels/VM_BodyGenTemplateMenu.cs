@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
-    class VM_BodyGenTemplateMenu : INotifyPropertyChanged
+    public class VM_BodyGenTemplateMenu : INotifyPropertyChanged
     {
         public VM_BodyGenTemplateMenu(VM_BodyGenConfig parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {

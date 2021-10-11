@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
-    class VM_BodyGenGroupsMenu : INotifyPropertyChanged
+    public class VM_BodyGenGroupsMenu : INotifyPropertyChanged
     {
         public VM_BodyGenGroupsMenu(VM_BodyGenConfig parentMenu)
         {
