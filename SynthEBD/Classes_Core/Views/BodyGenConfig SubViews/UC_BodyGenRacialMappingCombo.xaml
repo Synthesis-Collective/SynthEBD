@@ -10,7 +10,7 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
-            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="auto"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
@@ -27,12 +27,14 @@
             
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <StackPanel Orientation="Horizontal">
-                        <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.MonitoredGroups}" SelectedValuePath="Content" DisplayMemberPath="Content" SelectedValue="{Binding .}"></ComboBox>
-                        <Button Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}">(X)</Button>
+                    <StackPanel Orientation="Horizontal" Background="Black">
+                        <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.MonitoredGroups}" SelectedValuePath="Content" DisplayMemberPath="Content" SelectedValue="{Binding .}" Margin="15 0 0 0" ></ComboBox>
+                        <Button Margin="5 0 5 0" HorizontalContentAlignment="Center" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveMember}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
                     </StackPanel>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
+
+        <Button Grid.Row="0" Grid.Column="1" Margin="5 0 5 0" Command="{Binding AddMember}" Foreground="Lightgreen">AND</Button>
     </Grid>
 </UserControl>

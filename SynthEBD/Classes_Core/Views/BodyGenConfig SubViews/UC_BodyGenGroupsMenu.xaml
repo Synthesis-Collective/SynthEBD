@@ -4,21 +4,26 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD"
-             mc:Ignorable="d" 
+             mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
         <StackPanel>
+            <Button Command="{Binding AddTemplateGroup}" HorizontalAlignment="Left" Foreground="Lightgreen">Add New</Button>
             <ListBox ItemsSource="{Binding TemplateGroups}" IsSynchronizedWithCurrentItem="True">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBox MinWidth="150" Text="{Binding Mode=TwoWay, Path=Content, UpdateSourceTrigger=PropertyChanged}" />
-                            <Button Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}">Remove</Button>
-                        </StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="auto" MinWidth="75"/>
+                                <ColumnDefinition Width="auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBox Grid.Column="0" Text="{Binding Mode=TwoWay, Path=Content, UpdateSourceTrigger=PropertyChanged}" />
+                            <Button Grid.Column="1" VerticalAlignment="Center" HorizontalContentAlignment="Left" Command="{Binding DeleteCommand}" Foreground="Firebrick">X</Button>
+                        </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
-            <Button Command="{Binding AddTemplateGroup}" HorizontalAlignment="Left">Add New</Button>
         </StackPanel>
     </Grid>
 </UserControl>

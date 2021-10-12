@@ -17,6 +17,6 @@
         </Grid.RowDefinitions>
 
         <TextBox Grid.Row="0" Grid.Column="0" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Value, UpdateSourceTrigger=PropertyChanged}"></TextBox>
-        <Button Grid.Row="0" Grid.Column="1" Command="{Binding RemoveDescriptorValue}">Remove</Button>
+        <Button Grid.Row="0" Grid.Column="1" Command="{Binding RemoveDescriptorValue}" Foreground="Firebrick">X</Button>
     </Grid>
 </UserControl>

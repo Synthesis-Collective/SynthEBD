@@ -17,13 +17,17 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Races</TextBlock>
-        <plugins:FormKeyMultiPicker Grid.Row="0" Grid.Column="1" MinWidth="150" FormKeys="{Binding Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
+        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Grouping</TextBlock>
+        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+        
+        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Races</TextBlock>
+        <plugins:FormKeyMultiPicker Grid.Row="1" Grid.Column="1" MinWidth="150" FormKeys="{Binding Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Race Groupings</TextBlock>
-        <ContentPresenter Grid.Row="1" Grid.Column="1"  Content="{Binding RaceGroupings}">
+        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Race Groupings</TextBlock>
+        <ContentPresenter Grid.Row="2" Grid.Column="1"  Content="{Binding RaceGroupings}">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
                     <local:UC_RaceGroupingCheckboxList Background="Black" Margin="0 0 0 10"/>
@@ -31,10 +35,23 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <ItemsControl Grid.Row="2" Grid.Column="1" ItemsSource="{Binding Combinations}" >
+        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Morph Combinations</TextBlock>
+        <ItemsControl Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Combinations}" >
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_BodyGenCombination}">
-                    <local:UC_BodyGenRacialMappingCombo Background="Black"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="auto"/>
+                            <RowDefinition Height="auto"/>
+                        </Grid.RowDefinitions>
+                        <local:UC_BodyGenRacialMappingCombo Grid.Row="0" Grid.Column="0" Background="Black"/>
+                        <Button Grid.Row="1" Grid.Column="0" HorizontalAlignment="Left" Margin="100,0,0,0" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.AddCombination}" CommandParameter="{Binding}" Foreground="Chartreuse">OR</Button>
+                        <Button Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right" Margin="0,0,50,0" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveCombination}" CommandParameter="{Binding}" Foreground="Firebrick">Remove Combination</Button>
+                    </Grid>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>

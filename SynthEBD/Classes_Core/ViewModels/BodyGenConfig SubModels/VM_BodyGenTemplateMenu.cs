@@ -26,7 +26,7 @@ namespace SynthEBD
 
             RemoveTemplate = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.Templates.Remove(CurrentlyDisplayedTemplate)
+                execute: x => this.Templates.Remove((VM_BodyGenTemplate)x)
                 );
         }
         public ObservableCollection<VM_BodyGenTemplate> Templates { get; set; }

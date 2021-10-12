@@ -13,20 +13,27 @@
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="*"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Column="0" Grid.Row="0" HorizontalAlignment="Center">Morph</TextBlock>
-        <ScrollViewer Grid.Column="0" Grid.Row="1">
+        <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddTemplate}" Foreground="Lightgreen">Add New</Button>
+        <ScrollViewer Grid.Column="0" Grid.Row="2">
             <StackPanel >
                 <ListBox SelectedValue="{Binding CurrentlyDisplayedTemplate}" ItemsSource="{Binding Templates}" IsSynchronizedWithCurrentItem="True" >
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <StackPanel>
-                                <TextBox Text="{Binding Label}" MinWidth="100" />
-                            </StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBox Grid.Column="0" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}" MinWidth="100" />
+                                <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveTemplate}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
+                            </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
 
@@ -50,8 +57,8 @@
             </StackPanel>
         </ScrollViewer>
 
-        <Button Grid.Column="0" Grid.Row="2" Command="{Binding AddTemplate}">Add New</Button>
-        <Button Grid.Column="0" Grid.Row="3" Command="{Binding RemoveTemplate}">Remove</Button>
+        
+        
 
         <ContentPresenter Grid.Row="0" Grid.Column="1" Grid.RowSpan="4" Content="{Binding CurrentlyDisplayedTemplate}">
             <ContentPresenter.Resources>

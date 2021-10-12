@@ -23,7 +23,7 @@ namespace SynthEBD
 
             RemoveTemplateDescriptorShell = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.TemplateDescriptors.Remove(CurrentlyDisplayedTemplateDescriptorShell)
+                execute: x => this.TemplateDescriptors.Remove((VM_BodyGenMorphDescriptorShell)x)
                 );
         }
 

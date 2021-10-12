@@ -18,13 +18,13 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center">Value</TextBlock>
-        <ItemsControl Grid.Row="1" Grid.Column="0" ItemsSource="{Binding Descriptors}">
+        <Button Grid.Row="1" Grid.Column="0" Command="{Binding AddTemplateDescriptorValue}" Foreground="Lightgreen">Add New</Button>
+        <ItemsControl Grid.Row="2" Grid.Column="0" ItemsSource="{Binding Descriptors}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_BodyGenMorphDescriptor}">
                     <local:UC_BodyGenMorphDescriptor Background="Black" Margin="0 0 0 10"/>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
-        <Button Grid.Row="2" Grid.Column="0" Command="{Binding AddTemplateDescriptorValue}">Add New</Button>
     </Grid>
 </UserControl>
