@@ -5,6 +5,7 @@ using Noggog;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
@@ -17,15 +18,11 @@ namespace SynthEBD
         public VM_NPCAttribute(ObservableCollection<VM_NPCAttribute> parentCollection)
         {
             this.GroupedSubAttributes = new ObservableCollection<VM_NPCAttributeShell>();
-            VM_NPCAttributeShell startingShell = new VM_NPCAttributeShell(this);
-            VM_NPCAttributeClass startingAttributeGroup = new VM_NPCAttributeClass(this, startingShell);
-            startingShell.Type = NPCAttributeType.Class;
-            startingShell.Attribute = startingAttributeGroup;
-            this.GroupedSubAttributes.Add(startingShell);
             this.ParentCollection = parentCollection;
+            this.GroupedSubAttributes.CollectionChanged += TrimEmptyAttributes;
 
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
-            AddToParent = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Add(new VM_NPCAttribute(parentCollection)));
+            AddToParent = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Add(CreateNewFromUI(parentCollection)));
         }
 
         public ObservableCollection<VM_NPCAttributeShell> GroupedSubAttributes { get; set; } // everything within this collection is evaluated as AND (all must be true)
@@ -36,6 +33,25 @@ namespace SynthEBD
         public ObservableCollection<VM_NPCAttribute> ParentCollection { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
+
+        public static VM_NPCAttribute CreateNewFromUI(ObservableCollection<VM_NPCAttribute> parentCollection)
+        {
+            VM_NPCAttribute newAtt = new VM_NPCAttribute(parentCollection);
+            VM_NPCAttributeShell startingShell = new VM_NPCAttributeShell(newAtt);
+            VM_NPCAttributeClass startingAttributeGroup = new VM_NPCAttributeClass(newAtt, startingShell);
+            startingShell.Type = NPCAttributeType.Class;
+            startingShell.Attribute = startingAttributeGroup;
+            newAtt.GroupedSubAttributes.Add(startingShell);
+            return newAtt;
+        }
+
+        public void TrimEmptyAttributes(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (this.GroupedSubAttributes.Count == 0)
+            {
+                this.ParentCollection.Remove(this);
+            }
+        }
 
         public static ObservableCollection<VM_NPCAttribute> GetViewModelsFromModels(HashSet<NPCAttribute> models)
         {

@@ -27,6 +27,7 @@
 
         <TextBlock Grid.Row="0" Grid.Column="0">Height Group</TextBlock>
         <TextBox Grid.Row="0" Grid.Column="1" MinWidth="150" TextAlignment="Left" Text="{Binding Path=Label, UpdateSourceTrigger=PropertyChanged}"/>
+        <Button  Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Command="{Binding DeleteCommand}" Foreground="Firebrick">X</Button>
         
         <TextBlock Grid.Row="1" Grid.Column="0">Races</TextBlock>
         <plugins:FormKeyMultiPicker FormKeys="{Binding Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding FormKeyPickerTypes}" Grid.Row="1" Grid.Column="1" />
@@ -46,6 +47,6 @@
         <TextBlock Grid.Row="6" Grid.Column="0">Female Height +/-</TextBlock>
         <TextBox Grid.Row="6" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=FemaleHeightRange}"/>
 
-        <Button  Grid.Row="7" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}">Remove</Button>
+        
     </Grid>
 </UserControl>

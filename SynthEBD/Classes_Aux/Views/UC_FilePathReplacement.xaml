@@ -19,6 +19,6 @@
 
         <TextBox Grid.Row="0" Grid.Column="0" Text="{Binding Path=Source, UpdateSourceTrigger=PropertyChanged}"></TextBox>
         <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Path=Destination, UpdateSourceTrigger=PropertyChanged}" Margin="15 0 0 0" MinWidth="150"></TextBox>
-        <Button Grid.Row="0" Grid.Column="2" Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}">Remove</Button>
+        <Button Grid.Row="0" Grid.Column="2" Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}" Foreground="Firebrick">Remove</Button>
     </Grid>
 </UserControl>

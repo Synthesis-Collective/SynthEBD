@@ -10,12 +10,9 @@
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="auto"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
@@ -26,10 +23,9 @@
                     <TextBox Name="TextBox" Width="150" HorizontalAlignment="Left" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
                 </StackPanel>
                 <plugins:FormKeyMultiPicker Grid.Column="0" Grid.Row="2" FormKeys="{Binding Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" MaxHeight="300"/>
-                <Button Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" x:Name="Button_RemoveRaceGrouping" Command="{Binding DeleteCommand}">Remove</Button>
             </StackPanel>
         </Expander>
-
+        <Button Grid.Column="0" Grid.Row="0" VerticalAlignment="Top" HorizontalAlignment="Right" HorizontalContentAlignment="Right" x:Name="Button_RemoveRaceGrouping" Command="{Binding DeleteCommand}" Foreground="Firebrick">Remove</Button>
 
     </Grid>
 </UserControl>

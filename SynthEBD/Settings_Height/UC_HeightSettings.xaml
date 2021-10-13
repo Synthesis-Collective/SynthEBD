@@ -30,7 +30,7 @@
             <CheckBox Grid.Row="2" Grid.Column="1" IsChecked="{Binding Path=bOverwriteNonDefaultNPCHeights, Mode=TwoWay}"></CheckBox>
 
             <TextBlock Grid.Row="3" Grid.Column="0">Configurations:</TextBlock>
-            <Button Grid.Row="3" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddHeightConfig}">Add New</Button>
+            <Button Grid.Row="3" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddHeightConfig}" Foreground="LightGreen">Add New</Button>
             <ItemsControl Grid.Row="3" Grid.Column="1" ItemsSource="{Binding HeightConfigs}" Margin="20">
                 
                 <ItemsControl.ItemsPanel>

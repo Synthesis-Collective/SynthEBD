@@ -77,17 +77,17 @@ namespace SynthEBD
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.AllowedAttributes.Add(new VM_NPCAttribute(this.AllowedAttributes))
+                execute: _ => this.AllowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.AllowedAttributes))
                 );
 
             AddDisallowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.DisallowedAttributes.Add(new VM_NPCAttribute(this.DisallowedAttributes))
+                execute: _ => this.DisallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.DisallowedAttributes))
                 );
 
             AddForceIfAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.ForceIfAttributes.Add(new VM_NPCAttribute(this.ForceIfAttributes))
+                execute: _ => this.ForceIfAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.ForceIfAttributes))
                 );
 
             AddRequiredTemplate = new SynthEBD.RelayCommand(

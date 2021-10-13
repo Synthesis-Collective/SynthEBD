@@ -49,8 +49,8 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <Button Grid.Row="1" Grid.Column="1" Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AddAdditionalSubAttributeToParent}">AND</Button>
-        <Button Grid.Row="0" Grid.Column="2" Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}">Remove</Button>
+        <Button Grid.Row="1" Grid.Column="1" Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AddAdditionalSubAttributeToParent}" Foreground="Lightgreen">AND</Button>
+        <Button Grid.Row="0" Grid.Column="2" Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}" Foreground="Firebrick">Remove</Button>
 
     </Grid>
 </UserControl>

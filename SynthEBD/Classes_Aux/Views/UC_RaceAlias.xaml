@@ -45,8 +45,8 @@
 
             <TextBlock Grid.Column="0" Grid.Row="6">Apply to Height</TextBlock>
             <CheckBox Grid.Column="1" Grid.Row="6" IsChecked="{Binding Path=bApplyToHeight, Mode=TwoWay}"></CheckBox>
-            
-            <Button Grid.Column="0" Grid.Row="7" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" x:Name="Button_RemoveRaceAlias" Command="{Binding DeleteCommand}">Remove</Button>
+
+            <Button Grid.Column="0" Grid.Row="7" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" x:Name="Button_RemoveRaceAlias" Command="{Binding DeleteCommand}" Foreground="Firebrick">Remove</Button>
         </Grid>
     </Border>
 </UserControl>

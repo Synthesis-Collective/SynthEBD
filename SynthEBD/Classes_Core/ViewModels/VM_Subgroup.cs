@@ -51,17 +51,17 @@ namespace SynthEBD
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.allowedAttributes.Add(new VM_NPCAttribute(this.allowedAttributes))
+                execute: _ => this.allowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.allowedAttributes))
                 );
 
             AddDisallowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.disallowedAttributes.Add(new VM_NPCAttribute(this.disallowedAttributes))
+                execute: _ => this.disallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.disallowedAttributes))
                 );
 
             AddForceIfAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.forceIfAttributes.Add(new VM_NPCAttribute(this.forceIfAttributes))
+                execute: _ => this.forceIfAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.forceIfAttributes))
                 );
 
             AddNPCKeyword = new SynthEBD.RelayCommand(

@@ -17,15 +17,15 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <ItemsControl Grid.Row="0" Grid.Column="0" ItemsSource="{Binding GroupedSubAttributes}" BorderThickness="1" BorderBrush="Teal">
+        <ItemsControl Grid.Row="0" Grid.Column="0" ItemsSource="{Binding GroupedSubAttributes}" BorderThickness="3" BorderBrush="Teal">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_NPCAttributeShell}">
-                    <local:UC_NPCAttributeShell Background="Black" BorderThickness="1" BorderBrush="BlueViolet"/>
+                    <local:UC_NPCAttributeShell Background="Black" BorderThickness="1" BorderBrush="BlueViolet" Margin="1"/>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <Button Grid.Row="0" Grid.Column="1" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}">Remove Group</Button>
-        <Button Grid.Row="1" Grid.Column="0" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AddToParent}">OR</Button>
+        <Button Grid.Row="0" Grid.Column="1" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}" Foreground="Firebrick">Remove Group</Button>
+        <Button Grid.Row="1" Grid.Column="0" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AddToParent}" Foreground="Lightgreen">OR</Button>
     </Grid>
 </UserControl>
