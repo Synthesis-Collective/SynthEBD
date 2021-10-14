@@ -56,10 +56,7 @@
                 </ListBox>
             </StackPanel>
         </ScrollViewer>
-
         
-        
-
         <ContentPresenter Grid.Row="0" Grid.Column="1" Grid.RowSpan="4" Content="{Binding CurrentlyDisplayedTemplate}">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_BodyGenTemplate}">

@@ -22,21 +22,24 @@ namespace SynthEBD
         public VM_SettingsTexMesh TMVM { get; } = new();
         public VM_SettingsBodyGen BGVM { get; } = new();
         public VM_SettingsHeight HVM { get; } = new();
+        public VM_SpecificNPCAssignmentsUI SAUIVM { get; } = new();
 
         public VM_NavPanel NavPanel { get; }
 
         public object DisplayedViewModel { get; set; }
         public object NavViewModel { get; set; }
 
-        public List<AssetPack> assetPacks { get; }
+        public List<AssetPack> AssetPacks { get; }
 
-        public Settings_General generalSettings { get; }
-        public Settings_TexMesh texMeshSettings { get; }
-        public Settings_Height heightSettings { get; }
-        public HashSet<HeightConfig> heightConfigs { get; }
+        public Settings_General GeneralSettings { get; }
+        public Settings_TexMesh TexMeshSettings { get; }
+        public Settings_Height HeightSettings { get; }
+        public HashSet<HeightConfig> HeightConfigs { get; }
 
-        public Settings_BodyGen bodyGenSettings { get; }
-        public BodyGenConfigs bodyGenConfigs { get; }
+        public Settings_BodyGen BodyGenSettings { get; }
+        public BodyGenConfigs BodyGenConfigs { get; }
+        public HashSet<SpecificNPCAssignment> SpecificNPCAssignments { get; }
+
 
         public MainWindow_ViewModel()
         {
@@ -45,34 +48,38 @@ namespace SynthEBD
             var LinkCache = env.LinkCache;
             var LoadOrder = env.LoadOrder;
 
-            NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, HVM);
+            NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, HVM, SAUIVM);
 
             // Load general settings
-            generalSettings = SettingsIO_General.loadGeneralSettings();
-            VM_Settings_General.GetViewModelFromModel(SGVM, generalSettings);
+            GeneralSettings = SettingsIO_General.loadGeneralSettings();
+            VM_Settings_General.GetViewModelFromModel(SGVM, GeneralSettings);
 
             // get paths
-            Paths = new Paths(generalSettings.bLoadSettingsFromDataFolder);
+            Paths = new Paths(GeneralSettings.bLoadSettingsFromDataFolder);
 
             // Load texture and mesh settings
-            texMeshSettings = SettingsIO_AssetPack.LoadTexMeshSettings(Paths);
-            VM_SettingsTexMesh.GetViewModelFromModel(TMVM, texMeshSettings);
+            TexMeshSettings = SettingsIO_AssetPack.LoadTexMeshSettings(Paths);
+            VM_SettingsTexMesh.GetViewModelFromModel(TMVM, TexMeshSettings);
 
             // load asset packs
             List<string> assetPackPaths = new List<string>();
-            assetPacks = SettingsIO_AssetPack.loadAssetPacks(generalSettings.RaceGroupings, assetPackPaths, Paths); // load asset pack models from json
-            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(assetPacks, assetPackPaths, SGVM); // add asset pack view models to TexMesh shell view model here
+            AssetPacks = SettingsIO_AssetPack.loadAssetPacks(GeneralSettings.RaceGroupings, assetPackPaths, Paths); // load asset pack models from json
+            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(AssetPacks, assetPackPaths, SGVM); // add asset pack view models to TexMesh shell view model here
 
             // load heights
-            heightSettings = SettingsIO_Height.LoadHeightSettings(Paths);
-            VM_SettingsHeight.GetViewModelFromModel(HVM, heightSettings, LinkCache);
-            heightConfigs = SettingsIO_Height.loadHeightConfig(Paths.HeightConfigCurrentPath);
-            HVM.HeightConfigs = VM_HeightConfig.GetViewModelsFromModels(heightConfigs, LinkCache);
+            HeightSettings = SettingsIO_Height.LoadHeightSettings(Paths);
+            VM_SettingsHeight.GetViewModelFromModel(HVM, HeightSettings, LinkCache);
+            HeightConfigs = SettingsIO_Height.loadHeightConfig(Paths.HeightConfigCurrentPath);
+            HVM.HeightConfigs = VM_HeightConfig.GetViewModelsFromModels(HeightConfigs, LinkCache);
 
             // load bodygen configs
-            bodyGenSettings = SettingsIO_BodyGen.LoadBodyGenSettings(Paths);
-            bodyGenConfigs = SettingsIO_BodyGen.loadBodyGenConfigs(generalSettings.RaceGroupings, Paths);
-            VM_SettingsBodyGen.GetViewModelFromModel(bodyGenConfigs, bodyGenSettings, BGVM, SGVM.RaceGroupings);
+            BodyGenSettings = SettingsIO_BodyGen.LoadBodyGenSettings(Paths);
+            BodyGenConfigs = SettingsIO_BodyGen.loadBodyGenConfigs(GeneralSettings.RaceGroupings, Paths);
+            VM_SettingsBodyGen.GetViewModelFromModel(BodyGenConfigs, BodyGenSettings, BGVM, SGVM.RaceGroupings);
+
+            // load specific assignments
+            SpecificNPCAssignments = SettingsIO_SpecificNPCAssignments.LoadAssignments(Paths);
+            VM_SpecificNPCAssignmentsUI.GetViewModelFromModels(SAUIVM, SpecificNPCAssignments, BGVM, TMVM);
 
             // Start on the settings VM
             DisplayedViewModel = SGVM;
@@ -83,19 +90,19 @@ namespace SynthEBD
 
         void MainWindow_Closing(object sender, CancelEventArgs e)
         {
-            VM_Settings_General.DumpViewModelToModel(SGVM, generalSettings);
-            SerializeToJSON<Settings_General>.SaveJSONFile(generalSettings, Paths.GeneralSettingsPath);
+            VM_Settings_General.DumpViewModelToModel(SGVM, GeneralSettings);
+            SerializeToJSON<Settings_General>.SaveJSONFile(GeneralSettings, Paths.GeneralSettingsPath);
 
-            VM_SettingsTexMesh.DumpViewModelToModel(TMVM, texMeshSettings);
-            SerializeToJSON<Settings_TexMesh>.SaveJSONFile(texMeshSettings, Paths.TexMeshSettingsPath);
+            VM_SettingsTexMesh.DumpViewModelToModel(TMVM, TexMeshSettings);
+            SerializeToJSON<Settings_TexMesh>.SaveJSONFile(TexMeshSettings, Paths.TexMeshSettingsPath);
 
-            VM_SettingsHeight.DumpViewModelToModel(HVM, heightSettings);
-            SerializeToJSON<Settings_Height>.SaveJSONFile(heightSettings, Paths.HeightSettingsPath);
-            VM_HeightConfig.DumpViewModelsToModels(heightConfigs, HVM.HeightConfigs);
-            SerializeToJSON<HashSet<HeightConfig>>.SaveJSONFile(heightConfigs, Paths.HeightConfigCurrentPath);
+            VM_SettingsHeight.DumpViewModelToModel(HVM, HeightSettings);
+            SerializeToJSON<Settings_Height>.SaveJSONFile(HeightSettings, Paths.HeightSettingsPath);
+            VM_HeightConfig.DumpViewModelsToModels(HeightConfigs, HVM.HeightConfigs);
+            SerializeToJSON<HashSet<HeightConfig>>.SaveJSONFile(HeightConfigs, Paths.HeightConfigCurrentPath);
 
-            VM_SettingsBodyGen.DumpViewModelToModel(BGVM, bodyGenSettings);
-            SerializeToJSON<Settings_BodyGen>.SaveJSONFile(bodyGenSettings, Paths.BodyGenSettingsPath);
+            VM_SettingsBodyGen.DumpViewModelToModel(BGVM, BodyGenSettings);
+            SerializeToJSON<Settings_BodyGen>.SaveJSONFile(BodyGenSettings, Paths.BodyGenSettingsPath);
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

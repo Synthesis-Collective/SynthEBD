@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
-    class Settings_BodyGen
+    public class Settings_BodyGen
     {
         public Settings_BodyGen()
         {

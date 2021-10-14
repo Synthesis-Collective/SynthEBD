@@ -17,6 +17,7 @@
             <Button x:Name="Button_TandM" Margin="0, 5, 0, 0" Command="{Binding ClickTM}">Textures and Meshes</Button>
             <Button x:Name="Button_BG" Margin="0, 5, 0, 0" Command="{Binding ClickBG}">BodyGen Integration</Button>
             <Button x:Name="Button_H" Margin="0, 5, 0, 0" Command="{Binding ClickH}">Height</Button>
+            <Button x:Name="Button_SA" Margin="0, 5, 0, 0" Command="{Binding ClickSA}">Specific NPC Assignments</Button>
         </StackPanel>
     </Grid>
 </UserControl>

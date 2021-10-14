@@ -21,11 +21,13 @@ namespace SynthEBD
             string assetsDirRelPath = "Asset Packs";
             string heightsDirRelPath = "Height Configurations";
             string bodyGenDirRelPath = "BodyGen Configuration";
+            string NPCConfigDirRelPath = "NPC Configuration";
 
             string settingsDirPath = Path.Combine(SynthEBDexePath, settingsDirRelPath);
             string assetsDirPath = Path.Combine(SynthEBDexePath, assetsDirRelPath);
             string heightsDirPath = Path.Combine(SynthEBDexePath, heightsDirRelPath);
             string bodyGenDirPath = Path.Combine(SynthEBDexePath, bodyGenDirRelPath);
+            string NPCConfigDirPath = Path.Combine(SynthEBDexePath, NPCConfigDirRelPath);
 
             if (Directory.Exists(settingsDirPath) == false)
             {
@@ -43,7 +45,10 @@ namespace SynthEBD
             {
                 Directory.CreateDirectory(bodyGenDirPath);
             }
-
+            if (Directory.Exists(NPCConfigDirPath) == false)
+            {
+                Directory.CreateDirectory(NPCConfigDirPath);
+            }
 
             switch (loadFromGameData)
             {
@@ -63,7 +68,7 @@ namespace SynthEBD
             this.HeightConfigCurrentPath = Path.Combine(this.HeightConfigDirPath, "HeightConfig.json");
             this.BodyGenSettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "BodyGenSettings.json");
             this.BodyGenConfigDirPath = Path.Combine(RelativePath, bodyGenDirRelPath);
-
+            this.SpecificNPCAssignmentsPath = Path.Combine(RelativePath, NPCConfigDirRelPath, "Specific NPC Assignments.json");
         }
 
         private string RelativePath { get; set; } 
@@ -75,6 +80,7 @@ namespace SynthEBD
         public string HeightConfigCurrentPath { get; set; }
         public string BodyGenSettingsPath { get; set; }
         public string BodyGenConfigDirPath { get; set; }
+        public string SpecificNPCAssignmentsPath { get; set; }
     }
 }
 

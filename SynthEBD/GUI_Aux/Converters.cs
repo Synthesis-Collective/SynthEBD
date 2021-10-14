@@ -57,7 +57,7 @@ namespace SynthEBD
                 switch(type)
                 {
                     case "CNAM":
-                        tmpFK = GetFormKeyFromxEditString(value, env);
+                        tmpFK = GetFormKeyFromxEditFormIDString(value, env);
                         if (tmpFK.IsNull == false)
                         {
                             classAttributes.Add(tmpFK);
@@ -75,7 +75,7 @@ namespace SynthEBD
                         break;
 
                     case "FTST":
-                        tmpFK = GetFormKeyFromxEditString(value, env);
+                        tmpFK = GetFormKeyFromxEditFormIDString(value, env);
                         if (tmpFK.IsNull == false)
                         {
                             faceTextureAttributes.Add(tmpFK);
@@ -83,7 +83,7 @@ namespace SynthEBD
                         break;
 
                     case "Factions\\*\\Faction":
-                        tmpFK = GetFormKeyFromxEditString(value, env);
+                        tmpFK = GetFormKeyFromxEditFormIDString(value, env);
                         if (tmpFK.IsNull == false)
                         {
                             factionAttributes.Add(tmpFK);
@@ -111,7 +111,7 @@ namespace SynthEBD
                         break;
 
                     case "RNAM":
-                        tmpFK = GetFormKeyFromxEditString(value, env);
+                        tmpFK = GetFormKeyFromxEditFormIDString(value, env);
                         if (tmpFK.IsNull == false)
                         {
                             raceAttributes.Add(tmpFK);
@@ -119,7 +119,7 @@ namespace SynthEBD
                         break;
 
                     case "VTCK":
-                        tmpFK = GetFormKeyFromxEditString(value, env);
+                        tmpFK = GetFormKeyFromxEditFormIDString(value, env);
                         if (tmpFK.IsNull == false)
                         {
                             voiceTypeAttributes.Add(tmpFK);
@@ -203,7 +203,7 @@ namespace SynthEBD
             return h;
         }
 
-        public static FormKey GetFormKeyFromxEditString(string str, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env)
+        public static FormKey GetFormKeyFromxEditFormIDString(string str, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env)
         {
             FormKey output = new FormKey();
             var pattern = @"\[(.*?)\]"; // get text between square brackets - str will look like "Beggar \"Beggar\" [CLAS:0001327B]"
@@ -249,6 +249,36 @@ namespace SynthEBD
             string signature = formID.Substring(2, 6);
 
             string fkString = signature + ":" + pluginNameAndExtension;
+
+            try
+            {
+                output = FormKey.Factory(fkString);
+            }
+            catch
+            {
+                // WARN USER
+            }
+
+            return output;
+        }
+
+        public static FormKey zEBDSignatureToFormKey(string rootPlugin, string formID, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env)
+        {
+            string fkString = "";
+            FormKey output = new FormKey();
+
+            foreach (var plugin in env.LoadOrder.ListedOrder)
+            {
+                if (plugin.ModKey.FileName.String.ToLower() == rootPlugin.ToLower())
+                {
+                    switch(formID.Length)
+                    {
+                        case 6: fkString = formID + ":" + plugin.ModKey.FileName; break;
+                        case 8: fkString = formID.Substring(2, 6) + ":" + plugin.ModKey.FileName; break;
+                        default: break; // Warn User
+                    }
+                }
+            }
 
             try
             {

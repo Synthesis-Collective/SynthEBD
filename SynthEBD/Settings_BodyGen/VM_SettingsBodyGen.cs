@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
-    class VM_SettingsBodyGen : INotifyPropertyChanged
+    public class VM_SettingsBodyGen : INotifyPropertyChanged
     {
         public VM_SettingsBodyGen()
         {
