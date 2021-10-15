@@ -19,7 +19,7 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
         
-        <TextBlock Grid.Column="0" Grid.Row="0" HorizontalAlignment="Center">Morph</TextBlock>
+        <TextBlock Grid.Column="0" Grid.Row="0" HorizontalAlignment="Center">NPC</TextBlock>
         <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddAssignment}" Foreground="Lightgreen">Add New</Button>
         <ScrollViewer Grid.Column="0" Grid.Row="2">
             <StackPanel >

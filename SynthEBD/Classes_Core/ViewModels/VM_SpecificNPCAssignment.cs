@@ -7,6 +7,7 @@ using Noggog;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
@@ -16,53 +17,88 @@ namespace SynthEBD
 {
     public class VM_SpecificNPCAssignment : INotifyPropertyChanged
     {
-        public VM_SpecificNPCAssignment()
+        public VM_SpecificNPCAssignment(ObservableCollection<VM_AssetPack> assetPacks)
         {
-            this.PropertyChanged += UpdateDispName;
-            this.DispName = "";
+            this.PropertyChanged += TriggerDispNameUpdate;
+            
+            this.DispName = "New Assignment";
             this.NPCFormKey = new FormKey();
-            this.ForcedAssetPackName = "";
-            this.ForcedSubgroups = new HashSet<VM_Subgroup>();
+            this.ForcedAssetPack = new VM_AssetPack();
+            this.ForcedSubgroups = new ObservableCollection<VM_Subgroup>();
             this.ForcedHeight = "";
-            this.ForcedBodyGenMorphs = new HashSet<VM_BodyGenTemplate>();
+            this.ForcedBodyGenMorphs = new ObservableCollection<VM_BodyGenTemplate>();
+
+            this.Gender = Gender.female;
+            this.AvailableAssetPacks = new ObservableCollection<VM_AssetPack>(); // filtered by gender
+            this.SubscribedAssetPacks = assetPacks;
+
+            this.AvailableSubgroups = new ObservableCollection<VM_Subgroup>();
+            this.SubscribedSubgroups = new ObservableCollection<VM_Subgroup>();
+            this.UsedTopLevelSubgroups = new ObservableCollection<VM_Subgroup>();
 
             this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
             this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
+
+            this.PropertyChanged += TriggerGenderUpdate;
+            this.PropertyChanged += TriggerAvailableAssetPackUpdate;
+            this.PropertyChanged += TriggerAvailableSubgroupsUpdate;
+            this.SubscribedAssetPacks.CollectionChanged += TriggerAvailableAssetPackUpdate;
+            this.ForcedAssetPack.PropertyChanged += TriggerAvailableSubgroupsUpdate;
+            this.ForcedSubgroups.CollectionChanged += TriggerAvailableSubgroupsUpdate;
+
+            DeleteForcedSubgroup = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x => this.ForcedSubgroups.Remove((VM_Subgroup)x)
+                );
         }
 
+        // Caption
         public string DispName { get; set; }
+
+        //User-editable
         public FormKey NPCFormKey { get; set; }
-        public string ForcedAssetPackName { get; set; }
-        public HashSet<VM_Subgroup> ForcedSubgroups { get; set; }
+        public VM_AssetPack ForcedAssetPack { get; set; }
+        public ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; }
         public string ForcedHeight { get; set; }
-        public HashSet<VM_BodyGenTemplate> ForcedBodyGenMorphs { get; set; }
+        public ObservableCollection<VM_BodyGenTemplate> ForcedBodyGenMorphs { get; set; }
+
+        //Needed by UI
+        public ObservableCollection<VM_AssetPack> AvailableAssetPacks { get; set; }
+        public ObservableCollection<VM_AssetPack> SubscribedAssetPacks { get; set; }
+
+        public ObservableCollection<VM_Subgroup> AvailableSubgroups { get; set; }
+        public ObservableCollection<VM_Subgroup> SubscribedSubgroups { get; set; }
+        public ObservableCollection<VM_Subgroup> UsedTopLevelSubgroups { get; set; }
+
+        public Gender Gender;
 
         public ILinkCache lk { get; set; }
         public IEnumerable<Type> NPCFormKeyTypes { get; set; }
+
+        public RelayCommand DeleteForcedSubgroup { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
         public static VM_SpecificNPCAssignment GetViewModelFromModel(SpecificNPCAssignment model, ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen BGVM, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env)
         {
-            var newVM = new VM_SpecificNPCAssignment();
+            var newVM = new VM_SpecificNPCAssignment(assetPacks);
             newVM.NPCFormKey = model.NPCFormKey;
 
-            var npcFormLink = new FormLink<INpcGetter>(newVM.NPCFormKey);
-
-            Gender gender = Gender.male;
-
-            if (npcFormLink.TryResolve(env.LinkCache, out var npcRecord))
-            {
-                if (npcRecord.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Female))
-                {
-                    gender = Gender.female;
-                }
-            }
-            else
+            if (newVM.NPCFormKey.IsNull)
             {
                 // Warn User
                 return null;
             }
+
+            var npcFormLink = new FormLink<INpcGetter>(newVM.NPCFormKey);
+
+            if (!npcFormLink.TryResolve(new GameEnvironmentProvider().MyEnvironment.LinkCache, out var npcRecord))
+            {
+                // Warn User
+                return null;
+            }
+
+            newVM.Gender = getGender(newVM.NPCFormKey);
 
             bool assetPackFound = false;
             if (model.ForcedAssetPackName.Length == 0) { assetPackFound = true; }
@@ -70,9 +106,9 @@ namespace SynthEBD
             {
                 if (ap.groupName == model.DispName)
                 {
-                    newVM.ForcedAssetPackName = ap.groupName;
+                    newVM.ForcedAssetPack = ap;
                     assetPackFound = true;
-                    
+
                     foreach (var id in model.ForcedSubgroupIDs)
                     {
                         var foundSubgroup = GetSubgroupByID(ap.subgroups, id);
@@ -88,15 +124,15 @@ namespace SynthEBD
                     }
                 }
             }
-            if (assetPackFound == false) 
-            { 
+            if (assetPackFound == false)
+            {
                 // Warn user
             }
 
             newVM.ForcedHeight = model.ForcedHeight;
 
             ObservableCollection<VM_BodyGenTemplate> templates = new ObservableCollection<VM_BodyGenTemplate>();
-            switch(gender)
+            switch (newVM.Gender)
             {
                 case Gender.male:
                     templates = BGVM.CurrentMaleConfig.TemplateMorphUI.Templates;
@@ -126,7 +162,62 @@ namespace SynthEBD
 
             newVM.DispName = createDispName(newVM.NPCFormKey);
 
+            newVM.SubscribedAssetPacks = assetPacks;
+
             return newVM;
+        }
+
+        public void TriggerAvailableAssetPackUpdate(object sender, PropertyChangedEventArgs e)
+        {
+            UpdateAvailableAssetPacks(this);
+        }
+
+        public void TriggerAvailableAssetPackUpdate(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            UpdateAvailableAssetPacks(this);
+        }
+
+        public void TriggerAvailableSubgroupsUpdate(object sender, PropertyChangedEventArgs e)
+        {
+            UpdateAvailableSubgroups(this);
+        }
+
+        public void TriggerAvailableSubgroupsUpdate(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            UpdateAvailableSubgroups(this);
+        }
+
+        public static void UpdateAvailableAssetPacks(VM_SpecificNPCAssignment assignment)
+        {
+            assignment.AvailableAssetPacks.Clear();
+            foreach (var assetPack in assignment.SubscribedAssetPacks)
+            {
+                if (assetPack.gender == assignment.Gender)
+                {
+                    assignment.AvailableAssetPacks.Add(assetPack);
+                }
+            }
+        }
+
+        public static void UpdateAvailableSubgroups(VM_SpecificNPCAssignment assignment)
+        {
+            assignment.AvailableSubgroups.Clear();
+            foreach (var topLevelSubgroup in assignment.ForcedAssetPack.subgroups)
+            {
+                bool topLevelTaken = false;
+                foreach (var forcedSubgroup in assignment.ForcedSubgroups)
+                {
+                    if (topLevelSubgroup == forcedSubgroup || ContainsSubgroupID(topLevelSubgroup.subgroups, forcedSubgroup.id))
+                    {
+                        topLevelTaken = true;
+                        break;
+                    }
+                }
+                if (topLevelTaken == false)
+                {
+                    assignment.AvailableSubgroups.Add(topLevelSubgroup);
+                }
+            }
         }
 
         public static bool ContainsSubgroupID(ObservableCollection<VM_Subgroup> subgroups, string id)
@@ -156,9 +247,12 @@ namespace SynthEBD
             return null;
         }
 
-        public void UpdateDispName(object sender, PropertyChangedEventArgs e)
+        public void TriggerDispNameUpdate(object sender, PropertyChangedEventArgs e)
         {
-            this.DispName = createDispName(this.NPCFormKey);
+            if (this.NPCFormKey.IsNull == false)
+            {
+                this.DispName = createDispName(this.NPCFormKey);
+            }
         }
 
         public static string createDispName(FormKey NPCFormKey)
@@ -182,5 +276,32 @@ namespace SynthEBD
             // Warn User
             return "";
         }
+
+        public void TriggerGenderUpdate(object sender, PropertyChangedEventArgs e)
+        {
+            this.Gender = getGender(this.NPCFormKey);
+        }
+
+        public static Gender getGender (FormKey NPCFormKey)
+        {
+            var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
+
+            if (npcFormLink.TryResolve(new GameEnvironmentProvider().MyEnvironment.LinkCache, out var npcRecord))
+            {
+                if (npcRecord.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Female))
+                {
+                    return Gender.female;
+                }
+                else
+                {
+                    return Gender.male;
+                }
+            }
+
+            // Warn User
+            return Gender.male;
+        }
+
+
     }
 }

@@ -22,7 +22,7 @@ namespace SynthEBD
         public VM_SettingsTexMesh TMVM { get; } = new();
         public VM_SettingsBodyGen BGVM { get; } = new();
         public VM_SettingsHeight HVM { get; } = new();
-        public VM_SpecificNPCAssignmentsUI SAUIVM { get; } = new();
+        public VM_SpecificNPCAssignmentsUI SAUIVM { get; }
 
         public VM_NavPanel NavPanel { get; }
 
@@ -48,6 +48,7 @@ namespace SynthEBD
             var LinkCache = env.LinkCache;
             var LoadOrder = env.LoadOrder;
 
+            SAUIVM = new VM_SpecificNPCAssignmentsUI(TMVM, BGVM);
             NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, HVM, SAUIVM);
 
             // Load general settings
@@ -79,7 +80,7 @@ namespace SynthEBD
 
             // load specific assignments
             SpecificNPCAssignments = SettingsIO_SpecificNPCAssignments.LoadAssignments(Paths);
-            VM_SpecificNPCAssignmentsUI.GetViewModelFromModels(SAUIVM, SpecificNPCAssignments, BGVM, TMVM);
+            VM_SpecificNPCAssignmentsUI.GetViewModelFromModels(SAUIVM, SpecificNPCAssignments);
 
             // Start on the settings VM
             DisplayedViewModel = SGVM;

@@ -122,6 +122,8 @@ namespace SynthEBD
         public ILinkCache lk { get; set; }
         public IEnumerable<Type> RacePickerFormKeys { get; set; }
 
+        public string TopLevelSubgroupID { get; set; }
+
         public RelayCommand AddAllowedAttribute { get; }
         public RelayCommand AddDisallowedAttribute { get; }
         public RelayCommand AddForceIfAttribute { get; }

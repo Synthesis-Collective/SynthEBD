@@ -73,7 +73,7 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <TextBlock Grid.Row="9" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Disllowed Races</TextBlock>
+        <TextBlock Grid.Row="9" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Disallowed Races</TextBlock>
         <plugins:FormKeyMultiPicker Grid.Row="9" Grid.Column="1" MinWidth="150" FormKeys="{Binding disallowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
         <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Disallowed Race Groupings</TextBlock>

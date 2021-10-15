@@ -51,6 +51,8 @@ namespace SynthEBD
                 this.disallowedBodyGenDescriptors = new HashSet<string>();
                 this.weightRange = new NPCWeightRange();
                 this.subgroups = new HashSet<Subgroup>();
+
+                this.TopLevelSubgroupID = "";
             }
             
             public string id { get; set; }
@@ -75,6 +77,8 @@ namespace SynthEBD
             public HashSet<string> disallowedBodyGenDescriptors { get; set; }
             public NPCWeightRange weightRange { get; set; }
             public HashSet<Subgroup> subgroups { get; set; }
+
+            public string TopLevelSubgroupID { get; set; }
         }
     }
 
@@ -149,7 +153,7 @@ namespace SynthEBD
 
             public string hashKey {get; set;}
 
-            public static AssetPack.Subgroup ToSynthEBDSubgroup(ZEBDSubgroup g, List<RaceGrouping> raceGroupings)
+            public static AssetPack.Subgroup ToSynthEBDSubgroup(ZEBDSubgroup g, List<RaceGrouping> raceGroupings, string topLevelSubgroupID)
             {
                 AssetPack.Subgroup s = new AssetPack.Subgroup();
 
@@ -225,17 +229,22 @@ namespace SynthEBD
                     }
                 }
 
+                if (topLevelSubgroupID == "")
+                {
+                    s.TopLevelSubgroupID = s.id; // this is the top level subgroup
+                }
+                else
+                {
+                    s.TopLevelSubgroupID = topLevelSubgroupID;
+                }
+
                 foreach (var sg in g.subgroups)
                 {
-                    s.subgroups.Add(ToSynthEBDSubgroup(sg, raceGroupings));
+                    s.subgroups.Add(ToSynthEBDSubgroup(sg, raceGroupings, s.TopLevelSubgroupID));
                 }
 
                 return s;
-            }
-
-            
-
-            
+            } 
         }
 
         public static AssetPack ToSynthEBDAssetPack(ZEBDAssetPack z, List<RaceGrouping> raceGroupings)
@@ -247,7 +256,7 @@ namespace SynthEBD
             s.userAlert = z.userAlert;
             foreach (ZEBDAssetPack.ZEBDSubgroup sg in z.subgroups)
             {
-                s.subgroups.Add(ZEBDAssetPack.ZEBDSubgroup.ToSynthEBDSubgroup(sg, raceGroupings));
+                s.subgroups.Add(ZEBDAssetPack.ZEBDSubgroup.ToSynthEBDSubgroup(sg, raceGroupings, ""));
             }
 
             return s;

@@ -10,15 +10,15 @@ namespace SynthEBD
 {
     class VM_SpecificNPCAssignmentsUI : INotifyPropertyChanged
     {
-        public VM_SpecificNPCAssignmentsUI()
+        public VM_SpecificNPCAssignmentsUI(VM_SettingsTexMesh texMeshSettings, VM_SettingsBodyGen bodyGenSettings)
         {
             this.Assignments = new ObservableCollection<VM_SpecificNPCAssignment>();
-            this.BodyGenSettings = new VM_SettingsBodyGen();
-            this.TexMeshSettings = new VM_SettingsTexMesh();
+            this.BodyGenSettings = bodyGenSettings;
+            this.TexMeshSettings = texMeshSettings;
 
             AddAssignment = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.Assignments.Add(new VM_SpecificNPCAssignment())
+                execute: _ => this.Assignments.Add(new VM_SpecificNPCAssignment(texMeshSettings.AssetPacks))
                 );
 
             RemoveAssignment = new SynthEBD.RelayCommand(
@@ -46,16 +46,13 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static void GetViewModelFromModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<SpecificNPCAssignment> assignments, VM_SettingsBodyGen BGVM, VM_SettingsTexMesh TMVM)
+        public static void GetViewModelFromModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<SpecificNPCAssignment> assignments)
         {
             var env = new GameEnvironmentProvider().MyEnvironment;
             foreach (var assignment in assignments)
             {
-                viewModel.Assignments.Add(VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, TMVM.AssetPacks, BGVM, env));
+                viewModel.Assignments.Add(VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, viewModel.TexMeshSettings.AssetPacks, viewModel.BodyGenSettings, env));
             }
-
-            viewModel.BodyGenSettings = BGVM;
-            viewModel.TexMeshSettings = TMVM;
         }
 
         public void ImportFromZEBD()
@@ -84,7 +81,11 @@ namespace SynthEBD
 
                     foreach (var model in newModels)
                     {
-                        this.Assignments.Add(VM_SpecificNPCAssignment.GetViewModelFromModel(model, this.TexMeshSettings.AssetPacks, this.BodyGenSettings, env));
+                        var assignmentVM = VM_SpecificNPCAssignment.GetViewModelFromModel(model, this.TexMeshSettings.AssetPacks, this.BodyGenSettings, env);
+                        if (assignmentVM != null) // null if the imported NPC doesn't exist in the current load order
+                        {
+                            this.Assignments.Add(assignmentVM);
+                        }
                     }
                 }
                 catch
