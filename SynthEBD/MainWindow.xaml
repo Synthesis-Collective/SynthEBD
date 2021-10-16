@@ -22,6 +22,8 @@
         </Grid.ColumnDefinitions>
 
         <Grid.RowDefinitions>
+            <RowDefinition Height="19*"/>
+            <RowDefinition Height="2"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -37,7 +39,12 @@
             <Rectangle.Fill>black
             </Rectangle.Fill>
         </Rectangle>
-        
+
+        <Rectangle Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="5">
+            <Rectangle.Fill>black
+            </Rectangle.Fill>
+        </Rectangle>
+
         <ContentPresenter Content="{Binding DisplayedViewModel}" Grid.Column="3" Grid.Row="0" Margin="10, 0, 0, 0">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_Settings_General}">

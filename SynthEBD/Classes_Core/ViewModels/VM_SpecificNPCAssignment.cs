@@ -44,9 +44,12 @@ namespace SynthEBD
             this.PropertyChanged += TriggerAvailableAssetPackUpdate;
             this.PropertyChanged += TriggerAvailableSubgroupsUpdate;
             this.PropertyChanged += TriggerAvailableMorphsUpdate;
+            
             this.SubscribedAssetPacks.CollectionChanged += TriggerAvailableAssetPackUpdate;
+            
             this.ForcedAssetPack.PropertyChanged += TriggerAvailableSubgroupsUpdate;
             this.ForcedSubgroups.CollectionChanged += TriggerAvailableSubgroupsUpdate;
+            
             this.ForcedBodyGenMorphs.CollectionChanged += TriggerAvailableMorphsUpdate;
             this.SubscribedBodyGenSettings.PropertyChanged += TriggerAvailableMorphsUpdate;
             this.SubscribedBodyGenSettings.MaleConfigs.CollectionChanged += TriggerAvailableMorphsUpdate;
@@ -57,11 +60,6 @@ namespace SynthEBD
             DeleteForcedSubgroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => this.ForcedSubgroups.Remove((VM_Subgroup)x)
-                );
-
-            AddForcedMorph = new SynthEBD.RelayCommand(
-                canExecute: _ => true,
-                execute: x => this.ForcedBodyGenMorphs.Add(new VM_BodyGenTemplate(new ObservableCollection<VM_CollectionMemberString>(), new VM_BodyGenMorphDescriptorMenu(), new ObservableCollection<VM_RaceGrouping>(), new ObservableCollection<VM_BodyGenTemplate>()))
                 );
 
             DeleteForcedMorph = new SynthEBD.RelayCommand(
@@ -89,6 +87,8 @@ namespace SynthEBD
         public ObservableCollection<VM_BodyGenTemplate> AvailableMorphs { get; set; }
         public VM_SettingsBodyGen SubscribedBodyGenSettings { get; set; }
 
+        public VM_BodyGenTemplate SelectedTemplate { get; set; }
+
         public Gender Gender;
 
         public ILinkCache lk { get; set; }
@@ -96,7 +96,6 @@ namespace SynthEBD
 
         public RelayCommand DeleteForcedSubgroup { get; set; }
 
-        public RelayCommand AddForcedMorph { get; set; }
         public RelayCommand DeleteForcedMorph { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -282,7 +281,9 @@ namespace SynthEBD
 
         public static void UpdateAvailableMorphs(VM_SpecificNPCAssignment assignment)
         {
+            // clear available morphs besides the ones that are forced (removing those from the available morph list also clears their combobox selection)
             assignment.AvailableMorphs.Clear();
+
             var allTemplateList = new ObservableCollection<VM_BodyGenTemplate>();
             switch(assignment.Gender)
             {
@@ -292,13 +293,18 @@ namespace SynthEBD
 
             foreach (var candidateMorph in allTemplateList)
             {
+                if (assignment.ForcedBodyGenMorphs.Contains(candidateMorph))
+                {
+                    continue;
+                }
+
                 bool groupOccupied = false;
 
-                var candidateGroups = candidateMorph.GroupSelectionCheckList.CollectionMemberStrings.Where(x => x.IsSelected);
+                var candidateGroups = candidateMorph.GroupSelectionCheckList.CollectionMemberStrings.Where(x => x.IsSelected).Select(x => x.SubscribedString.Content).ToArray();
 
                 foreach (var alreadyForcedMorph in assignment.ForcedBodyGenMorphs)
                 {
-                    var forcedGroups = alreadyForcedMorph.GroupSelectionCheckList.CollectionMemberStrings.Where(x => x.IsSelected);
+                    var forcedGroups = alreadyForcedMorph.GroupSelectionCheckList.CollectionMemberStrings.Where(x => x.IsSelected).Select(x => x.SubscribedString.Content).ToArray();
 
                     if (candidateGroups.Intersect(forcedGroups).ToArray().Length > 0)
                     {
