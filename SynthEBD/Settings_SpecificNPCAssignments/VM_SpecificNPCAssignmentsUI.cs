@@ -18,7 +18,7 @@ namespace SynthEBD
 
             AddAssignment = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.Assignments.Add(new VM_SpecificNPCAssignment(texMeshSettings.AssetPacks))
+                execute: _ => this.Assignments.Add(new VM_SpecificNPCAssignment(texMeshSettings.AssetPacks, bodyGenSettings))
                 );
 
             RemoveAssignment = new SynthEBD.RelayCommand(

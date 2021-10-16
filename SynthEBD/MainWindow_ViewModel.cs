@@ -20,7 +20,7 @@ namespace SynthEBD
         public Paths Paths { get; }
         public VM_Settings_General SGVM { get; } = new();
         public VM_SettingsTexMesh TMVM { get; } = new();
-        public VM_SettingsBodyGen BGVM { get; } = new();
+        public VM_SettingsBodyGen BGVM { get; }
         public VM_SettingsHeight HVM { get; } = new();
         public VM_SpecificNPCAssignmentsUI SAUIVM { get; }
 
@@ -48,7 +48,9 @@ namespace SynthEBD
             var LinkCache = env.LinkCache;
             var LoadOrder = env.LoadOrder;
 
+            BGVM = new VM_SettingsBodyGen(SGVM.RaceGroupings);
             SAUIVM = new VM_SpecificNPCAssignmentsUI(TMVM, BGVM);
+
             NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, HVM, SAUIVM);
 
             // Load general settings

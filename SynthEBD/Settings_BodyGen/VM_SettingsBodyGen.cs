@@ -10,12 +10,12 @@ namespace SynthEBD
 {
     public class VM_SettingsBodyGen : INotifyPropertyChanged
     {
-        public VM_SettingsBodyGen()
+        public VM_SettingsBodyGen(ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
             this.MaleConfigs = new ObservableCollection<VM_BodyGenConfig>();
             this.FemaleConfigs = new ObservableCollection<VM_BodyGenConfig>();
-            this.CurrentMaleConfig = null;
-            this.CurrentFemaleConfig = null;
+            this.CurrentMaleConfig = new VM_BodyGenConfig(raceGroupingVMs);
+            this.CurrentFemaleConfig = new VM_BodyGenConfig(raceGroupingVMs);
             this.CurrentlyDisplayedConfig = null;
 
             DisplayMaleConfig = new SynthEBD.RelayCommand(
@@ -95,6 +95,16 @@ namespace SynthEBD
                 viewModel.CurrentlyDisplayedConfig = viewModel.CurrentMaleConfig;
                 viewModel.DisplayedConfigIsFemale = false;
                 viewModel.DisplayedConfigIsMale = true;
+            }
+
+            //add blank configs if necessary
+            if (viewModel.CurrentFemaleConfig == null)
+            {
+                viewModel.CurrentFemaleConfig = new VM_BodyGenConfig(raceGroupingVMs);
+            }
+            if (viewModel.CurrentMaleConfig == null)
+            {
+                viewModel.CurrentMaleConfig = new VM_BodyGenConfig(raceGroupingVMs);
             }
         }
 

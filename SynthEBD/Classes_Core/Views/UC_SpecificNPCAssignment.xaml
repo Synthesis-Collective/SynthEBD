@@ -20,6 +20,9 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0"  HorizontalAlignment="Center">NPC</TextBlock>
@@ -56,7 +59,27 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
-        
+
+        <TextBlock Grid.Row="4" Grid.Column="0">Forced Height</TextBlock>
+        <TextBox Grid.Row="4" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ForcedHeight}"/>
+
+        <TextBlock Grid.Row="5" Grid.Column="0">Forced Morphs</TextBlock>
+        <ListBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding ForcedBodyGenMorphs}" IsSynchronizedWithCurrentItem="True">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="auto" MinWidth="75"/>
+                            <ColumnDefinition Width="auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <ComboBox Grid.Column="0" ItemsSource="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.AvailableMorphs}" SelectedValue="{Binding ., Mode=TwoWay}" DisplayMemberPath="Label" />
+                        <Button Grid.Column="1" VerticalAlignment="Center" HorizontalContentAlignment="Left"  Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.DeleteForcedMorph}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <Button Grid.Row="6" Grid.Column="1" Command="{Binding AddForcedMorph}" HorizontalAlignment="Left" Foreground="Lightgreen">Add</Button>
         
     </Grid>
 </UserControl>

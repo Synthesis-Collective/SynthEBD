@@ -17,7 +17,7 @@ namespace SynthEBD
 {
     public class VM_SpecificNPCAssignment : INotifyPropertyChanged
     {
-        public VM_SpecificNPCAssignment(ObservableCollection<VM_AssetPack> assetPacks)
+        public VM_SpecificNPCAssignment(ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen bodyGenSettings)
         {
             this.PropertyChanged += TriggerDispNameUpdate;
             
@@ -33,8 +33,9 @@ namespace SynthEBD
             this.SubscribedAssetPacks = assetPacks;
 
             this.AvailableSubgroups = new ObservableCollection<VM_Subgroup>();
-            this.SubscribedSubgroups = new ObservableCollection<VM_Subgroup>();
-            this.UsedTopLevelSubgroups = new ObservableCollection<VM_Subgroup>();
+
+            this.SubscribedBodyGenSettings = bodyGenSettings;
+            this.AvailableMorphs = new ObservableCollection<VM_BodyGenTemplate>(); // filtered by gender
 
             this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
             this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
@@ -42,13 +43,30 @@ namespace SynthEBD
             this.PropertyChanged += TriggerGenderUpdate;
             this.PropertyChanged += TriggerAvailableAssetPackUpdate;
             this.PropertyChanged += TriggerAvailableSubgroupsUpdate;
+            this.PropertyChanged += TriggerAvailableMorphsUpdate;
             this.SubscribedAssetPacks.CollectionChanged += TriggerAvailableAssetPackUpdate;
             this.ForcedAssetPack.PropertyChanged += TriggerAvailableSubgroupsUpdate;
             this.ForcedSubgroups.CollectionChanged += TriggerAvailableSubgroupsUpdate;
+            this.ForcedBodyGenMorphs.CollectionChanged += TriggerAvailableMorphsUpdate;
+            this.SubscribedBodyGenSettings.PropertyChanged += TriggerAvailableMorphsUpdate;
+            this.SubscribedBodyGenSettings.MaleConfigs.CollectionChanged += TriggerAvailableMorphsUpdate;
+            this.SubscribedBodyGenSettings.FemaleConfigs.CollectionChanged += TriggerAvailableMorphsUpdate;
+            this.SubscribedBodyGenSettings.CurrentMaleConfig.PropertyChanged += TriggerAvailableMorphsUpdate;
+            this.SubscribedBodyGenSettings.CurrentFemaleConfig.PropertyChanged += TriggerAvailableMorphsUpdate;
 
             DeleteForcedSubgroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => this.ForcedSubgroups.Remove((VM_Subgroup)x)
+                );
+
+            AddForcedMorph = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x => this.ForcedBodyGenMorphs.Add(new VM_BodyGenTemplate(new ObservableCollection<VM_CollectionMemberString>(), new VM_BodyGenMorphDescriptorMenu(), new ObservableCollection<VM_RaceGrouping>(), new ObservableCollection<VM_BodyGenTemplate>()))
+                );
+
+            DeleteForcedMorph = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x => this.ForcedBodyGenMorphs.Remove((VM_BodyGenTemplate)x)
                 );
         }
 
@@ -67,8 +85,9 @@ namespace SynthEBD
         public ObservableCollection<VM_AssetPack> SubscribedAssetPacks { get; set; }
 
         public ObservableCollection<VM_Subgroup> AvailableSubgroups { get; set; }
-        public ObservableCollection<VM_Subgroup> SubscribedSubgroups { get; set; }
-        public ObservableCollection<VM_Subgroup> UsedTopLevelSubgroups { get; set; }
+
+        public ObservableCollection<VM_BodyGenTemplate> AvailableMorphs { get; set; }
+        public VM_SettingsBodyGen SubscribedBodyGenSettings { get; set; }
 
         public Gender Gender;
 
@@ -77,11 +96,14 @@ namespace SynthEBD
 
         public RelayCommand DeleteForcedSubgroup { get; set; }
 
+        public RelayCommand AddForcedMorph { get; set; }
+        public RelayCommand DeleteForcedMorph { get; set; }
+
         public event PropertyChangedEventHandler PropertyChanged;
 
         public static VM_SpecificNPCAssignment GetViewModelFromModel(SpecificNPCAssignment model, ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen BGVM, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env)
         {
-            var newVM = new VM_SpecificNPCAssignment(assetPacks);
+            var newVM = new VM_SpecificNPCAssignment(assetPacks, BGVM);
             newVM.NPCFormKey = model.NPCFormKey;
 
             if (newVM.NPCFormKey.IsNull)
@@ -187,6 +209,16 @@ namespace SynthEBD
             UpdateAvailableSubgroups(this);
         }
 
+        public void TriggerAvailableMorphsUpdate(object sender, PropertyChangedEventArgs e)
+        {
+            UpdateAvailableMorphs(this);
+        }
+
+        public void TriggerAvailableMorphsUpdate(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            UpdateAvailableMorphs(this);
+        }
+
         public static void UpdateAvailableAssetPacks(VM_SpecificNPCAssignment assignment)
         {
             assignment.AvailableAssetPacks.Clear();
@@ -245,6 +277,40 @@ namespace SynthEBD
                 }
             }
             return null;
+        }
+
+        public static void UpdateAvailableMorphs(VM_SpecificNPCAssignment assignment)
+        {
+            assignment.AvailableMorphs.Clear();
+            var allTemplateList = new ObservableCollection<VM_BodyGenTemplate>();
+            switch(assignment.Gender)
+            {
+                case Gender.male: allTemplateList = assignment.SubscribedBodyGenSettings.CurrentMaleConfig.TemplateMorphUI.Templates; break;
+                case Gender.female: allTemplateList = assignment.SubscribedBodyGenSettings.CurrentFemaleConfig.TemplateMorphUI.Templates; break;
+            }
+
+            foreach (var candidateMorph in allTemplateList)
+            {
+                bool groupOccupied = false;
+
+                var candidateGroups = candidateMorph.GroupSelectionCheckList.CollectionMemberStrings.Where(x => x.IsSelected);
+
+                foreach (var alreadyForcedMorph in assignment.ForcedBodyGenMorphs)
+                {
+                    var forcedGroups = alreadyForcedMorph.GroupSelectionCheckList.CollectionMemberStrings.Where(x => x.IsSelected);
+
+                    if (candidateGroups.Intersect(forcedGroups).ToArray().Length > 0)
+                    {
+                        groupOccupied = true;
+                        break;
+                    }
+                }
+
+                if (groupOccupied == false)
+                {
+                    assignment.AvailableMorphs.Add(candidateMorph);
+                }
+            }
         }
 
         public void TriggerDispNameUpdate(object sender, PropertyChangedEventArgs e)
