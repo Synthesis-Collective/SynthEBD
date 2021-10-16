@@ -124,31 +124,34 @@ namespace SynthEBD
 
             bool assetPackFound = false;
             if (model.ForcedAssetPackName.Length == 0) { assetPackFound = true; }
-            foreach (var ap in assetPacks)
+            else
             {
-                if (ap.groupName == model.DispName)
+                foreach (var ap in assetPacks)
                 {
-                    newVM.ForcedAssetPack = ap;
-                    assetPackFound = true;
-
-                    foreach (var id in model.ForcedSubgroupIDs)
+                    if (ap.groupName == model.DispName)
                     {
-                        var foundSubgroup = GetSubgroupByID(ap.subgroups, id);
-                        if (foundSubgroup != null)
+                        newVM.ForcedAssetPack = ap;
+                        assetPackFound = true;
+
+                        foreach (var id in model.ForcedSubgroupIDs)
                         {
-                            newVM.ForcedSubgroups.Add(foundSubgroup);
-                            continue;
-                        }
-                        else
-                        {
-                            // Warn User
+                            var foundSubgroup = GetSubgroupByID(ap.subgroups, id);
+                            if (foundSubgroup != null)
+                            {
+                                newVM.ForcedSubgroups.Add(foundSubgroup);
+                                continue;
+                            }
+                            else
+                            {
+                                // Warn User
+                            }
                         }
                     }
                 }
-            }
-            if (assetPackFound == false)
-            {
-                // Warn user
+                if (assetPackFound == false)
+                {
+                    // Warn user
+                }
             }
 
             newVM.ForcedHeight = model.ForcedHeight;
@@ -183,8 +186,6 @@ namespace SynthEBD
             }
 
             newVM.DispName = createDispName(newVM.NPCFormKey);
-
-            newVM.SubscribedAssetPacks = assetPacks;
 
             return newVM;
         }
