@@ -1,4 +1,5 @@
-﻿using Mutagen.Bethesda.Environments;
+﻿using Mutagen.Bethesda;
+using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 using System;
@@ -31,6 +32,28 @@ namespace SynthEBD
             }
 
             return new FormKey();
+        }
+
+        public static string CreateNPCDispNameFromFormKey(FormKey NPCFormKey)
+        {
+            var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
+
+            if (npcFormLink.TryResolve(new GameEnvironmentProvider().MyEnvironment.LinkCache, out var npcRecord))
+            {
+                string subName = "";
+                if (npcRecord.Name.ToString().Length > 0)
+                {
+                    subName = npcRecord.Name.ToString();
+                }
+                else
+                {
+                    subName = npcRecord.EditorID;
+                }
+                return subName + " (" + NPCFormKey.ToString() + ")";
+            }
+
+            // Warn User
+            return "";
         }
 
         public static HashSet<NPCAttribute> StringArraysToAttributes(List<string[]> arrList)

@@ -23,6 +23,7 @@ namespace SynthEBD
         public VM_SettingsBodyGen BGVM { get; }
         public VM_SettingsHeight HVM { get; } = new();
         public VM_SpecificNPCAssignmentsUI SAUIVM { get; }
+        public VM_BlockListUI BUIVM { get; } = new();
 
         public VM_NavPanel NavPanel { get; }
 
@@ -39,6 +40,7 @@ namespace SynthEBD
         public Settings_BodyGen BodyGenSettings { get; }
         public BodyGenConfigs BodyGenConfigs { get; }
         public HashSet<SpecificNPCAssignment> SpecificNPCAssignments { get; }
+        public BlockList BlockList { get; }
 
 
         public MainWindow_ViewModel()
@@ -51,7 +53,7 @@ namespace SynthEBD
             BGVM = new VM_SettingsBodyGen(SGVM.RaceGroupings);
             SAUIVM = new VM_SpecificNPCAssignmentsUI(TMVM, BGVM);
 
-            NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, HVM, SAUIVM);
+            NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, HVM, SAUIVM, BUIVM);
 
             // Load general settings
             GeneralSettings = SettingsIO_General.loadGeneralSettings();
@@ -83,6 +85,10 @@ namespace SynthEBD
             // load specific assignments
             SpecificNPCAssignments = SettingsIO_SpecificNPCAssignments.LoadAssignments(Paths);
             VM_SpecificNPCAssignmentsUI.GetViewModelFromModels(SAUIVM, SpecificNPCAssignments);
+
+            // load BlockList
+            BlockList = SettingsIO_BlockList.LoadBlockList(Paths);
+            VM_BlockListUI.GetViewModelFromModel(BlockList, BUIVM);
 
             // Start on the settings VM
             DisplayedViewModel = SGVM;

@@ -35,7 +35,7 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <Rectangle Grid.Column="2">
+        <Rectangle Grid.Column="2" Grid.Row="0" Grid.RowSpan="3">
             <Rectangle.Fill>black
             </Rectangle.Fill>
         </Rectangle>
@@ -61,6 +61,9 @@
                 </DataTemplate>
                 <DataTemplate DataType="{x:Type local:VM_SpecificNPCAssignmentsUI}">
                     <local:UC_SpecificNPCAssignmentsUI/>
+                </DataTemplate>
+                <DataTemplate DataType="{x:Type local:VM_BlockListUI}">
+                    <local:UC_BlockListUI/>
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>

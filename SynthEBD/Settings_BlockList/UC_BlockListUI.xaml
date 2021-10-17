@@ -1,0 +1,87 @@
+﻿<UserControl x:Class="SynthEBD.UC_BlockListUI"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:SynthEBD"
+             mc:Ignorable="d" 
+             d:DataContext="{d:DesignInstance Type=local:VM_BlockListUI}"
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="auto"/>
+        </Grid.RowDefinitions>
+        
+        <TextBlock Grid.Column="0" Grid.Row="0" HorizontalAlignment="Center">NPCs</TextBlock>
+        <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddBlockedNPC}" Foreground="Lightgreen">Add New</Button>
+        <ScrollViewer Grid.Column="0" Grid.Row="2">
+            <StackPanel >
+                <ListBox SelectedValue="{Binding DisplayedNPC}" ItemsSource="{Binding BlockedNPCs}" IsSynchronizedWithCurrentItem="True" >
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="{Binding DispName, UpdateSourceTrigger=PropertyChanged}" MinWidth="100" />
+                                <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveBlockedNPC}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </StackPanel>
+        </ScrollViewer>
+
+        <ContentPresenter Grid.Row="2" Grid.Column="1" Grid.RowSpan="2" Content="{Binding DisplayedNPC}">
+            <ContentPresenter.Resources>
+                <DataTemplate DataType="{x:Type local:VM_BlockedNPC}">
+                    <local:UC_BlockedNPC/>
+                </DataTemplate>
+            </ContentPresenter.Resources>
+        </ContentPresenter>
+
+        <TextBlock Grid.Column="0" Grid.Row="3" HorizontalAlignment="Center">Plugins</TextBlock>
+        <Button Grid.Column="0" Grid.Row="4" Command="{Binding AddBlockedPlugin}" Foreground="Lightgreen">Add New</Button>
+        <ScrollViewer Grid.Column="0" Grid.Row="5">
+            <StackPanel >
+                <ListBox SelectedValue="{Binding DisplayedPlugin}" ItemsSource="{Binding BlockedPlugins}" IsSynchronizedWithCurrentItem="True" >
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="{Binding DispName, UpdateSourceTrigger=PropertyChanged}" MinWidth="100" />
+                                <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveBlockedPlugin}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </StackPanel>
+        </ScrollViewer>
+
+        <ContentPresenter Grid.Row="4" Grid.Column="1" Grid.RowSpan="2" Content="{Binding DisplayedPlugin}">
+            <ContentPresenter.Resources>
+                <DataTemplate DataType="{x:Type local:VM_BlockedPlugin}">
+                    <local:UC_BlockedPlugin/>
+                </DataTemplate>
+            </ContentPresenter.Resources>
+        </ContentPresenter>
+
+        <Button Grid.Column="0" Grid.Row="6" Command="{Binding ImportFromZEBDcommand}" Foreground="BlueViolet">Import from zEBD</Button>
+    </Grid>
+</UserControl>

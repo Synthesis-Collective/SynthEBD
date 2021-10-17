@@ -184,7 +184,7 @@ namespace SynthEBD
                 }
             }
 
-            newVM.DispName = createDispName(newVM.NPCFormKey);
+            newVM.DispName = Converters.CreateNPCDispNameFromFormKey(newVM.NPCFormKey);
 
             return newVM;
         }
@@ -324,30 +324,8 @@ namespace SynthEBD
         {
             if (this.NPCFormKey.IsNull == false)
             {
-                this.DispName = createDispName(this.NPCFormKey);
+                this.DispName = Converters.CreateNPCDispNameFromFormKey(this.NPCFormKey);
             }
-        }
-
-        public static string createDispName(FormKey NPCFormKey)
-        {
-            var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
-
-            if (npcFormLink.TryResolve(new GameEnvironmentProvider().MyEnvironment.LinkCache, out var npcRecord))
-            {
-                string subName = "";
-                if (npcRecord.Name.ToString().Length > 0)
-                {
-                    subName = npcRecord.Name.ToString();
-                }
-                else
-                {
-                    subName = npcRecord.EditorID;
-                }
-                return subName + " (" + NPCFormKey.ToString() + ")";
-            }
-
-            // Warn User
-            return "";
         }
 
         public void TriggerGenderUpdate(object sender, PropertyChangedEventArgs e)

@@ -13,7 +13,7 @@ namespace SynthEBD
         {
             HashSet<SpecificNPCAssignment> specificNPCAssignments = new HashSet<SpecificNPCAssignment>();
 
-            if (File.Exists(paths.HeightSettingsPath))
+            if (File.Exists(paths.SpecificNPCAssignmentsPath))
             {
                 try
                 {
@@ -21,7 +21,7 @@ namespace SynthEBD
                 }
                 catch
                 {
-                    
+                    // Warn User
                 }
             }
 

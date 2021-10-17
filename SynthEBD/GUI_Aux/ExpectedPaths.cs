@@ -69,6 +69,7 @@ namespace SynthEBD
             this.BodyGenSettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "BodyGenSettings.json");
             this.BodyGenConfigDirPath = Path.Combine(RelativePath, bodyGenDirRelPath);
             this.SpecificNPCAssignmentsPath = Path.Combine(RelativePath, NPCConfigDirRelPath, "Specific NPC Assignments.json");
+            this.BlockListPath = Path.Combine(RelativePath, NPCConfigDirRelPath, "BlockList.json");
         }
 
         private string RelativePath { get; set; } 
@@ -81,6 +82,7 @@ namespace SynthEBD
         public string BodyGenSettingsPath { get; set; }
         public string BodyGenConfigDirPath { get; set; }
         public string SpecificNPCAssignmentsPath { get; set; }
+        public string BlockListPath { get; set; }
     }
 }
 

@@ -18,6 +18,7 @@
             <Button x:Name="Button_BG" Margin="0, 5, 0, 0" Command="{Binding ClickBG}">BodyGen Integration</Button>
             <Button x:Name="Button_H" Margin="0, 5, 0, 0" Command="{Binding ClickH}">Height</Button>
             <Button x:Name="Button_SA" Margin="0, 5, 0, 0" Command="{Binding ClickSA}">Specific NPC Assignments</Button>
+            <Button x:Name="Button_BL" Margin="0, 5, 0, 0" Command="{Binding ClickBL}">Block List</Button>
         </StackPanel>
     </Grid>
 </UserControl>
