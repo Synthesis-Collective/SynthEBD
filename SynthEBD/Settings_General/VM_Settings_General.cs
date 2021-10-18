@@ -25,6 +25,7 @@ namespace SynthEBD
             this.bChangeHeight = false;
             this.bEnableConsistency = true;
             this.bLinkNPCsWithSameName = true;
+            this.LinkedNameExclusions = new ObservableCollection<VM_CollectionMemberString>();
             this.patchFileName = "SynthEBD.esp";
             this.bVerboseModeAssetsNoncompliant = false;
             this.bVerboseModeAssetsAll = false;
@@ -47,6 +48,11 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ => this.RaceGroupings.Add(new VM_RaceGrouping(new RaceGrouping(), new GameEnvironmentProvider().MyEnvironment, this))
                 );
+
+            AddLinkedNPCNameExclusion = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.LinkedNameExclusions.Add(new VM_CollectionMemberString("", this.LinkedNameExclusions))
+                );
         }
 
         public bool bShowToolTips { get;  set;}
@@ -57,6 +63,7 @@ namespace SynthEBD
         public bool bChangeHeight { get; set;  }
         public bool bEnableConsistency { get; set;  }
         public bool bLinkNPCsWithSameName { get; set;  }
+        public ObservableCollection<VM_CollectionMemberString> LinkedNameExclusions { get; set; }
         public string patchFileName { get; set;  }
 
         public bool bVerboseModeAssetsNoncompliant { get; set;  }
@@ -75,6 +82,7 @@ namespace SynthEBD
 
         public ObservableCollection<VM_RaceGrouping> RaceGroupings { get; set; }
         public RelayCommand AddRaceGrouping { get; }
+        public RelayCommand AddLinkedNPCNameExclusion { get; }
 
         public static void GetViewModelFromModel(VM_Settings_General viewModel, SynthEBD.Settings_General model)
         {

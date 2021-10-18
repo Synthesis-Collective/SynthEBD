@@ -70,6 +70,22 @@ namespace SynthEBD
             this.BodyGenConfigDirPath = Path.Combine(RelativePath, bodyGenDirRelPath);
             this.SpecificNPCAssignmentsPath = Path.Combine(RelativePath, NPCConfigDirRelPath, "Specific NPC Assignments.json");
             this.BlockListPath = Path.Combine(RelativePath, NPCConfigDirRelPath, "BlockList.json");
+            this.LinkedNPCNameExclusionsPath = Path.Combine(RelativePath, settingsDirRelPath, "LinkedNPCNameExclusions.json");
+            this.LinkedNPCsPath = Path.Combine(RelativePath, settingsDirRelPath, "LinkedNPCs.json");
+            this.TrimPathsPath = Path.Combine(RelativePath, settingsDirRelPath, "TrimPathsByExtension.json");
+
+            this.FallBackTexMeshSettingsPath = Path.Combine(RelativePath, settingsDirPath, "TexMeshSettings.json");
+            this.FallBackAssetPackDirPath = Path.Combine(RelativePath, assetsDirPath);
+            this.FallBackHeightSettingsPath = Path.Combine(RelativePath, settingsDirPath, "HeightSettings.json");
+            this.FallBackHeightConfigDirPath = Path.Combine(RelativePath, heightsDirPath);
+            this.FallBackHeightConfigCurrentPath = Path.Combine(this.FallBackHeightConfigDirPath, "HeightConfig.json");
+            this.FallBackBodyGenSettingsPath = Path.Combine(RelativePath, settingsDirPath, "BodyGenSettings.json");
+            this.FallBackBodyGenConfigDirPath = Path.Combine(RelativePath, bodyGenDirPath);
+            this.FallBackSpecificNPCAssignmentsPath = Path.Combine(RelativePath, NPCConfigDirPath, "Specific NPC Assignments.json");
+            this.FallBackBlockListPath = Path.Combine(RelativePath, NPCConfigDirPath, "BlockList.json");
+            this.FallBackLinkedNPCNameExclusionsPath = Path.Combine(RelativePath, settingsDirPath, "LinkedNPCNameExclusions.json");
+            this.FallBackLinkedNPCsPath = Path.Combine(RelativePath, settingsDirPath, "LinkedNPCs.json");
+            this.FallBackTrimPathsPath = Path.Combine(RelativePath, settingsDirPath, "TrimPathsByExtension.json");
         }
 
         private string RelativePath { get; set; } 
@@ -83,6 +99,24 @@ namespace SynthEBD
         public string BodyGenConfigDirPath { get; set; }
         public string SpecificNPCAssignmentsPath { get; set; }
         public string BlockListPath { get; set; }
+
+        public string LinkedNPCNameExclusionsPath { get; set; }
+        public string LinkedNPCsPath { get; set; }
+        public string TrimPathsPath { get; set; }
+
+        public string FallBackTexMeshSettingsPath { get; set; } // path of the Textures and Meshes settings file
+        public string FallBackAssetPackDirPath { get; set; }
+        public string FallBackHeightSettingsPath { get; set; } // path of the Textures and Meshes settings file
+        public string FallBackHeightConfigDirPath { get; set; }
+        public string FallBackHeightConfigCurrentPath { get; set; }
+        public string FallBackBodyGenSettingsPath { get; set; }
+        public string FallBackBodyGenConfigDirPath { get; set; }
+        public string FallBackSpecificNPCAssignmentsPath { get; set; }
+        public string FallBackBlockListPath { get; set; }
+
+        public string FallBackLinkedNPCNameExclusionsPath { get; set; }
+        public string FallBackLinkedNPCsPath { get; set; }
+        public string FallBackTrimPathsPath { get; set; }
     }
 }
 

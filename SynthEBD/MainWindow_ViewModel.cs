@@ -41,7 +41,7 @@ namespace SynthEBD
         public BodyGenConfigs BodyGenConfigs { get; }
         public HashSet<SpecificNPCAssignment> SpecificNPCAssignments { get; }
         public BlockList BlockList { get; }
-
+        public HashSet<string> LinkedNPCNameExclusions { get; set; }
 
         public MainWindow_ViewModel()
         {
@@ -89,6 +89,10 @@ namespace SynthEBD
             // load BlockList
             BlockList = SettingsIO_BlockList.LoadBlockList(Paths);
             VM_BlockListUI.GetViewModelFromModel(BlockList, BUIVM);
+
+            // load Misc settings
+            LinkedNPCNameExclusions = SettingsIO_Misc.LoadNPCNameExclusions(Paths);
+            SGVM.LinkedNameExclusions = VM_CollectionMemberString.InitializeCollectionFromHashSet(LinkedNPCNameExclusions);
 
             // Start on the settings VM
             DisplayedViewModel = SGVM;
