@@ -22,8 +22,33 @@ namespace SynthEBD
                 // Warn User
                 exclusions = DeserializeFromJSON<HashSet<string>>.loadJSONFile(paths.FallBackLinkedNPCNameExclusionsPath);
             }
+            else
+            {
+                // Warn User
+            }
 
             return exclusions;
+        }
+
+        public static HashSet<LinkedNPCGroup> LoadLinkedNPCGroups(Paths paths)
+        {
+            HashSet<LinkedNPCGroup> linkedNPCGroups = new HashSet<LinkedNPCGroup>();
+
+            if (File.Exists(paths.LinkedNPCsPath))
+            {
+                linkedNPCGroups = DeserializeFromJSON<HashSet<LinkedNPCGroup>>.loadJSONFile(paths.LinkedNPCsPath);
+            }
+            else if (File.Exists(paths.FallBackLinkedNPCsPath))
+            {
+                // Warn User
+                linkedNPCGroups = DeserializeFromJSON<HashSet<LinkedNPCGroup>>.loadJSONFile(paths.FallBackLinkedNPCsPath);
+            }
+            else
+            {
+                // Warn User
+            }
+
+            return linkedNPCGroups;
         }
     }
 }

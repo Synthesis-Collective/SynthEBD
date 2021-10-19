@@ -42,6 +42,7 @@ namespace SynthEBD
         public HashSet<SpecificNPCAssignment> SpecificNPCAssignments { get; }
         public BlockList BlockList { get; }
         public HashSet<string> LinkedNPCNameExclusions { get; set; }
+        public HashSet<LinkedNPCGroup> LinkedNPCGroups { get; set; }
 
         public MainWindow_ViewModel()
         {
@@ -93,6 +94,8 @@ namespace SynthEBD
             // load Misc settings
             LinkedNPCNameExclusions = SettingsIO_Misc.LoadNPCNameExclusions(Paths);
             SGVM.LinkedNameExclusions = VM_CollectionMemberString.InitializeCollectionFromHashSet(LinkedNPCNameExclusions);
+            LinkedNPCGroups = SettingsIO_Misc.LoadLinkedNPCGroups(Paths);
+            SGVM.LinkedNPCGroups = VM_LinkedNPCGroup.GetViewModelsFromModels(LinkedNPCGroups);
 
             // Start on the settings VM
             DisplayedViewModel = SGVM;
@@ -116,6 +119,14 @@ namespace SynthEBD
 
             VM_SettingsBodyGen.DumpViewModelToModel(BGVM, BodyGenSettings);
             SerializeToJSON<Settings_BodyGen>.SaveJSONFile(BodyGenSettings, Paths.BodyGenSettingsPath);
+
+            VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(SAUIVM, SpecificNPCAssignments);
+            SerializeToJSON<HashSet<SpecificNPCAssignment>>.SaveJSONFile(SpecificNPCAssignments, Paths.SpecificNPCAssignmentsPath);
+
+            VM_LinkedNPCGroup.DumpViewModelsToModels(LinkedNPCGroups, SGVM.LinkedNPCGroups);
+            SerializeToJSON<HashSet<LinkedNPCGroup>>.SaveJSONFile(LinkedNPCGroups, Paths.LinkedNPCsPath);
+
+            SerializeToJSON<HashSet<string>>.SaveJSONFile(SGVM.LinkedNameExclusions.Select(cms => cms.Content).ToHashSet(), Paths.LinkedNPCNameExclusionsPath);
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

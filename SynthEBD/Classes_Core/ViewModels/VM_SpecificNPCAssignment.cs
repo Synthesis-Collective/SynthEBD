@@ -189,6 +189,18 @@ namespace SynthEBD
             return newVM;
         }
 
+        public static SpecificNPCAssignment DumpViewModelToModel(VM_SpecificNPCAssignment viewModel)
+        {
+            SpecificNPCAssignment model = new SpecificNPCAssignment();
+            model.DispName = viewModel.DispName;
+            model.ForcedAssetPackName = viewModel.ForcedAssetPack.groupName;
+            model.ForcedSubgroupIDs = viewModel.ForcedSubgroups.Select(subgroup => subgroup.id).ToHashSet();
+            model.ForcedHeight = viewModel.ForcedHeight;
+            model.ForcedBodyGenMorphNames = viewModel.ForcedBodyGenMorphs.Select(morph => morph.Label).ToHashSet();
+            model.NPCFormKey = viewModel.NPCFormKey;
+            return model;
+        }
+
         public void TriggerAvailableAssetPackUpdate(object sender, PropertyChangedEventArgs e)
         {
             UpdateAvailableAssetPacks(this);

@@ -30,6 +30,7 @@
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
             <TextBlock Grid.Column="0" Grid.Row="0">General Settings</TextBlock>
 
@@ -74,13 +75,35 @@
             </Expander>
             <Button Grid.Column="0" Grid.Row="9" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddLinkedNPCNameExclusion}" Foreground="LightGreen">Add New</Button>
 
-            <TextBlock Grid.Column="0" Grid.Row="10">Patchable Races</TextBlock>
+            <TextBlock Grid.Column="0" Grid.Row="10">Linked NPC Groups</TextBlock>
             <Expander Grid.Column="1" Grid.Row="10" Header="" ExpandDirection="Down" >
+                <Grid>
+                    <ItemsControl ItemsSource="{Binding LinkedNPCGroups, UpdateSourceTrigger=PropertyChanged}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type local:VM_LinkedNPCGroup}" >
+                                <Border BorderBrush="Black" BorderThickness="1">
+                                    <StackPanel Orientation="Horizontal">
+                                        <StackPanel>
+                                            <TextBox Text="{Binding GroupName}" MinWidth="100"></TextBox>
+                                            <plugins:FormKeyMultiPicker FormKeys="{Binding NPCFormKeys}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCFormKeyTypes}" />
+                                        </StackPanel>
+                                        <Button Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveLinkedNPCGroup}" CommandParameter="{Binding}" Foreground="FireBrick">X</Button>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+            </Expander>
+            <Button Grid.Column="0" Grid.Row="10" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddLinkedNPCGroup}" Foreground="LightGreen">Add New</Button>
+
+            <TextBlock Grid.Column="0" Grid.Row="11">Patchable Races</TextBlock>
+            <Expander Grid.Column="1" Grid.Row="11" Header="" ExpandDirection="Down" >
                 <plugins:FormKeyMultiPicker FormKeys="{Binding patchableRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
             </Expander>
 
-            <TextBlock Grid.Column="0" Grid.Row="11">Race Aliases</TextBlock>
-            <Expander Grid.Column="1" Grid.Row="11" Header="" ExpandDirection="Down" >
+            <TextBlock Grid.Column="0" Grid.Row="12">Race Aliases</TextBlock>
+            <Expander Grid.Column="1" Grid.Row="12" Header="" ExpandDirection="Down" >
                 <ItemsControl  ItemsSource="{Binding raceAliases, UpdateSourceTrigger=PropertyChanged}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type local:VM_raceAlias}">
@@ -89,10 +112,10 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </Expander>
-            <Button Grid.Column="0" Grid.Row="11" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" x:Name="Button_AddRaceAlias" Command="{Binding AddRaceAlias}" Foreground="LightGreen">Add New</Button>
+            <Button Grid.Column="0" Grid.Row="12" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" x:Name="Button_AddRaceAlias" Command="{Binding AddRaceAlias}" Foreground="LightGreen">Add New</Button>
 
-            <TextBlock Grid.Column="0" Grid.Row="12">Race Groupings</TextBlock>
-            <Expander Grid.Column="1" Grid.Row="12" Header="" ExpandDirection="Down" >
+            <TextBlock Grid.Column="0" Grid.Row="13">Race Groupings</TextBlock>
+            <Expander Grid.Column="1" Grid.Row="13" Header="" ExpandDirection="Down" >
                 <ItemsControl  ItemsSource="{Binding RaceGroupings, UpdateSourceTrigger=PropertyChanged}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type local:VM_RaceGrouping}">
@@ -101,16 +124,16 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </Expander>
-            <Button Grid.Column="0" Grid.Row="12" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" x:Name="Button_AddRaceGrouping" Command="{Binding AddRaceGrouping}" Foreground="LightGreen">Add New</Button>
+            <Button Grid.Column="0" Grid.Row="13" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" x:Name="Button_AddRaceGrouping" Command="{Binding AddRaceGrouping}" Foreground="LightGreen">Add New</Button>
 
-            <TextBlock Grid.Column="0" Grid.Row="13">Verbose Mode for Conflict NPCs</TextBlock>
-            <CheckBox Grid.Column="1" Grid.Row="13" IsChecked="{Binding Path=bVerboseModeAssetsNoncompliant, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="14">Verbose Mode for Conflict NPCs</TextBlock>
+            <CheckBox Grid.Column="1" Grid.Row="14" IsChecked="{Binding Path=bVerboseModeAssetsNoncompliant, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="14">Verbose Mode for All NPCs</TextBlock>
-            <CheckBox Grid.Column="1" Grid.Row="14" IsChecked="{Binding Path=bVerboseModeAssetsAll, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="15">Verbose Mode for All NPCs</TextBlock>
+            <CheckBox Grid.Column="1" Grid.Row="15" IsChecked="{Binding Path=bVerboseModeAssetsAll, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="15">Verbose Mode for Specific NPCs</TextBlock>
-            <Expander Grid.Column="1" Grid.Row="15" Header="" ExpandDirection="Down" >
+            <TextBlock Grid.Column="0" Grid.Row="16">Verbose Mode for Specific NPCs</TextBlock>
+            <Expander Grid.Column="1" Grid.Row="16" Header="" ExpandDirection="Down" >
                 <plugins:FormKeyMultiPicker FormKeys="{Binding verboseModeNPClist}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys}" />
             </Expander>
         </Grid>

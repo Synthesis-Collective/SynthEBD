@@ -46,12 +46,21 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static void GetViewModelFromModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<SpecificNPCAssignment> assignments)
+        public static void GetViewModelFromModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<SpecificNPCAssignment> models)
         {
             var env = new GameEnvironmentProvider().MyEnvironment;
-            foreach (var assignment in assignments)
+            foreach (var assignment in models)
             {
                 viewModel.Assignments.Add(VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, viewModel.TexMeshSettings.AssetPacks, viewModel.BodyGenSettings, env));
+            }
+        }
+
+        public static void DumpViewModelToModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<SpecificNPCAssignment> assignments)
+        {
+            assignments.Clear();
+            foreach (var vm in viewModel.Assignments)
+            {
+                assignments.Add(VM_SpecificNPCAssignment.DumpViewModelToModel(vm));
             }
         }
 
