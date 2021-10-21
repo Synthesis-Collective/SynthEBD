@@ -50,5 +50,26 @@ namespace SynthEBD
 
             return linkedNPCGroups;
         }
+
+        public static HashSet<TrimPath> LoadTrimPaths(Paths paths)
+        {
+            HashSet<TrimPath> trimPaths = new HashSet<TrimPath>();
+
+            if (File.Exists(paths.TrimPathsPath))
+            {
+                trimPaths = DeserializeFromJSON<HashSet<TrimPath>>.loadJSONFile(paths.TrimPathsPath);
+            }
+            else if (File.Exists(paths.FallBackTrimPathsPath))
+            {
+                // Warn User
+                trimPaths = DeserializeFromJSON<HashSet<TrimPath>>.loadJSONFile(paths.FallBackTrimPathsPath);
+            }
+            else
+            {
+                // Warn User
+            }
+
+            return trimPaths;
+        }
     }
 }

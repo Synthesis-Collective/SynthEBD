@@ -22,7 +22,7 @@
         </Grid.RowDefinitions>
 
         <ScrollViewer Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="5">
-            <plugins:FormKeyMultiPicker FormKeys="{Binding FactionFormKeys}" LinkCache="{Binding lk}" ScopedTypes="{Binding AllowedFormKeyTypes}" />
+            <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding FactionFormKeys}" LinkCache="{Binding lk}" ScopedTypes="{Binding AllowedFormKeyTypes}" />
         </ScrollViewer>
         <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center">Min Rank</TextBlock>
         <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Path=RankMin, UpdateSourceTrigger=PropertyChanged}" PreviewTextInput="NumericOnly" MinWidth="50" Margin="10 0 0 0"></TextBox>

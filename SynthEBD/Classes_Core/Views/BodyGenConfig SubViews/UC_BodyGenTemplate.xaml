@@ -65,7 +65,7 @@
         </ContentPresenter>
 
         <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Allowed Races</TextBlock>
-        <plugins:FormKeyMultiPicker Grid.Row="5" Grid.Column="2" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
+            <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="5" Grid.Column="2" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
         <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Allowed Race Groupings</TextBlock>
         <ContentPresenter Grid.Row="6" Grid.Column="2"  Content="{Binding AllowedRaceGroupings}">
@@ -77,7 +77,7 @@
         </ContentPresenter>
 
         <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Disallowed Races</TextBlock>
-        <plugins:FormKeyMultiPicker Grid.Row="7" Grid.Column="2" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
+            <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="7" Grid.Column="2" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
         <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Disallowed Race Groupings</TextBlock>
         <ContentPresenter Grid.Row="8" Grid.Column="2"  Content="{Binding DisallowedRaceGroupings}">

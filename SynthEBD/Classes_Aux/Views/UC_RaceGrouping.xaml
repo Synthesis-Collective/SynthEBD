@@ -22,7 +22,7 @@
                     <TextBlock Margin="0 0 15 0" VerticalAlignment="Center">Name</TextBlock>
                     <TextBox Name="TextBox" Width="150" HorizontalAlignment="Left" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
                 </StackPanel>
-                <plugins:FormKeyMultiPicker Grid.Column="0" Grid.Row="2" FormKeys="{Binding Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" MaxHeight="300"/>
+                <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Column="0" Grid.Row="2" FormKeys="{Binding Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
             </StackPanel>
         </Expander>
         <Button Grid.Column="0" Grid.Row="0" VerticalAlignment="Top" HorizontalAlignment="Right" HorizontalContentAlignment="Right" x:Name="Button_RemoveRaceGrouping" Command="{Binding DeleteCommand}" Foreground="Firebrick">Remove</Button>

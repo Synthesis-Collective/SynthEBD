@@ -23,6 +23,7 @@
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
             <TextBlock Grid.Column="0" Grid.Row="0">Texture and Mesh Settings</TextBlock>
 
@@ -47,14 +48,35 @@
             <TextBlock Grid.Column="0" Grid.Row="7">Generate permutation assignment log</TextBlock>
             <CheckBox Grid.Column="1" Grid.Row="7" IsChecked="{Binding Path=bGenerateAssignmentLog, Mode=TwoWay}"></CheckBox>
 
-            <ItemsControl Grid.Column="0" Grid.Row="8" Grid.ColumnSpan="2" ItemsSource="{Binding AssetPacks, UpdateSourceTrigger=PropertyChanged}">
+            <TextBlock Grid.Column="0" Grid.Row="8">Asset Path Trimming</TextBlock>
+            <Expander Grid.Column="1" Grid.Row="8">
+                <StackPanel>
+                    <ItemsControl ItemsSource="{Binding TrimPaths, UpdateSourceTrigger=Default}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock VerticalAlignment="Center">Remove "</TextBlock>
+                                    <TextBox Text="{Binding PathToTrim, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <TextBlock VerticalAlignment="Center">" from ".</TextBlock>
+                                    <TextBox Text="{Binding Extension, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <TextBlock VerticalAlignment="Center">"`</TextBlock>
+                                    <Button VerticalAlignment="Center" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveTrimPath}" CommandParameter="{Binding}" Foreground="FireBrick">X</Button>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddTrimPath}" Foreground="LightGreen">Add New</Button>
+                </StackPanel>
+            </Expander>
+
+            <ItemsControl Grid.Column="0" Grid.Row="9" Grid.ColumnSpan="2" ItemsSource="{Binding AssetPacks, UpdateSourceTrigger=PropertyChanged}" Margin="0 15 0 0">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type local:VM_AssetPack}">
                         <local:UC_AssetPackSettings Background="Black" Margin="0 0 0 10"/>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-
+            <Button Grid.Column="0" Grid.Row="10" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddNewAssetPackConfigFile}" Foreground="LightGreen">Create New Config File</Button>
         </Grid>
     </ScrollViewer>
 </UserControl>

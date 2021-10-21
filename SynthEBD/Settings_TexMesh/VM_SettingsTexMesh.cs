@@ -21,7 +21,22 @@ namespace SynthEBD
             this.bForwardArmatureFromExistingWNAMs = true;
             this.bDisplayPopupAlerts = true;
             this.bGenerateAssignmentLog = true;
+            this.TrimPaths = new ObservableCollection<TrimPath>();
             this.AssetPacks = new ObservableCollection<VM_AssetPack>();
+
+            AddTrimPath = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.TrimPaths.Add(new TrimPath())
+                );
+            RemoveTrimPath = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x => this.TrimPaths.Remove((TrimPath)x)
+                );
+
+            AddNewAssetPackConfigFile = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.AssetPacks.Add(new VM_AssetPack())
+                );
         }
 
         public bool bChangeNPCTextures { get; set; }
@@ -31,7 +46,14 @@ namespace SynthEBD
         public bool bForwardArmatureFromExistingWNAMs { get; set; }
         public bool bDisplayPopupAlerts { get; set; }
         public bool bGenerateAssignmentLog { get; set; }
+
+        public ObservableCollection<TrimPath> TrimPaths { get; set; }
+
         public ObservableCollection<VM_AssetPack> AssetPacks { get; set; }
+
+        public RelayCommand AddTrimPath { get; }
+        public RelayCommand RemoveTrimPath { get; }
+        public RelayCommand AddNewAssetPackConfigFile { get; }
 
         public static void GetViewModelFromModel(VM_SettingsTexMesh viewModel, Settings_TexMesh model)
         {

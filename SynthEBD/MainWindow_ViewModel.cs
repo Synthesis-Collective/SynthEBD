@@ -43,6 +43,7 @@ namespace SynthEBD
         public BlockList BlockList { get; }
         public HashSet<string> LinkedNPCNameExclusions { get; set; }
         public HashSet<LinkedNPCGroup> LinkedNPCGroups { get; set; }
+        public HashSet<TrimPath> TrimPaths { get; set; }
 
         public MainWindow_ViewModel()
         {
@@ -96,6 +97,8 @@ namespace SynthEBD
             SGVM.LinkedNameExclusions = VM_CollectionMemberString.InitializeCollectionFromHashSet(LinkedNPCNameExclusions);
             LinkedNPCGroups = SettingsIO_Misc.LoadLinkedNPCGroups(Paths);
             SGVM.LinkedNPCGroups = VM_LinkedNPCGroup.GetViewModelsFromModels(LinkedNPCGroups);
+            TrimPaths = SettingsIO_Misc.LoadTrimPaths(Paths);
+            TMVM.TrimPaths = new ObservableCollection<TrimPath>(TrimPaths);
 
             // Start on the settings VM
             DisplayedViewModel = SGVM;
@@ -127,6 +130,8 @@ namespace SynthEBD
             SerializeToJSON<HashSet<LinkedNPCGroup>>.SaveJSONFile(LinkedNPCGroups, Paths.LinkedNPCsPath);
 
             SerializeToJSON<HashSet<string>>.SaveJSONFile(SGVM.LinkedNameExclusions.Select(cms => cms.Content).ToHashSet(), Paths.LinkedNPCNameExclusionsPath);
+
+            SerializeToJSON<HashSet<TrimPath>>.SaveJSONFile(TMVM.TrimPaths.ToHashSet(), Paths.TrimPathsPath);
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

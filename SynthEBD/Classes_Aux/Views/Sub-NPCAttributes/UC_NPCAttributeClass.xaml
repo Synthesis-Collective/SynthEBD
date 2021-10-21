@@ -16,7 +16,7 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
         <ScrollViewer Grid.Row="0" Grid.Column="0">
-            <plugins:FormKeyMultiPicker FormKeys="{Binding ClassFormKeys}" LinkCache="{Binding lk}" ScopedTypes="{Binding AllowedFormKeyTypes}" MaxHeight="250" />
+            <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding ClassFormKeys}" LinkCache="{Binding lk}" ScopedTypes="{Binding AllowedFormKeyTypes}" />
         </ScrollViewer>
     </Grid>
 </UserControl>

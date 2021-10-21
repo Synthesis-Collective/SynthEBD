@@ -24,7 +24,7 @@
         <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
         
         <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Races</TextBlock>
-        <plugins:FormKeyMultiPicker Grid.Row="1" Grid.Column="1" MinWidth="150" FormKeys="{Binding Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
+        <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="1" Grid.Column="1" MinWidth="150" FormKeys="{Binding Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
         <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Race Groupings</TextBlock>
         <ContentPresenter Grid.Row="2" Grid.Column="1"  Content="{Binding RaceGroupings}">
