@@ -40,6 +40,8 @@ namespace SynthEBD
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
             this.NPCPickerFormKeys = typeof(INpcGetter).AsEnumerable();
 
+            this.PropertyChanged += ToggleTooltipVisibility;
+
             AddRaceAlias = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => this.raceAliases.Add(new VM_raceAlias(new RaceAlias(), new GameEnvironmentProvider().MyEnvironment, this))
@@ -141,6 +143,19 @@ namespace SynthEBD
             {
                 //model.RaceGroupings.Add(x.RaceGrouping);
                 model.RaceGroupings.Add(VM_RaceGrouping.DumpViewModelToModel(x));
+            }
+        }
+
+        public void ToggleTooltipVisibility(object sender, PropertyChangedEventArgs e)
+        {
+            switch(this.bShowToolTips)
+            {
+                case true:
+                    TooltipController.Instance.DisplayToolTips = true;
+                    break;
+                case false:
+                    TooltipController.Instance.DisplayToolTips = false;
+                    break;
             }
         }
     }

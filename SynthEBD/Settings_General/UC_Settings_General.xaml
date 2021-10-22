@@ -35,10 +35,10 @@
             </Grid.RowDefinitions>
             <TextBlock Grid.Column="0" Grid.Row="0">General Settings</TextBlock>
 
-            <TextBlock Grid.Column="0" Grid.Row="1" ToolTip="Click here and something will happen!">Output Name</TextBlock>
+            <TextBlock Grid.Column="0" Grid.Row="1" ToolTip="Name of output file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Output Name</TextBlock>
             <TextBox Grid.Column="2" Grid.Row="1" Width="150" HorizontalAlignment="Left" Text="{Binding Path=patchFileName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="2">Show Tooltips</TextBlock>
+            <TextBlock Grid.Column="0" Grid.Row="2" ToolTip="Toggle visibility of helper tooltips like this one">Show Tooltips</TextBlock>
             <CheckBox Grid.Column="2" Grid.Row="2" IsChecked="{Binding Path=bShowToolTips, Mode=TwoWay}"></CheckBox>
         
             <TextBlock Grid.Column="0" Grid.Row="3">Apply Textures and Meshes</TextBlock>
