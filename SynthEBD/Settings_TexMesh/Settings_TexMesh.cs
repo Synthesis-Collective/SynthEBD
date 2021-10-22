@@ -17,6 +17,7 @@ namespace SynthEBD
             this.bForwardArmatureFromExistingWNAMs = true;
             this.bDisplayPopupAlerts = true;
             this.bGenerateAssignmentLog = true;
+            this.SelectedAssetPacks = new HashSet<string>();
         }
 
         public bool bChangeNPCTextures { get; set; }
@@ -26,5 +27,7 @@ namespace SynthEBD
         public bool bForwardArmatureFromExistingWNAMs { get; set; }
         public bool bDisplayPopupAlerts { get; set; }
         public bool bGenerateAssignmentLog { get; set; }
+
+        public HashSet<string> SelectedAssetPacks { get; set; }
     }
 }

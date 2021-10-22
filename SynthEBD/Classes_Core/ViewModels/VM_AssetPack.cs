@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace SynthEBD
 {
     public class VM_AssetPack : INotifyPropertyChanged
     {
-        public VM_AssetPack()
+        public VM_AssetPack(ObservableCollection<VM_AssetPack> parentCollection)
         {
             this.groupName = "";
             this.gender = Gender.male;
@@ -24,6 +26,15 @@ namespace SynthEBD
             this.FilePath = "";
 
             this.RaceGroupingList = new ObservableCollection<VM_RaceGrouping>();
+
+            this.IsSelected = true;
+
+            this.ParentCollection = parentCollection;
+
+            RemoveAssetPackConfigFile = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => RemoveAssetPackDialog()
+                );
         }
 
         public string groupName { get; set; }
@@ -35,27 +46,34 @@ namespace SynthEBD
         public string FilePath { get; set; }
         public ObservableCollection<VM_RaceGrouping> RaceGroupingList { get; set; }
 
+        public bool IsSelected { get; set; }
+
         public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>()
         {
             {Gender.male, "Male"},
             {Gender.female, "Female"},
         };
 
-        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, List<string> paths, VM_Settings_General generalSettingsVM)
+        public ObservableCollection<VM_AssetPack> ParentCollection { get; set; }
+
+        public RelayCommand RemoveAssetPackConfigFile { get; }
+
+        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, List<string> paths, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings)
         {
             ObservableCollection<VM_AssetPack> viewModels = new ObservableCollection<VM_AssetPack>();
 
             for (int i = 0; i < assetPacks.Count; i++)
             {
-                var viewModel = GetViewModelFromModel(assetPacks[i], generalSettingsVM);
+                var viewModel = GetViewModelFromModel(assetPacks[i], generalSettingsVM, viewModels);
                 viewModel.FilePath = paths[i];
+                viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].groupName);
                 viewModels.Add(viewModel);
             }
             return viewModels;
         }
-        public static VM_AssetPack GetViewModelFromModel(AssetPack model, VM_Settings_General generalSettingsVM)
+        public static VM_AssetPack GetViewModelFromModel(AssetPack model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_AssetPack> parentCollection)
         {
-            var viewModel = new VM_AssetPack();
+            var viewModel = new VM_AssetPack(parentCollection);
             viewModel.groupName = model.groupName;
             viewModel.gender = model.gender;
             viewModel.displayAlerts = model.displayAlerts;
@@ -121,6 +139,30 @@ namespace SynthEBD
             }
         }
 
+
+        public void RemoveAssetPackDialog()
+        {
+            MessageBoxResult result = MessageBox.Show("Are you sure you want to permanently delete this config file?", "", MessageBoxButton.YesNo);
+            switch (result)
+            {
+                case MessageBoxResult.Yes:
+                    if (File.Exists(this.FilePath))
+                    {
+                        try
+                        {
+                            File.Delete(this.FilePath);
+                        }
+                        catch
+                        {
+                            //Warn User
+                        }
+                    }
+                    this.ParentCollection.Remove(this);
+                    break;
+                case MessageBoxResult.No:
+                    break;
+            }
+        }
 
         public event PropertyChangedEventHandler PropertyChanged;
     }

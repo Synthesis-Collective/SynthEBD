@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+
 namespace SynthEBD
 {
     public class VM_SettingsTexMesh : INotifyPropertyChanged
@@ -35,7 +36,7 @@ namespace SynthEBD
 
             AddNewAssetPackConfigFile = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.AssetPacks.Add(new VM_AssetPack())
+                execute: _ => this.AssetPacks.Add(new VM_AssetPack(this.AssetPacks))
                 );
         }
 
@@ -75,6 +76,8 @@ namespace SynthEBD
             model.bForwardArmatureFromExistingWNAMs = viewModel.bForwardArmatureFromExistingWNAMs;
             model.bDisplayPopupAlerts = viewModel.bDisplayPopupAlerts;
             model.bGenerateAssignmentLog = viewModel.bGenerateAssignmentLog;
+            model.SelectedAssetPacks = viewModel.AssetPacks.Where(x => x.IsSelected).Select(x => x.groupName).ToHashSet();
         }
+
     }
 }

@@ -6,54 +6,70 @@
              xmlns:local="clr-namespace:SynthEBD"
              xmlns:dd="clr-namespace:GongSolutions.Wpf.DragDrop;assembly=GongSolutions.Wpf.DragDrop"
              d:DataContext="{d:DesignInstance Type=local:VM_AssetPack}"
-             mc:Ignorable="d" 
+             mc:Ignorable="d"
+             
              d:DesignHeight="450" d:DesignWidth="800">
-    <Expander Grid.Column="0" Grid.Row="0" Header="{Binding Path=groupName}" ExpandDirection="Down" Grid.ColumnSpan="2">
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="auto"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-            </Grid.RowDefinitions>
-            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Name</TextBlock>
-            <TextBox Grid.Row="0" Grid.Column="1" Name="TextBoxName" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=groupName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
-            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Gender</TextBlock>
-            <ComboBox Grid.Row="1" Grid.Column="1" Name="GenderComboBox" ItemsSource="{Binding Path=GenderEnumDict}" DisplayMemberPath="Value" SelectedValuePath="Key" SelectedValue="{Binding Path=gender, Mode=TwoWay}" />
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="auto"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="2" Grid.Column="0">Display alerts from this config file</TextBlock>
-            <CheckBox Grid.Row="2" Grid.Column="1" IsChecked="{Binding Path=displayAlerts, Mode=TwoWay}"></CheckBox>
+        <CheckBox Grid.Column="0" Grid.Row="0" VerticalAlignment="Center" IsChecked="{Binding Path=IsSelected, Mode=TwoWay}"></CheckBox>
+        <Expander Grid.Column="1" Grid.Row="0" Grid.RowSpan="2" Header="{Binding Path=groupName}" ExpandDirection="Down">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Name</TextBlock>
+                <TextBox Grid.Row="0" Grid.Column="1" Name="TextBoxName" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=groupName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
-            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Alert to show</TextBlock>
-            <TextBox Grid.Row="3" Grid.Column="1" Name="TextBoxUserAlert" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=userAlert, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+                <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Gender</TextBlock>
+                <ComboBox Grid.Row="1" Grid.Column="1" Name="GenderComboBox" ItemsSource="{Binding Path=GenderEnumDict}" DisplayMemberPath="Value" SelectedValuePath="Key" SelectedValue="{Binding Path=gender, Mode=TwoWay}" />
 
-            <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Subgroups</TextBlock>
-            <TreeView Grid.Row="5" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding subgroups}" Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" >
-                <TreeView.Resources>
-                    <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding subgroups}" >
-                        <TextBlock Text="{Binding Path=name}" PreviewMouseLeftButtonDown="HandleSelectPreviewMouseDown" MouseLeftButtonUp="HandleSelectPreviewMouseUp"/>
-                    </HierarchicalDataTemplate>
-                </TreeView.Resources>
-            </TreeView>
+                <TextBlock Grid.Row="2" Grid.Column="0">Display alerts from this config file</TextBlock>
+                <CheckBox Grid.Row="2" Grid.Column="1" IsChecked="{Binding Path=displayAlerts, Mode=TwoWay}"></CheckBox>
 
-            <ContentPresenter Grid.Row="5" Grid.Column="1"  Content="{Binding ElementName=TVsubgroups, Path=SelectedItem}">
-                <ContentPresenter.Resources>
-                    <DataTemplate DataType="{x:Type local:VM_Subgroup}">
-                        <local:UC_Subgroup Background="Black" Margin="0 0 0 10"/>
-                    </DataTemplate>
-                </ContentPresenter.Resources>
-            </ContentPresenter>
-        </Grid>
-    </Expander>
+                <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Alert to show</TextBlock>
+                <TextBox Grid.Row="3" Grid.Column="1" Name="TextBoxUserAlert" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=userAlert, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+
+                <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Subgroups</TextBlock>
+                <TreeView Grid.Row="5" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding subgroups}" Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" >
+                    <TreeView.Resources>
+                        <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding subgroups}" >
+                            <TextBlock Text="{Binding Path=name}" PreviewMouseLeftButtonDown="HandleSelectPreviewMouseDown" MouseLeftButtonUp="HandleSelectPreviewMouseUp"/>
+                        </HierarchicalDataTemplate>
+                    </TreeView.Resources>
+                </TreeView>
+
+                <ContentPresenter Grid.Row="5" Grid.Column="1"  Content="{Binding ElementName=TVsubgroups, Path=SelectedItem}">
+                    <ContentPresenter.Resources>
+                        <DataTemplate DataType="{x:Type local:VM_Subgroup}">
+                            <local:UC_Subgroup Background="Black" Margin="0 0 0 10"/>
+                        </DataTemplate>
+                    </ContentPresenter.Resources>
+                </ContentPresenter>
+            </Grid>
+        </Expander>
+        <Button Grid.Column="2" Grid.Row="0" VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding RemoveAssetPackConfigFile}" Foreground="FireBrick">X</Button>
+    </Grid>
 </UserControl>
