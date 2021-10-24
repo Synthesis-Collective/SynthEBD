@@ -16,37 +16,65 @@
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0">Height Group</TextBlock>
-        <TextBox Grid.Row="0" Grid.Column="1" MinWidth="150" TextAlignment="Left" Text="{Binding Path=Label, UpdateSourceTrigger=PropertyChanged}"/>
-        <Button  Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Command="{Binding DeleteCommand}" Foreground="Firebrick">X</Button>
+        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0">Name</TextBlock>
+        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
         
-        <TextBlock Grid.Row="1" Grid.Column="0">Races</TextBlock>
-        <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding FormKeyPickerTypes}" Grid.Row="1" Grid.Column="1" />
+        <ItemsControl Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" ItemsSource="{Binding HeightAssignments}" Margin="20">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
 
-        <TextBlock Grid.Row="2" Grid.Column="0">Distribution Mode</TextBlock>
-        <ListBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding DistModes}" SelectedItem="{Binding DistributionMode, Mode=TwoWay}" />
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border BorderThickness="1" BorderBrush="#5844b4" Background="Black" Margin="2">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="auto"/>
+                                <RowDefinition Height="auto"/>
+                                <RowDefinition Height="auto"/>
+                                <RowDefinition Height="auto"/>
+                                <RowDefinition Height="auto"/>
+                                <RowDefinition Height="auto"/>
+                                <RowDefinition Height="auto"/>
+                                <RowDefinition Height="auto"/>
+                            </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="3" Grid.Column="0">Base Male Height</TextBlock>
-        <TextBox Grid.Row="3" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=MaleHeightBase}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="0">Height Group</TextBlock>
+                            <TextBox Grid.Row="0" Grid.Column="1" MinWidth="150" TextAlignment="Left" Text="{Binding Path=Label, UpdateSourceTrigger=PropertyChanged}"/>
+                            <Button  Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Command="{Binding DeleteCommand}" Foreground="Firebrick">X</Button>
 
-        <TextBlock Grid.Row="4" Grid.Column="0">Male Height +/-</TextBlock>
-        <TextBox Grid.Row="4" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=MaleHeightRange}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0">Races</TextBlock>
+                            <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding FormKeyPickerTypes}" Grid.Row="1" Grid.Column="1" />
 
-        <TextBlock Grid.Row="5" Grid.Column="0">Base Female Height</TextBlock>
-        <TextBox Grid.Row="5" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=FemaleHeightBase}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0">Distribution Mode</TextBlock>
+                            <ListBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding DistModes}" SelectedItem="{Binding DistributionMode, Mode=TwoWay}" />
 
-        <TextBlock Grid.Row="6" Grid.Column="0">Female Height +/-</TextBlock>
-        <TextBox Grid.Row="6" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=FemaleHeightRange}"/>
+                            <TextBlock Grid.Row="3" Grid.Column="0">Base Male Height</TextBlock>
+                            <TextBox Grid.Row="3" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=MaleHeightBase}"/>
 
-        
+                            <TextBlock Grid.Row="4" Grid.Column="0">Male Height +/-</TextBlock>
+                            <TextBox Grid.Row="4" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=MaleHeightRange}"/>
+
+                            <TextBlock Grid.Row="5" Grid.Column="0">Base Female Height</TextBlock>
+                            <TextBox Grid.Row="5" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=FemaleHeightBase}"/>
+
+                            <TextBlock Grid.Row="6" Grid.Column="0">Female Height +/-</TextBlock>
+                            <TextBox Grid.Row="6" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=FemaleHeightRange}"/>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Button Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddHeightAssignment}" Foreground="LightGreen">Add Height Group</Button>
     </Grid>
 </UserControl>

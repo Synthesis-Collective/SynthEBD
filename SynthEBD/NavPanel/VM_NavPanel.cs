@@ -17,6 +17,8 @@ namespace SynthEBD
         public ICommand ClickSA { get; }
         public ICommand ClickBL { get; }
 
+
+
         public VM_NavPanel(MainWindow_ViewModel MWVM, VM_Settings_General SGVM, VM_SettingsTexMesh TMVM, VM_SettingsBodyGen BGVM, VM_SettingsHeight HVM, VM_SpecificNPCAssignmentsUI SAUIVM, VM_BlockListUI BUIVM)
         {
             ClickSG = new SynthEBD.RelayCommand(

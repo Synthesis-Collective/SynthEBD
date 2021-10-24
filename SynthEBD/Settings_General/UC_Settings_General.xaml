@@ -33,34 +33,33 @@
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
-            <TextBlock Grid.Column="0" Grid.Row="0">General Settings</TextBlock>
 
-            <TextBlock Grid.Column="0" Grid.Row="1" ToolTip="Name of output file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Output Name</TextBlock>
-            <TextBox Grid.Column="2" Grid.Row="1" Width="150" HorizontalAlignment="Left" Text="{Binding Path=patchFileName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+            <TextBlock Grid.Column="0" Grid.Row="0" ToolTip="Name of output file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Output Name</TextBlock>
+            <TextBox Grid.Column="2" Grid.Row="0" Width="150" HorizontalAlignment="Left" Text="{Binding Path=patchFileName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="2" ToolTip="Toggle visibility of helper tooltips like this one">Show Tooltips</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="2" IsChecked="{Binding Path=bShowToolTips, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="1" ToolTip="Toggle visibility of helper tooltips like this one">Show Tooltips</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="1" IsChecked="{Binding Path=bShowToolTips, Mode=TwoWay}"></CheckBox>
         
-            <TextBlock Grid.Column="0" Grid.Row="3">Apply Textures and Meshes</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="3" IsChecked="{Binding Path=bChangeMeshesOrTextures, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="2">Apply Textures and Meshes</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="2" IsChecked="{Binding Path=bChangeMeshesOrTextures, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="4">Apply BodyGen Presets</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="4" IsChecked="{Binding Path=bEnableBodyGenIntegration, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="3">Apply BodyGen Presets</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="3" IsChecked="{Binding Path=bEnableBodyGenIntegration, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="5">Apply Height Changes</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="5" IsChecked="{Binding Path=bChangeHeight, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="4">Apply Height Changes</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="4" IsChecked="{Binding Path=bChangeHeight, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="6">Enable Consistency</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="6" IsChecked="{Binding Path=bEnableConsistency, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="5">Enable Consistency</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="5" IsChecked="{Binding Path=bEnableConsistency, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="7">Load Settings from Game Data Folder</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="7" IsChecked="{Binding Path=bLoadSettingsFromDataFolder, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="6">Load Settings from Game Data Folder</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="6" IsChecked="{Binding Path=bLoadSettingsFromDataFolder, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="8">Link NPCs with Same Name</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="8" IsChecked="{Binding Path=bLinkNPCsWithSameName, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="7">Link NPCs with Same Name</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="7" IsChecked="{Binding Path=bLinkNPCsWithSameName, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="9">Linked NPC Name Exclusions</TextBlock>
-            <Expander Grid.Column="2" Grid.Row="9" Header="" ExpandDirection="Down" >
+            <TextBlock Grid.Column="0" Grid.Row="8">Linked NPC Name Exclusions</TextBlock>
+            <Expander Grid.Column="2" Grid.Row="8" Header="" ExpandDirection="Down" >
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="auto"/>
@@ -82,8 +81,8 @@
             </Expander>
             
 
-            <TextBlock Grid.Column="0" Grid.Row="10">Linked NPC Groups</TextBlock>
-            <Expander Grid.Column="2" Grid.Row="10" Header="" ExpandDirection="Down" >
+            <TextBlock Grid.Column="0" Grid.Row="9">Linked NPC Groups</TextBlock>
+            <Expander Grid.Column="2" Grid.Row="9" Header="" ExpandDirection="Down" >
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="auto"/>
@@ -114,13 +113,13 @@
             </Expander>
             
 
-            <TextBlock Grid.Column="0" Grid.Row="11">Patchable Races</TextBlock>
-            <Expander Grid.Column="2" Grid.Row="11" Header="" ExpandDirection="Down" >
+            <TextBlock Grid.Column="0" Grid.Row="10">Patchable Races</TextBlock>
+            <Expander Grid.Column="2" Grid.Row="10" Header="" ExpandDirection="Down" >
                 <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding patchableRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
             </Expander>
 
-            <TextBlock Grid.Column="0" Grid.Row="12">Race Aliases</TextBlock>
-            <Expander Grid.Column="2" Grid.Row="12" Header="" ExpandDirection="Down" >
+            <TextBlock Grid.Column="0" Grid.Row="11">Race Aliases</TextBlock>
+            <Expander Grid.Column="2" Grid.Row="11" Header="" ExpandDirection="Down" >
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="auto"/>
@@ -138,8 +137,8 @@
             </Expander>
             
 
-            <TextBlock Grid.Column="0" Grid.Row="13">Race Groupings</TextBlock>
-            <Expander Grid.Column="2" Grid.Row="13" Header="" ExpandDirection="Down" >
+            <TextBlock Grid.Column="0" Grid.Row="12">Race Groupings</TextBlock>
+            <Expander Grid.Column="2" Grid.Row="12" Header="" ExpandDirection="Down" >
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="auto"/>
@@ -157,14 +156,14 @@
             </Expander>
             
 
-            <TextBlock Grid.Column="0" Grid.Row="14">Verbose Mode for Conflict NPCs</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="14" IsChecked="{Binding Path=bVerboseModeAssetsNoncompliant, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="13">Verbose Mode for Conflict NPCs</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="13" IsChecked="{Binding Path=bVerboseModeAssetsNoncompliant, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="15">Verbose Mode for All NPCs</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="15" IsChecked="{Binding Path=bVerboseModeAssetsAll, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="14">Verbose Mode for All NPCs</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="14" IsChecked="{Binding Path=bVerboseModeAssetsAll, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="16">Verbose Mode for Specific NPCs</TextBlock>
-            <Expander Grid.Column="2" Grid.Row="16" Header="" ExpandDirection="Down" >
+            <TextBlock Grid.Column="0" Grid.Row="15">Verbose Mode for Specific NPCs</TextBlock>
+            <Expander Grid.Column="2" Grid.Row="15" Header="" ExpandDirection="Down" >
                 <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding verboseModeNPClist}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys}" />
             </Expander>
         </Grid>

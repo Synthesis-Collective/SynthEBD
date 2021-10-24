@@ -13,9 +13,55 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
-    class VM_HeightConfig
+    public class VM_HeightConfig
     {
-        public VM_HeightConfig(ObservableCollection<VM_HeightConfig> parentCollection, ILinkCache linkCache)
+        public VM_HeightConfig()
+        {
+            this.Label = "";
+            this.HeightAssignments = new ObservableCollection<VM_HeightAssignment>();
+            this.SubscribedHeightConfig = new HeightConfig();
+            this.SourcePath = "";
+        }
+
+        public string Label { get; set; }
+        public ObservableCollection<VM_HeightAssignment> HeightAssignments { get; set; }
+
+        public HeightConfig SubscribedHeightConfig { get; set; }
+        public string SourcePath { get; set; }
+        public RelayCommand AddHeightAssignment { get; }
+
+        public static void GetViewModelsFromModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models, List<string> loadedPaths)
+        {
+            for (int i = 0; i < models.Count; i++)
+            {
+                var vm = new VM_HeightConfig();
+                vm.Label = models[i].Label;
+                vm.HeightAssignments = VM_HeightAssignment.GetViewModelsFromModels(models[i].HeightAssignments);
+                vm.SubscribedHeightConfig = models[i];
+                vm.SourcePath = loadedPaths[i];
+
+                viewModels.Add(vm);
+            }
+        }
+
+        public static List<string> DumpViewModelsToModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models)
+        {
+            List<string> filePaths = new List<string>();
+            models.Clear();
+            foreach (var vm in viewModels)
+            {
+                var m = new HeightConfig();
+                m.Label = vm.Label;
+                VM_HeightAssignment.DumpViewModelsToModels(m.HeightAssignments, vm.HeightAssignments);
+                models.Add(m);
+                filePaths.Add(vm.SourcePath);
+            }
+            return filePaths;
+        }
+    }
+    public class VM_HeightAssignment
+    {
+        public VM_HeightAssignment(ObservableCollection<VM_HeightAssignment> parentCollection)
         {
             this.Label = "";
             this.Races = new ObservableCollection<FormKey>();
@@ -26,7 +72,7 @@ namespace SynthEBD
             this.FemaleHeightRange = "0.020000";
 
             this.FormKeyPickerTypes = typeof(IRaceGetter).AsEnumerable();
-            this.lk = linkCache;
+            this.lk = GameEnvironmentProvider.Instance.MyEnvironment.LinkCache;
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
         }
 
@@ -53,12 +99,12 @@ namespace SynthEBD
             }
         }
 
-        public static ObservableCollection<VM_HeightConfig> GetViewModelsFromModels(HashSet<HeightConfig> models, ILinkCache lk)
+        public static ObservableCollection<VM_HeightAssignment> GetViewModelsFromModels(HashSet<HeightAssignment> models)
         {
-            ObservableCollection<VM_HeightConfig> viewModels = new ObservableCollection<VM_HeightConfig>();
+            ObservableCollection<VM_HeightAssignment> viewModels = new ObservableCollection<VM_HeightAssignment>();
             foreach (var model in models)
             {
-                var vm = new VM_HeightConfig(viewModels, lk);
+                var vm = new VM_HeightAssignment(viewModels);
                 vm.Label = model.Label;
                 vm.Races = new ObservableCollection<FormKey>(model.Races);
                 vm.MaleHeightBase = model.HeightMale;
@@ -72,20 +118,19 @@ namespace SynthEBD
             return viewModels;
         }
 
-        public static HashSet<HeightConfig> DumpViewModelsToModels(HashSet<HeightConfig> models, ObservableCollection<VM_HeightConfig> viewModels)
+        public static HashSet<HeightAssignment> DumpViewModelsToModels(HashSet<HeightAssignment> models, ObservableCollection<VM_HeightAssignment> viewModels)
         {
-            models.Clear();
             foreach (var vm in viewModels)
             {
-                HeightConfig hc = new HeightConfig();
-                hc.Label = vm.Label;
-                hc.Races = vm.Races.ToHashSet();
-                hc.HeightMale = vm.MaleHeightBase;
-                hc.HeightMaleRange = vm.MaleHeightRange;
-                hc.HeightFemale = vm.FemaleHeightBase;
-                hc.HeightFemaleRange = vm.FemaleHeightRange;
+                HeightAssignment ha = new HeightAssignment();
+                ha.Label = vm.Label;
+                ha.Races = vm.Races.ToHashSet();
+                ha.HeightMale = vm.MaleHeightBase;
+                ha.HeightMaleRange = vm.MaleHeightRange;
+                ha.HeightFemale = vm.FemaleHeightBase;
+                ha.HeightFemaleRange = vm.FemaleHeightRange;
 
-                models.Add(hc);
+                models.Add(ha);
             }
 
             return models;

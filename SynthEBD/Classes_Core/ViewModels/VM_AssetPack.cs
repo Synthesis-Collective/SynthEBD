@@ -23,13 +23,14 @@ namespace SynthEBD
             this.displayAlerts = true;
             this.userAlert = "";
             this.subgroups = new ObservableCollection<VM_Subgroup>();
-            this.FilePath = "";
 
             this.RaceGroupingList = new ObservableCollection<VM_RaceGrouping>();
 
             this.IsSelected = true;
 
             this.ParentCollection = parentCollection;
+
+            this.SourcePath = "";
 
             RemoveAssetPackConfigFile = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -42,11 +43,11 @@ namespace SynthEBD
         public bool displayAlerts { get; set; }
         public string userAlert { get; set; }
         public ObservableCollection<VM_Subgroup> subgroups { get; set; }
-
-        public string FilePath { get; set; }
         public ObservableCollection<VM_RaceGrouping> RaceGroupingList { get; set; }
 
         public bool IsSelected { get; set; }
+
+        public string SourcePath { get; set; }
 
         public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>()
         {
@@ -58,15 +59,17 @@ namespace SynthEBD
 
         public RelayCommand RemoveAssetPackConfigFile { get; }
 
-        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, List<string> paths, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings)
+        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, List<string> loadedAssetPackPaths)
         {
             ObservableCollection<VM_AssetPack> viewModels = new ObservableCollection<VM_AssetPack>();
 
             for (int i = 0; i < assetPacks.Count; i++)
             {
                 var viewModel = GetViewModelFromModel(assetPacks[i], generalSettingsVM, viewModels);
-                viewModel.FilePath = paths[i];
                 viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].groupName);
+
+                viewModel.SourcePath = loadedAssetPackPaths[i];
+
                 viewModels.Add(viewModel);
             }
             return viewModels;
@@ -146,11 +149,11 @@ namespace SynthEBD
             switch (result)
             {
                 case MessageBoxResult.Yes:
-                    if (File.Exists(this.FilePath))
+                    if (File.Exists(this.SourcePath))
                     {
                         try
                         {
-                            File.Delete(this.FilePath);
+                            File.Delete(this.SourcePath);
                         }
                         catch
                         {

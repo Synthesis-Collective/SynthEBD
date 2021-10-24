@@ -65,7 +65,6 @@ namespace SynthEBD
             this.AssetPackDirPath = Path.Combine(RelativePath, assetsDirRelPath);
             this.HeightSettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "HeightSettings.json");
             this.HeightConfigDirPath= Path.Combine(RelativePath, heightsDirRelPath);
-            this.HeightConfigCurrentPath = Path.Combine(this.HeightConfigDirPath, "HeightConfig.json");
             this.BodyGenSettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "BodyGenSettings.json");
             this.BodyGenConfigDirPath = Path.Combine(RelativePath, bodyGenDirRelPath);
             this.SpecificNPCAssignmentsPath = Path.Combine(RelativePath, NPCConfigDirRelPath, "Specific NPC Assignments.json");
@@ -94,7 +93,6 @@ namespace SynthEBD
         public string AssetPackDirPath { get; set; }
         public string HeightSettingsPath { get; set; } // path of the Textures and Meshes settings file
         public string HeightConfigDirPath { get; set; }
-        public string HeightConfigCurrentPath { get; set; }
         public string BodyGenSettingsPath { get; set; }
         public string BodyGenConfigDirPath { get; set; }
         public string SpecificNPCAssignmentsPath { get; set; }

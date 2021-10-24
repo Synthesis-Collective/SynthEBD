@@ -23,30 +23,54 @@ namespace SynthEBD
             return heightSettings;
         }
 
-        public static HashSet<HeightConfig> loadHeightConfig(string path)
+        public static List<HeightConfig> loadHeightConfigs(Paths paths, List<string> loadedHeightPaths)
         {
-            HashSet<HeightConfig> loaded = new HashSet<HeightConfig>();
-            if (File.Exists(path))
+            List<HeightConfig> loaded = new List<HeightConfig>();
+
+            string searchPath = "";
+            if (Directory.Exists(paths.HeightConfigDirPath))
             {
-                string text = File.ReadAllText(path);
+                searchPath = paths.HeightConfigDirPath;
+            }
+            else if (Directory.Exists(paths.FallBackHeightConfigDirPath))
+            {
+                // Warn User
+                searchPath = paths.FallBackHeightConfigDirPath;
+            }
+            else
+            {
+                // Warn User
+                return loaded;
+            }
+
+            string[] filePaths = Directory.GetFiles(searchPath, "*.json");
+
+            foreach (string s in filePaths)
+            {
+                string text = File.ReadAllText(s);
 
                 if (text.Contains("\"EDID\":")) // zEBD formatted height config
                 {
                     try
                     {
-                        var zEBDformatted = DeserializeFromJSON<HashSet<HeightConfig.zEBDHeightConfig>>.loadJSONFile(path);
+                        var zEBDformatted = DeserializeFromJSON<HashSet<HeightAssignment.zEBDHeightAssignment>>.loadJSONFile(s);
+                        HeightConfig fromZformat = new HeightConfig();
+                        fromZformat.Label = Path.GetFileNameWithoutExtension(s);
 
-                        foreach (HeightConfig.zEBDHeightConfig zHC in zEBDformatted)
+                        foreach (var zHC in zEBDformatted)
                         {
-                            var hc = new HeightConfig();
-                            hc.Label = zHC.EDID;
-                            hc.Races = new HashSet<Mutagen.Bethesda.Plugins.FormKey> { Converters.RaceEDID2FormKey(zHC.EDID) };
-                            hc.HeightMale = zHC.heightMale;
-                            hc.HeightMaleRange = zHC.heightMaleRange;
-                            hc.HeightFemale = zHC.heightFemale;
-                            hc.HeightMaleRange = zHC.heightFemaleRange;
-                            loaded.Add(hc);
+                            var ha = new HeightAssignment();
+                            ha.Label = zHC.EDID;
+                            ha.Races = new HashSet<Mutagen.Bethesda.Plugins.FormKey> { Converters.RaceEDID2FormKey(zHC.EDID) };
+                            ha.HeightMale = zHC.heightMale;
+                            ha.HeightMaleRange = zHC.heightMaleRange;
+                            ha.HeightFemale = zHC.heightFemale;
+                            ha.HeightMaleRange = zHC.heightFemaleRange;
+                            fromZformat.HeightAssignments.Add(ha);
                         }
+
+                        loadedHeightPaths.Add(s);
+                        loaded.Add(fromZformat);
                     }
                     catch
                     {
@@ -57,16 +81,56 @@ namespace SynthEBD
                 {
                     try
                     {
-                        loaded = DeserializeFromJSON<HashSet<HeightConfig>>.loadJSONFile(path);
+                        var hc = DeserializeFromJSON<HeightConfig>.loadJSONFile(s);
+                        loaded.Add(hc);
+                        loadedHeightPaths.Add(s);
                     }
                     catch
                     {
-
+                        //Warn User
                     }
                 }
             }
 
             return loaded;
+        }
+
+        public static void SaveHeightConfigs(List<HeightConfig> heightConfigs, List<string> filePaths, Paths paths)
+        {
+            for (int i = 0; i < heightConfigs.Count; i++)
+            {
+                if (filePaths[i] != "")
+                {
+                    SerializeToJSON<HeightConfig>.SaveJSONFile(heightConfigs[i], filePaths[i]);
+                }
+                else
+                {
+                    // Configure save file dialog box
+                    var dialog = new Microsoft.Win32.SaveFileDialog();
+                    dialog.DefaultExt = ".json"; // Default file extension
+                    dialog.Filter = "JSON files (.json|*.json"; // Filter files by extension
+
+                    if (Directory.Exists(paths.HeightConfigDirPath))
+                    {
+                        dialog.InitialDirectory = Path.GetFullPath(paths.HeightConfigDirPath);
+                    }
+                    else if (Directory.Exists(paths.FallBackHeightConfigDirPath))
+                    {
+                        dialog.InitialDirectory = Path.GetFullPath(paths.FallBackHeightConfigDirPath);
+                    }
+
+                    dialog.RestoreDirectory = true;
+
+                    // Show open file dialog box
+                    bool? result = dialog.ShowDialog();
+
+                    // Process open file dialog box results
+                    if (result == true)
+                    {
+                        SerializeToJSON<HeightConfig>.SaveJSONFile(heightConfigs[i], dialog.FileName);
+                    }
+                }
+            }
         }
     }
 }

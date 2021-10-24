@@ -25,31 +25,30 @@
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
-            <TextBlock Grid.Column="0" Grid.Row="0">Texture and Mesh Settings</TextBlock>
 
-            <TextBlock Grid.Column="0" Grid.Row="1">Allow config files to change NPC textures</TextBlock>
-            <CheckBox Grid.Column="1" Grid.Row="1" IsChecked="{Binding Path=bChangeNPCTextures, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="0">Allow config files to change NPC textures</TextBlock>
+            <CheckBox Grid.Column="1" Grid.Row="0" IsChecked="{Binding Path=bChangeNPCTextures, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="2">Allow config files to change NPC meshes</TextBlock>
-            <CheckBox Grid.Column="1" Grid.Row="2" IsChecked="{Binding Path=bChangeNPCMeshes, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="1">Allow config files to change NPC meshes</TextBlock>
+            <CheckBox Grid.Column="1" Grid.Row="1" IsChecked="{Binding Path=bChangeNPCMeshes, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="3">Patch NPCs with custom bodies</TextBlock>
-            <CheckBox Grid.Column="1" Grid.Row="3" IsChecked="{Binding Path=bApplyToNPCsWithCustomSkins, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="2">Patch NPCs with custom bodies</TextBlock>
+            <CheckBox Grid.Column="1" Grid.Row="2" IsChecked="{Binding Path=bApplyToNPCsWithCustomSkins, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="4">Patch NPCs with custom faces</TextBlock>
-            <CheckBox Grid.Column="1" Grid.Row="4" IsChecked="{Binding Path=bApplyToNPCsWithCustomFaces, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="3">Patch NPCs with custom faces</TextBlock>
+            <CheckBox Grid.Column="1" Grid.Row="3" IsChecked="{Binding Path=bApplyToNPCsWithCustomFaces, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="5">Forward armature from existing WNAM if available</TextBlock>
-            <CheckBox Grid.Column="1" Grid.Row="5" IsChecked="{Binding Path=bForwardArmatureFromExistingWNAMs, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="4">Forward armature from existing WNAM if available</TextBlock>
+            <CheckBox Grid.Column="1" Grid.Row="4" IsChecked="{Binding Path=bForwardArmatureFromExistingWNAMs, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="6">Display popup alerts from config files</TextBlock>
-            <CheckBox Grid.Column="1" Grid.Row="6" IsChecked="{Binding Path=bDisplayPopupAlerts, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="5">Display popup alerts from config files</TextBlock>
+            <CheckBox Grid.Column="1" Grid.Row="5" IsChecked="{Binding Path=bDisplayPopupAlerts, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="7">Generate permutation assignment log</TextBlock>
-            <CheckBox Grid.Column="1" Grid.Row="7" IsChecked="{Binding Path=bGenerateAssignmentLog, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="6">Generate permutation assignment log</TextBlock>
+            <CheckBox Grid.Column="1" Grid.Row="6" IsChecked="{Binding Path=bGenerateAssignmentLog, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="8">Asset Path Trimming</TextBlock>
-            <Expander Grid.Column="1" Grid.Row="8">
+            <TextBlock Grid.Column="0" Grid.Row="7">Asset Path Trimming</TextBlock>
+            <Expander Grid.Column="1" Grid.Row="7">
                 <StackPanel>
                     <ItemsControl ItemsSource="{Binding TrimPaths, UpdateSourceTrigger=Default}">
                         <ItemsControl.ItemTemplate>
@@ -69,7 +68,7 @@
                 </StackPanel>
             </Expander>
 
-            <ItemsControl Grid.Column="0" Grid.Row="9" Grid.ColumnSpan="2" ItemsSource="{Binding AssetPacks, UpdateSourceTrigger=PropertyChanged}" Margin="0 15 0 0">
+            <ItemsControl Grid.Column="0" Grid.Row="8" Grid.ColumnSpan="2" ItemsSource="{Binding AssetPacks, UpdateSourceTrigger=PropertyChanged}" Margin="0 15 0 0">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type local:VM_AssetPack}">
                         <local:UC_AssetPackSettings Background="Black" Margin="0 0 0 10"/>

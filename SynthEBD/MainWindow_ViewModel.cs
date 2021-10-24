@@ -27,6 +27,7 @@ namespace SynthEBD
 
         public VM_NavPanel NavPanel { get; }
 
+        public VM_RunButton RunButton { get; } = new();
         public object DisplayedViewModel { get; set; }
         public object NavViewModel { get; set; }
 
@@ -35,7 +36,7 @@ namespace SynthEBD
         public Settings_General GeneralSettings { get; }
         public Settings_TexMesh TexMeshSettings { get; }
         public Settings_Height HeightSettings { get; }
-        public HashSet<HeightConfig> HeightConfigs { get; }
+        public List<HeightConfig> HeightConfigs { get; }
 
         public Settings_BodyGen BodyGenSettings { get; }
         public BodyGenConfigs BodyGenConfigs { get; }
@@ -69,15 +70,16 @@ namespace SynthEBD
             VM_SettingsTexMesh.GetViewModelFromModel(TMVM, TexMeshSettings);
 
             // load asset packs
-            List<string> assetPackPaths = new List<string>();
-            AssetPacks = SettingsIO_AssetPack.loadAssetPacks(GeneralSettings.RaceGroupings, assetPackPaths, Paths); // load asset pack models from json
-            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(AssetPacks, assetPackPaths, SGVM, TexMeshSettings); // add asset pack view models to TexMesh shell view model here
+            List<string> loadedAssetPackPaths = new List<string>();
+            AssetPacks = SettingsIO_AssetPack.loadAssetPacks(GeneralSettings.RaceGroupings, Paths, loadedAssetPackPaths); // load asset pack models from json
+            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(AssetPacks, SGVM, TexMeshSettings, loadedAssetPackPaths); // add asset pack view models to TexMesh shell view model here
 
             // load heights
             HeightSettings = SettingsIO_Height.LoadHeightSettings(Paths);
-            VM_SettingsHeight.GetViewModelFromModel(HVM, HeightSettings, LinkCache);
-            HeightConfigs = SettingsIO_Height.loadHeightConfig(Paths.HeightConfigCurrentPath);
-            HVM.HeightConfigs = VM_HeightConfig.GetViewModelsFromModels(HeightConfigs, LinkCache);
+            List<string> loadedHeightPaths = new List<string>();
+            HeightConfigs = SettingsIO_Height.loadHeightConfigs(Paths, loadedHeightPaths);
+            VM_HeightConfig.GetViewModelsFromModels(HVM.AvailableHeightConfigs, HeightConfigs, loadedHeightPaths);
+            VM_SettingsHeight.GetViewModelFromModel(HVM, HeightSettings); /// must do after populating configs
 
             // load bodygen configs
             BodyGenSettings = SettingsIO_BodyGen.LoadBodyGenSettings(Paths);
@@ -103,6 +105,7 @@ namespace SynthEBD
             // Start on the settings VM
             DisplayedViewModel = SGVM;
             NavViewModel = NavPanel;
+            Logger.Instance.RunButton = RunButton;
 
             Application.Current.MainWindow.Closing += new CancelEventHandler(MainWindow_Closing);
         }
@@ -114,14 +117,16 @@ namespace SynthEBD
 
             VM_SettingsTexMesh.DumpViewModelToModel(TMVM, TexMeshSettings);
             SerializeToJSON<Settings_TexMesh>.SaveJSONFile(TexMeshSettings, Paths.TexMeshSettingsPath);
+            // Need code here to dump assset packs and save - see height configs for analogy
 
             VM_SettingsHeight.DumpViewModelToModel(HVM, HeightSettings);
             SerializeToJSON<Settings_Height>.SaveJSONFile(HeightSettings, Paths.HeightSettingsPath);
-            VM_HeightConfig.DumpViewModelsToModels(HeightConfigs, HVM.HeightConfigs);
-            SerializeToJSON<HashSet<HeightConfig>>.SaveJSONFile(HeightConfigs, Paths.HeightConfigCurrentPath);
+            var heightConfigPaths = VM_HeightConfig.DumpViewModelsToModels(HVM.AvailableHeightConfigs, HeightConfigs);
+            SettingsIO_Height.SaveHeightConfigs(HeightConfigs, heightConfigPaths, Paths);
 
             VM_SettingsBodyGen.DumpViewModelToModel(BGVM, BodyGenSettings);
             SerializeToJSON<Settings_BodyGen>.SaveJSONFile(BodyGenSettings, Paths.BodyGenSettingsPath);
+            // Need code here to dump assset packs and save - see height configs for analogy
 
             VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(SAUIVM, SpecificNPCAssignments);
             SerializeToJSON<HashSet<SpecificNPCAssignment>>.SaveJSONFile(SpecificNPCAssignments, Paths.SpecificNPCAssignmentsPath);

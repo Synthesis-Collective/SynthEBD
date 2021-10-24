@@ -11,14 +11,14 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
-        <TextBlock Grid.Row="0">SynthEBD</TextBlock>
+        <TextBlock Grid.Row="0" HorizontalAlignment="Center" FontSize="18">SynthEBD</TextBlock>
         <StackPanel Grid.Row="1">
-            <Button x:Name="Button_Sgeneral" Margin="0, 5, 0, 0" Command="{Binding ClickSG}">General Settings</Button>
-            <Button x:Name="Button_TandM" Margin="0, 5, 0, 0" Command="{Binding ClickTM}">Textures and Meshes</Button>
-            <Button x:Name="Button_BG" Margin="0, 5, 0, 0" Command="{Binding ClickBG}">BodyGen Integration</Button>
-            <Button x:Name="Button_H" Margin="0, 5, 0, 0" Command="{Binding ClickH}">Height</Button>
-            <Button x:Name="Button_SA" Margin="0, 5, 0, 0" Command="{Binding ClickSA}">Specific NPC Assignments</Button>
-            <Button x:Name="Button_BL" Margin="0, 5, 0, 0" Command="{Binding ClickBL}">Block List</Button>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickSG}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">General Settings</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickTM}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">Textures and Meshes</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickBG}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">BodyGen Integration</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickH}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">Height Assignment</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickSA}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">Specific NPC Assignments</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickBL}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">Block List</RadioButton>
         </StackPanel>
     </Grid>
 </UserControl>

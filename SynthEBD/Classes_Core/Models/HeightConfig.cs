@@ -7,9 +7,21 @@ using Mutagen.Bethesda.Plugins;
 
 namespace SynthEBD
 {
-    class HeightConfig
+    public class HeightConfig
     {
         public HeightConfig()
+        {
+            this.Label = "";
+            this.HeightAssignments = new HashSet<HeightAssignment>();
+        }
+
+        public string Label { get; set; }
+        public HashSet<HeightAssignment> HeightAssignments { get; set; }
+    }
+
+    public class HeightAssignment
+    {
+        public HeightAssignment()
         {
             this.Label = "";
             this.Races = new HashSet<FormKey>();
@@ -28,9 +40,9 @@ namespace SynthEBD
         public string HeightFemaleRange { get; set; }
         public DistMode DistributionMode { get; set; }
 
-        public class zEBDHeightConfig // for backwards compatibility
+        public class zEBDHeightAssignment // for backwards compatibility
         {
-            public zEBDHeightConfig()
+            public zEBDHeightAssignment()
             {
                 this.EDID = "";
                 this.heightMale = "1.000000";

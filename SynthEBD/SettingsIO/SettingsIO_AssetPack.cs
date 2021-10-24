@@ -24,9 +24,9 @@ namespace SynthEBD
             return texMeshSettings;
         }
 
-        public static List<SynthEBD.AssetPack> loadAssetPacks(List<RaceGrouping> raceGroupings, List<string> assetPackPaths, Paths paths)
+        public static List<SynthEBD.AssetPack> loadAssetPacks(List<RaceGrouping> raceGroupings, Paths paths, List<string> loadedAssetPackPaths)
         {
-            List<SynthEBD.AssetPack> loadedPacks = new List<SynthEBD.AssetPack>();
+            List<AssetPack> loadedPacks = new List<AssetPack>();
 
             string[] filePaths = Directory.GetFiles(paths.AssetPackDirPath, "*.json");
 
@@ -52,7 +52,7 @@ namespace SynthEBD
                 }
 
                 loadedPacks.Add(synthEBDconfig);
-                assetPackPaths.Add(s);
+                loadedAssetPackPaths.Add(s);
             }
 
             return loadedPacks;
