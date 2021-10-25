@@ -59,10 +59,4 @@ namespace SynthEBD
             public string distMode { get; set; }
         }
     }
-
-    public enum DistMode
-    {
-        uniform,
-        bellCurve
-    }
 }

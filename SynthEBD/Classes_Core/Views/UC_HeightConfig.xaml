@@ -16,14 +16,21 @@
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="*"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0">Name</TextBlock>
+        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0">Configuration Name</TextBlock>
         <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
-        
-        <ItemsControl Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" ItemsSource="{Binding HeightAssignments}" Margin="20">
+
+        <Button Grid.Row="1" Grid.Column="0"  VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AddHeightAssignment}" Foreground="LightGreen" Margin="0 15 0 0">Add Height Group</Button>
+
+        <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1" Margin="50 15 5 0">
+            <Button  VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding SetAllDistModes}" Margin="0 0 10 0">Set All Distribution Modes To </Button>
+            <ComboBox ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DistMode}}}" SelectedValue="{Binding Path=GlobalDistMode, Mode=TwoWay}" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+        </StackPanel>
+
+        <ItemsControl Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" ItemsSource="{Binding HeightAssignments}" Margin="20">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                     <WrapPanel />
@@ -57,7 +64,7 @@
                             <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding FormKeyPickerTypes}" Grid.Row="1" Grid.Column="1" />
 
                             <TextBlock Grid.Row="2" Grid.Column="0">Distribution Mode</TextBlock>
-                            <ListBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding DistModes}" SelectedItem="{Binding DistributionMode, Mode=TwoWay}" />
+                            <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DistMode}}}" SelectedValue="{Binding Path=DistributionMode, Mode=TwoWay}" />
 
                             <TextBlock Grid.Row="3" Grid.Column="0">Base Male Height</TextBlock>
                             <TextBox Grid.Row="3" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=MaleHeightBase}"/>
@@ -75,6 +82,5 @@
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
-        <Button Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddHeightAssignment}" Foreground="LightGreen">Add Height Group</Button>
     </Grid>
 </UserControl>

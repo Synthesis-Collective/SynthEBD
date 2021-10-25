@@ -34,10 +34,10 @@
             <TextBlock Grid.Row="3" Grid.Column="0">Height Configuration</TextBlock>
             <ComboBox Grid.Row="3" Grid.Column="1" MinWidth="150"  ItemsSource="{Binding AvailableHeightConfigs}" DisplayMemberPath="Label" SelectedItem="{Binding SelectedHeightConfig}" ></ComboBox>
             
-            <Button Grid.Row="4" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddHeightConfig}" Foreground="LightGreen">Create New</Button>
-            <Button Grid.Row="4" Grid.Column="1" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding DeleteCurrentHeightConfig}" Foreground="Firebrick">Delete Current</Button>
+            <Button Grid.Row="4" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddHeightConfig}" Foreground="LightGreen">Create New Height Configuration</Button>
+            <Button Grid.Row="4" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCurrentHeightConfig}" Foreground="Firebrick" Margin="25 0 0 0">Delete Current Configuration</Button>
 
-            <ContentPresenter Content="{Binding SelectedHeightConfig}" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2">
+            <ContentPresenter Content="{Binding SelectedHeightConfig}" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Margin="0 25 0 0">
                 <ContentPresenter.Resources>
                     <DataTemplate DataType="{x:Type local:VM_HeightConfig}">
                         <local:UC_HeightConfig/>

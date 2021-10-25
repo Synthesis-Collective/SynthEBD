@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace SynthEBD
 {
@@ -22,30 +23,25 @@ namespace SynthEBD
             this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
             AddHeightConfig = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.AvailableHeightConfigs.Add(new VM_HeightConfig())
+                execute: _ =>
+                {
+                    this.AvailableHeightConfigs.Add(new VM_HeightConfig());
+                    this.SelectedHeightConfig = this.AvailableHeightConfigs.Last();
+                }
                 );
 
             DeleteCurrentHeightConfig = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => {
-                    try
-                    {
-                        System.IO.File.Delete(SelectedHeightConfig.SourcePath);
-                        //debug
-                        int[] apple = new int[2];
-                        var error = apple[-1];
-                    }
-                    catch
-                    {
-                        Logger.TimedNotifyStatusUpdate("Could not delete file at " + this.SelectedHeightConfig.SourcePath, ErrorType.Warning, 5);
-                    }
+                execute: _ =>
+                {
+                    FileDialogs.ConfirmFileDeletion(SelectedHeightConfig.SourcePath, "Height Configuration File");
 
                     this.AvailableHeightConfigs.Remove(SelectedHeightConfig);
                     if (this.AvailableHeightConfigs.Count > 0)
                     {
                         this.SelectedHeightConfig = AvailableHeightConfigs[0];
                     }
-                    }
+                }
                 );
         }
 

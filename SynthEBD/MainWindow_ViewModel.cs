@@ -31,6 +31,8 @@ namespace SynthEBD
         public object DisplayedViewModel { get; set; }
         public object NavViewModel { get; set; }
 
+        public object StatusBarVM { get; set; }
+
         public List<AssetPack> AssetPacks { get; }
 
         public Settings_General GeneralSettings { get; }
@@ -57,6 +59,8 @@ namespace SynthEBD
             SAUIVM = new VM_SpecificNPCAssignmentsUI(TMVM, BGVM);
 
             NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, HVM, SAUIVM, BUIVM);
+
+            StatusBarVM = new VM_StatusBar();
 
             // Load general settings
             GeneralSettings = SettingsIO_General.loadGeneralSettings();

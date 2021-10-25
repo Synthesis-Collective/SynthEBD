@@ -7,28 +7,49 @@ using Noggog;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace SynthEBD
 {
-    public class VM_HeightConfig
+    public class VM_HeightConfig : INotifyPropertyChanged
     {
         public VM_HeightConfig()
         {
-            this.Label = "";
+            this.Label = "New Height Configuration";
             this.HeightAssignments = new ObservableCollection<VM_HeightAssignment>();
             this.SubscribedHeightConfig = new HeightConfig();
             this.SourcePath = "";
+            this.GlobalDistMode = DistMode.uniform;
+
+            AddHeightAssignment = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.HeightAssignments.Add(new VM_HeightAssignment(this.HeightAssignments))
+                );
+
+            SetAllDistModes = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    foreach (var assignment in this.HeightAssignments)
+                    {
+                        assignment.DistributionMode = this.GlobalDistMode;
+                    }
+                }
+                );
         }
 
         public string Label { get; set; }
         public ObservableCollection<VM_HeightAssignment> HeightAssignments { get; set; }
-
+        public DistMode GlobalDistMode { get; set; }
         public HeightConfig SubscribedHeightConfig { get; set; }
         public string SourcePath { get; set; }
         public RelayCommand AddHeightAssignment { get; }
+        public RelayCommand SetAllDistModes { get; }
+
+        public event PropertyChangedEventHandler PropertyChanged;
 
         public static void GetViewModelsFromModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models, List<string> loadedPaths)
         {
@@ -59,7 +80,7 @@ namespace SynthEBD
             return filePaths;
         }
     }
-    public class VM_HeightAssignment
+    public class VM_HeightAssignment : INotifyPropertyChanged
     {
         public VM_HeightAssignment(ObservableCollection<VM_HeightAssignment> parentCollection)
         {
@@ -88,16 +109,7 @@ namespace SynthEBD
         public ILinkCache lk { get; set; }
         public RelayCommand DeleteCommand { get; }
 
-        public List<DistMode> DistModes
-        {
-            get
-            {
-                List < DistMode > list = new List<DistMode>();
-                list.Add(DistMode.uniform);
-                list.Add(DistMode.bellCurve);
-                return list;
-            }
-        }
+        public event PropertyChangedEventHandler PropertyChanged;
 
         public static ObservableCollection<VM_HeightAssignment> GetViewModelsFromModels(HashSet<HeightAssignment> models)
         {

@@ -34,7 +34,7 @@ namespace SynthEBD
 
             RemoveAssetPackConfigFile = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => RemoveAssetPackDialog()
+                execute: _ => { FileDialogs.ConfirmFileDeletion(this.SourcePath, "Asset Pack Config File"); this.ParentCollection.Remove(this); }
                 );
         }
 
@@ -160,7 +160,7 @@ namespace SynthEBD
                             //Warn User
                         }
                     }
-                    this.ParentCollection.Remove(this);
+                    
                     break;
                 case MessageBoxResult.No:
                     break;

@@ -75,7 +75,14 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <local:StatusBar Grid.Column="3" Grid.Row="4"/>
+        <ContentPresenter Content="{Binding StatusBarVM}" Grid.Column="3" Grid.Row="4">
+            <ContentPresenter.Resources>
+                <DataTemplate DataType="{x:Type local:VM_StatusBar}">
+                    <local:UC_StatusBar/>
+                </DataTemplate>
+            </ContentPresenter.Resources>
+        </ContentPresenter>
+        <local:UC_StatusBar Grid.Column="3" Grid.Row="4"/>
     </Grid>
 </mahapps:MetroWindow>
 

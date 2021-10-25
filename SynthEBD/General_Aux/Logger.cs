@@ -75,6 +75,21 @@ namespace SynthEBD
             t.Wait();
             ClearStatusError();
         }
+
+        public async Task CallTimedNotifyStatusUpdateAsync(string error, ErrorType type, int durationSec)
+  => await TimedNotifyStatusUpdateAsync(error, type, durationSec);
+
+        public static async Task TimedNotifyStatusUpdateAsync(string error, ErrorType type, int durationSec)
+        {
+            LogErrorWithStatusUpdate(error, type);
+
+            // Await the Task to allow the UI thread to render the view
+            // in order to show the changes     
+            await Task.Delay(durationSec * 1000);
+
+            ClearStatusError();
+        }
+
         public static void ClearStatusError()
         {
             Instance.StatusString = Instance.ReadyString;

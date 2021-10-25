@@ -18,9 +18,9 @@ namespace SynthEBD
     /// <summary>
     /// Interaction logic for StatusBar.xaml
     /// </summary>
-    public partial class StatusBar : UserControl
+    public partial class UC_StatusBar : UserControl
     {
-        public StatusBar()
+        public UC_StatusBar()
         {
             InitializeComponent();
         }

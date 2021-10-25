@@ -105,29 +105,47 @@ namespace SynthEBD
                 }
                 else
                 {
-                    // Configure save file dialog box
-                    var dialog = new Microsoft.Win32.SaveFileDialog();
-                    dialog.DefaultExt = ".json"; // Default file extension
-                    dialog.Filter = "JSON files (.json|*.json"; // Filter files by extension
-
-                    if (Directory.Exists(paths.HeightConfigDirPath))
+                    string newPath = "";
+                    if (IO_Aux.IsValidFilename(heightConfigs[i].Label))
                     {
-                        dialog.InitialDirectory = Path.GetFullPath(paths.HeightConfigDirPath);
+                        if (Directory.Exists(paths.HeightConfigDirPath))
+                        {
+                            newPath = Path.Combine(paths.HeightConfigDirPath, heightConfigs[i].Label + ".json");
+                        }
+                        else if (Directory.Exists(paths.FallBackHeightConfigDirPath))
+                        {
+                            newPath = Path.Combine(paths.FallBackHeightConfigDirPath, heightConfigs[i].Label + ".json");
+                        }
+
+                        SerializeToJSON<HeightConfig>.SaveJSONFile(heightConfigs[i], newPath);
                     }
-                    else if (Directory.Exists(paths.FallBackHeightConfigDirPath))
+
+                    else
                     {
-                        dialog.InitialDirectory = Path.GetFullPath(paths.FallBackHeightConfigDirPath);
-                    }
+                        // Configure save file dialog box
+                        var dialog = new Microsoft.Win32.SaveFileDialog();
+                        dialog.DefaultExt = ".json"; // Default file extension
+                        dialog.Filter = "JSON files (.json|*.json"; // Filter files by extension
 
-                    dialog.RestoreDirectory = true;
+                        if (Directory.Exists(paths.HeightConfigDirPath))
+                        {
+                            dialog.InitialDirectory = Path.GetFullPath(paths.HeightConfigDirPath);
+                        }
+                        else if (Directory.Exists(paths.FallBackHeightConfigDirPath))
+                        {
+                            dialog.InitialDirectory = Path.GetFullPath(paths.FallBackHeightConfigDirPath);
+                        }
 
-                    // Show open file dialog box
-                    bool? result = dialog.ShowDialog();
+                        dialog.RestoreDirectory = true;
 
-                    // Process open file dialog box results
-                    if (result == true)
-                    {
-                        SerializeToJSON<HeightConfig>.SaveJSONFile(heightConfigs[i], dialog.FileName);
+                        // Show open file dialog box
+                        bool? result = dialog.ShowDialog();
+
+                        // Process open file dialog box results
+                        if (result == true)
+                        {
+                            SerializeToJSON<HeightConfig>.SaveJSONFile(heightConfigs[i], dialog.FileName);
+                        }
                     }
                 }
             }

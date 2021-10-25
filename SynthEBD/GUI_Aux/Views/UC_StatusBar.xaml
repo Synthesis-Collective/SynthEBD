@@ -1,10 +1,11 @@
-﻿<UserControl x:Class="SynthEBD.StatusBar"
+﻿<UserControl x:Class="SynthEBD.UC_StatusBar"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD"
              mc:Ignorable="d" 
+             d:DataContext="{d:DesignInstance Type=local:VM_StatusBar}"
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid >
         <Grid.ColumnDefinitions>
@@ -14,6 +15,6 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Source={x:Static local:Logger.Instance}, Path=StatusString}" Foreground="{Binding Source={x:Static local:Logger.Instance}, Path=StatusColor}" FontSize="18" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Path=DispString}" Foreground="{Binding Path=FontColor}" FontSize="18" VerticalAlignment="Center" HorizontalAlignment="Center"/>
     </Grid>
 </UserControl>
