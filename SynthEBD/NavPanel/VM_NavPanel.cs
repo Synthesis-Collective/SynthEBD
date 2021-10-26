@@ -8,7 +8,7 @@ using System.Windows.Input;
 
 namespace SynthEBD
 {
-    class VM_NavPanel : INotifyPropertyChanged
+    public class VM_NavPanel : INotifyPropertyChanged
     {
         public ICommand ClickSG { get; }
         public ICommand ClickTM { get; }

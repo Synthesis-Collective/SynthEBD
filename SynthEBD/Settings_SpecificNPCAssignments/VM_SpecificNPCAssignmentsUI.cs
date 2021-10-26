@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
-    class VM_SpecificNPCAssignmentsUI : INotifyPropertyChanged
+    public class VM_SpecificNPCAssignmentsUI : INotifyPropertyChanged
     {
         public VM_SpecificNPCAssignmentsUI(VM_SettingsTexMesh texMeshSettings, VM_SettingsBodyGen bodyGenSettings)
         {

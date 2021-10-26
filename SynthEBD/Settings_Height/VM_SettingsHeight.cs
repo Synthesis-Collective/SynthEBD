@@ -10,7 +10,7 @@ using System.Windows;
 
 namespace SynthEBD
 {
-    class VM_SettingsHeight : INotifyPropertyChanged
+    public class VM_SettingsHeight : INotifyPropertyChanged
     {
         public VM_SettingsHeight()
         {

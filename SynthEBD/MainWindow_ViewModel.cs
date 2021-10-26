@@ -14,7 +14,7 @@ using System.Windows.Input;
 
 namespace SynthEBD
 {
-    class MainWindow_ViewModel : INotifyPropertyChanged
+    public class MainWindow_ViewModel : INotifyPropertyChanged
     {
         public GameEnvironmentProvider GameEnvironmentProvider { get; }
         public Paths Paths { get; }
@@ -27,7 +27,7 @@ namespace SynthEBD
 
         public VM_NavPanel NavPanel { get; }
 
-        public VM_RunButton RunButton { get; } = new();
+        public VM_RunButton RunButton { get; }
         public object DisplayedViewModel { get; set; }
         public object NavViewModel { get; set; }
 
@@ -61,6 +61,8 @@ namespace SynthEBD
             NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, HVM, SAUIVM, BUIVM);
 
             StatusBarVM = new VM_StatusBar();
+
+            RunButton = new VM_RunButton(this);
 
             // Load general settings
             GeneralSettings = SettingsIO_General.loadGeneralSettings();

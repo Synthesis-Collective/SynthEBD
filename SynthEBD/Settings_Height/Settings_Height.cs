@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
-    class Settings_Height
+    public class Settings_Height
     {
         public Settings_Height()
         {

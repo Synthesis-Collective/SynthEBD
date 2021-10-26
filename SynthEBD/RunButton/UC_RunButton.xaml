@@ -15,6 +15,6 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Button Grid.Row="0" Grid.Column="0" Background="{Binding BackgroundColor}" FontSize="18">Run</Button>
+        <Button Grid.Row="0" Grid.Column="0" Background="{Binding BackgroundColor}" FontSize="18" Command="{Binding ClickRun}">Run</Button>
     </Grid>
 </UserControl>
