@@ -63,7 +63,7 @@ namespace SynthEBD
             public HashSet<string> allowedRaceGroupings { get; set; }
             public HashSet<FormKey> disallowedRaces { get; set; }
             public HashSet<string> disallowedRaceGroupings { get; set; }
-            public HashSet<NPCAttribute> allowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
+            public HashSet<NPCAttribute> allowedAttributes { get; set; }
             public HashSet<NPCAttribute> disallowedAttributes { get; set; } 
             public HashSet<NPCAttribute> forceIfAttributes { get; set; }
             public bool bAllowUnique { get; set; }
@@ -77,7 +77,6 @@ namespace SynthEBD
             public HashSet<string> disallowedBodyGenDescriptors { get; set; }
             public NPCWeightRange weightRange { get; set; }
             public HashSet<Subgroup> subgroups { get; set; }
-
             public string TopLevelSubgroupID { get; set; }
         }
     }
@@ -136,7 +135,7 @@ namespace SynthEBD
             public List<RaceGrouping> allowedRaceGroupings { get; set; }
             public List<RaceGrouping> disallowedRaceGroupings { get; set; }
             public List<string> disallowedRaces { get; set; } 
-            public List<string[]> allowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
+            public List<string[]> allowedAttributes { get; set; } 
             public List<string[]> disallowedAttributes { get; set; }
             public List<string[]> forceIfAttributes { get; set; }
             public bool bAllowUnique { get; set; }

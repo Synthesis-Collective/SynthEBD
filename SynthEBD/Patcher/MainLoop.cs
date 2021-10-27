@@ -11,7 +11,7 @@ namespace SynthEBD
 {
     public class MainLoop
     {
-        public static void RunPatcher(Settings_General generalSettings, Settings_TexMesh texMeshSettings, Settings_Height heightSettings, Settings_BodyGen bodyGenSettings, List<AssetPack> AssetPacks, List<HeightConfig> HeightConfigs, HashSet<SpecificNPCAssignment> SpecificNPCAssignments, BlockList BlockList, HashSet<string> LinkedNPCNameExclusions, HashSet<LinkedNPCGroup> LinkedNPCGroups, HashSet<TrimPath> TrimPaths)
+        public static void RunPatcher(Settings_General generalSettings, Settings_TexMesh texMeshSettings, Settings_Height heightSettings, Settings_BodyGen bodyGenSettings, List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, HashSet<SpecificNPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths)
         {
             var env = new GameEnvironmentProvider().MyEnvironment;
 
@@ -26,14 +26,20 @@ namespace SynthEBD
             bool blockBodyGen;
             bool blockHeight;
 
+            HashSet<FlattenedAssetPack> flattenedAssetPacks = new HashSet<FlattenedAssetPack>();
+            if (generalSettings.bChangeMeshesOrTextures)
+            {
+                flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x, generalSettings.RaceGroupings)).ToHashSet();
+            }
+
             foreach (var npc in env.LoadOrder.PriorityOrder.WinningOverrides<INpcGetter>())
             {
                 assetsRace = AliasHandler.GetAliasTexMesh(generalSettings, npc.Race.FormKey);
                 bodyGenRace = AliasHandler.GetAliasBodyGen(generalSettings, npc.Race.FormKey);
                 heightRace = AliasHandler.GetAliasHeight(generalSettings, npc.Race.FormKey);
 
-                blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(BlockList, npc.FormKey);
-                blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(BlockList, npc.FormKey);
+                blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(blockList, npc.FormKey);
+                blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey);
 
                 if (blockListNPCEntry.Assets || blockListPluginEntry.Assets) { blockAssets = true; }
                 else { blockAssets = false; }
