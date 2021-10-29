@@ -16,14 +16,14 @@ namespace SynthEBD
             this.gender = Gender.male;
             this.displayAlerts = true;
             this.userAlert = "";
-            this.subgroups = new HashSet<Subgroup>();
+            this.subgroups = new List<Subgroup>();
         }
 
         public string groupName { get; set; }
         public Gender gender { get; set; }
         public bool displayAlerts { get; set; }
         public string userAlert { get; set; }
-        public HashSet<Subgroup> subgroups { get; set; }
+        public List<Subgroup> subgroups { get; set; } // don't change to HashSet - need indexing for RequiredSubgroups
 
         public class Subgroup
         {
@@ -47,8 +47,8 @@ namespace SynthEBD
                 this.addKeywords = new HashSet<string>();
                 this.probabilityWeighting = 1;
                 this.paths = new HashSet<FilePathReplacement>();
-                this.allowedBodyGenDescriptors = new HashSet<string>();
-                this.disallowedBodyGenDescriptors = new HashSet<string>();
+                this.allowedBodyGenDescriptors = new HashSet<BodyGenConfig.MorphDescriptor>();
+                this.disallowedBodyGenDescriptors = new HashSet<BodyGenConfig.MorphDescriptor>();
                 this.weightRange = new NPCWeightRange();
                 this.subgroups = new HashSet<Subgroup>();
 
@@ -73,8 +73,8 @@ namespace SynthEBD
             public HashSet<string> addKeywords { get; set; }
             public int probabilityWeighting { get; set; }
             public HashSet<FilePathReplacement> paths { get; set; }
-            public HashSet<string> allowedBodyGenDescriptors { get; set; }
-            public HashSet<string> disallowedBodyGenDescriptors { get; set; }
+            public HashSet<BodyGenConfig.MorphDescriptor> allowedBodyGenDescriptors { get; set; }
+            public HashSet<BodyGenConfig.MorphDescriptor> disallowedBodyGenDescriptors { get; set; }
             public NPCWeightRange weightRange { get; set; }
             public HashSet<Subgroup> subgroups { get; set; }
             public string TopLevelSubgroupID { get; set; }
@@ -226,6 +226,15 @@ namespace SynthEBD
                             s.disallowedRaces.Add(raceFormKey);
                         }
                     }
+                }
+
+                foreach (string str in g.allowedBodyGenDescriptors)
+                {
+                    s.allowedBodyGenDescriptors.Add(Converters.StringToMorphDescriptor(str));
+                }
+                foreach (string str in g.disallowedBodyGenDescriptors)
+                {
+                    s.disallowedBodyGenDescriptors.Add(Converters.StringToMorphDescriptor(str));
                 }
 
                 if (topLevelSubgroupID == "")

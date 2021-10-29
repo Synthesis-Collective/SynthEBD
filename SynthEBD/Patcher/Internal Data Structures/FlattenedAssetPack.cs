@@ -12,22 +12,22 @@ namespace SynthEBD
         {
             this.GroupName = source.groupName;
             this.Gender = source.gender;
-            this.Subgroups = new HashSet<HashSet<FlattenedSubgroup>>();
+            this.Subgroups = new List<HashSet<FlattenedSubgroup>>();
         }
 
         public string GroupName { get; set; }
         public Gender Gender { get; set; }
-        public HashSet<HashSet<FlattenedSubgroup>> Subgroups { get; set; }
+        public List<HashSet<FlattenedSubgroup>> Subgroups { get; set; }
 
 
-        public static FlattenedAssetPack FlattenAssetPack(AssetPack source, List<RaceGrouping> raceGroupingList)
+        public static FlattenedAssetPack FlattenAssetPack(AssetPack source, List<RaceGrouping> raceGroupingList, bool includeBodyGen)
         {
             var output = new FlattenedAssetPack(source);
 
-            foreach (var subgroup in source.subgroups)
+            for (int i = 0; i < source.subgroups.Count; i++)
             {
                 var flattenedSubgroups = new HashSet<FlattenedSubgroup>();
-                FlattenedSubgroup.FlattenSubgroups(subgroup, null, flattenedSubgroups, raceGroupingList);
+                FlattenedSubgroup.FlattenSubgroups(source.subgroups[i], null, flattenedSubgroups, raceGroupingList, output.GroupName, i, includeBodyGen, source.subgroups);
                 output.Subgroups.Add(flattenedSubgroups);
             }
 

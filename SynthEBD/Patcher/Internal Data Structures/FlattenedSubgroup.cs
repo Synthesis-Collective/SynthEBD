@@ -10,71 +10,130 @@ namespace SynthEBD
 {
     class FlattenedSubgroup
     {
-        public FlattenedSubgroup(AssetPack.Subgroup template, List<RaceGrouping> raceGroupingList)
+        public FlattenedSubgroup(AssetPack.Subgroup template, List<RaceGrouping> raceGroupingList, List<Subgroup> subgroupHierarchy)
         {
             this.Id = template.id;
             this.Name = template.name;
-            this.Enabled = template.enabled;
             this.DistributionEnabled = template.distributionEnabled;
             this.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(template.allowedRaceGroupings, raceGroupingList, template.allowedRaces);
+            if (this.AllowedRaces.Count == 0) { this.AllowedRacesIsEmpty = true; }
             this.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(template.disallowedRaceGroupings, raceGroupingList, template.disallowedRaces);
+            this.AllowedRaces = AllowedDisallowedCombiners.TrimDisallowedRacesFromAllowed(this.AllowedRaces, this.DisallowedRaces);
             this.AllowedAttributes = new HashSet<NPCAttribute>(template.allowedAttributes);
             this.DisallowedAttributes = new HashSet<NPCAttribute>(template.disallowedAttributes);
             this.ForceIfAttributes = new HashSet<NPCAttribute>(template.forceIfAttributes);
             this.AllowUnique = template.bAllowUnique;
             this.AllowNonUnique = template.bAllowNonUnique;
-            this.RequiredSubgroups = new HashSet<string>(template.requiredSubgroups);
-            this.ExcludedSubgroups = new HashSet<string>(template.excludedSubgroups);
+            this.RequiredSubgroupIDs = DictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.requiredSubgroups, subgroupHierarchy);
+            this.ExcludedSubgroupIDs = DictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.excludedSubgroups, subgroupHierarchy);
             this.AddKeywords = new HashSet<string>(template.addKeywords);
             this.ProbabilityWeighting = template.probabilityWeighting;
             this.Paths = new HashSet<FilePathReplacement>(template.paths);
-            this.AllowedBodyGenDescriptors = new HashSet<string>(template.allowedBodyGenDescriptors);
-            this.DisallowedBodyGenDescriptors = new HashSet<string>(template.disallowedBodyGenDescriptors);
+            this.AllowedBodyGenDescriptors = DictionaryMapper.MorphDescriptorsToDictionary(template.allowedBodyGenDescriptors);
+            this.DisallowedBodyGenDescriptors = DictionaryMapper.MorphDescriptorsToDictionary(template.disallowedBodyGenDescriptors);
             this.WeightRange = new NPCWeightRange { Lower = template.weightRange.Lower, Upper = template.weightRange.Upper };
+            this.ContainedSubgroupIDs = new List<string> { this.Id };
+            this.ContainedSubgroupNames = new List<string> { this.Name };
         }
         public string Id { get; set; }
         public string Name { get; set; }
-        public bool Enabled { get; set; }
         public bool DistributionEnabled { get; set; }
         public HashSet<FormKey> AllowedRaces { get; set; }
         public HashSet<FormKey> DisallowedRaces { get; set; }
-
+        public bool AllowedRacesIsEmpty { get; set; } // distinguishes between initially empty (All races valid) vs. empty after pruning of Disallowed Races (subgroup is invalid)
         public HashSet<NPCAttribute> AllowedAttributes { get; set; }
         public HashSet<NPCAttribute> DisallowedAttributes { get; set; }
         public HashSet<NPCAttribute> ForceIfAttributes { get; set; }
         public bool AllowUnique { get; set; }
         public bool AllowNonUnique { get; set; }
-        public HashSet<string> RequiredSubgroups { get; set; }
-        public HashSet<string> ExcludedSubgroups { get; set; }
+        public Dictionary<int, HashSet<string>> RequiredSubgroupIDs { get; set; }
+        public Dictionary<int, HashSet<string>> ExcludedSubgroupIDs { get; set; }
         public HashSet<string> AddKeywords { get; set; }
         public int ProbabilityWeighting { get; set; }
         public HashSet<FilePathReplacement> Paths { get; set; }
-        public HashSet<string> AllowedBodyGenDescriptors { get; set; }
-        public HashSet<string> DisallowedBodyGenDescriptors { get; set; }
+        public Dictionary<string, HashSet<string>> AllowedBodyGenDescriptors { get; set; }
+        public Dictionary<string, HashSet<string>> DisallowedBodyGenDescriptors { get; set; }
         public NPCWeightRange WeightRange { get; set; }
-        public string TopLevelSubgroupID { get; set; }
+        public int TopLevelSubgroupIndex { get; set; }
+        public string SourceAssetPack { get; set; }
+        public List<string> ContainedSubgroupIDs { get; set; }
+        public List<string> ContainedSubgroupNames { get; set; }
 
-        public static void FlattenSubgroups(AssetPack.Subgroup toFlatten, FlattenedSubgroup parent, HashSet<FlattenedSubgroup> bottomLevelSubgroups, List<RaceGrouping> raceGroupingList)
+        public static void FlattenSubgroups(AssetPack.Subgroup toFlatten, FlattenedSubgroup parent, HashSet<FlattenedSubgroup> bottomLevelSubgroups, List<RaceGrouping> raceGroupingList, string parentAssetPackName, int topLevelIndex, bool includeBodyGen, List<Subgroup> subgroupHierarchy)
         {
-            FlattenedSubgroup flattened = new FlattenedSubgroup(toFlatten, raceGroupingList);
+            if (toFlatten.enabled == false) { return; }
 
-            if (parent == null)
+            FlattenedSubgroup flattened = new FlattenedSubgroup(toFlatten, raceGroupingList, subgroupHierarchy);
+
+            if (parent != null)
             {
-                flattened.TopLevelSubgroupID = toFlatten.id;
-            }
-            else
-            {
-                flattened.TopLevelSubgroupID = parent.TopLevelSubgroupID;
+                flattened.TopLevelSubgroupIndex = topLevelIndex;
+                flattened.SourceAssetPack = parentAssetPackName;
 
                 // merge properties between current subgroup and parent
+                if (parent.DistributionEnabled == false) { flattened.DistributionEnabled = false; }
+                if (parent.AllowUnique == false) { flattened.AllowUnique = false; }
+                if (parent.AllowNonUnique == false) { flattened.AllowNonUnique = false; }
+                flattened.ProbabilityWeighting *= parent.ProbabilityWeighting;
+                flattened.ContainedSubgroupIDs.InsertRange(0, parent.ContainedSubgroupIDs);
+                flattened.ContainedSubgroupNames.InsertRange(0, parent.ContainedSubgroupNames);
 
+                //handle DisallowedRaces first
+                flattened.DisallowedRaces.UnionWith(parent.DisallowedRaces);
 
+                // if both flattened and parent AllowedRaces are empty, do nothing
+                // else if parent AllowedRaces is empty and flatted AllowedRaces is not empty, do nothing
+                // else if parent AllowedRaces is not empty and flattened AllowedRaces is empty:
+                if (parent.AllowedRaces.Count > 0 && flattened.AllowedRacesIsEmpty)
+                {
+                    flattened.AllowedRaces = parent.AllowedRaces;
+                    flattened.AllowedRacesIsEmpty = false;
+                }
+                // else if both parent AllowedRaces and flattened AllowedRaces are not empty, get their intersection
+                else if (parent.AllowedRaces.Count > 0 && flattened.AllowedRaces.Count > 0)
+                {
+                    flattened.AllowedRaces.IntersectWith(parent.AllowedRaces);
+                }
+                // now trim disallowedRaces from allowed
+                flattened.AllowedRaces = AllowedDisallowedCombiners.TrimDisallowedRacesFromAllowed(flattened.AllowedRaces, flattened.DisallowedRaces);
+                // if there are now no more AllowedRaces, the current subgroup is incompatible with parent and should be ignored along with all children
+                if (flattened.AllowedRaces.Count == 0 && flattened.AllowedRacesIsEmpty == false) { return; }
+
+                //Required / Excluded Subgroups
+                flattened.RequiredSubgroupIDs = DictionaryMapper.MergeDictionaries(new List<Dictionary<int, HashSet<string>>> { flattened.RequiredSubgroupIDs, parent.RequiredSubgroupIDs});
+                flattened.ExcludedSubgroupIDs = DictionaryMapper.MergeDictionaries(new List<Dictionary<int, HashSet<string>>> { flattened.ExcludedSubgroupIDs, parent.ExcludedSubgroupIDs });
+                bool requiredSubgroupsValid = true;
+                flattened.RequiredSubgroupIDs = AllowedDisallowedCombiners.TrimExcludedSubgroupsFromRequired(flattened.RequiredSubgroupIDs, flattened.ExcludedSubgroupIDs, out requiredSubgroupsValid);
+                if (!requiredSubgroupsValid) { return; }
+
+                // HANDLE Allowed / Disallowed / Forced Attributes!!!!!
+
+                // Weight Range
+                if (parent.WeightRange.Lower > flattened.WeightRange.Lower) { flattened.WeightRange.Lower = parent.WeightRange.Lower; }
+                if (parent.WeightRange.Upper < flattened.WeightRange.Upper) { flattened.WeightRange.Upper = parent.WeightRange.Upper; }
+
+                if (includeBodyGen)
+                {
+                    flattened.AllowedBodyGenDescriptors = DictionaryMapper.GetMorphDictionaryIntersection(flattened.AllowedBodyGenDescriptors, parent.AllowedBodyGenDescriptors);
+                    flattened.DisallowedBodyGenDescriptors = DictionaryMapper.MergeDictionaries(new List<Dictionary<string, HashSet<string>>> { flattened.DisallowedBodyGenDescriptors, parent.DisallowedBodyGenDescriptors });
+                    bool morphDescriptorsValid = true;
+                    flattened.AllowedBodyGenDescriptors = AllowedDisallowedCombiners.TrimDisallowedDescriptorsFromAllowed(flattened.AllowedBodyGenDescriptors, flattened.DisallowedBodyGenDescriptors, out morphDescriptorsValid);
+                    if (!morphDescriptorsValid) { return; }
+                }
             }
 
             if (toFlatten.subgroups.Count == 0)
             {
                 bottomLevelSubgroups.Add(flattened);
             }
+            else
+            {
+                foreach (var subgroup in toFlatten.subgroups)
+                {
+                    FlattenSubgroups(subgroup, flattened, bottomLevelSubgroups, raceGroupingList, parentAssetPackName, topLevelIndex, includeBodyGen, subgroupHierarchy);
+                }
+            }
         }
+
     }
 }

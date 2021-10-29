@@ -166,8 +166,8 @@ namespace SynthEBD
             getModelKeywords(model, viewModel);
             viewModel.probabilityWeighting = model.probabilityWeighting;
             viewModel.paths = VM_FilePathReplacement.GetViewModelsFromModels(model.paths);
-            viewModel.allowedBodyGenDescriptors = new ObservableCollection<string>(model.allowedBodyGenDescriptors);
-            viewModel.disallowedBodyGenDescriptors = new ObservableCollection<string>(model.disallowedBodyGenDescriptors);
+            //viewModel.allowedBodyGenDescriptors = new ObservableCollection<string>(model.allowedBodyGenDescriptors);
+            //viewModel.disallowedBodyGenDescriptors = new ObservableCollection<string>(model.disallowedBodyGenDescriptors);
             viewModel.weightRange = model.weightRange;
 
             foreach (var sg in model.subgroups)

@@ -29,7 +29,7 @@ namespace SynthEBD
             HashSet<FlattenedAssetPack> flattenedAssetPacks = new HashSet<FlattenedAssetPack>();
             if (generalSettings.bChangeMeshesOrTextures)
             {
-                flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x, generalSettings.RaceGroupings)).ToHashSet();
+                flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x, generalSettings.RaceGroupings, generalSettings.bEnableBodyGenIntegration)).ToHashSet();
             }
 
             foreach (var npc in env.LoadOrder.PriorityOrder.WinningOverrides<INpcGetter>())

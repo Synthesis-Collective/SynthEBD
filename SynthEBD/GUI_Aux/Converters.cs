@@ -348,7 +348,7 @@ namespace SynthEBD
             }
             catch
             {
-
+                // Warn User
             }
             return newDescriptor;
         }
