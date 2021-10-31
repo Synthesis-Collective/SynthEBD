@@ -19,7 +19,7 @@ namespace SynthEBD
         public GameEnvironmentProvider GameEnvironmentProvider { get; }
         public Paths Paths { get; }
         public VM_Settings_General SGVM { get; } = new();
-        public VM_SettingsTexMesh TMVM { get; } = new();
+        public VM_SettingsTexMesh TMVM { get; }
         public VM_SettingsBodyGen BGVM { get; }
         public VM_SettingsHeight HVM { get; } = new();
         public VM_SpecificNPCAssignmentsUI SAUIVM { get; }
@@ -56,6 +56,7 @@ namespace SynthEBD
             var LoadOrder = env.LoadOrder;
 
             BGVM = new VM_SettingsBodyGen(SGVM.RaceGroupings);
+            TMVM = new VM_SettingsTexMesh(BGVM);
             SAUIVM = new VM_SpecificNPCAssignmentsUI(TMVM, BGVM);
 
             NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, HVM, SAUIVM, BUIVM);
@@ -75,10 +76,15 @@ namespace SynthEBD
             TexMeshSettings = SettingsIO_AssetPack.LoadTexMeshSettings(Paths);
             VM_SettingsTexMesh.GetViewModelFromModel(TMVM, TexMeshSettings);
 
+            // load bodygen configs before asset packs - asset packs depend on BodyGen but not vice versa
+            BodyGenSettings = SettingsIO_BodyGen.LoadBodyGenSettings(Paths);
+            BodyGenConfigs = SettingsIO_BodyGen.loadBodyGenConfigs(GeneralSettings.RaceGroupings, Paths);
+            VM_SettingsBodyGen.GetViewModelFromModel(BodyGenConfigs, BodyGenSettings, BGVM, SGVM.RaceGroupings);
+
             // load asset packs
             List<string> loadedAssetPackPaths = new List<string>();
             AssetPacks = SettingsIO_AssetPack.loadAssetPacks(GeneralSettings.RaceGroupings, Paths, loadedAssetPackPaths); // load asset pack models from json
-            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(AssetPacks, SGVM, TexMeshSettings, loadedAssetPackPaths); // add asset pack view models to TexMesh shell view model here
+            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(AssetPacks, SGVM, TexMeshSettings, loadedAssetPackPaths, BGVM); // add asset pack view models to TexMesh shell view model here
 
             // load heights
             HeightSettings = SettingsIO_Height.LoadHeightSettings(Paths);
@@ -86,11 +92,6 @@ namespace SynthEBD
             HeightConfigs = SettingsIO_Height.loadHeightConfigs(Paths, loadedHeightPaths);
             VM_HeightConfig.GetViewModelsFromModels(HVM.AvailableHeightConfigs, HeightConfigs, loadedHeightPaths);
             VM_SettingsHeight.GetViewModelFromModel(HVM, HeightSettings); /// must do after populating configs
-
-            // load bodygen configs
-            BodyGenSettings = SettingsIO_BodyGen.LoadBodyGenSettings(Paths);
-            BodyGenConfigs = SettingsIO_BodyGen.loadBodyGenConfigs(GeneralSettings.RaceGroupings, Paths);
-            VM_SettingsBodyGen.GetViewModelFromModel(BodyGenConfigs, BodyGenSettings, BGVM, SGVM.RaceGroupings);
 
             // load specific assignments
             SpecificNPCAssignments = SettingsIO_SpecificNPCAssignments.LoadAssignments(Paths);

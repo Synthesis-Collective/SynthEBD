@@ -12,12 +12,13 @@ using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Windows;
 using System.Windows.Controls;
+using System.Collections.Specialized;
 
 namespace SynthEBD
 {
     public class VM_Subgroup : INotifyPropertyChanged
     {
-        public VM_Subgroup(ObservableCollection<VM_RaceGrouping> RaceGroupingVMs, ObservableCollection<VM_Subgroup> parentCollection)
+        public VM_Subgroup(ObservableCollection<VM_RaceGrouping> RaceGroupingVMs, ObservableCollection<VM_Subgroup> parentCollection, VM_AssetPack parentAssetPack)
         {
             this.id = "";
             this.name = "New";
@@ -37,8 +38,8 @@ namespace SynthEBD
             this.addKeywords = new ObservableCollection<VM_CollectionMemberString>();
             this.probabilityWeighting = 1;
             this.paths = new ObservableCollection<VM_FilePathReplacement>();
-            this.allowedBodyGenDescriptors = new ObservableCollection<string>();
-            this.disallowedBodyGenDescriptors = new ObservableCollection<string>();
+            this.allowedBodyGenDescriptors = new VM_BodyGenMorphDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
+            this.disallowedBodyGenDescriptors = new VM_BodyGenMorphDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
             this.weightRange = new NPCWeightRange();
             this.subgroups = new ObservableCollection<VM_Subgroup>();
 
@@ -48,6 +49,12 @@ namespace SynthEBD
             this.RequiredSubgroupIDs = new HashSet<string>();
             this.ExcludedSubgroupIDs = new HashSet<string>();
             this.ParentCollection = parentCollection;
+            this.ParentAssetPack = parentAssetPack;
+
+            //ParentAssetPack.TrackedBodyGenConfig.DescriptorUI.TemplateDescriptorList.CollectionChanged += CallRefreshTrackedMorphDescriptorsC;
+            //ParentAssetPack.TrackedBodyGenConfig.DescriptorUI.PropertyChanged += CallRefreshTrackedMorphDescriptorsP;
+            //ParentAssetPack.TrackedBodyGenConfig.PropertyChanged += CallRefreshTrackedMorphDescriptorsP;
+            //ParentAssetPack.PropertyChanged += CallRefreshTrackedMorphDescriptorsP; // this is required for now, but see if there's a way to target it so that it's only triggered when ParentAssetPack.TrackedBodyGenConfig (but not one of its sub-properties) changes.
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -76,7 +83,7 @@ namespace SynthEBD
 
             AddSubgroup = new SynthEBD.RelayCommand(
                canExecute: _ => true,
-               execute: _ => this.subgroups.Add(new VM_Subgroup(RaceGroupingVMs, this.subgroups))
+               execute: _ => this.subgroups.Add(new VM_Subgroup(RaceGroupingVMs, this.subgroups, this.ParentAssetPack))
                );
 
             DeleteMe = new SynthEBD.RelayCommand(
@@ -113,8 +120,8 @@ namespace SynthEBD
         public ObservableCollection<VM_CollectionMemberString> addKeywords { get; set; }
         public int probabilityWeighting { get; set; }
         public ObservableCollection<VM_FilePathReplacement> paths { get; set; }
-        public ObservableCollection<string> allowedBodyGenDescriptors { get; set; }
-        public ObservableCollection<string> disallowedBodyGenDescriptors { get; set; }
+        public VM_BodyGenMorphDescriptorSelectionMenu allowedBodyGenDescriptors { get; set; }
+        public VM_BodyGenMorphDescriptorSelectionMenu disallowedBodyGenDescriptors { get; set; }
         public NPCWeightRange weightRange { get; set; }
         public ObservableCollection<VM_Subgroup> subgroups { get; set; }
 
@@ -138,12 +145,13 @@ namespace SynthEBD
         public HashSet<string> ExcludedSubgroupIDs { get; set; } // temporary placeholder for ExcludedSubgroups until all subgroups are loaded in
 
         ObservableCollection<VM_Subgroup> ParentCollection { get; set; }
+        VM_AssetPack ParentAssetPack { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static VM_Subgroup GetViewModelFromModel(AssetPack.Subgroup model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_Subgroup> parentCollection)
+        public static VM_Subgroup GetViewModelFromModel(AssetPack.Subgroup model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_Subgroup> parentCollection, VM_AssetPack parentAssetPack)
         {
-            var viewModel = new VM_Subgroup(generalSettingsVM.RaceGroupings, parentCollection);
+            var viewModel = new VM_Subgroup(generalSettingsVM.RaceGroupings, parentCollection, parentAssetPack);
 
             viewModel.id = model.id;
             viewModel.name = model.name;
@@ -166,13 +174,14 @@ namespace SynthEBD
             getModelKeywords(model, viewModel);
             viewModel.probabilityWeighting = model.probabilityWeighting;
             viewModel.paths = VM_FilePathReplacement.GetViewModelsFromModels(model.paths);
-            //viewModel.allowedBodyGenDescriptors = new ObservableCollection<string>(model.allowedBodyGenDescriptors);
-            //viewModel.disallowedBodyGenDescriptors = new ObservableCollection<string>(model.disallowedBodyGenDescriptors);
             viewModel.weightRange = model.weightRange;
+
+            viewModel.allowedBodyGenDescriptors = VM_BodyGenMorphDescriptorSelectionMenu.InitializeFromHashSet(model.allowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
+            viewModel.disallowedBodyGenDescriptors = VM_BodyGenMorphDescriptorSelectionMenu.InitializeFromHashSet(model.disallowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
 
             foreach (var sg in model.subgroups)
             {
-                viewModel.subgroups.Add(GetViewModelFromModel(sg, generalSettingsVM, viewModel.subgroups));
+                viewModel.subgroups.Add(GetViewModelFromModel(sg, generalSettingsVM, viewModel.subgroups, parentAssetPack));
             }
 
             return viewModel;
@@ -202,6 +211,25 @@ namespace SynthEBD
             foreach (string kw in model.addKeywords)
             {
                 viewmodel.addKeywords.Add(new VM_CollectionMemberString(kw, viewmodel.addKeywords));
+            }
+        }
+
+        public void CallRefreshTrackedMorphDescriptorsC(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            RefreshTrackedMorphDescriptors();
+        }
+
+        public void CallRefreshTrackedMorphDescriptorsP(object sender, PropertyChangedEventArgs e)
+        {
+            RefreshTrackedMorphDescriptors();
+        }
+
+        public void RefreshTrackedMorphDescriptors()
+        {
+            if (this.ParentAssetPack.TrackedBodyGenConfig != null)
+            {
+                this.allowedBodyGenDescriptors = new VM_BodyGenMorphDescriptorSelectionMenu(this.ParentAssetPack.TrackedBodyGenConfig.DescriptorUI);
+                this.disallowedBodyGenDescriptors = new VM_BodyGenMorphDescriptorSelectionMenu(this.ParentAssetPack.TrackedBodyGenConfig.DescriptorUI);
             }
         }
     }

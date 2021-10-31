@@ -16,7 +16,7 @@ namespace SynthEBD
 {
     public class VM_AssetPack : INotifyPropertyChanged
     {
-        public VM_AssetPack(ObservableCollection<VM_AssetPack> parentCollection)
+        public VM_AssetPack(ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM)
         {
             this.groupName = "";
             this.gender = Gender.male;
@@ -32,6 +32,17 @@ namespace SynthEBD
 
             this.SourcePath = "";
 
+            this.CurrentBodyGenSettings = bodygenSettingsVM;
+
+            this.PropertyChanged += RefreshTrackedBodyGenConfig;
+            this.CurrentBodyGenSettings.PropertyChanged += RefreshTrackedBodyGenConfig;
+
+            switch (this.gender)
+            {
+                case Gender.female: this.TrackedBodyGenConfig = this.CurrentBodyGenSettings.CurrentFemaleConfig; break;
+                case Gender.male: this.TrackedBodyGenConfig = this.CurrentBodyGenSettings.CurrentMaleConfig; break;
+            }
+
             RemoveAssetPackConfigFile = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => { FileDialogs.ConfirmFileDeletion(this.SourcePath, "Asset Pack Config File"); this.ParentCollection.Remove(this); }
@@ -44,6 +55,9 @@ namespace SynthEBD
         public string userAlert { get; set; }
         public ObservableCollection<VM_Subgroup> subgroups { get; set; }
         public ObservableCollection<VM_RaceGrouping> RaceGroupingList { get; set; }
+
+        public VM_BodyGenConfig TrackedBodyGenConfig { get; set; }
+        public VM_SettingsBodyGen CurrentBodyGenSettings { get; set; }
 
         public bool IsSelected { get; set; }
 
@@ -59,13 +73,13 @@ namespace SynthEBD
 
         public RelayCommand RemoveAssetPackConfigFile { get; }
 
-        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, List<string> loadedAssetPackPaths)
+        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, List<string> loadedAssetPackPaths, VM_SettingsBodyGen bodygenSettingsVM)
         {
             ObservableCollection<VM_AssetPack> viewModels = new ObservableCollection<VM_AssetPack>();
 
             for (int i = 0; i < assetPacks.Count; i++)
             {
-                var viewModel = GetViewModelFromModel(assetPacks[i], generalSettingsVM, viewModels);
+                var viewModel = GetViewModelFromModel(assetPacks[i], generalSettingsVM, viewModels, bodygenSettingsVM);
                 viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].groupName);
 
                 viewModel.SourcePath = loadedAssetPackPaths[i];
@@ -74,9 +88,9 @@ namespace SynthEBD
             }
             return viewModels;
         }
-        public static VM_AssetPack GetViewModelFromModel(AssetPack model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_AssetPack> parentCollection)
+        public static VM_AssetPack GetViewModelFromModel(AssetPack model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM)
         {
-            var viewModel = new VM_AssetPack(parentCollection);
+            var viewModel = new VM_AssetPack(parentCollection, bodygenSettingsVM);
             viewModel.groupName = model.groupName;
             viewModel.gender = model.gender;
             viewModel.displayAlerts = model.displayAlerts;
@@ -86,7 +100,7 @@ namespace SynthEBD
 
             foreach (var sg in model.subgroups)
             {
-                viewModel.subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM, viewModel.subgroups));
+                viewModel.subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM, viewModel.subgroups, viewModel));
             }
 
             // go back through now that all subgroups have corresponding view models, and link the required and excluded subgroups
@@ -164,6 +178,15 @@ namespace SynthEBD
                     break;
                 case MessageBoxResult.No:
                     break;
+            }
+        }
+
+        public void RefreshTrackedBodyGenConfig(object sender, PropertyChangedEventArgs e)
+        {
+            switch (this.gender)
+            {
+                case Gender.female: this.TrackedBodyGenConfig = this.CurrentBodyGenSettings.CurrentFemaleConfig; break;
+                case Gender.male: this.TrackedBodyGenConfig = this.CurrentBodyGenSettings.CurrentMaleConfig; break;
             }
         }
 

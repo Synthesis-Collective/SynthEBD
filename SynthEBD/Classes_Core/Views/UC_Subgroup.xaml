@@ -38,6 +38,8 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">ID</TextBlock>
@@ -189,7 +191,25 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <Button Grid.Row="20" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddSubgroup}" Foreground="Lightgreen">Add Child Subgroup</Button>
-        <Button Grid.Row="21" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding DeleteMe}" Foreground="Firebrick">Remove This Subgroup</Button>
+        <TextBlock Grid.Row="20" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top">Allowed BodyGen Descriptors</TextBlock>
+        <ContentPresenter Grid.Row="20" Grid.Column="1"  Content="{Binding allowedBodyGenDescriptors}">
+            <ContentPresenter.Resources>
+                <DataTemplate DataType="{x:Type local:VM_BodyGenMorphDescriptorSelectionMenu}">
+                    <local:UC_BodyGenMorphDescriptorSelectionMenu Background="Black" Margin="0 0 0 10"/>
+                </DataTemplate>
+            </ContentPresenter.Resources>
+        </ContentPresenter>
+        
+        <TextBlock Grid.Row="21" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top">Disllowed BodyGen Descriptors</TextBlock>
+        <ContentPresenter Grid.Row="21" Grid.Column="1"  Content="{Binding disallowedBodyGenDescriptors}">
+            <ContentPresenter.Resources>
+                <DataTemplate DataType="{x:Type local:VM_BodyGenMorphDescriptorSelectionMenu}">
+                    <local:UC_BodyGenMorphDescriptorSelectionMenu Background="Black" Margin="0 0 0 10"/>
+                </DataTemplate>
+            </ContentPresenter.Resources>
+        </ContentPresenter>
+
+        <Button Grid.Row="22" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddSubgroup}" Foreground="Lightgreen">Add Child Subgroup</Button>
+        <Button Grid.Row="23" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding DeleteMe}" Foreground="Firebrick">Remove This Subgroup</Button>
     </Grid>
 </UserControl>

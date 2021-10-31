@@ -141,7 +141,7 @@ namespace SynthEBD
             viewModel.Notes = model.Notes;
             viewModel.Specs = model.Specs;
             viewModel.GroupSelectionCheckList.InitializeFromHashSet(model.MemberOfTemplateGroups);
-            viewModel.DescriptorsSelectionMenu = VM_BodyGenMorphDescriptorSelectionMenu.InitializeFromTemplate(model, descriptorMenu);
+            viewModel.DescriptorsSelectionMenu = VM_BodyGenMorphDescriptorSelectionMenu.InitializeFromHashSet(model.MorphDescriptors, descriptorMenu);
             viewModel.AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
             viewModel.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
             foreach (var grouping in viewModel.AllowedRaceGroupings.RaceGroupingSelections)

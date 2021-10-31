@@ -72,10 +72,10 @@ namespace SynthEBD
             this.UpdateHeader();
         }
 
-        public static VM_BodyGenMorphDescriptorSelectionMenu InitializeFromTemplate(BodyGenConfig.BodyGenTemplate template, VM_BodyGenMorphDescriptorMenu trackedMenu)
+        public static VM_BodyGenMorphDescriptorSelectionMenu InitializeFromHashSet(HashSet<BodyGenConfig.MorphDescriptor> morphDescriptors, VM_BodyGenMorphDescriptorMenu trackedMenu)
         {
             var menu = new VM_BodyGenMorphDescriptorSelectionMenu(trackedMenu);
-            foreach (var descriptor in template.MorphDescriptors)
+            foreach (var descriptor in morphDescriptors)
             {
                 bool keepLooking = true;
                 foreach (var Descriptor in menu.DescriptorShells)

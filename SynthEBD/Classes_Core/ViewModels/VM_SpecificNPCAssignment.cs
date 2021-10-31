@@ -23,7 +23,7 @@ namespace SynthEBD
             
             this.DispName = "New Assignment";
             this.NPCFormKey = new FormKey();
-            this.ForcedAssetPack = new VM_AssetPack(new ObservableCollection<VM_AssetPack>());
+            this.ForcedAssetPack = new VM_AssetPack(new ObservableCollection<VM_AssetPack>(), bodyGenSettings);
             this.ForcedSubgroups = new ObservableCollection<VM_Subgroup>();
             this.ForcedHeight = "";
             this.ForcedBodyGenMorphs = new ObservableCollection<VM_BodyGenTemplate>();
