@@ -1,0 +1,26 @@
+﻿<UserControl x:Class="SynthEBD.UC_LogDisplay"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:SynthEBD"
+             d:DataContext="{d:DesignInstance Type=local:VM_LogDisplay}"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Status Log"/>
+        <Border Grid.Row="1" Grid.Column="0"  BorderBrush="DarkCyan" BorderThickness="1" Margin="10">
+            <ScrollViewer local:AutoScrollBehavior.AutoScroll="True">
+                <TextBlock Text="{Binding Path=DispString}" FontSize="12"/>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</UserControl>

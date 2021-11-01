@@ -106,11 +106,17 @@ namespace SynthEBD
                 flattened.RequiredSubgroupIDs = AllowedDisallowedCombiners.TrimExcludedSubgroupsFromRequired(flattened.RequiredSubgroupIDs, flattened.ExcludedSubgroupIDs, out requiredSubgroupsValid);
                 if (!requiredSubgroupsValid) { return; }
 
-                // HANDLE Allowed / Disallowed / Forced Attributes!!!!!
+                // Attribute Merging
+                flattened.AllowedAttributes = InheritParentAttributes(parent.AllowedAttributes, flattened.AllowedAttributes);
+                flattened.DisallowedAttributes = InheritParentAttributes(parent.DisallowedAttributes, flattened.DisallowedAttributes);
+                flattened.ForceIfAttributes = InheritParentAttributes(parent.ForceIfAttributes, flattened.ForceIfAttributes);
 
                 // Weight Range
                 if (parent.WeightRange.Lower > flattened.WeightRange.Lower) { flattened.WeightRange.Lower = parent.WeightRange.Lower; }
                 if (parent.WeightRange.Upper < flattened.WeightRange.Upper) { flattened.WeightRange.Upper = parent.WeightRange.Upper; }
+
+                // Paths
+                flattened.Paths.UnionWith(parent.Paths);
 
                 if (includeBodyGen)
                 {
@@ -135,5 +141,46 @@ namespace SynthEBD
             }
         }
 
+        // Grouped Sub Attributes get merged together. E.g:
+        // Parent has attributes (A && B) || (C && D)
+        // Child has attributes (E && F) || (G && H)
+        // After inheriting, child will have attributes (A && B && E && F) || (A && B && G && H) || (C && D && E && F) || (C && D && G && H)
+        private static HashSet<NPCAttribute> InheritParentAttributes(HashSet<NPCAttribute> parentAttributes, HashSet<NPCAttribute> childAttributes)
+        {
+            var mergedAttributes = new HashSet<NPCAttribute>();
+
+            if (parentAttributes.Count > 0 && childAttributes.Count == 0)
+            {
+                return parentAttributes;
+            }
+            else if (childAttributes.Count > 0 && parentAttributes.Count == 0)
+            {
+                return childAttributes;
+            }
+            else
+            {
+                foreach (var childAttribute in childAttributes)
+                {
+                    foreach (var parentAttribute in parentAttributes)
+                    {
+                        var combinedAttribute = new NPCAttribute();
+
+                        foreach (var subParentAttribute in parentAttribute.GroupedSubAttributes)
+                        {
+                            combinedAttribute.GroupedSubAttributes.Add(subParentAttribute);
+                        }
+
+                        foreach (var subChildAttribute in childAttribute.GroupedSubAttributes)
+                        {
+                            combinedAttribute.GroupedSubAttributes.Add(subChildAttribute);
+                        }
+
+                        mergedAttributes.Add(combinedAttribute);
+                    }
+                }
+            }
+
+            return mergedAttributes;
+        }
     }
 }

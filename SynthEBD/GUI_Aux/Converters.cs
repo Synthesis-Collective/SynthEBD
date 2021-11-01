@@ -153,73 +153,55 @@ namespace SynthEBD
 
             if (classAttributes.Count > 0)
             {
-                NPCAttributeShell shell = new NPCAttributeShell();
-                shell.Type = NPCAttributeType.Class;
                 NPCAttributeClass tmpAttr = new NPCAttributeClass();
-                tmpAttr.ClassFormKeys = classAttributes;
-                shell.Attribute = tmpAttr;
+                tmpAttr.FormKeys = classAttributes;
                 NPCAttribute newAttr = new NPCAttribute();
-                newAttr.GroupedSubAttributes.Add(shell);
+                newAttr.GroupedSubAttributes.Add(tmpAttr);
                 h.Add(newAttr);
             }
 
             if (faceTextureAttributes.Count > 0)
             {
-                NPCAttributeShell shell = new NPCAttributeShell();
-                shell.Type = NPCAttributeType.FaceTexture;
                 NPCAttributeFaceTexture tmpAttr = new NPCAttributeFaceTexture();
-                tmpAttr.FaceTextureFormKeys = faceTextureAttributes;
-                shell.Attribute = tmpAttr;
+                tmpAttr.FormKeys = faceTextureAttributes;
                 NPCAttribute newAttr = new NPCAttribute();
-                newAttr.GroupedSubAttributes.Add(shell);
+                newAttr.GroupedSubAttributes.Add(tmpAttr);
                 h.Add(newAttr);
             }
 
             if (factionAttributes.Count > 0)
             {
-                NPCAttributeShell shell = new NPCAttributeShell();
-                shell.Type = NPCAttributeType.Faction;
                 NPCAttributeFactions tmpAttr = new NPCAttributeFactions();
-                tmpAttr.FactionFormKeys = factionAttributes;
-                shell.Attribute = tmpAttr;
+                tmpAttr.FormKeys = factionAttributes;
                 NPCAttribute newAttr = new NPCAttribute();
-                newAttr.GroupedSubAttributes.Add(shell);
+                newAttr.GroupedSubAttributes.Add(tmpAttr);
                 h.Add(newAttr);
             }
 
             if (npcAttributes.Count > 0)
             {
-                NPCAttributeShell shell = new NPCAttributeShell();
-                shell.Type = NPCAttributeType.NPC;
                 NPCAttributeNPC tmpAttr = new NPCAttributeNPC();
-                tmpAttr.NPCFormKeys = npcAttributes;
-                shell.Attribute = tmpAttr;
+                tmpAttr.FormKeys = npcAttributes;
                 NPCAttribute newAttr = new NPCAttribute();
-                newAttr.GroupedSubAttributes.Add(shell);
+                newAttr.GroupedSubAttributes.Add(tmpAttr);
                 h.Add(newAttr);
             }
 
             if (raceAttributes.Count > 0)
             {
-                NPCAttributeShell shell = new NPCAttributeShell();
-                shell.Type = NPCAttributeType.Race;
                 NPCAttributeRace tmpAttr = new NPCAttributeRace();
-                tmpAttr.RaceFormKeys = raceAttributes;
-                shell.Attribute = tmpAttr;
+                tmpAttr.FormKeys = raceAttributes;
                 NPCAttribute newAttr = new NPCAttribute();
-                newAttr.GroupedSubAttributes.Add(shell);
+                newAttr.GroupedSubAttributes.Add(tmpAttr);
                 h.Add(newAttr);
             }
 
             if (voiceTypeAttributes.Count > 0)
             {
-                NPCAttributeShell shell = new NPCAttributeShell();
-                shell.Type = NPCAttributeType.VoiceType;
                 NPCAttributeVoiceType tmpAttr = new NPCAttributeVoiceType();
-                tmpAttr.VoiceTypeFormKeys = voiceTypeAttributes;
-                shell.Attribute = tmpAttr;
+                tmpAttr.FormKeys = voiceTypeAttributes;
                 NPCAttribute newAttr = new NPCAttribute();
-                newAttr.GroupedSubAttributes.Add(shell);
+                newAttr.GroupedSubAttributes.Add(tmpAttr);
                 h.Add(newAttr);
             }
 

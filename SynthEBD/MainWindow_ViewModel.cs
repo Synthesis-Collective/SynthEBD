@@ -33,6 +33,7 @@ namespace SynthEBD
 
         public object StatusBarVM { get; set; }
 
+        public VM_LogDisplay LogDisplayVM { get; set; } = new();
         public List<AssetPack> AssetPacks { get; }
 
         public Settings_General GeneralSettings { get; }

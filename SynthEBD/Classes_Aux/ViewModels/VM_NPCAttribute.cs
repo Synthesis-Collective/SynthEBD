@@ -72,12 +72,12 @@ namespace SynthEBD
                 shellVM.Type = attributeShell.Type;
                 switch (attributeShell.Type)
                 {
-                    case NPCAttributeType.Class: shellVM.Attribute = VM_NPCAttributeClass.getViewModelFromModel((NPCAttributeClass)attributeShell.Attribute, viewModel, shellVM); break;
-                    case NPCAttributeType.Faction: shellVM.Attribute = VM_NPCAttributeFactions.getViewModelFromModel((NPCAttributeFactions)attributeShell.Attribute, viewModel, shellVM); break;
-                    case NPCAttributeType.FaceTexture: shellVM.Attribute = VM_NPCAttributeFaceTexture.getViewModelFromModel((NPCAttributeFaceTexture)attributeShell.Attribute, viewModel, shellVM); break;
-                    case NPCAttributeType.Race: shellVM.Attribute = VM_NPCAttributeRace.getViewModelFromModel((NPCAttributeRace)attributeShell.Attribute, viewModel, shellVM); break;
-                    case NPCAttributeType.NPC: shellVM.Attribute = VM_NPCAttributeNPC.getViewModelFromModel((NPCAttributeNPC)attributeShell.Attribute, viewModel, shellVM); break;
-                    case NPCAttributeType.VoiceType: shellVM.Attribute = VM_NPCAttributeVoiceType.getViewModelFromModel((NPCAttributeVoiceType)attributeShell.Attribute, viewModel, shellVM); break;
+                    case NPCAttributeType.Class: shellVM.Attribute = VM_NPCAttributeClass.getViewModelFromModel((NPCAttributeClass)attributeShell, viewModel, shellVM); break;
+                    case NPCAttributeType.Faction: shellVM.Attribute = VM_NPCAttributeFactions.getViewModelFromModel((NPCAttributeFactions)attributeShell, viewModel, shellVM); break;
+                    case NPCAttributeType.FaceTexture: shellVM.Attribute = VM_NPCAttributeFaceTexture.getViewModelFromModel((NPCAttributeFaceTexture)attributeShell, viewModel, shellVM); break;
+                    case NPCAttributeType.Race: shellVM.Attribute = VM_NPCAttributeRace.getViewModelFromModel((NPCAttributeRace)attributeShell, viewModel, shellVM); break;
+                    case NPCAttributeType.NPC: shellVM.Attribute = VM_NPCAttributeNPC.getViewModelFromModel((NPCAttributeNPC)attributeShell, viewModel, shellVM); break;
+                    case NPCAttributeType.VoiceType: shellVM.Attribute = VM_NPCAttributeVoiceType.getViewModelFromModel((NPCAttributeVoiceType)attributeShell, viewModel, shellVM); break;
                     default: //WARN USER
                         break;
                 }
@@ -157,7 +157,7 @@ namespace SynthEBD
         public static VM_NPCAttributeVoiceType getViewModelFromModel(NPCAttributeVoiceType model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
             var newAtt = new VM_NPCAttributeVoiceType(parentVM, parentShell);
-            newAtt.VoiceTypeFormKeys = new ObservableCollection<FormKey>(model.VoiceTypeFormKeys);
+            newAtt.VoiceTypeFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
             return newAtt;
         }
     }
@@ -182,7 +182,7 @@ namespace SynthEBD
         public static VM_NPCAttributeClass getViewModelFromModel(NPCAttributeClass model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
             var newAtt = new VM_NPCAttributeClass(parentVM, parentShell);
-            newAtt.ClassFormKeys = new ObservableCollection<FormKey>(model.ClassFormKeys);
+            newAtt.ClassFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
             return newAtt;
         }
     }
@@ -210,7 +210,7 @@ namespace SynthEBD
         public static VM_NPCAttributeFactions getViewModelFromModel(NPCAttributeFactions model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
             var newAtt = new VM_NPCAttributeFactions(parentVM, parentShell);
-            newAtt.FactionFormKeys = new ObservableCollection<FormKey>(model.FactionFormKeys);
+            newAtt.FactionFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
             newAtt.RankMin = model.RankMin;
             newAtt.RankMax = model.RankMax;
             return newAtt;
@@ -236,7 +236,7 @@ namespace SynthEBD
         public static VM_NPCAttributeFaceTexture getViewModelFromModel(NPCAttributeFaceTexture model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
             var newAtt = new VM_NPCAttributeFaceTexture(parentVM, parentShell);
-            newAtt.FaceTextureFormKeys = new ObservableCollection<FormKey>(model.FaceTextureFormKeys);
+            newAtt.FaceTextureFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
             return newAtt;
         }
     }
@@ -260,7 +260,7 @@ namespace SynthEBD
         public static VM_NPCAttributeRace getViewModelFromModel(NPCAttributeRace model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
             var newAtt = new VM_NPCAttributeRace(parentVM, parentShell);
-            newAtt.RaceFormKeys = new ObservableCollection<FormKey>(model.RaceFormKeys);
+            newAtt.RaceFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
             return newAtt;
         }
     }
@@ -284,7 +284,7 @@ namespace SynthEBD
         public static VM_NPCAttributeNPC getViewModelFromModel(NPCAttributeNPC model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
             var newAtt = new VM_NPCAttributeNPC(parentVM, parentShell);
-            newAtt.NPCFormKeys = new ObservableCollection<FormKey>(model.NPCFormKeys);
+            newAtt.NPCFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
             return newAtt;
         }
     }

@@ -11,8 +11,10 @@ namespace SynthEBD
 {
     public class MainLoop
     {
-        public static void RunPatcher(Settings_General generalSettings, Settings_TexMesh texMeshSettings, Settings_Height heightSettings, Settings_BodyGen bodyGenSettings, List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, HashSet<SpecificNPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths)
+        public static async Task RunPatcher(Settings_General generalSettings, Settings_TexMesh texMeshSettings, Settings_Height heightSettings, Settings_BodyGen bodyGenSettings, List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, HashSet<SpecificNPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths)
         {
+            Logger.UpdateStatus("Patching", false);
+
             var env = new GameEnvironmentProvider().MyEnvironment;
 
             FormKey assetsRace;
@@ -32,8 +34,12 @@ namespace SynthEBD
                 flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x, generalSettings.RaceGroupings, generalSettings.bEnableBodyGenIntegration)).ToHashSet();
             }
 
+            int npcCounter = 0;
             foreach (var npc in env.LoadOrder.PriorityOrder.WinningOverrides<INpcGetter>())
             {
+                npcCounter++;
+                if (npcCounter % 100 == 0) { Logger.LogMessage("Examined" + npcCounter.ToString() + " NPCs."); }
+
                 assetsRace = AliasHandler.GetAliasTexMesh(generalSettings, npc.Race.FormKey);
                 bodyGenRace = AliasHandler.GetAliasBodyGen(generalSettings, npc.Race.FormKey);
                 heightRace = AliasHandler.GetAliasHeight(generalSettings, npc.Race.FormKey);
@@ -82,6 +88,9 @@ namespace SynthEBD
 
                 }
             }
+
+
+            Logger.LogMessage("Finished patching.");
         }
     }
 }

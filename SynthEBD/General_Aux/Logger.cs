@@ -48,6 +48,11 @@ namespace SynthEBD
             }
         }
 
+        public static void LogMessage(string message)
+        {
+            Instance.LogString += message + "\n";
+        }
+
         public static void LogError(string error)
         {
             Instance.LogString += error + "\n";
@@ -61,6 +66,15 @@ namespace SynthEBD
             {
                 case ErrorType.Warning: Instance.StatusColor = Instance.WarningColor; break;
                 case ErrorType.Error: Instance.StatusColor = Instance.ErrorColor; break;
+            }
+        }
+
+        public static void UpdateStatus(string message, bool triggerWarning)
+        {
+            Instance.StatusString = message;
+            if (triggerWarning)
+            {
+                Instance.StatusColor = Instance.WarningColor;
             }
         }
 

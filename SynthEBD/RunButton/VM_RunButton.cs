@@ -17,8 +17,12 @@ namespace SynthEBD
 
             ClickRun = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => MainLoop.RunPatcher(ParentWindow.GeneralSettings, ParentWindow.TexMeshSettings, ParentWindow.HeightSettings, ParentWindow.BodyGenSettings, ParentWindow.AssetPacks, ParentWindow.HeightConfigs, ParentWindow.SpecificNPCAssignments, ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths)
-                ) ;
+                execute: async _ =>
+                {
+                    ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
+                    await MainLoop.RunPatcher(ParentWindow.GeneralSettings, ParentWindow.TexMeshSettings, ParentWindow.HeightSettings, ParentWindow.BodyGenSettings, ParentWindow.AssetPacks, ParentWindow.HeightConfigs, ParentWindow.SpecificNPCAssignments, ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths);
+                }
+        );
         }
         public SolidColorBrush BackgroundColor { get; set; }
 

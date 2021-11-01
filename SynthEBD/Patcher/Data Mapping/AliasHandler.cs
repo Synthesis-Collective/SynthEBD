@@ -13,7 +13,7 @@ namespace SynthEBD
         {
             var alias = settings.raceAliases.Where(x => x.bApplyToAssets && x.race == npcRaceFormKey).Select(x => x.aliasRace).FirstOrDefault();
 
-            if (alias != null)
+            if (!alias.IsNull)
             {
                 return alias;
             }
@@ -27,7 +27,7 @@ namespace SynthEBD
         {
             var alias = settings.raceAliases.Where(x => x.bApplyToBodyGen && x.race == npcRaceFormKey).Select(x => x.aliasRace).FirstOrDefault();
 
-            if (alias != null)
+            if (!alias.IsNull)
             {
                 return alias;
             }
@@ -41,7 +41,7 @@ namespace SynthEBD
         {
             var alias = settings.raceAliases.Where(x => x.bApplyToHeight && x.race == npcRaceFormKey).Select(x => x.aliasRace).FirstOrDefault();
 
-            if (alias != null)
+            if (!alias.IsNull)
             {
                 return alias;
             }

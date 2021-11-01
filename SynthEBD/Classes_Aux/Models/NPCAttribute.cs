@@ -7,14 +7,15 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
+    // Each NPCAttribute within a HashSet<NPC> Attribute is treated with OR logic; i.e. if an NPC matches ANY of the NPCAttributes, the NPCAttribute's parent object can be assigned to the NPC
     public class NPCAttribute
     {
         public NPCAttribute()
         {
-            this.GroupedSubAttributes = new HashSet<NPCAttributeShell>();
+            this.GroupedSubAttributes = new HashSet<ITypedNPCAttribute>(); // Each NPCAttributeShell is treated with AND logic; i.e. the NPC must match ALL of the GroupedSubAttributes for the parent object to be assigned to the NPC.
         }
 
-        public HashSet<NPCAttributeShell> GroupedSubAttributes { get; set; }
+        public HashSet<ITypedNPCAttribute> GroupedSubAttributes { get; set; }
     }
 
     public enum NPCAttributeType
@@ -28,72 +29,78 @@ namespace SynthEBD
         VoiceType
     }
 
-    public class NPCAttributeShell
-    {
-       public NPCAttributeShell()
-        {
-            this.Type = NPCAttributeType.Class;
-            this.Attribute = new NPCAttributeClass();
-        }
-        public object Attribute { get; set; }
-        public NPCAttributeType Type { get; set; }
-    }
-
-    public class NPCAttributeVoiceType
+    public class NPCAttributeVoiceType : ITypedNPCAttribute
     {
         public NPCAttributeVoiceType()
         {
-            this.VoiceTypeFormKeys = new HashSet<FormKey>();
+            this.FormKeys = new HashSet<FormKey>();
+            this.Type = NPCAttributeType.VoiceType;
         }
-        public HashSet<FormKey> VoiceTypeFormKeys { get; set; }
+        public HashSet<FormKey> FormKeys { get; set; }
+        public NPCAttributeType Type { get; set; }
     }
 
-    public class NPCAttributeClass
+    public class NPCAttributeClass : ITypedNPCAttribute
     {
         public NPCAttributeClass()
         {
-            this.ClassFormKeys = new HashSet<FormKey>();
+            this.FormKeys = new HashSet<FormKey>();
+            this.Type = NPCAttributeType.Class;
         }
-        public HashSet<FormKey> ClassFormKeys { get; set; }
+        public HashSet<FormKey> FormKeys { get; set; }
+        public NPCAttributeType Type { get; set; }
     }
 
-    public class NPCAttributeFactions
+    public class NPCAttributeFactions : ITypedNPCAttribute
     {
         public NPCAttributeFactions()
         {
-            this.FactionFormKeys = new HashSet<FormKey>();
+            this.FormKeys = new HashSet<FormKey>();
             this.RankMin = -1;
             this.RankMax = 100;
+            this.Type = NPCAttributeType.Faction;
         }
-        public HashSet<FormKey> FactionFormKeys { get; set; }
+        public HashSet<FormKey> FormKeys { get; set; }
         public int RankMin { get; set; }
         public int RankMax { get; set; }
+        public NPCAttributeType Type { get; set; }
     }
 
-    public class NPCAttributeFaceTexture
+    public class NPCAttributeFaceTexture : ITypedNPCAttribute
     {
         public NPCAttributeFaceTexture()
         {
-            this.FaceTextureFormKeys = new HashSet<FormKey>();
+            this.FormKeys = new HashSet<FormKey>();
+            this.Type = NPCAttributeType.FaceTexture;
         }
-        public HashSet<FormKey> FaceTextureFormKeys { get; set; }
+        public HashSet<FormKey> FormKeys { get; set; }
+        public NPCAttributeType Type { get; set; }
     }
 
-    public class NPCAttributeRace
+    public class NPCAttributeRace : ITypedNPCAttribute
     {
         public NPCAttributeRace()
         {
-            this.RaceFormKeys = new HashSet<FormKey>();
+            this.FormKeys = new HashSet<FormKey>();
+            this.Type = NPCAttributeType.Race;
         }
-        public HashSet<FormKey> RaceFormKeys { get; set; }
+        public HashSet<FormKey> FormKeys { get; set; }
+        public NPCAttributeType Type { get; set; }
     }
 
-    public class NPCAttributeNPC
+    public class NPCAttributeNPC : ITypedNPCAttribute
     {
         public NPCAttributeNPC()
         {
-            this.NPCFormKeys = new HashSet<FormKey>();
+            this.FormKeys = new HashSet<FormKey>();
+            this.Type = NPCAttributeType.NPC;
         }
-        public HashSet<FormKey> NPCFormKeys { get; set; }
+        public HashSet<FormKey> FormKeys { get; set; }
+        public NPCAttributeType Type { get; set; }
+    }
+
+    public interface ITypedNPCAttribute
+    {
+        NPCAttributeType Type { get; set; }
     }
 }
