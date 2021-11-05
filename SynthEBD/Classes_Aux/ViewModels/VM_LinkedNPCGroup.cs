@@ -17,7 +17,7 @@ namespace SynthEBD
         {
             this.GroupName = "";
             this.NPCFormKeys = new ObservableCollection<FormKey>();
-            this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
+            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
         }
 

@@ -93,7 +93,7 @@ namespace SynthEBD
             this.FemaleHeightRange = "0.020000";
 
             this.FormKeyPickerTypes = typeof(IRaceGetter).AsEnumerable();
-            this.lk = GameEnvironmentProvider.Instance.MyEnvironment.LinkCache;
+            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
         }
 

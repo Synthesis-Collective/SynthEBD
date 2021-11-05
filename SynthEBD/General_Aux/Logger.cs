@@ -115,15 +115,23 @@ namespace SynthEBD
         }
         public static void StartTimer()
         {
-            Instance.UpdateTimer = new System.Windows.Threading.DispatcherTimer();
+            Instance.UpdateTimer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Background, System.Windows.Application.Current.Dispatcher); // arguments here are forcing the dispatcher to run on the UI thread (otherwise UpdateTimer.Tick fires on a different thread and gets missed by the UI, so the event handler is never called).
             Instance.EllapsedTimer = new System.Diagnostics.Stopwatch();
             Instance.UpdateTimer.Interval = TimeSpan.FromSeconds(1);
-            Instance.UpdateTimer.Tick += new EventHandler((object s, EventArgs a) =>
-            {
-                UpdateStatus("Patching: " + GetEllapsedTime(), false);
-            });
+            Instance.UpdateTimer.Tick += timer_Tick;
             Instance.UpdateTimer.Start();
             Instance.EllapsedTimer.Start();
+        }
+
+        public static void StopTimer()
+        {
+            Instance.EllapsedTimer.Stop();
+            Instance.UpdateTimer.Stop();
+        }
+
+        private static void timer_Tick(object sender, EventArgs e)
+        {
+            UpdateStatus("Patching: " + GetEllapsedTime(), false);
         }
 
         public static string GetEllapsedTime()

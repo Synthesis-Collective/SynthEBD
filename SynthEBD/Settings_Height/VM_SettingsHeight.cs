@@ -20,7 +20,7 @@ namespace SynthEBD
             this.SelectedHeightConfig = new VM_HeightConfig();
             this.AvailableHeightConfigs = new ObservableCollection<VM_HeightConfig>();
 
-            this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
+            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             AddHeightConfig = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ =>

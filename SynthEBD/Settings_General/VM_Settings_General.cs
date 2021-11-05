@@ -36,7 +36,7 @@ namespace SynthEBD
             this.raceAliases = new ObservableCollection<VM_raceAlias>();
             this.RaceGroupings = new ObservableCollection<VM_RaceGrouping>();
 
-            this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
+            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
             this.NPCPickerFormKeys = typeof(INpcGetter).AsEnumerable();
 
@@ -44,12 +44,12 @@ namespace SynthEBD
 
             AddRaceAlias = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.raceAliases.Add(new VM_raceAlias(new RaceAlias(), new GameEnvironmentProvider().MyEnvironment, this))
+                execute: _ => this.raceAliases.Add(new VM_raceAlias(new RaceAlias(), GameEnvironmentProvider.MyEnvironment, this))
                 );
 
             AddRaceGrouping = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.RaceGroupings.Add(new VM_RaceGrouping(new RaceGrouping(), new GameEnvironmentProvider().MyEnvironment, this))
+                execute: _ => this.RaceGroupings.Add(new VM_RaceGrouping(new RaceGrouping(), GameEnvironmentProvider.MyEnvironment, this))
                 );
 
             AddLinkedNPCNameExclusion = new SynthEBD.RelayCommand(
@@ -114,8 +114,8 @@ namespace SynthEBD
             viewModel.verboseModeNPClist = new ObservableCollection<FormKey>(model.verboseModeNPClist);
             viewModel.bLoadSettingsFromDataFolder = model.bLoadSettingsFromDataFolder;
             viewModel.patchableRaces = new ObservableCollection<FormKey>(model.patchableRaces);
-            viewModel.raceAliases = VM_raceAlias.GetViewModelsFromModels(model.raceAliases, new GameEnvironmentProvider().MyEnvironment, viewModel);
-            viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, new GameEnvironmentProvider().MyEnvironment, viewModel);
+            viewModel.raceAliases = VM_raceAlias.GetViewModelsFromModels(model.raceAliases, GameEnvironmentProvider.MyEnvironment, viewModel);
+            viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, GameEnvironmentProvider.MyEnvironment, viewModel);
         }
         public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
         {

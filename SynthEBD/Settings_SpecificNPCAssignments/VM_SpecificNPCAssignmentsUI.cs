@@ -48,7 +48,7 @@ namespace SynthEBD
 
         public static void GetViewModelFromModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<SpecificNPCAssignment> models)
         {
-            var env = new GameEnvironmentProvider().MyEnvironment;
+            var env = GameEnvironmentProvider.MyEnvironment;
             foreach (var assignment in models)
             {
                 viewModel.Assignments.Add(VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, viewModel.TexMeshSettings.AssetPacks, viewModel.BodyGenSettings, env));
@@ -86,7 +86,7 @@ namespace SynthEBD
                     var zSpecificNPCAssignments = DeserializeFromJSON<HashSet<zEBDSpecificNPCAssignment>>.loadJSONFile(filename);
                     var newModels = zEBDSpecificNPCAssignment.ToSynthEBDNPCAssignments(zSpecificNPCAssignments);
 
-                    var env = new GameEnvironmentProvider().MyEnvironment;
+                    var env = GameEnvironmentProvider.MyEnvironment;
 
                     foreach (var model in newModels)
                     {

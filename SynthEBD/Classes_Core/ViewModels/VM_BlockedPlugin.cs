@@ -20,7 +20,7 @@ namespace SynthEBD
             this.Height = false;
             this.BodyGen = false;
 
-            this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
+            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
         }
 
         // Caption

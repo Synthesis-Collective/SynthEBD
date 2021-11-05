@@ -20,7 +20,7 @@ namespace SynthEBD
             Logger.UpdateStatus("Patching", false);
             Logger.StartTimer();
 
-            var env = new GameEnvironmentProvider().MyEnvironment;
+            var env = GameEnvironmentProvider.MyEnvironment;
 
             FormKey assetsRace;
             FormKey bodyGenRace;
@@ -53,8 +53,7 @@ namespace SynthEBD
                 heightRace = AliasHandler.GetAliasHeight(generalSettings, npc.Race.FormKey);
 
                 blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(blockList, npc.FormKey);
-                blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey, env);
-                //blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey);
+                blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey);
 
                 if (blockListNPCEntry.Assets || blockListPluginEntry.Assets) { blockAssets = true; }
                 else { blockAssets = false; }
@@ -98,7 +97,7 @@ namespace SynthEBD
                 }
             }
 
-
+            Logger.StopTimer();
             Logger.LogMessage("Finished patching.");
             Logger.UpdateStatus("Finished Patching", false);
         }

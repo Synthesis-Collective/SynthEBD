@@ -63,7 +63,7 @@ namespace SynthEBD
         public static BlockList ToSynthEBD(zEBDBlockList zList)
         {
             BlockList sList = new BlockList();
-            var env = new GameEnvironmentProvider().MyEnvironment;
+            var env = GameEnvironmentProvider.MyEnvironment;
 
             foreach (var npc in zList.blockedNPCs)
             {

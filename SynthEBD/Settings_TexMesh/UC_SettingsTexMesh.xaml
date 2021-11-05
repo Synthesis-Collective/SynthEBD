@@ -55,11 +55,11 @@
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock VerticalAlignment="Center">Remove "</TextBlock>
-                                    <TextBox Text="{Binding PathToTrim, UpdateSourceTrigger=PropertyChanged}"/>
-                                    <TextBlock VerticalAlignment="Center">" from ".</TextBlock>
-                                    <TextBox Text="{Binding Extension, UpdateSourceTrigger=PropertyChanged}"/>
-                                    <TextBlock VerticalAlignment="Center">"`</TextBlock>
-                                    <Button VerticalAlignment="Center" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveTrimPath}" CommandParameter="{Binding}" Foreground="FireBrick">X</Button>
+                                    <TextBox Text="{Binding PathToTrim, UpdateSourceTrigger=PropertyChanged}" MinWidth="60" HorizontalContentAlignment="Left"/>
+                                    <TextBlock VerticalAlignment="Center">\" from ".</TextBlock>
+                                    <TextBox Text="{Binding Extension, UpdateSourceTrigger=PropertyChanged}" MinWidth="35" HorizontalContentAlignment="Left"/>
+                                    <TextBlock VerticalAlignment="Center">" file paths</TextBlock>
+                                    <Button VerticalAlignment="Center" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveTrimPath}" CommandParameter="{Binding}" Foreground="FireBrick" Margin="5 0 0 0">X</Button>
                                 </StackPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

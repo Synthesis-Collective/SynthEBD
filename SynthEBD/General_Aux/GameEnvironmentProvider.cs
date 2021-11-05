@@ -14,13 +14,13 @@ namespace SynthEBD
     {
         public static readonly GameEnvironmentProvider Instance = new();
 
-        private Lazy<IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter>> _env = new(
+        private static Lazy<IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter>> _env = new(
             () =>
             {
                 var gameRelease = SkyrimRelease.SkyrimSE;
                 return GameEnvironment.Typical.Skyrim(gameRelease, LinkCachePreferences.OnlyIdentifiers());
             });
 
-        public IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> MyEnvironment => _env.Value;
+        public static IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> MyEnvironment => _env.Value;
     }
 }

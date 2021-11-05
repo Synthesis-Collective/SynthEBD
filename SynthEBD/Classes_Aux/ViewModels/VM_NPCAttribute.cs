@@ -144,7 +144,7 @@ namespace SynthEBD
                         parentVM.ParentCollection.Remove(parentVM);
                     }
                 }) ;
-            this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
+            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.AllowedFormKeyTypes = typeof(IVoiceTypeGetter).AsEnumerable();
 
         }
@@ -169,7 +169,7 @@ namespace SynthEBD
             this.ClassFormKeys = new ObservableCollection<FormKey>();
             this.ParentVM = parentVM;
 
-            this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
+            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.AllowedFormKeyTypes = typeof(IClassGetter).AsEnumerable();
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
         }
@@ -196,7 +196,7 @@ namespace SynthEBD
             this.RankMax = 100;
             this.ParentVM = parentVM;
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
-            this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
+            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.AllowedFormKeyTypes = typeof(IFactionGetter).AsEnumerable();
         }
         public ObservableCollection<FormKey> FactionFormKeys { get; set; }
@@ -224,7 +224,7 @@ namespace SynthEBD
             this.FaceTextureFormKeys = new ObservableCollection<FormKey>();
             this.ParentVM = parentVM;
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
-            this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
+            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.AllowedFormKeyTypes = typeof(ITextureSetGetter).AsEnumerable();
         }
         public ObservableCollection<FormKey> FaceTextureFormKeys { get; set; }
@@ -248,7 +248,7 @@ namespace SynthEBD
             this.RaceFormKeys = new ObservableCollection<FormKey>();
             this.ParentVM = parentVM;
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
-            this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
+            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.AllowedFormKeyTypes = typeof(IRaceGetter).AsEnumerable();
         }
         public ObservableCollection<FormKey> RaceFormKeys { get; set; }
@@ -272,7 +272,7 @@ namespace SynthEBD
             this.NPCFormKeys = new ObservableCollection<FormKey>();
             this.ParentVM = parentVM;
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
-            this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
+            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.AllowedFormKeyTypes = typeof(INpcGetter).AsEnumerable();
         }
         public ObservableCollection<FormKey> NPCFormKeys { get; set; }

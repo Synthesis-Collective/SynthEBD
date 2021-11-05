@@ -66,7 +66,7 @@ namespace SynthEBD
             this.Caption_MemberOfTemplateGroups = "";
             this.Caption_MorphDescriptors = "";
 
-            this.lk = new GameEnvironmentProvider().MyEnvironment.LinkCache;
+            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
 
             this.ParentCollection = parentCollection;

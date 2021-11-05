@@ -56,7 +56,7 @@ namespace SynthEBD
                     RelativePath = SynthEBDexePath;
                     break;
                 case true:
-                    var env = new GameEnvironmentProvider().MyEnvironment;
+                    var env = GameEnvironmentProvider.MyEnvironment;
                     RelativePath = env.DataFolderPath;
                     break;
             }
