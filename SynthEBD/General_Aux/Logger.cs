@@ -27,10 +27,14 @@ namespace SynthEBD
         public SolidColorBrush ErrorColor = new SolidColorBrush(Colors.Red);
         public string ReadyString = "Ready To Patch";
 
+        System.Windows.Threading.DispatcherTimer UpdateTimer { get; set; }
+        System.Diagnostics.Stopwatch EllapsedTimer { get; set; }
         private Logger()
         {
             this.StatusColor = this.ReadyColor;
             this.StatusString = this.ReadyString;
+            this.UpdateTimer = new System.Windows.Threading.DispatcherTimer();
+            this.EllapsedTimer = new System.Diagnostics.Stopwatch();
         }
 
         public static Logger Instance
@@ -108,6 +112,24 @@ namespace SynthEBD
         {
             Instance.StatusString = Instance.ReadyString;
             Instance.StatusColor = Instance.ReadyColor;
+        }
+        public static void StartTimer()
+        {
+            Instance.UpdateTimer = new System.Windows.Threading.DispatcherTimer();
+            Instance.EllapsedTimer = new System.Diagnostics.Stopwatch();
+            Instance.UpdateTimer.Interval = TimeSpan.FromSeconds(1);
+            Instance.UpdateTimer.Tick += new EventHandler((object s, EventArgs a) =>
+            {
+                UpdateStatus("Patching: " + GetEllapsedTime(), false);
+            });
+            Instance.UpdateTimer.Start();
+            Instance.EllapsedTimer.Start();
+        }
+
+        public static string GetEllapsedTime()
+        {
+            TimeSpan ts = Instance.EllapsedTimer.Elapsed;
+            return string.Format("{0:D2}:{1:D2}:{2:D2}", ts.Hours, ts.Minutes, ts.Seconds);
         }
     }
 

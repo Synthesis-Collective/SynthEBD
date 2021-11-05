@@ -6,14 +6,19 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Timers;
+using System.Windows.Threading;
 
 namespace SynthEBD
 {
     public class MainLoop
     {
+        
+
         public static async Task RunPatcher(Settings_General generalSettings, Settings_TexMesh texMeshSettings, Settings_Height heightSettings, Settings_BodyGen bodyGenSettings, List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, HashSet<SpecificNPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths)
         {
             Logger.UpdateStatus("Patching", false);
+            Logger.StartTimer();
 
             var env = new GameEnvironmentProvider().MyEnvironment;
 
@@ -38,14 +43,18 @@ namespace SynthEBD
             foreach (var npc in env.LoadOrder.PriorityOrder.WinningOverrides<INpcGetter>())
             {
                 npcCounter++;
-                if (npcCounter % 100 == 0) { Logger.LogMessage("Examined" + npcCounter.ToString() + " NPCs."); }
+                if (npcCounter % 100 == 0) 
+                {
+                    Logger.LogMessage("Examined " + npcCounter.ToString() + " NPCs in " + Logger.GetEllapsedTime()); 
+                }
 
                 assetsRace = AliasHandler.GetAliasTexMesh(generalSettings, npc.Race.FormKey);
                 bodyGenRace = AliasHandler.GetAliasBodyGen(generalSettings, npc.Race.FormKey);
                 heightRace = AliasHandler.GetAliasHeight(generalSettings, npc.Race.FormKey);
 
                 blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(blockList, npc.FormKey);
-                blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey);
+                blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey, env);
+                //blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey);
 
                 if (blockListNPCEntry.Assets || blockListPluginEntry.Assets) { blockAssets = true; }
                 else { blockAssets = false; }
@@ -91,6 +100,13 @@ namespace SynthEBD
 
 
             Logger.LogMessage("Finished patching.");
+            Logger.UpdateStatus("Finished Patching", false);
+        }
+
+        private static void timer_Tick(object sender, EventArgs e)
+        {
+
+            Logger.UpdateStatus("Finished Patching", false);
         }
     }
 }

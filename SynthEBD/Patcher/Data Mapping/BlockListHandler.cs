@@ -1,4 +1,5 @@
-﻿using Mutagen.Bethesda.Plugins;
+﻿using Mutagen.Bethesda.Environments;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 using System;
 using System.Collections.Generic;
@@ -26,9 +27,11 @@ namespace SynthEBD
         }
 
         
-        public static BlockedPlugin GetCurrentPluginBlockStatus(BlockList blockList, FormKey npcFormKey)
+        public static BlockedPlugin GetCurrentPluginBlockStatus(BlockList blockList, FormKey npcFormKey, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env)
+        //public static BlockedPlugin GetCurrentPluginBlockStatus(BlockList blockList, FormKey npcFormKey)
         {
-            var contexts = new GameEnvironmentProvider().MyEnvironment.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npcFormKey).ToList(); // [0] is winning override. [Last] is source plugin
+            var contexts = env.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npcFormKey).ToList(); // [0] is winning override. [Last] is source plugin
+            //var contexts = new GameEnvironmentProvider().MyEnvironment.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npcFormKey).ToList(); // [0] is winning override. [Last] is source plugin
 
             var output = new BlockedPlugin();
             output.Assets = false;
