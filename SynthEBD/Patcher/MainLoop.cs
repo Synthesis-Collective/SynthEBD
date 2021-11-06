@@ -22,10 +22,6 @@ namespace SynthEBD
 
             var env = GameEnvironmentProvider.MyEnvironment;
 
-            FormKey assetsRace;
-            FormKey bodyGenRace;
-            FormKey heightRace;
-
             BlockedNPC blockListNPCEntry;
             BlockedPlugin blockListPluginEntry;
 
@@ -33,10 +29,13 @@ namespace SynthEBD
             bool blockBodyGen;
             bool blockHeight;
 
-            HashSet<FlattenedAssetPack> flattenedAssetPacks = new HashSet<FlattenedAssetPack>();
+            var AssetPacksByRaceGender = new Dictionary<Tuple<FormKey, Gender>, HashSet<FlattenedAssetPack>>();
+
             if (generalSettings.bChangeMeshesOrTextures)
             {
+                HashSet<FlattenedAssetPack> flattenedAssetPacks = new HashSet<FlattenedAssetPack>();
                 flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x, generalSettings.RaceGroupings, generalSettings.bEnableBodyGenIntegration)).ToHashSet();
+                AssetPacksByRaceGender = DictionaryMapper.GetAssetPacksByRaceGender(flattenedAssetPacks, generalSettings.patchableRaces);
             }
 
             int npcCounter = 0;
@@ -48,9 +47,7 @@ namespace SynthEBD
                     Logger.LogMessage("Examined " + npcCounter.ToString() + " NPCs in " + Logger.GetEllapsedTime()); 
                 }
 
-                assetsRace = AliasHandler.GetAliasTexMesh(generalSettings, npc.Race.FormKey);
-                bodyGenRace = AliasHandler.GetAliasBodyGen(generalSettings, npc.Race.FormKey);
-                heightRace = AliasHandler.GetAliasHeight(generalSettings, npc.Race.FormKey);
+                var currentNPCInfo = new NPCInfo(npc, generalSettings);
 
                 blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(blockList, npc.FormKey);
                 blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey);
@@ -79,19 +76,21 @@ namespace SynthEBD
                 */
 
                 // Assets/BodyGen assignment
-                if (generalSettings.bChangeMeshesOrTextures && !blockAssets && generalSettings.patchableRaces.Contains(assetsRace))
+                if (generalSettings.bChangeMeshesOrTextures && !blockAssets && generalSettings.patchableRaces.Contains(currentNPCInfo.AssetsRace))
                 {
+                    var availableAssetPacks = AssetPacksByRaceGender[new Tuple<FormKey, Gender>(currentNPCInfo.AssetsRace, currentNPCInfo.Gender)];
 
+                    string debug = "";
                 }
 
                 // BodyGen assignment (if assets not assigned in Assets/BodyGen section)
-                if (generalSettings.bEnableBodyGenIntegration && !blockBodyGen && generalSettings.patchableRaces.Contains(bodyGenRace))
+                if (generalSettings.bEnableBodyGenIntegration && !blockBodyGen && generalSettings.patchableRaces.Contains(currentNPCInfo.BodyGenRace))
                 {
 
                 }
 
                 // Height assignment
-                if (generalSettings.bChangeHeight && !blockHeight && generalSettings.patchableRaces.Contains(heightRace))
+                if (generalSettings.bChangeHeight && !blockHeight && generalSettings.patchableRaces.Contains(currentNPCInfo.HeightRace))
                 {
 
                 }

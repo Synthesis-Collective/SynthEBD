@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Mutagen.Bethesda.Plugins;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,6 +9,62 @@ namespace SynthEBD
 {
     public class DictionaryMapper
     {
+        public static Dictionary<Tuple<FormKey, Gender>, HashSet<FlattenedAssetPack>> GetAssetPacksByRaceGender(HashSet<FlattenedAssetPack> flattenedAssetPacks, List<FormKey> patchableRaces)
+        {
+            Dictionary<Tuple<FormKey, Gender>, HashSet<FlattenedAssetPack>> apDict = new Dictionary<Tuple<FormKey, Gender>, HashSet<FlattenedAssetPack>>();
+
+            foreach (var raceFK in patchableRaces)
+            {
+                var mTuple = new Tuple<FormKey, Gender>(raceFK, Gender.male);
+                var fTuple = new Tuple<FormKey, Gender>(raceFK, Gender.female);
+
+                HashSet<FlattenedAssetPack> prunedAssetPacksM = new HashSet<FlattenedAssetPack>();
+                HashSet<FlattenedAssetPack> prunedAssetPacksF = new HashSet<FlattenedAssetPack>();
+
+                foreach (var flattenedAP in flattenedAssetPacks)
+                {
+                    var prunedAP = flattenedAP.ShallowCopy();
+                    if (PruneFlattenedAssetPackByRace(prunedAP, raceFK))
+                    {
+                        switch (prunedAP.Gender)
+                        {
+                            case Gender.male: prunedAssetPacksM.Add(prunedAP); break;
+                            case Gender.female: prunedAssetPacksF.Add(prunedAP); break;
+                        }
+                    }
+                }
+
+                apDict.Add(mTuple, prunedAssetPacksM);
+                apDict.Add(fTuple, prunedAssetPacksF);
+            }
+
+            return apDict;
+        }
+
+        private static bool PruneFlattenedAssetPackByRace(FlattenedAssetPack fAP, FormKey race)
+        {
+            foreach (var subgroupsAtPos in fAP.Subgroups)
+            {
+                for (int i = 0; i < subgroupsAtPos.Count; i++)
+                {
+                    var currentSubgroup = subgroupsAtPos[i];
+
+                    if (currentSubgroup.DisallowedRaces.Contains(race) || (!currentSubgroup.AllowedRacesIsEmpty && !currentSubgroup.AllowedRaces.Contains(race)))
+                    {
+                        subgroupsAtPos.RemoveAt(i);
+                        i--;
+                        continue;
+                    }
+                }    
+
+                if (subgroupsAtPos.Count == 0) // if there are no remaining subgroups within any top-level position, then the entire asset pack is incompatible with this race
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         public static Dictionary<string, HashSet<string>> MorphDescriptorsToDictionary(HashSet<BodyGenConfig.MorphDescriptor> morphDescriptors)
         {
             Dictionary<string, HashSet<string>> dict = new Dictionary<string, HashSet<string>>();

@@ -8,7 +8,7 @@ using static SynthEBD.AssetPack;
 
 namespace SynthEBD
 {
-    class FlattenedSubgroup
+    public class FlattenedSubgroup
     {
         public FlattenedSubgroup(AssetPack.Subgroup template, List<RaceGrouping> raceGroupingList, List<Subgroup> subgroupHierarchy)
         {
@@ -59,7 +59,7 @@ namespace SynthEBD
         public List<string> ContainedSubgroupIDs { get; set; }
         public List<string> ContainedSubgroupNames { get; set; }
 
-        public static void FlattenSubgroups(AssetPack.Subgroup toFlatten, FlattenedSubgroup parent, HashSet<FlattenedSubgroup> bottomLevelSubgroups, List<RaceGrouping> raceGroupingList, string parentAssetPackName, int topLevelIndex, bool includeBodyGen, List<Subgroup> subgroupHierarchy)
+        public static void FlattenSubgroups(AssetPack.Subgroup toFlatten, FlattenedSubgroup parent, List<FlattenedSubgroup> bottomLevelSubgroups, List<RaceGrouping> raceGroupingList, string parentAssetPackName, int topLevelIndex, bool includeBodyGen, List<Subgroup> subgroupHierarchy)
         {
             if (toFlatten.enabled == false) { return; }
 
