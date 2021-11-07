@@ -25,7 +25,7 @@ namespace SynthEBD
             return texMeshSettings;
         }
 
-        public static List<SynthEBD.AssetPack> loadAssetPacks(List<RaceGrouping> raceGroupings, Paths paths, List<string> loadedAssetPackPaths, List<SkyrimMod> recordTemplatePlugins)
+        public static List<SynthEBD.AssetPack> loadAssetPacks(List<RaceGrouping> raceGroupings, Paths paths, List<string> loadedAssetPackPaths, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs)
         {
             List<AssetPack> loadedPacks = new List<AssetPack>();
 
@@ -54,7 +54,7 @@ namespace SynthEBD
                     try
                     {
                         var zEBDconfig = DeserializeFromJSON<ZEBDAssetPack>.loadJSONFile(s);
-                        synthEBDconfig = ZEBDAssetPack.ToSynthEBDAssetPack(zEBDconfig, raceGroupings, recordTemplatePlugins);
+                        synthEBDconfig = ZEBDAssetPack.ToSynthEBDAssetPack(zEBDconfig, raceGroupings, recordTemplatePlugins, availableBodyGenConfigs);
                     }
                     catch
                     {

@@ -10,8 +10,8 @@ namespace SynthEBD
     {
         public FlattenedAssetPack(AssetPack source)
         {
-            this.GroupName = source.groupName;
-            this.Gender = source.gender;
+            this.GroupName = source.GroupName;
+            this.Gender = source.Gender;
             this.Subgroups = new List<List<FlattenedSubgroup>>();
         }
 
@@ -31,10 +31,10 @@ namespace SynthEBD
         {
             var output = new FlattenedAssetPack(source);
 
-            for (int i = 0; i < source.subgroups.Count; i++)
+            for (int i = 0; i < source.Subgroups.Count; i++)
             {
                 var flattenedSubgroups = new List<FlattenedSubgroup>();
-                FlattenedSubgroup.FlattenSubgroups(source.subgroups[i], null, flattenedSubgroups, raceGroupingList, output.GroupName, i, includeBodyGen, source.subgroups);
+                FlattenedSubgroup.FlattenSubgroups(source.Subgroups[i], null, flattenedSubgroups, raceGroupingList, output.GroupName, i, includeBodyGen, source.Subgroups);
                 output.Subgroups.Add(flattenedSubgroups);
             }
 

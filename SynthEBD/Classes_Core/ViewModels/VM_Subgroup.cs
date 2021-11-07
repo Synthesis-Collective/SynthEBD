@@ -38,8 +38,11 @@ namespace SynthEBD
             this.addKeywords = new ObservableCollection<VM_CollectionMemberString>();
             this.probabilityWeighting = 1;
             this.paths = new ObservableCollection<VM_FilePathReplacement>();
-            this.allowedBodyGenDescriptors = new VM_BodyGenMorphDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
-            this.disallowedBodyGenDescriptors = new VM_BodyGenMorphDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
+            if (parentAssetPack.TrackedBodyGenConfig != null)
+            {
+                this.allowedBodyGenDescriptors = new VM_BodyGenMorphDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
+                this.disallowedBodyGenDescriptors = new VM_BodyGenMorphDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
+            }
             this.weightRange = new NPCWeightRange();
             this.subgroups = new ObservableCollection<VM_Subgroup>();
 

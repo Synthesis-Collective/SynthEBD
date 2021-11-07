@@ -70,7 +70,10 @@
                     </ContentPresenter.Resources>
                 </ContentPresenter>
 
-                <Expander Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2" Header="Record Templates" Margin="0 10 0 0">
+                <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Associated BodyGen Configuration</TextBlock>
+                <ComboBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding AvailableBodyGenConfigs}" DisplayMemberPath="Label" SelectedValue="{Binding TrackedBodyGenConfig}"></ComboBox>
+                
+                <Expander Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Header="Record Templates" Margin="0 10 0 0">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="auto"/>

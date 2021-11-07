@@ -34,6 +34,11 @@ namespace SynthEBD
             this.SourcePath = "";
 
             this.CurrentBodyGenSettings = bodygenSettingsVM;
+            switch (this.gender)
+            {
+                case Gender.female: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.FemaleConfigs; break;
+                case Gender.male: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.MaleConfigs; break;
+            }
 
             this.PropertyChanged += RefreshTrackedBodyGenConfig;
             this.CurrentBodyGenSettings.PropertyChanged += RefreshTrackedBodyGenConfig;
@@ -43,11 +48,12 @@ namespace SynthEBD
 
             this.AdditionalRecordTemplateAssignments = new ObservableCollection<VM_AdditionalRecordTemplate>();
 
+            /*
             switch (this.gender)
             {
                 case Gender.female: this.TrackedBodyGenConfig = this.CurrentBodyGenSettings.CurrentFemaleConfig; break;
                 case Gender.male: this.TrackedBodyGenConfig = this.CurrentBodyGenSettings.CurrentMaleConfig; break;
-            }
+            }*/
 
             RemoveAssetPackConfigFile = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -68,6 +74,7 @@ namespace SynthEBD
         public ObservableCollection<VM_RaceGrouping> RaceGroupingList { get; set; }
 
         public VM_BodyGenConfig TrackedBodyGenConfig { get; set; }
+        public ObservableCollection<VM_BodyGenConfig> AvailableBodyGenConfigs { get; set; }
         public VM_SettingsBodyGen CurrentBodyGenSettings { get; set; }
 
         public bool IsSelected { get; set; }
@@ -88,6 +95,12 @@ namespace SynthEBD
 
         public RelayCommand AddAdditionalRecordTemplateAssignment { get; }
 
+        public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>() // referenced by xaml; don't trust VS reference count
+        {
+            {Gender.male, "Male"},
+            {Gender.female, "Female"},
+        };
+
         public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, List<string> loadedAssetPackPaths, VM_SettingsBodyGen bodygenSettingsVM, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
         {
             ObservableCollection<VM_AssetPack> viewModels = new ObservableCollection<VM_AssetPack>();
@@ -95,7 +108,7 @@ namespace SynthEBD
             for (int i = 0; i < assetPacks.Count; i++)
             {
                 var viewModel = GetViewModelFromModel(assetPacks[i], generalSettingsVM, viewModels, bodygenSettingsVM, recordTemplateLinkCache);
-                viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].groupName);
+                viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].GroupName);
 
                 viewModel.SourcePath = loadedAssetPackPaths[i];
 
@@ -108,14 +121,31 @@ namespace SynthEBD
         public static VM_AssetPack GetViewModelFromModel(AssetPack model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
         {
             var viewModel = new VM_AssetPack(parentCollection, bodygenSettingsVM);
-            viewModel.groupName = model.groupName;
-            viewModel.gender = model.gender;
-            viewModel.displayAlerts = model.displayAlerts;
-            viewModel.userAlert = model.userAlert;
+            viewModel.groupName = model.GroupName;
+            viewModel.gender = model.Gender;
+            viewModel.displayAlerts = model.DisplayAlerts;
+            viewModel.userAlert = model.UserAlert;
 
             viewModel.RaceGroupingList = new ObservableCollection<VM_RaceGrouping>(generalSettingsVM.RaceGroupings);
 
-            foreach (var sg in model.subgroups)
+            if (model.AssociatedBodyGenConfigName != "")
+            {
+                switch(viewModel.gender)
+                {
+                    case Gender.female:
+                        viewModel.TrackedBodyGenConfig = bodygenSettingsVM.FemaleConfigs.Where(x => x.Label == model.AssociatedBodyGenConfigName).FirstOrDefault();
+                        break;
+                    case Gender.male:
+                        viewModel.TrackedBodyGenConfig = bodygenSettingsVM.MaleConfigs.Where(x => x.Label == model.AssociatedBodyGenConfigName).FirstOrDefault();
+                        break;
+                }
+            }
+            else
+            {
+                viewModel.TrackedBodyGenConfig = new VM_BodyGenConfig(generalSettingsVM.RaceGroupings);
+            }
+
+            foreach (var sg in model.Subgroups)
             {
                 viewModel.subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM, viewModel.subgroups, viewModel));
             }
@@ -211,8 +241,8 @@ namespace SynthEBD
         {
             switch (this.gender)
             {
-                case Gender.female: this.TrackedBodyGenConfig = this.CurrentBodyGenSettings.CurrentFemaleConfig; break;
-                case Gender.male: this.TrackedBodyGenConfig = this.CurrentBodyGenSettings.CurrentMaleConfig; break;
+                case Gender.female: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.FemaleConfigs; break;
+                case Gender.male: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.MaleConfigs; break;
             }
         }
 

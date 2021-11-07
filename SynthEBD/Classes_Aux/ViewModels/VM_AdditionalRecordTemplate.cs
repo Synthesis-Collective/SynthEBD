@@ -6,13 +6,14 @@ using Noggog;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace SynthEBD
 {
-    public class VM_AdditionalRecordTemplate
+    public class VM_AdditionalRecordTemplate : INotifyPropertyChanged
     {
         public VM_AdditionalRecordTemplate(ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, ObservableCollection<VM_AdditionalRecordTemplate> parentCollection)
         {
@@ -44,5 +45,7 @@ namespace SynthEBD
         public ObservableCollection<VM_AdditionalRecordTemplate> ParentCollection { get; set; }
 
         public RelayCommand DeleteCommand { get; set; }
+
+        public event PropertyChangedEventHandler PropertyChanged;
     }
 }

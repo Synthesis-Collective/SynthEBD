@@ -13,22 +13,24 @@ namespace SynthEBD
     {
         public AssetPack()
         {
-            this.groupName = "";
-            this.gender = Gender.male;
-            this.displayAlerts = true;
-            this.userAlert = "";
-            this.subgroups = new List<Subgroup>();
+            this.GroupName = "";
+            this.Gender = Gender.male;
+            this.DisplayAlerts = true;
+            this.UserAlert = "";
+            this.Subgroups = new List<Subgroup>();
             this.DefaultRecordTemplate = new FormKey();
             this.AdditionalRecordTemplateAssignments = new HashSet<AdditionalRecordTemplate>();
+            this.AssociatedBodyGenConfigName = "";
         }
 
-        public string groupName { get; set; }
-        public Gender gender { get; set; }
-        public bool displayAlerts { get; set; }
-        public string userAlert { get; set; }
-        public List<Subgroup> subgroups { get; set; } // don't change to HashSet - need indexing for RequiredSubgroups
+        public string GroupName { get; set; }
+        public Gender Gender { get; set; }
+        public bool DisplayAlerts { get; set; }
+        public string UserAlert { get; set; }
+        public List<Subgroup> Subgroups { get; set; } // don't change to HashSet - need indexing for RequiredSubgroups
         public FormKey DefaultRecordTemplate { get; set; }
         public HashSet<AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
+        public string AssociatedBodyGenConfigName { get; set; }
 
         public class Subgroup
         {
@@ -260,16 +262,16 @@ namespace SynthEBD
             } 
         }
 
-        public static AssetPack ToSynthEBDAssetPack(ZEBDAssetPack z, List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins)
+        public static AssetPack ToSynthEBDAssetPack(ZEBDAssetPack z, List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs)
         {
             AssetPack s = new AssetPack();
-            s.groupName = z.groupName;
-            s.gender = z.gender;
-            s.displayAlerts = z.displayAlerts;
-            s.userAlert = z.userAlert;
+            s.GroupName = z.groupName;
+            s.Gender = z.gender;
+            s.DisplayAlerts = z.displayAlerts;
+            s.UserAlert = z.userAlert;
             foreach (ZEBDAssetPack.ZEBDSubgroup sg in z.subgroups)
             {
-                s.subgroups.Add(ZEBDAssetPack.ZEBDSubgroup.ToSynthEBDSubgroup(sg, raceGroupings, ""));
+                s.Subgroups.Add(ZEBDAssetPack.ZEBDSubgroup.ToSynthEBDSubgroup(sg, raceGroupings, ""));
             }
 
             // Apply default record templates
@@ -286,7 +288,7 @@ namespace SynthEBD
             {
                 if (plugin.ModKey.Name == "Record Templates")
                 {
-                    switch(s.gender)
+                    switch(s.Gender)
                     {
                         case Gender.female:
                             s.DefaultRecordTemplate = GetNPCByEDID(plugin, "DefaultFemale");
@@ -304,6 +306,24 @@ namespace SynthEBD
                 }
             }
 
+            bool hasBodyGen = false;
+            foreach (var subgroup in z.subgroups)
+            {
+                hasBodyGen = zEBDConfigReferencesBodyGen(subgroup);
+                if (hasBodyGen) { break; }
+            }
+            if (hasBodyGen)
+            {
+                var linkBodyGenWindow = new Window_LinkZEBDAssetPackToBodyGen();
+                var linkBodyGen = new VM_LinkZEBDAssetPackToBodyGen(availableBodyGenConfigs, s.Gender, s.GroupName, linkBodyGenWindow);
+                linkBodyGenWindow.DataContext = linkBodyGen;
+                linkBodyGenWindow.ShowDialog();
+                if (linkBodyGen.SelectedConfig != null)
+                {
+                    s.AssociatedBodyGenConfigName = linkBodyGen.SelectedConfig.Label;
+                }
+            }
+
             return s;
         }
 
@@ -317,6 +337,17 @@ namespace SynthEBD
                 }
             }
             return new FormKey();
+        }
+
+        private static bool zEBDConfigReferencesBodyGen(ZEBDSubgroup subgroup)
+        {
+            if (subgroup.allowedBodyGenDescriptors.Count > 0) { return true; }
+            if (subgroup.disallowedBodyGenDescriptors.Count > 0) { return true; }
+            foreach (var subSubgroup in subgroup.subgroups)
+            {
+                if (zEBDConfigReferencesBodyGen(subSubgroup)) { return true; }
+            }
+            return false;
         }
     }
 }
