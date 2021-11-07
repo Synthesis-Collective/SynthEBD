@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD"
              xmlns:dd="clr-namespace:GongSolutions.Wpf.DragDrop;assembly=GongSolutions.Wpf.DragDrop"
+             xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
              d:DataContext="{d:DesignInstance Type=local:VM_AssetPack}"
              mc:Ignorable="d"
              
@@ -68,6 +69,34 @@
                         </DataTemplate>
                     </ContentPresenter.Resources>
                 </ContentPresenter>
+
+                <Expander Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2" Header="Record Templates" Margin="0 10 0 0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="auto"/>
+                            <RowDefinition Height="auto"/>
+                            <RowDefinition Height="auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Default Template</TextBlock>
+                        <plugins:FormKeyPicker Grid.Row="0"  Grid.Column="1" FormKey="{Binding DefaultTemplateFK}" LinkCache="{Binding RecordTemplateLinkCache}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top">Additional Templates</TextBlock>
+                        <ItemsControl Grid.Row="1" Grid.Column="1" ItemsSource="{Binding AdditionalRecordTemplateAssignments}" BorderThickness="1" BorderBrush="#5844b4">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type local:VM_AdditionalRecordTemplate}">
+                                    <local:UC_AdditionalRecordTemplate Background="Black" Margin="0 0 0 10"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Button Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding AddAdditionalRecordTemplateAssignment}" Foreground="LightGreen">Add New</Button>
+                    </Grid>
+                </Expander>
             </Grid>
         </Expander>
         <Button Grid.Column="2" Grid.Row="0" VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding RemoveAssetPackConfigFile}" Foreground="FireBrick">X</Button>

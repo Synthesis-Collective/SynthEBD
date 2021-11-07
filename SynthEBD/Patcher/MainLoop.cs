@@ -20,14 +20,13 @@ namespace SynthEBD
             Logger.UpdateStatus("Patching", false);
             Logger.StartTimer();
 
-            var env = GameEnvironmentProvider.MyEnvironment;
-
             BlockedNPC blockListNPCEntry;
             BlockedPlugin blockListPluginEntry;
 
             bool blockAssets;
             bool blockBodyGen;
             bool blockHeight;
+            bool bodyGenAssignedWithAssets;
 
             var AssetPacksByRaceGender = new Dictionary<Tuple<FormKey, Gender>, HashSet<FlattenedAssetPack>>();
 
@@ -39,7 +38,7 @@ namespace SynthEBD
             }
 
             int npcCounter = 0;
-            foreach (var npc in env.LoadOrder.PriorityOrder.WinningOverrides<INpcGetter>())
+            foreach (var npc in GameEnvironmentProvider.MyEnvironment.LoadOrder.PriorityOrder.WinningOverrides<INpcGetter>())
             {
                 npcCounter++;
                 if (npcCounter % 100 == 0) 
@@ -61,6 +60,8 @@ namespace SynthEBD
                 if (blockListNPCEntry.Height || blockListPluginEntry.Height) { blockHeight = true; }
                 else { blockHeight = false; }
 
+                bodyGenAssignedWithAssets = false;
+
                 /*
                 if (generalSettings.bExcludePlayerCharacter && npc.FormKey.ModKey.ToString() == "Skyrim.esm" && npc.FormKey.IDString == "000007")
                 {
@@ -79,12 +80,12 @@ namespace SynthEBD
                 if (generalSettings.bChangeMeshesOrTextures && !blockAssets && generalSettings.patchableRaces.Contains(currentNPCInfo.AssetsRace))
                 {
                     var availableAssetPacks = AssetPacksByRaceGender[new Tuple<FormKey, Gender>(currentNPCInfo.AssetsRace, currentNPCInfo.Gender)];
-
-                    string debug = "";
+                    
+                    var assignedComboAndBodyGen = AssetAndBodyGenSelector.ChooseCombinationAndBodyGen(out bodyGenAssignedWithAssets);
                 }
 
                 // BodyGen assignment (if assets not assigned in Assets/BodyGen section)
-                if (generalSettings.bEnableBodyGenIntegration && !blockBodyGen && generalSettings.patchableRaces.Contains(currentNPCInfo.BodyGenRace))
+                if (generalSettings.bEnableBodyGenIntegration && !blockBodyGen && generalSettings.patchableRaces.Contains(currentNPCInfo.BodyGenRace) && !bodyGenAssignedWithAssets)
                 {
 
                 }

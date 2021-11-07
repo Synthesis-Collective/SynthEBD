@@ -22,12 +22,14 @@ namespace SynthEBD
             string heightsDirRelPath = "Height Configurations";
             string bodyGenDirRelPath = "BodyGen Configuration";
             string NPCConfigDirRelPath = "NPC Configuration";
+            string recordTemplatesDirRelPath = "Record Templates";
 
             string settingsDirPath = Path.Combine(SynthEBDexePath, settingsDirRelPath);
             string assetsDirPath = Path.Combine(SynthEBDexePath, assetsDirRelPath);
             string heightsDirPath = Path.Combine(SynthEBDexePath, heightsDirRelPath);
             string bodyGenDirPath = Path.Combine(SynthEBDexePath, bodyGenDirRelPath);
             string NPCConfigDirPath = Path.Combine(SynthEBDexePath, NPCConfigDirRelPath);
+            string recordTemplatesDirPath = Path.Combine(SynthEBDexePath, recordTemplatesDirRelPath);
 
             if (Directory.Exists(settingsDirPath) == false)
             {
@@ -49,6 +51,10 @@ namespace SynthEBD
             {
                 Directory.CreateDirectory(NPCConfigDirPath);
             }
+            if (Directory.Exists(recordTemplatesDirPath) == false)
+            {
+                Directory.CreateDirectory(recordTemplatesDirPath);
+            }
 
             switch (loadFromGameData)
             {
@@ -56,8 +62,7 @@ namespace SynthEBD
                     RelativePath = SynthEBDexePath;
                     break;
                 case true:
-                    var env = GameEnvironmentProvider.MyEnvironment;
-                    RelativePath = env.DataFolderPath;
+                    RelativePath = GameEnvironmentProvider.MyEnvironment.DataFolderPath;
                     break;
             }
 
@@ -72,19 +77,21 @@ namespace SynthEBD
             this.LinkedNPCNameExclusionsPath = Path.Combine(RelativePath, settingsDirRelPath, "LinkedNPCNameExclusions.json");
             this.LinkedNPCsPath = Path.Combine(RelativePath, settingsDirRelPath, "LinkedNPCs.json");
             this.TrimPathsPath = Path.Combine(RelativePath, settingsDirRelPath, "TrimPathsByExtension.json");
+            this.RecordTemplatesDirPath = Path.Combine(RelativePath, recordTemplatesDirRelPath);
 
-            this.FallBackTexMeshSettingsPath = Path.Combine(RelativePath, settingsDirPath, "TexMeshSettings.json");
-            this.FallBackAssetPackDirPath = Path.Combine(RelativePath, assetsDirPath);
-            this.FallBackHeightSettingsPath = Path.Combine(RelativePath, settingsDirPath, "HeightSettings.json");
-            this.FallBackHeightConfigDirPath = Path.Combine(RelativePath, heightsDirPath);
+            this.FallBackTexMeshSettingsPath = Path.Combine(SynthEBDexePath, settingsDirPath, "TexMeshSettings.json");
+            this.FallBackAssetPackDirPath = Path.Combine(SynthEBDexePath, assetsDirPath);
+            this.FallBackHeightSettingsPath = Path.Combine(SynthEBDexePath, settingsDirPath, "HeightSettings.json");
+            this.FallBackHeightConfigDirPath = Path.Combine(SynthEBDexePath, heightsDirPath);
             this.FallBackHeightConfigCurrentPath = Path.Combine(this.FallBackHeightConfigDirPath, "HeightConfig.json");
-            this.FallBackBodyGenSettingsPath = Path.Combine(RelativePath, settingsDirPath, "BodyGenSettings.json");
-            this.FallBackBodyGenConfigDirPath = Path.Combine(RelativePath, bodyGenDirPath);
-            this.FallBackSpecificNPCAssignmentsPath = Path.Combine(RelativePath, NPCConfigDirPath, "Specific NPC Assignments.json");
-            this.FallBackBlockListPath = Path.Combine(RelativePath, NPCConfigDirPath, "BlockList.json");
-            this.FallBackLinkedNPCNameExclusionsPath = Path.Combine(RelativePath, settingsDirPath, "LinkedNPCNameExclusions.json");
-            this.FallBackLinkedNPCsPath = Path.Combine(RelativePath, settingsDirPath, "LinkedNPCs.json");
-            this.FallBackTrimPathsPath = Path.Combine(RelativePath, settingsDirPath, "TrimPathsByExtension.json");
+            this.FallBackBodyGenSettingsPath = Path.Combine(SynthEBDexePath, settingsDirPath, "BodyGenSettings.json");
+            this.FallBackBodyGenConfigDirPath = Path.Combine(SynthEBDexePath, bodyGenDirPath);
+            this.FallBackSpecificNPCAssignmentsPath = Path.Combine(SynthEBDexePath, NPCConfigDirPath, "Specific NPC Assignments.json");
+            this.FallBackBlockListPath = Path.Combine(SynthEBDexePath, NPCConfigDirPath, "BlockList.json");
+            this.FallBackLinkedNPCNameExclusionsPath = Path.Combine(SynthEBDexePath, settingsDirPath, "LinkedNPCNameExclusions.json");
+            this.FallBackLinkedNPCsPath = Path.Combine(SynthEBDexePath, settingsDirPath, "LinkedNPCs.json");
+            this.FallBackTrimPathsPath = Path.Combine(SynthEBDexePath, settingsDirPath, "TrimPathsByExtension.json");
+            this.FallBackRecordTemplatesDirPath = Path.Combine(SynthEBDexePath, recordTemplatesDirRelPath);
         }
 
         private string RelativePath { get; set; } 
@@ -102,6 +109,8 @@ namespace SynthEBD
         public string LinkedNPCsPath { get; set; }
         public string TrimPathsPath { get; set; }
 
+        public string RecordTemplatesDirPath { get; set; }
+
         public string FallBackTexMeshSettingsPath { get; set; } // path of the Textures and Meshes settings file
         public string FallBackAssetPackDirPath { get; set; }
         public string FallBackHeightSettingsPath { get; set; } // path of the Textures and Meshes settings file
@@ -115,6 +124,8 @@ namespace SynthEBD
         public string FallBackLinkedNPCNameExclusionsPath { get; set; }
         public string FallBackLinkedNPCsPath { get; set; }
         public string FallBackTrimPathsPath { get; set; }
+
+        public string FallBackRecordTemplatesDirPath { get; set; }
     }
 }
 

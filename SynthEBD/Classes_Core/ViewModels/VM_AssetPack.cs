@@ -1,4 +1,5 @@
-﻿using Mutagen.Bethesda.Plugins;
+﻿using Mutagen.Bethesda.Cache.Implementations;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
@@ -37,6 +38,11 @@ namespace SynthEBD
             this.PropertyChanged += RefreshTrackedBodyGenConfig;
             this.CurrentBodyGenSettings.PropertyChanged += RefreshTrackedBodyGenConfig;
 
+            this.DefaultTemplateFK = new FormKey();
+            this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
+
+            this.AdditionalRecordTemplateAssignments = new ObservableCollection<VM_AdditionalRecordTemplate>();
+
             switch (this.gender)
             {
                 case Gender.female: this.TrackedBodyGenConfig = this.CurrentBodyGenSettings.CurrentFemaleConfig; break;
@@ -46,6 +52,11 @@ namespace SynthEBD
             RemoveAssetPackConfigFile = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => { FileDialogs.ConfirmFileDeletion(this.SourcePath, "Asset Pack Config File"); this.ParentCollection.Remove(this); }
+                );
+
+            AddAdditionalRecordTemplateAssignment = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => { this.AdditionalRecordTemplateAssignments.Add(new VM_AdditionalRecordTemplate(this.RecordTemplateLinkCache, this.AdditionalRecordTemplateAssignments)); }
                 );
         }
 
@@ -63,32 +74,38 @@ namespace SynthEBD
 
         public string SourcePath { get; set; }
 
-        public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>()
-        {
-            {Gender.male, "Male"},
-            {Gender.female, "Female"},
-        };
+        public ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> RecordTemplateLinkCache { get; set; }
+
+        public FormKey DefaultTemplateFK { get; set; }
+
+        public IEnumerable<Type> NPCFormKeyTypes { get; set; }
+
+        public ObservableCollection<VM_AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
 
         public ObservableCollection<VM_AssetPack> ParentCollection { get; set; }
 
         public RelayCommand RemoveAssetPackConfigFile { get; }
 
-        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, List<string> loadedAssetPackPaths, VM_SettingsBodyGen bodygenSettingsVM)
+        public RelayCommand AddAdditionalRecordTemplateAssignment { get; }
+
+        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, List<string> loadedAssetPackPaths, VM_SettingsBodyGen bodygenSettingsVM, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
         {
             ObservableCollection<VM_AssetPack> viewModels = new ObservableCollection<VM_AssetPack>();
 
             for (int i = 0; i < assetPacks.Count; i++)
             {
-                var viewModel = GetViewModelFromModel(assetPacks[i], generalSettingsVM, viewModels, bodygenSettingsVM);
+                var viewModel = GetViewModelFromModel(assetPacks[i], generalSettingsVM, viewModels, bodygenSettingsVM, recordTemplateLinkCache);
                 viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].groupName);
 
                 viewModel.SourcePath = loadedAssetPackPaths[i];
+
+                viewModel.RecordTemplateLinkCache = recordTemplateLinkCache;
 
                 viewModels.Add(viewModel);
             }
             return viewModels;
         }
-        public static VM_AssetPack GetViewModelFromModel(AssetPack model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM)
+        public static VM_AssetPack GetViewModelFromModel(AssetPack model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
         {
             var viewModel = new VM_AssetPack(parentCollection, bodygenSettingsVM);
             viewModel.groupName = model.groupName;
@@ -106,6 +123,15 @@ namespace SynthEBD
             // go back through now that all subgroups have corresponding view models, and link the required and excluded subgroups
             ObservableCollection<VM_Subgroup> flattenedSubgroupList = flattenSubgroupVMs(viewModel.subgroups, new ObservableCollection<VM_Subgroup>());
             LinkRequiredSubgroups(flattenedSubgroupList);
+
+            viewModel.DefaultTemplateFK = model.DefaultRecordTemplate;
+            foreach(var additionalTemplateAssignment in model.AdditionalRecordTemplateAssignments)
+            {
+                var assignmentVM = new VM_AdditionalRecordTemplate(recordTemplateLinkCache, viewModel.AdditionalRecordTemplateAssignments);
+                assignmentVM.RaceFormKeys = new ObservableCollection<FormKey>(additionalTemplateAssignment.Races);
+                assignmentVM.TemplateNPC = additionalTemplateAssignment.TemplateNPC;
+                viewModel.AdditionalRecordTemplateAssignments.Add(assignmentVM);
+            }
 
             return viewModel;
         }

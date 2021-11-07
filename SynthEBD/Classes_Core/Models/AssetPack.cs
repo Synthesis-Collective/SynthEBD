@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD
 {
@@ -17,6 +18,8 @@ namespace SynthEBD
             this.displayAlerts = true;
             this.userAlert = "";
             this.subgroups = new List<Subgroup>();
+            this.DefaultRecordTemplate = new FormKey();
+            this.AdditionalRecordTemplateAssignments = new HashSet<AdditionalRecordTemplate>();
         }
 
         public string groupName { get; set; }
@@ -24,6 +27,8 @@ namespace SynthEBD
         public bool displayAlerts { get; set; }
         public string userAlert { get; set; }
         public List<Subgroup> subgroups { get; set; } // don't change to HashSet - need indexing for RequiredSubgroups
+        public FormKey DefaultRecordTemplate { get; set; }
+        public HashSet<AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
 
         public class Subgroup
         {
@@ -255,7 +260,7 @@ namespace SynthEBD
             } 
         }
 
-        public static AssetPack ToSynthEBDAssetPack(ZEBDAssetPack z, List<RaceGrouping> raceGroupings)
+        public static AssetPack ToSynthEBDAssetPack(ZEBDAssetPack z, List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins)
         {
             AssetPack s = new AssetPack();
             s.groupName = z.groupName;
@@ -267,7 +272,51 @@ namespace SynthEBD
                 s.subgroups.Add(ZEBDAssetPack.ZEBDSubgroup.ToSynthEBDSubgroup(sg, raceGroupings, ""));
             }
 
+            // Apply default record templates
+            FormKey KhajiitRaceFK;
+            FormKey KhajiitRaceVampireFK;
+            FormKey ArgonianRaceFK;
+            FormKey ArgonianRaceVampireFK;
+            FormKey.TryFactory("013745:Skyrim.esm", out KhajiitRaceFK);
+            FormKey.TryFactory("088845:Skyrim.esm", out KhajiitRaceVampireFK);
+            FormKey.TryFactory("013740:Skyrim.esm", out ArgonianRaceFK);
+            FormKey.TryFactory("08883A:Skyrim.esm", out ArgonianRaceVampireFK);
+
+            foreach (var plugin in recordTemplatePlugins)
+            {
+                if (plugin.ModKey.Name == "Record Templates")
+                {
+                    switch(s.gender)
+                    {
+                        case Gender.female:
+                            s.DefaultRecordTemplate = GetNPCByEDID(plugin, "DefaultFemale");
+                            s.AdditionalRecordTemplateAssignments.Add(new AdditionalRecordTemplate { TemplateNPC = GetNPCByEDID(plugin, "KhajiitFemale"), Races = new HashSet<FormKey> { KhajiitRaceFK, KhajiitRaceVampireFK } });
+                            s.AdditionalRecordTemplateAssignments.Add(new AdditionalRecordTemplate { TemplateNPC = GetNPCByEDID(plugin, "ArgonianFemale"), Races = new HashSet<FormKey> { ArgonianRaceFK, ArgonianRaceVampireFK } });
+                            break;
+
+                        case Gender.male:
+                            s.DefaultRecordTemplate = GetNPCByEDID(plugin, "DefaultMale");
+                            s.AdditionalRecordTemplateAssignments.Add(new AdditionalRecordTemplate { TemplateNPC = GetNPCByEDID(plugin, "KhajiitMale"), Races = new HashSet<FormKey> { KhajiitRaceFK, KhajiitRaceVampireFK } });
+                            s.AdditionalRecordTemplateAssignments.Add(new AdditionalRecordTemplate { TemplateNPC = GetNPCByEDID(plugin, "ArgonianMale"), Races = new HashSet<FormKey> { ArgonianRaceFK, ArgonianRaceVampireFK } });
+                            break;
+                    }
+                    
+                }
+            }
+
             return s;
+        }
+
+        private static FormKey GetNPCByEDID(SkyrimMod plugin, string edid)
+        {
+            foreach (var npc in plugin.Npcs)
+            {
+                if (npc.EditorID == edid)
+                {
+                    return npc.FormKey;
+                }
+            }
+            return new FormKey();
         }
     }
 }

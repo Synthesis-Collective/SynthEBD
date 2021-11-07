@@ -31,7 +31,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Patcher\Asset Patching\" />
     <Folder Include="Patcher\BodyGen Patching\" />
     <Folder Include="Patcher\Height Patching\" />
   </ItemGroup>

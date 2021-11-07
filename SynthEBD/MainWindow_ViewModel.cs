@@ -1,4 +1,5 @@
 ﻿using Mutagen.Bethesda;
+using Mutagen.Bethesda.Cache.Implementations;
 using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
@@ -49,6 +50,9 @@ namespace SynthEBD
         public HashSet<LinkedNPCGroup> LinkedNPCGroups { get; set; }
         public HashSet<TrimPath> TrimPaths { get; set; }
 
+        public List<SkyrimMod> RecordTemplatePlugins { get; set; }
+        public ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> RecordTemplateLinkCache { get; set; }
+
         public MainWindow_ViewModel()
         {
             var gameRelease = SkyrimRelease.SkyrimSE;
@@ -74,6 +78,8 @@ namespace SynthEBD
             Paths = new Paths(GeneralSettings.bLoadSettingsFromDataFolder);
 
             // Load texture and mesh settings
+            RecordTemplatePlugins = SettingsIO_AssetPack.LoadRecordTemplates(Paths);
+            RecordTemplateLinkCache = RecordTemplatePlugins.ToImmutableLinkCache();
             TexMeshSettings = SettingsIO_AssetPack.LoadTexMeshSettings(Paths);
             VM_SettingsTexMesh.GetViewModelFromModel(TMVM, TexMeshSettings);
 
@@ -84,8 +90,8 @@ namespace SynthEBD
 
             // load asset packs
             List<string> loadedAssetPackPaths = new List<string>();
-            AssetPacks = SettingsIO_AssetPack.loadAssetPacks(GeneralSettings.RaceGroupings, Paths, loadedAssetPackPaths); // load asset pack models from json
-            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(AssetPacks, SGVM, TexMeshSettings, loadedAssetPackPaths, BGVM); // add asset pack view models to TexMesh shell view model here
+            AssetPacks = SettingsIO_AssetPack.loadAssetPacks(GeneralSettings.RaceGroupings, Paths, loadedAssetPackPaths, RecordTemplatePlugins); // load asset pack models from json
+            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(AssetPacks, SGVM, TexMeshSettings, loadedAssetPackPaths, BGVM, RecordTemplateLinkCache); // add asset pack view models to TexMesh shell view model here
 
             // load heights
             HeightSettings = SettingsIO_Height.LoadHeightSettings(Paths);
