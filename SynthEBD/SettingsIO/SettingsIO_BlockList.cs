@@ -17,13 +17,13 @@ namespace SynthEBD
             {
                 try
                 {
-                    loadedList = DeserializeFromJSON<BlockList>.loadJSONFile(paths.BlockListPath);
+                    loadedList = JSONhandler<BlockList>.loadJSONFile(paths.BlockListPath);
                 }
                 catch
                 {
                     try
                     {
-                        var loadedZList = DeserializeFromJSON<zEBDBlockList>.loadJSONFile(paths.BlockListPath);
+                        var loadedZList = JSONhandler<zEBDBlockList>.loadJSONFile(paths.BlockListPath);
                         loadedList = zEBDBlockList.ToSynthEBD(loadedZList);
                     }
                     catch

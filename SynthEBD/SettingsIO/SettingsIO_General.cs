@@ -19,7 +19,7 @@ namespace SynthEBD
 
             if (File.Exists(paths.GeneralSettingsPath))
             {
-                generalSettings = DeserializeFromJSON<Settings_General>.loadJSONFile(paths.GeneralSettingsPath);
+                generalSettings = JSONhandler<Settings_General>.loadJSONFile(paths.GeneralSettingsPath);
             }
 
             return generalSettings;

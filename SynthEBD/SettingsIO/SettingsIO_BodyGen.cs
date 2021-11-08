@@ -35,7 +35,7 @@ namespace SynthEBD
 
                 try // first try deserializing to SynthEBD asset pack
                 {
-                    synthEBDconfig = DeserializeFromJSON<BodyGenConfig>.loadJSONFile(s);
+                    synthEBDconfig = JSONhandler<BodyGenConfig>.loadJSONFile(s);
                     switch(synthEBDconfig.Gender)
                     {
                         case Gender.female:

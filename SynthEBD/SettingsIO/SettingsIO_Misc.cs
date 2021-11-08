@@ -15,12 +15,12 @@ namespace SynthEBD
 
             if (File.Exists(paths.LinkedNPCNameExclusionsPath))
             {
-                exclusions = DeserializeFromJSON<HashSet<string>>.loadJSONFile(paths.LinkedNPCNameExclusionsPath);
+                exclusions = JSONhandler<HashSet<string>>.loadJSONFile(paths.LinkedNPCNameExclusionsPath);
             }
             else if (File.Exists(paths.FallBackLinkedNPCNameExclusionsPath))
             {
                 // Warn User
-                exclusions = DeserializeFromJSON<HashSet<string>>.loadJSONFile(paths.FallBackLinkedNPCNameExclusionsPath);
+                exclusions = JSONhandler<HashSet<string>>.loadJSONFile(paths.FallBackLinkedNPCNameExclusionsPath);
             }
             else
             {
@@ -36,12 +36,12 @@ namespace SynthEBD
 
             if (File.Exists(paths.LinkedNPCsPath))
             {
-                linkedNPCGroups = DeserializeFromJSON<HashSet<LinkedNPCGroup>>.loadJSONFile(paths.LinkedNPCsPath);
+                linkedNPCGroups = JSONhandler<HashSet<LinkedNPCGroup>>.loadJSONFile(paths.LinkedNPCsPath);
             }
             else if (File.Exists(paths.FallBackLinkedNPCsPath))
             {
                 // Warn User
-                linkedNPCGroups = DeserializeFromJSON<HashSet<LinkedNPCGroup>>.loadJSONFile(paths.FallBackLinkedNPCsPath);
+                linkedNPCGroups = JSONhandler<HashSet<LinkedNPCGroup>>.loadJSONFile(paths.FallBackLinkedNPCsPath);
             }
             else
             {
@@ -57,12 +57,12 @@ namespace SynthEBD
 
             if (File.Exists(paths.TrimPathsPath))
             {
-                trimPaths = DeserializeFromJSON<HashSet<TrimPath>>.loadJSONFile(paths.TrimPathsPath);
+                trimPaths = JSONhandler<HashSet<TrimPath>>.loadJSONFile(paths.TrimPathsPath);
             }
             else if (File.Exists(paths.FallBackTrimPathsPath))
             {
                 // Warn User
-                trimPaths = DeserializeFromJSON<HashSet<TrimPath>>.loadJSONFile(paths.FallBackTrimPathsPath);
+                trimPaths = JSONhandler<HashSet<TrimPath>>.loadJSONFile(paths.FallBackTrimPathsPath);
             }
             else
             {

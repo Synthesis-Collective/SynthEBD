@@ -53,7 +53,7 @@ namespace SynthEBD
                 {
                     try
                     {
-                        var zEBDformatted = DeserializeFromJSON<HashSet<HeightAssignment.zEBDHeightAssignment>>.loadJSONFile(s);
+                        var zEBDformatted = JSONhandler<HashSet<HeightAssignment.zEBDHeightAssignment>>.loadJSONFile(s);
                         HeightConfig fromZformat = new HeightConfig();
                         fromZformat.Label = Path.GetFileNameWithoutExtension(s);
 
@@ -81,7 +81,7 @@ namespace SynthEBD
                 {
                     try
                     {
-                        var hc = DeserializeFromJSON<HeightConfig>.loadJSONFile(s);
+                        var hc = JSONhandler<HeightConfig>.loadJSONFile(s);
                         loaded.Add(hc);
                         loadedHeightPaths.Add(s);
                     }
@@ -101,7 +101,7 @@ namespace SynthEBD
             {
                 if (filePaths[i] != "")
                 {
-                    SerializeToJSON<HeightConfig>.SaveJSONFile(heightConfigs[i], filePaths[i]);
+                    JSONhandler<HeightConfig>.SaveJSONFile(heightConfigs[i], filePaths[i]);
                 }
                 else
                 {
@@ -117,7 +117,7 @@ namespace SynthEBD
                             newPath = Path.Combine(paths.FallBackHeightConfigDirPath, heightConfigs[i].Label + ".json");
                         }
 
-                        SerializeToJSON<HeightConfig>.SaveJSONFile(heightConfigs[i], newPath);
+                        JSONhandler<HeightConfig>.SaveJSONFile(heightConfigs[i], newPath);
                     }
 
                     else
@@ -144,7 +144,7 @@ namespace SynthEBD
                         // Process open file dialog box results
                         if (result == true)
                         {
-                            SerializeToJSON<HeightConfig>.SaveJSONFile(heightConfigs[i], dialog.FileName);
+                            JSONhandler<HeightConfig>.SaveJSONFile(heightConfigs[i], dialog.FileName);
                         }
                     }
                 }

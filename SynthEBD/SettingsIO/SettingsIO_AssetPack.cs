@@ -47,17 +47,17 @@ namespace SynthEBD
 
 
                 //DEBUG
-                //synthEBDconfig = DeserializeFromJSON<AssetPack>.loadJSONFile(s);
+                //synthEBDconfig = JSONhandler<AssetPack>.loadJSONFile(s);
                 
                 try // first try deserializing to SynthEBD asset pack
                 {
-                    synthEBDconfig = DeserializeFromJSON<AssetPack>.loadJSONFile(s);
+                    synthEBDconfig = JSONhandler<AssetPack>.loadJSONFile(s);
                 }
                 catch
                 {
                     try
                     {
-                        var zEBDconfig = DeserializeFromJSON<ZEBDAssetPack>.loadJSONFile(s);
+                        var zEBDconfig = JSONhandler<ZEBDAssetPack>.loadJSONFile(s);
                         synthEBDconfig = ZEBDAssetPack.ToSynthEBDAssetPack(zEBDconfig, raceGroupings, recordTemplatePlugins, availableBodyGenConfigs);
                     }
                     catch
@@ -110,7 +110,7 @@ namespace SynthEBD
             {
                 if (filePaths[i] != "")
                 {
-                    SerializeToJSON<AssetPack>.SaveJSONFile(assetPacks[i], filePaths[i]);
+                    JSONhandler<AssetPack>.SaveJSONFile(assetPacks[i], filePaths[i]);
                 }
                 else
                 {
@@ -126,7 +126,7 @@ namespace SynthEBD
                             newPath = Path.Combine(paths.FallBackAssetPackDirPath, assetPacks[i].GroupName + ".json");
                         }
 
-                        SerializeToJSON<AssetPack>.SaveJSONFile(assetPacks[i], newPath);
+                        JSONhandler<AssetPack>.SaveJSONFile(assetPacks[i], newPath);
                     }
 
                     else
@@ -153,7 +153,7 @@ namespace SynthEBD
                         // Process open file dialog box results
                         if (result == true)
                         {
-                            SerializeToJSON<AssetPack>.SaveJSONFile(assetPacks[i], dialog.FileName);
+                            JSONhandler<AssetPack>.SaveJSONFile(assetPacks[i], dialog.FileName);
                         }
                     }
                 }

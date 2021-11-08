@@ -127,33 +127,33 @@ namespace SynthEBD
         void MainWindow_Closing(object sender, CancelEventArgs e)
         {
             VM_Settings_General.DumpViewModelToModel(SGVM, GeneralSettings);
-            SerializeToJSON<Settings_General>.SaveJSONFile(GeneralSettings, Paths.GeneralSettingsPath);
+            JSONhandler<Settings_General>.SaveJSONFile(GeneralSettings, Paths.GeneralSettingsPath);
 
             VM_SettingsTexMesh.DumpViewModelToModel(TMVM, TexMeshSettings);
-            SerializeToJSON<Settings_TexMesh>.SaveJSONFile(TexMeshSettings, Paths.TexMeshSettingsPath);
+            JSONhandler<Settings_TexMesh>.SaveJSONFile(TexMeshSettings, Paths.TexMeshSettingsPath);
             var assetPackPaths = VM_AssetPack.DumpViewModelsToModels(TMVM.AssetPacks, AssetPacks, Paths);
             SettingsIO_AssetPack.SaveAssetPacks(AssetPacks, assetPackPaths, Paths);
 
             // Need code here to dump assset packs and save - see height configs for analogy
 
             VM_SettingsHeight.DumpViewModelToModel(HVM, HeightSettings);
-            SerializeToJSON<Settings_Height>.SaveJSONFile(HeightSettings, Paths.HeightSettingsPath);
+            JSONhandler<Settings_Height>.SaveJSONFile(HeightSettings, Paths.HeightSettingsPath);
             var heightConfigPaths = VM_HeightConfig.DumpViewModelsToModels(HVM.AvailableHeightConfigs, HeightConfigs);
             SettingsIO_Height.SaveHeightConfigs(HeightConfigs, heightConfigPaths, Paths);
 
             VM_SettingsBodyGen.DumpViewModelToModel(BGVM, BodyGenSettings);
-            SerializeToJSON<Settings_BodyGen>.SaveJSONFile(BodyGenSettings, Paths.BodyGenSettingsPath);
+            JSONhandler<Settings_BodyGen>.SaveJSONFile(BodyGenSettings, Paths.BodyGenSettingsPath);
             // Need code here to dump assset packs and save - see height configs for analogy
 
             VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(SAUIVM, SpecificNPCAssignments);
-            SerializeToJSON<HashSet<SpecificNPCAssignment>>.SaveJSONFile(SpecificNPCAssignments, Paths.SpecificNPCAssignmentsPath);
+            JSONhandler<HashSet<SpecificNPCAssignment>>.SaveJSONFile(SpecificNPCAssignments, Paths.SpecificNPCAssignmentsPath);
 
             VM_LinkedNPCGroup.DumpViewModelsToModels(LinkedNPCGroups, SGVM.LinkedNPCGroups);
-            SerializeToJSON<HashSet<LinkedNPCGroup>>.SaveJSONFile(LinkedNPCGroups, Paths.LinkedNPCsPath);
+            JSONhandler<HashSet<LinkedNPCGroup>>.SaveJSONFile(LinkedNPCGroups, Paths.LinkedNPCsPath);
 
-            SerializeToJSON<HashSet<string>>.SaveJSONFile(SGVM.LinkedNameExclusions.Select(cms => cms.Content).ToHashSet(), Paths.LinkedNPCNameExclusionsPath);
+            JSONhandler<HashSet<string>>.SaveJSONFile(SGVM.LinkedNameExclusions.Select(cms => cms.Content).ToHashSet(), Paths.LinkedNPCNameExclusionsPath);
 
-            SerializeToJSON<HashSet<TrimPath>>.SaveJSONFile(TMVM.TrimPaths.ToHashSet(), Paths.TrimPathsPath);
+            JSONhandler<HashSet<TrimPath>>.SaveJSONFile(TMVM.TrimPaths.ToHashSet(), Paths.TrimPathsPath);
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

@@ -88,7 +88,7 @@ namespace SynthEBD
 
                 try
                 {
-                    var loadedZList = DeserializeFromJSON<zEBDBlockList>.loadJSONFile(filename);
+                    var loadedZList = JSONhandler<zEBDBlockList>.loadJSONFile(filename);
                     var loadedList = zEBDBlockList.ToSynthEBD(loadedZList);
                     GetViewModelFromModel(loadedList, this);
                 }

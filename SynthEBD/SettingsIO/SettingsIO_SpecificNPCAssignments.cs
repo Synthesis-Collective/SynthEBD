@@ -17,7 +17,7 @@ namespace SynthEBD
             {
                 try
                 {
-                    specificNPCAssignments = DeserializeFromJSON<HashSet<SpecificNPCAssignment>>.loadJSONFile(paths.SpecificNPCAssignmentsPath);
+                    specificNPCAssignments = JSONhandler<HashSet<SpecificNPCAssignment>>.loadJSONFile(paths.SpecificNPCAssignmentsPath);
                 }
                 catch
                 {
