@@ -131,6 +131,9 @@ namespace SynthEBD
 
             VM_SettingsTexMesh.DumpViewModelToModel(TMVM, TexMeshSettings);
             SerializeToJSON<Settings_TexMesh>.SaveJSONFile(TexMeshSettings, Paths.TexMeshSettingsPath);
+            var assetPackPaths = VM_AssetPack.DumpViewModelsToModels(TMVM.AssetPacks, AssetPacks, Paths);
+            SettingsIO_AssetPack.SaveAssetPacks(AssetPacks, assetPackPaths, Paths);
+
             // Need code here to dump assset packs and save - see height configs for analogy
 
             VM_SettingsHeight.DumpViewModelToModel(HVM, HeightSettings);

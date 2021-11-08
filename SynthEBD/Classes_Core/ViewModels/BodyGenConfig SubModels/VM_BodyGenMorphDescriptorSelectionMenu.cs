@@ -96,6 +96,17 @@ namespace SynthEBD
             return menu;
         }
 
+        public static HashSet<BodyGenConfig.MorphDescriptor> DumpToHashSet(VM_BodyGenMorphDescriptorSelectionMenu viewModel)
+        {
+            HashSet<BodyGenConfig.MorphDescriptor> output = new HashSet<BodyGenConfig.MorphDescriptor>();
+            foreach (var shell in viewModel.DescriptorShells)
+            {
+                output.UnionWith(shell.DescriptorSelectors.Where(x => x.IsSelected).Select(x => new BodyGenConfig.MorphDescriptor() { Category = shell.TrackedShell.Category, Value = x.Value, DispString = x.TrackedDescriptor.DispString}).ToHashSet());
+            }
+
+            return output;
+        }
+
         public void UpdateHeader()
         {
             this.Header = BuildHeader(this);

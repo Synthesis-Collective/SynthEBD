@@ -45,6 +45,10 @@ namespace SynthEBD
             {
                 var synthEBDconfig = new AssetPack();
 
+
+                //DEBUG
+                //synthEBDconfig = DeserializeFromJSON<AssetPack>.loadJSONFile(s);
+                
                 try // first try deserializing to SynthEBD asset pack
                 {
                     synthEBDconfig = DeserializeFromJSON<AssetPack>.loadJSONFile(s);
@@ -61,6 +65,7 @@ namespace SynthEBD
                         throw new Exception("Could not parse the config file at " + s);
                     }
                 }
+                
 
                 loadedPacks.Add(synthEBDconfig);
                 loadedAssetPackPaths.Add(s);
@@ -97,6 +102,62 @@ namespace SynthEBD
                 }
             }
             return loadedTemplatePlugins;
+        }
+
+        public static void SaveAssetPacks(List<AssetPack> assetPacks, List<string> filePaths, Paths paths)
+        {
+            for (int i = 0; i < assetPacks.Count; i++)
+            {
+                if (filePaths[i] != "")
+                {
+                    SerializeToJSON<AssetPack>.SaveJSONFile(assetPacks[i], filePaths[i]);
+                }
+                else
+                {
+                    string newPath = "";
+                    if (IO_Aux.IsValidFilename(assetPacks[i].GroupName))
+                    {
+                        if (Directory.Exists(paths.AssetPackDirPath))
+                        {
+                            newPath = Path.Combine(paths.AssetPackDirPath, assetPacks[i].GroupName + ".json");
+                        }
+                        else if (Directory.Exists(paths.FallBackAssetPackDirPath))
+                        {
+                            newPath = Path.Combine(paths.FallBackAssetPackDirPath, assetPacks[i].GroupName + ".json");
+                        }
+
+                        SerializeToJSON<AssetPack>.SaveJSONFile(assetPacks[i], newPath);
+                    }
+
+                    else
+                    {
+                        // Configure save file dialog box
+                        var dialog = new Microsoft.Win32.SaveFileDialog();
+                        dialog.DefaultExt = ".json"; // Default file extension
+                        dialog.Filter = "JSON files (.json|*.json"; // Filter files by extension
+
+                        if (Directory.Exists(paths.AssetPackDirPath))
+                        {
+                            dialog.InitialDirectory = Path.GetFullPath(paths.AssetPackDirPath);
+                        }
+                        else if (Directory.Exists(paths.FallBackAssetPackDirPath))
+                        {
+                            dialog.InitialDirectory = Path.GetFullPath(paths.FallBackAssetPackDirPath);
+                        }
+
+                        dialog.RestoreDirectory = true;
+
+                        // Show open file dialog box
+                        bool? result = dialog.ShowDialog();
+
+                        // Process open file dialog box results
+                        if (result == true)
+                        {
+                            SerializeToJSON<AssetPack>.SaveJSONFile(assetPacks[i], dialog.FileName);
+                        }
+                    }
+                }
+            }
         }
     }
 }

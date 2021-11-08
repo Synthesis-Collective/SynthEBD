@@ -235,5 +235,40 @@ namespace SynthEBD
                 this.disallowedBodyGenDescriptors = new VM_BodyGenMorphDescriptorSelectionMenu(this.ParentAssetPack.TrackedBodyGenConfig.DescriptorUI);
             }
         }
+
+        public static AssetPack.Subgroup DumpViewModelToModel(VM_Subgroup viewModel)
+        {
+            var model = new AssetPack.Subgroup();
+
+            model.id = viewModel.id;
+            model.name = viewModel.name;
+            model.enabled = viewModel.enabled;
+            model.distributionEnabled = viewModel.distributionEnabled;
+            model.allowedRaces = viewModel.allowedRaces.ToHashSet();
+            model.allowedRaceGroupings = viewModel.AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.Label).ToHashSet();
+            model.disallowedRaces = viewModel.disallowedRaces.ToHashSet();
+            model.disallowedRaceGroupings = viewModel.DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.Label).ToHashSet();
+            model.allowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.allowedAttributes);
+            model.disallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.disallowedAttributes);
+            model.forceIfAttributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.forceIfAttributes);
+            model.bAllowUnique = viewModel.bAllowUnique;
+            model.bAllowNonUnique = viewModel.bAllowNonUnique;
+            model.requiredSubgroups = viewModel.requiredSubgroups.Select(x => x.id).ToHashSet();
+            model.excludedSubgroups = viewModel.excludedSubgroups.Select(x => x.id).ToHashSet();
+            model.addKeywords = viewModel.addKeywords.Select(x => x.Content).ToHashSet();
+            model.probabilityWeighting = viewModel.probabilityWeighting;
+            model.paths = viewModel.paths.Select(x => new FilePathReplacement() { Source = x.Source, Destination = x.Destination }).ToHashSet();
+            model.weightRange = viewModel.weightRange;
+
+            model.allowedBodyGenDescriptors = VM_BodyGenMorphDescriptorSelectionMenu.DumpToHashSet(viewModel.allowedBodyGenDescriptors);
+            model.disallowedBodyGenDescriptors = VM_BodyGenMorphDescriptorSelectionMenu.DumpToHashSet(viewModel.disallowedBodyGenDescriptors);
+
+            foreach (var sg in viewModel.subgroups)
+            {
+                model.subgroups.Add(DumpViewModelToModel(sg));
+            }
+
+            return model;
+        }
     }
 }

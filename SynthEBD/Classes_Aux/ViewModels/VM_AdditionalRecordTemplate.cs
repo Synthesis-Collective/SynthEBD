@@ -31,6 +31,11 @@ namespace SynthEBD
                     );
         }
 
+        public static AdditionalRecordTemplate DumpViewModelToModel(VM_AdditionalRecordTemplate viewModel)
+        {
+            return new AdditionalRecordTemplate() { Races = viewModel.RaceFormKeys.ToHashSet(), TemplateNPC = viewModel.TemplateNPC };
+        }
+
         public ObservableCollection<FormKey> RaceFormKeys { get; set; }
 
         public ILinkCache lk { get; set; }

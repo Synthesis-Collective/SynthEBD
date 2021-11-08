@@ -61,7 +61,7 @@ namespace SynthEBD
                 oc.Add(GetViewModelFromModel(m, oc));
             }
             return oc;
-        }
+        } 
 
         public static VM_NPCAttribute GetViewModelFromModel(NPCAttribute model, ObservableCollection<VM_NPCAttribute> parentCollection)
         {
@@ -85,6 +85,34 @@ namespace SynthEBD
             }
 
             return viewModel;
+        }
+
+        public static HashSet<NPCAttribute> DumpViewModelsToModels(ObservableCollection<VM_NPCAttribute> viewModels)
+        {
+            HashSet<NPCAttribute> hs = new HashSet<NPCAttribute>();
+            foreach (var v in viewModels)
+            {
+                hs.Add(DumpViewModelToModel(v));
+            }
+            return hs;
+        }
+
+        public static NPCAttribute DumpViewModelToModel(VM_NPCAttribute viewModel)
+        {
+            var model = new NPCAttribute();
+            foreach (var subAttVM in viewModel.GroupedSubAttributes)
+            {
+                switch(subAttVM.Type)
+                {
+                    case NPCAttributeType.Class: model.GroupedSubAttributes.Add(VM_NPCAttributeClass.DumpViewModelToModel((VM_NPCAttributeClass)subAttVM.Attribute)); break;
+                    case NPCAttributeType.Faction: model.GroupedSubAttributes.Add(VM_NPCAttributeFactions.DumpViewModelToModel((VM_NPCAttributeFactions)subAttVM.Attribute)); break;
+                    case NPCAttributeType.FaceTexture: model.GroupedSubAttributes.Add(VM_NPCAttributeFaceTexture.DumpViewModelToModel((VM_NPCAttributeFaceTexture)subAttVM.Attribute)); break;
+                    case NPCAttributeType.Race: model.GroupedSubAttributes.Add(VM_NPCAttributeRace.DumpViewModelToModel((VM_NPCAttributeRace)subAttVM.Attribute)); break;
+                    case NPCAttributeType.NPC: model.GroupedSubAttributes.Add(VM_NPCAttributeNPC.DumpViewModelToModel((VM_NPCAttributeNPC)subAttVM.Attribute)); break;
+                    case NPCAttributeType.VoiceType: model.GroupedSubAttributes.Add(VM_NPCAttributeVoiceType.DumpViewModelToModel((VM_NPCAttributeVoiceType)subAttVM.Attribute)); break;
+                }
+            }
+            return model;
         }
     }
 
@@ -160,6 +188,10 @@ namespace SynthEBD
             newAtt.VoiceTypeFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
             return newAtt;
         }
+        public static NPCAttributeVoiceType DumpViewModelToModel(VM_NPCAttributeVoiceType viewModel)
+        {
+            return new NPCAttributeVoiceType() { Type = NPCAttributeType.VoiceType, FormKeys = viewModel.VoiceTypeFormKeys.ToHashSet() };
+        }
     }
 
     public class VM_NPCAttributeClass
@@ -184,6 +216,11 @@ namespace SynthEBD
             var newAtt = new VM_NPCAttributeClass(parentVM, parentShell);
             newAtt.ClassFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
             return newAtt;
+        }
+
+        public static NPCAttributeClass DumpViewModelToModel(VM_NPCAttributeClass viewModel)
+        {
+            return new NPCAttributeClass() { Type = NPCAttributeType.Class, FormKeys = viewModel.ClassFormKeys.ToHashSet()};
         }
     }
 
@@ -215,6 +252,10 @@ namespace SynthEBD
             newAtt.RankMax = model.RankMax;
             return newAtt;
         }
+        public static NPCAttributeFactions DumpViewModelToModel(VM_NPCAttributeFactions viewModel)
+        {
+            return new NPCAttributeFactions() { Type = NPCAttributeType.Faction, FormKeys = viewModel.FactionFormKeys.ToHashSet(), RankMin = viewModel.RankMin, RankMax = viewModel.RankMax };
+        }
     }
 
     public class VM_NPCAttributeFaceTexture
@@ -238,6 +279,11 @@ namespace SynthEBD
             var newAtt = new VM_NPCAttributeFaceTexture(parentVM, parentShell);
             newAtt.FaceTextureFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
             return newAtt;
+        }
+
+        public static NPCAttributeFaceTexture DumpViewModelToModel(VM_NPCAttributeFaceTexture viewModel)
+        {
+            return new NPCAttributeFaceTexture() { Type = NPCAttributeType.FaceTexture, FormKeys = viewModel.FaceTextureFormKeys.ToHashSet() };
         }
     }
 
@@ -263,6 +309,11 @@ namespace SynthEBD
             newAtt.RaceFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
             return newAtt;
         }
+
+        public static NPCAttributeRace DumpViewModelToModel(VM_NPCAttributeRace viewModel)
+        {
+            return new NPCAttributeRace() { Type = NPCAttributeType.Race, FormKeys = viewModel.RaceFormKeys.ToHashSet() };
+        }
     }
 
     public class VM_NPCAttributeNPC
@@ -286,6 +337,10 @@ namespace SynthEBD
             var newAtt = new VM_NPCAttributeNPC(parentVM, parentShell);
             newAtt.NPCFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
             return newAtt;
+        }
+        public static NPCAttributeNPC DumpViewModelToModel(VM_NPCAttributeNPC viewModel)
+        {
+            return new NPCAttributeNPC() { Type = NPCAttributeType.NPC, FormKeys = viewModel.NPCFormKeys.ToHashSet() };
         }
     }
 }

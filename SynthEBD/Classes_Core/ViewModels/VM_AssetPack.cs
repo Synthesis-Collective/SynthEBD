@@ -166,6 +166,45 @@ namespace SynthEBD
             return viewModel;
         }
 
+        public static List<string> DumpViewModelsToModels(ObservableCollection<VM_AssetPack> viewModels, List<AssetPack> models, Paths paths)
+        {
+            List<string> configPaths = new List<string>();
+            models.Clear();
+
+            foreach (var vm in viewModels)
+            {
+                AssetPack model = new AssetPack();
+                model.GroupName = vm.groupName;
+                model.Gender = vm.gender;
+                model.DisplayAlerts = vm.displayAlerts;
+                model.UserAlert = vm.userAlert;
+
+                if (vm.TrackedBodyGenConfig != null)
+                {
+                    model.AssociatedBodyGenConfigName = vm.TrackedBodyGenConfig.Label;
+                }
+
+                model.DefaultRecordTemplate = vm.DefaultTemplateFK;
+                model.AdditionalRecordTemplateAssignments = vm.AdditionalRecordTemplateAssignments.Select(x => VM_AdditionalRecordTemplate.DumpViewModelToModel(x)).ToHashSet();
+
+                foreach (var svm in vm.subgroups)
+                {
+                    model.Subgroups.Add(VM_Subgroup.DumpViewModelToModel(svm));
+                }
+
+                models.Add(model);
+                if (vm.SourcePath != "")
+                {
+                    configPaths.Add(vm.SourcePath);
+                }
+                else
+                {
+                    configPaths.Add("");
+                }
+            }
+            return configPaths;
+        }
+
         public static ObservableCollection<VM_Subgroup> flattenSubgroupVMs(ObservableCollection<VM_Subgroup> currentLevelSGs, ObservableCollection<VM_Subgroup> flattened)
         {
             foreach(var sg in currentLevelSGs)
