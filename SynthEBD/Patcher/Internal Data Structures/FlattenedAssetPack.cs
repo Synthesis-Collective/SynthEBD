@@ -44,14 +44,9 @@ namespace SynthEBD
         public FlattenedAssetPack ShallowCopy()
         {
             FlattenedAssetPack copy = new FlattenedAssetPack(this.GroupName, this.Gender);
-            foreach (var subgroupHashSet in this.Subgroups)
+            foreach (var subgroupList in this.Subgroups)
             {
-                var copiedList = new List<FlattenedSubgroup>();
-                foreach (var subgroup in subgroupHashSet)
-                {
-                    copiedList.Add(subgroup);
-                }
-                copy.Subgroups.Add(copiedList);
+                copy.Subgroups.Add(new List<FlattenedSubgroup>(subgroupList));
             }
             return copy;
         }

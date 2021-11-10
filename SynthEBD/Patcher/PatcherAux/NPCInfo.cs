@@ -9,21 +9,28 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
-    class NPCInfo
+    public class NPCInfo
     {
-        public NPCInfo(INpcGetter npc, Settings_General generalSettings)
+        public NPCInfo(INpcGetter npc, Settings_General generalSettings, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, HashSet<SpecificNPCAssignment> specificNPCAssignments)
         {
+            this.NPC = npc;
+            this.LogIDstring = npc.Name?.String + " | " + npc.EditorID + " | " + npc.FormKey.ToString();
             this.Gender = GetGender(npc);
-
             AssetsRace = AliasHandler.GetAliasTexMesh(generalSettings, npc.Race.FormKey);
             BodyGenRace = AliasHandler.GetAliasBodyGen(generalSettings, npc.Race.FormKey);
             HeightRace = AliasHandler.GetAliasHeight(generalSettings, npc.Race.FormKey);
+            AssociatedLinkGroup = LinkedNPCGroupInfo.GetInfoFromLinkedNPCGroup(definedLinkGroups, createdLinkGroupInfos, npc.FormKey);
+            SpecificNPCAssignment = specificNPCAssignments.Where(x => x.NPCFormKey == npc.FormKey).FirstOrDefault();
         }
 
+        public INpcGetter NPC { get; set; }
+        public string LogIDstring { get; set; }
         public Gender Gender { get; set; }
         public FormKey AssetsRace { get; set; }
         public FormKey BodyGenRace { get; set; }
         public FormKey HeightRace { get; set; }
+        public LinkedNPCGroupInfo AssociatedLinkGroup { get; set; }
+        public SpecificNPCAssignment SpecificNPCAssignment { get; set; }
 
         private static Gender GetGender(INpcGetter npc)
         {

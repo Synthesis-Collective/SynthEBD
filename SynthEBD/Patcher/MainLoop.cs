@@ -22,6 +22,7 @@ namespace SynthEBD
 
             BlockedNPC blockListNPCEntry;
             BlockedPlugin blockListPluginEntry;
+            HashSet<LinkedNPCGroupInfo> generatedLinkGroups = new HashSet<LinkedNPCGroupInfo>();
 
             bool blockAssets;
             bool blockBodyGen;
@@ -46,7 +47,7 @@ namespace SynthEBD
                     Logger.LogMessage("Examined " + npcCounter.ToString() + " NPCs in " + Logger.GetEllapsedTime()); 
                 }
 
-                var currentNPCInfo = new NPCInfo(npc, generalSettings);
+                var currentNPCInfo = new NPCInfo(npc, generalSettings, linkedNPCGroups, generatedLinkGroups, specificNPCAssignments);
 
                 blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(blockList, npc.FormKey);
                 blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey);
@@ -81,7 +82,7 @@ namespace SynthEBD
                 {
                     var availableAssetPacks = AssetPacksByRaceGender[new Tuple<FormKey, Gender>(currentNPCInfo.AssetsRace, currentNPCInfo.Gender)];
                     
-                    var assignedComboAndBodyGen = AssetAndBodyGenSelector.ChooseCombinationAndBodyGen(out bodyGenAssignedWithAssets);
+                    var assignedComboAndBodyGen = AssetAndBodyGenSelector.ChooseCombinationAndBodyGen(out bodyGenAssignedWithAssets, availableAssetPacks, currentNPCInfo);
                 }
 
                 // BodyGen assignment (if assets not assigned in Assets/BodyGen section)
