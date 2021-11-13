@@ -11,7 +11,7 @@ namespace SynthEBD
 {
     public class NPCInfo
     {
-        public NPCInfo(INpcGetter npc, Settings_General generalSettings, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, HashSet<SpecificNPCAssignment> specificNPCAssignments)
+        public NPCInfo(INpcGetter npc, Settings_General generalSettings, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, HashSet<NPCAssignment> specificNPCAssignments)
         {
             this.NPC = npc;
             this.LogIDstring = npc.Name?.String + " | " + npc.EditorID + " | " + npc.FormKey.ToString();
@@ -21,6 +21,8 @@ namespace SynthEBD
             HeightRace = AliasHandler.GetAliasHeight(generalSettings, npc.Race.FormKey);
             AssociatedLinkGroup = LinkedNPCGroupInfo.GetInfoFromLinkedNPCGroup(definedLinkGroups, createdLinkGroupInfos, npc.FormKey);
             SpecificNPCAssignment = specificNPCAssignments.Where(x => x.NPCFormKey == npc.FormKey).FirstOrDefault();
+            //TEMP
+            ConsistencyNPCAssignment = new NPCAssignment();
         }
 
         public INpcGetter NPC { get; set; }
@@ -30,7 +32,8 @@ namespace SynthEBD
         public FormKey BodyGenRace { get; set; }
         public FormKey HeightRace { get; set; }
         public LinkedNPCGroupInfo AssociatedLinkGroup { get; set; }
-        public SpecificNPCAssignment SpecificNPCAssignment { get; set; }
+        public NPCAssignment SpecificNPCAssignment { get; set; }
+        public NPCAssignment ConsistencyNPCAssignment { get; set; }
 
         private static Gender GetGender(INpcGetter npc)
         {

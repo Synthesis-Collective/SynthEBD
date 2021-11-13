@@ -9,16 +9,16 @@ namespace SynthEBD
 {
     public class SubgroupCombination
     {
+        public SubgroupCombination()
+        {
+            this.Signature = "";
+            this.ContainedSubgroups = new List<FlattenedSubgroup>();
+            this.AssignedRecords = new HashSet<Tuple<string, FormKey>>();
+            this.AssetPackName = ""; 
+        }
         public string Signature { get; set; }
-        public HashSet<FlattenedSubgroup> ContainedSubgroups { get; set; }
+        public List<FlattenedSubgroup> ContainedSubgroups { get; set; }
         public HashSet<Tuple<string, FormKey>> AssignedRecords { get; set; } // string is the location relative to the NPC.
         public string AssetPackName { get; set; }
-        public static SubgroupCombination GenerateCombination()
-        {
-            var combination = new SubgroupCombination();
-
-
-            return combination;
-        }
     }
 }

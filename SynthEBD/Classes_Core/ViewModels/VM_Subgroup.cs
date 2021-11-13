@@ -175,7 +175,7 @@ namespace SynthEBD
             viewModel.excludedSubgroups = new ObservableCollection<VM_Subgroup>();
             viewModel.addKeywords = new ObservableCollection<VM_CollectionMemberString>();
             getModelKeywords(model, viewModel);
-            viewModel.probabilityWeighting = model.probabilityWeighting;
+            viewModel.probabilityWeighting = model.ProbabilityWeighting;
             viewModel.paths = VM_FilePathReplacement.GetViewModelsFromModels(model.paths);
             viewModel.weightRange = model.weightRange;
 
@@ -256,7 +256,7 @@ namespace SynthEBD
             model.requiredSubgroups = viewModel.requiredSubgroups.Select(x => x.id).ToHashSet();
             model.excludedSubgroups = viewModel.excludedSubgroups.Select(x => x.id).ToHashSet();
             model.addKeywords = viewModel.addKeywords.Select(x => x.Content).ToHashSet();
-            model.probabilityWeighting = viewModel.probabilityWeighting;
+            model.ProbabilityWeighting = viewModel.probabilityWeighting;
             model.paths = viewModel.paths.Select(x => new FilePathReplacement() { Source = x.Source, Destination = x.Destination }).ToHashSet();
             model.weightRange = viewModel.weightRange;
 

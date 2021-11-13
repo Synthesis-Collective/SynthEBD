@@ -9,8 +9,18 @@ namespace SynthEBD
 {
     public class AttributeMatcher
     {
-        public static bool AttributeMatched(HashSet<NPCAttribute> attributeList, INpcGetter npc) // returns true if at least one attribute is matched
+        public static bool HasMatchedAttributes(HashSet<NPCAttribute> attributeList, INpcGetter npc)
         {
+            return GetNPCMatchedAttributes(attributeList, npc, false) > 0;
+        }
+        public static int GetMatchedAttributeCount(HashSet<NPCAttribute> attributeList, INpcGetter npc)
+        {
+            return GetNPCMatchedAttributes(attributeList, npc, true);
+        }
+
+        private static int GetNPCMatchedAttributes(HashSet<NPCAttribute> attributeList, INpcGetter npc, bool getMatchCount)
+        {
+            int matchCount = 0;
             foreach (var attribute in attributeList)
             {
                 bool allSubAttributesMatched = true;
@@ -81,10 +91,15 @@ namespace SynthEBD
                 }
                 if (allSubAttributesMatched)
                 {
-                    return true;
+                    switch (getMatchCount)
+                    {
+                        case false: return 1;
+                        case true: matchCount++; break;
+                    }
                 }
             }
-            return false;
+
+            return matchCount;
         }
     }
 }

@@ -57,6 +57,11 @@ namespace SynthEBD
             Instance.LogString += message + "\n";
         }
 
+        public static void LogReport(string message) // detailed operation log; not reflected on screen
+        {
+            Instance.LogString += message + "\n"; // TEMPORARY FOR DEBUGGING
+        }
+
         public static void LogError(string error)
         {
             Instance.LogString += error + "\n";

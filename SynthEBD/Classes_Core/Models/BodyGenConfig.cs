@@ -63,7 +63,7 @@ namespace SynthEBD
             public HashSet<string> RaceGroupings { get; set; }
             public HashSet<BodyGenCombination> Combinations { get; set; }
 
-            public class BodyGenCombination
+            public class BodyGenCombination : IProbabilityWeighted
             {
                 public BodyGenCombination()
                 {

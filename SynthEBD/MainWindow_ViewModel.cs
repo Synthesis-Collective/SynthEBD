@@ -44,7 +44,7 @@ namespace SynthEBD
 
         public Settings_BodyGen BodyGenSettings { get; }
         public BodyGenConfigs BodyGenConfigs { get; }
-        public HashSet<SpecificNPCAssignment> SpecificNPCAssignments { get; }
+        public HashSet<NPCAssignment> SpecificNPCAssignments { get; }
         public BlockList BlockList { get; }
         public HashSet<string> LinkedNPCNameExclusions { get; set; }
         public HashSet<LinkedNPCGroup> LinkedNPCGroups { get; set; }
@@ -146,7 +146,7 @@ namespace SynthEBD
             // Need code here to dump assset packs and save - see height configs for analogy
 
             VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(SAUIVM, SpecificNPCAssignments);
-            JSONhandler<HashSet<SpecificNPCAssignment>>.SaveJSONFile(SpecificNPCAssignments, Paths.SpecificNPCAssignmentsPath);
+            JSONhandler<HashSet<NPCAssignment>>.SaveJSONFile(SpecificNPCAssignments, Paths.SpecificNPCAssignmentsPath);
 
             VM_LinkedNPCGroup.DumpViewModelsToModels(LinkedNPCGroups, SGVM.LinkedNPCGroups);
             JSONhandler<HashSet<LinkedNPCGroup>>.SaveJSONFile(LinkedNPCGroups, Paths.LinkedNPCsPath);

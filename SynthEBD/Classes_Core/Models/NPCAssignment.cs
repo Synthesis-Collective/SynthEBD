@@ -7,24 +7,24 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
-    public class SpecificNPCAssignment
+    public class NPCAssignment
     {
-        public SpecificNPCAssignment()
+        public NPCAssignment()
         {
             this.DispName = "";
             this.NPCFormKey = new FormKey();
-            this.ForcedAssetPackName = "";
-            this.ForcedSubgroupIDs = new HashSet<string>();
-            this.ForcedHeight = "";
-            this.ForcedBodyGenMorphNames = new HashSet<string>();
+            this.AssetPackName = "";
+            this.SubgroupIDs = null;
+            this.Height = "";
+            this.BodyGenMorphNames = null;
         }
 
         public string DispName { get; set; }
         public FormKey NPCFormKey { get; set; }
-        public string ForcedAssetPackName { get; set; }
-        public HashSet<string> ForcedSubgroupIDs { get; set; }
-        public string ForcedHeight { get; set; }
-        public HashSet<string> ForcedBodyGenMorphNames { get; set; }
+        public string AssetPackName { get; set; }
+        public HashSet<string> SubgroupIDs { get; set; }
+        public string Height { get; set; }
+        public HashSet<string> BodyGenMorphNames { get; set; }
     }
 
     public class zEBDSpecificNPCAssignment
@@ -62,22 +62,22 @@ namespace SynthEBD
             public string topLevelSubgroup { get; set; }
         }
 
-        public static HashSet<SpecificNPCAssignment> ToSynthEBDNPCAssignments(HashSet<zEBDSpecificNPCAssignment> inputSet)
+        public static HashSet<NPCAssignment> ToSynthEBDNPCAssignments(HashSet<zEBDSpecificNPCAssignment> inputSet)
         {
-            var outputSet = new HashSet<SpecificNPCAssignment>();
+            var outputSet = new HashSet<NPCAssignment>();
             var env = GameEnvironmentProvider.MyEnvironment;
 
             foreach (var z in inputSet)
             {
-                SpecificNPCAssignment s = new SpecificNPCAssignment();
+                NPCAssignment s = new NPCAssignment();
                 s.NPCFormKey = Converters.zEBDSignatureToFormKey(z.rootPlugin, z.formID, env);
-                s.ForcedAssetPackName = z.forcedAssetPack;
+                s.AssetPackName = z.forcedAssetPack;
                 foreach (var zFS in z.forcedSubgroups)
                 {
-                    s.ForcedSubgroupIDs.Add(zFS.id);
+                    s.SubgroupIDs.Add(zFS.id);
                 }
-                s.ForcedHeight = z.forcedHeight;
-                s.ForcedBodyGenMorphNames = z.forcedBodyGenMorphs;
+                s.Height = z.forcedHeight;
+                s.BodyGenMorphNames = z.forcedBodyGenMorphs;
                 outputSet.Add(s);
             }
             return outputSet;

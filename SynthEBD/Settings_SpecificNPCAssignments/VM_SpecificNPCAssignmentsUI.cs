@@ -46,7 +46,7 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static void GetViewModelFromModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<SpecificNPCAssignment> models)
+        public static void GetViewModelFromModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<NPCAssignment> models)
         {
             var env = GameEnvironmentProvider.MyEnvironment;
             foreach (var assignment in models)
@@ -55,7 +55,7 @@ namespace SynthEBD
             }
         }
 
-        public static void DumpViewModelToModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<SpecificNPCAssignment> assignments)
+        public static void DumpViewModelToModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<NPCAssignment> assignments)
         {
             assignments.Clear();
             foreach (var vm in viewModel.Assignments)

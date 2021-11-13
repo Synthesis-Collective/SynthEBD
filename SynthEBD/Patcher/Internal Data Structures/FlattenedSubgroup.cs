@@ -8,9 +8,9 @@ using static SynthEBD.AssetPack;
 
 namespace SynthEBD
 {
-    public class FlattenedSubgroup
+    public class FlattenedSubgroup : IProbabilityWeighted
     {
-        public FlattenedSubgroup(AssetPack.Subgroup template, List<RaceGrouping> raceGroupingList, List<Subgroup> subgroupHierarchy)
+        public FlattenedSubgroup(AssetPack.Subgroup template, List<RaceGrouping> raceGroupingList, List<Subgroup> subgroupHierarchy, FlattenedAssetPack parent)
         {
             this.Id = template.id;
             this.Name = template.name;
@@ -27,13 +27,14 @@ namespace SynthEBD
             this.RequiredSubgroupIDs = DictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.requiredSubgroups, subgroupHierarchy);
             this.ExcludedSubgroupIDs = DictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.excludedSubgroups, subgroupHierarchy);
             this.AddKeywords = new HashSet<string>(template.addKeywords);
-            this.ProbabilityWeighting = template.probabilityWeighting;
+            this.ProbabilityWeighting = template.ProbabilityWeighting;
             this.Paths = new HashSet<FilePathReplacement>(template.paths);
             this.AllowedBodyGenDescriptors = DictionaryMapper.MorphDescriptorsToDictionary(template.allowedBodyGenDescriptors);
             this.DisallowedBodyGenDescriptors = DictionaryMapper.MorphDescriptorsToDictionary(template.disallowedBodyGenDescriptors);
             this.WeightRange = new NPCWeightRange { Lower = template.weightRange.Lower, Upper = template.weightRange.Upper };
             this.ContainedSubgroupIDs = new List<string> { this.Id };
             this.ContainedSubgroupNames = new List<string> { this.Name };
+            this.ParentAssetPack = parent;
         }
         public string Id { get; set; }
         public string Name { get; set; }
@@ -59,11 +60,13 @@ namespace SynthEBD
         public List<string> ContainedSubgroupIDs { get; set; }
         public List<string> ContainedSubgroupNames { get; set; }
 
-        public static void FlattenSubgroups(AssetPack.Subgroup toFlatten, FlattenedSubgroup parent, List<FlattenedSubgroup> bottomLevelSubgroups, List<RaceGrouping> raceGroupingList, string parentAssetPackName, int topLevelIndex, bool includeBodyGen, List<Subgroup> subgroupHierarchy)
+        public FlattenedAssetPack ParentAssetPack { get; set; }
+
+        public static void FlattenSubgroups(AssetPack.Subgroup toFlatten, FlattenedSubgroup parent, List<FlattenedSubgroup> bottomLevelSubgroups, List<RaceGrouping> raceGroupingList, string parentAssetPackName, int topLevelIndex, bool includeBodyGen, List<Subgroup> subgroupHierarchy, FlattenedAssetPack parentAssetPack)
         {
             if (toFlatten.enabled == false) { return; }
 
-            FlattenedSubgroup flattened = new FlattenedSubgroup(toFlatten, raceGroupingList, subgroupHierarchy);
+            FlattenedSubgroup flattened = new FlattenedSubgroup(toFlatten, raceGroupingList, subgroupHierarchy, parentAssetPack);
 
             if (parent != null)
             {
@@ -136,7 +139,7 @@ namespace SynthEBD
             {
                 foreach (var subgroup in toFlatten.subgroups)
                 {
-                    FlattenSubgroups(subgroup, flattened, bottomLevelSubgroups, raceGroupingList, parentAssetPackName, topLevelIndex, includeBodyGen, subgroupHierarchy);
+                    FlattenSubgroups(subgroup, flattened, bottomLevelSubgroups, raceGroupingList, parentAssetPackName, topLevelIndex, includeBodyGen, subgroupHierarchy, parentAssetPack);
                 }
             }
         }

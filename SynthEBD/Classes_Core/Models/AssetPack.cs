@@ -32,7 +32,7 @@ namespace SynthEBD
         public HashSet<AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
         public string AssociatedBodyGenConfigName { get; set; }
 
-        public class Subgroup
+        public class Subgroup : IProbabilityWeighted
         {
             public Subgroup()
             {
@@ -52,7 +52,7 @@ namespace SynthEBD
                 this.requiredSubgroups = new HashSet<string>();
                 this.excludedSubgroups = new HashSet<string>();
                 this.addKeywords = new HashSet<string>();
-                this.probabilityWeighting = 1;
+                this.ProbabilityWeighting = 1;
                 this.paths = new HashSet<FilePathReplacement>();
                 this.allowedBodyGenDescriptors = new HashSet<BodyGenConfig.MorphDescriptor>();
                 this.disallowedBodyGenDescriptors = new HashSet<BodyGenConfig.MorphDescriptor>();
@@ -78,7 +78,7 @@ namespace SynthEBD
             public HashSet<string> requiredSubgroups { get; set; }
             public HashSet<string> excludedSubgroups { get; set; }
             public HashSet<string> addKeywords { get; set; }
-            public int probabilityWeighting { get; set; }
+            public int ProbabilityWeighting { get; set; }
             public HashSet<FilePathReplacement> paths { get; set; }
             public HashSet<BodyGenConfig.MorphDescriptor> allowedBodyGenDescriptors { get; set; }
             public HashSet<BodyGenConfig.MorphDescriptor> disallowedBodyGenDescriptors { get; set; }
@@ -175,7 +175,7 @@ namespace SynthEBD
                 s.requiredSubgroups = new HashSet<string>(g.requiredSubgroups);
                 s.excludedSubgroups = new HashSet<string>(g.excludedSubgroups);
                 s.addKeywords = new HashSet<string>(g.addKeywords);
-                s.probabilityWeighting = g.probabilityWeighting;
+                s.ProbabilityWeighting = g.probabilityWeighting;
                 
                 s.paths = new HashSet<FilePathReplacement>();
                 foreach (string[] pathPair in g.paths)

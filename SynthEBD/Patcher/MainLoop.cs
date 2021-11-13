@@ -15,7 +15,7 @@ namespace SynthEBD
     {
         
 
-        public static async Task RunPatcher(Settings_General generalSettings, Settings_TexMesh texMeshSettings, Settings_Height heightSettings, Settings_BodyGen bodyGenSettings, List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, HashSet<SpecificNPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths)
+        public static async Task RunPatcher(Settings_General generalSettings, Settings_TexMesh texMeshSettings, Settings_Height heightSettings, Settings_BodyGen bodyGenSettings, List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths)
         {
             Logger.UpdateStatus("Patching", false);
             Logger.StartTimer();
@@ -23,19 +23,25 @@ namespace SynthEBD
             BlockedNPC blockListNPCEntry;
             BlockedPlugin blockListPluginEntry;
             HashSet<LinkedNPCGroupInfo> generatedLinkGroups = new HashSet<LinkedNPCGroupInfo>();
+            HashSet<FlattenedAssetPack> maleAssetPacks = new HashSet<FlattenedAssetPack>();
+            HashSet<FlattenedAssetPack> femaleAssetPacks = new HashSet<FlattenedAssetPack>();
+            HashSet<FlattenedAssetPack> availableAssetPacks = new HashSet<FlattenedAssetPack>();
 
             bool blockAssets;
             bool blockBodyGen;
             bool blockHeight;
             bool bodyGenAssignedWithAssets;
 
-            var AssetPacksByRaceGender = new Dictionary<Tuple<FormKey, Gender>, HashSet<FlattenedAssetPack>>();
+            //var AssetPacksByRaceGender = new Dictionary<Tuple<FormKey, Gender>, HashSet<FlattenedAssetPack>>();
 
             if (generalSettings.bChangeMeshesOrTextures)
             {
                 HashSet<FlattenedAssetPack> flattenedAssetPacks = new HashSet<FlattenedAssetPack>();
                 flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x, generalSettings.RaceGroupings, generalSettings.bEnableBodyGenIntegration)).ToHashSet();
-                AssetPacksByRaceGender = DictionaryMapper.GetAssetPacksByRaceGender(flattenedAssetPacks, generalSettings.patchableRaces);
+                maleAssetPacks = flattenedAssetPacks.Where(x => x.Gender == Gender.male).ToHashSet();
+                femaleAssetPacks = flattenedAssetPacks.Where(x => x.Gender == Gender.female).ToHashSet();
+                
+                //AssetPacksByRaceGender = DictionaryMapper.GetAssetPacksByRaceGender(flattenedAssetPacks, generalSettings.patchableRaces);
             }
 
             int npcCounter = 0;
@@ -80,7 +86,12 @@ namespace SynthEBD
                 // Assets/BodyGen assignment
                 if (generalSettings.bChangeMeshesOrTextures && !blockAssets && generalSettings.patchableRaces.Contains(currentNPCInfo.AssetsRace))
                 {
-                    var availableAssetPacks = AssetPacksByRaceGender[new Tuple<FormKey, Gender>(currentNPCInfo.AssetsRace, currentNPCInfo.Gender)];
+                    //var availableAssetPacks = AssetPacksByRaceGender[new Tuple<FormKey, Gender>(currentNPCInfo.AssetsRace, currentNPCInfo.Gender)];
+                    switch (currentNPCInfo.Gender)
+                    {
+                        case Gender.female: availableAssetPacks = femaleAssetPacks; break;
+                        case Gender.male: availableAssetPacks = maleAssetPacks; break;
+                    }
                     
                     var assignedComboAndBodyGen = AssetAndBodyGenSelector.ChooseCombinationAndBodyGen(out bodyGenAssignedWithAssets, availableAssetPacks, currentNPCInfo);
                 }

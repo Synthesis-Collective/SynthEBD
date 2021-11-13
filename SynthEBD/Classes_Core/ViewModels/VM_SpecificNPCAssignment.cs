@@ -100,7 +100,7 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static VM_SpecificNPCAssignment GetViewModelFromModel(SpecificNPCAssignment model, ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen BGVM, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env)
+        public static VM_SpecificNPCAssignment GetViewModelFromModel(NPCAssignment model, ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen BGVM, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env)
         {
             var newVM = new VM_SpecificNPCAssignment(assetPacks, BGVM);
             newVM.NPCFormKey = model.NPCFormKey;
@@ -122,7 +122,7 @@ namespace SynthEBD
             newVM.Gender = getGender(newVM.NPCFormKey);
 
             bool assetPackFound = false;
-            if (model.ForcedAssetPackName.Length == 0) { assetPackFound = true; }
+            if (model.AssetPackName.Length == 0) { assetPackFound = true; }
             else
             {
                 foreach (var ap in assetPacks)
@@ -132,7 +132,7 @@ namespace SynthEBD
                         newVM.ForcedAssetPack = ap;
                         assetPackFound = true;
 
-                        foreach (var id in model.ForcedSubgroupIDs)
+                        foreach (var id in model.SubgroupIDs)
                         {
                             var foundSubgroup = GetSubgroupByID(ap.subgroups, id);
                             if (foundSubgroup != null)
@@ -153,7 +153,7 @@ namespace SynthEBD
                 }
             }
 
-            newVM.ForcedHeight = model.ForcedHeight;
+            newVM.ForcedHeight = model.Height;
 
             ObservableCollection<VM_BodyGenTemplate> templates = new ObservableCollection<VM_BodyGenTemplate>();
             switch (newVM.Gender)
@@ -166,7 +166,7 @@ namespace SynthEBD
                     break;
             }
 
-            foreach (var forcedMorph in model.ForcedBodyGenMorphNames)
+            foreach (var forcedMorph in model.BodyGenMorphNames)
             {
                 bool morphFound = false;
                 foreach (var morph in templates)
@@ -189,14 +189,14 @@ namespace SynthEBD
             return newVM;
         }
 
-        public static SpecificNPCAssignment DumpViewModelToModel(VM_SpecificNPCAssignment viewModel)
+        public static NPCAssignment DumpViewModelToModel(VM_SpecificNPCAssignment viewModel)
         {
-            SpecificNPCAssignment model = new SpecificNPCAssignment();
+            NPCAssignment model = new NPCAssignment();
             model.DispName = viewModel.DispName;
-            model.ForcedAssetPackName = viewModel.ForcedAssetPack.groupName;
-            model.ForcedSubgroupIDs = viewModel.ForcedSubgroups.Select(subgroup => subgroup.id).ToHashSet();
-            model.ForcedHeight = viewModel.ForcedHeight;
-            model.ForcedBodyGenMorphNames = viewModel.ForcedBodyGenMorphs.Select(morph => morph.Label).ToHashSet();
+            model.AssetPackName = viewModel.ForcedAssetPack.groupName;
+            model.SubgroupIDs = viewModel.ForcedSubgroups.Select(subgroup => subgroup.id).ToHashSet();
+            model.Height = viewModel.ForcedHeight;
+            model.BodyGenMorphNames = viewModel.ForcedBodyGenMorphs.Select(morph => morph.Label).ToHashSet();
             model.NPCFormKey = viewModel.NPCFormKey;
             return model;
         }

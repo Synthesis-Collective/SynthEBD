@@ -9,15 +9,15 @@ namespace SynthEBD
 {
     class SettingsIO_SpecificNPCAssignments
     {
-        public static HashSet<SpecificNPCAssignment> LoadAssignments(Paths paths)
+        public static HashSet<NPCAssignment> LoadAssignments(Paths paths)
         {
-            HashSet<SpecificNPCAssignment> specificNPCAssignments = new HashSet<SpecificNPCAssignment>();
+            HashSet<NPCAssignment> specificNPCAssignments = new HashSet<NPCAssignment>();
 
             if (File.Exists(paths.SpecificNPCAssignmentsPath))
             {
                 try
                 {
-                    specificNPCAssignments = JSONhandler<HashSet<SpecificNPCAssignment>>.loadJSONFile(paths.SpecificNPCAssignmentsPath);
+                    specificNPCAssignments = JSONhandler<HashSet<NPCAssignment>>.loadJSONFile(paths.SpecificNPCAssignmentsPath);
                 }
                 catch
                 {
