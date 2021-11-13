@@ -62,6 +62,23 @@ namespace SynthEBD
             Instance.LogString += message + "\n"; // TEMPORARY FOR DEBUGGING
         }
 
+        public static string SpreadFlattenedAssetPack(FlattenedAssetPack ap, int index, bool indentAtIndex)
+        {
+            string spread = "\n";
+            for (int i = 0; i < ap.Subgroups.Count; i++)
+            {
+                if (indentAtIndex && i == index) { spread += "\t"; }
+                spread += i + ": [" + String.Join(',', ap.Subgroups[i].Select(x => x.Id)) + "]\n";
+            }
+            return spread;
+        }
+
+        public static async Task WriteReport()
+        {
+            await System.IO.File.WriteAllTextAsync("Report.txt", Instance.LogString);
+            string debug = "";
+        }
+
         public static void LogError(string error)
         {
             Instance.LogString += error + "\n";

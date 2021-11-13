@@ -24,39 +24,16 @@ namespace SynthEBD
         public Dictionary<int, FlattenedAssetPack> RemainingVariantsByIndex { get; set; }
         public HashSet<string> PreviouslyGeneratedCombinations = new HashSet<string>();
 
-        public static int BackTrack(AssignmentIteration iterationInfo, FlattenedSubgroup toRemove, int currentIndex, bool removeFromPreviousindex, bool additionalDecrement)
+        public static int BackTrack(AssignmentIteration iterationInfo, FlattenedSubgroup toRemove, int currentIndex, int steps)
         {
-            FlattenedAssetPack revertTo;
-            switch (removeFromPreviousindex)
+            FlattenedAssetPack revertTo = iterationInfo.RemainingVariantsByIndex[currentIndex - steps];
+            if (toRemove != null)
             {
-                case false:
-                    revertTo = iterationInfo.RemainingVariantsByIndex[currentIndex];
-
-                    if (toRemove != null)
-                    {
-                        revertTo.Subgroups[currentIndex].Remove(toRemove);
-                    }
-                    break;
-
-                case true:
-                    revertTo = iterationInfo.RemainingVariantsByIndex[currentIndex - 1];
-
-                    if (toRemove != null && currentIndex - 1 >= 0)
-                    {
-                        revertTo.Subgroups[currentIndex - 1].Remove(toRemove);
-                    }
-                    break;
+                revertTo.Subgroups[currentIndex - steps].Remove(toRemove);
             }
+            iterationInfo.ChosenAssetPack = revertTo;
 
-            iterationInfo.ChosenAssetPack = revertTo.ShallowCopy();
-
-            int returnIndex = currentIndex - 1;
-            if (additionalDecrement)
-            {
-                returnIndex--;
-            }
-
-            return returnIndex;
+            return currentIndex - steps - 1; // -1 because the calling for loop will then immediately add 1 back at the next iteration
         }
     }
 }

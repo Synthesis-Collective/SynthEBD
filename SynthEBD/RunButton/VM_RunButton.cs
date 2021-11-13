@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media;
+using Mutagen.Bethesda.WPF;
 
 namespace SynthEBD
 {
@@ -17,18 +18,35 @@ namespace SynthEBD
 
             ClickRun = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
+                execute: _ =>
+                {
+                    ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
+                    MainLoop.RunPatcher(
+                        ParentWindow.GeneralSettings, ParentWindow.TexMeshSettings, ParentWindow.HeightSettings,
+                        ParentWindow.BodyGenSettings, ParentWindow.AssetPacks, ParentWindow.HeightConfigs, ParentWindow.SpecificNPCAssignments,
+                        ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths);
+        }
+                );
+            /*
+            ClickRun = ReactiveUI.ReactiveCommand.CreateFromTask(
+                
                 execute: async _ =>
                 {
                     ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
-                    Task.Run(() => MainLoop.RunPatcher(ParentWindow.GeneralSettings, ParentWindow.TexMeshSettings, ParentWindow.HeightSettings, ParentWindow.BodyGenSettings, ParentWindow.AssetPacks, ParentWindow.HeightConfigs, ParentWindow.SpecificNPCAssignments, ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths));
-                }
-        );
+
+                    await Task.Run(() => MainLoop.RunPatcher(
+                        ParentWindow.GeneralSettings, ParentWindow.TexMeshSettings, ParentWindow.HeightSettings,
+                        ParentWindow.BodyGenSettings, ParentWindow.AssetPacks, ParentWindow.HeightConfigs, ParentWindow.SpecificNPCAssignments,
+                        ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths));
+                });
+               */
         }
         public SolidColorBrush BackgroundColor { get; set; }
 
         public MainWindow_ViewModel ParentWindow { get; set; }
 
-        public RelayCommand ClickRun { get; }
+        //public ReactiveUI.IReactiveCommand ClickRun { get; }
+        public SynthEBD.RelayCommand ClickRun { get; }
 
         public event PropertyChangedEventHandler PropertyChanged;
     }
