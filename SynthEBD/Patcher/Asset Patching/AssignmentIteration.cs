@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 
 namespace SynthEBD
 {
@@ -14,11 +10,13 @@ namespace SynthEBD
     {
         public AssignmentIteration()
         {
+            this.AvailableSeeds = new HashSet<FlattenedSubgroup>();
             this.ChosenSeed = null;
             this.ChosenAssetPack = null;
             this.RemainingVariantsByIndex = new Dictionary<int, FlattenedAssetPack>();
             this.PreviouslyGeneratedCombinations = new HashSet<string>();
         }
+        public HashSet<FlattenedSubgroup> AvailableSeeds { get; set; }
         public FlattenedSubgroup ChosenSeed { get; set; }
         public FlattenedAssetPack ChosenAssetPack { get; set; }
         public Dictionary<int, FlattenedAssetPack> RemainingVariantsByIndex { get; set; }

@@ -176,7 +176,6 @@ namespace SynthEBD
 
             SubgroupCombination assignedCombination = new SubgroupCombination();
             HashSet<FlattenedAssetPack> filteredAssetPacks = new HashSet<FlattenedAssetPack>();
-            HashSet<FlattenedSubgroup> seedSubgroups = new HashSet<FlattenedSubgroup>();
             AssignmentIteration iterationInfo = new AssignmentIteration();
             bool combinationIsValid = false;
 
@@ -185,19 +184,22 @@ namespace SynthEBD
             Tuple<SubgroupCombination, HashSet<string>> firstValidCombinationMorphPair = new Tuple<SubgroupCombination, HashSet<string>>(new SubgroupCombination(), new HashSet<string>());
             bool firstValidCombinationMorphPairInitialized = false;
 
+            // remove subgroups or entire asset packs whose distribution rules are incompatible with the current NPC
             filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, false, false, out bool wasFilteredByConsistency, out bool wasFilteredByForceIf);
-            seedSubgroups = GetAllSubgroups(filteredAssetPacks);
+
+            // initialize seeds
+            iterationInfo.AvailableSeeds = GetAllSubgroups(filteredAssetPacks);
 
             while (!combinationIsValid)
             {
-                if (!seedSubgroups.Any())
+                if (!iterationInfo.AvailableSeeds.Any())
                 {
                     Logger.LogMessage("No Asset Packs were able to be applied to " + npcInfo.LogIDstring);
                     break;
                 }
 
                 // get an asset combination
-                assignedCombination = GenerateCombination(filteredAssetPacks, npcInfo, seedSubgroups, iterationInfo);
+                assignedCombination = GenerateCombination(filteredAssetPacks, npcInfo, iterationInfo);
 
                 if (assignedCombination == null) 
                 {
@@ -262,17 +264,17 @@ namespace SynthEBD
                     if (wasFilteredByConsistency && wasFilteredByForceIf) // if no valid groups when filtering for consistency and forceIf attributes, try again without filtering for consistency
                     {
                         filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, true, false, out wasFilteredByConsistency, out wasFilteredByForceIf);
-                        seedSubgroups = GetAllSubgroups(filteredAssetPacks);
+                        iterationInfo.AvailableSeeds = GetAllSubgroups(filteredAssetPacks);
                     }
                     else if (!wasFilteredByConsistency && wasFilteredByForceIf) // if no valid groups when filtering for forceIf attributes only, try again without filtering for them
                     {
                         filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, false, true, out wasFilteredByConsistency, out wasFilteredByForceIf);
-                        seedSubgroups = GetAllSubgroups(filteredAssetPacks);
+                        iterationInfo.AvailableSeeds = GetAllSubgroups(filteredAssetPacks);
                     }
                     else if (wasFilteredByConsistency && !wasFilteredByForceIf) // if no valid groups when filtering for consistency only, try again without filtering for it
                     {
                         filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, true, true, out wasFilteredByConsistency, out wasFilteredByForceIf);
-                        seedSubgroups = GetAllSubgroups(filteredAssetPacks);
+                        iterationInfo.AvailableSeeds = GetAllSubgroups(filteredAssetPacks);
                     }
                     else // no other filters can be relaxed
                     {
@@ -303,7 +305,7 @@ namespace SynthEBD
             return assignedCombination;
         }
 
-        private static SubgroupCombination GenerateCombination(HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo, HashSet<FlattenedSubgroup> seedSubgroups, AssignmentIteration iterationInfo)
+        private static SubgroupCombination GenerateCombination(HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo, AssignmentIteration iterationInfo)
         {
             SubgroupCombination generatedCombination = new SubgroupCombination();
             string generatedSignature = "";
@@ -313,35 +315,37 @@ namespace SynthEBD
 
             Logger.LogReport("Generating a new combination");
 
+            #region Choose New Seed
             if (iterationInfo.ChosenSeed == null)
             {
-                if (!seedSubgroups.Any())
+                if (!iterationInfo.AvailableSeeds.Any())
                 {
                     Logger.LogReport("No seed subgroups remain. A valid combination cannot be assigned with the given filters.");
                     return null;
                 }
 
                 Logger.LogReport("Choosing a seed subgroup");
-                iterationInfo.ChosenSeed = (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(seedSubgroups);
+                iterationInfo.ChosenSeed = (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(iterationInfo.AvailableSeeds);
                 iterationInfo.ChosenAssetPack = iterationInfo.ChosenSeed.ParentAssetPack.ShallowCopy();
                 iterationInfo.ChosenAssetPack.Subgroups[iterationInfo.ChosenSeed.TopLevelSubgroupIndex] = new List<FlattenedSubgroup>() { iterationInfo.ChosenSeed }; // filter the seed index so that the seed is the only option
                 generatedCombination.AssetPackName = iterationInfo.ChosenAssetPack.GroupName;
                 Logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.Id + " in " + iterationInfo.ChosenAssetPack.GroupName);
 
-                iterationInfo.RemainingVariantsByIndex = new Dictionary<int, FlattenedAssetPack>();
+                iterationInfo.RemainingVariantsByIndex = new Dictionary<int, FlattenedAssetPack>(); // tracks the available subgroups as the combination gets built up to enable backtracking if the patcher chooses an invalid combination
                 for (int i = 0; i < iterationInfo.ChosenAssetPack.Subgroups.Count; i++)
                 {
                     iterationInfo.RemainingVariantsByIndex.Add(i, null); // set up placeholders for backtracking
                     generatedCombination.ContainedSubgroups.Add(null); // set up placeholders for subgroups
                 }
                 iterationInfo.RemainingVariantsByIndex[0] = iterationInfo.ChosenAssetPack.ShallowCopy(); // initial state of the chosen asset pack
+                iterationInfo.ChosenAssetPack = ConformRequiredExcludedSubgroups(iterationInfo.ChosenSeed, iterationInfo.ChosenAssetPack);
+                if (iterationInfo.ChosenAssetPack == null)
+                {
+                    Logger.LogReport("Cannot create a combination with the chosen seed subgroup due to conflicting required/excluded subgroup rules. Selecting a different seed.");
+                    return RemoveInvalidSeed(iterationInfo.AvailableSeeds, iterationInfo); // exit this function and re-enter from caller to choose a new seed
+                }
             }
-            iterationInfo.ChosenAssetPack = ConformRequiredExcludedSubgroups(iterationInfo.ChosenSeed, iterationInfo.ChosenAssetPack);
-            if (iterationInfo.ChosenAssetPack == null)
-            {
-                Logger.LogReport("Cannot create a combination with the chosen seed subgroup due to conflicting required/excluded subgroup rules. Selecting a different seed.");
-                return RemoveInvalidSeed(seedSubgroups, iterationInfo); // exit this function and re-enter from caller to choose a new seed
-            }
+            #endregion
 
             int debugCounter = 0;
 
@@ -350,7 +354,7 @@ namespace SynthEBD
                 //DEBUGGING
                 if (generatedCombination.ContainedSubgroups.Count > 0) 
                 { 
-                    Logger.LogReport("Current Combination: " + String.Join(',', generatedCombination.ContainedSubgroups.Where(x => x != null).Select(x => x.Id)) + "\n"); 
+                    Logger.LogReport("Current Combination: " + String.Join(" , ", generatedCombination.ContainedSubgroups.Where(x => x != null).Select(x => x.Id)) + "\n"); 
                 }
                 Logger.LogReport("Available Subgroups:" + Logger.SpreadFlattenedAssetPack(iterationInfo.ChosenAssetPack, i, true));
                 debugCounter++;
@@ -359,15 +363,15 @@ namespace SynthEBD
                     Task.Run(Logger.WriteReport);
                 }
                 //
-
+                #region BackTrack if no options remain
                 if (iterationInfo.ChosenAssetPack.Subgroups[i].Count == 0)
                 {
-                    if (iterationInfo.ChosenSeed.TopLevelSubgroupIndex == 0)
+                    if (i == 0 || (i == 1 && iterationInfo.ChosenSeed.TopLevelSubgroupIndex == 0))
                     {
-                        Logger.LogReport("Cannot backtrack further because the last remaining index position is the seed position. Selecting a new seed.");
-                        return RemoveInvalidSeed(seedSubgroups, iterationInfo); // exit this function and re-enter from caller to choose a new seed
+                        Logger.LogReport("Cannot backtrack further with " + iterationInfo.ChosenSeed.Id + " as seed. Selecting a new seed.");
+                        return RemoveInvalidSeed(iterationInfo.AvailableSeeds, iterationInfo); // exit this function and re-enter from caller to choose a new seed
                     }
-                    else if ((i - 1) == iterationInfo.ChosenSeed.TopLevelSubgroupIndex)
+                    else if ((i - 1) == iterationInfo.ChosenSeed.TopLevelSubgroupIndex) // skip over the seed subgroup
                     {
                         Logger.LogReport("No subgroups remain at position (" + i + "). Selecting a different subgroup at position " + (i - 2));
                         i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination.ContainedSubgroups[i - 2], i, 2);
@@ -377,17 +381,9 @@ namespace SynthEBD
                         Logger.LogReport("No subgroups remain at position (" + i + "). Selecting a different subgroup at position " + (i - 1));
                         i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination.ContainedSubgroups[i - 1], i, 1);
                     }
-
-                    if (i < 0) // if backtracking goes all the way back to seed
-                    {
-                        Logger.LogReport("No valid combination could be assigned with " + iterationInfo.ChosenSeed.Id + " as seed. Selecting a new seed.");
-                        return RemoveInvalidSeed(seedSubgroups, iterationInfo); // exit this function and re-enter from caller to choose a new seed
-                    }
-                    else
-                    {
-                        continue;
-                    }
+                    continue;
                 }
+                #endregion
 
                 nextSubgroup = (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(iterationInfo.ChosenAssetPack.Subgroups[i]);
                 Logger.LogReport("Chose next subgroup: " + nextSubgroup.Id + " at position " + i + "\n");
@@ -417,20 +413,27 @@ namespace SynthEBD
                         Logger.LogError("This combination (" + generatedSignature + ") has previously been generated");
                     }
 
+                    /*
                     if (i == 0)
                     {
                         Logger.LogReport("No valid combinations could be made with seed subgroup " + iterationInfo.ChosenSeed.Id + ". Choosing a different seed subgroup.");
-                        return RemoveInvalidSeed(seedSubgroups, iterationInfo); // exit this function and re-enter from caller to choose a new seed
+                        return RemoveInvalidSeed(iterationInfo.AvailableSeeds, iterationInfo); // exit this function and re-enter from caller to choose a new seed
                     }
                     else
                     {
                         Logger.LogReport("Selecting a different subgroup at position " + i + ".");
                         i = AssignmentIteration.BackTrack(iterationInfo, nextSubgroup, i, 0);
                         continue;
-                    }
+                    }*/
+                    Logger.LogReport("Selecting a different subgroup at position " + i + ".");
+                    i = AssignmentIteration.BackTrack(iterationInfo, nextSubgroup, i, 0);
+                    generatedCombination.ContainedSubgroups[i] = null;
+                    continue;
                 }
-
-                iterationInfo.RemainingVariantsByIndex[i + 1] = iterationInfo.ChosenAssetPack.ShallowCopy();
+                else
+                {
+                    iterationInfo.RemainingVariantsByIndex[i + 1] = iterationInfo.ChosenAssetPack.ShallowCopy();
+                }
             }
 
             iterationInfo.PreviouslyGeneratedCombinations.Add(generatedSignature);
@@ -446,6 +449,11 @@ namespace SynthEBD
 
         private static FlattenedAssetPack ConformRequiredExcludedSubgroups(FlattenedSubgroup targetSubgroup, FlattenedAssetPack chosenAssetPack)
         {
+            if (!targetSubgroup.ExcludedSubgroupIDs.Any() && !targetSubgroup.RequiredSubgroupIDs.Any())
+            {
+                return chosenAssetPack;
+            }
+
             Logger.LogReport("Trimming remaining subgroups within " + chosenAssetPack.GroupName + " by the required/excluded subgroups of " + targetSubgroup.Id + "\n");
 
             // create a shallow copy of the subgroup list to avoid modifying the chosenAssetPack unless the result is confirmed to be valid.
@@ -455,20 +463,22 @@ namespace SynthEBD
                 trialSubgroups.Add(new List<FlattenedSubgroup>(chosenAssetPack.Subgroups[i]));
             }
 
+            // check excluded subgroups
             foreach (var entry in targetSubgroup.ExcludedSubgroupIDs)
             {
-                chosenAssetPack.Subgroups[entry.Key] = chosenAssetPack.Subgroups[entry.Key].Where(x => entry.Value.Contains(x.Id) == false).ToList();
-                if(!chosenAssetPack.Subgroups[entry.Key].Any())
+                trialSubgroups[entry.Key] = chosenAssetPack.Subgroups[entry.Key].Where(x => entry.Value.Contains(x.Id) == false).ToList();
+                if(!trialSubgroups[entry.Key].Any())
                 {
                     Logger.LogReport("Subgroup " + targetSubgroup.Id + " cannot be added because it excludes (" + String.Join(',', entry.Value) + ") which eliminates all options at position " + entry.Key + ".\n");
                     return null;
                 }
             }
 
+            // check required subgroups
             foreach (var entry in targetSubgroup.RequiredSubgroupIDs)
             {
-                chosenAssetPack.Subgroups[entry.Key] = chosenAssetPack.Subgroups[entry.Key].Where(x => entry.Value.Contains(x.Id)).ToList();
-                if (!chosenAssetPack.Subgroups[entry.Key].Any())
+                trialSubgroups[entry.Key] = chosenAssetPack.Subgroups[entry.Key].Where(x => entry.Value.Contains(x.Id)).ToList();
+                if (!trialSubgroups[entry.Key].Any())
                 {
                     Logger.LogReport("Subgroup " + targetSubgroup.Id + " cannot be added because it requires (" + String.Join('|', entry.Value) + ") which eliminates all options at position " + entry.Key + ".\n");
                     return null;
