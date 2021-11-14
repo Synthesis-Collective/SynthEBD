@@ -44,11 +44,10 @@ namespace SynthEBD
         /// <param name="availableAssetPacks"></param>
         /// <param name="npcInfo"></param>
         /// <returns></returns>
-        private static HashSet<FlattenedAssetPack> FilterValidConfigsForNPC(HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo, bool ignoreConsistency, bool ignoreForceIf, out bool wasFilteredByConsistency, out bool wasFilteredByForceIf)
+        private static HashSet<FlattenedAssetPack> FilterValidConfigsForNPC(HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo, bool ignoreConsistency, out bool wasFilteredByConsistency)
         {
             HashSet<FlattenedAssetPack> filteredPacks = new HashSet<FlattenedAssetPack>();
             wasFilteredByConsistency = false;
-            wasFilteredByForceIf = false;
 
             string forcedAssetPack = null;
             if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.AssetPackName != "")
@@ -76,7 +75,7 @@ namespace SynthEBD
                 bool isValid = true;
 
                 for (int i = 0; i < candidatePack.Subgroups.Count; i++)
-                {                    
+                {
                     // checked if the subgroup at this position is specified via a Specific NPC Assignment
                     if (npcInfo.SpecificNPCAssignment != null)
                     {
@@ -89,43 +88,16 @@ namespace SynthEBD
                     }
                     else
                     {
-                        
-                        List<int> forceIfAttributeMatchedCount = new List<int>();
                         for (int j = 0; j < candidatePack.Subgroups[i].Count; j++)
                         {
-                            int matchedForceIfAttributes = 0;
-                            if (!SubgroupValidForCurrentNPC(candidatePack.Subgroups[i][j], npcInfo, out matchedForceIfAttributes))
+                            if (!SubgroupValidForCurrentNPC(candidatePack.Subgroups[i][j], npcInfo))
                             {
                                 candidatePack.Subgroups[i].RemoveAt(j);
                                 j--;
                             }
                             else
                             {
-                                forceIfAttributeMatchedCount.Add(matchedForceIfAttributes);
                                 candidatePack.Subgroups[i][j].ParentAssetPack = candidatePack; // explicitly re-link ParentAssetPack - see note above
-                            }
-                        }
-
-                        if (ignoreForceIf == false)
-                        {
-                            // remove subgroups that contain the least ForceIf attributes
-                            int maxMatchedForceIfs = 0;
-                            if (forceIfAttributeMatchedCount.Any()) // forceIfAttributeMatchedCount.Max() will freeze on an empty set.
-                            {
-                                maxMatchedForceIfs = forceIfAttributeMatchedCount.Max();
-                            }
-                            if (maxMatchedForceIfs > 0)
-                            {
-                                var forceIfMatchedSubgroups = new List<FlattenedSubgroup>();
-                                for (int j = 0; j < candidatePack.Subgroups[i].Count; j++)
-                                {
-                                    if (forceIfAttributeMatchedCount[j] == maxMatchedForceIfs)
-                                    {
-                                        forceIfMatchedSubgroups.Add(candidatePack.Subgroups[i][j]);
-                                    }
-                                }
-                                candidatePack.Subgroups[i] = forceIfMatchedSubgroups;
-                                wasFilteredByForceIf = true;
                             }
                         }
                     }
@@ -144,13 +116,16 @@ namespace SynthEBD
                             break;
                         }
                     }
-                    
+                    else
+                    {
+                        candidatePack.Subgroups[i].OrderByDescending(x => x.ForceIfMatchCount);
+                    }
                 }
                 if (isValid)
                 {
                     filteredPacks.Add(candidatePack);
                 }
-                
+
             }
 
             if (filteredPacks.Count == 0)
@@ -185,10 +160,10 @@ namespace SynthEBD
             bool firstValidCombinationMorphPairInitialized = false;
 
             // remove subgroups or entire asset packs whose distribution rules are incompatible with the current NPC
-            filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, false, false, out bool wasFilteredByConsistency, out bool wasFilteredByForceIf);
+            filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, false, out bool wasFilteredByConsistency);
 
             // initialize seeds
-            iterationInfo.AvailableSeeds = GetAllSubgroups(filteredAssetPacks);
+            iterationInfo.AvailableSeeds = GetAllSubgroups(filteredAssetPacks).OrderByDescending(x => x.ForceIfMatchCount).ToList();
 
             while (!combinationIsValid)
             {
@@ -261,19 +236,9 @@ namespace SynthEBD
                 // Fallbacks if the chosen combination is invalid
                 if (!combinationIsValid && filteredAssetPacks.Count == 0) // relax filters if possible
                 {
-                    if (wasFilteredByConsistency && wasFilteredByForceIf) // if no valid groups when filtering for consistency and forceIf attributes, try again without filtering for consistency
+                    if (wasFilteredByConsistency) // if no valid groups when filtering for consistency, try again without filtering for it
                     {
-                        filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, true, false, out wasFilteredByConsistency, out wasFilteredByForceIf);
-                        iterationInfo.AvailableSeeds = GetAllSubgroups(filteredAssetPacks);
-                    }
-                    else if (!wasFilteredByConsistency && wasFilteredByForceIf) // if no valid groups when filtering for forceIf attributes only, try again without filtering for them
-                    {
-                        filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, false, true, out wasFilteredByConsistency, out wasFilteredByForceIf);
-                        iterationInfo.AvailableSeeds = GetAllSubgroups(filteredAssetPacks);
-                    }
-                    else if (wasFilteredByConsistency && !wasFilteredByForceIf) // if no valid groups when filtering for consistency only, try again without filtering for it
-                    {
-                        filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, true, true, out wasFilteredByConsistency, out wasFilteredByForceIf);
+                        filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, true, out wasFilteredByConsistency);
                         iterationInfo.AvailableSeeds = GetAllSubgroups(filteredAssetPacks);
                     }
                     else // no other filters can be relaxed
@@ -324,13 +289,21 @@ namespace SynthEBD
                     return null;
                 }
 
-                Logger.LogReport("Choosing a seed subgroup");
-                iterationInfo.ChosenSeed = (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(iterationInfo.AvailableSeeds);
-                iterationInfo.ChosenAssetPack = iterationInfo.ChosenSeed.ParentAssetPack.ShallowCopy();
+                if (iterationInfo.AvailableSeeds[0].ForceIfMatchCount > 0)
+                {
+                    iterationInfo.ChosenSeed = iterationInfo.AvailableSeeds[0];
+                    iterationInfo.ChosenAssetPack = iterationInfo.ChosenSeed.ParentAssetPack.ShallowCopy();
+                    Logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.Id + " in " + iterationInfo.ChosenAssetPack.GroupName + " because it had the most matched ForceIf attributes ("  + iterationInfo.ChosenSeed.ForceIfMatchCount + ").");
+                }
+                else
+                {
+                    iterationInfo.ChosenSeed = (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(iterationInfo.AvailableSeeds);
+                    iterationInfo.ChosenAssetPack = iterationInfo.ChosenSeed.ParentAssetPack.ShallowCopy();
+                    Logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.Id + " in " + iterationInfo.ChosenAssetPack.GroupName + " at random");
+                }
                 iterationInfo.ChosenAssetPack.Subgroups[iterationInfo.ChosenSeed.TopLevelSubgroupIndex] = new List<FlattenedSubgroup>() { iterationInfo.ChosenSeed }; // filter the seed index so that the seed is the only option
                 generatedCombination.AssetPackName = iterationInfo.ChosenAssetPack.GroupName;
-                Logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.Id + " in " + iterationInfo.ChosenAssetPack.GroupName);
-
+                
                 iterationInfo.RemainingVariantsByIndex = new Dictionary<int, FlattenedAssetPack>(); // tracks the available subgroups as the combination gets built up to enable backtracking if the patcher chooses an invalid combination
                 for (int i = 0; i < iterationInfo.ChosenAssetPack.Subgroups.Count; i++)
                 {
@@ -386,15 +359,25 @@ namespace SynthEBD
                 }
                 #endregion
 
-                nextSubgroup = (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(iterationInfo.ChosenAssetPack.Subgroups[i]);
-                Logger.LogReport("Chose next subgroup: " + nextSubgroup.Id + " at position " + i + "\n");
-                generatedCombination.ContainedSubgroups[i] = nextSubgroup;
+                #region Pick next subgroup
+                if (iterationInfo.ChosenAssetPack.Subgroups[i][0].ForceIfMatchCount > 0)
+                {
+                    nextSubgroup = iterationInfo.ChosenAssetPack.Subgroups[i][0];
+                    Logger.LogReport("Chose next subgroup: " + nextSubgroup.Id + " at position " + i + " because it had the most matched ForceIf Attributes (" + nextSubgroup.ForceIfMatchCount + ").\n");
+                }
+                else
+                {
+                    nextSubgroup = (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(iterationInfo.ChosenAssetPack.Subgroups[i]);
+                    Logger.LogReport("Chose next subgroup: " + nextSubgroup.Id + " at position " + i + " at random.\n");
+                }
+                #endregion
 
+                generatedCombination.ContainedSubgroups[i] = nextSubgroup;
                 iterationInfo.ChosenAssetPack = ConformRequiredExcludedSubgroups(nextSubgroup, iterationInfo.ChosenAssetPack);
 
                 if (generatedCombination.ContainedSubgroups.Last() != null) // if this is the last position in the combination, check if the combination has already been processed during a previous iteration of the calling function with stricter filtering
                 {
-                    generatedSignature = iterationInfo.ChosenAssetPack.GroupName + ":" + String.Join('|', generatedCombination.ContainedSubgroups.OrderBy(x => x.TopLevelSubgroupIndex).Select(x => x.Id));
+                    generatedSignature = iterationInfo.ChosenAssetPack.GroupName + ":" + String.Join('|', generatedCombination.ContainedSubgroups.Select(x => x.Id));
                     if (iterationInfo.PreviouslyGeneratedCombinations.Contains(generatedSignature))
                     {
                         combinationAlreadyTried = true;
@@ -419,7 +402,7 @@ namespace SynthEBD
                 }
                 else
                 {
-                    iterationInfo.RemainingVariantsByIndex[i + 1] = iterationInfo.ChosenAssetPack.ShallowCopy();
+                    iterationInfo.RemainingVariantsByIndex[i + 1] = iterationInfo.ChosenAssetPack.ShallowCopy(); // store the current state of the current asset pack for backtracking in future iterations if necessary
                 }
             }
 
@@ -427,7 +410,7 @@ namespace SynthEBD
             return generatedCombination;
         }
 
-        private static SubgroupCombination RemoveInvalidSeed(HashSet<FlattenedSubgroup> seedSubgroups, AssignmentIteration iterationInfo)
+        private static SubgroupCombination RemoveInvalidSeed(List<FlattenedSubgroup> seedSubgroups, AssignmentIteration iterationInfo)
         {
             seedSubgroups.Remove(iterationInfo.ChosenSeed);
             iterationInfo.ChosenSeed = null;
@@ -476,9 +459,9 @@ namespace SynthEBD
             return chosenAssetPack;
         }
 
-        private static HashSet<FlattenedSubgroup> GetAllSubgroups(HashSet<FlattenedAssetPack> availableAssetPacks)
+        private static List<FlattenedSubgroup> GetAllSubgroups(HashSet<FlattenedAssetPack> availableAssetPacks)
         {
-            HashSet<FlattenedSubgroup> subgroupSet = new HashSet<FlattenedSubgroup>();
+            List<FlattenedSubgroup> subgroupSet = new List<FlattenedSubgroup>();
 
             foreach (var ap in availableAssetPacks)
             {
@@ -501,10 +484,8 @@ namespace SynthEBD
         /// <param name="npcInfo"></param>
         /// <param name="forceIfAttributeCount">The number of ForceIf attributes within this subgroup that were matched by the current NPC</param>
         /// <returns></returns>
-        private static bool SubgroupValidForCurrentNPC(FlattenedSubgroup subgroup, NPCInfo npcInfo, out int forceIfAttributeCount)
+        private static bool SubgroupValidForCurrentNPC(FlattenedSubgroup subgroup, NPCInfo npcInfo)
         {
-            forceIfAttributeCount = 0;
-
             if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.SubgroupIDs.Contains(subgroup.Id))
             {
                 return true;
@@ -554,10 +535,10 @@ namespace SynthEBD
 
             // if the current subgroup's forceIf attributes match the current NPC, skip the checks for Distribution Enabled
             
-            forceIfAttributeCount = AttributeMatcher.GetForceIfAttributeCount(subgroup.AllowedAttributes, npcInfo.NPC);
+            subgroup.ForceIfMatchCount = AttributeMatcher.GetForceIfAttributeCount(subgroup.AllowedAttributes, npcInfo.NPC);
 
             // Distribution Enabled
-            if (forceIfAttributeCount == 0 && !subgroup.DistributionEnabled)
+            if (subgroup.ForceIfMatchCount == 0 && !subgroup.DistributionEnabled)
             {
                 return false;
             }

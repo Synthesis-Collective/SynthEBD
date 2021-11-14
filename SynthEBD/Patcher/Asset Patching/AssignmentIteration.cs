@@ -10,13 +10,13 @@ namespace SynthEBD
     {
         public AssignmentIteration()
         {
-            this.AvailableSeeds = new HashSet<FlattenedSubgroup>();
+            this.AvailableSeeds = new List<FlattenedSubgroup>();
             this.ChosenSeed = null;
             this.ChosenAssetPack = null;
             this.RemainingVariantsByIndex = new Dictionary<int, FlattenedAssetPack>();
             this.PreviouslyGeneratedCombinations = new HashSet<string>();
         }
-        public HashSet<FlattenedSubgroup> AvailableSeeds { get; set; }
+        public List<FlattenedSubgroup> AvailableSeeds { get; set; }
         public FlattenedSubgroup ChosenSeed { get; set; }
         public FlattenedAssetPack ChosenAssetPack { get; set; }
         public Dictionary<int, FlattenedAssetPack> RemainingVariantsByIndex { get; set; }

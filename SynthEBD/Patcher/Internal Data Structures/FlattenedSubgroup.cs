@@ -34,6 +34,7 @@ namespace SynthEBD
             this.ContainedSubgroupIDs = new List<string> { this.Id };
             this.ContainedSubgroupNames = new List<string> { this.Name };
             this.ParentAssetPack = parent;
+            this.ForceIfMatchCount = 0;
         }
         public string Id { get; set; }
         public string Name { get; set; }
@@ -58,7 +59,9 @@ namespace SynthEBD
         public List<string> ContainedSubgroupIDs { get; set; }
         public List<string> ContainedSubgroupNames { get; set; }
 
+        // used during combination generation
         public FlattenedAssetPack ParentAssetPack { get; set; }
+        public int ForceIfMatchCount { get; set; }
 
         public static void FlattenSubgroups(AssetPack.Subgroup toFlatten, FlattenedSubgroup parent, List<FlattenedSubgroup> bottomLevelSubgroups, List<RaceGrouping> raceGroupingList, string parentAssetPackName, int topLevelIndex, bool includeBodyGen, List<Subgroup> subgroupHierarchy, FlattenedAssetPack parentAssetPack)
         {

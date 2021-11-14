@@ -19,8 +19,17 @@ namespace SynthEBD
             return count;
         }
 
+        /// <summary>
+        /// Evaluates a list of NPCAttributes to determine if the given NPC 
+        /// </summary>
+        /// <param name="attributeList"></param>
+        /// <param name="npc"></param>
+        /// <param name="getForceIfCount"></param>
+        /// <param name="matchedForceIfAttributeCount"></param>
+        /// <returns></returns>
         private static bool MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, bool getForceIfCount, out int matchedForceIfAttributeCount)
         {
+            bool matched = false;
             matchedForceIfAttributeCount = 0;
             if (attributeList.Count == 0) { return false; }
 
@@ -91,11 +100,19 @@ namespace SynthEBD
                 }
                 if (!subAttributeMatched) // sub attributes are treated as AND, so as soon as one isn't matched return false
                 {
-                    return false;
+                    continue; // evaluate the next attribute - the current attribute is not matched because one of the sub-attributes is not matched
+                }
+                else if (!getForceIfCount) // if the calling function only wants to know if any attributes are matched, and does not care how many of the matched attributes are ForceIf, then return true as soon as the first attribute is matched
+                {
+                    return true;
+                }
+                else
+                {
+                    matched = true;
                 }
             }
 
-            return true;
+            return matched;
         }
     }
 }
