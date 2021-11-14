@@ -11,19 +11,22 @@ namespace SynthEBD
     {
         public static bool HasMatchedAttributes(HashSet<NPCAttribute> attributeList, INpcGetter npc)
         {
-            return GetNPCMatchedAttributes(attributeList, npc, false) > 0;
+            return MatchNPCtoAttributeList(attributeList, npc, false, out int unused);
         }
-        public static int GetMatchedAttributeCount(HashSet<NPCAttribute> attributeList, INpcGetter npc)
+        public static int GetForceIfAttributeCount(HashSet<NPCAttribute> attributeList, INpcGetter npc)
         {
-            return GetNPCMatchedAttributes(attributeList, npc, true);
+            MatchNPCtoAttributeList(attributeList, npc, true, out int count);
+            return count;
         }
 
-        private static int GetNPCMatchedAttributes(HashSet<NPCAttribute> attributeList, INpcGetter npc, bool getMatchCount)
+        private static bool MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, bool getForceIfCount, out int matchedForceIfAttributeCount)
         {
-            int matchCount = 0;
+            matchedForceIfAttributeCount = 0;
+            if (attributeList.Count == 0) { return false; }
+
             foreach (var attribute in attributeList)
             {
-                bool allSubAttributesMatched = true;
+                bool subAttributeMatched = true;
                 foreach (var subAttribute in attribute.GroupedSubAttributes)
                 {
                     switch(subAttribute.Type)
@@ -32,11 +35,7 @@ namespace SynthEBD
                             var classAttribute = (NPCAttributeClass)subAttribute;
                             if (!classAttribute.FormKeys.Contains(npc.Class.FormKey))
                             {
-                                allSubAttributesMatched = false;
-                            }
-                            else
-                            {
-                                bool debug = true;
+                                subAttributeMatched = false;
                             }
                             break;
                         case NPCAttributeType.Faction:
@@ -54,7 +53,7 @@ namespace SynthEBD
                                 }
                                 if (!factionMatched)
                                 {
-                                    allSubAttributesMatched = false;
+                                    subAttributeMatched = false;
                                 }
                             }
                             break;
@@ -62,44 +61,41 @@ namespace SynthEBD
                             var faceTextureAttribute = (NPCAttributeFaceTexture)subAttribute;
                             if (!faceTextureAttribute.FormKeys.Contains(npc.HeadTexture.FormKey))
                             {
-                                allSubAttributesMatched = false;
+                                subAttributeMatched = false;
                             }
                             break;
                         case NPCAttributeType.NPC:
                             var npcAttribute = (NPCAttributeNPC)subAttribute;
                             if (!npcAttribute.FormKeys.Contains(npc.FormKey))
                             {
-                                allSubAttributesMatched = false;
+                                subAttributeMatched = false;
                             }
                             break;
                         case NPCAttributeType.Race:
                             var npcAttributeRace = (NPCAttributeRace)subAttribute;
                             if (!npcAttributeRace.FormKeys.Contains(npc.Race.FormKey))
                             {
-                                allSubAttributesMatched = false;
+                                subAttributeMatched = false;
                             }
                             break;
                         case NPCAttributeType.VoiceType:
                             var npcAttributeVT = (NPCAttributeVoiceType)subAttribute;
                             if (!npcAttributeVT.FormKeys.Contains(npc.Voice.FormKey))
                             {
-                                allSubAttributesMatched = false;
+                                subAttributeMatched = false;
                             }
                             break;
                     }
-                    if (allSubAttributesMatched == false) { break; }
+                    if (subAttributeMatched == false) { break; }
+                    else if (subAttribute.ForceIf) { matchedForceIfAttributeCount++; }
                 }
-                if (allSubAttributesMatched)
+                if (!subAttributeMatched) // sub attributes are treated as AND, so as soon as one isn't matched return false
                 {
-                    switch (getMatchCount)
-                    {
-                        case false: return 1;
-                        case true: matchCount++; break;
-                    }
+                    return false;
                 }
             }
 
-            return matchCount;
+            return true;
         }
     }
 }

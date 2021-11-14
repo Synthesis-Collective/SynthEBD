@@ -22,26 +22,28 @@ namespace SynthEBD
             this.GroupedSubAttributes.CollectionChanged += TrimEmptyAttributes;
 
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
-            AddToParent = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Add(CreateNewFromUI(parentCollection)));
+            AddToParent = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Add(CreateNewFromUI(parentCollection, this.DisplayForceIfOption)));
+            this.DisplayForceIfOption = true;
         }
 
         public ObservableCollection<VM_NPCAttributeShell> GroupedSubAttributes { get; set; } // everything within this collection is evaluated as AND (all must be true)
-
         public RelayCommand DeleteCommand { get; }
         public RelayCommand AddToParent { get; }
+        public bool DisplayForceIfOption { get; set; }
 
         public ObservableCollection<VM_NPCAttribute> ParentCollection { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static VM_NPCAttribute CreateNewFromUI(ObservableCollection<VM_NPCAttribute> parentCollection)
+        public static VM_NPCAttribute CreateNewFromUI(ObservableCollection<VM_NPCAttribute> parentCollection, bool displayForceIfOption)
         {
             VM_NPCAttribute newAtt = new VM_NPCAttribute(parentCollection);
-            VM_NPCAttributeShell startingShell = new VM_NPCAttributeShell(newAtt);
+            VM_NPCAttributeShell startingShell = new VM_NPCAttributeShell(newAtt, displayForceIfOption);
             VM_NPCAttributeClass startingAttributeGroup = new VM_NPCAttributeClass(newAtt, startingShell);
             startingShell.Type = NPCAttributeType.Class;
             startingShell.Attribute = startingAttributeGroup;
             newAtt.GroupedSubAttributes.Add(startingShell);
+            newAtt.DisplayForceIfOption = displayForceIfOption;
             return newAtt;
         }
 
@@ -53,34 +55,37 @@ namespace SynthEBD
             }
         }
 
-        public static ObservableCollection<VM_NPCAttribute> GetViewModelsFromModels(HashSet<NPCAttribute> models)
+        public static ObservableCollection<VM_NPCAttribute> GetViewModelsFromModels(HashSet<NPCAttribute> models, bool displayForceIfOption)
         {
             ObservableCollection<VM_NPCAttribute> oc = new ObservableCollection<VM_NPCAttribute>();
             foreach (var m in models)
             {
-                oc.Add(GetViewModelFromModel(m, oc));
+                oc.Add(GetViewModelFromModel(m, oc, displayForceIfOption));
             }
             return oc;
         } 
 
-        public static VM_NPCAttribute GetViewModelFromModel(NPCAttribute model, ObservableCollection<VM_NPCAttribute> parentCollection)
+        public static VM_NPCAttribute GetViewModelFromModel(NPCAttribute model, ObservableCollection<VM_NPCAttribute> parentCollection, bool displayForceIfOption)
         {
             VM_NPCAttribute viewModel = new VM_NPCAttribute(parentCollection);
-            foreach (var attributeShell in model.GroupedSubAttributes)
+            viewModel.DisplayForceIfOption = displayForceIfOption;
+            foreach (var attributeShellModel in model.GroupedSubAttributes)
             {
-                var shellVM = new VM_NPCAttributeShell(viewModel);
-                shellVM.Type = attributeShell.Type;
-                switch (attributeShell.Type)
+                var shellVM = new VM_NPCAttributeShell(viewModel, displayForceIfOption);
+                shellVM.Type = attributeShellModel.Type;
+                switch (attributeShellModel.Type)
                 {
-                    case NPCAttributeType.Class: shellVM.Attribute = VM_NPCAttributeClass.getViewModelFromModel((NPCAttributeClass)attributeShell, viewModel, shellVM); break;
-                    case NPCAttributeType.Faction: shellVM.Attribute = VM_NPCAttributeFactions.getViewModelFromModel((NPCAttributeFactions)attributeShell, viewModel, shellVM); break;
-                    case NPCAttributeType.FaceTexture: shellVM.Attribute = VM_NPCAttributeFaceTexture.getViewModelFromModel((NPCAttributeFaceTexture)attributeShell, viewModel, shellVM); break;
-                    case NPCAttributeType.Race: shellVM.Attribute = VM_NPCAttributeRace.getViewModelFromModel((NPCAttributeRace)attributeShell, viewModel, shellVM); break;
-                    case NPCAttributeType.NPC: shellVM.Attribute = VM_NPCAttributeNPC.getViewModelFromModel((NPCAttributeNPC)attributeShell, viewModel, shellVM); break;
-                    case NPCAttributeType.VoiceType: shellVM.Attribute = VM_NPCAttributeVoiceType.getViewModelFromModel((NPCAttributeVoiceType)attributeShell, viewModel, shellVM); break;
+                    case NPCAttributeType.Class: shellVM.Attribute = VM_NPCAttributeClass.getViewModelFromModel((NPCAttributeClass)attributeShellModel, viewModel, shellVM); break;
+                    case NPCAttributeType.Faction: shellVM.Attribute = VM_NPCAttributeFactions.getViewModelFromModel((NPCAttributeFactions)attributeShellModel, viewModel, shellVM); break;
+                    case NPCAttributeType.FaceTexture: shellVM.Attribute = VM_NPCAttributeFaceTexture.getViewModelFromModel((NPCAttributeFaceTexture)attributeShellModel, viewModel, shellVM); break;
+                    case NPCAttributeType.Race: shellVM.Attribute = VM_NPCAttributeRace.getViewModelFromModel((NPCAttributeRace)attributeShellModel, viewModel, shellVM); break;
+                    case NPCAttributeType.NPC: shellVM.Attribute = VM_NPCAttributeNPC.getViewModelFromModel((NPCAttributeNPC)attributeShellModel, viewModel, shellVM); break;
+                    case NPCAttributeType.VoiceType: shellVM.Attribute = VM_NPCAttributeVoiceType.getViewModelFromModel((NPCAttributeVoiceType)attributeShellModel, viewModel, shellVM); break;
                     default: //WARN USER
                         break;
                 }
+                shellVM.ForceIf = attributeShellModel.ForceIf;
+                shellVM.DisplayForceIfOption = displayForceIfOption;
                 viewModel.GroupedSubAttributes.Add(shellVM);
             }
 
@@ -104,12 +109,12 @@ namespace SynthEBD
             {
                 switch(subAttVM.Type)
                 {
-                    case NPCAttributeType.Class: model.GroupedSubAttributes.Add(VM_NPCAttributeClass.DumpViewModelToModel((VM_NPCAttributeClass)subAttVM.Attribute)); break;
-                    case NPCAttributeType.Faction: model.GroupedSubAttributes.Add(VM_NPCAttributeFactions.DumpViewModelToModel((VM_NPCAttributeFactions)subAttVM.Attribute)); break;
-                    case NPCAttributeType.FaceTexture: model.GroupedSubAttributes.Add(VM_NPCAttributeFaceTexture.DumpViewModelToModel((VM_NPCAttributeFaceTexture)subAttVM.Attribute)); break;
-                    case NPCAttributeType.Race: model.GroupedSubAttributes.Add(VM_NPCAttributeRace.DumpViewModelToModel((VM_NPCAttributeRace)subAttVM.Attribute)); break;
-                    case NPCAttributeType.NPC: model.GroupedSubAttributes.Add(VM_NPCAttributeNPC.DumpViewModelToModel((VM_NPCAttributeNPC)subAttVM.Attribute)); break;
-                    case NPCAttributeType.VoiceType: model.GroupedSubAttributes.Add(VM_NPCAttributeVoiceType.DumpViewModelToModel((VM_NPCAttributeVoiceType)subAttVM.Attribute)); break;
+                    case NPCAttributeType.Class: model.GroupedSubAttributes.Add(VM_NPCAttributeClass.DumpViewModelToModel((VM_NPCAttributeClass)subAttVM.Attribute, subAttVM.ForceIf)); break;
+                    case NPCAttributeType.Faction: model.GroupedSubAttributes.Add(VM_NPCAttributeFactions.DumpViewModelToModel((VM_NPCAttributeFactions)subAttVM.Attribute, subAttVM.ForceIf)); break;
+                    case NPCAttributeType.FaceTexture: model.GroupedSubAttributes.Add(VM_NPCAttributeFaceTexture.DumpViewModelToModel((VM_NPCAttributeFaceTexture)subAttVM.Attribute, subAttVM.ForceIf)); break;
+                    case NPCAttributeType.Race: model.GroupedSubAttributes.Add(VM_NPCAttributeRace.DumpViewModelToModel((VM_NPCAttributeRace)subAttVM.Attribute, subAttVM.ForceIf)); break;
+                    case NPCAttributeType.NPC: model.GroupedSubAttributes.Add(VM_NPCAttributeNPC.DumpViewModelToModel((VM_NPCAttributeNPC)subAttVM.Attribute, subAttVM.ForceIf)); break;
+                    case NPCAttributeType.VoiceType: model.GroupedSubAttributes.Add(VM_NPCAttributeVoiceType.DumpViewModelToModel((VM_NPCAttributeVoiceType)subAttVM.Attribute, subAttVM.ForceIf)); break;
                 }
             }
             return model;
@@ -118,17 +123,19 @@ namespace SynthEBD
 
     public class VM_NPCAttributeShell : INotifyPropertyChanged
     {
-        public VM_NPCAttributeShell(VM_NPCAttribute parentVM)
+        public VM_NPCAttributeShell(VM_NPCAttribute parentVM, bool displayForceIfOption)
         {
             this.Type = NPCAttributeType.Class;
             this.Attribute = new VM_NPCAttributeClass(parentVM, this);
+            this.ForceIf = false;
+            this.DisplayForceIfOption = displayForceIfOption;
 
             AddAdditionalSubAttributeToParent = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => parentVM.GroupedSubAttributes.Add(new VM_NPCAttributeShell(parentVM))
+                execute: _ => parentVM.GroupedSubAttributes.Add(new VM_NPCAttributeShell(parentVM, this.DisplayForceIfOption))
                 );
 
-            DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(this)); 
+            DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(this));
 
             ChangeType = new RelayCommand(canExecute: _ => true, execute: _ =>
             {
@@ -147,6 +154,9 @@ namespace SynthEBD
         }
         public object Attribute { get; set; }
         public NPCAttributeType Type { get; set; }
+        public bool ForceIf { get; set; }
+
+        public bool DisplayForceIfOption { get; set; }
 
         public RelayCommand AddAdditionalSubAttributeToParent { get; }
         public RelayCommand DeleteCommand { get; }
@@ -188,9 +198,9 @@ namespace SynthEBD
             newAtt.VoiceTypeFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
             return newAtt;
         }
-        public static NPCAttributeVoiceType DumpViewModelToModel(VM_NPCAttributeVoiceType viewModel)
+        public static NPCAttributeVoiceType DumpViewModelToModel(VM_NPCAttributeVoiceType viewModel, bool forceIf)
         {
-            return new NPCAttributeVoiceType() { Type = NPCAttributeType.VoiceType, FormKeys = viewModel.VoiceTypeFormKeys.ToHashSet() };
+            return new NPCAttributeVoiceType() { Type = NPCAttributeType.VoiceType, FormKeys = viewModel.VoiceTypeFormKeys.ToHashSet(), ForceIf = forceIf };
         }
     }
 
@@ -218,9 +228,9 @@ namespace SynthEBD
             return newAtt;
         }
 
-        public static NPCAttributeClass DumpViewModelToModel(VM_NPCAttributeClass viewModel)
+        public static NPCAttributeClass DumpViewModelToModel(VM_NPCAttributeClass viewModel, bool forceIf)
         {
-            return new NPCAttributeClass() { Type = NPCAttributeType.Class, FormKeys = viewModel.ClassFormKeys.ToHashSet()};
+            return new NPCAttributeClass() { Type = NPCAttributeType.Class, FormKeys = viewModel.ClassFormKeys.ToHashSet(), ForceIf = forceIf};
         }
     }
 
@@ -252,9 +262,9 @@ namespace SynthEBD
             newAtt.RankMax = model.RankMax;
             return newAtt;
         }
-        public static NPCAttributeFactions DumpViewModelToModel(VM_NPCAttributeFactions viewModel)
+        public static NPCAttributeFactions DumpViewModelToModel(VM_NPCAttributeFactions viewModel, bool forceIf)
         {
-            return new NPCAttributeFactions() { Type = NPCAttributeType.Faction, FormKeys = viewModel.FactionFormKeys.ToHashSet(), RankMin = viewModel.RankMin, RankMax = viewModel.RankMax };
+            return new NPCAttributeFactions() { Type = NPCAttributeType.Faction, FormKeys = viewModel.FactionFormKeys.ToHashSet(), RankMin = viewModel.RankMin, RankMax = viewModel.RankMax, ForceIf = forceIf };
         }
     }
 
@@ -281,9 +291,9 @@ namespace SynthEBD
             return newAtt;
         }
 
-        public static NPCAttributeFaceTexture DumpViewModelToModel(VM_NPCAttributeFaceTexture viewModel)
+        public static NPCAttributeFaceTexture DumpViewModelToModel(VM_NPCAttributeFaceTexture viewModel, bool forceIf)
         {
-            return new NPCAttributeFaceTexture() { Type = NPCAttributeType.FaceTexture, FormKeys = viewModel.FaceTextureFormKeys.ToHashSet() };
+            return new NPCAttributeFaceTexture() { Type = NPCAttributeType.FaceTexture, FormKeys = viewModel.FaceTextureFormKeys.ToHashSet(), ForceIf = forceIf };
         }
     }
 
@@ -310,9 +320,9 @@ namespace SynthEBD
             return newAtt;
         }
 
-        public static NPCAttributeRace DumpViewModelToModel(VM_NPCAttributeRace viewModel)
+        public static NPCAttributeRace DumpViewModelToModel(VM_NPCAttributeRace viewModel, bool forceIf)
         {
-            return new NPCAttributeRace() { Type = NPCAttributeType.Race, FormKeys = viewModel.RaceFormKeys.ToHashSet() };
+            return new NPCAttributeRace() { Type = NPCAttributeType.Race, FormKeys = viewModel.RaceFormKeys.ToHashSet(), ForceIf = forceIf };
         }
     }
 
@@ -338,9 +348,9 @@ namespace SynthEBD
             newAtt.NPCFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
             return newAtt;
         }
-        public static NPCAttributeNPC DumpViewModelToModel(VM_NPCAttributeNPC viewModel)
+        public static NPCAttributeNPC DumpViewModelToModel(VM_NPCAttributeNPC viewModel, bool forceIf)
         {
-            return new NPCAttributeNPC() { Type = NPCAttributeType.NPC, FormKeys = viewModel.NPCFormKeys.ToHashSet() };
+            return new NPCAttributeNPC() { Type = NPCAttributeType.NPC, FormKeys = viewModel.NPCFormKeys.ToHashSet(), ForceIf = forceIf };
         }
     }
 }

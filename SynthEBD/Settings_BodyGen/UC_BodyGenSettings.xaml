@@ -28,8 +28,6 @@
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" HorizontalAlignment="Center" FontSize="18">Texture and Mesh Settings</TextBlock>
-            
             <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Current Female Config</TextBlock>
             <ComboBox Grid.Row="1" Grid.Column="1" MinWidth="150" Margin="0 0 25 0" ItemsSource="{Binding FemaleConfigs}" DisplayMemberPath="Label" SelectedValue="{Binding CurrentFemaleConfig}" ></ComboBox>
             <TextBlock Grid.Row="1" Grid.Column="2" Margin="0 0 15 0" VerticalAlignment="Center">Current Male Config</TextBlock>

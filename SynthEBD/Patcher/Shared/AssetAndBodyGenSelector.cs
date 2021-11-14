@@ -344,6 +344,7 @@ namespace SynthEBD
                     Logger.LogReport("Cannot create a combination with the chosen seed subgroup due to conflicting required/excluded subgroup rules. Selecting a different seed.");
                     return RemoveInvalidSeed(iterationInfo.AvailableSeeds, iterationInfo); // exit this function and re-enter from caller to choose a new seed
                 }
+                Logger.LogReport("Available Subgroups:" + Logger.SpreadFlattenedAssetPack(iterationInfo.ChosenAssetPack, 0, false));
             }
             #endregion
 
@@ -374,12 +375,12 @@ namespace SynthEBD
                     else if ((i - 1) == iterationInfo.ChosenSeed.TopLevelSubgroupIndex) // skip over the seed subgroup
                     {
                         Logger.LogReport("No subgroups remain at position (" + i + "). Selecting a different subgroup at position " + (i - 2));
-                        i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination.ContainedSubgroups[i - 2], i, 2);
+                        i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination, i, 2);
                     }
                     else
                     {
                         Logger.LogReport("No subgroups remain at position (" + i + "). Selecting a different subgroup at position " + (i - 1));
-                        i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination.ContainedSubgroups[i - 1], i, 1);
+                        i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination, i, 1);
                     }
                     continue;
                 }
@@ -391,15 +392,14 @@ namespace SynthEBD
 
                 iterationInfo.ChosenAssetPack = ConformRequiredExcludedSubgroups(nextSubgroup, iterationInfo.ChosenAssetPack);
 
-                /*
-                if (iterationInfo.ChosenAssetPack != null && i == iterationInfo.ChosenAssetPack.Subgroups.Count - 1) // if this is the last position in the combination, check if the combination has already been processed during a previous iteration of the calling function with stricter filtering
+                if (generatedCombination.ContainedSubgroups.Last() != null) // if this is the last position in the combination, check if the combination has already been processed during a previous iteration of the calling function with stricter filtering
                 {
                     generatedSignature = iterationInfo.ChosenAssetPack.GroupName + ":" + String.Join('|', generatedCombination.ContainedSubgroups.OrderBy(x => x.TopLevelSubgroupIndex).Select(x => x.Id));
                     if (iterationInfo.PreviouslyGeneratedCombinations.Contains(generatedSignature))
                     {
                         combinationAlreadyTried = true;
                     }
-                }*/
+                }
 
                 // backtrack if no combinations are valid after filtering by required/excluded subgroups
                 if (iterationInfo.ChosenAssetPack == null || combinationAlreadyTried)
@@ -413,21 +413,8 @@ namespace SynthEBD
                         Logger.LogError("This combination (" + generatedSignature + ") has previously been generated");
                     }
 
-                    /*
-                    if (i == 0)
-                    {
-                        Logger.LogReport("No valid combinations could be made with seed subgroup " + iterationInfo.ChosenSeed.Id + ". Choosing a different seed subgroup.");
-                        return RemoveInvalidSeed(iterationInfo.AvailableSeeds, iterationInfo); // exit this function and re-enter from caller to choose a new seed
-                    }
-                    else
-                    {
-                        Logger.LogReport("Selecting a different subgroup at position " + i + ".");
-                        i = AssignmentIteration.BackTrack(iterationInfo, nextSubgroup, i, 0);
-                        continue;
-                    }*/
                     Logger.LogReport("Selecting a different subgroup at position " + i + ".");
-                    i = AssignmentIteration.BackTrack(iterationInfo, nextSubgroup, i, 0);
-                    generatedCombination.ContainedSubgroups[i] = null;
+                    i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination, i, 0);
                     continue;
                 }
                 else
@@ -553,27 +540,26 @@ namespace SynthEBD
                 return false;
             }
 
+            // Allowed Attributes
+            if (subgroup.AllowedAttributes.Any() && !AttributeMatcher.HasMatchedAttributes(subgroup.AllowedAttributes, npcInfo.NPC))
+            {
+                return false;
+            }
+
             // Disallowed Attributes
             if (AttributeMatcher.HasMatchedAttributes(subgroup.DisallowedAttributes, npcInfo.NPC))
             {
                 return false;
             }
 
-            // if the current subgroup's forceIf attributes match the current NPC, skip the checks for Allowed Attributes and Distribution Enabled
-            forceIfAttributeCount = AttributeMatcher.GetMatchedAttributeCount(subgroup.ForceIfAttributes, npcInfo.NPC);
-            if (forceIfAttributeCount > 0)
-            {
-                // Distribution Enabled
-                if (!subgroup.DistributionEnabled)
-                {
-                    return false;
-                }
+            // if the current subgroup's forceIf attributes match the current NPC, skip the checks for Distribution Enabled
+            
+            forceIfAttributeCount = AttributeMatcher.GetForceIfAttributeCount(subgroup.AllowedAttributes, npcInfo.NPC);
 
-                // Allowed Attributes
-                if (subgroup.AllowedAttributes.Any() && !AttributeMatcher.HasMatchedAttributes(subgroup.AllowedAttributes, npcInfo.NPC))
-                {
-                    return false;
-                }
+            // Distribution Enabled
+            if (forceIfAttributeCount == 0 && !subgroup.DistributionEnabled)
+            {
+                return false;
             }
 
             // If the subgroup is still valid

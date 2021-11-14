@@ -7,25 +7,37 @@
              d:DataContext="{d:DesignInstance Type=local:VM_NPCAttribute}"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
+
     <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="auto"/>
-        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <ItemsControl Grid.Row="0" Grid.Column="0" ItemsSource="{Binding GroupedSubAttributes}" BorderThickness="3" BorderBrush="Teal">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate DataType="{x:Type local:VM_NPCAttributeShell}">
-                    <local:UC_NPCAttributeShell Background="Black" BorderThickness="1" BorderBrush="BlueViolet" Margin="1"/>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+        <Border Grid.Row="0" BorderThickness="3" BorderBrush="Teal">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="auto"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                </Grid.RowDefinitions>
 
-        <Button Grid.Row="0" Grid.Column="1" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}" Foreground="Firebrick">Remove Group</Button>
+                <ItemsControl Grid.Row="0" Grid.Column="0" ItemsSource="{Binding GroupedSubAttributes}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type local:VM_NPCAttributeShell}">
+                            <local:UC_NPCAttributeShell Background="Black" BorderThickness="1" BorderBrush="BlueViolet" Margin="1"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding DeleteCommand}" Foreground="Firebrick">
+                    <TextBlock FontSize="11">Remove<LineBreak/>Attribute</TextBlock>
+                </Button>
+
+            </Grid>
+        </Border>
         <Button Grid.Row="1" Grid.Column="0" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AddToParent}" Foreground="Lightgreen">OR</Button>
     </Grid>
 </UserControl>

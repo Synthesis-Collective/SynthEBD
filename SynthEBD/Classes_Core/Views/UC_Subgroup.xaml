@@ -109,16 +109,6 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBlock Grid.Row="13" Grid.Column="0" Margin="0 0 15 0">Force If NPC Has Attributes</TextBlock>
-        <Button Grid.Row="13" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddForceIfAttribute}" Foreground="Lightgreen">Add New</Button>
-        <ItemsControl Grid.Row="13" Grid.Column="1" ItemsSource="{Binding forceIfAttributes}" BorderThickness="1" BorderBrush="#5844b4">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
-                    <local:UC_NPCAttribute Background="Black" Margin="0 0 0 10"/>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
-
         <TextBlock Grid.Row="14" Grid.Column="0" Margin="0 0 15 0">Allowed NPC Weight Range</TextBlock>
         <StackPanel Grid.Row="14" Grid.Column="1" Orientation="Horizontal">
             <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=weightRange.Lower}"/>

@@ -55,15 +55,15 @@ namespace SynthEBD
                 }
                 catch
                 {
-                    try
-                    {
+                    //try
+                    //{
                         var zEBDconfig = JSONhandler<ZEBDAssetPack>.loadJSONFile(s);
                         synthEBDconfig = ZEBDAssetPack.ToSynthEBDAssetPack(zEBDconfig, raceGroupings, recordTemplatePlugins, availableBodyGenConfigs);
-                    }
-                    catch
-                    {
-                        throw new Exception("Could not parse the config file at " + s);
-                    }
+                    //}
+                    //catch
+                    //{
+                    //    throw new Exception("Could not parse the config file at " + s);
+                    //}
                 }
                 
 

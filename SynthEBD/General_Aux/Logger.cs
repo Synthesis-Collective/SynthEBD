@@ -59,7 +59,7 @@ namespace SynthEBD
 
         public static void LogReport(string message) // detailed operation log; not reflected on screen
         {
-            Instance.LogString += message + "\n"; // TEMPORARY FOR DEBUGGING
+            //Instance.LogString += message + "\n"; // TEMPORARY FOR DEBUGGING
         }
 
         public static string SpreadFlattenedAssetPack(FlattenedAssetPack ap, int index, bool indentAtIndex)
@@ -76,7 +76,6 @@ namespace SynthEBD
         public static async Task WriteReport()
         {
             await System.IO.File.WriteAllTextAsync("Report.txt", Instance.LogString);
-            string debug = "";
         }
 
         public static void LogError(string error)

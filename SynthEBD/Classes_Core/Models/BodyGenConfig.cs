@@ -90,7 +90,6 @@ namespace SynthEBD
                 this.DisallowedRaceGroupings = new HashSet<string>();
                 this.AllowedAttributes = new HashSet<NPCAttribute>();
                 this.DisallowedAttributes = new HashSet<NPCAttribute>();
-                this.ForceIfAttributes = new HashSet<NPCAttribute>();
                 this.bAllowUnique = true;
                 this.bAllowNonUnique = true;
                 this.bAllowRandom = true;
@@ -110,7 +109,6 @@ namespace SynthEBD
             public HashSet<string> DisallowedRaceGroupings { get; set; }
             public HashSet<NPCAttribute> AllowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
             public HashSet<NPCAttribute> DisallowedAttributes { get; set; }
-            public HashSet<NPCAttribute> ForceIfAttributes { get; set; }
             public bool bAllowUnique { get; set; }
             public bool bAllowNonUnique { get; set; }
             public bool bAllowRandom { get; set; }
@@ -368,7 +366,7 @@ namespace SynthEBD
 
             newTemplate.AllowedAttributes = Converters.StringArraysToAttributes(zTemplate.allowedAttributes);
             newTemplate.DisallowedAttributes = Converters.StringArraysToAttributes(zTemplate.disallowedAttributes);
-            newTemplate.ForceIfAttributes = Converters.StringArraysToAttributes(zTemplate.forceIfAttributes);
+            Converters.zEBDForceIfAttributesToAllowed(newTemplate.AllowedAttributes, Converters.StringArraysToAttributes(zTemplate.forceIfAttributes));
 
             newTemplate.WeightRange = Converters.StringArrayToWeightRange(zTemplate.weightRange);
 

@@ -46,7 +46,6 @@ namespace SynthEBD
                 this.disallowedRaceGroupings = new HashSet<string>();
                 this.allowedAttributes = new HashSet<NPCAttribute>();
                 this.disallowedAttributes = new HashSet<NPCAttribute>();
-                this.forceIfAttributes = new HashSet<NPCAttribute>();
                 this.bAllowUnique = true;
                 this.bAllowNonUnique = true;
                 this.requiredSubgroups = new HashSet<string>();
@@ -72,7 +71,6 @@ namespace SynthEBD
             public HashSet<string> disallowedRaceGroupings { get; set; }
             public HashSet<NPCAttribute> allowedAttributes { get; set; }
             public HashSet<NPCAttribute> disallowedAttributes { get; set; } 
-            public HashSet<NPCAttribute> forceIfAttributes { get; set; }
             public bool bAllowUnique { get; set; }
             public bool bAllowNonUnique { get; set; }
             public HashSet<string> requiredSubgroups { get; set; }
@@ -169,7 +167,7 @@ namespace SynthEBD
                 s.distributionEnabled = g.distributionEnabled;
                 s.allowedAttributes = Converters.StringArraysToAttributes(g.allowedAttributes);
                 s.disallowedAttributes = Converters.StringArraysToAttributes(g.disallowedAttributes);
-                s.forceIfAttributes = Converters.StringArraysToAttributes(g.forceIfAttributes);
+                Converters.zEBDForceIfAttributesToAllowed(s.allowedAttributes, Converters.StringArraysToAttributes(g.forceIfAttributes));
                 s.bAllowUnique = g.bAllowUnique;
                 s.bAllowNonUnique = g.bAllowNonUnique;
                 s.requiredSubgroups = new HashSet<string>(g.requiredSubgroups);

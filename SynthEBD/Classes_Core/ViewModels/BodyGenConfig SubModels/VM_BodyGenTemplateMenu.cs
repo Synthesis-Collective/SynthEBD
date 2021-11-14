@@ -55,7 +55,6 @@ namespace SynthEBD
             this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
             this.AllowedAttributes = new ObservableCollection<VM_NPCAttribute>();
             this.DisallowedAttributes = new ObservableCollection<VM_NPCAttribute>();
-            this.ForceIfAttributes = new ObservableCollection<VM_NPCAttribute>();
             this.bAllowUnique = true;
             this.bAllowNonUnique = true;
             this.bAllowRandom = true;
@@ -77,17 +76,12 @@ namespace SynthEBD
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.AllowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.AllowedAttributes))
+                execute: _ => this.AllowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.AllowedAttributes, true))
                 );
 
             AddDisallowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.DisallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.DisallowedAttributes))
-                );
-
-            AddForceIfAttribute = new SynthEBD.RelayCommand(
-                canExecute: _ => true,
-                execute: _ => this.ForceIfAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.ForceIfAttributes))
+                execute: _ => this.DisallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.DisallowedAttributes, false))
                 );
 
             AddRequiredTemplate = new SynthEBD.RelayCommand(
@@ -112,7 +106,6 @@ namespace SynthEBD
         public VM_RaceGroupingCheckboxList DisallowedRaceGroupings { get; set; }
         public ObservableCollection<VM_NPCAttribute> AllowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
         public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; }
-        public ObservableCollection<VM_NPCAttribute> ForceIfAttributes { get; set; }
         public bool bAllowUnique { get; set; }
         public bool bAllowNonUnique { get; set; }
         public bool bAllowRandom { get; set; }
@@ -165,9 +158,9 @@ namespace SynthEBD
                 else { grouping.IsSelected = false; }
             }
 
-            viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes);
-            viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes);
-            viewModel.ForceIfAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.ForceIfAttributes);
+            viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, true);
+            viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, false);
+            foreach (var x in viewModel.DisallowedAttributes) { x.DisplayForceIfOption = false; }
             viewModel.bAllowUnique = model.bAllowUnique;
             viewModel.bAllowNonUnique = model.bAllowNonUnique;
             viewModel.bAllowRandom = model.bAllowRandom;

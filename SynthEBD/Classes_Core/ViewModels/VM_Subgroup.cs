@@ -30,7 +30,6 @@ namespace SynthEBD
             this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(RaceGroupingVMs);
             this.allowedAttributes = new ObservableCollection<VM_NPCAttribute>();
             this.disallowedAttributes = new ObservableCollection<VM_NPCAttribute>();
-            this.forceIfAttributes = new ObservableCollection<VM_NPCAttribute>();
             this.bAllowUnique = true;
             this.bAllowNonUnique = true;
             this.requiredSubgroups = new ObservableCollection<VM_Subgroup>();
@@ -54,24 +53,14 @@ namespace SynthEBD
             this.ParentCollection = parentCollection;
             this.ParentAssetPack = parentAssetPack;
 
-            //ParentAssetPack.TrackedBodyGenConfig.DescriptorUI.TemplateDescriptorList.CollectionChanged += CallRefreshTrackedMorphDescriptorsC;
-            //ParentAssetPack.TrackedBodyGenConfig.DescriptorUI.PropertyChanged += CallRefreshTrackedMorphDescriptorsP;
-            //ParentAssetPack.TrackedBodyGenConfig.PropertyChanged += CallRefreshTrackedMorphDescriptorsP;
-            //ParentAssetPack.PropertyChanged += CallRefreshTrackedMorphDescriptorsP; // this is required for now, but see if there's a way to target it so that it's only triggered when ParentAssetPack.TrackedBodyGenConfig (but not one of its sub-properties) changes.
-
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.allowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.allowedAttributes))
+                execute: _ => this.allowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.allowedAttributes, true))
                 );
 
             AddDisallowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.disallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.disallowedAttributes))
-                );
-
-            AddForceIfAttribute = new SynthEBD.RelayCommand(
-                canExecute: _ => true,
-                execute: _ => this.forceIfAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.forceIfAttributes))
+                execute: _ => this.disallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.disallowedAttributes, false))
                 );
 
             AddNPCKeyword = new SynthEBD.RelayCommand(
@@ -115,7 +104,6 @@ namespace SynthEBD
         public VM_RaceGroupingCheckboxList DisallowedRaceGroupings { get; set; }
         public ObservableCollection<VM_NPCAttribute> allowedAttributes { get; set; }
         public ObservableCollection<VM_NPCAttribute> disallowedAttributes { get; set; }
-        public ObservableCollection<VM_NPCAttribute> forceIfAttributes { get; set; }
         public bool bAllowUnique { get; set; }
         public bool bAllowNonUnique { get; set; }
         public ObservableCollection<VM_Subgroup> requiredSubgroups { get; set; }
@@ -164,9 +152,9 @@ namespace SynthEBD
             viewModel.AllowedRaceGroupings = GetRaceGroupingsByLabel(model.allowedRaceGroupings, generalSettingsVM.RaceGroupings);
             viewModel.disallowedRaces = new ObservableCollection<FormKey>(model.disallowedRaces);
             viewModel.DisallowedRaceGroupings = GetRaceGroupingsByLabel(model.disallowedRaceGroupings, generalSettingsVM.RaceGroupings);
-            viewModel.allowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.allowedAttributes);
-            viewModel.disallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.disallowedAttributes);
-            viewModel.forceIfAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.forceIfAttributes);
+            viewModel.allowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.allowedAttributes, true);
+            viewModel.disallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.disallowedAttributes, false);
+            foreach (var x in viewModel.disallowedAttributes) { x.DisplayForceIfOption = false; }
             viewModel.bAllowUnique = model.bAllowUnique;
             viewModel.bAllowNonUnique = model.bAllowNonUnique;
             viewModel.RequiredSubgroupIDs = model.requiredSubgroups;
@@ -250,7 +238,6 @@ namespace SynthEBD
             model.disallowedRaceGroupings = viewModel.DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.Label).ToHashSet();
             model.allowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.allowedAttributes);
             model.disallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.disallowedAttributes);
-            model.forceIfAttributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.forceIfAttributes);
             model.bAllowUnique = viewModel.bAllowUnique;
             model.bAllowNonUnique = viewModel.bAllowNonUnique;
             model.requiredSubgroups = viewModel.requiredSubgroups.Select(x => x.id).ToHashSet();

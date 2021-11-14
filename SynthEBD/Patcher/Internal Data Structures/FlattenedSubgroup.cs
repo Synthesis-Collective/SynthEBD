@@ -21,7 +21,6 @@ namespace SynthEBD
             this.AllowedRaces = AllowedDisallowedCombiners.TrimDisallowedRacesFromAllowed(this.AllowedRaces, this.DisallowedRaces);
             this.AllowedAttributes = new HashSet<NPCAttribute>(template.allowedAttributes);
             this.DisallowedAttributes = new HashSet<NPCAttribute>(template.disallowedAttributes);
-            this.ForceIfAttributes = new HashSet<NPCAttribute>(template.forceIfAttributes);
             this.AllowUnique = template.bAllowUnique;
             this.AllowNonUnique = template.bAllowNonUnique;
             this.RequiredSubgroupIDs = DictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.requiredSubgroups, subgroupHierarchy);
@@ -44,7 +43,6 @@ namespace SynthEBD
         public bool AllowedRacesIsEmpty { get; set; } // distinguishes between initially empty (All races valid) vs. empty after pruning of Disallowed Races (subgroup is invalid)
         public HashSet<NPCAttribute> AllowedAttributes { get; set; }
         public HashSet<NPCAttribute> DisallowedAttributes { get; set; }
-        public HashSet<NPCAttribute> ForceIfAttributes { get; set; }
         public bool AllowUnique { get; set; }
         public bool AllowNonUnique { get; set; }
         public Dictionary<int, HashSet<string>> RequiredSubgroupIDs { get; set; }
@@ -112,7 +110,6 @@ namespace SynthEBD
                 // Attribute Merging
                 flattened.AllowedAttributes = InheritParentAttributes(parent.AllowedAttributes, flattened.AllowedAttributes);
                 flattened.DisallowedAttributes = InheritParentAttributes(parent.DisallowedAttributes, flattened.DisallowedAttributes);
-                flattened.ForceIfAttributes = InheritParentAttributes(parent.ForceIfAttributes, flattened.ForceIfAttributes);
 
                 // Weight Range
                 if (parent.WeightRange.Lower > flattened.WeightRange.Lower) { flattened.WeightRange.Lower = parent.WeightRange.Lower; }

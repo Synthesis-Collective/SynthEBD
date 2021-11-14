@@ -334,5 +334,40 @@ namespace SynthEBD
             }
             return newDescriptor;
         }
+
+        /// <summary>
+        /// Reads in ForceIf attributes from a zEBD config file, matches them to their corresponding AllowedAttribute, and sets that AllowedAttribute's ForceIf property to tru
+        /// If is no AllowedAttribute that matches the ForceIfAttribute (zEBD permitted this), make a new AllowedAttribute
+        /// Note: This function is only called when upgrading zEBD config files, which didn't have AND-grouped subattributes, so the bool is set on attribute.GroupedSubAttributes.FirstOrDefault because there must only be one subattribute
+        /// </summary>
+        /// <param name="allowedAttributes"></param>
+        /// <param name="forceIfAttributes"></param>
+        public static void zEBDForceIfAttributesToAllowed(HashSet<NPCAttribute> allowedAttributes, HashSet<NPCAttribute> forceIfAttributes)
+        {
+            foreach (var ofa in forceIfAttributes)
+            {
+                var matches = new HashSet<NPCAttribute>();
+                foreach (var aa in allowedAttributes)
+                {
+                    if (ofa.Equals(aa))
+                    {
+                        matches.Add(aa);
+                    }
+                }
+
+                if (matches.Any())
+                {
+                    foreach (var match in matches)
+                    {
+                        match.GroupedSubAttributes.FirstOrDefault().ForceIf = true;
+                    }
+                }
+                else
+                {
+                    ofa.GroupedSubAttributes.FirstOrDefault().ForceIf = true;
+                    allowedAttributes.Add(ofa);
+                }
+            }
+        }
     }
 }

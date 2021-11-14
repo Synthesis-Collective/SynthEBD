@@ -22,14 +22,16 @@ namespace SynthEBD
         public Dictionary<int, FlattenedAssetPack> RemainingVariantsByIndex { get; set; }
         public HashSet<string> PreviouslyGeneratedCombinations = new HashSet<string>();
 
-        public static int BackTrack(AssignmentIteration iterationInfo, FlattenedSubgroup toRemove, int currentIndex, int steps)
+        public static int BackTrack(AssignmentIteration iterationInfo, SubgroupCombination currentCombination, int currentIndex, int steps)
         {
             FlattenedAssetPack revertTo = iterationInfo.RemainingVariantsByIndex[currentIndex - steps];
-            if (toRemove != null)
+            FlattenedSubgroup ToRemove = currentCombination.ContainedSubgroups[currentIndex - steps];
+            if (ToRemove != null)
             {
-                revertTo.Subgroups[currentIndex - steps].Remove(toRemove);
+                revertTo.Subgroups[currentIndex - steps].Remove(ToRemove);
             }
             iterationInfo.ChosenAssetPack = revertTo;
+            currentCombination.ContainedSubgroups[currentIndex - steps] = null;
 
             return currentIndex - steps - 1; // -1 because the calling for loop will then immediately add 1 back at the next iteration
         }

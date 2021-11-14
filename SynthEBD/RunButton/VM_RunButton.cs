@@ -16,6 +16,8 @@ namespace SynthEBD
             this.BackgroundColor = new SolidColorBrush(Colors.Green);
             this.ParentWindow = parentWindow;
 
+            // synchronous version for debugging onlyh
+            /*
             ClickRun = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ =>
@@ -27,7 +29,8 @@ namespace SynthEBD
                         ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths);
         }
                 );
-            /*
+            */
+
             ClickRun = ReactiveUI.ReactiveCommand.CreateFromTask(
                 
                 execute: async _ =>
@@ -39,14 +42,14 @@ namespace SynthEBD
                         ParentWindow.BodyGenSettings, ParentWindow.AssetPacks, ParentWindow.HeightConfigs, ParentWindow.SpecificNPCAssignments,
                         ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths));
                 });
-               */
+
         }
         public SolidColorBrush BackgroundColor { get; set; }
 
         public MainWindow_ViewModel ParentWindow { get; set; }
 
-        //public ReactiveUI.IReactiveCommand ClickRun { get; }
-        public SynthEBD.RelayCommand ClickRun { get; }
+        public ReactiveUI.IReactiveCommand ClickRun { get; }
+        //public SynthEBD.RelayCommand ClickRun { get; }
 
         public event PropertyChangedEventHandler PropertyChanged;
     }
