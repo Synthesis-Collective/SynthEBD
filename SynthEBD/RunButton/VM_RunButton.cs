@@ -24,8 +24,7 @@ namespace SynthEBD
                 {
                     ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
                     MainLoop.RunPatcher(
-                        ParentWindow.GeneralSettings, ParentWindow.TexMeshSettings, ParentWindow.HeightSettings,
-                        ParentWindow.BodyGenSettings, ParentWindow.AssetPacks, ParentWindow.HeightConfigs, ParentWindow.SpecificNPCAssignments,
+                        ParentWindow.AssetPacks, ParentWindow.HeightConfigs, ParentWindow.SpecificNPCAssignments,
                         ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths);
         }
                 );
@@ -38,8 +37,7 @@ namespace SynthEBD
                     ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
 
                     await Task.Run(() => MainLoop.RunPatcher(
-                        ParentWindow.GeneralSettings, ParentWindow.TexMeshSettings, ParentWindow.HeightSettings,
-                        ParentWindow.BodyGenSettings, ParentWindow.AssetPacks, ParentWindow.HeightConfigs, ParentWindow.SpecificNPCAssignments,
+                        ParentWindow.AssetPacks, ParentWindow.HeightConfigs, ParentWindow.SpecificNPCAssignments,
                         ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths));
                 });
 

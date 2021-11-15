@@ -11,14 +11,14 @@ namespace SynthEBD
 {
     public class NPCInfo
     {
-        public NPCInfo(INpcGetter npc, Settings_General generalSettings, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, HashSet<NPCAssignment> specificNPCAssignments)
+        public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, HashSet<NPCAssignment> specificNPCAssignments)
         {
             this.NPC = npc;
             this.LogIDstring = npc.Name?.String + " | " + npc.EditorID + " | " + npc.FormKey.ToString();
             this.Gender = GetGender(npc);
-            AssetsRace = AliasHandler.GetAliasTexMesh(generalSettings, npc.Race.FormKey);
-            BodyGenRace = AliasHandler.GetAliasBodyGen(generalSettings, npc.Race.FormKey);
-            HeightRace = AliasHandler.GetAliasHeight(generalSettings, npc.Race.FormKey);
+            AssetsRace = AliasHandler.GetAliasTexMesh(npc.Race.FormKey);
+            BodyGenRace = AliasHandler.GetAliasBodyGen(npc.Race.FormKey);
+            HeightRace = AliasHandler.GetAliasHeight(npc.Race.FormKey);
             AssociatedLinkGroup = LinkedNPCGroupInfo.GetInfoFromLinkedNPCGroup(definedLinkGroups, createdLinkGroupInfos, npc.FormKey);
             SpecificNPCAssignment = specificNPCAssignments.Where(x => x.NPCFormKey == npc.FormKey).FirstOrDefault();
             //TEMP

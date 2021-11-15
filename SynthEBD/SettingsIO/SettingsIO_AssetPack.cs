@@ -12,33 +12,33 @@ namespace SynthEBD
 {
     class SettingsIO_AssetPack
     {
-        public static Settings_TexMesh LoadTexMeshSettings(Paths paths)
+        public static Settings_TexMesh LoadTexMeshSettings()
         {
             Settings_TexMesh texMeshSettings = new Settings_TexMesh();
 
-            if (File.Exists(paths.TexMeshSettingsPath))
+            if (File.Exists(PatcherSettings.Paths.TexMeshSettingsPath))
             {
-                string text = File.ReadAllText(paths.TexMeshSettingsPath);
+                string text = File.ReadAllText(PatcherSettings.Paths.TexMeshSettingsPath);
                 texMeshSettings = JsonConvert.DeserializeObject<Settings_TexMesh>(text);
             }
 
             return texMeshSettings;
         }
 
-        public static List<SynthEBD.AssetPack> loadAssetPacks(List<RaceGrouping> raceGroupings, Paths paths, List<string> loadedAssetPackPaths, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs)
+        public static List<SynthEBD.AssetPack> loadAssetPacks(List<RaceGrouping> raceGroupings, List<string> loadedAssetPackPaths, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs)
         {
             List<AssetPack> loadedPacks = new List<AssetPack>();
 
             string[] filePaths;
 
-            if (Directory.Exists(paths.AssetPackDirPath))
+            if (Directory.Exists(PatcherSettings.Paths.AssetPackDirPath))
             {
-                filePaths = Directory.GetFiles(paths.AssetPackDirPath, "*.json");
+                filePaths = Directory.GetFiles(PatcherSettings.Paths.AssetPackDirPath, "*.json");
             }
             else
             {
                 // Warn User
-                filePaths = Directory.GetFiles(paths.FallBackAssetPackDirPath, "*.json");
+                filePaths = Directory.GetFiles(PatcherSettings.Paths.FallBackAssetPackDirPath, "*.json");
             }
 
             foreach (string s in filePaths)
@@ -74,20 +74,20 @@ namespace SynthEBD
             return loadedPacks;
         }
 
-        public static List<SkyrimMod> LoadRecordTemplates(Paths paths)
+        public static List<SkyrimMod> LoadRecordTemplates()
         {
             List<SkyrimMod> loadedTemplatePlugins = new List<SkyrimMod>();
 
             string[] filePaths;
 
-            if (Directory.Exists(paths.AssetPackDirPath))
+            if (Directory.Exists(PatcherSettings.Paths.AssetPackDirPath))
             {
-                filePaths = Directory.GetFiles(paths.RecordTemplatesDirPath, "*.esp");
+                filePaths = Directory.GetFiles(PatcherSettings.Paths.RecordTemplatesDirPath, "*.esp");
             }
             else
             {
                 // Warn User
-                filePaths = Directory.GetFiles(paths.FallBackRecordTemplatesDirPath, "*.esp");
+                filePaths = Directory.GetFiles(PatcherSettings.Paths.FallBackRecordTemplatesDirPath, "*.esp");
             }
 
             foreach (string s in filePaths)
@@ -104,7 +104,7 @@ namespace SynthEBD
             return loadedTemplatePlugins;
         }
 
-        public static void SaveAssetPacks(List<AssetPack> assetPacks, List<string> filePaths, Paths paths)
+        public static void SaveAssetPacks(List<AssetPack> assetPacks, List<string> filePaths)
         {
             for (int i = 0; i < assetPacks.Count; i++)
             {
@@ -117,13 +117,13 @@ namespace SynthEBD
                     string newPath = "";
                     if (IO_Aux.IsValidFilename(assetPacks[i].GroupName))
                     {
-                        if (Directory.Exists(paths.AssetPackDirPath))
+                        if (Directory.Exists(PatcherSettings.Paths.AssetPackDirPath))
                         {
-                            newPath = Path.Combine(paths.AssetPackDirPath, assetPacks[i].GroupName + ".json");
+                            newPath = Path.Combine(PatcherSettings.Paths.AssetPackDirPath, assetPacks[i].GroupName + ".json");
                         }
-                        else if (Directory.Exists(paths.FallBackAssetPackDirPath))
+                        else if (Directory.Exists(PatcherSettings.Paths.FallBackAssetPackDirPath))
                         {
-                            newPath = Path.Combine(paths.FallBackAssetPackDirPath, assetPacks[i].GroupName + ".json");
+                            newPath = Path.Combine(PatcherSettings.Paths.FallBackAssetPackDirPath, assetPacks[i].GroupName + ".json");
                         }
 
                         JSONhandler<AssetPack>.SaveJSONFile(assetPacks[i], newPath);
@@ -136,13 +136,13 @@ namespace SynthEBD
                         dialog.DefaultExt = ".json"; // Default file extension
                         dialog.Filter = "JSON files (.json|*.json"; // Filter files by extension
 
-                        if (Directory.Exists(paths.AssetPackDirPath))
+                        if (Directory.Exists(PatcherSettings.Paths.AssetPackDirPath))
                         {
-                            dialog.InitialDirectory = Path.GetFullPath(paths.AssetPackDirPath);
+                            dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.AssetPackDirPath);
                         }
-                        else if (Directory.Exists(paths.FallBackAssetPackDirPath))
+                        else if (Directory.Exists(PatcherSettings.Paths.FallBackAssetPackDirPath))
                         {
-                            dialog.InitialDirectory = Path.GetFullPath(paths.FallBackAssetPackDirPath);
+                            dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.FallBackAssetPackDirPath);
                         }
 
                         dialog.RestoreDirectory = true;

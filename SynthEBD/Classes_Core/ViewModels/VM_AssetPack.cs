@@ -166,7 +166,7 @@ namespace SynthEBD
             return viewModel;
         }
 
-        public static List<string> DumpViewModelsToModels(ObservableCollection<VM_AssetPack> viewModels, List<AssetPack> models, Paths paths)
+        public static List<string> DumpViewModelsToModels(ObservableCollection<VM_AssetPack> viewModels, List<AssetPack> models)
         {
             List<string> configPaths = new List<string>();
             models.Clear();

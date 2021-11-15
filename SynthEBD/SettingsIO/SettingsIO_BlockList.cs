@@ -9,21 +9,21 @@ namespace SynthEBD
 {
     class SettingsIO_BlockList
     {
-        public static BlockList LoadBlockList(Paths paths)
+        public static BlockList LoadBlockList()
         {
             BlockList loadedList = new BlockList();
 
-            if (File.Exists(paths.BlockListPath))
+            if (File.Exists(PatcherSettings.Paths.BlockListPath))
             {
                 try
                 {
-                    loadedList = JSONhandler<BlockList>.loadJSONFile(paths.BlockListPath);
+                    loadedList = JSONhandler<BlockList>.loadJSONFile(PatcherSettings.Paths.BlockListPath);
                 }
                 catch
                 {
                     try
                     {
-                        var loadedZList = JSONhandler<zEBDBlockList>.loadJSONFile(paths.BlockListPath);
+                        var loadedZList = JSONhandler<zEBDBlockList>.loadJSONFile(PatcherSettings.Paths.BlockListPath);
                         loadedList = zEBDBlockList.ToSynthEBD(loadedZList);
                     }
                     catch

@@ -14,8 +14,8 @@ namespace SynthEBD
     public class MainLoop
     {
         //Synchronous version for debugging only
-        //public static void RunPatcher(Settings_General generalSettings, Settings_TexMesh texMeshSettings, Settings_Height heightSettings, Settings_BodyGen bodyGenSettings, List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths)
-        public static async Task RunPatcher(Settings_General generalSettings, Settings_TexMesh texMeshSettings, Settings_Height heightSettings, Settings_BodyGen bodyGenSettings, List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths)
+        //public static void RunPatcher(List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths)
+        public static async Task RunPatcher(List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths)
         {
             Logger.UpdateStatus("Patching", false);
             Logger.StartTimer();
@@ -34,10 +34,10 @@ namespace SynthEBD
 
             //var AssetPacksByRaceGender = new Dictionary<Tuple<FormKey, Gender>, HashSet<FlattenedAssetPack>>();
 
-            if (generalSettings.bChangeMeshesOrTextures)
+            if (PatcherSettings.General.bChangeMeshesOrTextures)
             {
                 HashSet<FlattenedAssetPack> flattenedAssetPacks = new HashSet<FlattenedAssetPack>();
-                flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x, generalSettings.RaceGroupings, generalSettings.bEnableBodyGenIntegration)).ToHashSet();
+                flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x, PatcherSettings.General.RaceGroupings, PatcherSettings.General.bEnableBodyGenIntegration)).ToHashSet();
                 maleAssetPacks = flattenedAssetPacks.Where(x => x.Gender == Gender.male).ToHashSet();
                 femaleAssetPacks = flattenedAssetPacks.Where(x => x.Gender == Gender.female).ToHashSet();
                 
@@ -53,7 +53,7 @@ namespace SynthEBD
                     Logger.LogMessage("Examined " + npcCounter.ToString() + " NPCs in " + Logger.GetEllapsedTime()); 
                 }
 
-                var currentNPCInfo = new NPCInfo(npc, generalSettings, linkedNPCGroups, generatedLinkGroups, specificNPCAssignments);
+                var currentNPCInfo = new NPCInfo(npc, linkedNPCGroups, generatedLinkGroups, specificNPCAssignments);
 
                 blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(blockList, npc.FormKey);
                 blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey);
@@ -84,7 +84,7 @@ namespace SynthEBD
                 */
 
                 // Assets/BodyGen assignment
-                if (generalSettings.bChangeMeshesOrTextures && !blockAssets && generalSettings.patchableRaces.Contains(currentNPCInfo.AssetsRace))
+                if (PatcherSettings.General.bChangeMeshesOrTextures && !blockAssets && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.AssetsRace))
                 {
                     //var availableAssetPacks = AssetPacksByRaceGender[new Tuple<FormKey, Gender>(currentNPCInfo.AssetsRace, currentNPCInfo.Gender)];
                     switch (currentNPCInfo.Gender)
@@ -97,13 +97,13 @@ namespace SynthEBD
                 }
 
                 // BodyGen assignment (if assets not assigned in Assets/BodyGen section)
-                if (generalSettings.bEnableBodyGenIntegration && !blockBodyGen && generalSettings.patchableRaces.Contains(currentNPCInfo.BodyGenRace) && !bodyGenAssignedWithAssets)
+                if (PatcherSettings.General.bEnableBodyGenIntegration && !blockBodyGen && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.BodyGenRace) && !bodyGenAssignedWithAssets)
                 {
 
                 }
 
                 // Height assignment
-                if (generalSettings.bChangeHeight && !blockHeight && generalSettings.patchableRaces.Contains(currentNPCInfo.HeightRace))
+                if (PatcherSettings.General.bChangeHeight && !blockHeight && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.HeightRace))
                 {
 
                 }
@@ -116,7 +116,6 @@ namespace SynthEBD
 
         private static void timer_Tick(object sender, EventArgs e)
         {
-
             Logger.UpdateStatus("Finished Patching", false);
         }
     }

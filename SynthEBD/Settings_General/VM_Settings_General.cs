@@ -100,8 +100,9 @@ namespace SynthEBD
         public RelayCommand AddLinkedNPCGroup { get; }
         public RelayCommand RemoveLinkedNPCGroup { get; }
 
-        public static void GetViewModelFromModel(VM_Settings_General viewModel, SynthEBD.Settings_General model)
+        public static void GetViewModelFromModel(VM_Settings_General viewModel)
         {
+            var model = PatcherSettings.General;
             viewModel.bShowToolTips = model.bShowToolTips;
             viewModel.bChangeMeshesOrTextures = model.bChangeMeshesOrTextures;
             viewModel.bEnableBodyGenIntegration = model.bEnableBodyGenIntegration;
@@ -144,6 +145,8 @@ namespace SynthEBD
                 //model.RaceGroupings.Add(x.RaceGrouping);
                 model.RaceGroupings.Add(VM_RaceGrouping.DumpViewModelToModel(x));
             }
+
+            PatcherSettings.General = model;
         }
 
         public void ToggleTooltipVisibility(object sender, PropertyChangedEventArgs e)

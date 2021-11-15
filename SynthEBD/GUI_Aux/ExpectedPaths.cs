@@ -12,9 +12,9 @@ namespace SynthEBD
     public class Paths
     {
         private static string SynthEBDexePath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
-        public string GeneralSettingsPath = Path.Combine(SynthEBDexePath, "Settings\\GeneralSettings.json");
+        public static string GeneralSettingsPath = Path.Combine(SynthEBDexePath, "Settings\\GeneralSettings.json");
 
-        public Paths(bool loadFromGameData)
+        public Paths()
         {
             // create relevant paths if necessary - only in the "home" directory. To avoid inadvertent clutter in the data folder, user must create these directories manually in their data folder
             string settingsDirRelPath = "Settings";
@@ -56,7 +56,7 @@ namespace SynthEBD
                 Directory.CreateDirectory(recordTemplatesDirPath);
             }
 
-            switch (loadFromGameData)
+            switch (PatcherSettings.General.bLoadSettingsFromDataFolder)
             {
                 case false:
                     RelativePath = SynthEBDexePath;

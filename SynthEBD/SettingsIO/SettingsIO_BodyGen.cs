@@ -10,24 +10,24 @@ namespace SynthEBD
 {
     class SettingsIO_BodyGen
     {
-        public static Settings_BodyGen LoadBodyGenSettings(Paths paths)
+        public static Settings_BodyGen LoadBodyGenSettings()
         {
             Settings_BodyGen bodygenSettings = new Settings_BodyGen();
 
-            if (File.Exists(paths.BodyGenSettingsPath))
+            if (File.Exists(PatcherSettings.Paths.BodyGenSettingsPath))
             {
-                string text = File.ReadAllText(paths.BodyGenSettingsPath);
+                string text = File.ReadAllText(PatcherSettings.Paths.BodyGenSettingsPath);
                 bodygenSettings = JsonConvert.DeserializeObject<Settings_BodyGen>(text);
             }
 
             return bodygenSettings;
         }
 
-        public static BodyGenConfigs loadBodyGenConfigs(List<RaceGrouping> raceGroupings, Paths paths)
+        public static BodyGenConfigs loadBodyGenConfigs(List<RaceGrouping> raceGroupings)
         {
             BodyGenConfigs loadedPacks = new BodyGenConfigs();
 
-            string[] filePaths = Directory.GetFiles(paths.BodyGenConfigDirPath, "*.json");
+            string[] filePaths = Directory.GetFiles(PatcherSettings.Paths.BodyGenConfigDirPath, "*.json");
 
             foreach (string s in filePaths)
             {

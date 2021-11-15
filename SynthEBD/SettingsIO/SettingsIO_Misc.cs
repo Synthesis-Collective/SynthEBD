@@ -9,18 +9,18 @@ namespace SynthEBD
 {
     public class SettingsIO_Misc
     {
-        public static HashSet<string> LoadNPCNameExclusions(Paths paths)
+        public static HashSet<string> LoadNPCNameExclusions()
         {
             HashSet<string> exclusions = new HashSet<string>();
 
-            if (File.Exists(paths.LinkedNPCNameExclusionsPath))
+            if (File.Exists(PatcherSettings.Paths.LinkedNPCNameExclusionsPath))
             {
-                exclusions = JSONhandler<HashSet<string>>.loadJSONFile(paths.LinkedNPCNameExclusionsPath);
+                exclusions = JSONhandler<HashSet<string>>.loadJSONFile(PatcherSettings.Paths.LinkedNPCNameExclusionsPath);
             }
-            else if (File.Exists(paths.FallBackLinkedNPCNameExclusionsPath))
+            else if (File.Exists(PatcherSettings.Paths.FallBackLinkedNPCNameExclusionsPath))
             {
                 // Warn User
-                exclusions = JSONhandler<HashSet<string>>.loadJSONFile(paths.FallBackLinkedNPCNameExclusionsPath);
+                exclusions = JSONhandler<HashSet<string>>.loadJSONFile(PatcherSettings.Paths.FallBackLinkedNPCNameExclusionsPath);
             }
             else
             {
@@ -30,18 +30,18 @@ namespace SynthEBD
             return exclusions;
         }
 
-        public static HashSet<LinkedNPCGroup> LoadLinkedNPCGroups(Paths paths)
+        public static HashSet<LinkedNPCGroup> LoadLinkedNPCGroups()
         {
             HashSet<LinkedNPCGroup> linkedNPCGroups = new HashSet<LinkedNPCGroup>();
 
-            if (File.Exists(paths.LinkedNPCsPath))
+            if (File.Exists(PatcherSettings.Paths.LinkedNPCsPath))
             {
-                linkedNPCGroups = JSONhandler<HashSet<LinkedNPCGroup>>.loadJSONFile(paths.LinkedNPCsPath);
+                linkedNPCGroups = JSONhandler<HashSet<LinkedNPCGroup>>.loadJSONFile(PatcherSettings.Paths.LinkedNPCsPath);
             }
-            else if (File.Exists(paths.FallBackLinkedNPCsPath))
+            else if (File.Exists(PatcherSettings.Paths.FallBackLinkedNPCsPath))
             {
                 // Warn User
-                linkedNPCGroups = JSONhandler<HashSet<LinkedNPCGroup>>.loadJSONFile(paths.FallBackLinkedNPCsPath);
+                linkedNPCGroups = JSONhandler<HashSet<LinkedNPCGroup>>.loadJSONFile(PatcherSettings.Paths.FallBackLinkedNPCsPath);
             }
             else
             {
@@ -51,18 +51,18 @@ namespace SynthEBD
             return linkedNPCGroups;
         }
 
-        public static HashSet<TrimPath> LoadTrimPaths(Paths paths)
+        public static HashSet<TrimPath> LoadTrimPaths()
         {
             HashSet<TrimPath> trimPaths = new HashSet<TrimPath>();
 
-            if (File.Exists(paths.TrimPathsPath))
+            if (File.Exists(PatcherSettings.Paths.TrimPathsPath))
             {
-                trimPaths = JSONhandler<HashSet<TrimPath>>.loadJSONFile(paths.TrimPathsPath);
+                trimPaths = JSONhandler<HashSet<TrimPath>>.loadJSONFile(PatcherSettings.Paths.TrimPathsPath);
             }
-            else if (File.Exists(paths.FallBackTrimPathsPath))
+            else if (File.Exists(PatcherSettings.Paths.FallBackTrimPathsPath))
             {
                 // Warn User
-                trimPaths = JSONhandler<HashSet<TrimPath>>.loadJSONFile(paths.FallBackTrimPathsPath);
+                trimPaths = JSONhandler<HashSet<TrimPath>>.loadJSONFile(PatcherSettings.Paths.FallBackTrimPathsPath);
             }
             else
             {

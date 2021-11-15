@@ -11,18 +11,12 @@ namespace SynthEBD
 {
     public class SettingsIO_General
     {
-        public static SynthEBD.Settings_General loadGeneralSettings()
+        public static void loadGeneralSettings()
         {
-            Settings_General generalSettings = new Settings_General();
-
-            Paths paths = new Paths(false); // argument doesn't matter here; paths.GeneralSettingsPath is static
-
-            if (File.Exists(paths.GeneralSettingsPath))
+            if (File.Exists(Paths.GeneralSettingsPath))
             {
-                generalSettings = JSONhandler<Settings_General>.loadJSONFile(paths.GeneralSettingsPath);
+                PatcherSettings.General = JSONhandler<Settings_General>.loadJSONFile(Paths.GeneralSettingsPath);
             }
-
-            return generalSettings;
         }
     }
 }

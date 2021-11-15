@@ -10,32 +10,32 @@ namespace SynthEBD
 {
     class SettingsIO_Height
     {
-        public static Settings_Height LoadHeightSettings(Paths paths)
+        public static Settings_Height LoadHeightSettings()
         {
             Settings_Height heightSettings = new Settings_Height();
 
-            if (File.Exists(paths.HeightSettingsPath))
+            if (File.Exists(PatcherSettings.Paths.HeightSettingsPath))
             {
-                string text = File.ReadAllText(paths.HeightSettingsPath);
+                string text = File.ReadAllText(PatcherSettings.Paths.HeightSettingsPath);
                 heightSettings = JsonConvert.DeserializeObject<Settings_Height>(text);
             }
 
             return heightSettings;
         }
 
-        public static List<HeightConfig> loadHeightConfigs(Paths paths, List<string> loadedHeightPaths)
+        public static List<HeightConfig> loadHeightConfigs(List<string> loadedHeightPaths)
         {
             List<HeightConfig> loaded = new List<HeightConfig>();
 
             string searchPath = "";
-            if (Directory.Exists(paths.HeightConfigDirPath))
+            if (Directory.Exists(PatcherSettings.Paths.HeightConfigDirPath))
             {
-                searchPath = paths.HeightConfigDirPath;
+                searchPath = PatcherSettings.Paths.HeightConfigDirPath;
             }
-            else if (Directory.Exists(paths.FallBackHeightConfigDirPath))
+            else if (Directory.Exists(PatcherSettings.Paths.FallBackHeightConfigDirPath))
             {
                 // Warn User
-                searchPath = paths.FallBackHeightConfigDirPath;
+                searchPath = PatcherSettings.Paths.FallBackHeightConfigDirPath;
             }
             else
             {
@@ -95,7 +95,7 @@ namespace SynthEBD
             return loaded;
         }
 
-        public static void SaveHeightConfigs(List<HeightConfig> heightConfigs, List<string> filePaths, Paths paths)
+        public static void SaveHeightConfigs(List<HeightConfig> heightConfigs, List<string> filePaths)
         {
             for (int i = 0; i < heightConfigs.Count; i++)
             {
@@ -108,13 +108,13 @@ namespace SynthEBD
                     string newPath = "";
                     if (IO_Aux.IsValidFilename(heightConfigs[i].Label))
                     {
-                        if (Directory.Exists(paths.HeightConfigDirPath))
+                        if (Directory.Exists(PatcherSettings.Paths.HeightConfigDirPath))
                         {
-                            newPath = Path.Combine(paths.HeightConfigDirPath, heightConfigs[i].Label + ".json");
+                            newPath = Path.Combine(PatcherSettings.Paths.HeightConfigDirPath, heightConfigs[i].Label + ".json");
                         }
-                        else if (Directory.Exists(paths.FallBackHeightConfigDirPath))
+                        else if (Directory.Exists(PatcherSettings.Paths.FallBackHeightConfigDirPath))
                         {
-                            newPath = Path.Combine(paths.FallBackHeightConfigDirPath, heightConfigs[i].Label + ".json");
+                            newPath = Path.Combine(PatcherSettings.Paths.FallBackHeightConfigDirPath, heightConfigs[i].Label + ".json");
                         }
 
                         JSONhandler<HeightConfig>.SaveJSONFile(heightConfigs[i], newPath);
@@ -127,13 +127,13 @@ namespace SynthEBD
                         dialog.DefaultExt = ".json"; // Default file extension
                         dialog.Filter = "JSON files (.json|*.json"; // Filter files by extension
 
-                        if (Directory.Exists(paths.HeightConfigDirPath))
+                        if (Directory.Exists(PatcherSettings.Paths.HeightConfigDirPath))
                         {
-                            dialog.InitialDirectory = Path.GetFullPath(paths.HeightConfigDirPath);
+                            dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.HeightConfigDirPath);
                         }
-                        else if (Directory.Exists(paths.FallBackHeightConfigDirPath))
+                        else if (Directory.Exists(PatcherSettings.Paths.FallBackHeightConfigDirPath))
                         {
-                            dialog.InitialDirectory = Path.GetFullPath(paths.FallBackHeightConfigDirPath);
+                            dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.FallBackHeightConfigDirPath);
                         }
 
                         dialog.RestoreDirectory = true;
