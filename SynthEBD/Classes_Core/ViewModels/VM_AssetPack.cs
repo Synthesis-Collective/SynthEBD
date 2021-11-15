@@ -101,7 +101,7 @@ namespace SynthEBD
             {Gender.female, "Female"},
         };
 
-        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, List<string> loadedAssetPackPaths, VM_SettingsBodyGen bodygenSettingsVM, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
+        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, VM_SettingsBodyGen bodygenSettingsVM, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
         {
             ObservableCollection<VM_AssetPack> viewModels = new ObservableCollection<VM_AssetPack>();
 
@@ -110,7 +110,7 @@ namespace SynthEBD
                 var viewModel = GetViewModelFromModel(assetPacks[i], generalSettingsVM, viewModels, bodygenSettingsVM, recordTemplateLinkCache);
                 viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].GroupName);
 
-                viewModel.SourcePath = loadedAssetPackPaths[i];
+                viewModel.SourcePath = assetPacks[i].FilePath;
 
                 viewModel.RecordTemplateLinkCache = recordTemplateLinkCache;
 
@@ -166,9 +166,8 @@ namespace SynthEBD
             return viewModel;
         }
 
-        public static List<string> DumpViewModelsToModels(ObservableCollection<VM_AssetPack> viewModels, List<AssetPack> models)
+        public static void DumpViewModelsToModels(ObservableCollection<VM_AssetPack> viewModels, List<AssetPack> models)
         {
-            List<string> configPaths = new List<string>();
             models.Clear();
 
             foreach (var vm in viewModels)
@@ -191,18 +190,9 @@ namespace SynthEBD
                 {
                     model.Subgroups.Add(VM_Subgroup.DumpViewModelToModel(svm));
                 }
-
+                model.FilePath = vm.SourcePath;
                 models.Add(model);
-                if (vm.SourcePath != "")
-                {
-                    configPaths.Add(vm.SourcePath);
-                }
-                else
-                {
-                    configPaths.Add("");
-                }
             }
-            return configPaths;
         }
 
         public static ObservableCollection<VM_Subgroup> flattenSubgroupVMs(ObservableCollection<VM_Subgroup> currentLevelSGs, ObservableCollection<VM_Subgroup> flattened)

@@ -31,6 +31,8 @@ namespace SynthEBD
         public FormKey DefaultRecordTemplate { get; set; }
         public HashSet<AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
         public string AssociatedBodyGenConfigName { get; set; }
+        [Newtonsoft.Json.JsonIgnore]
+        public string FilePath { get; set; }
 
         public class Subgroup : IProbabilityWeighted
         {

@@ -23,7 +23,7 @@ namespace SynthEBD
             return heightSettings;
         }
 
-        public static List<HeightConfig> loadHeightConfigs(List<string> loadedHeightPaths)
+        public static List<HeightConfig> loadHeightConfigs()
         {
             List<HeightConfig> loaded = new List<HeightConfig>();
 
@@ -69,7 +69,7 @@ namespace SynthEBD
                             fromZformat.HeightAssignments.Add(ha);
                         }
 
-                        loadedHeightPaths.Add(s);
+                        fromZformat.FilePath = s;
                         loaded.Add(fromZformat);
                     }
                     catch
@@ -82,8 +82,8 @@ namespace SynthEBD
                     try
                     {
                         var hc = JSONhandler<HeightConfig>.loadJSONFile(s);
+                        hc.FilePath = s;
                         loaded.Add(hc);
-                        loadedHeightPaths.Add(s);
                     }
                     catch
                     {
@@ -95,13 +95,13 @@ namespace SynthEBD
             return loaded;
         }
 
-        public static void SaveHeightConfigs(List<HeightConfig> heightConfigs, List<string> filePaths)
+        public static void SaveHeightConfigs(List<HeightConfig> heightConfigs)
         {
             for (int i = 0; i < heightConfigs.Count; i++)
             {
-                if (filePaths[i] != "")
+                if (heightConfigs[i].FilePath != "")
                 {
-                    JSONhandler<HeightConfig>.SaveJSONFile(heightConfigs[i], filePaths[i]);
+                    JSONhandler<HeightConfig>.SaveJSONFile(heightConfigs[i], heightConfigs[i].FilePath);
                 }
                 else
                 {

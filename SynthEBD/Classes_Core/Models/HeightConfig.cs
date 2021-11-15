@@ -17,6 +17,8 @@ namespace SynthEBD
 
         public string Label { get; set; }
         public HashSet<HeightAssignment> HeightAssignments { get; set; }
+        [Newtonsoft.Json.JsonIgnore]
+        public string FilePath { get; set; }
     }
 
     public class HeightAssignment

@@ -36,6 +36,8 @@ namespace SynthEBD
         public HashSet<BodyGenTemplate> Templates { get; set; }
         public HashSet<string> TemplateGroups { get; set; }
         public HashSet<MorphDescriptor> TemplateDescriptors { get; set; }
+        [Newtonsoft.Json.JsonIgnore]
+        public string FilePath { get; set; }
 
         public class MorphDescriptor
         {
@@ -225,7 +227,7 @@ namespace SynthEBD
             // handle female section
             if (zConfig.racialSettingsFemale.Count > 0)
             {
-                converted.Female.Label = Path.GetFileNameWithoutExtension(filePath) + "_Female";
+                
 
                 foreach (var rs in zConfig.racialSettingsFemale)
                 {

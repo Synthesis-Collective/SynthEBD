@@ -118,7 +118,7 @@ namespace SynthEBD
         public async Task CallTimedNotifyStatusUpdateAsync(string error, ErrorType type, int durationSec)
   => await TimedNotifyStatusUpdateAsync(error, type, durationSec);
 
-        public static async Task TimedNotifyStatusUpdateAsync(string error, ErrorType type, int durationSec)
+        private static async Task TimedNotifyStatusUpdateAsync(string error, ErrorType type, int durationSec)
         {
             LogErrorWithStatusUpdate(error, type);
 

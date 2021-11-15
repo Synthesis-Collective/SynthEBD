@@ -51,7 +51,7 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static void GetViewModelsFromModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models, List<string> loadedPaths)
+        public static void GetViewModelsFromModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models)
         {
             for (int i = 0; i < models.Count; i++)
             {
@@ -59,25 +59,23 @@ namespace SynthEBD
                 vm.Label = models[i].Label;
                 vm.HeightAssignments = VM_HeightAssignment.GetViewModelsFromModels(models[i].HeightAssignments);
                 vm.SubscribedHeightConfig = models[i];
-                vm.SourcePath = loadedPaths[i];
+                vm.SourcePath = models[i].FilePath;
 
                 viewModels.Add(vm);
             }
         }
 
-        public static List<string> DumpViewModelsToModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models)
+        public static void DumpViewModelsToModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models)
         {
-            List<string> filePaths = new List<string>();
             models.Clear();
             foreach (var vm in viewModels)
             {
                 var m = new HeightConfig();
                 m.Label = vm.Label;
                 VM_HeightAssignment.DumpViewModelsToModels(m.HeightAssignments, vm.HeightAssignments);
+                m.FilePath = vm.SourcePath;
                 models.Add(m);
-                filePaths.Add(vm.SourcePath);
             }
-            return filePaths;
         }
     }
     public class VM_HeightAssignment : INotifyPropertyChanged

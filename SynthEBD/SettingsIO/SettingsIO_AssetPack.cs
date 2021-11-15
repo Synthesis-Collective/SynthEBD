@@ -25,7 +25,7 @@ namespace SynthEBD
             return texMeshSettings;
         }
 
-        public static List<SynthEBD.AssetPack> loadAssetPacks(List<RaceGrouping> raceGroupings, List<string> loadedAssetPackPaths, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs)
+        public static List<SynthEBD.AssetPack> loadAssetPacks(List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs)
         {
             List<AssetPack> loadedPacks = new List<AssetPack>();
 
@@ -65,10 +65,9 @@ namespace SynthEBD
                     //    throw new Exception("Could not parse the config file at " + s);
                     //}
                 }
-                
 
+                synthEBDconfig.FilePath = s;
                 loadedPacks.Add(synthEBDconfig);
-                loadedAssetPackPaths.Add(s);
             }
 
             return loadedPacks;
@@ -104,13 +103,13 @@ namespace SynthEBD
             return loadedTemplatePlugins;
         }
 
-        public static void SaveAssetPacks(List<AssetPack> assetPacks, List<string> filePaths)
+        public static void SaveAssetPacks(List<AssetPack> assetPacks)
         {
             for (int i = 0; i < assetPacks.Count; i++)
             {
-                if (filePaths[i] != "")
+                if (assetPacks[i].FilePath != "")
                 {
-                    JSONhandler<AssetPack>.SaveJSONFile(assetPacks[i], filePaths[i]);
+                    JSONhandler<AssetPack>.SaveJSONFile(assetPacks[i], assetPacks[i].FilePath);
                 }
                 else
                 {

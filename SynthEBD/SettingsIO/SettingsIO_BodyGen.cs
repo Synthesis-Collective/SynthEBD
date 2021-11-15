@@ -36,6 +36,7 @@ namespace SynthEBD
                 try // first try deserializing to SynthEBD asset pack
                 {
                     synthEBDconfig = JSONhandler<BodyGenConfig>.loadJSONFile(s);
+                    synthEBDconfig.FilePath = s;
                     switch(synthEBDconfig.Gender)
                     {
                         case Gender.female:
@@ -63,6 +64,39 @@ namespace SynthEBD
                         {
                             loadedPacks.Female.Add(convertedPair.Female);
                         }
+
+                        // assign file paths depending on if the source file was split
+                        if (!convertedPair.bMaleInitialized && !convertedPair.bFemaleInitialized)
+                        {
+                            Logger.Instance.CallTimedNotifyStatusUpdateAsync("Could not parse zEBD BodyGen Config file at " + s, ErrorType.Warning, 5);
+                        }
+                        else if (convertedPair.bMaleInitialized && !convertedPair.bFemaleInitialized)
+                        {
+                            convertedPair.Male.Label = Path.GetFileNameWithoutExtension(s);
+                            convertedPair.Male.FilePath = s;
+                        }
+                        else if (convertedPair.bFemaleInitialized && !convertedPair.bMaleInitialized)
+                        {
+                            convertedPair.Female.Label = Path.GetFileNameWithoutExtension(s);
+                            convertedPair.Female.FilePath = s;
+                        }
+                        else // if both male and female configs were initialized, split the file paths and delete original
+                        {
+                            convertedPair.Male.Label = Path.GetFileNameWithoutExtension(s) + "_Male";
+                            convertedPair.Female.Label = Path.GetFileNameWithoutExtension(s) + "_Female";
+
+                            convertedPair.Male.FilePath = convertedPair.Male.Label + ".json";
+                            convertedPair.Female.FilePath = convertedPair.Female.Label + ".json";
+                            try
+                            {
+                                File.Delete(s);
+                            }
+                            catch
+                            {
+                                Logger.Instance.CallTimedNotifyStatusUpdateAsync("Could not delete zEBD bodygen config file after conversion to SynthEBD format: " + s, ErrorType.Warning, 5);
+                            }
+                        }
+                        
                     }
                     catch
                     {
@@ -72,6 +106,62 @@ namespace SynthEBD
             }
 
             return loadedPacks;
+        }
+
+        public static void SaveBodyGenConfigs(HashSet<BodyGenConfig> bodyGenConfigs)
+        {
+            foreach (var bgConfig in bodyGenConfigs)
+            {
+                if (bgConfig.FilePath != "")
+                {
+                    JSONhandler<BodyGenConfig>.SaveJSONFile(bgConfig, bgConfig.FilePath);
+                }
+                else
+                {
+                    string newPath = "";
+                    if (IO_Aux.IsValidFilename(bgConfig.Label))
+                    {
+                        if (Directory.Exists(PatcherSettings.Paths.BodyGenConfigDirPath))
+                        {
+                            newPath = Path.Combine(PatcherSettings.Paths.BodyGenConfigDirPath, bgConfig.Label + ".json");
+                        }
+                        else if (Directory.Exists(PatcherSettings.Paths.FallBackBodyGenConfigDirPath))
+                        {
+                            newPath = Path.Combine(PatcherSettings.Paths.FallBackBodyGenConfigDirPath, bgConfig.Label + ".json");
+                        }
+
+                        JSONhandler<BodyGenConfig>.SaveJSONFile(bgConfig, newPath);
+                    }
+
+                    else
+                    {
+                        // Configure save file dialog box
+                        var dialog = new Microsoft.Win32.SaveFileDialog();
+                        dialog.DefaultExt = ".json"; // Default file extension
+                        dialog.Filter = "JSON files (.json|*.json"; // Filter files by extension
+
+                        if (Directory.Exists(PatcherSettings.Paths.BodyGenConfigDirPath))
+                        {
+                            dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.BodyGenConfigDirPath);
+                        }
+                        else if (Directory.Exists(PatcherSettings.Paths.FallBackBodyGenConfigDirPath))
+                        {
+                            dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.FallBackBodyGenConfigDirPath);
+                        }
+
+                        dialog.RestoreDirectory = true;
+
+                        // Show open file dialog box
+                        bool? result = dialog.ShowDialog();
+
+                        // Process open file dialog box results
+                        if (result == true)
+                        {
+                            JSONhandler<BodyGenConfig>.SaveJSONFile(bgConfig, dialog.FileName);
+                        }
+                    }
+                }
+            }
         }
     }
 }

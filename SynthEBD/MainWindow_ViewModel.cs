@@ -82,15 +82,13 @@ namespace SynthEBD
             VM_SettingsBodyGen.GetViewModelFromModel(BodyGenConfigs, PatcherSettings.BodyGen, BGVM, SGVM.RaceGroupings);
 
             // load asset packs
-            List<string> loadedAssetPackPaths = new List<string>();
-            AssetPacks = SettingsIO_AssetPack.loadAssetPacks(PatcherSettings.General.RaceGroupings, loadedAssetPackPaths, RecordTemplatePlugins, BodyGenConfigs); // load asset pack models from json
-            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(AssetPacks, SGVM, PatcherSettings.TexMesh, loadedAssetPackPaths, BGVM, RecordTemplateLinkCache); // add asset pack view models to TexMesh shell view model here
+            AssetPacks = SettingsIO_AssetPack.loadAssetPacks(PatcherSettings.General.RaceGroupings, RecordTemplatePlugins, BodyGenConfigs); // load asset pack models from json
+            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(AssetPacks, SGVM, PatcherSettings.TexMesh, BGVM, RecordTemplateLinkCache); // add asset pack view models to TexMesh shell view model here
 
             // load heights
             PatcherSettings.Height = SettingsIO_Height.LoadHeightSettings();
-            List<string> loadedHeightPaths = new List<string>();
-            HeightConfigs = SettingsIO_Height.loadHeightConfigs(loadedHeightPaths);
-            VM_HeightConfig.GetViewModelsFromModels(HVM.AvailableHeightConfigs, HeightConfigs, loadedHeightPaths);
+            HeightConfigs = SettingsIO_Height.loadHeightConfigs();
+            VM_HeightConfig.GetViewModelsFromModels(HVM.AvailableHeightConfigs, HeightConfigs);
             VM_SettingsHeight.GetViewModelFromModel(HVM, PatcherSettings.Height); /// must do after populating configs
 
             // load specific assignments
@@ -124,19 +122,18 @@ namespace SynthEBD
 
             VM_SettingsTexMesh.DumpViewModelToModel(TMVM, PatcherSettings.TexMesh);
             JSONhandler<Settings_TexMesh>.SaveJSONFile(PatcherSettings.TexMesh, PatcherSettings.Paths.TexMeshSettingsPath);
-            var assetPackPaths = VM_AssetPack.DumpViewModelsToModels(TMVM.AssetPacks, AssetPacks);
-            SettingsIO_AssetPack.SaveAssetPacks(AssetPacks, assetPackPaths);
-
-            // Need code here to dump assset packs and save - see height configs for analogy
+            VM_AssetPack.DumpViewModelsToModels(TMVM.AssetPacks, AssetPacks);
+            SettingsIO_AssetPack.SaveAssetPacks(AssetPacks);
 
             VM_SettingsHeight.DumpViewModelToModel(HVM, PatcherSettings.Height);
             JSONhandler<Settings_Height>.SaveJSONFile(PatcherSettings.Height, PatcherSettings.Paths.HeightSettingsPath);
-            var heightConfigPaths = VM_HeightConfig.DumpViewModelsToModels(HVM.AvailableHeightConfigs, HeightConfigs);
-            SettingsIO_Height.SaveHeightConfigs(HeightConfigs, heightConfigPaths);
+            VM_HeightConfig.DumpViewModelsToModels(HVM.AvailableHeightConfigs, HeightConfigs);
+            SettingsIO_Height.SaveHeightConfigs(HeightConfigs);
 
             VM_SettingsBodyGen.DumpViewModelToModel(BGVM, PatcherSettings.BodyGen);
             JSONhandler<Settings_BodyGen>.SaveJSONFile(PatcherSettings.BodyGen, PatcherSettings.Paths.BodyGenSettingsPath);
-            // Need code here to dump assset packs and save - see height configs for analogy
+            SettingsIO_BodyGen.SaveBodyGenConfigs(BodyGenConfigs.Female);
+            SettingsIO_BodyGen.SaveBodyGenConfigs(BodyGenConfigs.Male);
 
             VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(SAUIVM, SpecificNPCAssignments);
             JSONhandler<HashSet<NPCAssignment>>.SaveJSONFile(SpecificNPCAssignments, PatcherSettings.Paths.SpecificNPCAssignmentsPath);

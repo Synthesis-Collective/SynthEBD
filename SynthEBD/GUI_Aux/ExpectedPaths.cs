@@ -20,7 +20,7 @@ namespace SynthEBD
             string settingsDirRelPath = "Settings";
             string assetsDirRelPath = "Asset Packs";
             string heightsDirRelPath = "Height Configurations";
-            string bodyGenDirRelPath = "BodyGen Configuration";
+            string bodyGenDirRelPath = "BodyGen Configurations";
             string NPCConfigDirRelPath = "NPC Configuration";
             string recordTemplatesDirRelPath = "Record Templates";
 

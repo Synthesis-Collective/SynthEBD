@@ -167,8 +167,11 @@ namespace SynthEBD
             viewModel.paths = VM_FilePathReplacement.GetViewModelsFromModels(model.paths);
             viewModel.weightRange = model.weightRange;
 
-            viewModel.allowedBodyGenDescriptors = VM_BodyGenMorphDescriptorSelectionMenu.InitializeFromHashSet(model.allowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
-            viewModel.disallowedBodyGenDescriptors = VM_BodyGenMorphDescriptorSelectionMenu.InitializeFromHashSet(model.disallowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
+            if (parentAssetPack.TrackedBodyGenConfig != null)
+            {
+                viewModel.allowedBodyGenDescriptors = VM_BodyGenMorphDescriptorSelectionMenu.InitializeFromHashSet(model.allowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
+                viewModel.disallowedBodyGenDescriptors = VM_BodyGenMorphDescriptorSelectionMenu.InitializeFromHashSet(model.disallowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
+            }
 
             foreach (var sg in model.subgroups)
             {
