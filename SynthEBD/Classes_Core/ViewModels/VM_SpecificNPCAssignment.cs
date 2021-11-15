@@ -194,9 +194,9 @@ namespace SynthEBD
             NPCAssignment model = new NPCAssignment();
             model.DispName = viewModel.DispName;
             model.AssetPackName = viewModel.ForcedAssetPack.groupName;
-            model.SubgroupIDs = viewModel.ForcedSubgroups.Select(subgroup => subgroup.id).ToHashSet();
+            model.SubgroupIDs = viewModel.ForcedSubgroups.Select(subgroup => subgroup.id).ToList();
             model.Height = viewModel.ForcedHeight;
-            model.BodyGenMorphNames = viewModel.ForcedBodyGenMorphs.Select(morph => morph.Label).ToHashSet();
+            model.BodyGenMorphNames = viewModel.ForcedBodyGenMorphs.Select(morph => morph.Label).ToList();
             model.NPCFormKey = viewModel.NPCFormKey;
             return model;
         }

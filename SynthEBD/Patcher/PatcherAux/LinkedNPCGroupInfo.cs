@@ -19,7 +19,7 @@ namespace SynthEBD
 
         public HashSet<FormKey> NPCFormKeys { get; set; }
         public SubgroupCombination AssignedCombination { get; set; }
-        public HashSet<string> AssignedMorphs { get; set; }
+        public List<string> AssignedMorphs { get; set; }
         public double AssignedHeight { get; set; }
 
         public static LinkedNPCGroupInfo GetInfoFromLinkedNPCGroup(HashSet<LinkedNPCGroup> definedGroups, HashSet<LinkedNPCGroupInfo> createdGroups, FormKey npcFormKey) // links the UI-defined LinkedNPCGroup (which only contains NPCs) to the corresponding generated LinkedNPCGroupInfo (which contains patcher assignments)

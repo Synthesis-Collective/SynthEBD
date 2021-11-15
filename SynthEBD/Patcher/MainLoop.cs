@@ -15,7 +15,7 @@ namespace SynthEBD
     {
         //Synchronous version for debugging only
         //public static void RunPatcher(List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths)
-        public static async Task RunPatcher(List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths)
+        public static async Task RunPatcher(List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths)
         {
             Logger.UpdateStatus("Patching", false);
             Logger.StartTimer();
@@ -32,16 +32,12 @@ namespace SynthEBD
             bool blockHeight;
             bool bodyGenAssignedWithAssets;
 
-            //var AssetPacksByRaceGender = new Dictionary<Tuple<FormKey, Gender>, HashSet<FlattenedAssetPack>>();
-
             if (PatcherSettings.General.bChangeMeshesOrTextures)
             {
                 HashSet<FlattenedAssetPack> flattenedAssetPacks = new HashSet<FlattenedAssetPack>();
                 flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x, PatcherSettings.General.RaceGroupings, PatcherSettings.General.bEnableBodyGenIntegration)).ToHashSet();
                 maleAssetPacks = flattenedAssetPacks.Where(x => x.Gender == Gender.male).ToHashSet();
                 femaleAssetPacks = flattenedAssetPacks.Where(x => x.Gender == Gender.female).ToHashSet();
-                
-                //AssetPacksByRaceGender = DictionaryMapper.GetAssetPacksByRaceGender(flattenedAssetPacks, generalSettings.patchableRaces);
             }
 
             int npcCounter = 0;
@@ -53,7 +49,9 @@ namespace SynthEBD
                     Logger.LogMessage("Examined " + npcCounter.ToString() + " NPCs in " + Logger.GetEllapsedTime()); 
                 }
 
-                var currentNPCInfo = new NPCInfo(npc, linkedNPCGroups, generatedLinkGroups, specificNPCAssignments);
+                var currentNPCInfo = new NPCInfo(npc, linkedNPCGroups, generatedLinkGroups, specificNPCAssignments, consistency);
+
+                Logger.InitializeNewReport(currentNPCInfo);
 
                 blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(blockList, npc.FormKey);
                 blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey);

@@ -1,6 +1,7 @@
 ﻿using Mutagen.Bethesda;
 using Mutagen.Bethesda.Cache.Implementations;
 using Mutagen.Bethesda.Environments;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using System;
@@ -37,6 +38,7 @@ namespace SynthEBD
         public List<AssetPack> AssetPacks { get; }
         public List<HeightConfig> HeightConfigs { get; }
         public BodyGenConfigs BodyGenConfigs { get; }
+        public Dictionary<string, NPCAssignment> Consistency { get; }
         public HashSet<NPCAssignment> SpecificNPCAssignments { get; }
         public BlockList BlockList { get; }
         public HashSet<string> LinkedNPCNameExclusions { get; set; }
@@ -91,6 +93,9 @@ namespace SynthEBD
             VM_HeightConfig.GetViewModelsFromModels(HVM.AvailableHeightConfigs, HeightConfigs);
             VM_SettingsHeight.GetViewModelFromModel(HVM, PatcherSettings.Height); /// must do after populating configs
 
+            // Load Consistency
+            Consistency = SettingsIO_Misc.LoadConsistency();
+
             // load specific assignments
             SpecificNPCAssignments = SettingsIO_SpecificNPCAssignments.LoadAssignments();
             VM_SpecificNPCAssignmentsUI.GetViewModelFromModels(SAUIVM, SpecificNPCAssignments);
@@ -135,15 +140,17 @@ namespace SynthEBD
             SettingsIO_BodyGen.SaveBodyGenConfigs(BodyGenConfigs.Female);
             SettingsIO_BodyGen.SaveBodyGenConfigs(BodyGenConfigs.Male);
 
+            SettingsIO_Misc.SaveConsistency(Consistency);
+
             VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(SAUIVM, SpecificNPCAssignments);
             JSONhandler<HashSet<NPCAssignment>>.SaveJSONFile(SpecificNPCAssignments, PatcherSettings.Paths.SpecificNPCAssignmentsPath);
 
             VM_LinkedNPCGroup.DumpViewModelsToModels(LinkedNPCGroups, SGVM.LinkedNPCGroups);
-            JSONhandler<HashSet<LinkedNPCGroup>>.SaveJSONFile(LinkedNPCGroups, PatcherSettings.Paths.LinkedNPCsPath);
+            SettingsIO_Misc.SaveLinkedNPCGroups(LinkedNPCGroups);
 
-            JSONhandler<HashSet<string>>.SaveJSONFile(SGVM.LinkedNameExclusions.Select(cms => cms.Content).ToHashSet(), PatcherSettings.Paths.LinkedNPCNameExclusionsPath);
+            SettingsIO_Misc.SaveNPCNameExclusions(SGVM.LinkedNameExclusions.Select(cms => cms.Content).ToHashSet());
 
-            JSONhandler<HashSet<TrimPath>>.SaveJSONFile(TMVM.TrimPaths.ToHashSet(), PatcherSettings.Paths.TrimPathsPath);
+            SettingsIO_Misc.SaveTrimPaths(TMVM.TrimPaths.ToHashSet());
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

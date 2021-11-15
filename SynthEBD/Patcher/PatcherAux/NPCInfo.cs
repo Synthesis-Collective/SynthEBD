@@ -11,7 +11,7 @@ namespace SynthEBD
 {
     public class NPCInfo
     {
-        public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, HashSet<NPCAssignment> specificNPCAssignments)
+        public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, HashSet<NPCAssignment> specificNPCAssignments, Dictionary<string, NPCAssignment> consistency)
         {
             this.NPC = npc;
             this.LogIDstring = npc.Name?.String + " | " + npc.EditorID + " | " + npc.FormKey.ToString();
@@ -21,8 +21,17 @@ namespace SynthEBD
             HeightRace = AliasHandler.GetAliasHeight(npc.Race.FormKey);
             AssociatedLinkGroup = LinkedNPCGroupInfo.GetInfoFromLinkedNPCGroup(definedLinkGroups, createdLinkGroupInfos, npc.FormKey);
             SpecificNPCAssignment = specificNPCAssignments.Where(x => x.NPCFormKey == npc.FormKey).FirstOrDefault();
-            //TEMP
-            ConsistencyNPCAssignment = new NPCAssignment();
+            if (consistency.ContainsKey(this.NPC.FormKey.ToString()))
+            {
+                ConsistencyNPCAssignment = consistency[this.NPC.FormKey.ToString()];
+            }
+            else
+            {
+                ConsistencyNPCAssignment = new NPCAssignment();
+                ConsistencyNPCAssignment.NPCFormKey = NPC.FormKey;
+                ConsistencyNPCAssignment.DispName = LogIDstring;
+                consistency.Add(this.NPC.FormKey.ToString(), ConsistencyNPCAssignment);
+            }
         }
 
         public INpcGetter NPC { get; set; }

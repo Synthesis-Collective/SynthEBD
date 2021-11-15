@@ -22,9 +22,9 @@ namespace SynthEBD
         public string DispName { get; set; }
         public FormKey NPCFormKey { get; set; }
         public string AssetPackName { get; set; }
-        public HashSet<string> SubgroupIDs { get; set; }
+        public List<string> SubgroupIDs { get; set; } // order matters
         public string Height { get; set; }
-        public HashSet<string> BodyGenMorphNames { get; set; }
+        public List<string> BodyGenMorphNames { get; set; } // order matters
     }
 
     public class zEBDSpecificNPCAssignment
@@ -38,9 +38,9 @@ namespace SynthEBD
             this.race = "";
             this.gender = "";
             this.forcedAssetPack = "";
-            this.forcedSubgroups = new HashSet<zEBDForcedSubgroup>();
+            this.forcedSubgroups = new List<zEBDForcedSubgroup>();
             this.forcedHeight = "";
-            this.forcedBodyGenMorphs = new HashSet<string>();
+            this.forcedBodyGenMorphs = new List<string>();
             this.displayString = "";
         }
         public string name { get; set; }
@@ -50,9 +50,9 @@ namespace SynthEBD
         public string race { get; set; }
         public string gender { get; set; }
         public string forcedAssetPack { get; set; }
-        public HashSet<zEBDForcedSubgroup> forcedSubgroups { get; set; }
+        public List<zEBDForcedSubgroup> forcedSubgroups { get; set; }
         public string forcedHeight { get; set; }
-        public HashSet<string> forcedBodyGenMorphs { get; set; }
+        public List<string> forcedBodyGenMorphs { get; set; }
         public string displayString { get; set; }
 
         public class zEBDForcedSubgroup

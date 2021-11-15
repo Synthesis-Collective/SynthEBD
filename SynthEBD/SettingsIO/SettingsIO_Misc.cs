@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Mutagen.Bethesda.Plugins;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -30,6 +31,18 @@ namespace SynthEBD
             return exclusions;
         }
 
+        public static void SaveNPCNameExclusions(HashSet<string> exclusions)
+        {
+            try
+            {
+                JSONhandler<HashSet<string>>.SaveJSONFile(exclusions, PatcherSettings.Paths.LinkedNPCNameExclusionsPath);
+            }
+            catch
+            {
+                Logger.Instance.CallTimedNotifyStatusUpdateAsync("Could not save linked NPC name exclusions to " + PatcherSettings.Paths.LinkedNPCNameExclusionsPath, ErrorType.Error, 5);
+            }
+        }
+
         public static HashSet<LinkedNPCGroup> LoadLinkedNPCGroups()
         {
             HashSet<LinkedNPCGroup> linkedNPCGroups = new HashSet<LinkedNPCGroup>();
@@ -51,6 +64,18 @@ namespace SynthEBD
             return linkedNPCGroups;
         }
 
+        public static void SaveLinkedNPCGroups(HashSet<LinkedNPCGroup> linkedGroups)
+        {
+            try
+            {
+                JSONhandler<HashSet<LinkedNPCGroup>>.SaveJSONFile(linkedGroups, PatcherSettings.Paths.LinkedNPCsPath);
+            }
+            catch
+            {
+                Logger.Instance.CallTimedNotifyStatusUpdateAsync("Could not save linked NPC groups to " + PatcherSettings.Paths.LinkedNPCsPath, ErrorType.Error, 5);
+            }
+        }
+
         public static HashSet<TrimPath> LoadTrimPaths()
         {
             HashSet<TrimPath> trimPaths = new HashSet<TrimPath>();
@@ -70,6 +95,44 @@ namespace SynthEBD
             }
 
             return trimPaths;
+        }
+
+        public static void SaveTrimPaths(HashSet<TrimPath> trimPaths)
+        {
+            try
+            {
+                JSONhandler<HashSet<TrimPath>>.SaveJSONFile(trimPaths, PatcherSettings.Paths.TrimPathsPath);
+            }
+            catch
+            {
+                Logger.Instance.CallTimedNotifyStatusUpdateAsync("Could not save TrimPaths to " + PatcherSettings.Paths.TrimPathsPath, ErrorType.Error, 5);
+            }
+        }
+
+        public static Dictionary<string, NPCAssignment> LoadConsistency()
+        {
+            var loaded = new Dictionary<string, NPCAssignment>();
+            if (File.Exists(PatcherSettings.Paths.ConsistencyPath))
+            {
+                loaded = JSONhandler<Dictionary<string, NPCAssignment>>.loadJSONFile(PatcherSettings.Paths.ConsistencyPath);
+            }
+            else if (File.Exists(PatcherSettings.Paths.FallBackConsistencyPath))
+            {
+                loaded = JSONhandler<Dictionary<string, NPCAssignment>>.loadJSONFile(PatcherSettings.Paths.FallBackConsistencyPath);
+            }
+            // note: No need to alert user if consistency can't be loaded - it won't be available on first run
+            return loaded;
+        }
+        public static void SaveConsistency(Dictionary<string, NPCAssignment> consistency)
+        {
+            try
+            {
+                JSONhandler<Dictionary<string, NPCAssignment>>.SaveJSONFile(consistency, PatcherSettings.Paths.ConsistencyPath);
+            }
+            catch
+            {
+                Logger.Instance.CallTimedNotifyStatusUpdateAsync("Could not save Consistency to " + PatcherSettings.Paths.ConsistencyPath, ErrorType.Error, 5);
+            }
         }
     }
 }

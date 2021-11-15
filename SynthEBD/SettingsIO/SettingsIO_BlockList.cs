@@ -35,5 +35,17 @@ namespace SynthEBD
 
             return loadedList;
         }
+
+        public static void SaveBlockList(BlockList blockList)
+        {
+            try
+            {
+                JSONhandler<BlockList>.SaveJSONFile(blockList, PatcherSettings.Paths.BlockListPath);
+            }
+            catch
+            {
+                Logger.Instance.CallTimedNotifyStatusUpdateAsync("Could not save Block List to " + PatcherSettings.Paths.BlockListPath, ErrorType.Error, 5);
+            }
+        }
     }
 }

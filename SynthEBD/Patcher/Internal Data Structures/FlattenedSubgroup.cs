@@ -55,7 +55,6 @@ namespace SynthEBD
         public Dictionary<string, HashSet<string>> DisallowedBodyGenDescriptors { get; set; }
         public NPCWeightRange WeightRange { get; set; }
         public int TopLevelSubgroupIndex { get; set; }
-        public string SourceAssetPack { get; set; }
         public List<string> ContainedSubgroupIDs { get; set; }
         public List<string> ContainedSubgroupNames { get; set; }
 
@@ -68,12 +67,10 @@ namespace SynthEBD
             if (toFlatten.enabled == false) { return; }
 
             FlattenedSubgroup flattened = new FlattenedSubgroup(toFlatten, raceGroupingList, subgroupHierarchy, parentAssetPack);
+            flattened.TopLevelSubgroupIndex = topLevelIndex;
 
             if (parent != null)
             {
-                flattened.TopLevelSubgroupIndex = topLevelIndex;
-                flattened.SourceAssetPack = parentAssetPackName;
-
                 // merge properties between current subgroup and parent
                 if (parent.DistributionEnabled == false) { flattened.DistributionEnabled = false; }
                 if (parent.AllowUnique == false) { flattened.AllowUnique = false; }
@@ -106,8 +103,7 @@ namespace SynthEBD
                 //Required / Excluded Subgroups
                 flattened.RequiredSubgroupIDs = DictionaryMapper.MergeDictionaries(new List<Dictionary<int, HashSet<string>>> { flattened.RequiredSubgroupIDs, parent.RequiredSubgroupIDs});
                 flattened.ExcludedSubgroupIDs = DictionaryMapper.MergeDictionaries(new List<Dictionary<int, HashSet<string>>> { flattened.ExcludedSubgroupIDs, parent.ExcludedSubgroupIDs });
-                bool requiredSubgroupsValid = true;
-                flattened.RequiredSubgroupIDs = AllowedDisallowedCombiners.TrimExcludedSubgroupsFromRequired(flattened.RequiredSubgroupIDs, flattened.ExcludedSubgroupIDs, out requiredSubgroupsValid);
+                flattened.RequiredSubgroupIDs = AllowedDisallowedCombiners.TrimExcludedSubgroupsFromRequired(flattened.RequiredSubgroupIDs, flattened.ExcludedSubgroupIDs, out bool requiredSubgroupsValid);
                 if (!requiredSubgroupsValid) { return; }
 
                 // Attribute Merging

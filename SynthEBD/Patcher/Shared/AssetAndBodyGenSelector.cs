@@ -16,10 +16,10 @@ namespace SynthEBD
         /// <param name="availableAssetPacks">Asset packs available to the current NPC</param>
         /// <param name="npcInfo">NPC info class</param>
         /// <returns></returns>
-        public static Tuple<SubgroupCombination, HashSet<string>> ChooseCombinationAndBodyGen(out bool bodyGenAssigned, HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo)
+        public static Tuple<SubgroupCombination, List<string>> ChooseCombinationAndBodyGen(out bool bodyGenAssigned, HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo)
         {
             SubgroupCombination chosenCombination = new SubgroupCombination();
-            HashSet<string> chosenMorphs = new HashSet<string>();
+            List<string> chosenMorphs = new List<string>();
             bodyGenAssigned = false;
 
             if (npcInfo.AssociatedLinkGroup != null && npcInfo.AssociatedLinkGroup.AssignedCombination != null && CombinationAllowedBySpecificNPCAssignment(npcInfo.SpecificNPCAssignment, npcInfo.AssociatedLinkGroup.AssignedCombination))
@@ -34,7 +34,17 @@ namespace SynthEBD
                 bodyGenAssigned = chosenMorphs.Any();
             }
 
-            return new Tuple<SubgroupCombination, HashSet<string>>(chosenCombination, chosenMorphs);
+            if (chosenCombination != null)
+            {
+                npcInfo.ConsistencyNPCAssignment.AssetPackName = chosenCombination.AssetPackName;
+                npcInfo.ConsistencyNPCAssignment.SubgroupIDs = chosenCombination.ContainedSubgroups.Select(x => x.Id).ToList();
+            }
+            if (bodyGenAssigned)
+            {
+                npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames = chosenMorphs.ToList();
+            }
+
+            return new Tuple<SubgroupCombination, List<string>>(chosenCombination, chosenMorphs);
         }
 
         /// <summary>
@@ -46,16 +56,30 @@ namespace SynthEBD
         /// <returns></returns>
         private static HashSet<FlattenedAssetPack> FilterValidConfigsForNPC(HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo, bool ignoreConsistency, out bool wasFilteredByConsistency)
         {
-            HashSet<FlattenedAssetPack> filteredPacks = new HashSet<FlattenedAssetPack>();
+            HashSet<FlattenedAssetPack> preFilteredPacks = new HashSet<FlattenedAssetPack>(availableAssetPacks); // available asset packs filtered by Specific NPC Assignments and Consistency
+            HashSet<FlattenedAssetPack> filteredPacks = new HashSet<FlattenedAssetPack>(); // available asset packs (further) filtered by current NPC's compliance with each subgroup's rule set
             wasFilteredByConsistency = false;
+            List<List<FlattenedSubgroup>> forcedAssignments = null; // must be a nested list because if the user forces a non-bottom-level subgroup, then at a given index multiple options will be forced
 
-            string forcedAssetPack = null;
+            //handle specific NPC assignments
+            FlattenedAssetPack forcedAssetPack = null;
             if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.AssetPackName != "")
             {
                 // check to make sure forced asset pack exists
-                if (availableAssetPacks.Where(x => x.GroupName == npcInfo.SpecificNPCAssignment.AssetPackName).Any())
+                forcedAssetPack = preFilteredPacks.Where(x => x.GroupName == npcInfo.SpecificNPCAssignment.AssetPackName).FirstOrDefault().ShallowCopy(); // don't forget to shallow copy or subsequent NPCs will get pruned asset packs
+                if (forcedAssetPack != null)
                 {
-                    forcedAssetPack = npcInfo.SpecificNPCAssignment.AssetPackName;
+                    //Prune forced asset pack to only include forced subgroups at their respective indices
+                    forcedAssignments = GetForcedSubgroupsAtIndex(forcedAssetPack, npcInfo.SpecificNPCAssignment.SubgroupIDs);
+                    for (int i = 0; i < forcedAssignments.Count; i++)
+                    {
+                        if (forcedAssignments[i].Any())
+                        {
+                            forcedAssetPack.Subgroups[i] = forcedAssignments[i];
+                        }
+                    }
+
+                    preFilteredPacks = new HashSet<FlattenedAssetPack>() { forcedAssetPack };
                 }
                 else
                 {
@@ -63,49 +87,85 @@ namespace SynthEBD
                 }
             }
 
-            foreach (var ap in availableAssetPacks)
+            //handle consistency
+            if (!ignoreConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.AssetPackName != "")
             {
-                if (forcedAssetPack != null && ap.GroupName != forcedAssetPack) { continue; }
+                // check to make sure consistencya asset pack is compatible with the specific NPC assignment
+                if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.AssetPackName != "" && npcInfo.SpecificNPCAssignment.AssetPackName != npcInfo.ConsistencyNPCAssignment.AssetPackName)
+                {
+                    Logger.LogReport("Asset Pack defined by forced asset pack (" + npcInfo.SpecificNPCAssignment.AssetPackName + ") supercedes consistency asset pack (" + npcInfo.ConsistencyNPCAssignment.AssetPackName + ")");
+                }
+                else
+                {
+                    // check to make sure consistency asset pack exists
+                    var consistencyAssetPack = preFilteredPacks.Where(x => x.GroupName == npcInfo.ConsistencyNPCAssignment.AssetPackName).FirstOrDefault().ShallowCopy(); // don't forget to shallow copy or subsequent NPCs will get pruned asset packs;
+                    if (consistencyAssetPack == null)
+                    {
+                        Logger.LogReport("Could not find the asset pack specified in the consistency file: " + npcInfo.ConsistencyNPCAssignment.AssetPackName);
+                    }
+                    else
+                    {
+                        // check each subgroup against specific npc assignment
+                        for (int i = 0; i < npcInfo.ConsistencyNPCAssignment.SubgroupIDs.Count; i++)
+                        {
+                            // make sure consistency subgroup doesn't conflict with user-forced subgroup if one exists
+                            if (forcedAssignments != null && forcedAssignments[i].Any())
+                            {
+                                if (forcedAssignments[i].Select(x => x.Id).Contains(npcInfo.ConsistencyNPCAssignment.SubgroupIDs[i]))
+                                {
+                                    consistencyAssetPack.Subgroups[i] = new List<FlattenedSubgroup>() { forcedAssignments[i].First(x => x.Id == npcInfo.ConsistencyNPCAssignment.SubgroupIDs[i]) }; // guaranteed to have at least one subgroup or else the upstream if would fail, so use First instead of Where
+                                }
+                                else
+                                {
+                                    Logger.LogReport("Consistency subgroup " + npcInfo.ConsistencyNPCAssignment.SubgroupIDs[i] + " is incompatible with the Specific NPC Assignment at position " + i + ".");
+                                }
+                            }
+                            // if no user-forced subgroup exists, simply make sure that the consistency subgroup exists
+                            else
+                            {
+                                FlattenedSubgroup consistencySubgroup = consistencyAssetPack.Subgroups[i].FirstOrDefault(x => x.Id == npcInfo.ConsistencyNPCAssignment.SubgroupIDs[i]);
+                                if (consistencySubgroup == null)
+                                {
+                                    Logger.LogReport("Could not find the subgroup specified in the consistency file: " + npcInfo.ConsistencyNPCAssignment.SubgroupIDs[i]);
+                                }
+                                else
+                                {
+                                    consistencyAssetPack.Subgroups[i] = new List<FlattenedSubgroup>() { consistencySubgroup };
+                                }
+                            }
+                        }
+                        preFilteredPacks = new HashSet<FlattenedAssetPack>() { consistencyAssetPack };
+                        wasFilteredByConsistency = true;
+                    }
+                }
+            }
 
-                // HANDLE CONSISTENCY!!
-                wasFilteredByConsistency = false;
-                //
-
+            //handle non-predefined subgroups
+            foreach (var ap in preFilteredPacks)
+            {
                 var candidatePack = ap.ShallowCopy();
                 bool isValid = true;
 
                 for (int i = 0; i < candidatePack.Subgroups.Count; i++)
                 {
-                    // checked if the subgroup at this position is specified via a Specific NPC Assignment
-                    if (npcInfo.SpecificNPCAssignment != null)
+                    for (int j = 0; j < candidatePack.Subgroups[i].Count; j++)
                     {
-                        var forcedSubgroup = GetSpecificNPCAssignmnentSubgroupAtIndex(candidatePack.Subgroups[i], npcInfo.SpecificNPCAssignment.SubgroupIDs);
-                        if (forcedSubgroup != null)
+                        bool isSpecificNPCAssignment = forcedAssetPack != null && forcedAssignments[i].Any();
+                        if (!isSpecificNPCAssignment && !SubgroupValidForCurrentNPC(candidatePack.Subgroups[i][j], npcInfo))
                         {
-                            candidatePack.Subgroups[i] = new List<FlattenedSubgroup>() { forcedSubgroup };
-                            candidatePack.Subgroups[i][0].ParentAssetPack = candidatePack; // explicitly re-link ParentAssetPack - otherwise it points back to the original FlattenedAssetPack with all subgroups unfiltered, which interferes with the step where the chosen asset pack is determined from the seed subgroup
+                            candidatePack.Subgroups[i].RemoveAt(j);
+                            j--;
                         }
-                    }
-                    else
-                    {
-                        for (int j = 0; j < candidatePack.Subgroups[i].Count; j++)
+                        else
                         {
-                            if (!SubgroupValidForCurrentNPC(candidatePack.Subgroups[i][j], npcInfo))
-                            {
-                                candidatePack.Subgroups[i].RemoveAt(j);
-                                j--;
-                            }
-                            else
-                            {
-                                candidatePack.Subgroups[i][j].ParentAssetPack = candidatePack; // explicitly re-link ParentAssetPack - see note above
-                            }
+                            candidatePack.Subgroups[i][j].ParentAssetPack = candidatePack; // explicitly re-link ParentAssetPack - see note above
                         }
                     }
 
                     // if all subgroups at a given position are invalid, then the entire asset pack is invalid
                     if (candidatePack.Subgroups[i].Count == 0)
                     {
-                        if (forcedAssetPack != null && ap.GroupName == forcedAssetPack)
+                        if (forcedAssetPack != null)
                         {
                             Logger.LogMessage("Asset Pack " + ap.GroupName + " is forced for NPC " + npcInfo.LogIDstring + " but no subgroups within " + ap.Subgroups[i][0].Id + ":" + ap.Subgroups[i][0].Name + " are compatible with this NPC. Ignoring subgroup rules at this position.");
                             candidatePack.Subgroups[i] = new List<FlattenedSubgroup>(ap.Subgroups[i]); // revert list back to unfiltered version at this position
@@ -136,7 +196,7 @@ namespace SynthEBD
             return filteredPacks;
         }
 
-        private static SubgroupCombination ChooseRandomCombination(HashSet<FlattenedAssetPack> availableAssetPacks, HashSet<string> chosenMorphs, NPCInfo npcInfo)
+        private static SubgroupCombination ChooseRandomCombination(HashSet<FlattenedAssetPack> availableAssetPacks, List<string> chosenMorphs, NPCInfo npcInfo)
         {
             //READ THIS FROM STATIC SETTINGS WHEN FINISHED MAKING SETTINGS STATIC
             bool enableBodyGen = false;
@@ -156,7 +216,7 @@ namespace SynthEBD
 
             bool isFirstIteration = true;
             SubgroupCombination firstCombination = null;
-            Tuple<SubgroupCombination, HashSet<string>> firstValidCombinationMorphPair = new Tuple<SubgroupCombination, HashSet<string>>(new SubgroupCombination(), new HashSet<string>());
+            Tuple<SubgroupCombination, List<string>> firstValidCombinationMorphPair = new Tuple<SubgroupCombination, List<string>>(new SubgroupCombination(), new List<string>());
             bool firstValidCombinationMorphPairInitialized = false;
 
             // remove subgroups or entire asset packs whose distribution rules are incompatible with the current NPC
@@ -206,7 +266,7 @@ namespace SynthEBD
                         // if not, then the curent combination is fine because no other combination would be compatible with any BodyGen morphs anyway
                         if (!bodyGenAssignable)
                         {
-                            chosenMorphs.UnionWith(candidateMorphs);
+                            chosenMorphs.AddRange(candidateMorphs);
                             combinationIsValid = true;
                         }
                         else // 
@@ -221,14 +281,14 @@ namespace SynthEBD
                     // C) there is a consistency morph for this NPC but the consistency morph was INVALID for the given NPC irrespective of the chosen permutation's allowed/disallowed BodyGen rules, 
                     else if (npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames == null || bodyGenStatusFlags.HasFlag(BodyGenSelector.BodyGenSelectorStatusFlag.MatchesConsistency) || bodyGenStatusFlags.HasFlag(BodyGenSelector.BodyGenSelectorStatusFlag.ConsistencyMorphIsInvalid))
                     {
-                        chosenMorphs.UnionWith(candidateMorphs);
+                        chosenMorphs.AddRange(candidateMorphs);
                         combinationIsValid = true;
                     }
 
                     //Branch 3: A consistency morph exists, but the chosen combination is only compatible with a morph that is NOT the consistency morph
                     else if (npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null && !bodyGenStatusFlags.HasFlag(BodyGenSelector.BodyGenSelectorStatusFlag.MatchesConsistency))
                     {
-                        firstValidCombinationMorphPair = new Tuple<SubgroupCombination, HashSet<string>>(assignedCombination, chosenMorphs);
+                        firstValidCombinationMorphPair = new Tuple<SubgroupCombination, List<string>>(assignedCombination, chosenMorphs);
                         firstValidCombinationMorphPairInitialized = true;
                     }
                 }
@@ -254,7 +314,7 @@ namespace SynthEBD
                 {
                     Logger.LogMessage("Could not assign an asset combination to " + npcInfo.LogIDstring + " that is compatible with its consistency BodyGen morph. A valid combination was assigned, but BodyGen assignment will be re-randomized.");
                     assignedCombination = firstValidCombinationMorphPair.Item1;
-                    chosenMorphs.UnionWith(firstValidCombinationMorphPair.Item2);
+                    chosenMorphs.AddRange(firstValidCombinationMorphPair.Item2);
                 }
                 else if (notifyOfPermutationMorphConflict)
                 {
@@ -332,9 +392,10 @@ namespace SynthEBD
                 }
                 Logger.LogReport("Available Subgroups:" + Logger.SpreadFlattenedAssetPack(iterationInfo.ChosenAssetPack, i, true));
                 debugCounter++;
-                if (debugCounter == 100)
+                if (generatedCombination.ContainedSubgroups[0] != null && generatedCombination.ContainedSubgroups[0].Id == "HandX")
                 {
-                    Task.Run(Logger.WriteReport);
+                    //System.Threading.Thread.Sleep(1000);
+                    //Logger.WriteReport();
                 }
                 //
                 #region BackTrack if no options remain
@@ -547,6 +608,7 @@ namespace SynthEBD
             return true;
         }
 
+        /*
         /// <summary>
         /// If any of the subgroups within a given position in the combination are forced by a Specific NPC Assignment, filters the subgroup list at this position to only contain that forced subgroup
         /// </summary>
@@ -554,7 +616,7 @@ namespace SynthEBD
         /// <param name="forcedSubgroupIDs">All subgroup IDs forced by the user</param>
         /// <param name="currentSubgroupsAreForced">true if any of the subgroups within subgroupsAtPosition are forced, otherwise false</param>
         /// <returns></returns>
-        private static FlattenedSubgroup GetSpecificNPCAssignmnentSubgroupAtIndex(List<FlattenedSubgroup> subgroupsAtPosition, HashSet<string> forcedSubgroupIDs)
+        private static FlattenedSubgroup GetSpecificNPCAssignmnentSubgroupAtIndex(List<FlattenedSubgroup> subgroupsAtPosition, List<string> forcedSubgroupIDs)
         {
             var specifiedSubgroups = subgroupsAtPosition.Where(x => forcedSubgroupIDs.Intersect(x.ContainedSubgroupIDs).Any()).ToList(); // should only contain zero or one entry
             if (specifiedSubgroups.Count > 0)
@@ -562,6 +624,65 @@ namespace SynthEBD
                 return specifiedSubgroups[0];
             }
             return null;
+        }*/
+
+        /*
+        private static void FilterBySpecificNPCAssignments(FlattenedAssetPack input, List<string> forcedSubgroupIDs)
+        {
+            List<List<FlattenedSubgroup>> filteredSubgroups = new List<List<FlattenedSubgroup>>();
+
+            List<string> matchedIDs = new List<string>();
+
+            foreach (List<FlattenedSubgroup> variantsAtIndex in input.Subgroups)
+            {
+                var specifiedSubgroups = variantsAtIndex.Where(x => forcedSubgroupIDs.Intersect(x.ContainedSubgroupIDs).Any()).ToList(); // should only contain zero or one entry
+                if (specifiedSubgroups.Count > 0)
+                {
+                    filteredSubgroups.Add(specifiedSubgroups);
+                    matchedIDs.AddRange(specifiedSubgroups[0].ContainedSubgroupIDs);
+                }
+                else
+                {
+                    filteredSubgroups.Add(variantsAtIndex);
+                }
+            }
+
+            foreach(string id in forcedSubgroupIDs)
+            {
+                if (matchedIDs.Contains(id) == false)
+                {
+                    Logger.LogReport("Subgroup " + id + " requested by Specific NPC Assignment was not found in Asset Pack " + input.GroupName);
+                }
+            }
+
+            input.Subgroups = filteredSubgroups;
+        }*/
+
+        private static List<List<FlattenedSubgroup>> GetForcedSubgroupsAtIndex(FlattenedAssetPack input, List<string> forcedSubgroupIDs)
+        {
+            List<List<FlattenedSubgroup>> forcedOrEmpty = new List<List<FlattenedSubgroup>>();
+
+            List<string> matchedIDs = new List<string>();
+
+            foreach (List<FlattenedSubgroup> variantsAtIndex in input.Subgroups)
+            {
+                var specifiedSubgroups = variantsAtIndex.Where(x => forcedSubgroupIDs.Intersect(x.ContainedSubgroupIDs).Any()).ToList();
+                foreach (var specified in specifiedSubgroups)
+                {
+                    matchedIDs.AddRange(specified.ContainedSubgroupIDs);
+                }
+                forcedOrEmpty.Add(specifiedSubgroups);
+            }
+
+            foreach (string id in forcedSubgroupIDs)
+            {
+                if (matchedIDs.Contains(id) == false)
+                {
+                    Logger.LogReport("Subgroup " + id + " requested by Specific NPC Assignment was not found in Asset Pack " + input.GroupName);
+                }
+            }
+
+            return forcedOrEmpty;
         }
 
         /// <summary>

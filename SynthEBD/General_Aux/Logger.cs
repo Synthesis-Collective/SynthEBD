@@ -19,6 +19,7 @@ namespace SynthEBD
         public VM_RunButton RunButton { get; set; }
         public string StatusString { get; set; }
         public string LogString { get; set; }
+        public string ReportString { get; set; }
 
         public SolidColorBrush StatusColor { get; set; }
 
@@ -57,11 +58,24 @@ namespace SynthEBD
             Instance.LogString += message + "\n";
         }
 
+        public static void InitializeNewReport(NPCInfo npcInfo)
+        {
+            Instance.ReportString = "Patching NPC " + npcInfo.LogIDstring + "\n";
+        }
         public static void LogReport(string message) // detailed operation log; not reflected on screen
         {
-            //Instance.LogString += message + "\n"; // TEMPORARY FOR DEBUGGING
+           // Instance.ReportString += message + "\n";
         }
 
+        public static async Task WriteReport()
+        {
+            await System.IO.File.WriteAllTextAsync("Report.txt", Instance.ReportString);
+        }
+
+        public static void LogError(string error)
+        {
+            Instance.LogString += error + "\n";
+        }
         public static string SpreadFlattenedAssetPack(FlattenedAssetPack ap, int index, bool indentAtIndex)
         {
             string spread = "\n";
@@ -71,16 +85,6 @@ namespace SynthEBD
                 spread += i + ": [" + String.Join(',', ap.Subgroups[i].Select(x => x.Id)) + "]\n";
             }
             return spread;
-        }
-
-        public static async Task WriteReport()
-        {
-            await System.IO.File.WriteAllTextAsync("Report.txt", Instance.LogString);
-        }
-
-        public static void LogError(string error)
-        {
-            Instance.LogString += error + "\n";
         }
 
         public static void LogErrorWithStatusUpdate(string error, ErrorType type)
