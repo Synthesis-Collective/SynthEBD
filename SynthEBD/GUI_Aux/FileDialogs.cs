@@ -21,7 +21,7 @@ namespace SynthEBD
                 }
                 catch
                 {
-                    Logger.Instance.CallTimedNotifyStatusUpdateAsync("Could not delete file at " + path, ErrorType.Warning, 5);
+                    Logger.CallTimedNotifyStatusUpdateAsync("Could not delete file at " + path, ErrorType.Warning, 5);
                 }
             }
         }

@@ -44,7 +44,7 @@ namespace SynthEBD
             }
             catch
             {
-                Logger.Instance.CallTimedNotifyStatusUpdateAsync("Could not save Block List to " + PatcherSettings.Paths.BlockListPath, ErrorType.Error, 5);
+                Logger.CallTimedNotifyStatusUpdateAsync("Could not save Block List to " + PatcherSettings.Paths.BlockListPath, ErrorType.Error, 5);
             }
         }
     }

@@ -138,11 +138,11 @@ namespace SynthEBD
             public string name { get; set; }
             public bool enabled { get; set; }
             public bool distributionEnabled { get; set; }
-            public List<string> allowedRaces { get; set; } 
+            public List<string> allowedRaces { get; set; }
             public List<RaceGrouping> allowedRaceGroupings { get; set; }
             public List<RaceGrouping> disallowedRaceGroupings { get; set; }
-            public List<string> disallowedRaces { get; set; } 
-            public List<string[]> allowedAttributes { get; set; } 
+            public List<string> disallowedRaces { get; set; }
+            public List<string[]> allowedAttributes { get; set; }
             public List<string[]> disallowedAttributes { get; set; }
             public List<string[]> forceIfAttributes { get; set; }
             public bool bAllowUnique { get; set; }
@@ -157,9 +157,9 @@ namespace SynthEBD
             public string[] weightRange { get; set; }
             public List<ZEBDSubgroup> subgroups { get; set; }
 
-            public string hashKey {get; set;}
+            public string hashKey { get; set; }
 
-            public static AssetPack.Subgroup ToSynthEBDSubgroup(ZEBDSubgroup g, List<RaceGrouping> raceGroupings, string topLevelSubgroupID)
+            public static AssetPack.Subgroup ToSynthEBDSubgroup(ZEBDSubgroup g, List<RaceGrouping> raceGroupings, string topLevelSubgroupID, string assetPackName, ref bool notifyPathConversionError)
             {
                 AssetPack.Subgroup s = new AssetPack.Subgroup();
 
@@ -176,11 +176,21 @@ namespace SynthEBD
                 s.excludedSubgroups = new HashSet<string>(g.excludedSubgroups);
                 s.addKeywords = new HashSet<string>(g.addKeywords);
                 s.ProbabilityWeighting = g.probabilityWeighting;
-                
+
                 s.paths = new HashSet<FilePathReplacement>();
                 foreach (string[] pathPair in g.paths)
                 {
-                    s.paths.Add(new FilePathReplacement { Source = pathPair[0], Destination = pathPair[1] });
+                    string newDest = "";
+                    if (zEBDTexturePathConversionDict.ContainsKey(pathPair[1].ToLower()))
+                    {
+                        newDest = zEBDTexturePathConversionDict[pathPair[1].ToLower()];
+                    }
+                    else
+                    {
+                        Logger.LogMessage("zEBD -> SynthEBD Conversion Warning: Asset Pack: " + assetPackName + ", Subgroup: " + g.id + ": Path " + pathPair[1] + " was not recognized as a default path. Please upgrade it manually to SynthEBD format.");
+                        notifyPathConversionError = true;
+                    }
+                    s.paths.Add(new FilePathReplacement { Source = pathPair[0], Destination = newDest });
                 }
 
                 s.weightRange = Converters.StringArrayToWeightRange(g.weightRange);
@@ -255,15 +265,16 @@ namespace SynthEBD
 
                 foreach (var sg in g.subgroups)
                 {
-                    s.subgroups.Add(ToSynthEBDSubgroup(sg, raceGroupings, s.TopLevelSubgroupID));
+                    s.subgroups.Add(ToSynthEBDSubgroup(sg, raceGroupings, s.TopLevelSubgroupID, assetPackName, ref notifyPathConversionError));
                 }
 
                 return s;
-            } 
+            }
         }
 
         public static AssetPack ToSynthEBDAssetPack(ZEBDAssetPack z, List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs)
         {
+            bool notifyPathConversionError = false;
             AssetPack s = new AssetPack();
             s.GroupName = z.groupName;
             s.Gender = z.gender;
@@ -271,7 +282,11 @@ namespace SynthEBD
             s.UserAlert = z.userAlert;
             foreach (ZEBDAssetPack.ZEBDSubgroup sg in z.subgroups)
             {
-                s.Subgroups.Add(ZEBDAssetPack.ZEBDSubgroup.ToSynthEBDSubgroup(sg, raceGroupings, ""));
+                s.Subgroups.Add(ZEBDAssetPack.ZEBDSubgroup.ToSynthEBDSubgroup(sg, raceGroupings, "", z.groupName, ref notifyPathConversionError));
+            }
+            if (notifyPathConversionError)
+            {
+                Logger.CallTimedNotifyStatusUpdateAsync("Errors were encountered during upgrade of a zEBD Config File. Please see log for details.", ErrorType.Error, 10);
             }
 
             // Apply default record templates
@@ -288,7 +303,7 @@ namespace SynthEBD
             {
                 if (plugin.ModKey.Name == "Record Templates")
                 {
-                    switch(s.Gender)
+                    switch (s.Gender)
                     {
                         case Gender.female:
                             s.DefaultRecordTemplate = GetNPCByEDID(plugin, "DefaultFemale");
@@ -302,7 +317,7 @@ namespace SynthEBD
                             s.AdditionalRecordTemplateAssignments.Add(new AdditionalRecordTemplate { TemplateNPC = GetNPCByEDID(plugin, "ArgonianMale"), Races = new HashSet<FormKey> { ArgonianRaceFK, ArgonianRaceVampireFK } });
                             break;
                     }
-                    
+
                 }
             }
 
@@ -349,5 +364,114 @@ namespace SynthEBD
             }
             return false;
         }
+
+        private static Dictionary<string, string> zEBDTexturePathConversionDict = new Dictionary<string, string>()
+        {
+            // common
+            {"blankdetailmap.dds", "HeadTexture.Height"},
+            {"malebody_1_sk.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Male.GlowOrDetailMap"},
+            {"malebody_1_tail_sk.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Tail)]].SkinTexture.Male.GlowOrDetailMap"}, // common male tail sk
+            {"malehands_1_sk.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Male.GlowOrDetailMap"},
+            {"malebody_1_feet_sk.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Male.GlowOrDetailMap"},
+            {"femalebody_1_sk.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Female.GlowOrDetailMap"},
+            {"femalehands_1_sk.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Female.GlowOrDetailMap"},
+            {"femalebody_1_feet_sk.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Female.GlowOrDetailMap"},
+            // male humanoid
+            {"malehead.dds", "HeadTexture.Diffuse" },
+            {"malehead_msn.dds", "HeadTexture.NormalOrGloss"},
+            {"malehead_sk.dds", "HeadTexture.GlowOrDetailMap"},
+            {"malehead_s.dds", "HeadTexture.BacklightMaskOrSpecular"},
+            {"malebody_1.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Male.Diffuse"},
+            {"malebody_1_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Male.NormalOrGloss"},
+            {"malebody_1_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Male.BacklightMaskOrSpecular"},
+            {"malehands_1.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Male.Diffuse"},
+            {"malehands_1_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Male.NormalOrGloss"},
+            {"malehands_1_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Male.BacklightMaskOrSpecular"},
+            {"malebody_1_feet.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Male.Diffuse"},
+            {"malebody_1_feet_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Male.NormalOrGloss"},
+            {"malebody_1_feet_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Male.BacklightMaskOrSpecular"},
+            // female humanoid
+            {"femalehead.dds", "HeadTexture.Diffuse" },
+            {"femalehead_msn.dds", "HeadTexture.NormalOrGloss"},
+            {"femalehead_sk.dds", "HeadTexture.GlowOrDetailMap"},
+            {"femalehead_s.dds", "HeadTexture.BacklightMaskOrSpecular"},
+            {"femalebody_1.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Female.Diffuse"},
+            {"femalebody_1_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Female.NormalOrGloss"},
+            {"femalebody_1_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Female.BacklightMaskOrSpecular"},
+            {"femalehands_1.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Female.Diffuse"},
+            {"femalehands_1_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Female.NormalOrGloss"},
+            {"femalehands_1_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Female.BacklightMaskOrSpecular"},
+            {"femalebody_1_feet.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Female.Diffuse"},
+            {"femalebody_1_feet_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Female.NormalOrGloss"},
+            {"femalebody_1_feet_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Female.BacklightMaskOrSpecular"},
+            // male argonian
+            {"argonianmalehead.dds", "HeadTexture.Diffuse" },
+            {"argonianmalehead_msn.dds", "HeadTexture.NormalOrGloss"},
+            {"argonianmalehead_s.dds", "HeadTexture.BacklightMaskOrSpecular"},
+            {"argonianmalebody.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Male.Diffuse"},
+            {"argonianmalebody_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Male.NormalOrGloss"},
+            {"argonianmalebody_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Male.BacklightMaskOrSpecular"},
+            {"argonianmalehands.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Male.Diffuse"},
+            {"argonianmalehands_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Male.NormalOrGloss"},
+            {"argonianmalehands_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Male.BacklightMaskOrSpecular"},
+            {"argonianmalebody_feet.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Male.Diffuse"},
+            {"argonianmalebody_feet_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Male.NormalOrGloss"},
+            {"argonianmalebody_feet_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Male.BacklightMaskOrSpecular"},
+            {"argonianmalebody_tail.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Tail)]].SkinTexture.Male.Diffuse"},
+            {"argonianmalebody_tail_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Tail)]].SkinTexture.Male.NormalOrGloss"},
+            {"argonianmalebody_tail_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Tail)]].SkinTexture.Male.BacklightMaskOrSpecular"},
+            // female argonian
+            {"argonianfemalehead.dds", "HeadTexture.Diffuse" },
+            {"argonianfemalehead_msn.dds", "HeadTexture.NormalOrGloss"},
+            {"argonianfemalehead_s.dds", "HeadTexture.BacklightMaskOrSpecular"},
+            {"argonianfemalebody.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Female.Diffuse"},
+            {"argonianfemalebody_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Female.NormalOrGloss"},
+            {"argonianfemalebody_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Female.BacklightMaskOrSpecular"},
+            {"argonianfemalehands.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Female.Diffuse"},
+            {"argonianfemalehands_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Female.NormalOrGloss"},
+            {"argonianfemalehands_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Female.BacklightMaskOrSpecular"},
+            {"argonianfemalebody_feet.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Female.Diffuse"},
+            {"argonianfemalebody_feet_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Female.NormalOrGloss"},
+            {"argonianfemalebody_feet_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Female.BacklightMaskOrSpecular"},
+            {"argonianfemalebody_tail.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Tail)]].SkinTexture.Female.Diffuse"},
+            {"argonianfemalebody_tail_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Tail)]].SkinTexture.Female.NormalOrGloss"},
+            {"argonianfemalebody_tail_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Tail)]].SkinTexture.Female.BacklightMaskOrSpecular"},
+            // male khajiit
+            {"khajiitmalehead.dds", "HeadTexture.Diffuse" },
+            {"khajiitmalehead_msn.dds", "HeadTexture.NormalOrGloss"},
+            {"khajiitmalehead_s.dds", "HeadTexture.BacklightMaskOrSpecular"},
+            {"bodymale.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Male.Diffuse"},
+            {"bodymale_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Male.NormalOrGloss"},
+            {"bodymale_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Male.BacklightMaskOrSpecular"},
+            {"handsmale.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Male.Diffuse"},
+            {"handsmale_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Male.NormalOrGloss"},
+            {"handsmale_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Male.BacklightMaskOrSpecular"},
+            {"bodymale_feet.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Male.Diffuse"},
+            {"bodymale_feet_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Male.NormalOrGloss"},
+            {"bodymale_feet_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Male.BacklightMaskOrSpecular"},
+            {"bodymale_feet_sk.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Male.GlowOrDetailMap"},
+            {"bodymale_tail.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Tail)]].SkinTexture.Male.Diffuse"},
+            {"bodymale_tail_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Tail)]].SkinTexture.Male.NormalOrGloss"},
+            {"bodymale_tail_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Tail)]].SkinTexture.Male.BacklightMaskOrSpecular"},
+            {"bodymale_tail_sk.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Tail)]].SkinTexture.Male.GlowOrDetailMap"},
+            // female khajiit
+            {"khajiitfemalehead.dds", "HeadTexture.Diffuse" },
+            {"khajiitfemalehead_msn.dds", "HeadTexture.NormalOrGloss"},
+            {"khajiitfemalehead_s.dds", "HeadTexture.BacklightMaskOrSpecular"},
+            {"bodyfemale.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Female.Diffuse"},
+            {"bodyfemale_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Female.NormalOrGloss"},
+            {"bodyfemale_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Body)]].SkinTexture.Female.BacklightMaskOrSpecular"},
+            {"bodyfemale_feet_sk.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Female.GlowOrDetailMap"},
+            {"handsfemale.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Female.Diffuse"},
+            {"handsfemale_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Female.NormalOrGloss"},
+            {"handsfemale_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Hands)]].SkinTexture.Female.BacklightMaskOrSpecular"},
+            {"bodyfemale_feet.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Female.Diffuse"},
+            {"bodyfemale_feet_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Female.NormalOrGloss"},
+            {"bodyfemale_feet_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Feet)]].SkinTexture.Female.BacklightMaskOrSpecular"},
+            {"bodyfemale_tail.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Tail)]].SkinTexture.Female.Diffuse"},
+            {"bodyfemale_tail_msn.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Tail)]].SkinTexture.Female.NormalOrGloss"},
+            {"bodyfemale_tail_s.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Tail)]].SkinTexture.Female.BacklightMaskOrSpecular"},
+            {"bodyfemale_tail_sk.dds", "WornArmor.Armature[[BodyTemplate.FirstPersonFlags, function, HasFlag(BipedObjectFlag.Tail)]].SkinTexture.Female.GlowOrDetailMap"},
+        };
     }
 }

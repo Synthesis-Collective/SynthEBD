@@ -19,7 +19,7 @@
         <TextBlock Grid.Row="0" Grid.Column="0" Text="Status Log"/>
         <Border Grid.Row="1" Grid.Column="0"  BorderBrush="DarkCyan" BorderThickness="1" Margin="10">
             <ScrollViewer local:AutoScrollBehavior.AutoScroll="True">
-                <TextBlock Text="{Binding Path=DispString}" FontSize="12"/>
+                <TextBox Text="{Binding Path=DispString, Mode=OneWay}" Background="Transparent" BorderThickness="0" IsReadOnly="True" TextWrapping="Wrap" FontSize="12"/>
             </ScrollViewer>
         </Border>
     </Grid>

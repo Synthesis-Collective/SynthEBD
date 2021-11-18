@@ -119,8 +119,13 @@ namespace SynthEBD
             ClearStatusError();
         }
 
+        public static void CallTimedNotifyStatusUpdateAsync(string error, ErrorType type, int durationSec)
+        {
+            Task.Run(() => TimedNotifyStatusUpdateAsync(error, type, durationSec));
+        }
+        /*
         public async Task CallTimedNotifyStatusUpdateAsync(string error, ErrorType type, int durationSec)
-  => await TimedNotifyStatusUpdateAsync(error, type, durationSec);
+  => await TimedNotifyStatusUpdateAsync(error, type, durationSec);*/
 
         private static async Task TimedNotifyStatusUpdateAsync(string error, ErrorType type, int durationSec)
         {

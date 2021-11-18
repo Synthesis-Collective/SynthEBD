@@ -68,7 +68,7 @@ namespace SynthEBD
                         // assign file paths depending on if the source file was split
                         if (!convertedPair.bMaleInitialized && !convertedPair.bFemaleInitialized)
                         {
-                            Logger.Instance.CallTimedNotifyStatusUpdateAsync("Could not parse zEBD BodyGen Config file at " + s, ErrorType.Warning, 5);
+                            Logger.CallTimedNotifyStatusUpdateAsync("Could not parse zEBD BodyGen Config file at " + s, ErrorType.Warning, 5);
                         }
                         else if (convertedPair.bMaleInitialized && !convertedPair.bFemaleInitialized)
                         {
@@ -93,7 +93,7 @@ namespace SynthEBD
                             }
                             catch
                             {
-                                Logger.Instance.CallTimedNotifyStatusUpdateAsync("Could not delete zEBD bodygen config file after conversion to SynthEBD format: " + s, ErrorType.Warning, 5);
+                                Logger.CallTimedNotifyStatusUpdateAsync("Could not delete zEBD bodygen config file after conversion to SynthEBD format: " + s, ErrorType.Warning, 5);
                             }
                         }
                         

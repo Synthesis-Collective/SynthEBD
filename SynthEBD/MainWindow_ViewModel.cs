@@ -59,7 +59,7 @@ namespace SynthEBD
             TMVM = new VM_SettingsTexMesh(BGVM);
             SAUIVM = new VM_SpecificNPCAssignmentsUI(TMVM, BGVM);
 
-            NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, HVM, SAUIVM, BUIVM);
+            NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, HVM, SAUIVM, BUIVM, LogDisplayVM);
 
             StatusBarVM = new VM_StatusBar();
 

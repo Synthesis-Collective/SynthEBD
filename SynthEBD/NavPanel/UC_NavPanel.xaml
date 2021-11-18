@@ -19,6 +19,7 @@
             <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickH}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">Height Assignment</RadioButton>
             <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickSA}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">Specific NPC Assignments</RadioButton>
             <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickBL}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">Block List</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickLog}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">Status Log</RadioButton>
         </StackPanel>
     </Grid>
 </UserControl>

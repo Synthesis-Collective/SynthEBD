@@ -39,7 +39,7 @@ namespace SynthEBD
             }
             catch
             {
-                Logger.Instance.CallTimedNotifyStatusUpdateAsync("Could not save linked NPC name exclusions to " + PatcherSettings.Paths.LinkedNPCNameExclusionsPath, ErrorType.Error, 5);
+                Logger.CallTimedNotifyStatusUpdateAsync("Could not save linked NPC name exclusions to " + PatcherSettings.Paths.LinkedNPCNameExclusionsPath, ErrorType.Error, 5);
             }
         }
 
@@ -72,7 +72,7 @@ namespace SynthEBD
             }
             catch
             {
-                Logger.Instance.CallTimedNotifyStatusUpdateAsync("Could not save linked NPC groups to " + PatcherSettings.Paths.LinkedNPCsPath, ErrorType.Error, 5);
+                Logger.CallTimedNotifyStatusUpdateAsync("Could not save linked NPC groups to " + PatcherSettings.Paths.LinkedNPCsPath, ErrorType.Error, 5);
             }
         }
 
@@ -105,7 +105,7 @@ namespace SynthEBD
             }
             catch
             {
-                Logger.Instance.CallTimedNotifyStatusUpdateAsync("Could not save TrimPaths to " + PatcherSettings.Paths.TrimPathsPath, ErrorType.Error, 5);
+                Logger.CallTimedNotifyStatusUpdateAsync("Could not save TrimPaths to " + PatcherSettings.Paths.TrimPathsPath, ErrorType.Error, 5);
             }
         }
 
@@ -131,7 +131,7 @@ namespace SynthEBD
             }
             catch
             {
-                Logger.Instance.CallTimedNotifyStatusUpdateAsync("Could not save Consistency to " + PatcherSettings.Paths.ConsistencyPath, ErrorType.Error, 5);
+                Logger.CallTimedNotifyStatusUpdateAsync("Could not save Consistency to " + PatcherSettings.Paths.ConsistencyPath, ErrorType.Error, 5);
             }
         }
     }
