@@ -17,7 +17,7 @@ namespace SynthEBD
             this.ParentWindow = parentWindow;
 
             // synchronous version for debugging onlyh
-            /*
+            
             ClickRun = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ =>
@@ -25,11 +25,12 @@ namespace SynthEBD
                     ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
                     MainLoop.RunPatcher(
                         ParentWindow.AssetPacks, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
-                        ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths);
+                        ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths, ParentWindow.RecordTemplateLinkCache);
         }
                 );
-            */
+            
 
+            /*
             ClickRun = ReactiveUI.ReactiveCommand.CreateFromTask(
                 
                 execute: async _ =>
@@ -38,16 +39,16 @@ namespace SynthEBD
 
                     await Task.Run(() => MainLoop.RunPatcher(
                         ParentWindow.AssetPacks, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
-                        ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths));
+                        ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths, ParentWindow.RecordTemplateLinkCache));
                 });
-
+            */
         }
         public SolidColorBrush BackgroundColor { get; set; }
 
         public MainWindow_ViewModel ParentWindow { get; set; }
 
-        public ReactiveUI.IReactiveCommand ClickRun { get; }
-        //public SynthEBD.RelayCommand ClickRun { get; }
+        //public ReactiveUI.IReactiveCommand ClickRun { get; }
+        public SynthEBD.RelayCommand ClickRun { get; }
 
         public event PropertyChangedEventHandler PropertyChanged;
     }

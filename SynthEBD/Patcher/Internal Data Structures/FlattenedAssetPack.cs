@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Mutagen.Bethesda.Plugins;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,18 +14,24 @@ namespace SynthEBD
             this.GroupName = source.GroupName;
             this.Gender = source.Gender;
             this.Subgroups = new List<List<FlattenedSubgroup>>();
+            this.DefaultRecordTemplate = source.DefaultRecordTemplate;
+            this.AdditionalRecordTemplateAssignments = source.AdditionalRecordTemplateAssignments;
         }
 
-        public FlattenedAssetPack(string groupName, Gender gender)
+        public FlattenedAssetPack(string groupName, Gender gender, FormKey defaultRecordTemplate, HashSet<AdditionalRecordTemplate> additionalRecordTemplateAssignments)
         {
             this.GroupName = groupName;
             this.Gender = gender;
             this.Subgroups = new List<List<FlattenedSubgroup>>();
+            this.DefaultRecordTemplate = defaultRecordTemplate;
+            this.AdditionalRecordTemplateAssignments = additionalRecordTemplateAssignments;
         }
 
         public string GroupName { get; set; }
         public Gender Gender { get; set; }
         public List<List<FlattenedSubgroup>> Subgroups { get; set; }
+        public FormKey DefaultRecordTemplate { get; set; }
+        public HashSet<AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
 
 
         public static FlattenedAssetPack FlattenAssetPack(AssetPack source, List<RaceGrouping> raceGroupingList, bool includeBodyGen)
@@ -43,7 +50,7 @@ namespace SynthEBD
 
         public FlattenedAssetPack ShallowCopy()
         {
-            FlattenedAssetPack copy = new FlattenedAssetPack(this.GroupName, this.Gender);
+            FlattenedAssetPack copy = new FlattenedAssetPack(this.GroupName, this.Gender, this.DefaultRecordTemplate, this.AdditionalRecordTemplateAssignments);
             foreach (var subgroupList in this.Subgroups)
             {
                 copy.Subgroups.Add(new List<FlattenedSubgroup>(subgroupList));

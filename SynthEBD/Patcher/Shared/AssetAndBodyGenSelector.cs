@@ -392,12 +392,7 @@ namespace SynthEBD
                 }
                 Logger.LogReport("Available Subgroups:" + Logger.SpreadFlattenedAssetPack(iterationInfo.ChosenAssetPack, i, true));
                 debugCounter++;
-                if (generatedCombination.ContainedSubgroups[0] != null && generatedCombination.ContainedSubgroups[0].Id == "HandX")
-                {
-                    //System.Threading.Thread.Sleep(1000);
-                    //Logger.WriteReport();
-                }
-                //
+
                 #region BackTrack if no options remain
                 if (iterationInfo.ChosenAssetPack.Subgroups[i].Count == 0)
                 {
@@ -468,6 +463,7 @@ namespace SynthEBD
             }
 
             iterationInfo.PreviouslyGeneratedCombinations.Add(generatedSignature);
+            generatedCombination.AssetPack = iterationInfo.ChosenAssetPack;
             return generatedCombination;
         }
 
@@ -607,56 +603,6 @@ namespace SynthEBD
             // If the subgroup is still valid
             return true;
         }
-
-        /*
-        /// <summary>
-        /// If any of the subgroups within a given position in the combination are forced by a Specific NPC Assignment, filters the subgroup list at this position to only contain that forced subgroup
-        /// </summary>
-        /// <param name="subgroupsAtPosition">Subgroups at the given index within the combination</param>
-        /// <param name="forcedSubgroupIDs">All subgroup IDs forced by the user</param>
-        /// <param name="currentSubgroupsAreForced">true if any of the subgroups within subgroupsAtPosition are forced, otherwise false</param>
-        /// <returns></returns>
-        private static FlattenedSubgroup GetSpecificNPCAssignmnentSubgroupAtIndex(List<FlattenedSubgroup> subgroupsAtPosition, List<string> forcedSubgroupIDs)
-        {
-            var specifiedSubgroups = subgroupsAtPosition.Where(x => forcedSubgroupIDs.Intersect(x.ContainedSubgroupIDs).Any()).ToList(); // should only contain zero or one entry
-            if (specifiedSubgroups.Count > 0)
-            {
-                return specifiedSubgroups[0];
-            }
-            return null;
-        }*/
-
-        /*
-        private static void FilterBySpecificNPCAssignments(FlattenedAssetPack input, List<string> forcedSubgroupIDs)
-        {
-            List<List<FlattenedSubgroup>> filteredSubgroups = new List<List<FlattenedSubgroup>>();
-
-            List<string> matchedIDs = new List<string>();
-
-            foreach (List<FlattenedSubgroup> variantsAtIndex in input.Subgroups)
-            {
-                var specifiedSubgroups = variantsAtIndex.Where(x => forcedSubgroupIDs.Intersect(x.ContainedSubgroupIDs).Any()).ToList(); // should only contain zero or one entry
-                if (specifiedSubgroups.Count > 0)
-                {
-                    filteredSubgroups.Add(specifiedSubgroups);
-                    matchedIDs.AddRange(specifiedSubgroups[0].ContainedSubgroupIDs);
-                }
-                else
-                {
-                    filteredSubgroups.Add(variantsAtIndex);
-                }
-            }
-
-            foreach(string id in forcedSubgroupIDs)
-            {
-                if (matchedIDs.Contains(id) == false)
-                {
-                    Logger.LogReport("Subgroup " + id + " requested by Specific NPC Assignment was not found in Asset Pack " + input.GroupName);
-                }
-            }
-
-            input.Subgroups = filteredSubgroups;
-        }*/
 
         private static List<List<FlattenedSubgroup>> GetForcedSubgroupsAtIndex(FlattenedAssetPack input, List<string> forcedSubgroupIDs)
         {

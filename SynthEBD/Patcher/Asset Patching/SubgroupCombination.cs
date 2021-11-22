@@ -14,11 +14,13 @@ namespace SynthEBD
             this.Signature = "";
             this.ContainedSubgroups = new List<FlattenedSubgroup>();
             this.AssignedRecords = new HashSet<Tuple<string, FormKey>>();
-            this.AssetPackName = ""; 
+            this.AssetPackName = "";
+            this.AssetPack = null;
         }
         public string Signature { get; set; }
         public List<FlattenedSubgroup> ContainedSubgroups { get; set; }
         public HashSet<Tuple<string, FormKey>> AssignedRecords { get; set; } // string is the location relative to the NPC.
         public string AssetPackName { get; set; }
+        public FlattenedAssetPack AssetPack { get; set; }
     }
 }
