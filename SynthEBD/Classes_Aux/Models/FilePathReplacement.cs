@@ -24,8 +24,7 @@ namespace SynthEBD
         public FilePathReplacementParsed(FilePathReplacement template)
         {
             this.Source = template.Source;
-            var pattern = @"\.(?![^\[]*[\]])";
-            this.Destination = Regex.Split(template.Destination, pattern);
+            this.Destination = RecordPathParser.SplitPath(template.Destination);
         }
 
         public string Source { get; set; }

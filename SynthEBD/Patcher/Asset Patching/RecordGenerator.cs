@@ -7,6 +7,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Reflection;
+using Mutagen.Bethesda.Plugins.Records;
+using Loqui;
 
 namespace SynthEBD
 {
@@ -23,7 +26,7 @@ namespace SynthEBD
             public ParsedPathObj PathObj { get; set; }
         }
 
-        public static void CombinationToRecords(SubgroupCombination combination, NPCInfo npcInfo, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
+        public static void CombinationToRecords(SubgroupCombination combination, NPCInfo npcInfo, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SkyrimMod outputMod, Dictionary<string, int> edidCounts)
         {
             var template = GetTemplateNPC(npcInfo, combination.AssetPack, recordTemplateLinkCache);
 
@@ -44,14 +47,20 @@ namespace SynthEBD
             }
 
             Dictionary<Object, List<FilePathReplacementParsed>> pathsAtRecord = new Dictionary<object, List<FilePathReplacementParsed>>();
-            Dictionary<string, Object> objectsAtPath = new Dictionary<string, Object>();
-            objectsAtPath.Add("", template);
+
+            Dictionary<string, Object> objectsAtPath_NPC = new Dictionary<string, Object>();
+            objectsAtPath_NPC.Add("", npcInfo.NPC);
+
+            Dictionary<string, Object> objectsAtPath_Template = new Dictionary<string, Object>();
+            objectsAtPath_Template.Add("", template);
+
+            Object currentObj;
 
             for (int i = 0; i < longestPath; i++)
             {
                 for (int j = 0; j < paths.Count; j++)
                 {
-                    if (paths[j].Destination.Length == i)
+                    if (paths[j].Destination.Length == i - 1) // last segment of path
                     {
                         paths.RemoveAt(j);
                         j--;
@@ -65,20 +74,70 @@ namespace SynthEBD
                     string prePath = String.Concat(group.First().Destination.ToList().GetRange(0, i));
                     string commonPath = group.First().Destination[i];
 
-                    var rootObj = objectsAtPath[prePath];
+                    var rootObj = objectsAtPath_NPC[prePath];
 
-                    //if commonPath points to an array specifier, convert it to an index here
-                    // ex: "Armature[BodyTemplate.FirstPersonFlags.HasFlag(BipedObjectFlag.Body)]"
-                    // try https://eval-expression.net/
+                    // if this is the last part of the path, attempt to assign the Source asset to the Destination
+                    if (group.First().Source.Length == i - 1)
+                    {
+                        foreach (var assetAssignment in group)
+                        {
+                            rootObj = assetAssignment.Source;
+                        }
+                        continue;
+                    }
 
-                    //
+                    // otherwise step through the path
+                    bool currentObjectIsARecord = RecordPathParser.PropertyIsRecord(rootObj, commonPath, out FormKey? recordFK);
+                    currentObj = RecordPathParser.GetObjectAtPath(rootObj, commonPath, objectsAtPath_NPC);
+                    // if the NPC doesn't have the given object (e.g. the NPC doesn't have a WNAM), assign in from template
+                    if (currentObj == null || currentObjectIsARecord && recordFK == null)
+                    {
+                        string templateRelPath;
+                        if (prePath.Length > 0)
+                        {
+                            templateRelPath = String.Join('.', new string[] { prePath, commonPath });
+                        }
+                        else
+                        {
+                            templateRelPath = commonPath;
+                        }
+                        
+                        currentObj = RecordPathParser.GetObjectAtPath(template, templateRelPath, objectsAtPath_Template); // get corresponding object from template NPC
 
-                    // if common path points to a specified array index (e.g. Armature[0]), convert it here
+                        if (currentObj == null)
+                        {
+                            Logger.LogError("Error: neither NPC " + npcInfo.LogIDstring + " nor the record template " + template.EditorID + " contained a record at " + templateRelPath + ". Cannot assign this record.");
+                        }
 
-                    var currentObj = RecordPathParser.GetSubObject(rootObj, commonPath);
+                        else
+                        {
+                            // if the template objecet is a record, add it to the generated patch and then copy it to the NPC
+                            // if the template object is just a struct (not a record), simply copy it to the NPC
+                            if (currentObjectIsARecord)
+                            {
+                                var templateRecord = (IMajorRecordGetter)currentObj;
+                                currentObj = AddTemplateToPatch(templateRecord, outputMod);
+                                // increment editor ID number
+                                var newRecord = (IMajorRecord)currentObj;
+                                if (edidCounts.ContainsKey(newRecord.EditorID))
+                                {
+                                    edidCounts[newRecord.EditorID]++;
+                                    newRecord.EditorID += edidCounts[newRecord.EditorID];
+                                }
+                                else
+                                {
+                                    edidCounts.Add(newRecord.EditorID, 1);
+                                    newRecord.EditorID += 1;
+                                }
+                            }
+                            RecordPathParser.SetSubObject(rootObj, templateRelPath, currentObj);
+                        }
+                    }
+
+                    // store paths associated with this record for future lookup
                     if (currentObj != null)
                     {
-                        objectsAtPath.Add(prePath + commonPath, currentObj);
+                        objectsAtPath_Template.Add(prePath + commonPath, currentObj);
 
                         if (RecordPathParser.PropertyIsRecord(currentObj))
                         {
@@ -86,48 +145,18 @@ namespace SynthEBD
                         }
                     }
                 }
-
-                /*
-                var groupedPaths = new List<List<FilePathReplacementParsed>>();
-                for (int i = 0; i < longestPath; i++)
-                {
-                    for (int j = 0; j < paths.Count; j++)
-                    {
-                        if (paths[j].Destination.Length == i)
-                        {
-                            paths.RemoveAt(j);
-                            j--;
-                        }
-                    }
-
-                    var groupedPathsAtI = paths.GroupBy(x => x.Destination[i]);
-
-                    foreach (var group in groupedPathsAtI)
-                    {
-
-
-                        List<FilePathReplacementParsed> terminated = new List<FilePathReplacementParsed>();
-                        foreach (var path in group)
-                        {
-                            if (path.Destination.Length == i + 1)
-                            {
-                                terminated.Add(path);
-                            }
-                        }
-                        if (terminated.Any())
-                        {
-                            groupedPaths.Add(terminated);
-                        }
-
-                    }
-
-                */
             }
 
 
             int dbg = 0;
         }
 
+        public static object AddTemplateToPatch(IMajorRecordGetter templateRecord, SkyrimMod outputMod)
+        {
+            var getterType = LoquiRegistration.GetRegister(templateRecord.GetType()).GetterType;
+            dynamic group = outputMod.GetTopLevelGroup(getterType);
+            return OverrideMixIns.GetOrAddAsOverride(group, templateRecord);
+        }
 
         public static INpcGetter GetTemplateNPC(NPCInfo npcInfo, FlattenedAssetPack chosenAssetPack, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
         {

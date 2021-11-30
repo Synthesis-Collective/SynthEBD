@@ -16,6 +16,7 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
     <PackageReference Include="Noggog.WPF" Version="2.28.0" />
     <PackageReference Include="PropertyChanged.Fody" Version="3.4.0" />
+    <PackageReference Include="Z.Expressions.Eval" Version="4.0.64" />
   </ItemGroup>
 
   <ItemGroup>

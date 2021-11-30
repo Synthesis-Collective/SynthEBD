@@ -18,6 +18,11 @@ namespace SynthEBD
         public static void RunPatcher(List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
         //public static async Task RunPatcher(List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
         {
+            ModKey.TryFromName(PatcherSettings.General.patchFileName, ModType.Plugin, out var patchModKey);
+            var outputMod = new SkyrimMod(patchModKey, SkyrimRelease.SkyrimSE);
+
+            Dictionary<string, int> edidCounts = new Dictionary<string, int>();
+
             Logger.UpdateStatus("Patching", false);
             Logger.StartTimer();
 
@@ -95,7 +100,7 @@ namespace SynthEBD
                     var assignedComboAndBodyGen = AssetAndBodyGenSelector.ChooseCombinationAndBodyGen(out bodyGenAssignedWithAssets, availableAssetPacks, currentNPCInfo);
                     if (assignedComboAndBodyGen.Item1 != null)
                     {
-                        RecordGenerator.CombinationToRecords(assignedComboAndBodyGen.Item1, currentNPCInfo, recordTemplateLinkCache);
+                        RecordGenerator.CombinationToRecords(assignedComboAndBodyGen.Item1, currentNPCInfo, recordTemplateLinkCache, outputMod, edidCounts);
                     }
                 }
 
