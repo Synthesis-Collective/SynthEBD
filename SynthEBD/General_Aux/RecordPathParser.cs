@@ -7,6 +7,8 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using Z.Expressions;
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Records;
+using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD
 {
@@ -123,7 +125,6 @@ namespace SynthEBD
             }
         }
 
-
         /// <summary>
         /// Determines if root[propertyName] expects a record (as opposed to a generic struct). Outs the FormKey of root[propertyName].value if one exists, or outs null if there is no value at that property
         /// </summary>
@@ -137,12 +138,7 @@ namespace SynthEBD
             var property = root.GetType().GetProperty(propertyName);
             if (property != null && property.PropertyType.Name.StartsWith("IFormLinkNullableGetter"))
             {
-                // get the property's FormKey if one is available
-                var fkObj = GetSubObject(property, "FormKey");
-                if (fkObj != null)
-                {
-                    formKey = (FormKey)fkObj;
-                }
+                formKey = (FormKey)GetSubObject(property.GetValue(root), "FormKey");
                 return true;
             }
 

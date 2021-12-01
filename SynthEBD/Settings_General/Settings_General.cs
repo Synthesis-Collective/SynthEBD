@@ -17,7 +17,7 @@ namespace SynthEBD
             this.bChangeHeight = false;
             this.bEnableConsistency = true;
             this.bLinkNPCsWithSameName = true;
-            this.patchFileName = "SynthEBD.esp";
+            this.patchFileName = "SynthEBD";
             this.bVerboseModeAssetsNoncompliant = false;
             this.bVerboseModeAssetsAll = false;
             this.verboseModeNPClist = new List<FormKey>();
