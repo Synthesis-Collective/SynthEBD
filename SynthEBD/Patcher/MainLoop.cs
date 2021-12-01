@@ -1,6 +1,7 @@
 ﻿using Mutagen.Bethesda;
 using Mutagen.Bethesda.Cache.Implementations;
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Order;
 using Mutagen.Bethesda.Skyrim;
 using System;
 using System.Collections.Generic;
@@ -18,15 +19,6 @@ namespace SynthEBD
         public static void RunPatcher(List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
         //public static async Task RunPatcher(List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
         {
-            var someItemLink = new FormLink<IItemGetter>(FormKey.Factory("123456:Skyrim.esm"));
-
-            if (someItemLink.TryResolve(recordTemplateLinkCache, out var itemRecord))
-            {
-                // The FormKey associated with the FormLink was found
-                // and was of the type associated with the link (IItemRecord)
-                Console.WriteLine($"Was able to find the item record object: {itemRecord}");
-            }
-
             ModKey.TryFromName(PatcherSettings.General.patchFileName, ModType.Plugin, out var patchModKey);
             var outputMod = new SkyrimMod(patchModKey, SkyrimRelease.SkyrimSE);
 
@@ -58,6 +50,7 @@ namespace SynthEBD
             int npcCounter = 0;
             foreach (var npc in GameEnvironmentProvider.MyEnvironment.LoadOrder.PriorityOrder.WinningOverrides<INpcGetter>())
             {
+                //npc.WornArmor.TryResolve(GameEnvironmentProvider.MyEnvironment.LinkCache).Armature[0].TryResolve(recordTemplateLinkCache).BodyTemplate.FirstPersonFlags.HasFlag(BipedObjectFlag.Amulet);
                 npcCounter++;
                 if (npcCounter % 100 == 0) 
                 {

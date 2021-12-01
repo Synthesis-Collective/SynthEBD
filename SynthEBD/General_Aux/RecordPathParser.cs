@@ -9,32 +9,49 @@ using Z.Expressions;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Plugins.Cache;
 
 namespace SynthEBD
 {
     public class RecordPathParser
     {
-        public static Object GetObjectAtPath(Object rootObj, string relativePath, Dictionary<string, Object> objectCache)
+        public static Object GetObjectAtPath(Object rootObj, string relativePath, Dictionary<string, Object> objectCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
         {
             string[] splitPath = SplitPath(relativePath);
             Object currentObj = rootObj;
 
             for (int i = 0; i < splitPath.Length; i++)
             {
+                if (currentObj == null)
+                {
+                    return null;
+                }
                 string currentSubPath = splitPath[i];
 
-                // handle arrays
-                if (PathIsArray(currentSubPath, out string arraySubPath, out string arrIndex))
+                // handle subrecords
+                if (PropertyIsRecord(currentObj, currentSubPath, out FormKey? subrecordFK))
                 {
-                    var collectionObj = (ICollection<Object>)GetObjectAtPath(currentObj, arraySubPath, objectCache);
-                    var convertedArray = collectionObj.ToArray();
+                    if (subrecordFK != null && !subrecordFK.Value.IsNull && linkCache.TryResolve(subrecordFK.Value, out var subRecordGetter))
+                    {
+                        currentObj = subRecordGetter;
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
+
+                // handle arrays
+                else if (PathIsArray(currentSubPath, out string arraySubPath, out string arrIndex))
+                {
+                    var collectionObj = (IEnumerable<object>)GetObjectAtPath(currentObj, arraySubPath, objectCache, linkCache);
 
                     //if array index is numeric
                     if (int.TryParse(arrIndex, out int iIndex))
                     {
-                        if (iIndex < convertedArray.Length)
+                        if (iIndex < collectionObj.Count())
                         {
-                            currentObj = convertedArray[iIndex];
+                            currentObj = collectionObj.ElementAt(iIndex);
                         }
                         else
                         {
@@ -46,10 +63,12 @@ namespace SynthEBD
                     // if array index specifies object by property, figure out which index is the right one
                     else
                     {
-                        // arrIndex will look like "a.b.c.d.HasFlag(x)"
+                        // arrIndex will look like "a.b.c.d,HasFlag(x)"
 
-                        int sepIndex = arrIndex.LastIndexOf('.');
-                        currentObj = ChooseWhichArrayObject(convertedArray, arraySubPath.Substring(0, sepIndex), arraySubPath.Substring(sepIndex + 1, arraySubPath.Length - 1));
+                        int sepIndex = arrIndex.LastIndexOf(',');
+                        string subPath = arrIndex.Substring(0, sepIndex);
+                        string matchCondition = arrIndex.Substring(sepIndex + 1, arrIndex.Length - sepIndex - 1);
+                        currentObj = ChooseWhichArrayObject(collectionObj, subPath, matchCondition, linkCache);
                         if (currentObj == null)
                         {
                             Logger.LogError("Could not get object at " + currentSubPath + " because " + arraySubPath + " does not have an element that matches condition: " + arrIndex);
@@ -68,13 +87,23 @@ namespace SynthEBD
             return currentObj;
         }
 
-        private static object ChooseWhichArrayObject(object[] variants, string subPath, string matchCondition)
+        private static object ChooseWhichArrayObject(IEnumerable<object> variants, string subPath, string matchCondition, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
         {
             foreach (var candidateObj in variants)
             {
-                var comparisonObject = GetObjectAtPath(candidateObj, subPath, new Dictionary<string, object>());
+                dynamic comparisonObject;
+                if (ObjectIsRecord(candidateObj, out var linkedFormKey) && linkedFormKey != null && linkedFormKey.Value.IsNull == false && linkCache.TryResolve(linkedFormKey.Value, out var candidateObjRecord))
+                {
+                    comparisonObject = GetObjectAtPath(candidateObjRecord, subPath, new Dictionary<string, object>(), linkCache);
+                }
+                else
+                {
+                    comparisonObject = GetObjectAtPath(candidateObj, subPath, new Dictionary<string, object>(), linkCache);
+                }
 
-                if (Eval.Execute<bool>("comparisonObject" + matchCondition))
+                string expression = "comparisonObject." + matchCondition;
+
+                if (Eval.Execute<bool>(expression))
                 {
                     return candidateObj;
                 }
@@ -155,9 +184,17 @@ namespace SynthEBD
             return false;
         }
 
-        public static bool PropertyIsRecord(Object property)
+        public static bool ObjectIsRecord(Object obj, out FormKey? formKey)
         {
-            return HasProperty(property.GetType(), "FormKey");
+            var property = obj.GetType().GetProperty("FormKey");
+            if (property != null)
+            {
+                formKey = (FormKey)property.GetValue(obj);
+                return true;
+            }
+
+            formKey = null;
+            return false;
         }
 
         public static bool HasProperty(Type type, string propertyName)

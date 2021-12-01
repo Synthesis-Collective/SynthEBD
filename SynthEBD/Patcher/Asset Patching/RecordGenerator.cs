@@ -85,8 +85,15 @@ namespace SynthEBD
                     {
                         // step through the path
                         bool currentObjectIsARecord = RecordPathParser.PropertyIsRecord(rootObj, commonPath, out FormKey? recordFK);
-                        currentObj = RecordPathParser.GetObjectAtPath(rootObj, commonPath, objectsAtPath_NPC); //  this function needs to be updated to resolve from LinkCache if currentObjectIsARecord == true
 
+                        if (currentObjectIsARecord && !recordFK.Value.IsNull && GameEnvironmentProvider.MyEnvironment.LinkCache.TryResolve(recordFK.Value, out var currentMajorRecordCommonGetter)) //if the current object is a record, resolve it so that it can be traversed
+                        {
+                            currentObj = GetOrAddGenericRecordAsOverride((IMajorRecordGetter)currentMajorRecordCommonGetter, outputMod);
+                        }
+                        else
+                        {
+                            currentObj = RecordPathParser.GetObjectAtPath(rootObj, commonPath, objectsAtPath_NPC, GameEnvironmentProvider.MyEnvironment.LinkCache);
+                        }
                         // if the NPC doesn't have the given object (e.g. the NPC doesn't have a WNAM), assign in from template
                         if (currentObj == null || currentObjectIsARecord && recordFK.Value.IsNull)
                         {
@@ -100,7 +107,7 @@ namespace SynthEBD
                                 templateRelPath = commonPath;
                             }
 
-                            currentObj = RecordPathParser.GetObjectAtPath(template, templateRelPath, objectsAtPath_Template); // get corresponding object from template NPC
+                            currentObj = RecordPathParser.GetObjectAtPath(template, templateRelPath, objectsAtPath_Template, recordTemplateLinkCache); // get corresponding object from template NPC
 
                             if (currentObj == null)
                             {
@@ -113,12 +120,18 @@ namespace SynthEBD
                                 // if the template object is just a struct (not a record), simply copy it to the NPC
                                 if (currentObjectIsARecord)
                                 {
-                                    var templateFormKeyObj = RecordPathParser.GetObjectAtPath(currentObj, "FormKey", objectsAtPath_Template);
+                                    var templateFormKeyObj = RecordPathParser.GetObjectAtPath(currentObj, "FormKey", objectsAtPath_Template, recordTemplateLinkCache);
                                     recordTemplateLinkCache.TryResolveContext((FormKey)templateFormKeyObj, out var templateContext);
                                     var newRecord = (IMajorRecord)templateContext.DuplicateIntoAsNewRecord(outputMod); // without cast, would be an IMajorRecordCommon
 
+                                    // copy subrecords if necessary
+                                    /*
+                                    foreach (var templateMod in recordTemplateLinkCache.PriorityOrder)
+                                    {
+                                        outputMod.DuplicateFromOnlyReferenced(GameEnvironmentProvider.MyEnvironment.LinkCache, templateMod.ModKey);
+                                    }*/
+
                                     // increment editor ID number
-                                    //var newRecord = (IMajorRecord)currentObj;
                                     if (edidCounts.ContainsKey(newRecord.EditorID))
                                     {
                                         edidCounts[newRecord.EditorID]++;
