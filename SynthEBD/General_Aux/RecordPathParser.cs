@@ -15,10 +15,10 @@ namespace SynthEBD
 {
     public class RecordPathParser
     {
-        public static Object GetObjectAtPath(Object rootObj, string relativePath, Dictionary<string, Object> objectCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+        public static dynamic GetObjectAtPath(Object rootObj, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
         {
             string[] splitPath = SplitPath(relativePath);
-            Object currentObj = rootObj;
+            dynamic currentObj = rootObj;
 
             for (int i = 0; i < splitPath.Length; i++)
             {
@@ -44,7 +44,7 @@ namespace SynthEBD
                 // handle arrays
                 else if (PathIsArray(currentSubPath, out string arraySubPath, out string arrIndex))
                 {
-                    var collectionObj = (IEnumerable<object>)GetObjectAtPath(currentObj, arraySubPath, objectCache, linkCache);
+                    var collectionObj = (IEnumerable<dynamic>)GetObjectAtPath(currentObj, arraySubPath, objectCache, linkCache);
 
                     //if array index is numeric
                     if (int.TryParse(arrIndex, out int iIndex))
@@ -87,7 +87,7 @@ namespace SynthEBD
             return currentObj;
         }
 
-        private static object ChooseWhichArrayObject(IEnumerable<object> variants, string subPath, string matchCondition, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+        private static dynamic ChooseWhichArrayObject(IEnumerable<object> variants, string subPath, string matchCondition, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
         {
             foreach (var candidateObj in variants)
             {
@@ -101,9 +101,9 @@ namespace SynthEBD
                     comparisonObject = GetObjectAtPath(candidateObj, subPath, new Dictionary<string, object>(), linkCache);
                 }
 
-                string expression = "comparisonObject." + matchCondition;
+                string expression = "{0}" + matchCondition;
 
-                if (comparisonObject != null && Eval.Execute<bool>(expression))
+                if (comparisonObject != null && Eval.Execute<bool>(expression, comparisonObject))
                 {
                     return candidateObj;
                 }
@@ -132,7 +132,7 @@ namespace SynthEBD
             return false;
         }
 
-        public static Object GetSubObject(Object root, string propertyName)
+        public static dynamic GetSubObject(Object root, string propertyName)
         {
             var property = root.GetType().GetProperty(propertyName);
             if (property != null)
@@ -145,7 +145,7 @@ namespace SynthEBD
             }
         }
 
-        public static void SetSubObject(Object root, string propertyName, Object value)
+        public static void SetSubObject(dynamic root, string propertyName, dynamic value)
         {
             var property = root.GetType().GetProperty(propertyName);
             if (property != null)

@@ -47,21 +47,21 @@ namespace SynthEBD
                 }
             }
 
-            Dictionary<string, Object> recordsAtPaths = new Dictionary<string, Object>(); // quickly look up record templates rather than redoing reflection work
+            Dictionary<string, dynamic> recordsAtPaths = new Dictionary<string, dynamic>(); // quickly look up record templates rather than redoing reflection work
 
-            Dictionary<string, Object> objectsAtPath_NPC = new Dictionary<string, Object>();
+            Dictionary<string, dynamic> objectsAtPath_NPC = new Dictionary<string, dynamic>();
             objectsAtPath_NPC.Add("", npcInfo.NPC);
 
-            Dictionary<string, Object> objectsAtPath_Template = new Dictionary<string, Object>();
+            Dictionary<string, dynamic> objectsAtPath_Template = new Dictionary<string, dynamic>();
             objectsAtPath_Template.Add("", template);
 
-            Object currentObj;
+            dynamic currentObj;
 
             for (int i = 0; i < longestPath; i++)
             {
                 for (int j = 0; j < paths.Count; j++)
                 {
-                    if (paths[j].Destination.Length == i - 1) // last segment of path
+                    if (i == paths[j].Destination.Length) // Remove paths that were already assigned
                     {
                         paths.RemoveAt(j);
                         j--;
@@ -81,6 +81,7 @@ namespace SynthEBD
                     if (recordsAtPaths.ContainsKey(pathSignature))
                     {
                         currentObj = recordsAtPaths[pathSignature];
+                        objectsAtPath_NPC.Add(prePath + commonPath, currentObj); // for next iteration of top for loop
                     }
                     else
                     {
@@ -199,9 +200,9 @@ namespace SynthEBD
                             currentObj = assetAssignment.Source;
                         }
                     }
-                    int dbg = 0;
                 }
             }
+            int dbg = 0;
         }
 
         public static IMajorRecord DeepCopyRecordToPatch(FormKey recordFormKey, ILinkCache<ISkyrimMod, ISkyrimModGetter> sourceLinkCache, ISkyrimMod destinationMod)
@@ -231,11 +232,6 @@ namespace SynthEBD
 
         public static object GetOrAddGenericRecordAsOverride(IMajorRecordGetter recordGetter, SkyrimMod outputMod)
         {
-            /*
-            var getterType = LoquiRegistration.GetRegister(recordGetter.GetType()).GetterType;
-            dynamic group = outputMod.GetTopLevelGroup(getterType);
-            return OverrideMixIns.GetOrAddAsOverride(group, recordGetter);
-            */
             dynamic group = GetPatchRecordGroup(recordGetter, outputMod);
             return OverrideMixIns.GetOrAddAsOverride(group, recordGetter);
         }
