@@ -68,11 +68,11 @@ namespace SynthEBD
                     }
                 }
 
-                var groupedPathsAtI = paths.GroupBy(x => x.Destination[i]);
+                var groupedPathsAtI = paths.GroupBy(x => String.Join(".", x.Destination.ToList().GetRange(0, i + 1))); // group paths by the current path segment
 
                 foreach (var group in groupedPathsAtI)
                 {
-                    string prePath = String.Concat(group.First().Destination.ToList().GetRange(0, i));
+                    string prePath = String.Join(".", group.First().Destination.ToList().GetRange(0, i));
                     string commonPath = group.First().Destination[i];
                     var rootObj = objectsAtPath_NPC[prePath];
 
@@ -81,7 +81,7 @@ namespace SynthEBD
                     if (recordsAtPaths.ContainsKey(pathSignature))
                     {
                         currentObj = recordsAtPaths[pathSignature];
-                        objectsAtPath_NPC.Add(prePath + commonPath, currentObj); // for next iteration of top for loop
+                        objectsAtPath_NPC.Add(prePath + "." + commonPath, currentObj); // for next iteration of top for loop
                     }
                     else
                     {
@@ -186,7 +186,7 @@ namespace SynthEBD
                         }
                         else
                         {
-                            objectsAtPath_NPC.Add(prePath + commonPath, currentObj); // for next iteration of top for loop
+                            objectsAtPath_NPC.Add(prePath + "." + commonPath, currentObj); // for next iteration of top for loop
                         }
                     }
 
