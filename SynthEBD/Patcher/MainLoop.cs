@@ -1,6 +1,7 @@
 ﻿using Mutagen.Bethesda;
 using Mutagen.Bethesda.Cache.Implementations;
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Plugins.Order;
 using Mutagen.Bethesda.Skyrim;
 using System;
@@ -21,6 +22,7 @@ namespace SynthEBD
         {
             ModKey.TryFromName(PatcherSettings.General.patchFileName, ModType.Plugin, out var patchModKey);
             var outputMod = new SkyrimMod(patchModKey, SkyrimRelease.SkyrimSE);
+            MainLinkCache = GameEnvironmentProvider.MyEnvironment.LoadOrder.ToMutableLinkCache(outputMod);
 
             Dictionary<string, int> edidCounts = new Dictionary<string, int>();
 
@@ -123,6 +125,8 @@ namespace SynthEBD
             Logger.LogMessage("Finished patching.");
             Logger.UpdateStatus("Finished Patching", false);
         }
+
+        public static ILinkCache<ISkyrimMod, ISkyrimModGetter> MainLinkCache;
 
         private static void timer_Tick(object sender, EventArgs e)
         {

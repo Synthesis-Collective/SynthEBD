@@ -103,7 +103,7 @@ namespace SynthEBD
 
                 string expression = "comparisonObject." + matchCondition;
 
-                if (Eval.Execute<bool>(expression))
+                if (comparisonObject != null && Eval.Execute<bool>(expression))
                 {
                     return candidateObj;
                 }

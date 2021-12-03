@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Reflection;
 using Mutagen.Bethesda.Plugins.Records;
 using Loqui;
+using Mutagen.Bethesda.Plugins.Cache;
 
 namespace SynthEBD
 {
@@ -84,18 +85,18 @@ namespace SynthEBD
                     else
                     {
                         // step through the path
-                        bool currentObjectIsARecord = RecordPathParser.PropertyIsRecord(rootObj, commonPath, out FormKey? recordFK);
+                        bool currentObjectIsARecord = RecordPathParser.PropertyIsRecord(rootObj, commonPath, out FormKey? recordFormKey);
 
-                        if (currentObjectIsARecord && !recordFK.Value.IsNull && GameEnvironmentProvider.MyEnvironment.LinkCache.TryResolve(recordFK.Value, out var currentMajorRecordCommonGetter)) //if the current object is a record, resolve it so that it can be traversed
+                        if (currentObjectIsARecord && !recordFormKey.Value.IsNull && MainLoop.MainLinkCache.TryResolve(recordFormKey.Value, out var currentMajorRecordCommonGetter)) //if the current object is a record, resolve it so that it can be traversed
                         {
                             currentObj = GetOrAddGenericRecordAsOverride((IMajorRecordGetter)currentMajorRecordCommonGetter, outputMod);
                         }
                         else
                         {
-                            currentObj = RecordPathParser.GetObjectAtPath(rootObj, commonPath, objectsAtPath_NPC, GameEnvironmentProvider.MyEnvironment.LinkCache);
+                            currentObj = RecordPathParser.GetObjectAtPath(rootObj, commonPath, objectsAtPath_NPC, MainLoop.MainLinkCache);
                         }
                         // if the NPC doesn't have the given object (e.g. the NPC doesn't have a WNAM), assign in from template
-                        if (currentObj == null || currentObjectIsARecord && recordFK.Value.IsNull)
+                        if (currentObj == null || currentObjectIsARecord && recordFormKey.Value.IsNull)
                         {
                             string templateRelPath;
                             if (prePath.Length > 0)
@@ -116,20 +117,39 @@ namespace SynthEBD
 
                             else
                             {
-                                // if the template objecet is a record, add it to the generated patch and then copy it to the NPC
+                                // if the template object is a record, add it to the generated patch and then copy it to the NPC
                                 // if the template object is just a struct (not a record), simply copy it to the NPC
                                 if (currentObjectIsARecord)
                                 {
-                                    var templateFormKeyObj = RecordPathParser.GetObjectAtPath(currentObj, "FormKey", objectsAtPath_Template, recordTemplateLinkCache);
-                                    recordTemplateLinkCache.TryResolveContext((FormKey)templateFormKeyObj, out var templateContext);
-                                    var newRecord = (IMajorRecord)templateContext.DuplicateIntoAsNewRecord(outputMod); // without cast, would be an IMajorRecordCommon
+                                    // old way
+                                    //var templateFormKeyObj = RecordPathParser.GetObjectAtPath(currentObj, "FormKey", objectsAtPath_Template, recordTemplateLinkCache);
+                                    //recordTemplateLinkCache.TryResolveContext((FormKey)templateFormKeyObj, out var templateContext);
+                                    //var newRecord = (IMajorRecord)templateContext.DuplicateIntoAsNewRecord(outputMod); // without cast, would be an IMajorRecordCommon
 
-                                    // copy subrecords if necessary
+                                    // new way
                                     /*
-                                    foreach (var templateMod in recordTemplateLinkCache.PriorityOrder)
+                                    var templateRecordGetter = (IMajorRecordGetter)templateContext.Record;
+                                    dynamic modGroup = GetPatchRecordGroup(templateRecordGetter, outputMod);
+                                    var newRecord = IGroupMixIns.AddNew(modGroup);
+                                    MajorRecordMixIn.DeepCopyIn(newRecord, templateRecordGetter);
+                                    */
+
+                                    // newer way
+                                    var templateFormKeyObj = RecordPathParser.GetObjectAtPath(currentObj, "FormKey", objectsAtPath_Template, recordTemplateLinkCache);
+                                    if (templateFormKeyObj == null)
                                     {
-                                        outputMod.DuplicateFromOnlyReferenced(GameEnvironmentProvider.MyEnvironment.LinkCache, templateMod.ModKey);
-                                    }*/
+                                        Logger.LogError("Record template error: Could not obtain a FormKey for template NPC " + Logger.GetNPCLogNameString(template) + " at path: " + templateRelPath + ". This subrecord will not be assigned.");
+                                        continue;
+                                    }
+
+                                    var templateFormKey = (FormKey)templateFormKeyObj;
+                                    if (templateFormKey.IsNull)
+                                    {
+                                        Logger.LogError("Record template error: Template NPC " + Logger.GetNPCLogNameString(template) + " does not have a record at path: " + templateRelPath + ". This subrecord will not be assigned.");
+                                        continue;
+                                    }
+
+                                    var newRecord = DeepCopyRecordToPatch(templateFormKey, recordTemplateLinkCache, outputMod);
 
                                     // increment editor ID number
                                     if (edidCounts.ContainsKey(newRecord.EditorID))
@@ -182,17 +202,49 @@ namespace SynthEBD
                     int dbg = 0;
                 }
             }
+        }
 
+        public static IMajorRecord DeepCopyRecordToPatch(FormKey recordFormKey, ILinkCache<ISkyrimMod, ISkyrimModGetter> sourceLinkCache, ISkyrimMod destinationMod)
+        {
+            IMajorRecord copiedRecord = null;
+            if (sourceLinkCache.TryResolveContext(recordFormKey, out var templateContext))
+            {
+                copiedRecord = (IMajorRecord)templateContext.DuplicateIntoAsNewRecord(destinationMod); // without cast, would be an IMajorRecordCommon
 
-
+                Dictionary<FormKey, FormKey> mapping = new Dictionary<FormKey, FormKey>();
+                foreach (var fl in copiedRecord.ContainedFormLinks)
+                {
+                    if (fl.FormKey.ModKey == recordFormKey.ModKey && !fl.FormKey.IsNull)
+                    {
+                        var copiedSubRecord = DeepCopyRecordToPatch(fl.FormKey, sourceLinkCache, destinationMod);
+                        mapping.Add(fl.FormKey, copiedSubRecord.FormKey);                   
+                        string pauseHere = "";
+                    }
+                }
+                if (mapping.Any())
+                {
+                    copiedRecord.RemapLinks(mapping);
+                }
+            }
+            return copiedRecord;
         }
 
         public static object GetOrAddGenericRecordAsOverride(IMajorRecordGetter recordGetter, SkyrimMod outputMod)
         {
+            /*
             var getterType = LoquiRegistration.GetRegister(recordGetter.GetType()).GetterType;
             dynamic group = outputMod.GetTopLevelGroup(getterType);
             return OverrideMixIns.GetOrAddAsOverride(group, recordGetter);
+            */
+            dynamic group = GetPatchRecordGroup(recordGetter, outputMod);
+            return OverrideMixIns.GetOrAddAsOverride(group, recordGetter);
         }
+
+        public static dynamic GetPatchRecordGroup(IMajorRecordGetter recordGetter, SkyrimMod outputMod)
+        {
+            var getterType = LoquiRegistration.GetRegister(recordGetter.GetType()).GetterType;
+            return outputMod.GetTopLevelGroup(getterType);
+        }    
 
         public static void SetRecord(IMajorRecordGetter root, string propertyName, IMajorRecord value, SkyrimMod outputMod)
         {

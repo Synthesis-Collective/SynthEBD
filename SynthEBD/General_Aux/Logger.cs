@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Mutagen.Bethesda.Skyrim;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -168,6 +169,11 @@ namespace SynthEBD
         {
             TimeSpan ts = Instance.EllapsedTimer.Elapsed;
             return string.Format("{0:D2}:{1:D2}:{2:D2}", ts.Hours, ts.Minutes, ts.Seconds);
+        }
+
+        public static string GetNPCLogNameString(INpcGetter npc)
+        {
+            return npc.Name?.String + " | " + npc.EditorID + " | " + npc.FormKey.ToString();
         }
     }
 

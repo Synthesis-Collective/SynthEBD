@@ -14,7 +14,7 @@ namespace SynthEBD
         public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, HashSet<NPCAssignment> specificNPCAssignments, Dictionary<string, NPCAssignment> consistency)
         {
             this.NPC = npc;
-            this.LogIDstring = npc.Name?.String + " | " + npc.EditorID + " | " + npc.FormKey.ToString();
+            this.LogIDstring = Logger.GetNPCLogNameString(npc);
             this.Gender = GetGender(npc);
             AssetsRace = AliasHandler.GetAliasTexMesh(npc.Race.FormKey);
             BodyGenRace = AliasHandler.GetAliasBodyGen(npc.Race.FormKey);
