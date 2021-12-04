@@ -15,8 +15,25 @@ namespace SynthEBD
 {
     public class RecordPathParser
     {
-        public static dynamic GetObjectAtPath(Object rootObj, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+        public static dynamic GetObjectAtPath(dynamic rootObj, string relativePath, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
         {
+            if (rootObj == null)
+            {
+                return null;
+            }
+
+            Dictionary<string, dynamic> objectCache;
+
+            if (objectLinkMap.ContainsKey(rootObj))
+            {
+                objectCache = objectLinkMap[rootObj];
+            }
+            else
+            {
+                objectCache = new Dictionary<string, dynamic>();
+                objectLinkMap.Add(rootObj, objectCache);
+            }
+
             string[] splitPath = SplitPath(relativePath);
             dynamic currentObj = rootObj;
 
@@ -26,8 +43,17 @@ namespace SynthEBD
                 {
                     return null;
                 }
-                string currentSubPath = splitPath[i];
 
+                // check object cache to see if the given object has already been resolved
+                string concatPath = String.Join(".", splitPath.ToList().GetRange(0, i+1));
+                if (objectCache.ContainsKey(concatPath))
+                {
+                    currentObj = objectCache[concatPath];
+                    continue;
+                }
+
+                // otherwise search for the given value via Reflection
+                string currentSubPath = splitPath[i];
                 // handle subrecords
                 if (PropertyIsRecord(currentObj, currentSubPath, out FormKey? subrecordFK))
                 {
@@ -44,7 +70,7 @@ namespace SynthEBD
                 // handle arrays
                 else if (PathIsArray(currentSubPath, out string arraySubPath, out string arrIndex))
                 {
-                    var collectionObj = (IEnumerable<dynamic>)GetObjectAtPath(currentObj, arraySubPath, objectCache, linkCache);
+                    var collectionObj = (IEnumerable<dynamic>)GetObjectAtPath(currentObj, arraySubPath, objectLinkMap, linkCache);
 
                     //if array index is numeric
                     if (int.TryParse(arrIndex, out int iIndex))
@@ -68,7 +94,7 @@ namespace SynthEBD
                         int sepIndex = arrIndex.LastIndexOf(',');
                         string subPath = arrIndex.Substring(0, sepIndex);
                         string matchCondition = arrIndex.Substring(sepIndex + 1, arrIndex.Length - sepIndex - 1);
-                        currentObj = ChooseWhichArrayObject(collectionObj, subPath, matchCondition, linkCache);
+                        currentObj = ChooseWhichArrayObject(collectionObj, subPath, matchCondition, objectLinkMap, linkCache);
                         if (currentObj == null)
                         {
                             Logger.LogError("Could not get object at " + currentSubPath + " because " + arraySubPath + " does not have an element that matches condition: " + arrIndex);
@@ -84,21 +110,26 @@ namespace SynthEBD
                 }
             }
 
+            if (!objectCache.ContainsKey(relativePath))
+            {
+                objectCache.Add(relativePath, currentObj);
+            }
+
             return currentObj;
         }
 
-        private static dynamic ChooseWhichArrayObject(IEnumerable<object> variants, string subPath, string matchCondition, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+        private static dynamic ChooseWhichArrayObject(IEnumerable<object> variants, string subPath, string matchCondition, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
         {
             foreach (var candidateObj in variants)
             {
                 dynamic comparisonObject;
                 if (ObjectIsRecord(candidateObj, out var linkedFormKey) && linkedFormKey != null && linkedFormKey.Value.IsNull == false && linkCache.TryResolve(linkedFormKey.Value, out var candidateObjRecord))
                 {
-                    comparisonObject = GetObjectAtPath(candidateObjRecord, subPath, new Dictionary<string, object>(), linkCache);
+                    comparisonObject = GetObjectAtPath(candidateObjRecord, subPath, objectLinkMap, linkCache);
                 }
                 else
                 {
-                    comparisonObject = GetObjectAtPath(candidateObj, subPath, new Dictionary<string, object>(), linkCache);
+                    comparisonObject = GetObjectAtPath(candidateObj, subPath, objectLinkMap, linkCache);
                 }
 
                 string expression = "{0}" + matchCondition;

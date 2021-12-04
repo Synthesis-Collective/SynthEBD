@@ -49,11 +49,16 @@ namespace SynthEBD
 
             Dictionary<string, dynamic> recordsAtPaths = new Dictionary<string, dynamic>(); // quickly look up record templates rather than redoing reflection work
 
+            Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap = new Dictionary<dynamic, Dictionary<string, dynamic>>();
+
             Dictionary<string, dynamic> objectsAtPath_NPC = new Dictionary<string, dynamic>();
             objectsAtPath_NPC.Add("", npcInfo.NPC);
+            objectLinkMap.Add(npcInfo.NPC, objectsAtPath_NPC);
+
 
             Dictionary<string, dynamic> objectsAtPath_Template = new Dictionary<string, dynamic>();
             objectsAtPath_Template.Add("", template);
+            objectLinkMap.Add(template, objectsAtPath_Template);
 
             dynamic currentObj;
 
@@ -72,48 +77,39 @@ namespace SynthEBD
 
                 foreach (var group in groupedPathsAtI)
                 {
-                    string prePath = String.Join(".", group.First().Destination.ToList().GetRange(0, i));
-                    string commonPath = group.First().Destination[i];
-                    var rootObj = objectsAtPath_NPC[prePath];
+                    string parentPath = String.Join(".", group.First().Destination.ToList().GetRange(0, i));
+                    string currentSubPath = group.First().Destination[i];
+                    var rootObj = objectsAtPath_NPC[parentPath];
 
                     // if the current set of paths has already been assigned to another record, get that record
                     string pathSignature = string.Concat(group.Select(x => x.Source));
                     if (recordsAtPaths.ContainsKey(pathSignature))
                     {
                         currentObj = recordsAtPaths[pathSignature];
-                        objectsAtPath_NPC.Add(prePath + "." + commonPath, currentObj); // for next iteration of top for loop
                     }
                     else
                     {
                         // step through the path
-                        bool currentObjectIsARecord = RecordPathParser.PropertyIsRecord(rootObj, commonPath, out FormKey? recordFormKey);
+                        bool currentObjectIsARecord = RecordPathParser.PropertyIsRecord(rootObj, currentSubPath, out FormKey? recordFormKey);
 
-                        if (currentObjectIsARecord && !recordFormKey.Value.IsNull && MainLoop.MainLinkCache.TryResolve(recordFormKey.Value, out var currentMajorRecordCommonGetter)) //if the current object is a record, resolve it so that it can be traversed
+                        if (currentObjectIsARecord && !recordFormKey.Value.IsNull && MainLoop.MainLinkCache.TryResolve(recordFormKey.Value, out var currentMajorRecordCommonGetter)) //if the current object is an existing record, resolve it so that it can be traversed
                         {
                             currentObj = GetOrAddGenericRecordAsOverride((IMajorRecordGetter)currentMajorRecordCommonGetter, outputMod);
+                            objectsAtPath_NPC.Add(group.Key, currentObj); // for next iteration of top for loop
                         }
                         else
                         {
-                            currentObj = RecordPathParser.GetObjectAtPath(rootObj, commonPath, objectsAtPath_NPC, MainLoop.MainLinkCache);
+                            currentObj = RecordPathParser.GetObjectAtPath(rootObj, currentSubPath, objectLinkMap, MainLoop.MainLinkCache);
                         }
+
                         // if the NPC doesn't have the given object (e.g. the NPC doesn't have a WNAM), assign in from template
                         if (currentObj == null || currentObjectIsARecord && recordFormKey.Value.IsNull)
                         {
-                            string templateRelPath;
-                            if (prePath.Length > 0)
-                            {
-                                templateRelPath = String.Join('.', new string[] { prePath, commonPath });
-                            }
-                            else
-                            {
-                                templateRelPath = commonPath;
-                            }
-
-                            currentObj = RecordPathParser.GetObjectAtPath(template, templateRelPath, objectsAtPath_Template, recordTemplateLinkCache); // get corresponding object from template NPC
+                            currentObj = RecordPathParser.GetObjectAtPath(template, group.Key, objectLinkMap, recordTemplateLinkCache); // get corresponding object from template NPC
 
                             if (currentObj == null)
                             {
-                                Logger.LogError("Error: neither NPC " + npcInfo.LogIDstring + " nor the record template " + template.EditorID + " contained a record at " + templateRelPath + ". Cannot assign this record.");
+                                Logger.LogError("Error: neither NPC " + npcInfo.LogIDstring + " nor the record template " + template.EditorID + " contained a record at " + group.Key + ". Cannot assign this record.");
                             }
 
                             else
@@ -122,31 +118,18 @@ namespace SynthEBD
                                 // if the template object is just a struct (not a record), simply copy it to the NPC
                                 if (currentObjectIsARecord)
                                 {
-                                    // old way
-                                    //var templateFormKeyObj = RecordPathParser.GetObjectAtPath(currentObj, "FormKey", objectsAtPath_Template, recordTemplateLinkCache);
-                                    //recordTemplateLinkCache.TryResolveContext((FormKey)templateFormKeyObj, out var templateContext);
-                                    //var newRecord = (IMajorRecord)templateContext.DuplicateIntoAsNewRecord(outputMod); // without cast, would be an IMajorRecordCommon
-
-                                    // new way
-                                    /*
-                                    var templateRecordGetter = (IMajorRecordGetter)templateContext.Record;
-                                    dynamic modGroup = GetPatchRecordGroup(templateRecordGetter, outputMod);
-                                    var newRecord = IGroupMixIns.AddNew(modGroup);
-                                    MajorRecordMixIn.DeepCopyIn(newRecord, templateRecordGetter);
-                                    */
-
                                     // newer way
-                                    var templateFormKeyObj = RecordPathParser.GetObjectAtPath(currentObj, "FormKey", objectsAtPath_Template, recordTemplateLinkCache);
+                                    var templateFormKeyObj = RecordPathParser.GetSubObject(currentObj, "FormKey");
                                     if (templateFormKeyObj == null)
                                     {
-                                        Logger.LogError("Record template error: Could not obtain a FormKey for template NPC " + Logger.GetNPCLogNameString(template) + " at path: " + templateRelPath + ". This subrecord will not be assigned.");
+                                        Logger.LogError("Record template error: Could not obtain a FormKey for template NPC " + Logger.GetNPCLogNameString(template) + " at path: " + group.Key + ". This subrecord will not be assigned.");
                                         continue;
                                     }
 
                                     var templateFormKey = (FormKey)templateFormKeyObj;
                                     if (templateFormKey.IsNull)
                                     {
-                                        Logger.LogError("Record template error: Template NPC " + Logger.GetNPCLogNameString(template) + " does not have a record at path: " + templateRelPath + ". This subrecord will not be assigned.");
+                                        Logger.LogError("Record template error: Template NPC " + Logger.GetNPCLogNameString(template) + " does not have a record at path: " + group.Key + ". This subrecord will not be assigned.");
                                         continue;
                                     }
 
@@ -163,33 +146,22 @@ namespace SynthEBD
                                         edidCounts.Add(newRecord.EditorID, 1);
                                         newRecord.EditorID += 1;
                                     }
-                                    SetRecord((IMajorRecordGetter)rootObj, commonPath, newRecord, outputMod);
+                                    SetRecord((IMajorRecordGetter)rootObj, currentSubPath, newRecord, outputMod);
                                     currentObj = newRecord;
                                 }
                                 else
                                 {
-                                    RecordPathParser.SetSubObject(rootObj, commonPath, currentObj);
+                                    RecordPathParser.SetSubObject(rootObj, currentSubPath, currentObj);
                                 }
                             }
 
                             // store paths associated with this record for future lookup to avoid having to repeat the reflection
-                            if (currentObj != null)
+                            if (currentObjectIsARecord)
                             {
-                                objectsAtPath_Template.Add(prePath + commonPath, currentObj); // for subsequent searches within record template
-                                objectsAtPath_NPC.Add(prePath + commonPath, currentObj); // for next iteration of top for loop
-
-                                if (currentObjectIsARecord)
-                                {
-                                    recordsAtPaths.Add(pathSignature, currentObj); // for other NPCs who get the same combination and need to be assigned the same record
-                                }
+                                recordsAtPaths.Add(pathSignature, currentObj); // for other NPCs who get the same combination and need to be assigned the same record
                             }
                         }
-                        else
-                        {
-                            objectsAtPath_NPC.Add(prePath + "." + commonPath, currentObj); // for next iteration of top for loop
-                        }
                     }
-
 
                     // if this is the last part of the path, attempt to assign the Source asset to the Destination
                     if (group.First().Destination.Length == i + 1)
@@ -199,6 +171,10 @@ namespace SynthEBD
                             RecordPathParser.SetSubObject(rootObj, group.Key, assetAssignment.Source);
                             currentObj = assetAssignment.Source;
                         }
+                    }
+                    else
+                    {
+                        objectsAtPath_NPC.Add(group.Key, currentObj); // for next iteration of top for loop
                     }
                 }
             }
