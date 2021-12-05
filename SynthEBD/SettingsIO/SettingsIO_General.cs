@@ -17,6 +17,10 @@ namespace SynthEBD
             {
                 PatcherSettings.General = JSONhandler<Settings_General>.loadJSONFile(Paths.GeneralSettingsPath);
             }
+            else
+            {
+                throw new Exception("Cannot find General Settings file at " + Paths.GeneralSettingsPath);
+            }
         }
     }
 }

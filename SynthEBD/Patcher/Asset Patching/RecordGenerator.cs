@@ -90,16 +90,12 @@ namespace SynthEBD
                     else
                     {
                         // step through the path
-                        bool currentObjectIsARecord = RecordPathParser.PropertyIsRecord(rootObj, currentSubPath, out FormKey? recordFormKey);
-
-                        if (currentObjectIsARecord && !recordFormKey.Value.IsNull && MainLoop.MainLinkCache.TryResolve(recordFormKey.Value, out var currentMajorRecordCommonGetter)) //if the current object is an existing record, resolve it so that it can be traversed
+                        currentObj = RecordPathParser.GetObjectAtPath(rootObj, currentSubPath, objectLinkMap, MainLoop.MainLinkCache);
+                        //bool currentObjectIsARecord = RecordPathParser.PropertyIsRecord(rootObj, currentSubPath, out FormKey? recordFormKey, objectLinkMap, MainLoop.MainLinkCache);
+                        bool currentObjectIsARecord = RecordPathParser.ObjectIsRecord(currentObj, out FormKey? recordFormKey);
+                        if (currentObjectIsARecord && !recordFormKey.Value.IsNull && MainLoop.MainLinkCache.TryResolve(recordFormKey.Value, (Type)currentObj.GetType(), out var currentMajorRecordCommonGetter)) //if the current object is an existing record, resolve it so that it can be traversed
                         {
                             currentObj = GetOrAddGenericRecordAsOverride((IMajorRecordGetter)currentMajorRecordCommonGetter, outputMod);
-                            objectsAtPath_NPC.Add(group.Key, currentObj); // for next iteration of top for loop
-                        }
-                        else
-                        {
-                            currentObj = RecordPathParser.GetObjectAtPath(rootObj, currentSubPath, objectLinkMap, MainLoop.MainLinkCache);
                         }
 
                         // if the NPC doesn't have the given object (e.g. the NPC doesn't have a WNAM), assign in from template
@@ -118,22 +114,13 @@ namespace SynthEBD
                                 // if the template object is just a struct (not a record), simply copy it to the NPC
                                 if (currentObjectIsARecord)
                                 {
-                                    // newer way
-                                    var templateFormKeyObj = RecordPathParser.GetSubObject(currentObj, "FormKey");
-                                    if (templateFormKeyObj == null)
+                                    FormKey templateFormKey = RecordPathParser.GetSubObject(currentObj, "FormKey");
+                                    var newRecord = DeepCopyRecordToPatch(currentObj, templateFormKey.ModKey, recordTemplateLinkCache, outputMod);
+                                    if (newRecord == null)
                                     {
-                                        Logger.LogError("Record template error: Could not obtain a FormKey for template NPC " + Logger.GetNPCLogNameString(template) + " at path: " + group.Key + ". This subrecord will not be assigned.");
+                                        Logger.LogError("Record template error: Could not obtain a non-null FormKey for template NPC " + Logger.GetNPCLogNameString(template) + " at path: " + group.Key + ". This subrecord will not be assigned.");
                                         continue;
                                     }
-
-                                    var templateFormKey = (FormKey)templateFormKeyObj;
-                                    if (templateFormKey.IsNull)
-                                    {
-                                        Logger.LogError("Record template error: Template NPC " + Logger.GetNPCLogNameString(template) + " does not have a record at path: " + group.Key + ". This subrecord will not be assigned.");
-                                        continue;
-                                    }
-
-                                    var newRecord = DeepCopyRecordToPatch(templateFormKey, recordTemplateLinkCache, outputMod);
 
                                     // increment editor ID number
                                     if (edidCounts.ContainsKey(newRecord.EditorID))
@@ -168,7 +155,7 @@ namespace SynthEBD
                     {
                         foreach (var assetAssignment in group)
                         {
-                            RecordPathParser.SetSubObject(rootObj, group.Key, assetAssignment.Source);
+                            RecordPathParser.SetSubObject(rootObj, currentSubPath, assetAssignment.Source);
                             currentObj = assetAssignment.Source;
                         }
                     }
@@ -177,32 +164,29 @@ namespace SynthEBD
                         objectsAtPath_NPC.Add(group.Key, currentObj); // for next iteration of top for loop
                     }
                 }
-            }
+            } 
             int dbg = 0;
         }
 
-        public static IMajorRecord DeepCopyRecordToPatch(FormKey recordFormKey, ILinkCache<ISkyrimMod, ISkyrimModGetter> sourceLinkCache, ISkyrimMod destinationMod)
+        public static IMajorRecord DeepCopyRecordToPatch(dynamic sourceRecordObj, ModKey sourceModKey, ILinkCache<ISkyrimMod, ISkyrimModGetter> sourceLinkCache, SkyrimMod destinationMod)
         {
-            IMajorRecord copiedRecord = null;
-            if (sourceLinkCache.TryResolveContext(recordFormKey, out var templateContext))
-            {
-                copiedRecord = (IMajorRecord)templateContext.DuplicateIntoAsNewRecord(destinationMod); // without cast, would be an IMajorRecordCommon
+            dynamic group = GetPatchRecordGroup(sourceRecordObj, destinationMod);
+            IMajorRecord copiedRecord = (IMajorRecord)IGroupMixIns.DuplicateInAsNewRecord(group, sourceRecordObj);
 
-                Dictionary<FormKey, FormKey> mapping = new Dictionary<FormKey, FormKey>();
-                foreach (var fl in copiedRecord.ContainedFormLinks)
+            Dictionary<FormKey, FormKey> mapping = new Dictionary<FormKey, FormKey>();
+            foreach (var fl in copiedRecord.ContainedFormLinks)
+            {
+                if (fl.FormKey.ModKey == sourceModKey && !fl.FormKey.IsNull)
                 {
-                    if (fl.FormKey.ModKey == recordFormKey.ModKey && !fl.FormKey.IsNull)
-                    {
-                        var copiedSubRecord = DeepCopyRecordToPatch(fl.FormKey, sourceLinkCache, destinationMod);
-                        mapping.Add(fl.FormKey, copiedSubRecord.FormKey);                   
-                        string pauseHere = "";
-                    }
-                }
-                if (mapping.Any())
-                {
-                    copiedRecord.RemapLinks(mapping);
+                    var copiedSubRecord = DeepCopyRecordToPatch(fl.FormKey, sourceModKey, sourceLinkCache, destinationMod);
+                    mapping.Add(fl.FormKey, copiedSubRecord.FormKey);
                 }
             }
+            if (mapping.Any())
+            {
+                copiedRecord.RemapLinks(mapping);
+            }
+
             return copiedRecord;
         }
 
