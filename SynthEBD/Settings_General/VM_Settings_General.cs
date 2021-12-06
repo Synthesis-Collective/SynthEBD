@@ -24,6 +24,8 @@ namespace SynthEBD
             this.bEnableBodyGenIntegration = false;
             this.bChangeHeight = false;
             this.bEnableConsistency = true;
+            this.ExcludePlayerCharacter = true;
+            this.ExcludePresets = true;
             this.bLinkNPCsWithSameName = true;
             this.LinkedNameExclusions = new ObservableCollection<VM_CollectionMemberString>();
             this.LinkedNPCGroups = new ObservableCollection<VM_LinkedNPCGroup>();
@@ -72,7 +74,8 @@ namespace SynthEBD
         public bool bChangeMeshesOrTextures { get; set;  }
 
         public bool bEnableBodyGenIntegration { get; set;  }
-
+        public bool ExcludePlayerCharacter { get; set; }
+        public bool ExcludePresets { get; set; }
         public bool bChangeHeight { get; set;  }
         public bool bEnableConsistency { get; set;  }
         public bool bLinkNPCsWithSameName { get; set;  }
@@ -108,6 +111,8 @@ namespace SynthEBD
             viewModel.bEnableBodyGenIntegration = model.bEnableBodyGenIntegration;
             viewModel.bChangeHeight = model.bChangeHeight;
             viewModel.bEnableConsistency = model.bEnableConsistency;
+            viewModel.ExcludePlayerCharacter = model.ExcludePlayerCharacter;
+            viewModel.ExcludePresets = model.ExcludePresets;
             viewModel.bLinkNPCsWithSameName = model.bLinkNPCsWithSameName;
             viewModel.patchFileName = model.patchFileName;
             viewModel.bVerboseModeAssetsNoncompliant = model.bVerboseModeAssetsNoncompliant;
@@ -125,6 +130,8 @@ namespace SynthEBD
             model.bEnableBodyGenIntegration = viewModel.bEnableBodyGenIntegration;
             model.bChangeHeight = viewModel.bChangeHeight;
             model.bEnableConsistency = viewModel.bEnableConsistency;
+            model.ExcludePlayerCharacter = viewModel.ExcludePlayerCharacter;
+            model.ExcludePresets = viewModel.ExcludePresets;
             model.bLinkNPCsWithSameName = viewModel.bLinkNPCsWithSameName;
             model.patchFileName = viewModel.patchFileName;
             model.bVerboseModeAssetsNoncompliant = viewModel.bVerboseModeAssetsNoncompliant;

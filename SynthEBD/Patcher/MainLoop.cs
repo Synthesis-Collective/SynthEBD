@@ -4,6 +4,7 @@ using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Plugins.Order;
 using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.FormKeys.SkyrimSE;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -50,9 +51,8 @@ namespace SynthEBD
             }
 
             int npcCounter = 0;
-            foreach (var npc in GameEnvironmentProvider.MyEnvironment.LoadOrder.PriorityOrder.WinningOverrides<INpcGetter>())
+            foreach (var npc in GameEnvironmentProvider.MyEnvironment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>())
             {
-                //npc.WornArmor.TryResolve(GameEnvironmentProvider.MyEnvironment.LinkCache).Armature[0].TryResolve(recordTemplateLinkCache).BodyTemplate.FirstPersonFlags.HasFlag(BipedObjectFlag.Amulet);
                 npcCounter++;
                 if (npcCounter % 100 == 0) 
                 {
@@ -77,19 +77,15 @@ namespace SynthEBD
 
                 bodyGenAssignedWithAssets = false;
 
-                /*
-                if (generalSettings.bExcludePlayerCharacter && npc.FormKey.ModKey.ToString() == "Skyrim.esm" && npc.FormKey.IDString == "000007")
+                if (PatcherSettings.General.ExcludePlayerCharacter && npc == Skyrim.Npc.Player)
                 {
                     continue;
                 }
-                */
 
-                /*
-                if (generalSettings.bExcludePresets && npc.EditorID.Contains("Preset"))
+                if (PatcherSettings.General.ExcludePresets && npc.EditorID.Contains("Preset"))
                 {
                     continue;
                 }
-                */
 
                 // Assets/BodyGen assignment
                 if (PatcherSettings.General.bChangeMeshesOrTextures && !blockAssets && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.AssetsRace))

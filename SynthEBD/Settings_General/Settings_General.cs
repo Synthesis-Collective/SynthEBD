@@ -16,6 +16,8 @@ namespace SynthEBD
             this.bEnableBodyGenIntegration = false;
             this.bChangeHeight = false;
             this.bEnableConsistency = true;
+            this.ExcludePlayerCharacter = true;
+            this.ExcludePresets = true;
             this.bLinkNPCsWithSameName = true;
             this.patchFileName = "SynthEBD";
             this.bVerboseModeAssetsNoncompliant = false;
@@ -34,6 +36,8 @@ namespace SynthEBD
 
         public bool bChangeHeight { get; set; }
         public bool bEnableConsistency { get; set; }
+        public bool ExcludePlayerCharacter { get; set; }
+        public bool ExcludePresets { get; set; }
         public bool bLinkNPCsWithSameName { get; set; }
         public string patchFileName { get; set; }
 

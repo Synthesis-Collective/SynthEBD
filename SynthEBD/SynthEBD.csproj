@@ -11,6 +11,7 @@
     <PackageReference Include="MahApps.Metro" Version="2.4.9" />
     <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.39" />
     <PackageReference Include="Mutagen.Bethesda" Version="0.33.7-pr001" />
+    <PackageReference Include="Mutagen.Bethesda.FormKeys.SkyrimSE" Version="2.1.0" />
     <PackageReference Include="Mutagen.Bethesda.Json" Version="0.33.7-pr001" />
     <PackageReference Include="Mutagen.Bethesda.Skyrim" Version="0.33.7-pr001" />
     <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.33.7-pr001" />
