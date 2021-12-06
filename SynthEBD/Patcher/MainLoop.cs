@@ -1,5 +1,5 @@
 ﻿using Mutagen.Bethesda;
-using Mutagen.Bethesda.Cache.Implementations;
+using Mutagen.Bethesda.Plugins.Cache.Internals.Implementations;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Plugins.Order;
