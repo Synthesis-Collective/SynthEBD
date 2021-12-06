@@ -68,7 +68,6 @@ namespace SynthEBD
 
                 // if the current property is another record, resolve it to traverse
                 if (ObjectIsRecord(currentObj, out FormKey? subrecordFK))
-                //if (PropertyIsRecord(currentObj, currentSubPath, out FormKey? subrecordFK, objectLinkMap, linkCache))
                 {
                     if (subrecordFK != null && !subrecordFK.Value.IsNull && linkCache.TryResolve(subrecordFK.Value, (Type)currentObj.Type, out var subRecordGetter))
                     {
@@ -88,6 +87,10 @@ namespace SynthEBD
         private static dynamic GetArrayObjectAtIndex(dynamic currentObj, string arraySubPath, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
         {
             var collectionObj = (IEnumerable<dynamic>)GetObjectAtPath(currentObj, arraySubPath, objectLinkMap, linkCache);
+            if (collectionObj == null)
+            {
+                return null;
+            }
 
             //if array index is numeric
             if (int.TryParse(arrIndex, out int iIndex))
@@ -107,12 +110,7 @@ namespace SynthEBD
             // if array index specifies object by property, figure out which index is the right one
             else
             {
-                // arrIndex will look like "a.b.c.d,HasFlag(x)"
-
-                int sepIndex = arrIndex.LastIndexOf(',');
-                string subPath = arrIndex.Substring(0, sepIndex);
-                string matchCondition = arrIndex.Substring(sepIndex + 1, arrIndex.Length - sepIndex - 1);
-                currentObj = ChooseWhichArrayObject(collectionObj, subPath, matchCondition, objectLinkMap, linkCache);
+                currentObj = ChooseWhichArrayObject(collectionObj, arrIndex, objectLinkMap, linkCache);
                 if (currentObj == null)
                 {
                     string currentSubPath = arraySubPath + "[" + arrIndex + "]";
@@ -124,35 +122,87 @@ namespace SynthEBD
             return currentObj;
         }
 
-        private static dynamic ChooseWhichArrayObject(IEnumerable<dynamic> variants, string subPath, string matchCondition, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+        private class ArrayPathCondition
         {
-            string expression = "{0}" + matchCondition;
+            private ArrayPathCondition(string strIndex)
+            {
+                int sepIndex = strIndex.LastIndexOf(',');
+                Path = strIndex.Substring(0, sepIndex).Trim();
+                ReplacerTemplate = strIndex.Substring(0, sepIndex) + ","; // unlike Path, can include whitespace provided by the user and also includes the separator comma
+                MatchCondition = strIndex.Substring(sepIndex + 1, strIndex.Length - sepIndex - 1).Trim();
+                if (Path.StartsWith('!'))
+                {
+                    Path = Path.Remove(0, 1).Trim();
+                }
+            }
+            public string Path;
+            public string ReplacerTemplate;
+            public string MatchCondition;
+
+            public static List<ArrayPathCondition> GetConditionsFromString(string input)
+            {
+                String[] result = input.Split(new Char[] { '|', '&' }, StringSplitOptions.RemoveEmptyEntries); // split on logical operators
+                List<ArrayPathCondition> output = new List<ArrayPathCondition>();
+                foreach (var conditionStr in result)
+                {
+                    output.Add(new ArrayPathCondition(conditionStr));
+                }
+                return output;
+            }
+        }
+
+        private static dynamic ChooseWhichArrayObject(IEnumerable<dynamic> variants, string matchConditionStr, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+        {
+            var arrayMatchConditions = ArrayPathCondition.GetConditionsFromString(matchConditionStr);
+
+            int argIndex = 0;
+            foreach (var condition in arrayMatchConditions)
+            {
+                string argStr = '{' + argIndex.ToString() + '}';
+                matchConditionStr = matchConditionStr.Replace(condition.ReplacerTemplate, argStr);
+                argIndex++;
+            }
+
 
             foreach (var candidateObj in variants)
             {
-                dynamic comparisonObject;
-                if (ObjectIsRecord(candidateObj, out FormKey? objFormKey) && objFormKey != null)
+                List<dynamic> evalParameters = new List<dynamic>();
+                argIndex = 0;
+                bool skipToNext = false;
+
+                IMajorRecordCommonGetter candidateRecordGetter = null;
+
+                bool candidateObjIsRecord = ObjectIsRecord(candidateObj, out FormKey? objFormKey) && objFormKey != null;
+                bool candidateObjIsResolved = !objFormKey.Value.IsNull && linkCache.TryResolve(objFormKey.Value, (Type)candidateObj.Type, out candidateRecordGetter);
+
+                foreach (var condition in arrayMatchConditions)
                 {
-                    if (!objFormKey.Value.IsNull && linkCache.TryResolve(objFormKey.Value, (Type)candidateObj.Type, out var candidateRecordGetter) && candidateRecordGetter != null)
+                    dynamic comparisonObject;
+                    string argStr = '{' + argIndex.ToString() + '}';
+                    
+                    if (candidateObjIsResolved && candidateRecordGetter != null)
                     {
-                        comparisonObject = GetObjectAtPath(candidateRecordGetter, subPath, objectLinkMap, linkCache);
-                        if (comparisonObject != null && Eval.Execute<bool>(expression, comparisonObject))
-                        {
-                            return candidateObj;
-                        }
+                        comparisonObject = GetObjectAtPath(candidateRecordGetter, condition.Path, objectLinkMap, linkCache);
+                        evalParameters.Add(comparisonObject);
                     }
-                    else if (!objFormKey.Value.IsNull) // warn if the object is a record but the corresponding Form couldn't be resolved
+                    else if (candidateObjIsRecord) // warn if the object is a record but the corresponding Form couldn't be resolved
                     {
                         Logger.LogError("Could not resolve record for array member object " + objFormKey.Value.ToString());
+                        skipToNext = true;
+                        break;
                     }
-                }
-                else
-                {
-                    comparisonObject = GetObjectAtPath(candidateObj, subPath, objectLinkMap, linkCache);
-                    if (comparisonObject != null && Eval.Execute<bool>(expression, comparisonObject)) // duplicated from above because compiler complains about unassigned local variable comparisonObject if I compare it outside the if/else.
+                    else
                     {
-                        return candidateObj;
+                        comparisonObject = GetObjectAtPath(candidateObj, condition.Path, objectLinkMap, linkCache);
+                        evalParameters.Add(comparisonObject);
                     }
+                    argIndex++;
+                }
+                if(skipToNext) { continue; }
+
+                if (evalParameters.Count == arrayMatchConditions.Count && Eval.Execute<bool>(matchConditionStr, evalParameters.ToArray()))
+                {
+                    return candidateObj;
                 }
             }
             return null;
@@ -281,17 +331,5 @@ namespace SynthEBD
             var pattern = @"\.(?![^\[]*[\]])";
             return Regex.Split(input, pattern);
         }
-    }
-
-    public class ParsedPathObj
-    {
-        public ParsedPathObj()
-        {
-            this.CurrentObj = null;
-            this.RemainingPath = new List<string>();
-        }
-
-        public object CurrentObj { get; set; }
-        public List<string> RemainingPath { get; set; }
     }
 }

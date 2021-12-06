@@ -98,13 +98,14 @@ namespace SynthEBD
                 else
                 {
                     // check to make sure consistency asset pack exists
-                    var consistencyAssetPack = preFilteredPacks.Where(x => x.GroupName == npcInfo.ConsistencyNPCAssignment.AssetPackName).FirstOrDefault().ShallowCopy(); // don't forget to shallow copy or subsequent NPCs will get pruned asset packs;
+                    var consistencyAssetPack = preFilteredPacks.FirstOrDefault(x => x.GroupName == npcInfo.ConsistencyNPCAssignment.AssetPackName);
                     if (consistencyAssetPack == null)
                     {
                         Logger.LogReport("Could not find the asset pack specified in the consistency file: " + npcInfo.ConsistencyNPCAssignment.AssetPackName);
                     }
                     else
                     {
+                        consistencyAssetPack = consistencyAssetPack.ShallowCopy(); // otherwise subsequent NPCs will get pruned packs as the consistency pack is modified in the current round of patching
                         // check each subgroup against specific npc assignment
                         for (int i = 0; i < npcInfo.ConsistencyNPCAssignment.SubgroupIDs.Count; i++)
                         {

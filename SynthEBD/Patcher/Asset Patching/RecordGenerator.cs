@@ -16,17 +16,6 @@ namespace SynthEBD
 {
     public class RecordGenerator
     {
-        private class PathToTemplateLinker
-        {
-            public PathToTemplateLinker()
-            {
-
-            }
-
-            public List<FilePathReplacementParsed> ParsedPaths { get; set; }
-            public ParsedPathObj PathObj { get; set; }
-        }
-
         public static void CombinationToRecords(SubgroupCombination combination, NPCInfo npcInfo, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SkyrimMod outputMod, Dictionary<string, int> edidCounts)
         {
             var template = GetTemplateNPC(npcInfo, combination.AssetPack, recordTemplateLinkCache);
@@ -91,11 +80,20 @@ namespace SynthEBD
                     {
                         // step through the path
                         currentObj = RecordPathParser.GetObjectAtPath(rootObj, currentSubPath, objectLinkMap, MainLoop.MainLinkCache);
-                        //bool currentObjectIsARecord = RecordPathParser.PropertyIsRecord(rootObj, currentSubPath, out FormKey? recordFormKey, objectLinkMap, MainLoop.MainLinkCache);
                         bool currentObjectIsARecord = RecordPathParser.ObjectIsRecord(currentObj, out FormKey? recordFormKey);
-                        if (currentObjectIsARecord && !recordFormKey.Value.IsNull && MainLoop.MainLinkCache.TryResolve(recordFormKey.Value, (Type)currentObj.GetType(), out var currentMajorRecordCommonGetter)) //if the current object is an existing record, resolve it so that it can be traversed
+                        if (currentObjectIsARecord && !recordFormKey.Value.IsNull)
                         {
-                            currentObj = GetOrAddGenericRecordAsOverride((IMajorRecordGetter)currentMajorRecordCommonGetter, outputMod);
+                            Type recordType = RecordPathParser.GetSubObject(currentObj, "Type");
+                            if (recordType == null)
+                            {
+                                Type objType = currentObj.GetType();
+                                var register = LoquiRegistration.GetRegister(objType);
+                                recordType = register.GetterType;
+                            }
+                            if (MainLoop.MainLinkCache.TryResolve(recordFormKey.Value, recordType, out var currentMajorRecordCommonGetter)) //if the current object is an existing record, resolve it so that it can be traversed
+                            {
+                                currentObj = GetOrAddGenericRecordAsOverride((IMajorRecordGetter)currentMajorRecordCommonGetter, outputMod);
+                            }
                         }
 
                         // if the NPC doesn't have the given object (e.g. the NPC doesn't have a WNAM), assign in from template
@@ -176,9 +174,9 @@ namespace SynthEBD
             Dictionary<FormKey, FormKey> mapping = new Dictionary<FormKey, FormKey>();
             foreach (var fl in copiedRecord.ContainedFormLinks)
             {
-                if (fl.FormKey.ModKey == sourceModKey && !fl.FormKey.IsNull)
+                if (fl.FormKey.ModKey == sourceModKey && !fl.FormKey.IsNull && sourceLinkCache.TryResolve(fl.FormKey, fl.Type, out var subRecord))
                 {
-                    var copiedSubRecord = DeepCopyRecordToPatch(fl.FormKey, sourceModKey, sourceLinkCache, destinationMod);
+                    var copiedSubRecord = DeepCopyRecordToPatch(subRecord, sourceModKey, sourceLinkCache, destinationMod);
                     mapping.Add(fl.FormKey, copiedSubRecord.FormKey);
                 }
             }
