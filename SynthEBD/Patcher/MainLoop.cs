@@ -25,6 +25,8 @@ namespace SynthEBD
             var outputMod = new SkyrimMod(patchModKey, SkyrimRelease.SkyrimSE);
             MainLinkCache = GameEnvironmentProvider.MyEnvironment.LoadOrder.ToMutableLinkCache(outputMod);
 
+            PropertyCache = new();
+
             Dictionary<string, int> edidCounts = new Dictionary<string, int>();
 
             Logger.UpdateStatus("Patching", false);
@@ -127,6 +129,8 @@ namespace SynthEBD
         }
 
         public static ILinkCache<ISkyrimMod, ISkyrimModGetter> MainLinkCache;
+
+        public static Dictionary<Type, Dictionary<string, System.Reflection.PropertyInfo>> PropertyCache;
 
         private static void timer_Tick(object sender, EventArgs e)
         {

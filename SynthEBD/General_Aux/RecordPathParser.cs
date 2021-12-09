@@ -10,8 +10,7 @@ using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
 using Mutagen.Bethesda.Plugins.Cache;
-using Loqui;
-
+using FastMember;
 namespace SynthEBD
 {
     public class RecordPathParser
@@ -229,8 +228,58 @@ namespace SynthEBD
             return false;
         }
 
-        public static dynamic GetSubObject(Object root, string propertyName)
+        public static dynamic GetSubObject(dynamic root, string propertyName)
         {
+            //FastMember
+            /*
+            var accessor = TypeAccessor.Create(root.GetType());
+            MemberSet members = accessor.GetMembers();
+            if (members.Where(x => x.Name == propertyName).Any())
+            {
+                return accessor[root, propertyName];
+            }
+            else
+            {
+                return null;
+            }
+            */
+
+            Type type = root.GetType();
+            
+            if (MainLoop.PropertyCache.ContainsKey(type))
+            {
+                var subDict = MainLoop.PropertyCache[type];
+                if (subDict.ContainsKey(propertyName))
+                {
+                    var cachedProperty = subDict[propertyName];
+                    if (cachedProperty != null)
+                    {
+                        return cachedProperty.GetValue(root);
+                    }
+                }
+                else
+                {
+                    var newProperty = type.GetProperty(propertyName);
+                    subDict.Add(propertyName, newProperty);
+                    if (newProperty != null)
+                    {
+                        return newProperty.GetValue(root);
+                    }
+                }
+            }
+            else
+            {
+                var newSubDict = new Dictionary<string, PropertyInfo>();
+                var newProperty2 = type.GetProperty(propertyName);
+                newSubDict.Add(propertyName, newProperty2);
+                MainLoop.PropertyCache.Add(type, newSubDict);
+                if (newProperty2 != null)
+                {
+                    return newProperty2.GetValue(root);
+                }
+            }
+            return null;
+            /*
             var property = root.GetType().GetProperty(propertyName);
             if (property != null)
             {
@@ -240,15 +289,32 @@ namespace SynthEBD
             {
                 return null;
             }
+            */
         }
 
         public static void SetSubObject(dynamic root, string propertyName, dynamic value)
         {
+            //FastMember
+            /*
+            var accessor = TypeAccessor.Create(root.GetType());
+            MemberSet members = accessor.GetMembers();
+            if (members.Where(x => x.Name == propertyName).Any())
+            {
+                accessor[root, propertyName] = value;
+            }
+            else
+            {
+                Logger.LogReport("Error: Could not set " + propertyName + " to " + value + " because the root object of type " + root.GetType() + " does not contain this property.");
+            }
+            */
+
+            
             var property = root.GetType().GetProperty(propertyName);
             if (property != null)
             {
                 property.SetValue(root, value);
             }
+            
         }
 
         /// <summary>
