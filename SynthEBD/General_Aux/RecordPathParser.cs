@@ -134,9 +134,14 @@ namespace SynthEBD
                     Path = Path.Remove(0, 1).Trim();
                 }
             }
+            private ArrayPathCondition()
+            {
+
+            }
             public string Path;
             public string ReplacerTemplate;
             public string MatchCondition;
+            public string SpecialHandling = "";
 
             public static List<ArrayPathCondition> GetConditionsFromString(string input)
             {
@@ -144,6 +149,17 @@ namespace SynthEBD
                 List<ArrayPathCondition> output = new List<ArrayPathCondition>();
                 foreach (var conditionStr in result)
                 {
+                    if (conditionStr.Contains("PatchableRaces")) // special command
+                    {
+                        var patchableRaceArgs = conditionStr.Split("(");
+                        var patchableRaceSubject = patchableRaceArgs[1].Trim();
+                        var patchableRaceMethod = patchableRaceArgs[0].Replace("PatchableRaces.", "");
+
+                        var patchableRaceCondition = new ArrayPathCondition { Path = patchableRaceSubject.Substring(0, patchableRaceSubject.Length - 1), MatchCondition = patchableRaceMethod.Trim(), SpecialHandling = "PatchableRaces"};
+                        patchableRaceCondition.ReplacerTemplate = patchableRaceCondition.Path;
+                        output.Add(patchableRaceCondition);
+                        continue;
+                    }
                     output.Add(new ArrayPathCondition(conditionStr));
                 }
                 return output;
@@ -158,10 +174,21 @@ namespace SynthEBD
             foreach (var condition in arrayMatchConditions)
             {
                 string argStr = '{' + argIndex.ToString() + '}';
-                matchConditionStr = matchConditionStr.Replace(condition.ReplacerTemplate, argStr);
+                //try using RegEx or some other algorithm to replace whole word only. This is temp solution
+                //matchConditionStr = matchConditionStr.Replace(condition.ReplacerTemplate, argStr);
+                for (int i = 0; i < matchConditionStr.Length - condition.ReplacerTemplate.Length; i++)
+                {
+                    if (matchConditionStr.Substring(i, condition.ReplacerTemplate.Length) == condition.ReplacerTemplate && (i == 0 || matchConditionStr[i - 1] == '(' || matchConditionStr[i - 1] == ' '))
+                    {
+                       matchConditionStr = matchConditionStr.Remove(i, condition.ReplacerTemplate.Length);
+                       matchConditionStr = matchConditionStr.Insert(i, argStr);
+                    }
+                }
                 argIndex++;
             }
 
+            int patchableRaceArgIndex = argIndex;
+            bool addPatchableRaceArg = false;
 
             foreach (var candidateObj in variants)
             {
@@ -177,12 +204,11 @@ namespace SynthEBD
                 foreach (var condition in arrayMatchConditions)
                 {
                     dynamic comparisonObject;
-                    string argStr = '{' + argIndex.ToString() + '}';
                     
                     if (candidateObjIsResolved && candidateRecordGetter != null)
                     {
                         comparisonObject = GetObjectAtPath(candidateRecordGetter, condition.Path, objectLinkMap, linkCache);
-                        evalParameters.Add(comparisonObject);
+                        evalParameters.Add(candidateRecordGetter);
                     }
                     else if (candidateObjIsRecord) // warn if the object is a record but the corresponding Form couldn't be resolved
                     {
@@ -196,10 +222,23 @@ namespace SynthEBD
                         evalParameters.Add(comparisonObject);
                     }
                     argIndex++;
+
+                    if (condition.SpecialHandling == "PatchableRaces")
+                    {
+                        matchConditionStr = matchConditionStr.Replace("PatchableRaces", '{' + patchableRaceArgIndex.ToString() + "}");
+                        addPatchableRaceArg = true;
+                        evalParameters[evalParameters.Count - 1] = evalParameters[evalParameters.Count - 1].FormKey.AsLinkGetter<IRaceGetter>();
+                    }
                 }
                 if(skipToNext) { continue; }
+                
+                // reference PatchableRaces if necessary
+                if (addPatchableRaceArg) 
+                {
+                    evalParameters.Add(MainLoop.PatchableRaces); 
+                }
 
-                if (evalParameters.Count == arrayMatchConditions.Count && Eval.Execute<bool>(matchConditionStr, evalParameters.ToArray()))
+                if (Eval.Execute<bool>(matchConditionStr, evalParameters.ToArray()))
                 {
                     return candidateObj;
                 }
@@ -308,13 +347,48 @@ namespace SynthEBD
             }
             */
 
-            
+            Type type = root.GetType();
+
+            if (MainLoop.PropertyCache.ContainsKey(type))
+            {
+                var subDict = MainLoop.PropertyCache[type];
+                if (subDict.ContainsKey(propertyName))
+                {
+                    var cachedProperty = subDict[propertyName];
+                    if (cachedProperty != null)
+                    {
+                        cachedProperty.SetValue(root, value);
+                    }
+                }
+                else
+                {
+                    var newProperty = type.GetProperty(propertyName);
+                    subDict.Add(propertyName, newProperty);
+                    if (newProperty != null)
+                    {
+                        newProperty.SetValue(root, value);
+                    }
+                }
+            }
+            else
+            {
+                var newSubDict = new Dictionary<string, PropertyInfo>();
+                var newProperty2 = type.GetProperty(propertyName);
+                newSubDict.Add(propertyName, newProperty2);
+                MainLoop.PropertyCache.Add(type, newSubDict);
+                if (newProperty2 != null)
+                {
+                    newProperty2.SetValue(root, value);
+                }
+            }
+
+            /*
             var property = root.GetType().GetProperty(propertyName);
             if (property != null)
             {
                 property.SetValue(root, value);
             }
-            
+            */
         }
 
         /// <summary>
@@ -397,5 +471,6 @@ namespace SynthEBD
             var pattern = @"\.(?![^\[]*[\]])";
             return Regex.Split(input, pattern);
         }
+
     }
 }

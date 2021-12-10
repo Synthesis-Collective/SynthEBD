@@ -18,14 +18,16 @@ namespace SynthEBD
     public class MainLoop
     {
         //Synchronous version for debugging only
-        //public static void RunPatcher(List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
-        public static async Task RunPatcher(List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
+        public static void RunPatcher(List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
+        //public static async Task RunPatcher(List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
         {
             ModKey.TryFromName(PatcherSettings.General.patchFileName, ModType.Plugin, out var patchModKey);
             var outputMod = new SkyrimMod(patchModKey, SkyrimRelease.SkyrimSE);
             MainLinkCache = GameEnvironmentProvider.MyEnvironment.LoadOrder.ToMutableLinkCache(outputMod);
 
             PropertyCache = new();
+
+            ResolvePatchableRaces();
 
             Dictionary<string, int> edidCounts = new Dictionary<string, int>();
 
@@ -124,7 +126,11 @@ namespace SynthEBD
             Logger.UpdateStatus("Finished Patching", false);
 
             string outputPath = System.IO.Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, PatcherSettings.General.patchFileName + ".esp");
-            outputMod.WriteToBinary(outputPath);
+            try
+            {
+                outputMod.WriteToBinary(outputPath);
+            }
+            catch { Logger.LogErrorWithStatusUpdate("Could not write output file to " + outputPath, ErrorType.Error); };
             Logger.LogMessage("Wrote output file at " + outputPath + ".");
         }
 
@@ -132,9 +138,39 @@ namespace SynthEBD
 
         public static Dictionary<Type, Dictionary<string, System.Reflection.PropertyInfo>> PropertyCache;
 
+        //public static HashSet<FormKey> PatchableRaces;
+        public static HashSet<IFormLinkGetter<IRaceGetter>> PatchableRaces;
+
         private static void timer_Tick(object sender, EventArgs e)
         {
             Logger.UpdateStatus("Finished Patching", false);
+        }
+
+        /*
+        private static void ResolvePatchableRaces()
+        {
+            PatchableRaces = new HashSet<FormKey>();
+            foreach (var raceFK in PatcherSettings.General.patchableRaces)
+            {
+                PatchableRaces.Add(raceFK);
+            }
+            if (!PatchableRaces.Contains(Skyrim.Race.DefaultRace.FormKey))
+            {
+                PatchableRaces.Add(Skyrim.Race.DefaultRace.FormKey);
+            }    
+        }*/
+
+        private static void ResolvePatchableRaces()
+        {
+            PatchableRaces = new HashSet<IFormLinkGetter<IRaceGetter>>();
+            foreach (var raceFK in PatcherSettings.General.patchableRaces)
+            {
+                if (MainLinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
+                {
+                    PatchableRaces.Add(raceGetter.AsLinkGetter());
+                }
+            }
+            PatchableRaces.Add(Skyrim.Race.DefaultRace.TryResolve(MainLinkCache).AsLinkGetter());
         }
     }
 }
