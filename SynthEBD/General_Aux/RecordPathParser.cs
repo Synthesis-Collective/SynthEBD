@@ -208,7 +208,7 @@ namespace SynthEBD
                     if (candidateObjIsResolved && candidateRecordGetter != null)
                     {
                         comparisonObject = GetObjectAtPath(candidateRecordGetter, condition.Path, objectLinkMap, linkCache);
-                        evalParameters.Add(candidateRecordGetter);
+                        evalParameters.Add(comparisonObject);
                     }
                     else if (candidateObjIsRecord) // warn if the object is a record but the corresponding Form couldn't be resolved
                     {
@@ -245,6 +245,8 @@ namespace SynthEBD
             }
             return null;
         }
+
+        public static HashSet<IFormLinkGetter<IRaceGetter>> testHashSet = new HashSet<IFormLinkGetter<IRaceGetter>>() {Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DefaultRace};
 
         private static bool PathIsArray(string path, out string subPath, out string index) //correct input is of form x[y]
         {

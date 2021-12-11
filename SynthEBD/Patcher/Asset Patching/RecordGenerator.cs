@@ -22,9 +22,10 @@ namespace SynthEBD
         {
             var template = GetTemplateNPC(npcInfo, combination.AssetPack, recordTemplateLinkCache);
 
-            List<FilePathReplacement> wnamPaths = new List<FilePathReplacement>();
-            List<FilePathReplacement> headtexPaths = new List<FilePathReplacement>();
+            HashSet<FilePathReplacement> wnamPaths = new HashSet<FilePathReplacement>();
+            HashSet<FilePathReplacement> headtexPaths = new HashSet<FilePathReplacement>();
             List<FilePathReplacementParsed> nonHardcodedPaths = new List<FilePathReplacementParsed>();
+
             int longestPath = 0;
 
             foreach (var subgroup in combination.ContainedSubgroups)
@@ -33,19 +34,19 @@ namespace SynthEBD
                 {
                     var parsed = new FilePathReplacementParsed(path);
 
-                    //if (WornArmorPaths.Contains(path.Destination)) { wnamPaths.Add(path); }
-                    //else if (HeadTexturePaths.Contains(path.Destination)) { headtexPaths.Add(path); }
-                    //else
-                    //{
+                    if (WornArmorPaths.Contains(path.Destination)) { wnamPaths.Add(path); }
+                    else if (HeadTexturePaths.Contains(path.Destination)) { headtexPaths.Add(path); }
+                    else
+                    {
                         nonHardcodedPaths.Add(parsed);
                         if (parsed.Destination.Length > longestPath)
                         {
                             longestPath = parsed.Destination.Length;
                         }
-                    //}
+                    }
                 }
             }
-            /*
+            
             if (headtexPaths.Any())
             {
                 AssignHeadTexture(npcInfo.NPC, outputMod, template, MainLoop.MainLinkCache, recordTemplateLinkCache, headtexPaths);
@@ -54,8 +55,16 @@ namespace SynthEBD
             {
                 AssignBodyTextures(npcInfo, outputMod, template, MainLoop.MainLinkCache, recordTemplateLinkCache, wnamPaths);
             }
-             */
+            if (nonHardcodedPaths.Any())
+            {
+                AssignNonHardCodedTextures(npcInfo, template, nonHardcodedPaths, recordTemplateLinkCache, outputMod, edidCounts, longestPath);
+            }
+            int dbg = 0;
+        }
 
+        public static void AssignNonHardCodedTextures(NPCInfo npcInfo, INpcGetter template, List<FilePathReplacementParsed> nonHardcodedPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SkyrimMod outputMod, Dictionary<string, int> edidCounts, int longestPath)
+        {
+            HashSet<IMajorRecord> assignedRecords = new HashSet<IMajorRecord>();
 
             Dictionary<string, dynamic> recordsAtPaths = new Dictionary<string, dynamic>(); // quickly look up record templates rather than redoing reflection work
 
@@ -184,7 +193,6 @@ namespace SynthEBD
                     }
                 }
             }
-            int dbg = 0;
         }
 
         public static IMajorRecord DeepCopyRecordToPatch(dynamic sourceRecordObj, ModKey sourceModKey, ILinkCache<ISkyrimMod, ISkyrimModGetter> sourceLinkCache, SkyrimMod destinationMod)
@@ -300,17 +308,20 @@ namespace SynthEBD
         private static Armor AssignBodyTextures(NPCInfo npcInfo, SkyrimMod outputMod, INpcGetter templateNPC, ILinkCache<ISkyrimMod, ISkyrimModGetter> mainLinkCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> templateLinkCache, HashSet<FilePathReplacement> paths)
         {
             Armor newSkin = outputMod.Armors.AddNew();
+            bool assignedFromTemplate = false;
             if (!npcInfo.NPC.WornArmor.IsNull && mainLinkCache.TryResolve<IArmorGetter>(npcInfo.NPC.WornArmor.FormKey, out var existingWNAM))
             {
                 newSkin.DeepCopyIn(existingWNAM);
             }
-            else if (!templateNPC.WornArmor.IsNull && templateLinkCache.TryResolve<ITextureSetGetter>(templateNPC.HeadTexture.FormKey, out var templateWNAM))
+            else if (!templateNPC.WornArmor.IsNull && templateLinkCache.TryResolve<IArmorGetter>(templateNPC.WornArmor.FormKey, out var templateWNAM))
             {
                 newSkin.DeepCopyIn(templateWNAM);
+                assignedFromTemplate = true;
             }
             else
             {
                 Logger.LogReport("Could not resolve a head texture from NPC " + npcInfo.LogIDstring + " or its corresponding record template.");
+                outputMod.Armors.Remove(newSkin);
                 return null;
             }
 
@@ -318,19 +329,31 @@ namespace SynthEBD
             var handsArmorAddonPaths = paths.Where(x => HandsArmorAddonPaths.Contains(x.Destination)).ToHashSet();
             var feetArmorAddonPaths = paths.Where(x => FeetArmorAddonPaths.Contains(x.Destination)).ToHashSet();
             var tailArmorAddonPaths = paths.Where(x => TailArmorAddonPaths.Contains(x.Destination)).ToHashSet();
-            var allowedRaces = new HashSet<IFormLinkGetter<IRaceGetter>>();
-            allowedRaces.Add(npcInfo.NPC.Race);
-            var assetsRaceGetter = npcInfo.AssetsRace.AsLinkGetter<IRaceGetter>();
-            if (!allowedRaces.Contains(assetsRaceGetter))
+            var allowedRaces = new HashSet<string>();
+            allowedRaces.Add(npcInfo.NPC.Race.FormKey.ToString());
+            var assetsRaceString = npcInfo.AssetsRace.ToString();
+            if (!allowedRaces.Contains(assetsRaceString))
             {
-                allowedRaces.Add(assetsRaceGetter);
+                allowedRaces.Add(assetsRaceString);
             }
+            allowedRaces.Add(Skyrim.Race.DefaultRace.FormKey.ToString());
 
             if (torsoArmorAddonPaths.Any())
             {
-                var assignedTorso = AssignArmorAddon(newSkin, npcInfo, outputMod, templateNPC, mainLinkCache, templateLinkCache, torsoArmorAddonPaths, ArmorAddonType.Torso, allowedRaces);
+                var assignedTorso = AssignArmorAddon(newSkin, npcInfo, outputMod, templateNPC, mainLinkCache, templateLinkCache, torsoArmorAddonPaths, ArmorAddonType.Torso, allowedRaces, assignedFromTemplate);
             }
-
+            if (handsArmorAddonPaths.Any())
+            {
+                var assignedHands = AssignArmorAddon(newSkin, npcInfo, outputMod, templateNPC, mainLinkCache, templateLinkCache, handsArmorAddonPaths, ArmorAddonType.Hands, allowedRaces, assignedFromTemplate);
+            }
+            if (feetArmorAddonPaths.Any())
+            {
+                var assignedFeet = AssignArmorAddon(newSkin, npcInfo, outputMod, templateNPC, mainLinkCache, templateLinkCache, feetArmorAddonPaths, ArmorAddonType.Feet, allowedRaces, assignedFromTemplate);
+            }
+            if (tailArmorAddonPaths.Any())
+            {
+                var assignedHands = AssignArmorAddon(newSkin, npcInfo, outputMod, templateNPC, mainLinkCache, templateLinkCache, tailArmorAddonPaths, ArmorAddonType.Tail, allowedRaces, assignedFromTemplate);
+            }
             var patchedNPC = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
             patchedNPC.WornArmor.SetTo(newSkin);
             return newSkin;
@@ -344,47 +367,51 @@ namespace SynthEBD
             Tail
         }
 
-        private static ArmorAddon AssignArmorAddon(Armor parentArmorRecord, NPCInfo npcInfo, SkyrimMod outputMod, INpcGetter templateNPC, ILinkCache<ISkyrimMod, ISkyrimModGetter> mainLinkCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> templateLinkCache, HashSet<FilePathReplacement> paths, ArmorAddonType type, HashSet<IFormLinkGetter<IRaceGetter>> currentRaces)
+        private static ArmorAddon AssignArmorAddon(Armor parentArmorRecord, NPCInfo npcInfo, SkyrimMod outputMod, INpcGetter templateNPC, ILinkCache<ISkyrimMod, ISkyrimModGetter> mainLinkCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> templateLinkCache, HashSet<FilePathReplacement> paths, ArmorAddonType type, HashSet<string> currentRaceIDstrs, bool isFromTemplateLinkCache)
         {
             ArmorAddon newArmorAddon = outputMod.ArmorAddons.AddNew();
             IArmorAddonGetter templateAA;
             HashSet<IArmorAddonGetter> candidateAAs = new HashSet<IArmorAddonGetter>();
-            BipedObjectFlag searchFlag = new BipedObjectFlag();
-            foreach (var aa in parentArmorRecord.Armature)
+            bool replaceExistingArmature = false;
+            
+            // try to get the needed armor addon template record from the existing parent armor record
+            foreach (var aa in parentArmorRecord.Armature.Where(x => MainLoop.IgnoredArmorAddons.Contains(x.FormKey.AsLinkGetter<IArmorAddonGetter>()) == false))
             {
-                if (aa.TryResolve<IArmorAddonGetter>(mainLinkCache, out var candidateAA))
+                if (!isFromTemplateLinkCache && aa.TryResolve(mainLinkCache, out var candidateAA))
                 {
                     candidateAAs.Add(candidateAA);
                 }
+                else if (aa.TryResolve(templateLinkCache, out var candidateAAfromTemplate))
+                {
+                    candidateAAs.Add(candidateAAfromTemplate);
+                }
             }
 
-            switch (type)
-            {
-                case ArmorAddonType.Torso: searchFlag = BipedObjectFlag.Body; break;
-                case ArmorAddonType.Hands: searchFlag = BipedObjectFlag.Hands; break;
-                case ArmorAddonType.Feet: searchFlag = BipedObjectFlag.Feet; break;
-                case ArmorAddonType.Tail: searchFlag = BipedObjectFlag.Tail; break;
-            }
-
-            templateAA = ChooseArmature(candidateAAs, searchFlag, currentRaces);
+            templateAA = ChooseArmature(candidateAAs, type, currentRaceIDstrs);
             if (templateAA != null)
             {
                 newArmorAddon.DeepCopyIn(templateAA);
-                var assignedSkinTexture = AssignSkinTexture(newArmorAddon, false, npcInfo, outputMod, mainLinkCache, templateLinkCache, paths);
+                var assignedSkinTexture = AssignSkinTexture(newArmorAddon, isFromTemplateLinkCache, npcInfo, outputMod, mainLinkCache, templateLinkCache, paths);
+                replaceExistingArmature = true;
             }
-            else if (!templateNPC.WornArmor.IsNull && templateNPC.WornArmor.TryResolve<IArmorGetter>(templateLinkCache, out var templateArmorGetter))
+
+            // try to get the needed armor record from the corresponding record template
+            else if (!templateNPC.WornArmor.IsNull && templateNPC.WornArmor.TryResolve(templateLinkCache, out var templateArmorGetter))
             {
                 candidateAAs = new HashSet<IArmorAddonGetter>();
-                foreach (var aa in templateArmorGetter.Armature)
+                foreach (var aa in templateArmorGetter.Armature.Where(x => MainLoop.IgnoredArmorAddons.Contains(x.FormKey.AsLinkGetter<IArmorAddonGetter>()) == false))
                 {
-                    if (aa.TryResolve<IArmorAddonGetter>(templateLinkCache, out var candidateAA))
+                    if (aa.TryResolve(templateLinkCache, out var candidateAA))
                     {
                         candidateAAs.Add(candidateAA);
                     }
                 }
-                templateAA = ChooseArmature(candidateAAs, searchFlag, currentRaces);
-                newArmorAddon.DeepCopyIn(templateAA);
-                var assignedSkinTexture = AssignSkinTexture(newArmorAddon, true, npcInfo, outputMod, mainLinkCache, templateLinkCache, paths);
+                templateAA = ChooseArmature(candidateAAs, type, currentRaceIDstrs);
+                if (templateAA != null)
+                {
+                    newArmorAddon.DeepCopyIn(templateAA);
+                    var assignedSkinTexture = AssignSkinTexture(newArmorAddon, true, npcInfo, outputMod, mainLinkCache, templateLinkCache, paths);
+                }
             }
 
             if (templateAA == null)
@@ -392,16 +419,31 @@ namespace SynthEBD
                 Logger.LogReport("Could not resolve " + type.ToString() + " armature for NPC " + npcInfo.LogIDstring + " or its template.");
                 outputMod.ArmorAddons.Remove(newArmorAddon);
             }
+            else if (replaceExistingArmature == false)
+            {
+                parentArmorRecord.Armature.Add(newArmorAddon);
+            }
+            else
+            {
+                var templateFK = templateAA.FormKey.ToString();
+                for (int i = 0; i < parentArmorRecord.Armature.Count; i++)
+                {
+                    if (parentArmorRecord.Armature[i].FormKey.ToString() == templateFK)
+                    {
+                        parentArmorRecord.Armature[i] = newArmorAddon.AsLinkGetter();
+                    }
+                }
+            }
 
             return newArmorAddon;
         }
 
-        private static TextureSet AssignSkinTexture(ArmorAddon parentArmorAddonRecord, bool isFromTemplateNPC, NPCInfo npcInfo, SkyrimMod outputMod, ILinkCache<ISkyrimMod, ISkyrimModGetter> mainLinkCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> templateLinkCache, HashSet<FilePathReplacement> paths)
+        private static TextureSet AssignSkinTexture(ArmorAddon parentArmorAddonRecord, bool isFromTemplateLinkCache, NPCInfo npcInfo, SkyrimMod outputMod, ILinkCache<ISkyrimMod, ISkyrimModGetter> mainLinkCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> templateLinkCache, HashSet<FilePathReplacement> paths)
         { 
-            ITextureSetGetter templateTextures;
+            ITextureSetGetter templateTextures = null;
             bool templateResolved = false;
 
-            switch(isFromTemplateNPC)
+            switch(isFromTemplateLinkCache)
             {
                 case false: // parent record is from main link cache
                     switch (npcInfo.Gender)
@@ -426,6 +468,7 @@ namespace SynthEBD
             if (templateResolved)
             {
                 TextureSet newSkinTexture = outputMod.TextureSets.AddNew();
+                newSkinTexture.DeepCopyIn(templateTextures);
                 foreach (var path in paths)
                 {
                     if (path.Destination.Contains("GlowOrDetailMap"))
@@ -445,6 +488,13 @@ namespace SynthEBD
                         newSkinTexture.BacklightMaskOrSpecular = path.Source;
                     }
                 }
+
+                switch(npcInfo.Gender)
+                {
+                    case Gender.male: parentArmorAddonRecord.SkinTexture.Male = newSkinTexture.AsNullableLinkGetter(); break;
+                    case Gender.female: parentArmorAddonRecord.SkinTexture.Female = newSkinTexture.AsNullableLinkGetter(); break;
+                }
+
                 return newSkinTexture;
             }
             else
@@ -454,10 +504,18 @@ namespace SynthEBD
             }
         }
 
-        private static IArmorAddonGetter ChooseArmature(HashSet<IArmorAddonGetter> candidates, BipedObjectFlag requiredFlags, HashSet<IFormLinkGetter<IRaceGetter>> requiredRaces)
+        private static IArmorAddonGetter ChooseArmature(HashSet<IArmorAddonGetter> candidates, ArmorAddonType type, HashSet<string> requiredRaceFKstrs)
         {
-            var filteredFlags = candidates.Where(x => x.BodyTemplate.Flags.HasFlag(requiredFlags));
-            return filteredFlags.Where(x => (requiredRaces.Contains(x.Race) || x.Race == Skyrim.Race.DefaultRace)).FirstOrDefault();
+            IEnumerable<IArmorAddonGetter> filteredFlags = null;
+            switch(type)
+            {
+                case ArmorAddonType.Torso: filteredFlags = candidates.Where(x => x.BodyTemplate.FirstPersonFlags.HasFlag(BipedObjectFlag.Body)); break;
+                case ArmorAddonType.Hands: filteredFlags = candidates.Where(x => x.BodyTemplate.FirstPersonFlags.HasFlag(BipedObjectFlag.Hands)); break;
+                case ArmorAddonType.Feet: filteredFlags = candidates.Where(x => x.BodyTemplate.FirstPersonFlags.HasFlag(BipedObjectFlag.Feet)); break;
+                case ArmorAddonType.Tail: filteredFlags = candidates.Where(x => x.BodyTemplate.FirstPersonFlags.HasFlag(BipedObjectFlag.Tail)); break;
+            }
+            if (!filteredFlags.Any()) { return null; }
+            return filteredFlags.Where(x => requiredRaceFKstrs.Contains(x.Race.FormKey.ToString())).FirstOrDefault();
         }
 
         private static HashSet<string> TorsoArmorAddonPaths = new HashSet<string>()

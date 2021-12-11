@@ -28,6 +28,7 @@ namespace SynthEBD
             PropertyCache = new();
 
             ResolvePatchableRaces();
+            InitializeIgnoredArmorAddons();
 
             Dictionary<string, int> edidCounts = new Dictionary<string, int>();
 
@@ -138,27 +139,14 @@ namespace SynthEBD
 
         public static Dictionary<Type, Dictionary<string, System.Reflection.PropertyInfo>> PropertyCache;
 
-        //public static HashSet<FormKey> PatchableRaces;
         public static HashSet<IFormLinkGetter<IRaceGetter>> PatchableRaces;
+
+        public static HashSet<IFormLinkGetter<IArmorAddonGetter>> IgnoredArmorAddons;
 
         private static void timer_Tick(object sender, EventArgs e)
         {
             Logger.UpdateStatus("Finished Patching", false);
         }
-
-        /*
-        private static void ResolvePatchableRaces()
-        {
-            PatchableRaces = new HashSet<FormKey>();
-            foreach (var raceFK in PatcherSettings.General.patchableRaces)
-            {
-                PatchableRaces.Add(raceFK);
-            }
-            if (!PatchableRaces.Contains(Skyrim.Race.DefaultRace.FormKey))
-            {
-                PatchableRaces.Add(Skyrim.Race.DefaultRace.FormKey);
-            }    
-        }*/
 
         private static void ResolvePatchableRaces()
         {
@@ -171,6 +159,14 @@ namespace SynthEBD
                 }
             }
             PatchableRaces.Add(Skyrim.Race.DefaultRace.TryResolve(MainLinkCache).AsLinkGetter());
+        }
+
+        private static void InitializeIgnoredArmorAddons()
+        {
+            IgnoredArmorAddons = new HashSet<IFormLinkGetter<IArmorAddonGetter>>();
+            IgnoredArmorAddons.Add(Skyrim.ArmorAddon.NakedTorsoWerewolfBeast.FormKey.AsLinkGetter<IArmorAddonGetter>());
+            IgnoredArmorAddons.Add(Dawnguard.ArmorAddon.DLC1NakedVampireLord.FormKey.AsLinkGetter<IArmorAddonGetter>());
+            IgnoredArmorAddons.Add(Dragonborn.ArmorAddon.DLC2NakedTorsoWerebearBeast.FormKey.AsLinkGetter<IArmorAddonGetter>());
         }
     }
 }
