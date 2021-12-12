@@ -21,6 +21,7 @@ namespace SynthEBD
             this.DefaultRecordTemplate = new FormKey();
             this.AdditionalRecordTemplateAssignments = new HashSet<AdditionalRecordTemplate>();
             this.AssociatedBodyGenConfigName = "";
+            this.RecordTemplateAdditionalRacesPaths = new HashSet<string>();
         }
 
         public string GroupName { get; set; }
@@ -31,6 +32,7 @@ namespace SynthEBD
         public FormKey DefaultRecordTemplate { get; set; }
         public HashSet<AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
         public string AssociatedBodyGenConfigName { get; set; }
+        public HashSet<string> RecordTemplateAdditionalRacesPaths { get; set; }
         [Newtonsoft.Json.JsonIgnore]
         public string FilePath { get; set; }
 
@@ -180,6 +182,11 @@ namespace SynthEBD
                 s.paths = new HashSet<FilePathReplacement>();
                 foreach (string[] pathPair in g.paths)
                 {
+                    string newSource = pathPair[0];
+                    if (newSource.StartsWith('\\'))
+                    {
+                        newSource = newSource.Remove(0, 1);
+                    }
                     string newDest = "";
                     if (zEBDTexturePathConversionDict.ContainsKey(pathPair[1].ToLower()))
                     {
@@ -190,7 +197,7 @@ namespace SynthEBD
                         Logger.LogMessage("zEBD -> SynthEBD Conversion Warning: Asset Pack: " + assetPackName + ", Subgroup: " + g.id + ": Path " + pathPair[1] + " was not recognized as a default path. Please upgrade it manually to SynthEBD format.");
                         notifyPathConversionError = true;
                     }
-                    s.paths.Add(new FilePathReplacement { Source = pathPair[0], Destination = newDest });
+                    s.paths.Add(new FilePathReplacement { Source = newSource, Destination = newDest });
                 }
 
                 s.weightRange = Converters.StringArrayToWeightRange(g.weightRange);
@@ -320,6 +327,15 @@ namespace SynthEBD
 
                 }
             }
+
+            // add new AdditionalRacesPaths - zEBD accomplished this in a way that is impractical w/ Mutagen due to strong typing
+            s.RecordTemplateAdditionalRacesPaths = new HashSet<string>()
+            {
+                "WornArmor.Armature[BodyTemplate.FirstPersonFlags,.HasFlag(BipedObjectFlag.Body) && PatchableRaces.Contains(Race)].AdditionalRaces",
+                "WornArmor.Armature[BodyTemplate.FirstPersonFlags,.HasFlag(BipedObjectFlag.Hands) && PatchableRaces.Contains(Race)].AdditionalRaces",
+                "WornArmor.Armature[BodyTemplate.FirstPersonFlags,.HasFlag(BipedObjectFlag.Feet) && PatchableRaces.Contains(Race)].AdditionalRaces",
+                "WornArmor.Armature[BodyTemplate.FirstPersonFlags,.HasFlag(BipedObjectFlag.Tail) && PatchableRaces.Contains(Race)].AdditionalRaces"
+            };
 
             bool hasBodyGen = false;
             foreach (var subgroup in z.subgroups)

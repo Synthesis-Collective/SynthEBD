@@ -83,6 +83,36 @@ namespace SynthEBD
             return currentObj;
         }
 
+        public static IMajorRecordGetter GetNearestParentGetter(IMajorRecordGetter rootGetter, string path, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out string relativePath)
+        {
+            IMajorRecordGetter parent = null;
+
+            string[] splitPath = SplitPath(path);
+            dynamic currentObj = rootGetter;
+            relativePath = "";
+
+            for (int i = 0; i < splitPath.Length; i++)
+            {
+                currentObj = GetObjectAtPath(currentObj, splitPath[i], new Dictionary<dynamic, Dictionary<string, dynamic>>(), linkCache);
+                if (currentObj == null) { return null; }
+                if (ObjectIsRecord(currentObj))
+                {
+                    parent = currentObj;
+                    relativePath = "";
+                }
+                else
+                {
+                    relativePath += splitPath[i];
+                    if (i < splitPath.Length - 1)
+                    {
+                        relativePath += ".";
+                    }
+                }
+            }
+
+            return parent;
+        }
+
         private static dynamic GetArrayObjectAtIndex(dynamic currentObj, string arraySubPath, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
         {
             var collectionObj = (IEnumerable<dynamic>)GetObjectAtPath(currentObj, arraySubPath, objectLinkMap, linkCache);

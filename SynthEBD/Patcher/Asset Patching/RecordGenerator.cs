@@ -373,7 +373,7 @@ namespace SynthEBD
             IArmorAddonGetter templateAA;
             HashSet<IArmorAddonGetter> candidateAAs = new HashSet<IArmorAddonGetter>();
             bool replaceExistingArmature = false;
-            
+
             // try to get the needed armor addon template record from the existing parent armor record
             foreach (var aa in parentArmorRecord.Armature.Where(x => MainLoop.IgnoredArmorAddons.Contains(x.FormKey.AsLinkGetter<IArmorAddonGetter>()) == false))
             {

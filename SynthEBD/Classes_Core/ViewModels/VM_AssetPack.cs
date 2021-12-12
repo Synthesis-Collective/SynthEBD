@@ -47,6 +47,7 @@ namespace SynthEBD
             this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
 
             this.AdditionalRecordTemplateAssignments = new ObservableCollection<VM_AdditionalRecordTemplate>();
+            this.RecordTemplateAdditionalRacesPaths = new ObservableCollection<VM_CollectionMemberString>();
 
             /*
             switch (this.gender)
@@ -64,6 +65,11 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ => { this.AdditionalRecordTemplateAssignments.Add(new VM_AdditionalRecordTemplate(this.RecordTemplateLinkCache, this.AdditionalRecordTemplateAssignments)); }
                 );
+
+            AddRecordTemplateAdditionalRacesPath = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => { this.RecordTemplateAdditionalRacesPaths.Add(new VM_CollectionMemberString("", this.RecordTemplateAdditionalRacesPaths)); }
+                );
         }
 
         public string groupName { get; set; }
@@ -76,7 +82,7 @@ namespace SynthEBD
         public VM_BodyGenConfig TrackedBodyGenConfig { get; set; }
         public ObservableCollection<VM_BodyGenConfig> AvailableBodyGenConfigs { get; set; }
         public VM_SettingsBodyGen CurrentBodyGenSettings { get; set; }
-
+        public ObservableCollection<VM_CollectionMemberString> RecordTemplateAdditionalRacesPaths { get; set; }
         public bool IsSelected { get; set; }
 
         public string SourcePath { get; set; }
@@ -94,6 +100,7 @@ namespace SynthEBD
         public RelayCommand RemoveAssetPackConfigFile { get; }
 
         public RelayCommand AddAdditionalRecordTemplateAssignment { get; }
+        public RelayCommand AddRecordTemplateAdditionalRacesPath { get; }
 
         public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>() // referenced by xaml; don't trust VS reference count
         {
@@ -163,6 +170,11 @@ namespace SynthEBD
                 viewModel.AdditionalRecordTemplateAssignments.Add(assignmentVM);
             }
 
+            foreach (var path in model.RecordTemplateAdditionalRacesPaths)
+            {
+                viewModel.RecordTemplateAdditionalRacesPaths.Add(new VM_CollectionMemberString(path, viewModel.RecordTemplateAdditionalRacesPaths));
+            }
+
             return viewModel;
         }
 
@@ -185,6 +197,7 @@ namespace SynthEBD
 
                 model.DefaultRecordTemplate = vm.DefaultTemplateFK;
                 model.AdditionalRecordTemplateAssignments = vm.AdditionalRecordTemplateAssignments.Select(x => VM_AdditionalRecordTemplate.DumpViewModelToModel(x)).ToHashSet();
+                model.RecordTemplateAdditionalRacesPaths = vm.RecordTemplateAdditionalRacesPaths.Select(x => x.Content).ToHashSet();
 
                 foreach (var svm in vm.subgroups)
                 {

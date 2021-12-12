@@ -25,10 +25,10 @@ namespace SynthEBD
                     ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
                     MainLoop.RunPatcher(
                         ParentWindow.AssetPacks, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
-                        ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths, ParentWindow.RecordTemplateLinkCache);
+                        ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths, ParentWindow.RecordTemplateLinkCache, ParentWindow.RecordTemplatePlugins);
                 }
                 );
-            
+
 
             /*
             ClickRun = ReactiveUI.ReactiveCommand.CreateFromTask(
@@ -39,7 +39,7 @@ namespace SynthEBD
 
                     await Task.Run(() => MainLoop.RunPatcher(
                         ParentWindow.AssetPacks, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
-                        ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths, ParentWindow.RecordTemplateLinkCache));
+                        ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths, ParentWindow.RecordTemplateLinkCache, ParentWindow.RecordTemplatePlugins));
                 });
             */
         }

@@ -18,7 +18,7 @@ namespace SynthEBD
     public class MainLoop
     {
         //Synchronous version for debugging only
-        public static void RunPatcher(List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
+        public static void RunPatcher(List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins)
         //public static async Task RunPatcher(List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
         {
             ModKey.TryFromName(PatcherSettings.General.patchFileName, ModType.Plugin, out var patchModKey);
@@ -29,6 +29,7 @@ namespace SynthEBD
 
             ResolvePatchableRaces();
             InitializeIgnoredArmorAddons();
+            UpdateRecordTemplateAdditonalRaces(assetPacks, recordTemplateLinkCache, recordTemplatePlugins);
 
             Dictionary<string, int> edidCounts = new Dictionary<string, int>();
 
@@ -51,6 +52,7 @@ namespace SynthEBD
             {
                 HashSet<FlattenedAssetPack> flattenedAssetPacks = new HashSet<FlattenedAssetPack>();
                 flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x, PatcherSettings.General.RaceGroupings, PatcherSettings.General.bEnableBodyGenIntegration)).ToHashSet();
+                PathTrimmer.TrimFlattenedAssetPacks(flattenedAssetPacks, trimPaths);
                 maleAssetPacks = flattenedAssetPacks.Where(x => x.Gender == Gender.male).ToHashSet();
                 femaleAssetPacks = flattenedAssetPacks.Where(x => x.Gender == Gender.female).ToHashSet();
             }
@@ -82,7 +84,7 @@ namespace SynthEBD
 
                 bodyGenAssignedWithAssets = false;
 
-                if (PatcherSettings.General.ExcludePlayerCharacter && npc == Skyrim.Npc.Player)
+                if (PatcherSettings.General.ExcludePlayerCharacter && npc.FormKey.ToString() == Skyrim.Npc.Player.FormKey.ToString())
                 {
                     continue;
                 }
@@ -129,10 +131,14 @@ namespace SynthEBD
             string outputPath = System.IO.Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, PatcherSettings.General.patchFileName + ".esp");
             try
             {
+                if (System.IO.File.Exists(outputPath))
+                {
+                    System.IO.File.Delete(outputPath);
+                }
                 outputMod.WriteToBinary(outputPath);
+                Logger.LogMessage("Wrote output file at " + outputPath + ".");
             }
             catch { Logger.LogErrorWithStatusUpdate("Could not write output file to " + outputPath, ErrorType.Error); };
-            Logger.LogMessage("Wrote output file at " + outputPath + ".");
         }
 
         public static ILinkCache<ISkyrimMod, ISkyrimModGetter> MainLinkCache;
@@ -146,6 +152,68 @@ namespace SynthEBD
         private static void timer_Tick(object sender, EventArgs e)
         {
             Logger.UpdateStatus("Finished Patching", false);
+        }
+
+        private static void UpdateRecordTemplateAdditonalRaces(List<AssetPack> assetPacks, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins)
+        {
+            Dictionary<string, HashSet<string>> patchedTemplates = new Dictionary<string, HashSet<string>>();
+            foreach (var assetPack in assetPacks)
+            {
+                HashSet<FormKey> templatesToPatch = new HashSet<FormKey>() { assetPack.DefaultRecordTemplate};
+                foreach (var additionalTemplate in assetPack.AdditionalRecordTemplateAssignments)
+                {
+                    templatesToPatch.Add(additionalTemplate.TemplateNPC);
+                }
+
+                foreach (var path in assetPack.RecordTemplateAdditionalRacesPaths)
+                {
+                    foreach (FormKey templateFK in templatesToPatch)
+                    {
+                        if (patchedTemplates.ContainsKey(templateFK.ToString()) && patchedTemplates[templateFK.ToString()].Contains(path))
+                        {
+                            continue;
+                        }
+
+                        var templateMod = recordTemplatePlugins.Where(x => x.ModKey.ToString() == templateFK.ModKey.ToString()).FirstOrDefault();
+                        if (templateMod == null)
+                        {
+                            Logger.LogError("Could not find record template plugin " + templateFK.ToString());
+                        }
+
+                        if (recordTemplateLinkCache.TryResolve<INpcGetter>(templateFK, out var template))
+                        {
+                            try
+                            {
+                                var parentRecordGetter = RecordPathParser.GetNearestParentGetter(template, path, recordTemplateLinkCache, out string relativePath);
+                                if (parentRecordGetter == null) { continue; }
+                                var parentRecord = RecordGenerator.GetOrAddGenericRecordAsOverride(parentRecordGetter, templateMod);
+                                var additionalRaces = RecordPathParser.GetObjectAtPath(parentRecord, relativePath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), recordTemplateLinkCache);
+                                if (additionalRaces != null)
+                                {
+                                    foreach (var race in PatcherSettings.General.patchableRaces)
+                                    {
+                                        additionalRaces.Add(race.AsLink<IRaceGetter>());
+                                    }
+                                }
+                                if (!patchedTemplates.ContainsKey(templateFK.ToString()))
+                                {
+                                    patchedTemplates.Add(templateFK.ToString(), new HashSet<string>());
+                                }
+                                patchedTemplates[templateFK.ToString()].Add(path);
+                            }
+                            catch
+                            {
+                                Logger.LogError("Could not patch additional races expected at " + path + " in template NPC " + Logger.GetNPCLogNameString(template));
+                                continue;
+                            }
+                        }
+                        else
+                        {
+                            Logger.LogError("Could not resolve template NPC " + template.ToString());
+                        }
+                    }
+                }
+            }
         }
 
         private static void ResolvePatchableRaces()
