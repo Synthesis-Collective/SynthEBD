@@ -48,8 +48,9 @@ namespace SynthEBD
             bool blockHeight;
             bool bodyGenAssignedWithAssets;
 
-            Keyword faceKW = null;
-            Keyword scriptKW = null;
+            Keyword EBDFaceKW = null;
+            Keyword EBDScriptKW = null;
+            Spell EBDHelperSpell = null;
 
             if (PatcherSettings.General.bChangeMeshesOrTextures)
             {
@@ -59,98 +60,8 @@ namespace SynthEBD
                 maleAssetPacks = flattenedAssetPacks.Where(x => x.Gender == Gender.male).ToHashSet();
                 femaleAssetPacks = flattenedAssetPacks.Where(x => x.Gender == Gender.female).ToHashSet();
 
-                faceKW = outputMod.Keywords.AddNew();
-                faceKW.EditorID = "EBDProcessFace";
-                
-                scriptKW = outputMod.Keywords.AddNew();
-                scriptKW.EditorID = "EBDValidScriptRace";
-
-                var headpartKW = outputMod.Keywords.AddNew();
-                headpartKW.EditorID = "EBDValidHeadPartActor";
-
-                // flesh out
-                var helperSpell = outputMod.Spells.AddNew();
-                //
-
-                var EBDFaceFixEnabled = outputMod.Globals.AddNewShort();
-                EBDFaceFixEnabled.EditorID = "EBDFaceFixEnabled";
-                EBDFaceFixEnabled.RawFloat = 1;
-                var EBDHeadEnabled = outputMod.Globals.AddNewShort();
-                EBDHeadEnabled.EditorID = "EBDHeadEnabled";
-                EBDHeadEnabled.RawFloat = 0;
-                var EBDHeadInCombatDisabled = outputMod.Globals.AddNewShort();
-                EBDHeadInCombatDisabled.EditorID = "EBDHeadInCombatDisabled";
-                EBDHeadInCombatDisabled.RawFloat = 1;
-                var EBDHeadSpellsEnabled = outputMod.Globals.AddNewShort();
-                EBDHeadSpellsEnabled.EditorID = "EBDHeadSpellsEnabled";
-                EBDHeadSpellsEnabled.RawFloat = 0;
-                var EBDHelperScriptEnabled = outputMod.Globals.AddNewShort();
-                EBDHelperScriptEnabled.EditorID = "EBDHelperScriptEnabled";
-                EBDHelperScriptEnabled.RawFloat = 1;
-
-                var MGEF = outputMod.MagicEffects.AddNew();
-                MGEF.EditorID = "SP_EBD_EBDHelperScript_attacher_MGEF";
-                MGEF.VirtualMachineAdapter = new VirtualMachineAdapter();
-                MGEF.VirtualMachineAdapter.Version = 5;
-                MGEF.VirtualMachineAdapter.ObjectFormat = 2;
-                ScriptEntry scriptEntry = new ScriptEntry();
-                scriptEntry.Name = "EBDHelperScript";
-                ScriptObjectProperty prop1 = new ScriptObjectProperty();
-                prop1.Name = "EBDHeadPartKeyWord";
-                prop1.Flags = ScriptProperty.Flag.Edited;
-                prop1.Object = headpartKW.AsLink();
-                scriptEntry.Properties.Add(prop1);
-                ScriptObjectProperty prop2 = new ScriptObjectProperty();
-                prop2.Name = "EBDHelperMagicEffect";
-                prop2.Flags = ScriptProperty.Flag.Edited;
-                prop2.Object = MGEF.AsLink();
-                scriptEntry.Properties.Add(prop2);
-                ScriptObjectProperty prop3 = new ScriptObjectProperty();
-                prop3.Name = "EBDHelperSpell";
-                prop3.Flags = ScriptProperty.Flag.Edited;
-                prop3.Object = helperSpell.AsLink();
-                scriptEntry.Properties.Add(prop3);
-                ScriptObjectProperty prop4 = new ScriptObjectProperty();
-                prop4.Name = "EBDProcessFace";
-                prop4.Flags = ScriptProperty.Flag.Edited;
-                prop4.Object = faceKW.AsLink();
-                scriptEntry.Properties.Add(prop4);
-                ScriptObjectProperty prop5 = new ScriptObjectProperty();
-                prop5.Name = "EBDScriptKeyWord";
-                prop5.Flags = ScriptProperty.Flag.Edited;
-                prop5.Object = scriptKW.AsLink();
-                scriptEntry.Properties.Add(prop5);
-                ScriptObjectProperty prop6 = new ScriptObjectProperty();
-                prop6.Name = "isHeadEnabled";
-                prop6.Flags = ScriptProperty.Flag.Edited;
-                prop6.Object = EBDHeadEnabled.AsLink();
-                scriptEntry.Properties.Add(prop6);
-                ScriptObjectProperty prop7 = new ScriptObjectProperty();
-                prop7.Name = "isHeadInCombatDisabled";
-                prop7.Flags = ScriptProperty.Flag.Edited;
-                prop7.Object = EBDHeadInCombatDisabled.AsLink();
-                scriptEntry.Properties.Add(prop7);
-                ScriptObjectProperty prop8 = new ScriptObjectProperty();
-                prop8.Name = "isHeadSpellsEnabled";
-                prop8.Flags = ScriptProperty.Flag.Edited;
-                prop8.Object = EBDHeadSpellsEnabled.AsLink();
-                scriptEntry.Properties.Add(prop8);
-                ScriptObjectProperty prop9 = new ScriptObjectProperty();
-                prop9.Name = "isScriptEnabled";
-                prop9.Flags = ScriptProperty.Flag.Edited;
-                prop9.Object = EBDHelperScriptEnabled.AsLink();
-                scriptEntry.Properties.Add(prop9);
-                ScriptObjectProperty prop10 = new ScriptObjectProperty();
-                prop10.Name = "PlayerREF";
-                prop10.Flags = ScriptProperty.Flag.Edited;
-                bool player = FormKey.TryFactory("000014:SkyrimSE.exe", out FormKey playerRefFK);
-                bool playerResolved = MainLinkCache.TryResolve(playerRefFK, out ISkyrimMajorRecordGetter playerRef);
-                prop10.Object = playerRef.AsLink();
-                scriptEntry.Properties.Add(prop10);
-                MGEF.VirtualMachineAdapter.Scripts.Add(scriptEntry);
-                MGEF.CastType = CastType.ConstantEffect;
-                MGEF.Flags |= MagicEffect.Flag.HideInUI;
-                MGEF.Flags |= MagicEffect.Flag.NoDeathDispel;
+                EBDCoreRecords.CreateCoreRecords(outputMod, out EBDFaceKW, out EBDScriptKW, out EBDHelperSpell);
+                EBDCoreRecords.ApplyHelperSpell(outputMod, EBDHelperSpell);
             }
 
             int npcCounter = 0;
@@ -206,8 +117,8 @@ namespace SynthEBD
                         RecordGenerator.CombinationToRecords(assignedComboAndBodyGen.Item1, currentNPCInfo, recordTemplateLinkCache, outputMod, edidCounts);
                         var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
                         if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
-                        npcRecord.Keywords.Add(faceKW);
-                        npcRecord.Keywords.Add(scriptKW);
+                        npcRecord.Keywords.Add(EBDFaceKW);
+                        npcRecord.Keywords.Add(EBDScriptKW);
                     }
                 }
 
