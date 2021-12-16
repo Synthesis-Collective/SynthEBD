@@ -63,6 +63,14 @@ namespace SynthEBD
             }
             #endregion
 
+            #region Consistency
+            if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null)
+            {
+                availableCombinations = GetConsistencyCombinations(availableCombinations, npcInfo);
+            }
+
+            #endregion
+
             // If not matched, choose random
             chosenMorphs = ChooseMorphs(availableCombinations, npcInfo);
 
@@ -156,6 +164,61 @@ namespace SynthEBD
 
             return output;
         }
+
+        public static HashSet<GroupCombinationObject> GetConsistencyCombinations(HashSet<GroupCombinationObject> availableCombinations, NPCInfo npcInfo)
+        {
+            var consistencyMorphs = npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames;
+            if (consistencyMorphs.Count == 0) { return availableCombinations; }
+
+            HashSet<GroupCombinationObject> consistencyCombinations = new HashSet<GroupCombinationObject>();
+            HashSet<GroupCombinationObject> partialMatches = new HashSet<GroupCombinationObject>();
+
+            foreach (var combination in availableCombinations)
+            {
+                var filteredcombination = new GroupCombinationObject(combination);
+                var matchedMorphs = new HashSet<BodyGenConfig.BodyGenTemplate>();
+                var requiredConsistencyMorphs = new HashSet<string>(consistencyMorphs);
+
+                for (int i = 0; i < filteredcombination.Templates.Count; i++)
+                {
+                    foreach (var morph in filteredcombination.Templates[i])
+                    {
+                        if (requiredConsistencyMorphs.Contains(morph.Label))
+                        {
+                            matchedMorphs.Add(morph);
+                            requiredConsistencyMorphs.Remove(morph.Label);
+                        }
+                    }
+
+                    filteredcombination.Templates[i] = matchedMorphs;
+                }
+
+                if (requiredConsistencyMorphs.Count == 0)
+                {
+                    consistencyCombinations.Add(filteredcombination);
+                }
+                else if (requiredConsistencyMorphs.Count < consistencyMorphs.Count)
+                {
+                    partialMatches.Add(filteredcombination);
+                }
+            }
+
+            if (consistencyCombinations.Any())
+            {
+                return consistencyCombinations;
+            }
+            else if (partialMatches.Any())
+            {
+                Logger.LogReport("NPC " + npcInfo.LogIDstring + "'s consistency morph could not be fully matched. Attempting to assign the closest available partial match.");
+                return partialMatches;
+            }
+            else
+            {
+                Logger.LogReport("NPC " + npcInfo.LogIDstring + "'s consistency morph could not be matched. Assigning a random morph");
+                return availableCombinations;
+            }
+        }
+
         /// <summary>
         /// Filters a BodyGenConfig's template list and assigns each template's MatchedForceIfCount
         /// </summary>

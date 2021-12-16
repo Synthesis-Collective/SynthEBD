@@ -128,6 +128,7 @@ namespace SynthEBD
                     if (bodyGenAssignedWithAssets)
                     {
                         BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedComboAndBodyGen.Item2);
+                        currentNPCInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignedComboAndBodyGen.Item2;
                     }
                 }
 
@@ -138,6 +139,7 @@ namespace SynthEBD
                     if (success)
                     {
                         BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedMorphs);
+                        currentNPCInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignedMorphs;
                     }
                 }
 

@@ -25,6 +25,7 @@ namespace SynthEBD
         public VM_SettingsBodyGen BGVM { get; }
         public VM_SettingsHeight HVM { get; } = new();
         public VM_SpecificNPCAssignmentsUI SAUIVM { get; }
+        public VM_ConsistencyUI CUIVM { get; }
         public VM_BlockListUI BUIVM { get; } = new();
 
         public VM_NavPanel NavPanel { get; }
@@ -59,8 +60,9 @@ namespace SynthEBD
             BGVM = new VM_SettingsBodyGen(SGVM.RaceGroupings);
             TMVM = new VM_SettingsTexMesh(BGVM);
             SAUIVM = new VM_SpecificNPCAssignmentsUI(TMVM, BGVM);
+            CUIVM = new VM_ConsistencyUI();
 
-            NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, HVM, SAUIVM, BUIVM, LogDisplayVM);
+            NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, HVM, SAUIVM, CUIVM, BUIVM, LogDisplayVM);
 
             StatusBarVM = new VM_StatusBar();
 
@@ -96,6 +98,7 @@ namespace SynthEBD
 
             // Load Consistency
             Consistency = SettingsIO_Misc.LoadConsistency();
+            VM_ConsistencyUI.GetViewModelsFromModels(Consistency, CUIVM.Assignments);
 
             // load specific assignments
             SpecificNPCAssignments = SettingsIO_SpecificNPCAssignments.LoadAssignments();
@@ -130,6 +133,7 @@ namespace SynthEBD
             VM_HeightConfig.DumpViewModelsToModels(HVM.AvailableHeightConfigs, HeightConfigs);
             VM_SettingsBodyGen.DumpViewModelToModel(BGVM, PatcherSettings.BodyGen);
             VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(SAUIVM, SpecificNPCAssignments);
+            VM_ConsistencyUI.DumpViewModelsToModels(CUIVM.Assignments, Consistency);
             VM_LinkedNPCGroup.DumpViewModelsToModels(LinkedNPCGroups, SGVM.LinkedNPCGroups);
         }
 
