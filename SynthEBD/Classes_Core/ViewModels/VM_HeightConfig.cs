@@ -117,10 +117,10 @@ namespace SynthEBD
                 var vm = new VM_HeightAssignment(viewModels);
                 vm.Label = model.Label;
                 vm.Races = new ObservableCollection<FormKey>(model.Races);
-                vm.MaleHeightBase = model.HeightMale;
-                vm.MaleHeightRange = model.HeightMaleRange;
-                vm.FemaleHeightBase = model.HeightFemale;
-                vm.FemaleHeightRange = model.HeightFemaleRange;
+                vm.MaleHeightBase = model.HeightMale.ToString();
+                vm.MaleHeightRange = model.HeightMaleRange.ToString();
+                vm.FemaleHeightBase = model.HeightFemale.ToString();
+                vm.FemaleHeightRange = model.HeightFemaleRange.ToString();
 
                 viewModels.Add(vm);
             }
@@ -135,10 +135,42 @@ namespace SynthEBD
                 HeightAssignment ha = new HeightAssignment();
                 ha.Label = vm.Label;
                 ha.Races = vm.Races.ToHashSet();
-                ha.HeightMale = vm.MaleHeightBase;
-                ha.HeightMaleRange = vm.MaleHeightRange;
-                ha.HeightFemale = vm.FemaleHeightBase;
-                ha.HeightFemaleRange = vm.FemaleHeightRange;
+
+                if (float.TryParse(vm.MaleHeightBase, out var maleHeight))
+                {
+                    ha.HeightMale = maleHeight;
+                }
+                else
+                {
+                    Logger.LogError("Cannot parse male height " + vm.MaleHeightBase + " for Height Assignment: " + ha.Label);
+                }
+
+                if (float.TryParse(vm.FemaleHeightBase, out var femaleHeight))
+                {
+                    ha.HeightFemale = femaleHeight;
+                }
+                else
+                {
+                    Logger.LogError("Cannot parse female height " + vm.FemaleHeightBase + " for Height Assignment: " + ha.Label);
+                }
+
+                if (float.TryParse(vm.MaleHeightRange, out var maleHeightRange))
+                {
+                    ha.HeightMaleRange = maleHeightRange;
+                }
+                else
+                {
+                    Logger.LogError("Cannot parse male height range " + vm.MaleHeightRange + " for Height Assignment: " + ha.Label);
+                }
+
+                if (float.TryParse(vm.FemaleHeightRange, out var femaleHeightRange))
+                {
+                    ha.HeightFemaleRange = femaleHeightRange;
+                }
+                else
+                {
+                    Logger.LogError("Cannot parse female height range " + vm.FemaleHeightRange + " for Height Assignment: " + ha.Label);
+                }
 
                 models.Add(ha);
             }

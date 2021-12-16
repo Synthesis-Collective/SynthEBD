@@ -15,7 +15,7 @@ namespace SynthEBD
             this.NPCFormKey = new FormKey();
             this.AssetPackName = "";
             this.SubgroupIDs = null;
-            this.Height = "";
+            this.Height = null;
             this.BodyGenMorphNames = null;
         }
 
@@ -23,7 +23,7 @@ namespace SynthEBD
         public FormKey NPCFormKey { get; set; }
         public string AssetPackName { get; set; }
         public List<string> SubgroupIDs { get; set; } // order matters
-        public string Height { get; set; }
+        public float? Height { get; set; }
         public List<string> BodyGenMorphNames { get; set; } // order matters
     }
 
@@ -76,7 +76,16 @@ namespace SynthEBD
                 {
                     s.SubgroupIDs.Add(zFS.id);
                 }
-                s.Height = z.forcedHeight;
+
+                if (float.TryParse(z.forcedHeight, out var forcedHeight))
+                {
+                    s.Height = forcedHeight;
+                }
+                else
+                {
+                    Logger.LogError("Error in zEBD Specific NPC Assignment: Cannot interpret height" + z.forcedHeight);
+                }
+
                 s.BodyGenMorphNames = z.forcedBodyGenMorphs;
                 outputSet.Add(s);
             }

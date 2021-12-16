@@ -53,6 +53,8 @@ namespace SynthEBD
             Keyword EBDScriptKW = null;
             Spell EBDHelperSpell = null;
 
+            HeightConfig currentHeightConfig = null;
+
             if (PatcherSettings.General.bChangeMeshesOrTextures)
             {
                 HashSet<FlattenedAssetPack> flattenedAssetPacks = new HashSet<FlattenedAssetPack>();
@@ -68,6 +70,19 @@ namespace SynthEBD
             if (PatcherSettings.General.bEnableBodyGenIntegration)
             {
                 CompileBodyGenRaces(bodyGenConfigs);
+            }
+
+            if (PatcherSettings.General.bChangeHeight)
+            {
+                currentHeightConfig = heightConfigs.Where(x => x.Label == PatcherSettings.Height.SelectedHeightConfig).FirstOrDefault();
+                if (currentHeightConfig == null)
+                {
+                    Logger.LogError("Could not find selected Height Config:" + PatcherSettings.Height.SelectedHeightConfig + ". Heights will not be assigned.");
+                }
+                else
+                {
+                    HeightPatcher.AssignRacialHeight(currentHeightConfig, outputMod);
+                }
             }
 
             int npcCounter = 0;
@@ -146,7 +161,7 @@ namespace SynthEBD
                 // Height assignment
                 if (PatcherSettings.General.bChangeHeight && !blockHeight && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.HeightRace))
                 {
-
+                    HeightPatcher.AssignNPCHeight(currentNPCInfo, currentHeightConfig, outputMod);
                 }
             }
 

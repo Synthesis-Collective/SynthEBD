@@ -176,21 +176,26 @@ namespace SynthEBD
             foreach (var combination in availableCombinations)
             {
                 var filteredcombination = new GroupCombinationObject(combination);
-                var matchedMorphs = new HashSet<BodyGenConfig.BodyGenTemplate>();
+                
                 var requiredConsistencyMorphs = new HashSet<string>(consistencyMorphs);
 
                 for (int i = 0; i < filteredcombination.Templates.Count; i++)
                 {
+                    var matchedMorphs = new HashSet<BodyGenConfig.BodyGenTemplate>();
                     foreach (var morph in filteredcombination.Templates[i])
                     {
                         if (requiredConsistencyMorphs.Contains(morph.Label))
                         {
                             matchedMorphs.Add(morph);
                             requiredConsistencyMorphs.Remove(morph.Label);
+                            break; // can only match one morph per index
                         }
                     }
 
-                    filteredcombination.Templates[i] = matchedMorphs;
+                    if (matchedMorphs.Any())
+                    {
+                        filteredcombination.Templates[i] = matchedMorphs; // otherwise keep the original template list to use for complementing a partial match
+                    }
                 }
 
                 if (requiredConsistencyMorphs.Count == 0)

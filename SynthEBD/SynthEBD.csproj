@@ -34,8 +34,4 @@
     </Page>
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Patcher\Height Patching\" />
-  </ItemGroup>
-
 </Project>

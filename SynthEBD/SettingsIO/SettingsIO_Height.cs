@@ -62,10 +62,43 @@ namespace SynthEBD
                             var ha = new HeightAssignment();
                             ha.Label = zHC.EDID;
                             ha.Races = new HashSet<Mutagen.Bethesda.Plugins.FormKey> { Converters.RaceEDID2FormKey(zHC.EDID) };
-                            ha.HeightMale = zHC.heightMale;
-                            ha.HeightMaleRange = zHC.heightMaleRange;
-                            ha.HeightFemale = zHC.heightFemale;
-                            ha.HeightMaleRange = zHC.heightFemaleRange;
+
+                            if (float.TryParse(zHC.heightMale, out var maleHeight))
+                            {
+                                ha.HeightMale = maleHeight;
+                            }
+                            else
+                            {
+                                Logger.LogError("Cannot parse male height " + zHC.heightMale + " for Height Assignment: " + ha.Label);
+                            }
+
+                            if (float.TryParse(zHC.heightFemale, out var femaleHeight))
+                            {
+                                ha.HeightFemale = femaleHeight;
+                            }
+                            else
+                            {
+                                Logger.LogError("Cannot parse female height " + zHC.heightFemale + " for Height Assignment: " + ha.Label);
+                            }
+
+                            if (float.TryParse(zHC.heightMaleRange, out var maleHeightRange))
+                            {
+                                ha.HeightMaleRange = maleHeightRange;
+                            }
+                            else
+                            {
+                                Logger.LogError("Cannot parse male height range " + zHC.heightMaleRange + " for Height Assignment: " + ha.Label);
+                            }
+
+                            if (float.TryParse(zHC.heightFemaleRange, out var femaleHeightRange))
+                            {
+                                ha.HeightFemaleRange = femaleHeightRange;
+                            }
+                            else
+                            {
+                                Logger.LogError("Cannot parse female height range " + zHC.heightFemaleRange + " for Height Assignment: " + ha.Label);
+                            }
+
                             fromZformat.HeightAssignments.Add(ha);
                         }
 

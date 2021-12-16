@@ -27,19 +27,19 @@ namespace SynthEBD
         {
             this.Label = "";
             this.Races = new HashSet<FormKey>();
-            this.HeightMale = "1.000000";
-            this.HeightFemale = "1.000000";
-            this.HeightMaleRange = "0.020000";
-            this.HeightFemaleRange = "0.020000";
+            this.HeightMale = 1;
+            this.HeightFemale = 1;
+            this.HeightMaleRange = 0.02F;
+            this.HeightFemaleRange = 0.02F;
             this.DistributionMode = DistMode.uniform;
         }
 
         public string Label { get; set; }
         public HashSet<FormKey> Races { get; set; }
-        public string HeightMale {get; set;}
-        public string HeightFemale { get; set; }
-        public string HeightMaleRange { get; set; }
-        public string HeightFemaleRange { get; set; }
+        public float HeightMale {get; set;}
+        public float HeightFemale { get; set; }
+        public float HeightMaleRange { get; set; }
+        public float HeightFemaleRange { get; set; }
         public DistMode DistributionMode { get; set; }
 
         public class zEBDHeightAssignment // for backwards compatibility

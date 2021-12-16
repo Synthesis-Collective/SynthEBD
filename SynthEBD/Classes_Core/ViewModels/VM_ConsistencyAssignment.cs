@@ -63,7 +63,15 @@ namespace SynthEBD
                     viewModel.BodyGenMorphNames.Add(new VM_CollectionMemberString(morph, viewModel.BodyGenMorphNames));
                 }
             }
-            viewModel.Height = model.Height;
+            if (model.Height != null)
+            {
+                viewModel.Height = model.Height.ToString();
+            }
+            else
+            {
+                viewModel.Height = "";
+            }
+            
             viewModel.DispName = model.DispName;
             viewModel.NPCFormKey = model.NPCFormKey;
             return viewModel;
@@ -77,7 +85,20 @@ namespace SynthEBD
             if (model.SubgroupIDs.Count == 0) { model.SubgroupIDs = null; }
             model.BodyGenMorphNames = viewModel.BodyGenMorphNames.Select(x => x.Content).ToList();
             if (model.BodyGenMorphNames.Count == 0) { model.BodyGenMorphNames = null; }
-            model.Height = viewModel.Height;
+
+            if (viewModel.Height == "")
+            {
+                model.Height = null;
+            }
+            else if (float.TryParse(viewModel.Height, out var height))
+            {
+                model.Height = height;
+            }
+            else
+            {
+                Logger.LogError("Error parsing consistency assignment " + viewModel.DispName + ". Cannot parse height: " + viewModel.Height);
+            }
+            
             model.DispName = viewModel.DispName;
             model.NPCFormKey = viewModel.NPCFormKey;
             return model;

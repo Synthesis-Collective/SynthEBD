@@ -153,7 +153,14 @@ namespace SynthEBD
                 }
             }
 
-            newVM.ForcedHeight = model.Height;
+            if (model.Height != null)
+            {
+                newVM.ForcedHeight = model.Height.ToString();
+            }
+            else
+            {
+                newVM.ForcedHeight = "";
+            }
 
             ObservableCollection<VM_BodyGenTemplate> templates = new ObservableCollection<VM_BodyGenTemplate>();
             switch (newVM.Gender)
@@ -195,7 +202,20 @@ namespace SynthEBD
             model.DispName = viewModel.DispName;
             model.AssetPackName = viewModel.ForcedAssetPack.groupName;
             model.SubgroupIDs = viewModel.ForcedSubgroups.Select(subgroup => subgroup.id).ToList();
-            model.Height = viewModel.ForcedHeight;
+
+            if (viewModel.ForcedHeight == "")
+            {
+                model.Height = null;
+            }
+            else if (float.TryParse(viewModel.ForcedHeight, out var height))
+            {
+                model.Height = height;
+            }
+            else
+            {
+                Logger.LogError("Error parsing Specific NPC Assignment " + viewModel.DispName + ". Cannot parse height: " + viewModel.ForcedHeight);
+            }
+            
             model.BodyGenMorphNames = viewModel.ForcedBodyGenMorphs.Select(morph => morph.Label).ToList();
             model.NPCFormKey = viewModel.NPCFormKey;
             return model;

@@ -34,6 +34,40 @@ namespace SynthEBD
                 }
                 );
 
+            DeleteAllAssets = new SynthEBD.RelayCommand(
+               canExecute: _ => true,
+               execute: x =>
+               {
+                   foreach (var assignment in Assignments)
+                   {
+                       assignment.AssetPackName = "";
+                       assignment.SubgroupIDs.Clear();
+                   }
+               }
+               );
+
+            DeleteAllBodyGen = new SynthEBD.RelayCommand(
+               canExecute: _ => true,
+               execute: x =>
+               {
+                   foreach (var assignment in Assignments)
+                   {
+                       assignment.BodyGenMorphNames.Clear();
+                   }
+               }
+               );
+
+            DeleteAllHeight = new SynthEBD.RelayCommand(
+               canExecute: _ => true,
+               execute: x =>
+               {
+                   foreach (var assignment in Assignments)
+                   {
+                       assignment.Height = "";
+                   }
+               }
+               );
+
             DeleteAllNPCs = new SynthEBD.RelayCommand(
                canExecute: _ => true,
                execute: x =>
@@ -57,6 +91,10 @@ namespace SynthEBD
         public event PropertyChangedEventHandler PropertyChanged;
 
         public RelayCommand DeleteCurrentNPC { get; set; }
+
+        public RelayCommand DeleteAllAssets { get; set; }
+        public RelayCommand DeleteAllBodyGen { get; set; }
+        public RelayCommand DeleteAllHeight { get; set; }
         public RelayCommand DeleteAllNPCs { get; set; }
 
         public void RefereshCurrentAssignment(object sender, PropertyChangedEventArgs e)

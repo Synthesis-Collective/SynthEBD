@@ -11,7 +11,7 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
-            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
@@ -20,8 +20,13 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <Button Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Right" Command="{Binding DeleteAllNPCs}" Foreground="Firebrick">Clear Consistency</Button>
-
+        <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
+            <Button VerticalAlignment="Center" Margin="0 0 10 0" HorizontalAlignment="Right" Command="{Binding DeleteAllAssets}" Foreground="Firebrick">Clear Asset Assignments</Button>
+            <Button VerticalAlignment="Center" Margin="0 0 10 0" HorizontalAlignment="Right" Command="{Binding DeleteAllBodyGen}" Foreground="Firebrick">Clear BodyGen Assignments</Button>
+            <Button VerticalAlignment="Center" Margin="0 0 10 0" HorizontalAlignment="Right" Command="{Binding DeleteAllHeight}" Foreground="Firebrick">Clear Height Assignments</Button>
+            <Button VerticalAlignment="Center" Margin="0 0 0 0" HorizontalAlignment="Right" Command="{Binding DeleteAllNPCs}" Foreground="Firebrick">Clear Consistency</Button>
+        </StackPanel>
+        
         <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 10 0 0">Search NPC</TextBlock>
         <plugins:FormKeyPicker Grid.Row="1"  Grid.Column="1" VerticalAlignment="Top" Margin="0 10 0 0"  FormKey="{Binding SelectedNPCFormKey}" LinkCache="{Binding lk}" ScopedTypes="{Binding AllowedFormKeyTypes}" MaxHeight="250"  />
 

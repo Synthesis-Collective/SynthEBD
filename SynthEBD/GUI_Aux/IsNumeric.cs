@@ -8,13 +8,14 @@ namespace SynthEBD
 {
     public class IsNumeric
     {
-        //https://stackoverflow.com/questions/4085471/allow-only-numeric-entry-in-wpf-text-box
+        //https://stackoverflow.com/questions/894263/identify-if-a-string-is-a-number
 
-        public static bool IsTextNumeric(string str)
+        public static bool IsTextNumeric(System.Windows.Controls.TextBox currrentTextBox, string newText)
         {
-            System.Text.RegularExpressions.Regex reg = new System.Text.RegularExpressions.Regex("[^0-9]");
-            return reg.IsMatch(str);
-
+            string str = string.Join("", new string[] { currrentTextBox.Text, newText });
+            double retNum;
+            bool isNum = Double.TryParse(str, System.Globalization.NumberStyles.Any, System.Globalization.NumberFormatInfo.InvariantInfo, out retNum);
+            return isNum;
         }
     }
 }
