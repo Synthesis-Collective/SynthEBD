@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Mutagen.Bethesda.Plugins;
 using System.IO;
+using Newtonsoft.Json;
 
 namespace SynthEBD
 {
@@ -77,7 +78,7 @@ namespace SynthEBD
             }
         }
 
-        public class BodyGenTemplate
+        public class BodyGenTemplate : IProbabilityWeighted
         {
             public BodyGenTemplate()
             {
@@ -92,12 +93,17 @@ namespace SynthEBD
                 this.DisallowedRaceGroupings = new HashSet<string>();
                 this.AllowedAttributes = new HashSet<NPCAttribute>();
                 this.DisallowedAttributes = new HashSet<NPCAttribute>();
-                this.bAllowUnique = true;
-                this.bAllowNonUnique = true;
-                this.bAllowRandom = true;
+                this.AllowUnique = true;
+                this.AllowNonUnique = true;
+                this.AllowRandom = true;
                 this.ProbabilityWeighting = 1;
                 this.RequiredTemplates = new HashSet<string>();
                 this.WeightRange = new NPCWeightRange();
+
+                // used during patching, not written to settings file
+                this.MatchedForceIfCount = 0;
+                this.CompiledAllowedRaces = new HashSet<FormKey>();
+                this.CompiledDisallowedRaces = new HashSet<FormKey>();
             }
 
             public string Label { get; set; }
@@ -111,12 +117,19 @@ namespace SynthEBD
             public HashSet<string> DisallowedRaceGroupings { get; set; }
             public HashSet<NPCAttribute> AllowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
             public HashSet<NPCAttribute> DisallowedAttributes { get; set; }
-            public bool bAllowUnique { get; set; }
-            public bool bAllowNonUnique { get; set; }
-            public bool bAllowRandom { get; set; }
+            public bool AllowUnique { get; set; }
+            public bool AllowNonUnique { get; set; }
+            public bool AllowRandom { get; set; }
             public int ProbabilityWeighting { get; set; }
             public HashSet<string> RequiredTemplates { get; set; }
             public NPCWeightRange WeightRange { get; set; }
+
+            [JsonIgnore]
+            public int MatchedForceIfCount { get; set; }
+            [JsonIgnore]
+            public HashSet<FormKey> CompiledAllowedRaces { get; set; }
+            [JsonIgnore]
+            public HashSet<FormKey> CompiledDisallowedRaces { get; set; }
         }
     }
 
@@ -372,9 +385,9 @@ namespace SynthEBD
 
             newTemplate.WeightRange = Converters.StringArrayToWeightRange(zTemplate.weightRange);
 
-            newTemplate.bAllowUnique = zTemplate.allowUnique;
-            newTemplate.bAllowNonUnique = zTemplate.allowNonUnique;
-            newTemplate.bAllowRandom = zTemplate.allowRandom;
+            newTemplate.AllowUnique = zTemplate.allowUnique;
+            newTemplate.AllowNonUnique = zTemplate.allowNonUnique;
+            newTemplate.AllowRandom = zTemplate.allowRandom;
             newTemplate.RequiredTemplates = zTemplate.requiredTemplates;
             newTemplate.ProbabilityWeighting = zTemplate.probabilityWeighting;
 

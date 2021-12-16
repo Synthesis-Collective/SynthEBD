@@ -18,8 +18,8 @@ namespace SynthEBD
     public class MainLoop
     {
         //Synchronous version for debugging only
-        public static void RunPatcher(List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins)
-        //public static async Task RunPatcher(List<AssetPack> assetPacks, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
+        public static void RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins)
+        //public static async Task RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
         {
             ModKey.TryFromName(PatcherSettings.General.patchFileName, ModType.Plugin, out var patchModKey);
             var outputMod = new SkyrimMod(patchModKey, SkyrimRelease.SkyrimSE);
@@ -30,6 +30,7 @@ namespace SynthEBD
             ResolvePatchableRaces();
             InitializeIgnoredArmorAddons();
             UpdateRecordTemplateAdditonalRaces(assetPacks, recordTemplateLinkCache, recordTemplatePlugins);
+            BodyGenTracker = new BodyGenAssignmentTracker();
 
             Dictionary<string, int> edidCounts = new Dictionary<string, int>();
 
@@ -62,6 +63,11 @@ namespace SynthEBD
 
                 EBDCoreRecords.CreateCoreRecords(outputMod, out EBDFaceKW, out EBDScriptKW, out EBDHelperSpell);
                 EBDCoreRecords.ApplyHelperSpell(outputMod, EBDHelperSpell);
+            }
+
+            if (PatcherSettings.General.bEnableBodyGenIntegration)
+            {
+                CompileBodyGenRaces(bodyGenConfigs);
             }
 
             int npcCounter = 0;
@@ -104,14 +110,13 @@ namespace SynthEBD
                 // Assets/BodyGen assignment
                 if (PatcherSettings.General.bChangeMeshesOrTextures && !blockAssets && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.AssetsRace))
                 {
-                    //var availableAssetPacks = AssetPacksByRaceGender[new Tuple<FormKey, Gender>(currentNPCInfo.AssetsRace, currentNPCInfo.Gender)];
                     switch (currentNPCInfo.Gender)
                     {
                         case Gender.female: availableAssetPacks = femaleAssetPacks; break;
                         case Gender.male: availableAssetPacks = maleAssetPacks; break;
                     }
                     
-                    var assignedComboAndBodyGen = AssetAndBodyGenSelector.ChooseCombinationAndBodyGen(out bodyGenAssignedWithAssets, availableAssetPacks, currentNPCInfo);
+                    var assignedComboAndBodyGen = AssetAndBodyGenSelector.ChooseCombinationAndBodyGen(out bodyGenAssignedWithAssets, availableAssetPacks, bodyGenConfigs, currentNPCInfo, blockBodyGen);
                     if (assignedComboAndBodyGen.Item1 != null)
                     {
                         RecordGenerator.CombinationToRecords(assignedComboAndBodyGen.Item1, currentNPCInfo, recordTemplateLinkCache, outputMod, edidCounts);
@@ -120,12 +125,20 @@ namespace SynthEBD
                         npcRecord.Keywords.Add(EBDFaceKW);
                         npcRecord.Keywords.Add(EBDScriptKW);
                     }
+                    if (bodyGenAssignedWithAssets)
+                    {
+                        BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedComboAndBodyGen.Item2);
+                    }
                 }
 
                 // BodyGen assignment (if assets not assigned in Assets/BodyGen section)
-                if (PatcherSettings.General.bEnableBodyGenIntegration && !blockBodyGen && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.BodyGenRace) && !bodyGenAssignedWithAssets)
+                if (PatcherSettings.General.bEnableBodyGenIntegration && !blockBodyGen && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.BodyGenRace) && !bodyGenAssignedWithAssets && BodyGenSelector.BodyGenAvailableForGender(currentNPCInfo.Gender, bodyGenConfigs))
                 {
-
+                    var assignedMorphs = BodyGenSelector.SelectMorphs(currentNPCInfo, out bool success, bodyGenConfigs, null, new BodyGenSelector.BodyGenSelectorStatusFlag());
+                    if (success)
+                    {
+                        BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedMorphs);
+                    }
                 }
 
                 // Height assignment
@@ -139,17 +152,16 @@ namespace SynthEBD
             Logger.LogMessage("Finished patching.");
             Logger.UpdateStatus("Finished Patching", false);
 
-            string outputPath = System.IO.Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, PatcherSettings.General.patchFileName + ".esp");
-            try
+            if (PatcherSettings.General.bChangeMeshesOrTextures || PatcherSettings.General.bChangeHeight)
             {
-                if (System.IO.File.Exists(outputPath))
-                {
-                    System.IO.File.Delete(outputPath);
-                }
-                outputMod.WriteToBinary(outputPath);
-                Logger.LogMessage("Wrote output file at " + outputPath + ".");
+                string patchOutputPath = System.IO.Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, PatcherSettings.General.patchFileName + ".esp");
+                PatcherIO.WritePatch(patchOutputPath, outputMod);
             }
-            catch { Logger.LogErrorWithStatusUpdate("Could not write output file to " + outputPath, ErrorType.Error); };
+
+            if (PatcherSettings.General.bEnableBodyGenIntegration)
+            {
+                BodyGenWriter.WriteBodyGenOutputs(bodyGenConfigs);
+            }
         }
 
         public static ILinkCache<ISkyrimMod, ISkyrimModGetter> MainLinkCache;
@@ -246,6 +258,63 @@ namespace SynthEBD
             IgnoredArmorAddons.Add(Skyrim.ArmorAddon.NakedTorsoWerewolfBeast.FormKey.AsLinkGetter<IArmorAddonGetter>());
             IgnoredArmorAddons.Add(Dawnguard.ArmorAddon.DLC1NakedVampireLord.FormKey.AsLinkGetter<IArmorAddonGetter>());
             IgnoredArmorAddons.Add(Dragonborn.ArmorAddon.DLC2NakedTorsoWerebearBeast.FormKey.AsLinkGetter<IArmorAddonGetter>());
+        }
+
+        /// <summary>
+        /// Initializes the Compiled(Dis)AllowedRaces property in BodyGenConfigs by merging their AllowedRaces and AllowedRaceGroupings
+        /// </summary>
+        /// <param name="bodyGenConfigs"></param>
+        private static void CompileBodyGenRaces(BodyGenConfigs bodyGenConfigs)
+        {
+            foreach (var config in bodyGenConfigs.Male)
+            {
+                CompileBodyGenConfigRaces(config);
+            }
+            foreach (var config in bodyGenConfigs.Female)
+            {
+                CompileBodyGenConfigRaces(config);
+            }
+        }
+
+        /// <summary>
+        /// Initializes the Compiled(Dis)AllowedRaces property in BodyGenConfig classes by merging their AllowedRaces and AllowedRaceGroupings
+        /// </summary>
+        /// <param name="bodyGenConfig"></param>
+        private static void CompileBodyGenConfigRaces (BodyGenConfig bodyGenConfig)
+        {
+            foreach (var template in bodyGenConfig.Templates)
+            {
+                template.CompiledAllowedRaces = new HashSet<FormKey>(template.AllowedRaces);
+                foreach (var allowedRaceGrouping in template.AllowedRaceGroupings)
+                {
+                    var grouping = PatcherSettings.General.RaceGroupings.Where(x => x.Label == allowedRaceGrouping).FirstOrDefault();
+                    if (grouping == null) { continue; }
+                    template.CompiledAllowedRaces = template.AllowedRaces.Union(grouping.Races).ToHashSet();
+                }
+
+                template.CompiledDisallowedRaces = new HashSet<FormKey>(template.DisallowedRaces);
+                foreach (var disallowedRaceGrouping in template.DisallowedRaceGroupings)
+                {
+                    var grouping = PatcherSettings.General.RaceGroupings.Where(x => x.Label == disallowedRaceGrouping).FirstOrDefault();
+                    if (grouping == null) { continue; }
+                    template.CompiledDisallowedRaces = template.DisallowedRaces.Union(grouping.Races).ToHashSet();
+                }
+            }
+        }
+
+        public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker();
+
+        public class BodyGenAssignmentTracker
+        {
+            public BodyGenAssignmentTracker()
+            {
+                NPCAssignments = new Dictionary<FormKey, List<string>>();
+                AllChosenMorphsMale = new Dictionary<string, HashSet<string>>();
+                AllChosenMorphsFemale = new Dictionary<string, HashSet<string>>();
+            }
+            public Dictionary<FormKey, List<string>> NPCAssignments;
+            public Dictionary<string, HashSet<string>> AllChosenMorphsMale;
+            public Dictionary<string, HashSet<string>> AllChosenMorphsFemale;
         }
     }
 }

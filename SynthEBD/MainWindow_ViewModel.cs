@@ -121,32 +121,38 @@ namespace SynthEBD
             Application.Current.MainWindow.Closing += new CancelEventHandler(MainWindow_Closing);
         }
 
-        void MainWindow_Closing(object sender, CancelEventArgs e)
+        public void SyncModelsToViewModels()
         {
             VM_Settings_General.DumpViewModelToModel(SGVM, PatcherSettings.General);
+            VM_SettingsTexMesh.DumpViewModelToModel(TMVM, PatcherSettings.TexMesh);
+            VM_AssetPack.DumpViewModelsToModels(TMVM.AssetPacks, AssetPacks);
+            VM_SettingsHeight.DumpViewModelToModel(HVM, PatcherSettings.Height);
+            VM_HeightConfig.DumpViewModelsToModels(HVM.AvailableHeightConfigs, HeightConfigs);
+            VM_SettingsBodyGen.DumpViewModelToModel(BGVM, PatcherSettings.BodyGen);
+            VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(SAUIVM, SpecificNPCAssignments);
+            VM_LinkedNPCGroup.DumpViewModelsToModels(LinkedNPCGroups, SGVM.LinkedNPCGroups);
+        }
+
+        void MainWindow_Closing(object sender, CancelEventArgs e)
+        {
+            SyncModelsToViewModels();
+
             JSONhandler<Settings_General>.SaveJSONFile(PatcherSettings.General, Paths.GeneralSettingsPath);
 
-            VM_SettingsTexMesh.DumpViewModelToModel(TMVM, PatcherSettings.TexMesh);
             JSONhandler<Settings_TexMesh>.SaveJSONFile(PatcherSettings.TexMesh, PatcherSettings.Paths.TexMeshSettingsPath);
-            VM_AssetPack.DumpViewModelsToModels(TMVM.AssetPacks, AssetPacks);
             SettingsIO_AssetPack.SaveAssetPacks(AssetPacks);
 
-            VM_SettingsHeight.DumpViewModelToModel(HVM, PatcherSettings.Height);
             JSONhandler<Settings_Height>.SaveJSONFile(PatcherSettings.Height, PatcherSettings.Paths.HeightSettingsPath);
-            VM_HeightConfig.DumpViewModelsToModels(HVM.AvailableHeightConfigs, HeightConfigs);
             SettingsIO_Height.SaveHeightConfigs(HeightConfigs);
 
-            VM_SettingsBodyGen.DumpViewModelToModel(BGVM, PatcherSettings.BodyGen);
             JSONhandler<Settings_BodyGen>.SaveJSONFile(PatcherSettings.BodyGen, PatcherSettings.Paths.BodyGenSettingsPath);
             SettingsIO_BodyGen.SaveBodyGenConfigs(BodyGenConfigs.Female);
             SettingsIO_BodyGen.SaveBodyGenConfigs(BodyGenConfigs.Male);
 
             SettingsIO_Misc.SaveConsistency(Consistency);
 
-            VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(SAUIVM, SpecificNPCAssignments);
             JSONhandler<HashSet<NPCAssignment>>.SaveJSONFile(SpecificNPCAssignments, PatcherSettings.Paths.SpecificNPCAssignmentsPath);
 
-            VM_LinkedNPCGroup.DumpViewModelsToModels(LinkedNPCGroups, SGVM.LinkedNPCGroups);
             SettingsIO_Misc.SaveLinkedNPCGroups(LinkedNPCGroups);
 
             SettingsIO_Misc.SaveNPCNameExclusions(SGVM.LinkedNameExclusions.Select(cms => cms.Content).ToHashSet());

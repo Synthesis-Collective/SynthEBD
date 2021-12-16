@@ -16,7 +16,7 @@ namespace SynthEBD
         /// <param name="availableAssetPacks">Asset packs available to the current NPC</param>
         /// <param name="npcInfo">NPC info class</param>
         /// <returns></returns>
-        public static Tuple<SubgroupCombination, List<string>> ChooseCombinationAndBodyGen(out bool bodyGenAssigned, HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo)
+        public static Tuple<SubgroupCombination, List<string>> ChooseCombinationAndBodyGen(out bool bodyGenAssigned, HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, NPCInfo npcInfo, bool blockBodyGen)
         {
             SubgroupCombination chosenCombination = new SubgroupCombination();
             List<string> chosenMorphs = new List<string>();
@@ -30,7 +30,7 @@ namespace SynthEBD
             else
             {
                 Logger.LogReport("Choosing Asset Combination and BodyGen for " + npcInfo.LogIDstring);
-                chosenCombination = ChooseRandomCombination(availableAssetPacks, chosenMorphs, npcInfo); // chosenMorphs is populated by reference within ChooseRandomCombination
+                chosenCombination = ChooseRandomCombination(availableAssetPacks, bodyGenConfigs, chosenMorphs, npcInfo, blockBodyGen); // chosenMorphs is populated by reference within ChooseRandomCombination
                 bodyGenAssigned = chosenMorphs.Any();
             }
 
@@ -197,17 +197,9 @@ namespace SynthEBD
             return filteredPacks;
         }
 
-        private static SubgroupCombination ChooseRandomCombination(HashSet<FlattenedAssetPack> availableAssetPacks, List<string> chosenMorphs, NPCInfo npcInfo)
+        private static SubgroupCombination ChooseRandomCombination(HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, List<string> chosenMorphs, NPCInfo npcInfo, bool blockBodyGen)
         {
-            //READ THIS FROM STATIC SETTINGS WHEN FINISHED MAKING SETTINGS STATIC
-            bool enableBodyGen = false;
-            //
-            // PUT THIS IN NPCinfo
-            bool blockBodyGen = false;
-            //
-
-            bool assignBodyGen = enableBodyGen && !blockBodyGen;
-            HashSet<string> candidateMorphs = new HashSet<string>();
+            List<string> candidateMorphs = new List<string>();
             bool notifyOfPermutationMorphConflict = false;
 
             SubgroupCombination assignedCombination = new SubgroupCombination();
@@ -249,21 +241,21 @@ namespace SynthEBD
                 }
 
                 // get a BodyGen assignment
-                if (!assignBodyGen)
+                if (!PatcherSettings.General.bEnableBodyGenIntegration || blockBodyGen || !BodyGenSelector.BodyGenAvailableForGender(npcInfo.Gender, bodyGenConfigs))
                 {
                     combinationIsValid = true;
                 }
                 else
                 {
                     var bodyGenStatusFlags = new BodyGenSelector.BodyGenSelectorStatusFlag();
-                    candidateMorphs = BodyGenSelector.SelectMorphs(npcInfo, out bool bodyGenAssigned, assignedCombination, bodyGenStatusFlags);
+                    candidateMorphs = BodyGenSelector.SelectMorphs(npcInfo, out bool bodyGenAssigned, bodyGenConfigs, assignedCombination, bodyGenStatusFlags);
                     // Decision Tree
 
                     // Branch 1: No morphs could be assigned in conjuction with the current combination
                     if (!bodyGenAssigned)
                     {
                         // check if any morphs would be valid for the given NPC without any restrictions from the asset combination
-                        candidateMorphs = BodyGenSelector.SelectMorphs(npcInfo, out bool bodyGenAssignable, null, bodyGenStatusFlags);
+                        candidateMorphs = BodyGenSelector.SelectMorphs(npcInfo, out bool bodyGenAssignable, bodyGenConfigs, null, bodyGenStatusFlags);
                         // if not, then the curent combination is fine because no other combination would be compatible with any BodyGen morphs anyway
                         if (!bodyGenAssignable)
                         {
@@ -369,7 +361,6 @@ namespace SynthEBD
                 for (int i = 0; i < iterationInfo.ChosenAssetPack.Subgroups.Count; i++)
                 {
                     iterationInfo.RemainingVariantsByIndex.Add(i, null); // set up placeholders for backtracking
-                    generatedCombination.ContainedSubgroups.Add(null); // set up placeholders for subgroups
                 }
                 iterationInfo.RemainingVariantsByIndex[0] = iterationInfo.ChosenAssetPack.ShallowCopy(); // initial state of the chosen asset pack
                 iterationInfo.ChosenAssetPack = ConformRequiredExcludedSubgroups(iterationInfo.ChosenSeed, iterationInfo.ChosenAssetPack);
@@ -377,10 +368,15 @@ namespace SynthEBD
                 {
                     Logger.LogReport("Cannot create a combination with the chosen seed subgroup due to conflicting required/excluded subgroup rules. Selecting a different seed.");
                     return RemoveInvalidSeed(iterationInfo.AvailableSeeds, iterationInfo); // exit this function and re-enter from caller to choose a new seed
-                }
-                Logger.LogReport("Available Subgroups:" + Logger.SpreadFlattenedAssetPack(iterationInfo.ChosenAssetPack, 0, false));
+                }               
             }
             #endregion
+
+            for (int i = 0; i < iterationInfo.ChosenAssetPack.Subgroups.Count; i++)
+            {
+                generatedCombination.ContainedSubgroups.Add(null); // set up placeholders for subgroups
+            }
+            Logger.LogReport("Available Subgroups:" + Logger.SpreadFlattenedAssetPack(iterationInfo.ChosenAssetPack, 0, false));
 
             int debugCounter = 0;
 

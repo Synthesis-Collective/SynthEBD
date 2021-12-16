@@ -16,15 +16,17 @@ namespace SynthEBD
             this.Subgroups = new List<List<FlattenedSubgroup>>();
             this.DefaultRecordTemplate = source.DefaultRecordTemplate;
             this.AdditionalRecordTemplateAssignments = source.AdditionalRecordTemplateAssignments;
+            this.AssociatedBodyGenConfigName = source.AssociatedBodyGenConfigName;
         }
 
-        public FlattenedAssetPack(string groupName, Gender gender, FormKey defaultRecordTemplate, HashSet<AdditionalRecordTemplate> additionalRecordTemplateAssignments)
+        public FlattenedAssetPack(string groupName, Gender gender, FormKey defaultRecordTemplate, HashSet<AdditionalRecordTemplate> additionalRecordTemplateAssignments, string associatedBodyGenConfigName)
         {
             this.GroupName = groupName;
             this.Gender = gender;
             this.Subgroups = new List<List<FlattenedSubgroup>>();
             this.DefaultRecordTemplate = defaultRecordTemplate;
             this.AdditionalRecordTemplateAssignments = additionalRecordTemplateAssignments;
+            this.AssociatedBodyGenConfigName = associatedBodyGenConfigName;
         }
 
         public string GroupName { get; set; }
@@ -32,7 +34,7 @@ namespace SynthEBD
         public List<List<FlattenedSubgroup>> Subgroups { get; set; }
         public FormKey DefaultRecordTemplate { get; set; }
         public HashSet<AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
-
+        public string AssociatedBodyGenConfigName { get; set; }
 
         public static FlattenedAssetPack FlattenAssetPack(AssetPack source, List<RaceGrouping> raceGroupingList, bool includeBodyGen)
         {
@@ -50,7 +52,7 @@ namespace SynthEBD
 
         public FlattenedAssetPack ShallowCopy()
         {
-            FlattenedAssetPack copy = new FlattenedAssetPack(this.GroupName, this.Gender, this.DefaultRecordTemplate, this.AdditionalRecordTemplateAssignments);
+            FlattenedAssetPack copy = new FlattenedAssetPack(this.GroupName, this.Gender, this.DefaultRecordTemplate, this.AdditionalRecordTemplateAssignments, this.AssociatedBodyGenConfigName);
             foreach (var subgroupList in this.Subgroups)
             {
                 copy.Subgroups.Add(new List<FlattenedSubgroup>(subgroupList));

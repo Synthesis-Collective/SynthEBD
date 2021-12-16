@@ -161,9 +161,9 @@ namespace SynthEBD
             viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, true);
             viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, false);
             foreach (var x in viewModel.DisallowedAttributes) { x.DisplayForceIfOption = false; }
-            viewModel.bAllowUnique = model.bAllowUnique;
-            viewModel.bAllowNonUnique = model.bAllowNonUnique;
-            viewModel.bAllowRandom = model.bAllowRandom;
+            viewModel.bAllowUnique = model.AllowUnique;
+            viewModel.bAllowNonUnique = model.AllowNonUnique;
+            viewModel.bAllowRandom = model.AllowRandom;
             viewModel.ProbabilityWeighting = model.ProbabilityWeighting;
             viewModel.RequiredTemplates = VM_CollectionMemberString.InitializeCollectionFromHashSet(model.RequiredTemplates);
             viewModel.WeightRange = model.WeightRange;

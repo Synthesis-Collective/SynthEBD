@@ -28,5 +28,17 @@ namespace SynthEBD
             }
             return true;
         }
+
+        public static bool Contains (HashSet<FormKey> collection, FormKey toMatch)
+        {
+            foreach (var formkey in collection)
+            {
+                if (Equals(formkey, toMatch))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 }

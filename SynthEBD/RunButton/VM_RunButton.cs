@@ -23,8 +23,9 @@ namespace SynthEBD
                 execute: _ =>
                 {
                     ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
+                    ParentWindow.SyncModelsToViewModels();
                     MainLoop.RunPatcher(
-                        ParentWindow.AssetPacks, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
+                        ParentWindow.AssetPacks, ParentWindow.BodyGenConfigs, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
                         ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths, ParentWindow.RecordTemplateLinkCache, ParentWindow.RecordTemplatePlugins);
                 }
                 );
@@ -36,9 +37,9 @@ namespace SynthEBD
                 execute: async _ =>
                 {
                     ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
-
+                    ParentWindow.SyncModelsToViewModels();
                     await Task.Run(() => MainLoop.RunPatcher(
-                        ParentWindow.AssetPacks, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
+                        ParentWindow.AssetPacks, ParentWindow.BodyGenConfigs, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
                         ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.TrimPaths, ParentWindow.RecordTemplateLinkCache, ParentWindow.RecordTemplatePlugins));
                 });
             */
