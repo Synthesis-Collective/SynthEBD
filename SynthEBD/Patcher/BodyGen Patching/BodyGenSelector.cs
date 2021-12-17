@@ -11,6 +11,13 @@ namespace SynthEBD
         public static List<string> SelectMorphs(NPCInfo npcInfo, out bool success, BodyGenConfigs bodyGenConfigs, SubgroupCombination assetCombination, BodyGenSelectorStatusFlag statusFlags)
         {
             BodyGenConfig currentBodyGenConfig = null;
+            var genderedBodyGenConfigs = new HashSet<BodyGenConfig>();
+            switch(npcInfo.Gender)
+            {
+                case Gender.male: genderedBodyGenConfigs = bodyGenConfigs.Male; break;
+                case Gender.female: genderedBodyGenConfigs = bodyGenConfigs.Female; break;
+            }
+
             if (assetCombination != null)
             {
                 switch (npcInfo.Gender)
@@ -57,7 +64,7 @@ namespace SynthEBD
                     {
                         // if that still didn't work, ignore all 
                         availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All);
-                        availableCombinations = GetAvailableCombinations(currentBodyGenConfig, npcInfo, availableTemplatesAll);
+                        availableCombinations = GetAllCombinations(genderedBodyGenConfigs, npcInfo, ValidationIgnore.All);
                         availableCombinations = FilterBySpecificNPCAssignments(availableCombinations, npcInfo, out assignmentsSpecified);
                         if (!assignmentsSpecified)
                         {
@@ -69,11 +76,12 @@ namespace SynthEBD
             }
             #endregion
 
-            if (!assignmentsSpecified && npcInfo.AssociatedLinkGroup != null && npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() != npcInfo.NPC.FormKey.ToString())
+            #region Linked NPC Group
+            if (!assignmentsSpecified && npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary)
             {
                 availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All);
-                var allCombinations = GetAvailableCombinations(currentBodyGenConfig, npcInfo, availableTemplatesAll);
-                var linkedCombinations = GetLinkedCombination(availableCombinations, npcInfo);
+                var allCombinations = GetAllCombinations(genderedBodyGenConfigs, npcInfo, ValidationIgnore.All);
+                var linkedCombinations = GetLinkedCombination(allCombinations, npcInfo);
                 if (linkedCombinations != null)
                 {
                     availableCombinations = linkedCombinations;
@@ -83,6 +91,7 @@ namespace SynthEBD
                     Logger.LogReport("Could not find any combinations containing the morphs applied to the specified parent NPC.");
                 }
             }
+            #endregion
 
             #region Consistency
             if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null)

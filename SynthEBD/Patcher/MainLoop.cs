@@ -99,11 +99,7 @@ namespace SynthEBD
                 var currentNPCInfo = new NPCInfo(npc, linkedNPCGroups, generatedLinkGroups, specificNPCAssignments, consistency);
 
                 // link group
-                if (currentNPCInfo.AssociatedLinkGroup != null && currentNPCInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() == currentNPCInfo.NPC.FormKey.ToString())
-                {
-                    string test = "";
-                }
-                if (currentNPCInfo.AssociatedLinkGroup != null && currentNPCInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() != currentNPCInfo.NPC.FormKey.ToString())
+                if (currentNPCInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary)
                 {
                     skippedLinkedNPCs.Add(currentNPCInfo);
                     continue;
@@ -159,7 +155,7 @@ namespace SynthEBD
                         currentNPCInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignedComboAndBodyGen.Item2;
 
                         // assign to linked group if necessary 
-                        if (currentNPCInfo.AssociatedLinkGroup != null && currentNPCInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() == currentNPCInfo.NPC.FormKey.ToString())
+                        if (currentNPCInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
                         {
                             currentNPCInfo.AssociatedLinkGroup.AssignedMorphs = assignedComboAndBodyGen.Item2;
                         }
@@ -176,7 +172,7 @@ namespace SynthEBD
                         currentNPCInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignedMorphs;
 
                         // assign to linked group if necessary
-                        if (currentNPCInfo.AssociatedLinkGroup != null && currentNPCInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() == currentNPCInfo.NPC.FormKey.ToString())
+                        if (currentNPCInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
                         {
                             currentNPCInfo.AssociatedLinkGroup.AssignedMorphs = assignedMorphs;
                         }

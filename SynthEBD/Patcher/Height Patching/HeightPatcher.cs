@@ -50,7 +50,7 @@ namespace SynthEBD
                 }
 
                 // assign linked height if necessary
-                if (npcInfo.AssociatedLinkGroup != null && npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() != npcInfo.NPC.FormKey.ToString() && npcInfo.AssociatedLinkGroup.AssignedHeight <= upperBound && npcInfo.AssociatedLinkGroup.AssignedHeight >= lowerBound)
+                if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary)
                 {
                     assignedHeight = npcInfo.AssociatedLinkGroup.AssignedHeight;
                 }
@@ -97,7 +97,7 @@ namespace SynthEBD
                 npcInfo.ConsistencyNPCAssignment.Height = assignedHeight;
             }
 
-            if (npcInfo.AssociatedLinkGroup != null && npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() == npcInfo.NPC.FormKey.ToString())
+            if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
             {
                 npcInfo.AssociatedLinkGroup.AssignedHeight = assignedHeight;
             }

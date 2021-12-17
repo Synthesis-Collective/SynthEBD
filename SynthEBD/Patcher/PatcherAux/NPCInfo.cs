@@ -16,6 +16,7 @@ namespace SynthEBD
             this.NPC = npc;
             this.LogIDstring = Logger.GetNPCLogNameString(npc);
             this.Gender = GetGender(npc);
+            this.LinkGroupMember = LinkGroupMemberType.None;
             AssetsRace = AliasHandler.GetAliasTexMesh(npc.Race.FormKey);
             BodyGenRace = AliasHandler.GetAliasBodyGen(npc.Race.FormKey);
             HeightRace = AliasHandler.GetAliasHeight(npc.Race.FormKey);
@@ -27,6 +28,17 @@ namespace SynthEBD
                 if (AssociatedLinkGroup != null)
                 {
                     AllLinkedNPCGroupInfos.Add(AssociatedLinkGroup);
+                }
+            }
+            if (AssociatedLinkGroup != null)
+            {
+                if (AssociatedLinkGroup.PrimaryNPCFormKey.ToString() == NPC.FormKey.ToString())
+                {
+                    LinkGroupMember = LinkGroupMemberType.Primary;
+                }
+                else
+                {
+                    LinkGroupMember = LinkGroupMemberType.Secondary;
                 }
             }
 
@@ -52,8 +64,16 @@ namespace SynthEBD
         public FormKey BodyGenRace { get; set; }
         public FormKey HeightRace { get; set; }
         public LinkedNPCGroupInfo AssociatedLinkGroup { get; set; }
+        public LinkGroupMemberType LinkGroupMember { get; set; }
         public NPCAssignment SpecificNPCAssignment { get; set; }
         public NPCAssignment ConsistencyNPCAssignment { get; set; }
+
+        public enum LinkGroupMemberType
+        {
+            None,
+            Primary,
+            Secondary
+        }
 
         private static Gender GetGender(INpcGetter npc)
         {

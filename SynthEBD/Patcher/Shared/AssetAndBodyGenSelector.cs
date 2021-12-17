@@ -22,7 +22,7 @@ namespace SynthEBD
             List<string> chosenMorphs = new List<string>();
             bodyGenAssigned = false;
 
-            if (npcInfo.AssociatedLinkGroup != null && npcInfo.AssociatedLinkGroup.AssignedCombination != null && npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() != npcInfo.NPC.FormKey.ToString() && CombinationAllowedBySpecificNPCAssignment(npcInfo.SpecificNPCAssignment, npcInfo.AssociatedLinkGroup.AssignedCombination))
+            if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary && npcInfo.AssociatedLinkGroup.AssignedCombination != null && CombinationAllowedBySpecificNPCAssignment(npcInfo.SpecificNPCAssignment, npcInfo.AssociatedLinkGroup.AssignedCombination))
             {
                 chosenCombination = npcInfo.AssociatedLinkGroup.AssignedCombination;
                 chosenMorphs = npcInfo.AssociatedLinkGroup.AssignedMorphs;
@@ -39,7 +39,7 @@ namespace SynthEBD
                 npcInfo.ConsistencyNPCAssignment.AssetPackName = chosenCombination.AssetPackName;
                 npcInfo.ConsistencyNPCAssignment.SubgroupIDs = chosenCombination.ContainedSubgroups.Select(x => x.Id).ToList();
 
-                if (npcInfo.AssociatedLinkGroup != null && chosenCombination != null && npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() == npcInfo.NPC.FormKey.ToString())
+                if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary && chosenCombination != null)
                 {
                     npcInfo.AssociatedLinkGroup.AssignedCombination = chosenCombination;
                 }
