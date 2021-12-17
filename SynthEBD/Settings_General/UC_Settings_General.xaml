@@ -104,11 +104,13 @@
                         </ItemsControl.ItemsPanel>
 
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="{x:Type local:VM_LinkedNPCGroup}" >
+                            <DataTemplate DataType="{x:Type local:VM_LinkedNPCGroup}">
                                 <Border BorderBrush="Black" BorderThickness="1">
-                                    <StackPanel>
+                                    <StackPanel Margin="5" MaxWidth="200">
                                         <TextBox Text="{Binding GroupName}" MinWidth="100"></TextBox>
-                                        <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding NPCFormKeys}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCFormKeyTypes}" />
+                                        <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding NPCFormKeys}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCFormKeyTypes}" Height="150" />
+                                        <TextBlock>Primary NPC</TextBlock>
+                                        <ComboBox ItemsSource="{Binding PrimaryCandidates}" SelectedItem="{Binding Primary}"/>
                                         <Button Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveLinkedNPCGroup}" CommandParameter="{Binding}" Foreground="FireBrick">Remove</Button>
                                     </StackPanel>
                                 </Border>

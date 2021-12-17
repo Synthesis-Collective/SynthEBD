@@ -39,39 +39,58 @@ namespace SynthEBD
             var availableTemplatesGlobal = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.None);
             var availableCombinations = GetAvailableCombinations(currentBodyGenConfig, npcInfo, availableTemplatesGlobal);
 
+            HashSet<BodyGenConfig.BodyGenTemplate> availableTemplatesAll = new HashSet<BodyGenConfig.BodyGenTemplate>();
+
             #region Specific NPC Assignments
+            bool assignmentsSpecified = false;
             if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.BodyGenMorphNames.Any())
             {
                 // first try getting combinations while adhering to the bodygen config's Racial Template Map
-                availableCombinations = FilterBySpecificNPCAssignments(availableCombinations, npcInfo, out bool filterSuccess);
-                if (!filterSuccess)
+                availableCombinations = FilterBySpecificNPCAssignments(availableCombinations, npcInfo, out assignmentsSpecified);
+                if (!assignmentsSpecified)
                 {
                     // if that didn't work, try forming combination objects out of all templates regardless of the Racial Template Map
-                    var availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.Race);
-                    availableCombinations = FilterBySpecificNPCAssignments(availableCombinations, npcInfo, out filterSuccess);
-                    if (!filterSuccess)
+                    var availableTemplatesRaceIgnore = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.Race);
+                    availableCombinations = GetAvailableCombinations(currentBodyGenConfig, npcInfo, availableTemplatesRaceIgnore);
+                    availableCombinations = FilterBySpecificNPCAssignments(availableCombinations, npcInfo, out assignmentsSpecified);
+                    if (!assignmentsSpecified)
                     {
                         // if that still didn't work, ignore all 
                         availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All);
-                        availableCombinations = FilterBySpecificNPCAssignments(availableCombinations, npcInfo, out filterSuccess);
-                        if (!filterSuccess)
+                        availableCombinations = GetAvailableCombinations(currentBodyGenConfig, npcInfo, availableTemplatesAll);
+                        availableCombinations = FilterBySpecificNPCAssignments(availableCombinations, npcInfo, out assignmentsSpecified);
+                        if (!assignmentsSpecified)
                         {
                             Logger.LogReport("No morph combinations could be generated while respecting the Specific Assignments for " + npcInfo.LogIDstring + ". A random morph will be chosen.");
+                            availableCombinations = GetAvailableCombinations(currentBodyGenConfig, npcInfo, availableTemplatesGlobal); // revert to original
                         }
                     }
                 }
             }
             #endregion
 
+            if (!assignmentsSpecified && npcInfo.AssociatedLinkGroup != null && npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() != npcInfo.NPC.FormKey.ToString())
+            {
+                availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All);
+                var allCombinations = GetAvailableCombinations(currentBodyGenConfig, npcInfo, availableTemplatesAll);
+                var linkedCombinations = GetLinkedCombination(availableCombinations, npcInfo);
+                if (linkedCombinations != null)
+                {
+                    availableCombinations = linkedCombinations;
+                }
+                else
+                {
+                    Logger.LogReport("Could not find any combinations containing the morphs applied to the specified parent NPC.");
+                }
+            }
+
             #region Consistency
             if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null)
             {
                 availableCombinations = GetConsistencyCombinations(availableCombinations, npcInfo);
             }
-
             #endregion
 
-            // If not matched, choose random
             chosenMorphs = ChooseMorphs(availableCombinations, npcInfo);
 
             if (chosenMorphs == null)
@@ -163,6 +182,45 @@ namespace SynthEBD
             }
 
             return output;
+        }
+
+        public static HashSet<GroupCombinationObject> GetLinkedCombination(HashSet<GroupCombinationObject> availableCombinations, NPCInfo npcInfo)
+        {
+            HashSet<GroupCombinationObject> output = new HashSet<GroupCombinationObject>();
+
+            foreach (var combination in availableCombinations)
+            {
+                GroupCombinationObject linkedCombination = new GroupCombinationObject(combination);
+                List<string> requiredMorphs = new List<string>(npcInfo.AssociatedLinkGroup.AssignedMorphs);
+                bool combinationValid = true;
+                for (int i = 0; i < requiredMorphs.Count; i++)
+                {
+                    if (combination.Templates[i].Select(x => x.Label).Contains(requiredMorphs[i]))
+                    {
+                        linkedCombination.Templates[i] = new HashSet<BodyGenConfig.BodyGenTemplate>() { combination.Templates[i].First(x => x.Label == requiredMorphs[i]) };
+                    }
+                    else
+                    {
+                        combinationValid = false;
+                        break;
+                    }
+                }
+
+                if (combinationValid)
+                {
+                    output = new HashSet<GroupCombinationObject>() { linkedCombination };
+                    break;
+                }
+            }
+
+            if (output.Any())
+            {
+                return output;
+            }
+            else
+            {
+                return null;
+            }
         }
 
         public static HashSet<GroupCombinationObject> GetConsistencyCombinations(HashSet<GroupCombinationObject> availableCombinations, NPCInfo npcInfo)

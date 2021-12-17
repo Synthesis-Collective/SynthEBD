@@ -44,6 +44,8 @@ namespace SynthEBD
             HashSet<FlattenedAssetPack> femaleAssetPacks = new HashSet<FlattenedAssetPack>();
             HashSet<FlattenedAssetPack> availableAssetPacks = new HashSet<FlattenedAssetPack>();
 
+            HashSet<NPCInfo> skippedLinkedNPCs = new HashSet<NPCInfo>();
+
             bool blockAssets;
             bool blockBodyGen;
             bool blockHeight;
@@ -96,6 +98,17 @@ namespace SynthEBD
 
                 var currentNPCInfo = new NPCInfo(npc, linkedNPCGroups, generatedLinkGroups, specificNPCAssignments, consistency);
 
+                // link group
+                if (currentNPCInfo.AssociatedLinkGroup != null && currentNPCInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() == currentNPCInfo.NPC.FormKey.ToString())
+                {
+                    string test = "";
+                }
+                if (currentNPCInfo.AssociatedLinkGroup != null && currentNPCInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() != currentNPCInfo.NPC.FormKey.ToString())
+                {
+                    skippedLinkedNPCs.Add(currentNPCInfo);
+                    continue;
+                }
+
                 Logger.InitializeNewReport(currentNPCInfo);
 
                 blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(blockList, npc.FormKey);
@@ -144,6 +157,12 @@ namespace SynthEBD
                     {
                         BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedComboAndBodyGen.Item2);
                         currentNPCInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignedComboAndBodyGen.Item2;
+
+                        // assign to linked group if necessary 
+                        if (currentNPCInfo.AssociatedLinkGroup != null && currentNPCInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() == currentNPCInfo.NPC.FormKey.ToString())
+                        {
+                            currentNPCInfo.AssociatedLinkGroup.AssignedMorphs = assignedComboAndBodyGen.Item2;
+                        }
                     }
                 }
 
@@ -155,6 +174,12 @@ namespace SynthEBD
                     {
                         BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedMorphs);
                         currentNPCInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignedMorphs;
+
+                        // assign to linked group if necessary
+                        if (currentNPCInfo.AssociatedLinkGroup != null && currentNPCInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() == currentNPCInfo.NPC.FormKey.ToString())
+                        {
+                            currentNPCInfo.AssociatedLinkGroup.AssignedMorphs = assignedMorphs;
+                        }
                     }
                 }
 
@@ -162,6 +187,68 @@ namespace SynthEBD
                 if (PatcherSettings.General.bChangeHeight && !blockHeight && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.HeightRace))
                 {
                     HeightPatcher.AssignNPCHeight(currentNPCInfo, currentHeightConfig, outputMod);
+                }
+            }
+
+            // Finish assigning non-primary linked NPCs
+            foreach (var linkedNPCInfo in skippedLinkedNPCs)
+            {
+                Logger.InitializeNewReport(linkedNPCInfo);
+
+                blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(blockList, linkedNPCInfo.NPC.FormKey);
+                blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, linkedNPCInfo.NPC.FormKey);
+
+                if (blockListNPCEntry.Assets || blockListPluginEntry.Assets) { blockAssets = true; }
+                else { blockAssets = false; }
+
+                if (blockListNPCEntry.BodyGen || blockListPluginEntry.BodyGen) { blockBodyGen = true; }
+                else { blockBodyGen = false; }
+
+                if (blockListNPCEntry.Height || blockListPluginEntry.Height) { blockHeight = true; }
+                else { blockHeight = false; }
+
+                bodyGenAssignedWithAssets = false;
+
+                // Assets/BodyGen assignment
+                if (PatcherSettings.General.bChangeMeshesOrTextures && !blockAssets && PatcherSettings.General.patchableRaces.Contains(linkedNPCInfo.AssetsRace))
+                {
+                    switch (linkedNPCInfo.Gender)
+                    {
+                        case Gender.female: availableAssetPacks = femaleAssetPacks; break;
+                        case Gender.male: availableAssetPacks = maleAssetPacks; break;
+                    }
+
+                    var assignedComboAndBodyGen = AssetAndBodyGenSelector.ChooseCombinationAndBodyGen(out bodyGenAssignedWithAssets, availableAssetPacks, bodyGenConfigs, linkedNPCInfo, blockBodyGen);
+                    if (assignedComboAndBodyGen.Item1 != null)
+                    {
+                        RecordGenerator.CombinationToRecords(assignedComboAndBodyGen.Item1, linkedNPCInfo, recordTemplateLinkCache, outputMod, edidCounts);
+                        var npcRecord = outputMod.Npcs.GetOrAddAsOverride(linkedNPCInfo.NPC);
+                        if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
+                        npcRecord.Keywords.Add(EBDFaceKW);
+                        npcRecord.Keywords.Add(EBDScriptKW);
+                    }
+                    if (bodyGenAssignedWithAssets)
+                    {
+                        BodyGenTracker.NPCAssignments.Add(linkedNPCInfo.NPC.FormKey, assignedComboAndBodyGen.Item2);
+                        linkedNPCInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignedComboAndBodyGen.Item2;
+                    }
+                }
+
+                // BodyGen assignment (if assets not assigned in Assets/BodyGen section)
+                if (PatcherSettings.General.bEnableBodyGenIntegration && !blockBodyGen && PatcherSettings.General.patchableRaces.Contains(linkedNPCInfo.BodyGenRace) && !bodyGenAssignedWithAssets && BodyGenSelector.BodyGenAvailableForGender(linkedNPCInfo.Gender, bodyGenConfigs))
+                {
+                    var assignedMorphs = BodyGenSelector.SelectMorphs(linkedNPCInfo, out bool success, bodyGenConfigs, null, new BodyGenSelector.BodyGenSelectorStatusFlag());
+                    if (success)
+                    {
+                        BodyGenTracker.NPCAssignments.Add(linkedNPCInfo.NPC.FormKey, assignedMorphs);
+                        linkedNPCInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignedMorphs;
+                    }
+                }
+
+                // Height assignment
+                if (PatcherSettings.General.bChangeHeight && !blockHeight && PatcherSettings.General.patchableRaces.Contains(linkedNPCInfo.HeightRace))
+                {
+                    HeightPatcher.AssignNPCHeight(linkedNPCInfo, currentHeightConfig, outputMod);
                 }
             }
 

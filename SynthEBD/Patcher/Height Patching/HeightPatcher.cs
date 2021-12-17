@@ -13,72 +13,80 @@ namespace SynthEBD
         public static void AssignNPCHeight(NPCInfo npcInfo, HeightConfig heightConfig, SkyrimMod outputMod)
         {
             Npc npc = null;
+            float assignedHeight = 1;
+
             if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.Height != null)
             {
                 npc = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
                 npc.Height = npcInfo.SpecificNPCAssignment.Height.Value;
-                return;
             }
-
-            var heightAssignment = heightConfig.HeightAssignments.Where(x => x.Races.Contains(npcInfo.HeightRace)).FirstOrDefault();
-
-            if (heightAssignment == null)
+            else
             {
-                return;
-            }
+                var heightAssignment = heightConfig.HeightAssignments.Where(x => x.Races.Contains(npcInfo.HeightRace)).FirstOrDefault();
 
-            npc = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
+                if (heightAssignment == null)
+                {
+                    return;
+                }
 
-            float lowerBound = 0;
-            float upperBound = 0;
-            float range = 0;
-            float assignedHeight = 1;
+                npc = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
 
-            switch(npcInfo.Gender)
-            {
-                case Gender.male:
-                    lowerBound = 1 - heightAssignment.HeightMaleRange;
-                    upperBound = 1 + heightAssignment.HeightMaleRange;
-                    range = heightAssignment.HeightMaleRange;
-                    break;
-                case Gender.female:
-                    lowerBound = 1 - heightAssignment.HeightFemaleRange;
-                    upperBound = 1 + heightAssignment.HeightFemaleRange;
-                    range = heightAssignment.HeightFemaleRange;
-                    break;
-            }
+                float lowerBound = 0;
+                float upperBound = 0;
+                float range = 0;
 
-            var rand = new Random();
-            switch (heightAssignment.DistributionMode)
-            {
-                case DistMode.uniform:
-                    
-                    double randomVal = rand.NextDouble() * (upperBound - lowerBound) + lowerBound;
-                    assignedHeight = (float)randomVal;
-                    break;
+                switch (npcInfo.Gender)
+                {
+                    case Gender.male:
+                        lowerBound = 1 - heightAssignment.HeightMaleRange;
+                        upperBound = 1 + heightAssignment.HeightMaleRange;
+                        range = heightAssignment.HeightMaleRange;
+                        break;
+                    case Gender.female:
+                        lowerBound = 1 - heightAssignment.HeightFemaleRange;
+                        upperBound = 1 + heightAssignment.HeightFemaleRange;
+                        range = heightAssignment.HeightFemaleRange;
+                        break;
+                }
 
-                case DistMode.bellCurve: //https://stackoverflow.com/a/218600
-                    int mean = 1;
-                    double stDev = range / 3; // range is 3 sigma
-                    // Box Muller Transform
-                    double u1 = 1.0 - rand.NextDouble(); //uniform(0,1] random doubles
-                    double u2 = 1.0 - rand.NextDouble();
-                    double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2); //random normal(0,1)
-                    double randNormal = mean + stDev * randStdNormal; //random normal(mean,stdDev^2)
-
-                    // bound distribution to avoid crazy random values
-                    if (randNormal > upperBound) { randNormal = upperBound; }
-                    else if (randNormal < lowerBound) { randNormal = lowerBound; }
-
-                    assignedHeight = (float)randNormal;
-                    break;
-            }
-
-            if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.Height != null)
-            {
-                if (npcInfo.ConsistencyNPCAssignment.Height <= upperBound && npcInfo.ConsistencyNPCAssignment.Height >= lowerBound)
+                // assign linked height if necessary
+                if (npcInfo.AssociatedLinkGroup != null && npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() != npcInfo.NPC.FormKey.ToString() && npcInfo.AssociatedLinkGroup.AssignedHeight <= upperBound && npcInfo.AssociatedLinkGroup.AssignedHeight >= lowerBound)
+                {
+                    assignedHeight = npcInfo.AssociatedLinkGroup.AssignedHeight;
+                }
+                // assign by consistency if possible
+                else if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.Height != null && npcInfo.ConsistencyNPCAssignment.Height <= upperBound && npcInfo.ConsistencyNPCAssignment.Height >= lowerBound)
                 {
                     assignedHeight = npcInfo.ConsistencyNPCAssignment.Height.Value;
+                }
+                // assign random
+                else
+                {
+                    var rand = new Random();
+                    switch (heightAssignment.DistributionMode)
+                    {
+                        case DistMode.uniform:
+
+                            double randomVal = rand.NextDouble() * (upperBound - lowerBound) + lowerBound;
+                            assignedHeight = (float)randomVal;
+                            break;
+
+                        case DistMode.bellCurve: //https://stackoverflow.com/a/218600
+                            int mean = 1;
+                            double stDev = range / 3; // range is 3 sigma
+                                                      // Box Muller Transform
+                            double u1 = 1.0 - rand.NextDouble(); //uniform(0,1] random doubles
+                            double u2 = 1.0 - rand.NextDouble();
+                            double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2); //random normal(0,1)
+                            double randNormal = mean + stDev * randStdNormal; //random normal(mean,stdDev^2)
+
+                            // bound distribution to avoid crazy random values
+                            if (randNormal > upperBound) { randNormal = upperBound; }
+                            else if (randNormal < lowerBound) { randNormal = lowerBound; }
+
+                            assignedHeight = (float)randNormal;
+                            break;
+                    }
                 }
             }
 
@@ -86,7 +94,12 @@ namespace SynthEBD
 
             if (PatcherSettings.General.bEnableConsistency)
             {
-                npcInfo.ConsistencyNPCAssignment.Height = npc.Height;
+                npcInfo.ConsistencyNPCAssignment.Height = assignedHeight;
+            }
+
+            if (npcInfo.AssociatedLinkGroup != null && npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() == npcInfo.NPC.FormKey.ToString())
+            {
+                npcInfo.AssociatedLinkGroup.AssignedHeight = assignedHeight;
             }
         }
 

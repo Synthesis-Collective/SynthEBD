@@ -15,12 +15,14 @@ namespace SynthEBD
             this.AssignedCombination = null;
             this.AssignedMorphs = null;
             this.AssignedHeight = -1;
+            this.PrimaryNPCFormKey = sourceGroup.Primary;
         }
 
         public HashSet<FormKey> NPCFormKeys { get; set; }
+        public FormKey PrimaryNPCFormKey { get; set; }
         public SubgroupCombination AssignedCombination { get; set; }
         public List<string> AssignedMorphs { get; set; }
-        public double AssignedHeight { get; set; }
+        public float AssignedHeight { get; set; }
 
         public static LinkedNPCGroupInfo GetInfoFromLinkedNPCGroup(HashSet<LinkedNPCGroup> definedGroups, HashSet<LinkedNPCGroupInfo> createdGroups, FormKey npcFormKey) // links the UI-defined LinkedNPCGroup (which only contains NPCs) to the corresponding generated LinkedNPCGroupInfo (which contains patcher assignments)
         {

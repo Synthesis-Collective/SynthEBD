@@ -19,8 +19,19 @@ namespace SynthEBD
             AssetsRace = AliasHandler.GetAliasTexMesh(npc.Race.FormKey);
             BodyGenRace = AliasHandler.GetAliasBodyGen(npc.Race.FormKey);
             HeightRace = AliasHandler.GetAliasHeight(npc.Race.FormKey);
-            AssociatedLinkGroup = LinkedNPCGroupInfo.GetInfoFromLinkedNPCGroup(definedLinkGroups, createdLinkGroupInfos, npc.FormKey);
+
+            AssociatedLinkGroup = SearchLinkedInfoFromList(npc.FormKey);
+            if (AssociatedLinkGroup == null)
+            {
+                AssociatedLinkGroup = LinkedNPCGroupInfo.GetInfoFromLinkedNPCGroup(definedLinkGroups, createdLinkGroupInfos, npc.FormKey);
+                if (AssociatedLinkGroup != null)
+                {
+                    AllLinkedNPCGroupInfos.Add(AssociatedLinkGroup);
+                }
+            }
+
             SpecificNPCAssignment = specificNPCAssignments.Where(x => x.NPCFormKey == npc.FormKey).FirstOrDefault();
+
             if (consistency.ContainsKey(this.NPC.FormKey.ToString()))
             {
                 ConsistencyNPCAssignment = consistency[this.NPC.FormKey.ToString()];
@@ -52,6 +63,20 @@ namespace SynthEBD
             }
 
             return Gender.male;
+        }
+
+        private static HashSet<LinkedNPCGroupInfo> AllLinkedNPCGroupInfos = new HashSet<LinkedNPCGroupInfo>();
+
+        private static LinkedNPCGroupInfo SearchLinkedInfoFromList(FormKey currentFormKey)
+        {
+            foreach (var l in AllLinkedNPCGroupInfos)
+            {
+                if (l.NPCFormKeys.Contains(currentFormKey))
+                {
+                    return l;
+                }
+            }
+            return null;
         }
     }
 }
