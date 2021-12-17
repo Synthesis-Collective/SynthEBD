@@ -18,7 +18,7 @@ namespace SynthEBD
 {
     public class RecordGenerator
     {
-        public static void CombinationToRecords(SubgroupCombination combination, NPCInfo npcInfo, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SkyrimMod outputMod, Dictionary<string, int> edidCounts)
+        public static void CombinationToRecords(SubgroupCombination combination, NPCInfo npcInfo, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SkyrimMod outputMod)
         {
             var template = GetTemplateNPC(npcInfo, combination.AssetPack, recordTemplateLinkCache);
 
@@ -49,20 +49,20 @@ namespace SynthEBD
             
             if (headtexPaths.Any())
             {
-                AssignHeadTexture(npcInfo.NPC, outputMod, template, MainLoop.MainLinkCache, recordTemplateLinkCache, headtexPaths);
+                AssignHeadTexture(npcInfo.NPC, outputMod, template, Patcher.MainLinkCache, recordTemplateLinkCache, headtexPaths);
             }
             if (wnamPaths.Any())
             {
-                AssignBodyTextures(npcInfo, outputMod, template, MainLoop.MainLinkCache, recordTemplateLinkCache, wnamPaths);
+                AssignBodyTextures(npcInfo, outputMod, template, Patcher.MainLinkCache, recordTemplateLinkCache, wnamPaths);
             }
             if (nonHardcodedPaths.Any())
             {
-                AssignNonHardCodedTextures(npcInfo, template, nonHardcodedPaths, recordTemplateLinkCache, outputMod, edidCounts, longestPath);
+                AssignNonHardCodedTextures(npcInfo, template, nonHardcodedPaths, recordTemplateLinkCache, outputMod, longestPath);
             }
             int dbg = 0;
         }
 
-        public static void AssignNonHardCodedTextures(NPCInfo npcInfo, INpcGetter template, List<FilePathReplacementParsed> nonHardcodedPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SkyrimMod outputMod, Dictionary<string, int> edidCounts, int longestPath)
+        public static void AssignNonHardCodedTextures(NPCInfo npcInfo, INpcGetter template, List<FilePathReplacementParsed> nonHardcodedPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SkyrimMod outputMod, int longestPath)
         {
             HashSet<IMajorRecord> assignedRecords = new HashSet<IMajorRecord>();
 
@@ -109,7 +109,7 @@ namespace SynthEBD
                     else
                     {
                         // step through the path
-                        currentObj = RecordPathParser.GetObjectAtPath(rootObj, currentSubPath, objectLinkMap, MainLoop.MainLinkCache);
+                        currentObj = RecordPathParser.GetObjectAtPath(rootObj, currentSubPath, objectLinkMap, Patcher.MainLinkCache);
                         bool currentObjectIsARecord = RecordPathParser.ObjectIsRecord(currentObj, out FormKey? recordFormKey);
                         if (currentObjectIsARecord && !recordFormKey.Value.IsNull)
                         {
@@ -120,7 +120,7 @@ namespace SynthEBD
                                 var register = LoquiRegistration.GetRegister(objType);
                                 recordType = register.GetterType;
                             }
-                            if (MainLoop.MainLinkCache.TryResolve(recordFormKey.Value, recordType, out var currentMajorRecordCommonGetter)) //if the current object is an existing record, resolve it so that it can be traversed
+                            if (Patcher.MainLinkCache.TryResolve(recordFormKey.Value, recordType, out var currentMajorRecordCommonGetter)) //if the current object is an existing record, resolve it so that it can be traversed
                             {
                                 currentObj = GetOrAddGenericRecordAsOverride((IMajorRecordGetter)currentMajorRecordCommonGetter, outputMod);
                             }
@@ -151,14 +151,14 @@ namespace SynthEBD
                                     }
 
                                     // increment editor ID number
-                                    if (edidCounts.ContainsKey(newRecord.EditorID))
+                                    if (Patcher.EdidCounts.ContainsKey(newRecord.EditorID))
                                     {
-                                        edidCounts[newRecord.EditorID]++;
-                                        newRecord.EditorID += edidCounts[newRecord.EditorID];
+                                        Patcher.EdidCounts[newRecord.EditorID]++;
+                                        newRecord.EditorID += Patcher.EdidCounts[newRecord.EditorID];
                                     }
                                     else
                                     {
-                                        edidCounts.Add(newRecord.EditorID, 1);
+                                        Patcher.EdidCounts.Add(newRecord.EditorID, 1);
                                         newRecord.EditorID += 1;
                                     }
                                     SetRecord((IMajorRecordGetter)rootObj, currentSubPath, newRecord, outputMod);
@@ -217,7 +217,7 @@ namespace SynthEBD
             return copiedRecord;
         }
 
-        public static object GetOrAddGenericRecordAsOverride(IMajorRecordGetter recordGetter, SkyrimMod outputMod)
+        public static dynamic GetOrAddGenericRecordAsOverride(IMajorRecordGetter recordGetter, SkyrimMod outputMod)
         {
             dynamic group = GetPatchRecordGroup(recordGetter, outputMod);
             return OverrideMixIns.GetOrAddAsOverride(group, recordGetter);
@@ -231,7 +231,7 @@ namespace SynthEBD
 
         public static void SetRecord(IMajorRecordGetter root, string propertyName, IMajorRecord value, SkyrimMod outputMod)
         {
-            var settableRecord = GetOrAddGenericRecordAsOverride(root, outputMod);
+            IMajorRecord settableRecord = GetOrAddGenericRecordAsOverride(root, outputMod);
             var settableRecordType = settableRecord.GetType();
             var property = settableRecordType.GetProperty(propertyName);
             var currentValue = property.GetValue(settableRecord);
@@ -375,7 +375,7 @@ namespace SynthEBD
             bool replaceExistingArmature = false;
 
             // try to get the needed armor addon template record from the existing parent armor record
-            foreach (var aa in parentArmorRecord.Armature.Where(x => MainLoop.IgnoredArmorAddons.Contains(x.FormKey.AsLinkGetter<IArmorAddonGetter>()) == false))
+            foreach (var aa in parentArmorRecord.Armature.Where(x => Patcher.IgnoredArmorAddons.Contains(x.FormKey.AsLinkGetter<IArmorAddonGetter>()) == false))
             {
                 if (!isFromTemplateLinkCache && aa.TryResolve(mainLinkCache, out var candidateAA))
                 {
@@ -399,7 +399,7 @@ namespace SynthEBD
             else if (!templateNPC.WornArmor.IsNull && templateNPC.WornArmor.TryResolve(templateLinkCache, out var templateArmorGetter))
             {
                 candidateAAs = new HashSet<IArmorAddonGetter>();
-                foreach (var aa in templateArmorGetter.Armature.Where(x => MainLoop.IgnoredArmorAddons.Contains(x.FormKey.AsLinkGetter<IArmorAddonGetter>()) == false))
+                foreach (var aa in templateArmorGetter.Armature.Where(x => Patcher.IgnoredArmorAddons.Contains(x.FormKey.AsLinkGetter<IArmorAddonGetter>()) == false))
                 {
                     if (aa.TryResolve(templateLinkCache, out var candidateAA))
                     {

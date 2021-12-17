@@ -28,7 +28,7 @@ namespace SynthEBD
         private static string CompileTemplateINI(BodyGenConfigs bodyGenConfigs)
         {
             string output = "";
-            foreach (var assignment in MainLoop.BodyGenTracker.AllChosenMorphsMale)
+            foreach (var assignment in Patcher.BodyGenTracker.AllChosenMorphsMale)
             {
                 var currentConfig = bodyGenConfigs.Male.Where(x => x.Label == assignment.Key).Single();
                 var assignedTemplates = currentConfig.Templates.Where(x => assignment.Value.Contains(x.Label));
@@ -39,7 +39,7 @@ namespace SynthEBD
                 }
             }
 
-            foreach (var assignment in MainLoop.BodyGenTracker.AllChosenMorphsFemale)
+            foreach (var assignment in Patcher.BodyGenTracker.AllChosenMorphsFemale)
             {
                 var currentConfig = bodyGenConfigs.Female.Where(x => x.Label == assignment.Key).Single();
                 var assignedTemplates = currentConfig.Templates.Where(x => assignment.Value.Contains(x.Label));
@@ -56,7 +56,7 @@ namespace SynthEBD
         private static string CompileMorphsINI(BodyGenConfigs bodyGenConfigs)
         {
             string output = "";
-            foreach (var npcAssignment in MainLoop.BodyGenTracker.NPCAssignments)
+            foreach (var npcAssignment in Patcher.BodyGenTracker.NPCAssignments)
             {
                 output += FormatFormKeyForBodyGen(npcAssignment.Key) + "=";
                 for (int i = 0; i < npcAssignment.Value.Count; i++)

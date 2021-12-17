@@ -265,7 +265,7 @@ namespace SynthEBD
                 // reference PatchableRaces if necessary
                 if (addPatchableRaceArg) 
                 {
-                    evalParameters.Add(MainLoop.PatchableRaces); 
+                    evalParameters.Add(Patcher.PatchableRaces); 
                 }
 
                 if (Eval.Execute<bool>(matchConditionStr, evalParameters.ToArray()))
@@ -317,9 +317,9 @@ namespace SynthEBD
 
             Type type = root.GetType();
             
-            if (MainLoop.PropertyCache.ContainsKey(type))
+            if (Patcher.PropertyCache.ContainsKey(type))
             {
-                var subDict = MainLoop.PropertyCache[type];
+                var subDict = Patcher.PropertyCache[type];
                 if (subDict.ContainsKey(propertyName))
                 {
                     var cachedProperty = subDict[propertyName];
@@ -343,7 +343,7 @@ namespace SynthEBD
                 var newSubDict = new Dictionary<string, PropertyInfo>();
                 var newProperty2 = type.GetProperty(propertyName);
                 newSubDict.Add(propertyName, newProperty2);
-                MainLoop.PropertyCache.Add(type, newSubDict);
+                Patcher.PropertyCache.Add(type, newSubDict);
                 if (newProperty2 != null)
                 {
                     return newProperty2.GetValue(root);
@@ -381,9 +381,9 @@ namespace SynthEBD
 
             Type type = root.GetType();
 
-            if (MainLoop.PropertyCache.ContainsKey(type))
+            if (Patcher.PropertyCache.ContainsKey(type))
             {
-                var subDict = MainLoop.PropertyCache[type];
+                var subDict = Patcher.PropertyCache[type];
                 if (subDict.ContainsKey(propertyName))
                 {
                     var cachedProperty = subDict[propertyName];
@@ -407,7 +407,7 @@ namespace SynthEBD
                 var newSubDict = new Dictionary<string, PropertyInfo>();
                 var newProperty2 = type.GetProperty(propertyName);
                 newSubDict.Add(propertyName, newProperty2);
-                MainLoop.PropertyCache.Add(type, newSubDict);
+                Patcher.PropertyCache.Add(type, newSubDict);
                 if (newProperty2 != null)
                 {
                     newProperty2.SetValue(root, value);

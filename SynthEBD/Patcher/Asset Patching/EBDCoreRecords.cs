@@ -121,7 +121,7 @@ namespace SynthEBD
         {
             foreach (var raceFK in PatcherSettings.General.patchableRaces)
             {
-                if (MainLoop.MainLinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
+                if (Patcher.MainLinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
                 {
                     var patchableRace = outputMod.Races.GetOrAddAsOverride(raceGetter);
                     if (patchableRace.ActorEffect == null)

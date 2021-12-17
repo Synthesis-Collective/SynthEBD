@@ -114,7 +114,7 @@ namespace SynthEBD
                 patchedRace = null;
                 raceAlias = PatcherSettings.General.raceAliases.Where(x => x.race == race.FormKey && x.bApplyToHeight).FirstOrDefault();
                
-                if (raceAlias != null && PatcherSettings.General.patchableRaces.Contains(raceAlias.aliasRace) && MainLoop.MainLinkCache.TryResolve<IRaceGetter>(raceAlias.aliasRace, out var raceAliasGetter))
+                if (raceAlias != null && PatcherSettings.General.patchableRaces.Contains(raceAlias.aliasRace) && Patcher.MainLinkCache.TryResolve<IRaceGetter>(raceAlias.aliasRace, out var raceAliasGetter))
                 {
                     heightRacialSetting = heightConfig.HeightAssignments.Where(x => x.Races.Contains(raceAlias.aliasRace)).FirstOrDefault();
 

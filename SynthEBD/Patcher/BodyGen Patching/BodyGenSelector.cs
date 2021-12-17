@@ -117,8 +117,8 @@ namespace SynthEBD
             Dictionary<string, HashSet<string>> allChosenMorphs = null;
             switch(npcInfo.Gender)
             {
-                case Gender.male: allChosenMorphs = MainLoop.BodyGenTracker.AllChosenMorphsMale; break;
-                case Gender.female: allChosenMorphs = MainLoop.BodyGenTracker.AllChosenMorphsFemale; break;
+                case Gender.male: allChosenMorphs = Patcher.BodyGenTracker.AllChosenMorphsMale; break;
+                case Gender.female: allChosenMorphs = Patcher.BodyGenTracker.AllChosenMorphsFemale; break;
             }
             if (!allChosenMorphs.ContainsKey(currentBodyGenConfig.Label))
             {

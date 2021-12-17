@@ -15,7 +15,7 @@ using System.Windows.Threading;
 
 namespace SynthEBD
 {
-    public class MainLoop
+    public class Patcher
     {
         //Synchronous version for debugging only
         public static void RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins)
@@ -32,24 +32,15 @@ namespace SynthEBD
             UpdateRecordTemplateAdditonalRaces(assetPacks, recordTemplateLinkCache, recordTemplatePlugins);
             BodyGenTracker = new BodyGenAssignmentTracker();
 
-            Dictionary<string, int> edidCounts = new Dictionary<string, int>();
-
             Logger.UpdateStatus("Patching", false);
             Logger.StartTimer();
 
-            BlockedNPC blockListNPCEntry;
-            BlockedPlugin blockListPluginEntry;
             HashSet<LinkedNPCGroupInfo> generatedLinkGroups = new HashSet<LinkedNPCGroupInfo>();
             HashSet<FlattenedAssetPack> maleAssetPacks = new HashSet<FlattenedAssetPack>();
             HashSet<FlattenedAssetPack> femaleAssetPacks = new HashSet<FlattenedAssetPack>();
-            HashSet<FlattenedAssetPack> availableAssetPacks = new HashSet<FlattenedAssetPack>();
 
-            HashSet<NPCInfo> skippedLinkedNPCs = new HashSet<NPCInfo>();
-
-            bool blockAssets;
-            bool blockBodyGen;
-            bool blockHeight;
-            bool bodyGenAssignedWithAssets;
+            var allNPCs = GameEnvironmentProvider.MyEnvironment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
+            HashSet<INpcGetter> skippedLinkedNPCs = new HashSet<INpcGetter>();
 
             Keyword EBDFaceKW = null;
             Keyword EBDScriptKW = null;
@@ -88,20 +79,66 @@ namespace SynthEBD
             }
 
             int npcCounter = 0;
-            foreach (var npc in GameEnvironmentProvider.MyEnvironment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>())
+            // Patch main NPCs
+            MainLoop(allNPCs, true, outputMod, maleAssetPacks, femaleAssetPacks, bodyGenConfigs, heightConfigs, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCNameExclusions, linkedNPCGroups, trimPaths, recordTemplateLinkCache, recordTemplatePlugins, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW);
+            // Finish assigning non-primary linked NPCs
+            MainLoop(skippedLinkedNPCs, false, outputMod, maleAssetPacks, femaleAssetPacks, bodyGenConfigs, heightConfigs, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCNameExclusions, linkedNPCGroups, trimPaths, recordTemplateLinkCache, recordTemplatePlugins, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW);
+
+            Logger.StopTimer();
+            Logger.LogMessage("Finished patching.");
+            Logger.UpdateStatus("Finished Patching", false);
+
+            if (PatcherSettings.General.bChangeMeshesOrTextures || PatcherSettings.General.bChangeHeight)
+            {
+                string patchOutputPath = System.IO.Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, PatcherSettings.General.patchFileName + ".esp");
+                PatcherIO.WritePatch(patchOutputPath, outputMod);
+            }
+
+            if (PatcherSettings.General.bEnableBodyGenIntegration)
+            {
+                BodyGenWriter.WriteBodyGenOutputs(bodyGenConfigs);
+            }
+        }
+
+        public static ILinkCache<ISkyrimMod, ISkyrimModGetter> MainLinkCache;
+
+        public static Dictionary<Type, Dictionary<string, System.Reflection.PropertyInfo>> PropertyCache;
+
+        public static HashSet<IFormLinkGetter<IRaceGetter>> PatchableRaces;
+
+        public static HashSet<IFormLinkGetter<IArmorAddonGetter>> IgnoredArmorAddons;
+
+        private static void timer_Tick(object sender, EventArgs e)
+        {
+            Logger.UpdateStatus("Finished Patching", false);
+        }
+
+        private static void MainLoop(IEnumerable<INpcGetter> npcCollection, bool skipLinkedSecondaryNPCs, SkyrimMod outputMod, HashSet<FlattenedAssetPack> maleAssetPacks, HashSet<FlattenedAssetPack> femaleAssetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, HeightConfig currentHeightConfig, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins, int npcCounter, HashSet<LinkedNPCGroupInfo> generatedLinkGroups, HashSet<INpcGetter> skippedLinkedNPCs, Keyword EBDFaceKW, Keyword EBDScriptKW)
+        {
+            bool blockAssets;
+            bool blockBodyGen;
+            bool blockHeight;
+            bool bodyGenAssignedWithAssets;
+
+            BlockedNPC blockListNPCEntry;
+            BlockedPlugin blockListPluginEntry;
+
+            HashSet<FlattenedAssetPack> availableAssetPacks = new HashSet<FlattenedAssetPack>();
+
+            foreach (var npc in npcCollection)
             {
                 npcCounter++;
-                if (npcCounter % 100 == 0) 
+                if (npcCounter % 100 == 0)
                 {
-                    Logger.LogMessage("Examined " + npcCounter.ToString() + " NPCs in " + Logger.GetEllapsedTime()); 
+                    Logger.LogMessage("Examined " + npcCounter.ToString() + " NPCs in " + Logger.GetEllapsedTime());
                 }
 
                 var currentNPCInfo = new NPCInfo(npc, linkedNPCGroups, generatedLinkGroups, specificNPCAssignments, consistency);
 
                 // link group
-                if (currentNPCInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary)
+                if (skipLinkedSecondaryNPCs && currentNPCInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary)
                 {
-                    skippedLinkedNPCs.Add(currentNPCInfo);
+                    skippedLinkedNPCs.Add(npc);
                     continue;
                 }
 
@@ -139,11 +176,11 @@ namespace SynthEBD
                         case Gender.female: availableAssetPacks = femaleAssetPacks; break;
                         case Gender.male: availableAssetPacks = maleAssetPacks; break;
                     }
-                    
+
                     var assignedComboAndBodyGen = AssetAndBodyGenSelector.ChooseCombinationAndBodyGen(out bodyGenAssignedWithAssets, availableAssetPacks, bodyGenConfigs, currentNPCInfo, blockBodyGen);
                     if (assignedComboAndBodyGen.Item1 != null)
                     {
-                        RecordGenerator.CombinationToRecords(assignedComboAndBodyGen.Item1, currentNPCInfo, recordTemplateLinkCache, outputMod, edidCounts);
+                        RecordGenerator.CombinationToRecords(assignedComboAndBodyGen.Item1, currentNPCInfo, recordTemplateLinkCache, outputMod);
                         var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
                         if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
                         npcRecord.Keywords.Add(EBDFaceKW);
@@ -185,96 +222,6 @@ namespace SynthEBD
                     HeightPatcher.AssignNPCHeight(currentNPCInfo, currentHeightConfig, outputMod);
                 }
             }
-
-            // Finish assigning non-primary linked NPCs
-            foreach (var linkedNPCInfo in skippedLinkedNPCs)
-            {
-                Logger.InitializeNewReport(linkedNPCInfo);
-
-                blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(blockList, linkedNPCInfo.NPC.FormKey);
-                blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, linkedNPCInfo.NPC.FormKey);
-
-                if (blockListNPCEntry.Assets || blockListPluginEntry.Assets) { blockAssets = true; }
-                else { blockAssets = false; }
-
-                if (blockListNPCEntry.BodyGen || blockListPluginEntry.BodyGen) { blockBodyGen = true; }
-                else { blockBodyGen = false; }
-
-                if (blockListNPCEntry.Height || blockListPluginEntry.Height) { blockHeight = true; }
-                else { blockHeight = false; }
-
-                bodyGenAssignedWithAssets = false;
-
-                // Assets/BodyGen assignment
-                if (PatcherSettings.General.bChangeMeshesOrTextures && !blockAssets && PatcherSettings.General.patchableRaces.Contains(linkedNPCInfo.AssetsRace))
-                {
-                    switch (linkedNPCInfo.Gender)
-                    {
-                        case Gender.female: availableAssetPacks = femaleAssetPacks; break;
-                        case Gender.male: availableAssetPacks = maleAssetPacks; break;
-                    }
-
-                    var assignedComboAndBodyGen = AssetAndBodyGenSelector.ChooseCombinationAndBodyGen(out bodyGenAssignedWithAssets, availableAssetPacks, bodyGenConfigs, linkedNPCInfo, blockBodyGen);
-                    if (assignedComboAndBodyGen.Item1 != null)
-                    {
-                        RecordGenerator.CombinationToRecords(assignedComboAndBodyGen.Item1, linkedNPCInfo, recordTemplateLinkCache, outputMod, edidCounts);
-                        var npcRecord = outputMod.Npcs.GetOrAddAsOverride(linkedNPCInfo.NPC);
-                        if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
-                        npcRecord.Keywords.Add(EBDFaceKW);
-                        npcRecord.Keywords.Add(EBDScriptKW);
-                    }
-                    if (bodyGenAssignedWithAssets)
-                    {
-                        BodyGenTracker.NPCAssignments.Add(linkedNPCInfo.NPC.FormKey, assignedComboAndBodyGen.Item2);
-                        linkedNPCInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignedComboAndBodyGen.Item2;
-                    }
-                }
-
-                // BodyGen assignment (if assets not assigned in Assets/BodyGen section)
-                if (PatcherSettings.General.bEnableBodyGenIntegration && !blockBodyGen && PatcherSettings.General.patchableRaces.Contains(linkedNPCInfo.BodyGenRace) && !bodyGenAssignedWithAssets && BodyGenSelector.BodyGenAvailableForGender(linkedNPCInfo.Gender, bodyGenConfigs))
-                {
-                    var assignedMorphs = BodyGenSelector.SelectMorphs(linkedNPCInfo, out bool success, bodyGenConfigs, null, new BodyGenSelector.BodyGenSelectorStatusFlag());
-                    if (success)
-                    {
-                        BodyGenTracker.NPCAssignments.Add(linkedNPCInfo.NPC.FormKey, assignedMorphs);
-                        linkedNPCInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignedMorphs;
-                    }
-                }
-
-                // Height assignment
-                if (PatcherSettings.General.bChangeHeight && !blockHeight && PatcherSettings.General.patchableRaces.Contains(linkedNPCInfo.HeightRace))
-                {
-                    HeightPatcher.AssignNPCHeight(linkedNPCInfo, currentHeightConfig, outputMod);
-                }
-            }
-
-            Logger.StopTimer();
-            Logger.LogMessage("Finished patching.");
-            Logger.UpdateStatus("Finished Patching", false);
-
-            if (PatcherSettings.General.bChangeMeshesOrTextures || PatcherSettings.General.bChangeHeight)
-            {
-                string patchOutputPath = System.IO.Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, PatcherSettings.General.patchFileName + ".esp");
-                PatcherIO.WritePatch(patchOutputPath, outputMod);
-            }
-
-            if (PatcherSettings.General.bEnableBodyGenIntegration)
-            {
-                BodyGenWriter.WriteBodyGenOutputs(bodyGenConfigs);
-            }
-        }
-
-        public static ILinkCache<ISkyrimMod, ISkyrimModGetter> MainLinkCache;
-
-        public static Dictionary<Type, Dictionary<string, System.Reflection.PropertyInfo>> PropertyCache;
-
-        public static HashSet<IFormLinkGetter<IRaceGetter>> PatchableRaces;
-
-        public static HashSet<IFormLinkGetter<IArmorAddonGetter>> IgnoredArmorAddons;
-
-        private static void timer_Tick(object sender, EventArgs e)
-        {
-            Logger.UpdateStatus("Finished Patching", false);
         }
 
         private static void UpdateRecordTemplateAdditonalRaces(List<AssetPack> assetPacks, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins)
@@ -403,6 +350,7 @@ namespace SynthEBD
         }
 
         public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker();
+        public static Dictionary<string, int> EdidCounts = new Dictionary<string, int>();
 
         public class BodyGenAssignmentTracker
         {
