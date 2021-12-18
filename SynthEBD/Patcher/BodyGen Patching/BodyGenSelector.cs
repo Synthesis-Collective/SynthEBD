@@ -81,7 +81,7 @@ namespace SynthEBD
             {
                 availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All);
                 var allCombinations = GetAllCombinations(genderedBodyGenConfigs, npcInfo, ValidationIgnore.All);
-                var linkedCombinations = GetLinkedCombination(allCombinations, npcInfo);
+                var linkedCombinations = GetLinkedCombination(allCombinations, npcInfo.AssociatedLinkGroup.AssignedMorphs);
                 if (linkedCombinations != null)
                 {
                     availableCombinations = linkedCombinations;
@@ -90,6 +90,21 @@ namespace SynthEBD
                 {
                     Logger.LogReport("Could not find any combinations containing the morphs applied to the specified parent NPC.");
                 }
+            }
+            #endregion
+
+            #region Unique NPC replicates
+            else if (UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName) && Patcher.UniqueAssignmentsByName[npcName].AssignedMorphs != null)
+            {
+                availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All);
+                var allCombinations = GetAllCombinations(genderedBodyGenConfigs, npcInfo, ValidationIgnore.All);
+                var linkedCombinations = GetLinkedCombination(allCombinations, Patcher.UniqueAssignmentsByName[npcName].AssignedMorphs);
+                if (linkedCombinations != null)
+                {
+                    availableCombinations = linkedCombinations;
+                    Logger.LogReport("Another unique NPC with the same name was assigned a morph. Using that morph for current NPC.");
+                }
+
             }
             #endregion
 
@@ -193,14 +208,15 @@ namespace SynthEBD
             return output;
         }
 
-        public static HashSet<GroupCombinationObject> GetLinkedCombination(HashSet<GroupCombinationObject> availableCombinations, NPCInfo npcInfo)
+        public static HashSet<GroupCombinationObject> GetLinkedCombination(HashSet<GroupCombinationObject> availableCombinations, List<string> searchMorphs)
         {
             HashSet<GroupCombinationObject> output = new HashSet<GroupCombinationObject>();
 
             foreach (var combination in availableCombinations)
             {
+                if (combination.Templates.Count != searchMorphs.Count) { continue; }
                 GroupCombinationObject linkedCombination = new GroupCombinationObject(combination);
-                List<string> requiredMorphs = new List<string>(npcInfo.AssociatedLinkGroup.AssignedMorphs);
+                List<string> requiredMorphs = new List<string>(searchMorphs);
                 bool combinationValid = true;
                 for (int i = 0; i < requiredMorphs.Count; i++)
                 {

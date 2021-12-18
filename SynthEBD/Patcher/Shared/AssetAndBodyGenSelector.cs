@@ -24,8 +24,19 @@ namespace SynthEBD
 
             if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary && npcInfo.AssociatedLinkGroup.AssignedCombination != null && CombinationAllowedBySpecificNPCAssignment(npcInfo.SpecificNPCAssignment, npcInfo.AssociatedLinkGroup.AssignedCombination))
             {
+                Logger.LogReport("Selected combination from NPC link group");
                 chosenCombination = npcInfo.AssociatedLinkGroup.AssignedCombination;
                 chosenMorphs = npcInfo.AssociatedLinkGroup.AssignedMorphs;
+                bodyGenAssigned = chosenMorphs.Any();
+                if (bodyGenAssigned)
+                {
+                    Logger.LogReport("Selected BodyGen from NPC link group");
+                }
+            }
+            else if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && Patcher.UniqueAssignmentsByName[npcInfo.Name].AssignedCombination != null)
+            {
+                chosenCombination = Patcher.UniqueAssignmentsByName[npcInfo.Name].AssignedCombination;
+                Logger.LogReport("Another unique NPC with the same name was assigned a combination. Using that combination for current NPC.");
             }
             else
             {
@@ -42,6 +53,11 @@ namespace SynthEBD
                 if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary && chosenCombination != null)
                 {
                     npcInfo.AssociatedLinkGroup.AssignedCombination = chosenCombination;
+                }
+
+                if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && Patcher.UniqueAssignmentsByName[npcInfo.Name].AssignedCombination == null)
+                {
+                    Patcher.UniqueAssignmentsByName[npcInfo.Name].AssignedCombination = chosenCombination;
                 }
             }
             if (bodyGenAssigned)

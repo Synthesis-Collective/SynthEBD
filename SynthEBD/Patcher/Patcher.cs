@@ -24,13 +24,13 @@ namespace SynthEBD
             ModKey.TryFromName(PatcherSettings.General.patchFileName, ModType.Plugin, out var patchModKey);
             var outputMod = new SkyrimMod(patchModKey, SkyrimRelease.SkyrimSE);
             MainLinkCache = GameEnvironmentProvider.MyEnvironment.LoadOrder.ToMutableLinkCache(outputMod);
-
             PropertyCache = new();
-
             ResolvePatchableRaces();
             InitializeIgnoredArmorAddons();
             UpdateRecordTemplateAdditonalRaces(assetPacks, recordTemplateLinkCache, recordTemplatePlugins);
             BodyGenTracker = new BodyGenAssignmentTracker();
+            UniqueAssignmentsByName.Clear();
+            UniqueNPCData.UniqueNameExclusions = linkedNPCNameExclusions;
 
             Logger.UpdateStatus("Patching", false);
             Logger.StartTimer();
@@ -108,6 +108,8 @@ namespace SynthEBD
 
         public static HashSet<IFormLinkGetter<IArmorAddonGetter>> IgnoredArmorAddons;
 
+        public static Dictionary<string, UniqueNPCData.UniqueNPCTracker> UniqueAssignmentsByName = new Dictionary<string, UniqueNPCData.UniqueNPCTracker>();
+
         private static void timer_Tick(object sender, EventArgs e)
         {
             Logger.UpdateStatus("Finished Patching", false);
@@ -140,6 +142,12 @@ namespace SynthEBD
                 {
                     skippedLinkedNPCs.Add(npc);
                     continue;
+                }
+
+                // link by name
+                if (PatcherSettings.General.bLinkNPCsWithSameName && currentNPCInfo.IsValidLinkedUnique && !UniqueAssignmentsByName.ContainsKey(currentNPCInfo.Name))
+                {
+                    UniqueAssignmentsByName.Add(currentNPCInfo.Name, new UniqueNPCData.UniqueNPCTracker());
                 }
 
                 Logger.InitializeNewReport(currentNPCInfo);
@@ -196,6 +204,11 @@ namespace SynthEBD
                         {
                             currentNPCInfo.AssociatedLinkGroup.AssignedMorphs = assignedComboAndBodyGen.Item2;
                         }
+                        // assign to unique NPC list if necessary
+                        if (PatcherSettings.General.bLinkNPCsWithSameName && currentNPCInfo.IsValidLinkedUnique && UniqueAssignmentsByName[currentNPCInfo.Name].AssignedMorphs == null)
+                        {
+                            UniqueAssignmentsByName[currentNPCInfo.Name].AssignedMorphs = assignedComboAndBodyGen.Item2;
+                        }
                     }
                 }
 
@@ -212,6 +225,11 @@ namespace SynthEBD
                         if (currentNPCInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
                         {
                             currentNPCInfo.AssociatedLinkGroup.AssignedMorphs = assignedMorphs;
+                        }
+                        // assign to unique NPC list if necessary
+                        if (PatcherSettings.General.bLinkNPCsWithSameName && currentNPCInfo.IsValidLinkedUnique && UniqueAssignmentsByName[currentNPCInfo.Name].AssignedMorphs == null)
+                        {
+                            UniqueAssignmentsByName[currentNPCInfo.Name].AssignedMorphs = assignedMorphs;
                         }
                     }
                 }

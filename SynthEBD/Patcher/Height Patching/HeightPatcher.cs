@@ -54,6 +54,11 @@ namespace SynthEBD
                 {
                     assignedHeight = npcInfo.AssociatedLinkGroup.AssignedHeight;
                 }
+                else if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && Patcher.UniqueAssignmentsByName[npcInfo.Name].AssignedHeight != -1)
+                {
+                    assignedHeight = Patcher.UniqueAssignmentsByName[npcInfo.Name].AssignedHeight;
+                    Logger.LogReport("Another unique NPC with the same name was assigned a morph. Using that morph for current NPC.");
+                }
                 // assign by consistency if possible
                 else if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.Height != null && npcInfo.ConsistencyNPCAssignment.Height <= upperBound && npcInfo.ConsistencyNPCAssignment.Height >= lowerBound)
                 {
@@ -100,6 +105,11 @@ namespace SynthEBD
             if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
             {
                 npcInfo.AssociatedLinkGroup.AssignedHeight = assignedHeight;
+            }
+
+            if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && Patcher.UniqueAssignmentsByName[npcInfo.Name].AssignedHeight == -1)
+            {
+                Patcher.UniqueAssignmentsByName[npcInfo.Name].AssignedHeight = assignedHeight;
             }
         }
 

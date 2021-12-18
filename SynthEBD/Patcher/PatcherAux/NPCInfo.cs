@@ -42,6 +42,9 @@ namespace SynthEBD
                 }
             }
 
+            IsValidLinkedUnique = UniqueNPCData.IsValidUnique(npc, out var npcName);
+            Name = npcName;
+
             SpecificNPCAssignment = specificNPCAssignments.Where(x => x.NPCFormKey == npc.FormKey).FirstOrDefault();
 
             if (consistency.ContainsKey(this.NPC.FormKey.ToString()))
@@ -58,6 +61,7 @@ namespace SynthEBD
         }
 
         public INpcGetter NPC { get; set; }
+        public string Name { get; set; }
         public string LogIDstring { get; set; }
         public Gender Gender { get; set; }
         public FormKey AssetsRace { get; set; }
@@ -65,6 +69,7 @@ namespace SynthEBD
         public FormKey HeightRace { get; set; }
         public LinkedNPCGroupInfo AssociatedLinkGroup { get; set; }
         public LinkGroupMemberType LinkGroupMember { get; set; }
+        public bool IsValidLinkedUnique { get; set; }
         public NPCAssignment SpecificNPCAssignment { get; set; }
         public NPCAssignment ConsistencyNPCAssignment { get; set; }
 

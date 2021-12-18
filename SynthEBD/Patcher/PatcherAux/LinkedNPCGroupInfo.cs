@@ -13,7 +13,7 @@ namespace SynthEBD
         {
             this.NPCFormKeys = sourceGroup.NPCFormKeys;
             this.AssignedCombination = null;
-            this.AssignedMorphs = null;
+            this.AssignedMorphs = new List<string>();
             this.AssignedHeight = -1;
             this.PrimaryNPCFormKey = sourceGroup.Primary;
         }
