@@ -34,7 +34,7 @@ namespace SynthEBD
         public object DisplayedViewModel { get; set; }
         public object NavViewModel { get; set; }
 
-        public object StatusBarVM { get; set; }
+        public VM_StatusBar StatusBarVM { get; set; }
 
         public VM_LogDisplay LogDisplayVM { get; set; } = new();
         public List<AssetPack> AssetPacks { get; }

@@ -88,7 +88,6 @@
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>
-        <local:UC_StatusBar Grid.Column="3" Grid.Row="4"/>
     </Grid>
 </mahapps:MetroWindow>
 

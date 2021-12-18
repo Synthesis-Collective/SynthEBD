@@ -18,8 +18,8 @@ namespace SynthEBD
     public class Patcher
     {
         //Synchronous version for debugging only
-        public static void RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins)
-        //public static async Task RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
+        //public static void RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins, VM_StatusBar statusBar)
+        public static async Task RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins, VM_StatusBar statusBar)
         {
             ModKey.TryFromName(PatcherSettings.General.patchFileName, ModType.Plugin, out var patchModKey);
             var outputMod = new SkyrimMod(patchModKey, SkyrimRelease.SkyrimSE);
@@ -34,6 +34,8 @@ namespace SynthEBD
 
             Logger.UpdateStatus("Patching", false);
             Logger.StartTimer();
+
+            statusBar.IsPatching = true;
 
             HashSet<LinkedNPCGroupInfo> generatedLinkGroups = new HashSet<LinkedNPCGroupInfo>();
             HashSet<FlattenedAssetPack> maleAssetPacks = new HashSet<FlattenedAssetPack>();
@@ -79,10 +81,12 @@ namespace SynthEBD
             }
 
             int npcCounter = 0;
+            statusBar.ProgressBarMax = allNPCs.Count();
+            statusBar.ProgressBarCurrent = 0;
             // Patch main NPCs
-            MainLoop(allNPCs, true, outputMod, maleAssetPacks, femaleAssetPacks, bodyGenConfigs, heightConfigs, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCNameExclusions, linkedNPCGroups, trimPaths, recordTemplateLinkCache, recordTemplatePlugins, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW);
+            MainLoop(allNPCs, true, outputMod, maleAssetPacks, femaleAssetPacks, bodyGenConfigs, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCGroups,  recordTemplateLinkCache, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, statusBar);
             // Finish assigning non-primary linked NPCs
-            MainLoop(skippedLinkedNPCs, false, outputMod, maleAssetPacks, femaleAssetPacks, bodyGenConfigs, heightConfigs, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCNameExclusions, linkedNPCGroups, trimPaths, recordTemplateLinkCache, recordTemplatePlugins, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW);
+            MainLoop(skippedLinkedNPCs, false, outputMod, maleAssetPacks, femaleAssetPacks, bodyGenConfigs, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCGroups, recordTemplateLinkCache, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, statusBar);
 
             Logger.StopTimer();
             Logger.LogMessage("Finished patching.");
@@ -98,6 +102,8 @@ namespace SynthEBD
             {
                 BodyGenWriter.WriteBodyGenOutputs(bodyGenConfigs);
             }
+
+            statusBar.IsPatching = false;
         }
 
         public static ILinkCache<ISkyrimMod, ISkyrimModGetter> MainLinkCache;
@@ -115,7 +121,7 @@ namespace SynthEBD
             Logger.UpdateStatus("Finished Patching", false);
         }
 
-        private static void MainLoop(IEnumerable<INpcGetter> npcCollection, bool skipLinkedSecondaryNPCs, SkyrimMod outputMod, HashSet<FlattenedAssetPack> maleAssetPacks, HashSet<FlattenedAssetPack> femaleAssetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, HeightConfig currentHeightConfig, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, HashSet<TrimPath> trimPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins, int npcCounter, HashSet<LinkedNPCGroupInfo> generatedLinkGroups, HashSet<INpcGetter> skippedLinkedNPCs, Keyword EBDFaceKW, Keyword EBDScriptKW)
+        private static void MainLoop(IEnumerable<INpcGetter> npcCollection, bool skipLinkedSecondaryNPCs, SkyrimMod outputMod, HashSet<FlattenedAssetPack> maleAssetPacks, HashSet<FlattenedAssetPack> femaleAssetPacks, BodyGenConfigs bodyGenConfigs, HeightConfig currentHeightConfig, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<LinkedNPCGroup> linkedNPCGroups, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, int npcCounter, HashSet<LinkedNPCGroupInfo> generatedLinkGroups, HashSet<INpcGetter> skippedLinkedNPCs, Keyword EBDFaceKW, Keyword EBDScriptKW, VM_StatusBar statusBar)
         {
             bool blockAssets;
             bool blockBodyGen;
@@ -130,10 +136,6 @@ namespace SynthEBD
             foreach (var npc in npcCollection)
             {
                 npcCounter++;
-                if (npcCounter % 100 == 0)
-                {
-                    Logger.LogMessage("Examined " + npcCounter.ToString() + " NPCs in " + Logger.GetEllapsedTime());
-                }
 
                 var currentNPCInfo = new NPCInfo(npc, linkedNPCGroups, generatedLinkGroups, specificNPCAssignments, consistency);
 
@@ -142,6 +144,15 @@ namespace SynthEBD
                 {
                     skippedLinkedNPCs.Add(npc);
                     continue;
+                }
+                else
+                {
+                    statusBar.ProgressBarCurrent++;
+                }
+
+                if (statusBar.ProgressBarCurrent % 1000 == 0)
+                {
+                    statusBar.ProgressBarDisp = "Patched " + statusBar.ProgressBarCurrent + " NPCS";
                 }
 
                 // link by name

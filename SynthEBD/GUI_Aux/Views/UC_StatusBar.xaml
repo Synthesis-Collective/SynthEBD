@@ -7,14 +7,22 @@
              mc:Ignorable="d" 
              d:DataContext="{d:DesignInstance Type=local:VM_StatusBar}"
              d:DesignHeight="450" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+    
     <Grid >
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Path=DispString}" Foreground="{Binding Path=FontColor}" FontSize="18" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+        <ProgressBar Grid.Row="1" Grid.Column="0" Minimum="0" Maximum="{Binding Path=ProgressBarMax}" Value="{Binding Path=ProgressBarCurrent, Mode=OneWay}" Background="Black" Foreground="Green" Visibility="{Binding Path=IsPatching, Converter={StaticResource BoolToVis}}"/>
+        <TextBlock Grid.Row="1" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding Path=IsPatching, Converter={StaticResource BoolToVis}}" Text="{Binding Path=ProgressBarDisp}"/>
     </Grid>
 </UserControl>

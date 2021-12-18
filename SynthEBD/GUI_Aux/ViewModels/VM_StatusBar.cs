@@ -16,6 +16,10 @@ namespace SynthEBD
             this.FontColor = new SolidColorBrush(Colors.Green);
             this.SubscribedLogger = Logger.Instance;
             this.SubscribedLogger.PropertyChanged += RefreshDisp;
+            this.ProgressBarCurrent = 0;
+            this.ProgressBarMax = 100;
+            this.ProgressBarDisp = "";
+            this.IsPatching = false;
         }
 
         public string DispString
@@ -35,6 +39,11 @@ namespace SynthEBD
         public SolidColorBrush FontColor { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
+
+        public int ProgressBarMax { get; set; }
+        public int ProgressBarCurrent { get; set; }
+        public string ProgressBarDisp { get; set; }
+        public bool IsPatching { get; set; }
 
         protected void OnPropertyChanged(PropertyChangedEventArgs e)
         {

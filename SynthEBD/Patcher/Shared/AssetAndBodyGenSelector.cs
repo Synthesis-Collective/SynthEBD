@@ -467,7 +467,7 @@ namespace SynthEBD
                     }
                     else if (combinationAlreadyTried)
                     {
-                        Logger.LogError("This combination (" + generatedSignature + ") has previously been generated");
+                        Logger.LogReport("This combination (" + generatedSignature + ") has previously been generated");
                     }
 
                     Logger.LogReport("Selecting a different subgroup at position " + i + ".");
