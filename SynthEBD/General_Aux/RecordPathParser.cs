@@ -15,11 +15,12 @@ namespace SynthEBD
 {
     public class RecordPathParser
     {
-        public static dynamic GetObjectAtPath(dynamic rootObj, string relativePath, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+        public static bool GetObjectAtPath(dynamic rootObj, string relativePath, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out dynamic outputObj)
         {
+            outputObj = null;
             if (rootObj == null)
             {
-                return null;
+                return false;
             }
 
             Dictionary<string, dynamic> objectCache;
@@ -41,7 +42,7 @@ namespace SynthEBD
             {
                 if (currentObj == null)
                 {
-                    return null;
+                    return false;
                 }
 
                 // check object cache to see if the given object has already been resolved
@@ -58,11 +59,14 @@ namespace SynthEBD
                 // handle arrays
                 if (PathIsArray(currentSubPath, out string arraySubPath, out string arrIndex))
                 {
-                    currentObj = GetArrayObjectAtIndex(currentObj, arraySubPath, arrIndex, objectLinkMap, linkCache);
+                    if (!GetArrayObjectAtIndex(currentObj, arraySubPath, arrIndex, objectLinkMap, linkCache, out currentObj))
+                    {
+                        return false;
+                    }
                 }
-                else
+                else if (!GetSubObject(currentObj, currentSubPath, out currentObj))
                 {
-                    currentObj = GetSubObject(currentObj, currentSubPath);
+                    return false;
                 }
 
                 // if the current property is another record, resolve it to traverse
@@ -80,51 +84,61 @@ namespace SynthEBD
                 objectCache.Add(relativePath, currentObj);
             }
 
-            return currentObj;
+            outputObj = currentObj;
+            return true;
         }
 
-        public static IMajorRecordGetter GetNearestParentGetter(IMajorRecordGetter rootGetter, string path, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out string relativePath)
+        public static bool GetNearestParentGetter(IMajorRecordGetter rootGetter, string path, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out IMajorRecordGetter parentRecordGetter, out string relativePath)
         {
-            IMajorRecordGetter parent = null;
-
             string[] splitPath = SplitPath(path);
             dynamic currentObj = rootGetter;
+            parentRecordGetter = null;
             relativePath = "";
 
             for (int i = 0; i < splitPath.Length; i++)
             {
-                currentObj = GetObjectAtPath(currentObj, splitPath[i], new Dictionary<dynamic, Dictionary<string, dynamic>>(), linkCache);
-                if (currentObj == null) { return null; }
-                if (ObjectIsRecord(currentObj))
+                if (GetObjectAtPath(currentObj, splitPath[i], new Dictionary<dynamic, Dictionary<string, dynamic>>(), linkCache, out currentObj))
                 {
-                    parent = currentObj;
-                    relativePath = "";
+                    if (ObjectIsRecord(currentObj))
+                    {
+                        parentRecordGetter = currentObj;
+                        relativePath = "";
+                    }
+                    else
+                    {
+                        relativePath += splitPath[i];
+                        if (i < splitPath.Length - 1)
+                        {
+                            relativePath += ".";
+                        }
+                    }
                 }
                 else
                 {
-                    relativePath += splitPath[i];
-                    if (i < splitPath.Length - 1)
-                    {
-                        relativePath += ".";
-                    }
+                    return false;
                 }
             }
 
-            return parent;
+            return true;
         }
 
-        private static dynamic GetArrayObjectAtIndex(dynamic currentObj, string arraySubPath, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+        private static bool GetArrayObjectAtIndex(dynamic currentObj, string arraySubPath, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out dynamic outputObj)
         {
-            var collectionObj = (IEnumerable<dynamic>)GetObjectAtPath(currentObj, arraySubPath, objectLinkMap, linkCache);
-            if (collectionObj == null)
+            outputObj = null;
+            IEnumerable<dynamic> collectionObj = null;
+            if (GetObjectAtPath(currentObj, arraySubPath, objectLinkMap, linkCache, out dynamic untypedCollectionObj))
             {
-                return null;
+                collectionObj = (IEnumerable<dynamic>)untypedCollectionObj;
+            }
+            else
+            {
+                return false;
             }
 
             //if array index is numeric
             if (int.TryParse(arrIndex, out int iIndex))
             {
-                if (iIndex < collectionObj.Count())
+                if (iIndex < 0 || iIndex < collectionObj.Count())
                 {
                     currentObj = collectionObj.ElementAt(iIndex);
                 }
@@ -132,23 +146,23 @@ namespace SynthEBD
                 {
                     string currentSubPath = arraySubPath + "[" + arrIndex + "]";
                     Logger.LogError("Could not get object at " + currentSubPath + " because " + arraySubPath + " does not have an element at index " + iIndex);
-                    return null;
+                    return false;
                 }
             }
 
             // if array index specifies object by property, figure out which index is the right one
             else
             {
-                currentObj = ChooseWhichArrayObject(collectionObj, arrIndex, objectLinkMap, linkCache);
-                if (currentObj == null)
+                if (!ChooseWhichArrayObject(collectionObj, arrIndex, objectLinkMap, linkCache, out currentObj))
                 {
                     string currentSubPath = arraySubPath + "[" + arrIndex + "]";
                     Logger.LogError("Could not get object at " + currentSubPath + " because " + arraySubPath + " does not have an element that matches condition: " + arrIndex);
-                    return null;
+                    return false;
                 }
             }
 
-            return currentObj;
+            outputObj = currentObj;
+            return true;
         }
 
         private class ArrayPathCondition
@@ -196,8 +210,9 @@ namespace SynthEBD
             }
         }
 
-        private static dynamic ChooseWhichArrayObject(IEnumerable<dynamic> variants, string matchConditionStr, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+        private static bool ChooseWhichArrayObject(IEnumerable<dynamic> variants, string matchConditionStr, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out dynamic outputObj)
         {
+            outputObj = null;
             var arrayMatchConditions = ArrayPathCondition.GetConditionsFromString(matchConditionStr);
 
             int argIndex = 0;
@@ -235,9 +250,8 @@ namespace SynthEBD
                 {
                     dynamic comparisonObject;
                     
-                    if (candidateObjIsResolved && candidateRecordGetter != null)
+                    if (candidateObjIsResolved && candidateRecordGetter != null && GetObjectAtPath(candidateRecordGetter, condition.Path, objectLinkMap, linkCache, out comparisonObject))
                     {
-                        comparisonObject = GetObjectAtPath(candidateRecordGetter, condition.Path, objectLinkMap, linkCache);
                         evalParameters.Add(comparisonObject);
                     }
                     else if (candidateObjIsRecord) // warn if the object is a record but the corresponding Form couldn't be resolved
@@ -246,10 +260,13 @@ namespace SynthEBD
                         skipToNext = true;
                         break;
                     }
+                    else if (GetObjectAtPath(candidateObj, condition.Path, objectLinkMap, linkCache, out comparisonObject))
+                    {
+                        evalParameters.Add(comparisonObject);
+                    }
                     else
                     {
-                        comparisonObject = GetObjectAtPath(candidateObj, condition.Path, objectLinkMap, linkCache);
-                        evalParameters.Add(comparisonObject);
+                        return false; 
                     }
                     argIndex++;
 
@@ -270,10 +287,11 @@ namespace SynthEBD
 
                 if (Eval.Execute<bool>(matchConditionStr, evalParameters.ToArray()))
                 {
-                    return candidateObj;
+                    outputObj = candidateObj;
+                    return true;
                 }
             }
-            return null;
+            return false;
         }
 
         public static HashSet<IFormLinkGetter<IRaceGetter>> testHashSet = new HashSet<IFormLinkGetter<IRaceGetter>>() {Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DefaultRace};
@@ -299,7 +317,7 @@ namespace SynthEBD
             return false;
         }
 
-        public static dynamic GetSubObject(dynamic root, string propertyName)
+        public static bool GetSubObject(dynamic root, string propertyName, out dynamic outputObj)
         {
             //FastMember
             /*
@@ -315,6 +333,7 @@ namespace SynthEBD
             }
             */
 
+            outputObj = null;
             Type type = root.GetType();
             
             if (Patcher.PropertyCache.ContainsKey(type))
@@ -325,7 +344,8 @@ namespace SynthEBD
                     var cachedProperty = subDict[propertyName];
                     if (cachedProperty != null)
                     {
-                        return cachedProperty.GetValue(root);
+                        outputObj = cachedProperty.GetValue(root);
+                        return true;
                     }
                 }
                 else
@@ -334,7 +354,8 @@ namespace SynthEBD
                     subDict.Add(propertyName, newProperty);
                     if (newProperty != null)
                     {
-                        return newProperty.GetValue(root);
+                        outputObj = newProperty.GetValue(root);
+                        return true;
                     }
                 }
             }
@@ -346,10 +367,11 @@ namespace SynthEBD
                 Patcher.PropertyCache.Add(type, newSubDict);
                 if (newProperty2 != null)
                 {
-                    return newProperty2.GetValue(root);
+                    outputObj = newProperty2.GetValue(root);
+                    return true;
                 }
             }
-            return null;
+            return false;
             /*
             var property = root.GetType().GetProperty(propertyName);
             if (property != null)
@@ -432,31 +454,41 @@ namespace SynthEBD
         /// <returns></returns>
         public static bool PropertyIsRecord(dynamic root, string propertyName, out FormKey? formKey, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
         {
+            formKey = null;
+            dynamic formKeyDyn = null;
             // handle arrays
             if (PathIsArray(propertyName, out string arraySubPath, out string arrIndex))
             {
-                var specifiedArrayObj = GetArrayObjectAtIndex(root, arraySubPath, arrIndex, objectLinkMap, linkCache);
-                return ObjectIsRecord(specifiedArrayObj, out formKey);
+                if (GetArrayObjectAtIndex(root, arraySubPath, arrIndex, objectLinkMap, linkCache, out dynamic specifiedArrayObj) && ObjectIsRecord(specifiedArrayObj, out formKey))
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
             }
             else
             {
-                formKey = null;
                 var property = root.GetType().GetProperty(propertyName);
-                if (property != null && property.PropertyType.Name.StartsWith("IFormLinkNullableGetter"))
+                if (property != null && property.PropertyType.Name.StartsWith("IFormLinkNullableGetter") && GetSubObject(property.GetValue(root), "FormKey", out formKeyDyn))
                 {
-                    formKey = (FormKey)GetSubObject(property.GetValue(root), "FormKey");
+                    formKey = (FormKey?)formKeyDyn;
                     return true;
                 }
-                return false;
+                else
+                {
+                    return false;
+                }
             }
         }
 
         public static bool PropertyIsRecord(dynamic root, string propertyName, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
         {
             // handle arrays
-            if (PathIsArray(propertyName, out string arraySubPath, out string arrIndex))
+            if (PathIsArray(propertyName, out string arraySubPath, out string arrIndex) && !GetArrayObjectAtIndex(root, arraySubPath, arrIndex, objectLinkMap, linkCache, out root)) // root gets updated here
             {
-                root = GetArrayObjectAtIndex(root, arraySubPath, arrIndex, objectLinkMap, linkCache);
+                return false;
             }
 
             var property = root.GetType().GetProperty(propertyName);

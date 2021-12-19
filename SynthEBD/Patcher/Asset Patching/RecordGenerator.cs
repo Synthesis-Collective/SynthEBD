@@ -34,6 +34,7 @@ namespace SynthEBD
                 {
                     var parsed = new FilePathReplacementParsed(path);
 
+                    /* commmented for debugging
                     if (WornArmorPaths.Contains(path.Destination)) { wnamPaths.Add(path); }
                     else if (HeadTexturePaths.Contains(path.Destination)) { headtexPaths.Add(path); }
                     else
@@ -44,6 +45,15 @@ namespace SynthEBD
                             longestPath = parsed.Destination.Length;
                         }
                     }
+                    */
+
+                    // temp debugging
+                    nonHardcodedPaths.Add(parsed);
+                    if (parsed.Destination.Length > longestPath)
+                    {
+                        longestPath = parsed.Destination.Length;
+                    }
+                    // end temp debugging
                 }
             }
             
@@ -109,72 +119,91 @@ namespace SynthEBD
                     else
                     {
                         // step through the path
-                        currentObj = RecordPathParser.GetObjectAtPath(rootObj, currentSubPath, objectLinkMap, Patcher.MainLinkCache);
-                        bool currentObjectIsARecord = RecordPathParser.ObjectIsRecord(currentObj, out FormKey? recordFormKey);
-                        if (currentObjectIsARecord && !recordFormKey.Value.IsNull)
+                        bool npcHasObject = RecordPathParser.GetObjectAtPath(rootObj, currentSubPath, objectLinkMap, Patcher.MainLinkCache, out currentObj);
+                        bool npcHasNullFormLink = false;
+                        bool templateHasObject = false;
+                        if (npcHasObject)
                         {
-                            Type recordType = RecordPathParser.GetSubObject(currentObj, "Type");
-                            if (recordType == null)
-                            {
-                                Type objType = currentObj.GetType();
-                                var register = LoquiRegistration.GetRegister(objType);
-                                recordType = register.GetterType;
-                            }
-                            if (Patcher.MainLinkCache.TryResolve(recordFormKey.Value, recordType, out var currentMajorRecordCommonGetter)) //if the current object is an existing record, resolve it so that it can be traversed
-                            {
-                                currentObj = GetOrAddGenericRecordAsOverride((IMajorRecordGetter)currentMajorRecordCommonGetter, outputMod);
+                            // if the current object is a record, resolve it
+                            if (RecordPathParser.ObjectIsRecord(currentObj, out FormKey? recordFormKey))
+                            { ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////Double check that the extra TryResolve is necessary. GetObjectAtPath already resolves Getters, so it should be possible to just get case currentObj to ImajorRecordGetter and call GetOrAddGenericRecordAsOverride()
+                                if (!recordFormKey.Value.IsNull)
+                                {
+                                    Type recordType = null;
+                                    if (RecordPathParser.GetSubObject(currentObj, "Type", out dynamic recordTypeDyn))
+                                    {
+                                        recordType = (Type)recordTypeDyn;
+                                    }
+                                    else
+                                    {
+                                        Type objType = currentObj.GetType();
+                                        var register = LoquiRegistration.GetRegister(objType);
+                                        recordType = register.GetterType;
+                                    }
+                                    if (Patcher.MainLinkCache.TryResolve(recordFormKey.Value, recordType, out var currentMajorRecordCommonGetter)) //if the current object is an existing record, resolve it so that it can be traversed
+                                    {
+                                        dynamic recordGroup = GetPatchRecordGroup(currentObj, outputMod);
+
+                                        IMajorRecord copiedRecord = (IMajorRecord)IGroupMixIns.DuplicateInAsNewRecord(recordGroup, (IMajorRecordGetter)currentMajorRecordCommonGetter);
+                                        if (copiedRecord == null)
+                                        {
+                                            Logger.LogError("Could not deep copy a record for NPC " + Logger.GetNPCLogNameString(template) + " at path: " + group.Key + ". This subrecord will not be assigned.");
+                                            continue;
+                                        }
+
+                                        copiedRecord.EditorID += "_" + npcInfo.NPC.EditorID;
+
+                                        SetRecord((IMajorRecordGetter)rootObj, currentSubPath, copiedRecord, outputMod);
+                                        currentObj = copiedRecord;
+                                    }
+                                }
+                                else
+                                {
+                                    npcHasNullFormLink = true;
+                                }
                             }
                         }
 
                         // if the NPC doesn't have the given object (e.g. the NPC doesn't have a WNAM), assign in from template
-                        if (currentObj == null || currentObjectIsARecord && recordFormKey.Value.IsNull)
+                        if ((!npcHasObject || npcHasNullFormLink) && RecordPathParser.GetObjectAtPath(template, group.Key, objectLinkMap, recordTemplateLinkCache, out currentObj)) // get corresponding object from template NPC
                         {
-                            currentObj = RecordPathParser.GetObjectAtPath(template, group.Key, objectLinkMap, recordTemplateLinkCache); // get corresponding object from template NPC
-
-                            if (currentObj == null)
-                            {
-                                Logger.LogError("Error: neither NPC " + npcInfo.LogIDstring + " nor the record template " + template.EditorID + " contained a record at " + group.Key + ". Cannot assign this record.");
-                            }
-
-                            else
-                            {
-                                // if the template object is a record, add it to the generated patch and then copy it to the NPC
-                                // if the template object is just a struct (not a record), simply copy it to the NPC
-                                if (currentObjectIsARecord)
+                            templateHasObject = true;
+                            // if the template object is a record, add it to the generated patch and then copy it to the NPC
+                            // if the template object is just a struct (not a record), simply copy it to the NPC
+                            if (RecordPathParser.ObjectIsRecord(currentObj, out FormKey? recordFormKey))
+                            { ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////Double check that the GetSubObject(currentObj, "FormKey", out dynamic templateFormKeyDyn) is necessary. Should be able to call DeepcopyRecordTopPath using currentObj.FormKey.ModKey instead of templateFormKey.ModKey
+                                if (RecordPathParser.GetSubObject(currentObj, "FormKey", out dynamic templateFormKeyDyn))
                                 {
-                                    FormKey templateFormKey = RecordPathParser.GetSubObject(currentObj, "FormKey");
-                                    var newRecord = DeepCopyRecordToPatch(currentObj, templateFormKey.ModKey, recordTemplateLinkCache, outputMod);
+                                    FormKey templateFormKey = (FormKey)templateFormKeyDyn;
+                                    HashSet<IMajorRecord> copiedRecords = new HashSet<IMajorRecord>(); // includes current record and its subrecords
+                                    var newRecord = DeepCopyRecordToPatch(currentObj, templateFormKey.ModKey, recordTemplateLinkCache, outputMod, copiedRecords);
                                     if (newRecord == null)
                                     {
-                                        Logger.LogError("Record template error: Could not obtain a non-null FormKey for template NPC " + Logger.GetNPCLogNameString(template) + " at path: " + group.Key + ". This subrecord will not be assigned.");
+                                        Logger.LogError("Record template error: Could not obtain a subrecord for template NPC " + Logger.GetNPCLogNameString(template) + " at path: " + group.Key + ". This subrecord will not be assigned.");
                                         continue;
                                     }
 
-                                    // increment editor ID number
-                                    if (Patcher.EdidCounts.ContainsKey(newRecord.EditorID))
-                                    {
-                                        Patcher.EdidCounts[newRecord.EditorID]++;
-                                        newRecord.EditorID += Patcher.EdidCounts[newRecord.EditorID];
-                                    }
-                                    else
-                                    {
-                                        Patcher.EdidCounts.Add(newRecord.EditorID, 1);
-                                        newRecord.EditorID += 1;
-                                    }
+                                    IncrementEditorID(copiedRecords);
+
                                     SetRecord((IMajorRecordGetter)rootObj, currentSubPath, newRecord, outputMod);
                                     currentObj = newRecord;
+
+                                    recordsAtPaths.Add(pathSignature, newRecord); // store paths associated with this record for future lookup to avoid having to repeat the reflection for other NPCs who get the same combination and need to be assigned the same record
                                 }
                                 else
                                 {
-                                    RecordPathParser.SetSubObject(rootObj, currentSubPath, currentObj);
+                                    Logger.LogError("Record template error: Could not obtain a non-null FormKey for template NPC " + Logger.GetNPCLogNameString(template) + " at path: " + group.Key + ". This subrecord will not be assigned.");
                                 }
                             }
-
-                            // store paths associated with this record for future lookup to avoid having to repeat the reflection
-                            if (currentObjectIsARecord)
+                            else
                             {
-                                recordsAtPaths.Add(pathSignature, currentObj); // for other NPCs who get the same combination and need to be assigned the same record
+                                RecordPathParser.SetSubObject(rootObj, currentSubPath, currentObj);
                             }
+                        }
+
+                        if (!npcHasObject && !templateHasObject)
+                        {
+                            Logger.LogError("Error: neither NPC " + npcInfo.LogIDstring + " nor the record template " + template.EditorID + " contained a record at " + group.Key + ". Cannot assign this record.");
                         }
                     }
 
@@ -195,17 +224,18 @@ namespace SynthEBD
             }
         }
 
-        public static IMajorRecord DeepCopyRecordToPatch(dynamic sourceRecordObj, ModKey sourceModKey, ILinkCache<ISkyrimMod, ISkyrimModGetter> sourceLinkCache, SkyrimMod destinationMod)
+        public static IMajorRecord DeepCopyRecordToPatch(dynamic sourceRecordObj, ModKey sourceModKey, ILinkCache<ISkyrimMod, ISkyrimModGetter> sourceLinkCache, SkyrimMod destinationMod, HashSet<IMajorRecord> copiedRecords)
         {
             dynamic group = GetPatchRecordGroup(sourceRecordObj, destinationMod);
             IMajorRecord copiedRecord = (IMajorRecord)IGroupMixIns.DuplicateInAsNewRecord(group, sourceRecordObj);
+            copiedRecords.Add(copiedRecord);
 
             Dictionary<FormKey, FormKey> mapping = new Dictionary<FormKey, FormKey>();
             foreach (var fl in copiedRecord.ContainedFormLinks)
             {
                 if (fl.FormKey.ModKey == sourceModKey && !fl.FormKey.IsNull && sourceLinkCache.TryResolve(fl.FormKey, fl.Type, out var subRecord))
                 {
-                    var copiedSubRecord = DeepCopyRecordToPatch(subRecord, sourceModKey, sourceLinkCache, destinationMod);
+                    var copiedSubRecord = DeepCopyRecordToPatch(subRecord, sourceModKey, sourceLinkCache, destinationMod, copiedRecords);
                     mapping.Add(fl.FormKey, copiedSubRecord.FormKey);
                 }
             }
@@ -240,6 +270,23 @@ namespace SynthEBD
 
             var formKeySetter = valueMethods.Where(x => x.Name == "set_FormKey").FirstOrDefault();
             formKeySetter.Invoke(currentValue, new object[] { value.FormKey });
+        }
+
+        public static void IncrementEditorID(HashSet<IMajorRecord> records)
+        {
+            foreach (var newRecord in records)
+            {
+                if (Patcher.EdidCounts.ContainsKey(newRecord.EditorID))
+                {
+                    Patcher.EdidCounts[newRecord.EditorID]++;
+                    newRecord.EditorID += Patcher.EdidCounts[newRecord.EditorID];
+                }
+                else
+                {
+                    Patcher.EdidCounts.Add(newRecord.EditorID, 1);
+                    newRecord.EditorID += 1;
+                }
+            }
         }
 
         public static INpcGetter GetTemplateNPC(NPCInfo npcInfo, FlattenedAssetPack chosenAssetPack, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
