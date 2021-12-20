@@ -11,6 +11,8 @@ using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
 using Mutagen.Bethesda.Plugins.Cache;
 using FastMember;
+using System.Linq.Expressions;
+
 namespace SynthEBD
 {
     public class RecordPathParser
@@ -348,6 +350,20 @@ namespace SynthEBD
 
         public static bool GetSubObject(dynamic root, string propertyName, out dynamic outputObj)
         {
+            outputObj = null;
+            if (GetAccessor(root, propertyName, AccessorType.Getter, out Delegate getter))
+            {
+                outputObj = getter.DynamicInvoke(root);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public static bool GetSubObjectOld(dynamic root, string propertyName, out dynamic outputObj)
+        {
             //FastMember
             /*
             var accessor = TypeAccessor.Create(root.GetType());
@@ -365,15 +381,21 @@ namespace SynthEBD
             outputObj = null;
             Type type = root.GetType();
             
-            if (Patcher.PropertyCache.ContainsKey(type))
+            if (PropertyCache.ContainsKey(type))
             {
-                var subDict = Patcher.PropertyCache[type];
+                var subDict = PropertyCache[type];
                 if (subDict.ContainsKey(propertyName))
                 {
                     var cachedProperty = subDict[propertyName];
                     if (cachedProperty != null)
                     {
                         outputObj = cachedProperty.GetValue(root);
+
+                        // Test
+                        var delegateType = Expression.GetFuncType(cachedProperty.DeclaringType, cachedProperty.PropertyType);
+                        var getter = cachedProperty.GetMethod.CreateDelegate(delegateType);
+                        //Test
+
                         return true;
                     }
                 }
@@ -393,7 +415,7 @@ namespace SynthEBD
                 var newSubDict = new Dictionary<string, PropertyInfo>();
                 var newProperty2 = type.GetProperty(propertyName);
                 newSubDict.Add(propertyName, newProperty2);
-                Patcher.PropertyCache.Add(type, newSubDict);
+                PropertyCache.Add(type, newSubDict);
                 if (newProperty2 != null)
                 {
                     outputObj = newProperty2.GetValue(root);
@@ -412,6 +434,7 @@ namespace SynthEBD
                 return null;
             }
             */
+
         }
 
         public static void SetSubObject(dynamic root, string propertyName, dynamic value)
@@ -432,9 +455,9 @@ namespace SynthEBD
 
             Type type = root.GetType();
 
-            if (Patcher.PropertyCache.ContainsKey(type))
+            if (PropertyCache.ContainsKey(type))
             {
-                var subDict = Patcher.PropertyCache[type];
+                var subDict = PropertyCache[type];
                 if (subDict.ContainsKey(propertyName))
                 {
                     var cachedProperty = subDict[propertyName];
@@ -458,7 +481,7 @@ namespace SynthEBD
                 var newSubDict = new Dictionary<string, PropertyInfo>();
                 var newProperty2 = type.GetProperty(propertyName);
                 newSubDict.Add(propertyName, newProperty2);
-                Patcher.PropertyCache.Add(type, newSubDict);
+                PropertyCache.Add(type, newSubDict);
                 if (newProperty2 != null)
                 {
                     newProperty2.SetValue(root, value);
@@ -582,5 +605,122 @@ namespace SynthEBD
             return output.ToArray();
         }
 
+        public static Dictionary<Type, Dictionary<string, System.Reflection.PropertyInfo>> PropertyCache = new Dictionary<Type, Dictionary<string, PropertyInfo>>();
+
+        public static bool GetPropertyInfo(dynamic obj, string propertyName, out System.Reflection.PropertyInfo property)
+        {
+            property = null;
+            Type type = obj.GetType();
+            if (PropertyCache.ContainsKey(type))
+            {
+                var properties = PropertyCache[type];
+                if (properties.ContainsKey(propertyName))
+                {
+                    property = properties[propertyName];
+                }
+                else
+                {
+                    property = type.GetProperty(propertyName);
+                    PropertyCache[type].Add(propertyName, property);
+                }
+            }
+            else
+            {
+                Dictionary<string, System.Reflection.PropertyInfo> subDict = new Dictionary<string, PropertyInfo>();
+                property = type.GetProperty(propertyName);
+                subDict.Add(propertyName, property);
+                PropertyCache.Add(type, subDict);
+            }
+
+            if (property != null)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public static Dictionary<Type, Dictionary<string, Delegate>> GetterEmbassy = new Dictionary<Type, Dictionary<string, Delegate>>();
+        public static Dictionary<Type, Dictionary<string, Delegate>> SetterEmbassy = new Dictionary<Type, Dictionary<string, Delegate>>();
+
+        public enum AccessorType
+        {
+            Getter,
+            Setter
+        }
+
+        public static bool GetAccessor(dynamic obj, string propertyName, AccessorType accessorType, out Delegate accessor)
+        {
+            accessor = null;
+            PropertyInfo property = null;
+            Dictionary<Type, Dictionary<string, Delegate>> cache = null;
+
+            switch(accessorType)
+            {
+                case AccessorType.Getter: cache = GetterEmbassy; break;
+                case AccessorType.Setter: cache = SetterEmbassy; break;
+            }
+
+            Type type = obj.GetType();
+
+            if (cache.ContainsKey(type))
+            {
+                if (cache[type].ContainsKey(propertyName))
+                {
+                    accessor = cache[type][propertyName];
+                }
+                else if (GetPropertyInfo(obj, propertyName, out property))
+                {
+                    switch(accessorType)
+                    {
+                        case AccessorType.Getter: accessor = CreateDelegateGetter(property); break;
+                        case AccessorType.Setter: accessor = CreateDelegateSetter(property); break;
+                    }
+                    
+                    cache[type].Add(propertyName, accessor);
+                }
+            }
+            else
+            {
+                if (GetPropertyInfo(obj, propertyName, out property))
+                {
+                    switch (accessorType)
+                    {
+                        case AccessorType.Getter: accessor = CreateDelegateGetter(property); break;
+                        case AccessorType.Setter: accessor = CreateDelegateSetter(property); break;
+                    }
+                    Dictionary<string, Delegate> subDict = new Dictionary<string, Delegate>();
+                    subDict.Add(propertyName, accessor);
+                    cache.Add(type, subDict);
+                }
+                else
+                {
+                    accessor = null; // just for readability
+                }
+            }
+
+            if (accessor != null)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public static Delegate CreateDelegateGetter(PropertyInfo property)
+        {
+            var delegateType = Expression.GetFuncType(property.DeclaringType, property.PropertyType);
+            return property.GetMethod.CreateDelegate(delegateType);
+        }
+
+        public static Delegate CreateDelegateSetter(PropertyInfo property)
+        {
+            var delegateType = Expression.GetFuncType(property.DeclaringType, property.PropertyType);
+            return property.SetMethod.CreateDelegate(delegateType);
+        }
     }
 }

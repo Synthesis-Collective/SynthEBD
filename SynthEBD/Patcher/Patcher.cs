@@ -25,7 +25,6 @@ namespace SynthEBD
             ModKey.TryFromName(PatcherSettings.General.patchFileName, ModType.Plugin, out var patchModKey);
             var outputMod = new SkyrimMod(patchModKey, SkyrimRelease.SkyrimSE);
             MainLinkCache = GameEnvironmentProvider.MyEnvironment.LoadOrder.ToMutableLinkCache(outputMod);
-            PropertyCache = new();
             ResolvePatchableRaces();
             InitializeIgnoredArmorAddons();
             UpdateRecordTemplateAdditonalRaces(assetPacks, recordTemplateLinkCache, recordTemplatePlugins);
@@ -109,8 +108,6 @@ namespace SynthEBD
         }
 
         public static ILinkCache<ISkyrimMod, ISkyrimModGetter> MainLinkCache;
-
-        public static Dictionary<Type, Dictionary<string, System.Reflection.PropertyInfo>> PropertyCache;
 
         public static HashSet<IFormLinkGetter<IRaceGetter>> PatchableRaces;
 
