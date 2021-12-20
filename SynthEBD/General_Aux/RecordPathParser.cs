@@ -17,7 +17,12 @@ namespace SynthEBD
     {
         public static bool GetObjectAtPath(dynamic rootObj, string relativePath, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out dynamic outputObj)
         {
+            return GetObjectAtPath(rootObj, relativePath, objectLinkMap, linkCache, out outputObj, out int? unusedArrayIndex);
+        }
+        public static bool GetObjectAtPath(dynamic rootObj, string relativePath, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out dynamic outputObj, out int? indexInParent)
+        {
             outputObj = null;
+            indexInParent = null;
             if (rootObj == null)
             {
                 return false;
@@ -57,9 +62,10 @@ namespace SynthEBD
                 string currentSubPath = splitPath[i];
 
                 // handle arrays
-                if (PathIsArray(currentSubPath, out string arraySubPath, out string arrIndex))
+                //if (PathIsArray(currentSubPath, out string arraySubPath, out string arrIndex))
+                if (PathIsArray(currentSubPath, out string arrIndex))
                 {
-                    if (!GetArrayObjectAtIndex(currentObj, arraySubPath, arrIndex, objectLinkMap, linkCache, out currentObj))
+                    if (!GetArrayObjectAtIndex(currentObj, arrIndex, objectLinkMap, linkCache, out currentObj, out indexInParent))
                     {
                         return false;
                     }
@@ -70,7 +76,7 @@ namespace SynthEBD
                 }
 
                 // if the current property is another record, resolve it to traverse
-                if (ObjectIsRecord(currentObj, out FormKey? subrecordFK))
+                if (ObjectHasFormKey(currentObj, out FormKey? subrecordFK))
                 {
                     if (subrecordFK != null && !subrecordFK.Value.IsNull && linkCache.TryResolve(subrecordFK.Value, (Type)currentObj.Type, out var subRecordGetter))
                     {
@@ -99,7 +105,7 @@ namespace SynthEBD
             {
                 if (GetObjectAtPath(currentObj, splitPath[i], new Dictionary<dynamic, Dictionary<string, dynamic>>(), linkCache, out currentObj))
                 {
-                    if (ObjectIsRecord(currentObj))
+                    if (ObjectHasFormKey(currentObj))
                     {
                         parentRecordGetter = currentObj;
                         relativePath = "";
@@ -121,17 +127,19 @@ namespace SynthEBD
 
             return true;
         }
-
-        private static bool GetArrayObjectAtIndex(dynamic currentObj, string arraySubPath, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out dynamic outputObj)
+        private static bool GetArrayObjectAtIndex(dynamic currentObj, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out dynamic outputObj)
+        {
+            return GetArrayObjectAtIndex(currentObj, arrIndex, objectLinkMap, linkCache, out outputObj, out int? unusedIndex);
+        }
+        private static bool GetArrayObjectAtIndex(dynamic currentObj, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out dynamic outputObj, out int? indexInParent)
         {
             outputObj = null;
-            IEnumerable<dynamic> collectionObj = null;
-            if (GetObjectAtPath(currentObj, arraySubPath, objectLinkMap, linkCache, out dynamic untypedCollectionObj))
+            indexInParent = null;
+
+            var collectionObj = currentObj as IReadOnlyList<dynamic>;
+            if (collectionObj == null)
             {
-                collectionObj = (IEnumerable<dynamic>)untypedCollectionObj;
-            }
-            else
-            {
+                Logger.LogError("Could not cast " + currentObj.GetType() + "as an XXX");
                 return false;
             }
 
@@ -141,11 +149,12 @@ namespace SynthEBD
                 if (iIndex < 0 || iIndex < collectionObj.Count())
                 {
                     currentObj = collectionObj.ElementAt(iIndex);
+                    indexInParent = iIndex;
                 }
                 else
                 {
-                    string currentSubPath = arraySubPath + "[" + arrIndex + "]";
-                    Logger.LogError("Could not get object at " + currentSubPath + " because " + arraySubPath + " does not have an element at index " + iIndex);
+                    string currentSubPath = "[" + arrIndex + "]";
+                    Logger.LogError("Could not get object at " + currentSubPath + " because the " + currentObj.GetType() + " does not have an element at index " + iIndex);
                     return false;
                 }
             }
@@ -153,10 +162,10 @@ namespace SynthEBD
             // if array index specifies object by property, figure out which index is the right one
             else
             {
-                if (!ChooseWhichArrayObject(collectionObj, arrIndex, objectLinkMap, linkCache, out currentObj))
+                if (!ChooseWhichArrayObject(collectionObj, arrIndex, objectLinkMap, linkCache, out currentObj, out indexInParent))
                 {
-                    string currentSubPath = arraySubPath + "[" + arrIndex + "]";
-                    Logger.LogError("Could not get object at " + currentSubPath + " because " + arraySubPath + " does not have an element that matches condition: " + arrIndex);
+                    string currentSubPath = "[" + arrIndex + "]";
+                    Logger.LogError("Could not get object at " + currentSubPath + " because " + currentObj.GetType() + " does not have an element that matches condition: " + arrIndex);
                     return false;
                 }
             }
@@ -210,17 +219,17 @@ namespace SynthEBD
             }
         }
 
-        private static bool ChooseWhichArrayObject(IEnumerable<dynamic> variants, string matchConditionStr, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out dynamic outputObj)
+        private static bool ChooseWhichArrayObject(IReadOnlyList<dynamic> variants, string matchConditionStr, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out dynamic outputObj, out int? indexInParent)
         {
             outputObj = null;
+            indexInParent = null;
+
             var arrayMatchConditions = ArrayPathCondition.GetConditionsFromString(matchConditionStr);
 
             int argIndex = 0;
             foreach (var condition in arrayMatchConditions)
             {
                 string argStr = '{' + argIndex.ToString() + '}';
-                //try using RegEx or some other algorithm to replace whole word only. This is temp solution
-                //matchConditionStr = matchConditionStr.Replace(condition.ReplacerTemplate, argStr);
                 for (int i = 0; i < matchConditionStr.Length - condition.ReplacerTemplate.Length; i++)
                 {
                     if (matchConditionStr.Substring(i, condition.ReplacerTemplate.Length) == condition.ReplacerTemplate && (i == 0 || matchConditionStr[i - 1] == '(' || matchConditionStr[i - 1] == ' '))
@@ -235,15 +244,17 @@ namespace SynthEBD
             int patchableRaceArgIndex = argIndex;
             bool addPatchableRaceArg = false;
 
-            foreach (var candidateObj in variants)
+            //foreach (var candidateObj in variants)
+            for (int i = 0; i < variants.Count(); i++)
             {
+                var candidateObj = variants[i];
                 List<dynamic> evalParameters = new List<dynamic>();
                 argIndex = 0;
                 bool skipToNext = false;
 
                 IMajorRecordCommonGetter candidateRecordGetter = null;
 
-                bool candidateObjIsRecord = ObjectIsRecord(candidateObj, out FormKey? objFormKey) && objFormKey != null;
+                bool candidateObjIsRecord = ObjectHasFormKey(candidateObj, out FormKey? objFormKey) && objFormKey != null;
                 bool candidateObjIsResolved = !objFormKey.Value.IsNull && linkCache.TryResolve(objFormKey.Value, (Type)candidateObj.Type, out candidateRecordGetter);
 
                 foreach (var condition in arrayMatchConditions)
@@ -288,6 +299,7 @@ namespace SynthEBD
                 if (Eval.Execute<bool>(matchConditionStr, evalParameters.ToArray()))
                 {
                     outputObj = candidateObj;
+                    indexInParent = i;
                     return true;
                 }
             }
@@ -296,6 +308,7 @@ namespace SynthEBD
 
         public static HashSet<IFormLinkGetter<IRaceGetter>> testHashSet = new HashSet<IFormLinkGetter<IRaceGetter>>() {Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DefaultRace};
 
+        //deprecated, use version with two arguments instead
         private static bool PathIsArray(string path, out string subPath, out string index) //correct input is of form x[y]
         {
             if (path.Contains('['))
@@ -315,6 +328,22 @@ namespace SynthEBD
             subPath = "";
             index = "";
             return false;
+        }
+
+        private static bool PathIsArray(string path, out string index) //correct input is of form [y]
+        {
+            index = "";
+            if (path.StartsWith('[') && path.EndsWith(']'))
+            {
+                index = path.Substring(1, path.Length - 2);
+                return true;
+            }
+            return false;
+        }
+
+        public static bool PathIsArray(string path) //correct input is of form [y]
+        {
+            return PathIsArray(path, out string unused);
         }
 
         public static bool GetSubObject(dynamic root, string propertyName, out dynamic outputObj)
@@ -457,9 +486,9 @@ namespace SynthEBD
             formKey = null;
             dynamic formKeyDyn = null;
             // handle arrays
-            if (PathIsArray(propertyName, out string arraySubPath, out string arrIndex))
+            if (PathIsArray(propertyName, out string arrIndex))
             {
-                if (GetArrayObjectAtIndex(root, arraySubPath, arrIndex, objectLinkMap, linkCache, out dynamic specifiedArrayObj) && ObjectIsRecord(specifiedArrayObj, out formKey))
+                if (GetArrayObjectAtIndex(root, arrIndex, objectLinkMap, linkCache, out dynamic specifiedArrayObj) && ObjectHasFormKey(specifiedArrayObj, out formKey))
                 {
                     return true;
                 }
@@ -486,7 +515,7 @@ namespace SynthEBD
         public static bool PropertyIsRecord(dynamic root, string propertyName, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
         {
             // handle arrays
-            if (PathIsArray(propertyName, out string arraySubPath, out string arrIndex) && !GetArrayObjectAtIndex(root, arraySubPath, arrIndex, objectLinkMap, linkCache, out root)) // root gets updated here
+            if (PathIsArray(propertyName, out string arrIndex) && !GetArrayObjectAtIndex(root, arrIndex, objectLinkMap, linkCache, out root)) // root gets updated here
             {
                 return false;
             }
@@ -499,7 +528,7 @@ namespace SynthEBD
             return false;
         }
 
-        public static bool ObjectIsRecord(dynamic obj, out FormKey? formKey)
+        public static bool ObjectHasFormKey(dynamic obj, out FormKey? formKey)
         {
             if (obj != null)
             {
@@ -515,7 +544,7 @@ namespace SynthEBD
             return false;
         }
 
-        public static bool ObjectIsRecord(dynamic obj)
+        public static bool ObjectHasFormKey(dynamic obj)
         {
             var property = obj.GetType().GetProperty("FormKey");
             if (property != null)
@@ -533,7 +562,24 @@ namespace SynthEBD
         public static string[] SplitPath(string input)
         {
             var pattern = @"\.(?![^\[]*[\]])";
-            return Regex.Split(input, pattern);
+            var split = Regex.Split(input, pattern);
+
+            List<string> output = new List<string>();
+            foreach (var substr in split)
+            {
+                if (!substr.StartsWith('[') && substr.Contains('[') && substr.EndsWith(']'))
+                {
+                    int bracketIndex = substr.IndexOf('[');
+                    output.Add(substr.Substring(0, bracketIndex));
+                    output.Add(substr.Substring(bracketIndex, substr.Length - bracketIndex));
+                }
+                else
+                {
+                    output.Add(substr);
+                }
+            }
+
+            return output.ToArray();
         }
 
     }
