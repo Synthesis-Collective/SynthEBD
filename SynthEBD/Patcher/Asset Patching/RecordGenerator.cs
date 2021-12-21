@@ -73,9 +73,7 @@ namespace SynthEBD
         }
 
         public static void AssignNonHardCodedTextures(NPCInfo npcInfo, INpcGetter template, List<FilePathReplacementParsed> nonHardcodedPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SkyrimMod outputMod, int longestPath)
-        { //npcInfo.NPC.WornArmor.TryResolve().Armature[0].TryResolve().SkinTexture.Male
-            //Mutagen.Bethesda.Skyrim.Internals.NpcBinaryOverlay
-
+        { 
             HashSet<IMajorRecord> assignedRecords = new HashSet<IMajorRecord>();
 
             Dictionary<string, dynamic> recordsAtPaths = new Dictionary<string, dynamic>(); // quickly look up record templates rather than redoing reflection work
@@ -93,6 +91,8 @@ namespace SynthEBD
 
             dynamic currentObj;
 
+            HashSet<object> templateDerivedRecords = new HashSet<object>();
+
             for (int i = 0; i < longestPath; i++)
             {
                 for (int j = 0; j < nonHardcodedPaths.Count; j++)
@@ -104,12 +104,10 @@ namespace SynthEBD
                     }
                 }
 
-                //var groupedPathsAtI = nonHardcodedPaths.GroupBy(x => String.Join(".", x.Destination.ToList().GetRange(0, i + 1))); // group paths by the current path segment
-                var groupedPathsAtI = nonHardcodedPaths.GroupBy(x => BuildPath(x.Destination.ToList().GetRange(0, i + 1)));
+                var groupedPathsAtI = nonHardcodedPaths.GroupBy(x => BuildPath(x.Destination.ToList().GetRange(0, i + 1))); // group paths by the current path segment
 
                 foreach (var group in groupedPathsAtI)
                 {
-                    //string parentPath = String.Join(".", group.First().Destination.ToList().GetRange(0, i));
                     string parentPath = BuildPath(group.First().Destination.ToList().GetRange(0, i));
                     string currentSubPath = group.First().Destination[i];
                     var rootObj = objectsAtPath_NPC[parentPath];
@@ -139,31 +137,33 @@ namespace SynthEBD
                                 }
                                 if (Patcher.MainLinkCache.TryResolve(recordFormKey.Value, recordType, out var currentMajorRecordCommonGetter)) //if the current object is an existing record, resolve it so that it can be traversed
                                 {
-                                    dynamic recordGroup = GetPatchRecordGroup(currentObj, outputMod);
+                                    if (!templateDerivedRecords.Contains(currentMajorRecordCommonGetter)) // make a copy of the record that the NPC currently has at this position, unless this record was set from a record template during a previous iteration, in which case it does not need to be copied.
+                                    {
+                                        dynamic recordGroup = GetPatchRecordGroup(currentObj, outputMod);
 
-                                    IMajorRecord copiedRecord = (IMajorRecord)IGroupMixIns.DuplicateInAsNewRecord(recordGroup, (IMajorRecordGetter)currentMajorRecordCommonGetter);
-                                    if (copiedRecord == null)
-                                    {
-                                        Logger.LogError("Could not deep copy a record for NPC " + Logger.GetNPCLogNameString(template) + " at path: " + group.Key + ". This subrecord will not be assigned.");
-                                        continue;
-                                    }
+                                        IMajorRecord copiedRecord = (IMajorRecord)IGroupMixIns.DuplicateInAsNewRecord(recordGroup, (IMajorRecordGetter)currentMajorRecordCommonGetter);
+                                        if (copiedRecord == null)
+                                        {
+                                            Logger.LogError("Could not deep copy a record for NPC " + Logger.GetNPCLogNameString(template) + " at path: " + group.Key + ". This subrecord will not be assigned.");
+                                            continue;
+                                        }
 
-                                    copiedRecord.EditorID += "_" + npcInfo.NPC.EditorID;
+                                        copiedRecord.EditorID += "_" + npcInfo.NPC.EditorID;
 
-                                    if (RecordPathParser.PathIsArray(currentSubPath))
-                                    {
-                                        SetRecordInArray(rootObj, indexIfInArray.Value, copiedRecord);
-                                    }
-                                    else if (ObjectIsRecord(rootObj, outputMod, out IMajorRecord recordToSet))
-                                    {
-                                        SetRecord(recordToSet, currentSubPath, copiedRecord, outputMod);
-                                    }
-                                    else if (RecordPathParser.ObjectHasFormKey(rootObj))
-                                    {
-                                        SetFormLink((IFormLinkContainerGetter)rootObj, currentSubPath, copiedRecord, outputMod);
-                                    }
-                                    
-                                    currentObj = copiedRecord;
+                                        if (RecordPathParser.PathIsArray(currentSubPath))
+                                        {
+                                            SetRecordInArray(rootObj, indexIfInArray.Value, copiedRecord);
+                                        }
+                                        else if (ObjectIsRecord(rootObj, outputMod, out IMajorRecord recordToSet))
+                                        {
+                                            SetRecordByFormKey(recordToSet, currentSubPath, copiedRecord, outputMod);
+                                        }
+                                        else if (RecordPathParser.ObjectHasFormKey(rootObj))
+                                        {
+                                            SetFormLinkByFormKey((IFormLinkContainerGetter)rootObj, currentSubPath, copiedRecord, outputMod);
+                                        }
+                                        currentObj = copiedRecord;
+                                    } 
                                 }
                             }
                             else
@@ -199,21 +199,20 @@ namespace SynthEBD
                                     continue;
                                 }
 
+                                templateDerivedRecords.UnionWith(copiedRecords);
                                 IncrementEditorID(copiedRecords);
 
-                                //SetRecord((IMajorRecordGetter)rootObj, currentSubPath, newRecord, outputMod);
-                                //SetRecord((IFormLinkContainerGetter)rootObj, currentSubPath, newRecord, outputMod);
                                 if (RecordPathParser.PathIsArray(currentSubPath))
                                 {
                                     SetRecordInArray(rootObj, indexIfInArray.Value, newRecord);
                                 }
                                 else if (ObjectIsRecord(rootObj, outputMod, out IMajorRecord recordToSet))
                                 {
-                                    SetRecord(recordToSet, currentSubPath, newRecord, outputMod);
+                                    SetRecordByFormKey(recordToSet, currentSubPath, newRecord, outputMod);
                                 }
                                 else if (RecordPathParser.ObjectHasFormKey(rootObj))
                                 {
-                                    SetFormLink((IFormLinkContainerGetter)rootObj, currentSubPath, newRecord, outputMod);
+                                    SetFormLinkByFormKey((IFormLinkContainerGetter)rootObj, currentSubPath, newRecord, outputMod);
                                 }
 
                                 currentObj = newRecord;
@@ -318,8 +317,9 @@ namespace SynthEBD
             return outputMod.GetTopLevelGroup(getterType);
         }
 
-        public static void SetRecord(IMajorRecord settableRecord, string propertyName, IMajorRecord value, SkyrimMod outputMod)
+        public static void SetRecordByFormKey(IMajorRecord settableRecord, string propertyName, IMajorRecord value, SkyrimMod outputMod)
         {
+            /*
             var settableRecordType = settableRecord.GetType();
             var property = settableRecordType.GetProperty(propertyName);
             var currentValue = property.GetValue(settableRecord);
@@ -327,11 +327,20 @@ namespace SynthEBD
             var valueMethods = valueType.GetMethods();
 
             var formKeySetter = valueMethods.Where(x => x.Name == "set_FormKey").FirstOrDefault();
-            formKeySetter.Invoke(currentValue, new object[] { value.FormKey });
+            formKeySetter.Invoke(currentValue, new object[] { value.FormKey });*/
+            if(RecordPathParser.GetSubObject(settableRecord, propertyName, out dynamic toSet))
+            {
+                RecordPathParser.SetSubObject(toSet, "FormKey", value.FormKey);
+            }
+            else
+            {
+                Logger.LogReport("Could not set record " + settableRecord.EditorID + " at " + propertyName);
+            }
         }
 
-        public static void SetFormLink(IFormLinkContainerGetter root, string propertyName, IMajorRecord value, SkyrimMod outputMod)
+        public static void SetFormLinkByFormKey(IFormLinkContainerGetter root, string propertyName, IMajorRecord value, SkyrimMod outputMod)
         {
+            /*
             var settableRecordType = root.GetType();
             var property = settableRecordType.GetProperty(propertyName);
             var currentValue = property.GetValue(root);
@@ -340,6 +349,16 @@ namespace SynthEBD
 
             var formKeySetter = valueMethods.Where(x => x.Name == "set_FormKey").FirstOrDefault();
             formKeySetter.Invoke(currentValue, new object[] { value.FormKey });
+            */
+
+            if (RecordPathParser.GetSubObject(root, propertyName, out dynamic toSet))
+            {
+                RecordPathParser.SetSubObject(toSet, "FormKey", value.FormKey);
+            }
+            else
+            {
+                Logger.LogReport("Could not set record at " + propertyName);
+            }
         }
 
         public static void SetRecordInArray(dynamic root, int index, IMajorRecord value)

@@ -308,30 +308,6 @@ namespace SynthEBD
             return false;
         }
 
-        public static HashSet<IFormLinkGetter<IRaceGetter>> testHashSet = new HashSet<IFormLinkGetter<IRaceGetter>>() {Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DefaultRace};
-
-        //deprecated, use version with two arguments instead
-        private static bool PathIsArray(string path, out string subPath, out string index) //correct input is of form x[y]
-        {
-            if (path.Contains('['))
-            {
-                var tmp = path.Split('[');
-
-                subPath = tmp[0]; //x
-                var tmp1 = tmp[1]; //y]
-
-                if (tmp1.Contains(']'))
-                {
-                    index = tmp1.Split(']')[0]; //y
-                    return true;
-                }
-            }
-
-            subPath = "";
-            index = "";
-            return false;
-        }
-
         private static bool PathIsArray(string path, out string index) //correct input is of form [y]
         {
             index = "";
@@ -345,7 +321,7 @@ namespace SynthEBD
 
         public static bool PathIsArray(string path) //correct input is of form [y]
         {
-            return PathIsArray(path, out string unused);
+            return PathIsArray(path, out string _);
         }
 
         public static bool GetSubObject(dynamic root, string propertyName, out dynamic outputObj)
@@ -362,224 +338,37 @@ namespace SynthEBD
             }
         }
 
-        public static bool GetSubObjectOld(dynamic root, string propertyName, out dynamic outputObj)
+        public static bool SetSubObject(dynamic root, string propertyName, dynamic value)
         {
-            //FastMember
-            /*
-            var accessor = TypeAccessor.Create(root.GetType());
-            MemberSet members = accessor.GetMembers();
-            if (members.Where(x => x.Name == propertyName).Any())
+            if (GetAccessor(root, propertyName, AccessorType.Setter, out Delegate setter))
             {
-                return accessor[root, propertyName];
+                setter.DynamicInvoke(root, value);
+                return true;
             }
             else
-            {
-                return null;
-            }
-            */
-
-            outputObj = null;
-            Type type = root.GetType();
-            
-            if (PropertyCache.ContainsKey(type))
-            {
-                var subDict = PropertyCache[type];
-                if (subDict.ContainsKey(propertyName))
-                {
-                    var cachedProperty = subDict[propertyName];
-                    if (cachedProperty != null)
-                    {
-                        outputObj = cachedProperty.GetValue(root);
-
-                        // Test
-                        var delegateType = Expression.GetFuncType(cachedProperty.DeclaringType, cachedProperty.PropertyType);
-                        var getter = cachedProperty.GetMethod.CreateDelegate(delegateType);
-                        //Test
-
-                        return true;
-                    }
-                }
-                else
-                {
-                    var newProperty = type.GetProperty(propertyName);
-                    subDict.Add(propertyName, newProperty);
-                    if (newProperty != null)
-                    {
-                        outputObj = newProperty.GetValue(root);
-                        return true;
-                    }
-                }
-            }
-            else
-            {
-                var newSubDict = new Dictionary<string, PropertyInfo>();
-                var newProperty2 = type.GetProperty(propertyName);
-                newSubDict.Add(propertyName, newProperty2);
-                PropertyCache.Add(type, newSubDict);
-                if (newProperty2 != null)
-                {
-                    outputObj = newProperty2.GetValue(root);
-                    return true;
-                }
-            }
-            return false;
-            /*
-            var property = root.GetType().GetProperty(propertyName);
-            if (property != null)
-            {
-                return property.GetValue(root);
-            }
-            else
-            {
-                return null;
-            }
-            */
-
-        }
-
-        public static void SetSubObject(dynamic root, string propertyName, dynamic value)
-        {
-            //FastMember
-            /*
-            var accessor = TypeAccessor.Create(root.GetType());
-            MemberSet members = accessor.GetMembers();
-            if (members.Where(x => x.Name == propertyName).Any())
-            {
-                accessor[root, propertyName] = value;
-            }
-            else
-            {
-                Logger.LogReport("Error: Could not set " + propertyName + " to " + value + " because the root object of type " + root.GetType() + " does not contain this property.");
-            }
-            */
-
-            Type type = root.GetType();
-
-            if (PropertyCache.ContainsKey(type))
-            {
-                var subDict = PropertyCache[type];
-                if (subDict.ContainsKey(propertyName))
-                {
-                    var cachedProperty = subDict[propertyName];
-                    if (cachedProperty != null)
-                    {
-                        cachedProperty.SetValue(root, value);
-                    }
-                }
-                else
-                {
-                    var newProperty = type.GetProperty(propertyName);
-                    subDict.Add(propertyName, newProperty);
-                    if (newProperty != null)
-                    {
-                        newProperty.SetValue(root, value);
-                    }
-                }
-            }
-            else
-            {
-                var newSubDict = new Dictionary<string, PropertyInfo>();
-                var newProperty2 = type.GetProperty(propertyName);
-                newSubDict.Add(propertyName, newProperty2);
-                PropertyCache.Add(type, newSubDict);
-                if (newProperty2 != null)
-                {
-                    newProperty2.SetValue(root, value);
-                }
-            }
-
-            /*
-            var property = root.GetType().GetProperty(propertyName);
-            if (property != null)
-            {
-                property.SetValue(root, value);
-            }
-            */
-        }
-
-        /// <summary>
-        /// Determines if root[propertyName] expects a record (as opposed to a generic struct). Outs the FormKey of root[propertyName].value if one exists, or outs null if there is no value at that property
-        /// </summary>
-        /// <param name="root">Root object</param>
-        /// <param name="propertyName">Property to search relative to root object</param>
-        /// <param name="formKey">Nullable formkey of root[propertyName] if it exists</param>
-        /// <returns></returns>
-        public static bool PropertyIsRecord(dynamic root, string propertyName, out FormKey? formKey, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
-        {
-            formKey = null;
-            dynamic formKeyDyn = null;
-            // handle arrays
-            if (PathIsArray(propertyName, out string arrIndex))
-            {
-                if (GetArrayObjectAtIndex(root, arrIndex, objectLinkMap, linkCache, out dynamic specifiedArrayObj) && ObjectHasFormKey(specifiedArrayObj, out formKey))
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                var property = root.GetType().GetProperty(propertyName);
-                if (property != null && property.PropertyType.Name.StartsWith("IFormLinkNullableGetter") && GetSubObject(property.GetValue(root), "FormKey", out formKeyDyn))
-                {
-                    formKey = (FormKey?)formKeyDyn;
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-        }
-
-        public static bool PropertyIsRecord(dynamic root, string propertyName, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
-        {
-            // handle arrays
-            if (PathIsArray(propertyName, out string arrIndex) && !GetArrayObjectAtIndex(root, arrIndex, objectLinkMap, linkCache, out root)) // root gets updated here
             {
                 return false;
             }
-
-            var property = root.GetType().GetProperty(propertyName);
-            if (property != null && property.PropertyType.Name.StartsWith("IFormLinkNullableGetter"))
-            {
-                return true;
-            }
-            return false;
         }
 
         public static bool ObjectHasFormKey(dynamic obj, out FormKey? formKey)
         {
-            if (obj != null)
+            bool hasFormKey = GetSubObject(obj, "FormKey", out dynamic formKeyDyn);
+            if (hasFormKey)
             {
-                var property = obj.GetType().GetProperty("FormKey");
-                if (property != null)
-                {
-                    formKey = (FormKey)property.GetValue(obj);
-                    return true;
-                }
+                formKey = (FormKey)formKeyDyn;
+                return true;
             }
-
-            formKey = null;
-            return false;
+            else
+            {
+                formKey = null;
+                return false;
+            }
         }
 
         public static bool ObjectHasFormKey(dynamic obj)
         {
-            var property = obj.GetType().GetProperty("FormKey");
-            if (property != null)
-            {
-                return true;
-            }
-            return false;
-        }
-
-        public static bool HasProperty(Type type, string propertyName)
-        {
-            return type.GetProperty(propertyName) != null;
+            return GetSubObject(obj, "FormKey", out dynamic _);
         }
 
         public static string[] SplitPath(string input)
@@ -719,7 +508,7 @@ namespace SynthEBD
 
         public static Delegate CreateDelegateSetter(PropertyInfo property)
         {
-            var delegateType = Expression.GetFuncType(property.DeclaringType, property.PropertyType);
+            var delegateType = Expression.GetActionType(property.DeclaringType, property.PropertyType);
             return property.SetMethod.CreateDelegate(delegateType);
         }
     }
