@@ -37,6 +37,7 @@ namespace SynthEBD
             this.patchableRaces = new ObservableCollection<FormKey>();
             this.raceAliases = new ObservableCollection<VM_raceAlias>();
             this.RaceGroupings = new ObservableCollection<VM_RaceGrouping>();
+            this.AttributeGroupMenu = new VM_AttributeGroupMenu();
 
             this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
@@ -91,8 +92,10 @@ namespace SynthEBD
         public ObservableCollection<FormKey> patchableRaces { get; set; }
 
         public ObservableCollection<VM_raceAlias> raceAliases { get; set;  }
+
         public RelayCommand AddRaceAlias { get; }
 
+        public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
         public ILinkCache lk { get; set; }
         public IEnumerable<Type> RacePickerFormKeys { get; set; }
         public IEnumerable<Type> NPCPickerFormKeys { get; set; }
@@ -122,6 +125,7 @@ namespace SynthEBD
             viewModel.patchableRaces = new ObservableCollection<FormKey>(model.patchableRaces);
             viewModel.raceAliases = VM_raceAlias.GetViewModelsFromModels(model.raceAliases, GameEnvironmentProvider.MyEnvironment, viewModel);
             viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, GameEnvironmentProvider.MyEnvironment, viewModel);
+            VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu);
         }
         public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
         {
@@ -152,6 +156,8 @@ namespace SynthEBD
                 //model.RaceGroupings.Add(x.RaceGrouping);
                 model.RaceGroupings.Add(VM_RaceGrouping.DumpViewModelToModel(x));
             }
+
+            VM_AttributeGroupMenu.DumpViewModelToModels(viewModel.AttributeGroupMenu, model.AttributeGroups);
 
             PatcherSettings.General = model;
         }

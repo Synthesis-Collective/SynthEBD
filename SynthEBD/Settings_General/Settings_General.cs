@@ -27,6 +27,7 @@ namespace SynthEBD
             this.patchableRaces = new List<FormKey>();
             this.raceAliases = new List<RaceAlias>();
             this.RaceGroupings = new List<RaceGrouping>();
+            this.AttributeGroups = new HashSet<AttributeGroup>();
         }
 
         public bool bShowToolTips { get; set; }
@@ -51,5 +52,6 @@ namespace SynthEBD
         public List<RaceAlias> raceAliases { get; set; }
 
         public List<RaceGrouping> RaceGroupings { get; set; }
+        public HashSet<AttributeGroup> AttributeGroups { get; set; }
     }
 }

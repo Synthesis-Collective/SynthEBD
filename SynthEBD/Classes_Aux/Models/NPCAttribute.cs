@@ -168,4 +168,16 @@ namespace SynthEBD
         bool Equals(ITypedNPCAttribute other);
         public bool ForceIf { get; set; }
     }
+
+    public class AttributeGroup
+    {
+        public AttributeGroup()
+        {
+            Label = "";
+            Attributes = new HashSet<NPCAttribute>();
+        }
+
+        public string Label { get; set; }
+        public HashSet<NPCAttribute> Attributes { get; set; }
+    }
 }
