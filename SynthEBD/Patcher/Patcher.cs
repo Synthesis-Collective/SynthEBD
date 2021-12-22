@@ -113,7 +113,8 @@ namespace SynthEBD
 
         public static HashSet<IFormLinkGetter<IArmorAddonGetter>> IgnoredArmorAddons;
 
-        public static Dictionary<string, UniqueNPCData.UniqueNPCTracker> UniqueAssignmentsByName = new Dictionary<string, UniqueNPCData.UniqueNPCTracker>();
+        public static Dictionary<string, Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>> UniqueAssignmentsByName = new Dictionary<string, Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>>();
+
 
         private static void timer_Tick(object sender, EventArgs e)
         {
@@ -155,9 +156,9 @@ namespace SynthEBD
                 }
 
                 // link by name
-                if (PatcherSettings.General.bLinkNPCsWithSameName && currentNPCInfo.IsValidLinkedUnique && !UniqueAssignmentsByName.ContainsKey(currentNPCInfo.Name))
+                if (PatcherSettings.General.bLinkNPCsWithSameName && currentNPCInfo.IsValidLinkedUnique)
                 {
-                    UniqueAssignmentsByName.Add(currentNPCInfo.Name, new UniqueNPCData.UniqueNPCTracker());
+                    UniqueNPCData.InitializeUniqueNPC(currentNPCInfo);
                 }
 
                 Logger.InitializeNewReport(currentNPCInfo);
@@ -215,9 +216,9 @@ namespace SynthEBD
                             currentNPCInfo.AssociatedLinkGroup.AssignedMorphs = assignedComboAndBodyGen.Item2;
                         }
                         // assign to unique NPC list if necessary
-                        if (PatcherSettings.General.bLinkNPCsWithSameName && currentNPCInfo.IsValidLinkedUnique && UniqueAssignmentsByName[currentNPCInfo.Name].AssignedMorphs == null)
+                        if (PatcherSettings.General.bLinkNPCsWithSameName && currentNPCInfo.IsValidLinkedUnique && UniqueAssignmentsByName[currentNPCInfo.Name][currentNPCInfo.Gender].AssignedMorphs == null)
                         {
-                            UniqueAssignmentsByName[currentNPCInfo.Name].AssignedMorphs = assignedComboAndBodyGen.Item2;
+                            UniqueAssignmentsByName[currentNPCInfo.Name][currentNPCInfo.Gender].AssignedMorphs = assignedComboAndBodyGen.Item2;
                         }
                     }
                 }
@@ -237,9 +238,9 @@ namespace SynthEBD
                             currentNPCInfo.AssociatedLinkGroup.AssignedMorphs = assignedMorphs;
                         }
                         // assign to unique NPC list if necessary
-                        if (PatcherSettings.General.bLinkNPCsWithSameName && currentNPCInfo.IsValidLinkedUnique && UniqueAssignmentsByName[currentNPCInfo.Name].AssignedMorphs == null)
+                        if (PatcherSettings.General.bLinkNPCsWithSameName && currentNPCInfo.IsValidLinkedUnique && UniqueAssignmentsByName[currentNPCInfo.Name][currentNPCInfo.Gender].AssignedMorphs == null)
                         {
-                            UniqueAssignmentsByName[currentNPCInfo.Name].AssignedMorphs = assignedMorphs;
+                            UniqueAssignmentsByName[currentNPCInfo.Name][currentNPCInfo.Gender].AssignedMorphs = assignedMorphs;
                         }
                     }
                 }

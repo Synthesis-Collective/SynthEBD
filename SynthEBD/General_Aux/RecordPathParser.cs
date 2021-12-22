@@ -396,6 +396,20 @@ namespace SynthEBD
 
         public static Dictionary<Type, Dictionary<string, System.Reflection.PropertyInfo>> PropertyCache = new Dictionary<Type, Dictionary<string, PropertyInfo>>();
 
+        public static bool GetPropertyInfo_NoCache(dynamic obj, string propertyName, out System.Reflection.PropertyInfo property) // for performance testing only
+        {
+            property = null;
+            Type type = obj.GetType();
+            property = type.GetProperty(propertyName);
+            if (property != null)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
         public static bool GetPropertyInfo(dynamic obj, string propertyName, out System.Reflection.PropertyInfo property)
         {
             property = null;
@@ -438,6 +452,34 @@ namespace SynthEBD
         {
             Getter,
             Setter
+        }
+
+        public static bool GetAccessor_NoCache(dynamic obj, string propertyName, AccessorType accessorType, out Delegate accessor) // for performance testing only
+        {
+            accessor = null;
+            PropertyInfo property = null;
+
+            if (GetPropertyInfo(obj, propertyName, out property))
+            {
+                switch (accessorType)
+                {
+                    case AccessorType.Getter: accessor = CreateDelegateGetter(property); break;
+                    case AccessorType.Setter: accessor = CreateDelegateSetter(property); break;
+                }
+            }
+            else
+            {
+                accessor = null; // just for readability
+            }
+
+            if (accessor != null)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
 
         public static bool GetAccessor(dynamic obj, string propertyName, AccessorType accessorType, out Delegate accessor)

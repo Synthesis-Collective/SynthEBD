@@ -55,5 +55,38 @@ namespace SynthEBD
                 return false;
             }
         }
+
+        public static dynamic GetUniqueNPCTracker(NPCInfo npcInfo, AssignmentType property)
+        {
+            if (npcInfo.IsValidLinkedUnique && Patcher.UniqueAssignmentsByName.ContainsKey(npcInfo.Name) && Patcher.UniqueAssignmentsByName[npcInfo.Name].ContainsKey(npcInfo.Gender))
+            {
+                switch (property)
+                {
+                    case AssignmentType.Assets: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedCombination;
+                    case AssignmentType.BodyGen: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedMorphs;
+                    case AssignmentType.Height: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedHeight;
+                    default: return null;
+                }
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        public static void InitializeUniqueNPC(NPCInfo npcInfo)
+        {
+            if (Patcher.UniqueAssignmentsByName.ContainsKey(npcInfo.Name))
+            {
+                if (!Patcher.UniqueAssignmentsByName[npcInfo.Name].ContainsKey(npcInfo.Gender))
+                {
+                    Patcher.UniqueAssignmentsByName[npcInfo.Name].Add(npcInfo.Gender, new UniqueNPCTracker());
+                }
+            }
+            else
+            {
+                Patcher.UniqueAssignmentsByName.Add(npcInfo.Name, new Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>() { { npcInfo.Gender, new UniqueNPCData.UniqueNPCTracker() } });
+            }
+        }
     }
 }

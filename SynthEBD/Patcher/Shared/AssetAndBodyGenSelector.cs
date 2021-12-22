@@ -33,9 +33,9 @@ namespace SynthEBD
                     Logger.LogReport("Selected BodyGen from NPC link group");
                 }
             }
-            else if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && Patcher.UniqueAssignmentsByName[npcInfo.Name].AssignedCombination != null)
+            else if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTracker(npcInfo, AssignmentType.Assets) != null)
             {
-                chosenCombination = Patcher.UniqueAssignmentsByName[npcInfo.Name].AssignedCombination;
+                chosenCombination = Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedCombination;
                 Logger.LogReport("Another unique NPC with the same name was assigned a combination. Using that combination for current NPC.");
             }
             else
@@ -55,9 +55,9 @@ namespace SynthEBD
                     npcInfo.AssociatedLinkGroup.AssignedCombination = chosenCombination;
                 }
 
-                if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && Patcher.UniqueAssignmentsByName[npcInfo.Name].AssignedCombination == null)
+                if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTracker(npcInfo, AssignmentType.Assets) == null)
                 {
-                    Patcher.UniqueAssignmentsByName[npcInfo.Name].AssignedCombination = chosenCombination;
+                    Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedCombination = chosenCombination;
                 }
             }
             if (bodyGenAssigned)
@@ -399,17 +399,13 @@ namespace SynthEBD
             }
             Logger.LogReport("Available Subgroups:" + Logger.SpreadFlattenedAssetPack(iterationInfo.ChosenAssetPack, 0, false));
 
-            int debugCounter = 0;
-
             for (int i = 0; i < iterationInfo.ChosenAssetPack.Subgroups.Count; i++) // iterate through each position within the combination
             {
-                //DEBUGGING
                 if (generatedCombination.ContainedSubgroups.Count > 0) 
                 { 
                     Logger.LogReport("Current Combination: " + String.Join(" , ", generatedCombination.ContainedSubgroups.Where(x => x != null).Select(x => x.Id)) + "\n"); 
                 }
                 Logger.LogReport("Available Subgroups:" + Logger.SpreadFlattenedAssetPack(iterationInfo.ChosenAssetPack, i, true));
-                debugCounter++;
 
                 #region BackTrack if no options remain
                 if (iterationInfo.ChosenAssetPack.Subgroups[i].Count == 0)

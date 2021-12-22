@@ -94,11 +94,11 @@ namespace SynthEBD
             #endregion
 
             #region Unique NPC replicates
-            else if (UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName) && Patcher.UniqueAssignmentsByName[npcName].AssignedMorphs != null)
+            else if (UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName) && UniqueNPCData.GetUniqueNPCTracker(npcInfo, AssignmentType.BodyGen) != null)
             {
                 availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All);
                 var allCombinations = GetAllCombinations(genderedBodyGenConfigs, npcInfo, ValidationIgnore.All);
-                var linkedCombinations = GetLinkedCombination(allCombinations, Patcher.UniqueAssignmentsByName[npcName].AssignedMorphs);
+                var linkedCombinations = GetLinkedCombination(allCombinations, Patcher.UniqueAssignmentsByName[npcName][npcInfo.Gender].AssignedMorphs);
                 if (linkedCombinations != null)
                 {
                     availableCombinations = linkedCombinations;

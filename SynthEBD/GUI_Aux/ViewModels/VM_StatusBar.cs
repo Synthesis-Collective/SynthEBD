@@ -61,7 +61,6 @@ namespace SynthEBD
         {
             this.DispString = SubscribedLogger.StatusString;
             this.FontColor = SubscribedLogger.StatusColor;
-            string debugBreakHere = "";
         }
     }
 }
