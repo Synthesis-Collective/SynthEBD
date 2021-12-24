@@ -2,12 +2,17 @@
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
+using ReactiveUI;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
+using System.Reactive;
+using System.Reactive.Linq;
+using DynamicData;
+using DynamicData.Binding;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -15,14 +20,14 @@ namespace SynthEBD
 {
     public class VM_NPCAttribute : INotifyPropertyChanged
     {
-        public VM_NPCAttribute(ObservableCollection<VM_NPCAttribute> parentCollection)
+        public VM_NPCAttribute(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups)
         {
             this.GroupedSubAttributes = new ObservableCollection<VM_NPCAttributeShell>();
             this.ParentCollection = parentCollection;
             this.GroupedSubAttributes.CollectionChanged += TrimEmptyAttributes;
 
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
-            AddToParent = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Add(CreateNewFromUI(parentCollection, this.DisplayForceIfOption)));
+            AddToParent = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Add(CreateNewFromUI(parentCollection, this.DisplayForceIfOption, attributeGroups)));
             this.DisplayForceIfOption = true;
         }
 
@@ -35,10 +40,10 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static VM_NPCAttribute CreateNewFromUI(ObservableCollection<VM_NPCAttribute> parentCollection, bool displayForceIfOption)
+        public static VM_NPCAttribute CreateNewFromUI(ObservableCollection<VM_NPCAttribute> parentCollection, bool displayForceIfOption, ObservableCollection<VM_AttributeGroup> attributeGroups)
         {
-            VM_NPCAttribute newAtt = new VM_NPCAttribute(parentCollection);
-            VM_NPCAttributeShell startingShell = new VM_NPCAttributeShell(newAtt, displayForceIfOption);
+            VM_NPCAttribute newAtt = new VM_NPCAttribute(parentCollection, attributeGroups);
+            VM_NPCAttributeShell startingShell = new VM_NPCAttributeShell(newAtt, displayForceIfOption, attributeGroups);
             VM_NPCAttributeClass startingAttributeGroup = new VM_NPCAttributeClass(newAtt, startingShell);
             startingShell.Type = NPCAttributeType.Class;
             startingShell.Attribute = startingAttributeGroup;
@@ -55,23 +60,23 @@ namespace SynthEBD
             }
         }
 
-        public static ObservableCollection<VM_NPCAttribute> GetViewModelsFromModels(HashSet<NPCAttribute> models, bool displayForceIfOption)
+        public static ObservableCollection<VM_NPCAttribute> GetViewModelsFromModels(HashSet<NPCAttribute> models, ObservableCollection<VM_AttributeGroup> attributeGroups, bool displayForceIfOption)
         {
             ObservableCollection<VM_NPCAttribute> oc = new ObservableCollection<VM_NPCAttribute>();
             foreach (var m in models)
             {
-                oc.Add(GetViewModelFromModel(m, oc, displayForceIfOption));
+                oc.Add(GetViewModelFromModel(m, oc, attributeGroups, displayForceIfOption));
             }
             return oc;
         } 
 
-        public static VM_NPCAttribute GetViewModelFromModel(NPCAttribute model, ObservableCollection<VM_NPCAttribute> parentCollection, bool displayForceIfOption)
+        public static VM_NPCAttribute GetViewModelFromModel(NPCAttribute model, ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, bool displayForceIfOption)
         {
-            VM_NPCAttribute viewModel = new VM_NPCAttribute(parentCollection);
+            VM_NPCAttribute viewModel = new VM_NPCAttribute(parentCollection, attributeGroups);
             viewModel.DisplayForceIfOption = displayForceIfOption;
-            foreach (var attributeShellModel in model.GroupedSubAttributes)
+            foreach (var attributeShellModel in model.SubAttributes)
             {
-                var shellVM = new VM_NPCAttributeShell(viewModel, displayForceIfOption);
+                var shellVM = new VM_NPCAttributeShell(viewModel, displayForceIfOption, attributeGroups);
                 shellVM.Type = attributeShellModel.Type;
                 switch (attributeShellModel.Type)
                 {
@@ -81,6 +86,7 @@ namespace SynthEBD
                     case NPCAttributeType.Race: shellVM.Attribute = VM_NPCAttributeRace.getViewModelFromModel((NPCAttributeRace)attributeShellModel, viewModel, shellVM); break;
                     case NPCAttributeType.NPC: shellVM.Attribute = VM_NPCAttributeNPC.getViewModelFromModel((NPCAttributeNPC)attributeShellModel, viewModel, shellVM); break;
                     case NPCAttributeType.VoiceType: shellVM.Attribute = VM_NPCAttributeVoiceType.getViewModelFromModel((NPCAttributeVoiceType)attributeShellModel, viewModel, shellVM); break;
+                    case NPCAttributeType.Group: shellVM.Attribute = VM_NPCAttributeGroup.getViewModelFromModel((NPCAttributeGroup)attributeShellModel, viewModel, shellVM, attributeGroups); break;
                     default: //WARN USER
                         break;
                 }
@@ -109,12 +115,13 @@ namespace SynthEBD
             {
                 switch(subAttVM.Type)
                 {
-                    case NPCAttributeType.Class: model.GroupedSubAttributes.Add(VM_NPCAttributeClass.DumpViewModelToModel((VM_NPCAttributeClass)subAttVM.Attribute, subAttVM.ForceIf)); break;
-                    case NPCAttributeType.Faction: model.GroupedSubAttributes.Add(VM_NPCAttributeFactions.DumpViewModelToModel((VM_NPCAttributeFactions)subAttVM.Attribute, subAttVM.ForceIf)); break;
-                    case NPCAttributeType.FaceTexture: model.GroupedSubAttributes.Add(VM_NPCAttributeFaceTexture.DumpViewModelToModel((VM_NPCAttributeFaceTexture)subAttVM.Attribute, subAttVM.ForceIf)); break;
-                    case NPCAttributeType.Race: model.GroupedSubAttributes.Add(VM_NPCAttributeRace.DumpViewModelToModel((VM_NPCAttributeRace)subAttVM.Attribute, subAttVM.ForceIf)); break;
-                    case NPCAttributeType.NPC: model.GroupedSubAttributes.Add(VM_NPCAttributeNPC.DumpViewModelToModel((VM_NPCAttributeNPC)subAttVM.Attribute, subAttVM.ForceIf)); break;
-                    case NPCAttributeType.VoiceType: model.GroupedSubAttributes.Add(VM_NPCAttributeVoiceType.DumpViewModelToModel((VM_NPCAttributeVoiceType)subAttVM.Attribute, subAttVM.ForceIf)); break;
+                    case NPCAttributeType.Class: model.SubAttributes.Add(VM_NPCAttributeClass.DumpViewModelToModel((VM_NPCAttributeClass)subAttVM.Attribute, subAttVM.ForceIf)); break;
+                    case NPCAttributeType.Faction: model.SubAttributes.Add(VM_NPCAttributeFactions.DumpViewModelToModel((VM_NPCAttributeFactions)subAttVM.Attribute, subAttVM.ForceIf)); break;
+                    case NPCAttributeType.FaceTexture: model.SubAttributes.Add(VM_NPCAttributeFaceTexture.DumpViewModelToModel((VM_NPCAttributeFaceTexture)subAttVM.Attribute, subAttVM.ForceIf)); break;
+                    case NPCAttributeType.Group: model.SubAttributes.Add(VM_NPCAttributeGroup.DumpViewModelToModel((VM_NPCAttributeGroup)subAttVM.Attribute, subAttVM.ForceIf)); break;
+                    case NPCAttributeType.Race: model.SubAttributes.Add(VM_NPCAttributeRace.DumpViewModelToModel((VM_NPCAttributeRace)subAttVM.Attribute, subAttVM.ForceIf)); break;
+                    case NPCAttributeType.NPC: model.SubAttributes.Add(VM_NPCAttributeNPC.DumpViewModelToModel((VM_NPCAttributeNPC)subAttVM.Attribute, subAttVM.ForceIf)); break;
+                    case NPCAttributeType.VoiceType: model.SubAttributes.Add(VM_NPCAttributeVoiceType.DumpViewModelToModel((VM_NPCAttributeVoiceType)subAttVM.Attribute, subAttVM.ForceIf)); break;
                 }
             }
             return model;
@@ -123,7 +130,7 @@ namespace SynthEBD
 
     public class VM_NPCAttributeShell : INotifyPropertyChanged
     {
-        public VM_NPCAttributeShell(VM_NPCAttribute parentVM, bool displayForceIfOption)
+        public VM_NPCAttributeShell(VM_NPCAttribute parentVM, bool displayForceIfOption, ObservableCollection<VM_AttributeGroup> attributeGroups)
         {
             this.Type = NPCAttributeType.Class;
             this.Attribute = new VM_NPCAttributeClass(parentVM, this);
@@ -132,7 +139,7 @@ namespace SynthEBD
 
             AddAdditionalSubAttributeToParent = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => parentVM.GroupedSubAttributes.Add(new VM_NPCAttributeShell(parentVM, this.DisplayForceIfOption))
+                execute: _ => parentVM.GroupedSubAttributes.Add(new VM_NPCAttributeShell(parentVM, this.DisplayForceIfOption, attributeGroups))
                 );
 
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(this));
@@ -144,6 +151,7 @@ namespace SynthEBD
                     case NPCAttributeType.Class: this.Attribute = new VM_NPCAttributeClass(parentVM, this); break;
                     case NPCAttributeType.FaceTexture: this.Attribute = new VM_NPCAttributeFaceTexture(parentVM, this); break;
                     case NPCAttributeType.Faction: this.Attribute = new VM_NPCAttributeFactions(parentVM, this); break;
+                    case NPCAttributeType.Group: this.Attribute = new VM_NPCAttributeGroup(parentVM, this, attributeGroups); break;
                     case NPCAttributeType.NPC: this.Attribute = new VM_NPCAttributeNPC(parentVM, this); break;
                     case NPCAttributeType.Race: this.Attribute = new VM_NPCAttributeRace(parentVM, this); break;
                     case NPCAttributeType.VoiceType: this.Attribute = new VM_NPCAttributeVoiceType(parentVM, this); break;
@@ -152,7 +160,7 @@ namespace SynthEBD
 
             );
         }
-        public object Attribute { get; set; }
+        public ISubAttributeViewModel Attribute { get; set; }
         public NPCAttributeType Type { get; set; }
         public bool ForceIf { get; set; }
 
@@ -166,7 +174,13 @@ namespace SynthEBD
         public event PropertyChangedEventHandler PropertyChanged;
     }
 
-    public class VM_NPCAttributeVoiceType
+    public interface ISubAttributeViewModel
+    {
+        VM_NPCAttribute ParentVM { get; set; }
+        IObservable<System.Reactive.Unit> NeedsRefresh { get; }
+    }
+
+    public class VM_NPCAttributeVoiceType : ISubAttributeViewModel
     {
         public VM_NPCAttributeVoiceType(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
@@ -185,12 +199,15 @@ namespace SynthEBD
             this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.AllowedFormKeyTypes = typeof(IVoiceTypeGetter).AsEnumerable();
 
+            this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
         }
         public ObservableCollection<FormKey> VoiceTypeFormKeys { get; set; }
         public VM_NPCAttribute ParentVM { get; set; }
         public RelayCommand DeleteCommand { get; }
         public ILinkCache lk { get; set; }
         public IEnumerable<Type> AllowedFormKeyTypes { get; set; }
+
+        public IObservable<Unit> NeedsRefresh { get; }
 
         public static VM_NPCAttributeVoiceType getViewModelFromModel(NPCAttributeVoiceType model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
@@ -204,7 +221,7 @@ namespace SynthEBD
         }
     }
 
-    public class VM_NPCAttributeClass
+    public class VM_NPCAttributeClass : ISubAttributeViewModel
     {
         public VM_NPCAttributeClass(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
@@ -214,13 +231,15 @@ namespace SynthEBD
             this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.AllowedFormKeyTypes = typeof(IClassGetter).AsEnumerable();
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
+
+            this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
         }
         public ObservableCollection<FormKey> ClassFormKeys { get; set; }
         public VM_NPCAttribute ParentVM { get; set; }
         public RelayCommand DeleteCommand { get; }
         public ILinkCache lk { get; set; }
         public IEnumerable<Type> AllowedFormKeyTypes { get; set; }
-
+        public IObservable<Unit> NeedsRefresh { get; }
         public static VM_NPCAttributeClass getViewModelFromModel(NPCAttributeClass model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
             var newAtt = new VM_NPCAttributeClass(parentVM, parentShell);
@@ -234,7 +253,7 @@ namespace SynthEBD
         }
     }
 
-    public class VM_NPCAttributeFactions
+    public class VM_NPCAttributeFactions : ISubAttributeViewModel
     {
         public VM_NPCAttributeFactions(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
@@ -245,6 +264,8 @@ namespace SynthEBD
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
             this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.AllowedFormKeyTypes = typeof(IFactionGetter).AsEnumerable();
+
+            this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
         }
         public ObservableCollection<FormKey> FactionFormKeys { get; set; }
         public int RankMin { get; set; }
@@ -253,7 +274,7 @@ namespace SynthEBD
         public RelayCommand DeleteCommand { get; }
         public ILinkCache lk { get; set; }
         public IEnumerable<Type> AllowedFormKeyTypes { get; set; }
-
+        public IObservable<Unit> NeedsRefresh { get; }
         public static VM_NPCAttributeFactions getViewModelFromModel(NPCAttributeFactions model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
             var newAtt = new VM_NPCAttributeFactions(parentVM, parentShell);
@@ -268,7 +289,7 @@ namespace SynthEBD
         }
     }
 
-    public class VM_NPCAttributeFaceTexture
+    public class VM_NPCAttributeFaceTexture : ISubAttributeViewModel
     {
         public VM_NPCAttributeFaceTexture(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
@@ -277,13 +298,15 @@ namespace SynthEBD
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
             this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.AllowedFormKeyTypes = typeof(ITextureSetGetter).AsEnumerable();
+
+            this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
         }
         public ObservableCollection<FormKey> FaceTextureFormKeys { get; set; }
         public VM_NPCAttribute ParentVM { get; set; }
         public RelayCommand DeleteCommand { get; }
         public ILinkCache lk { get; set; }
         public IEnumerable<Type> AllowedFormKeyTypes { get; set; }
-
+        public IObservable<Unit> NeedsRefresh { get; }
         public static VM_NPCAttributeFaceTexture getViewModelFromModel(NPCAttributeFaceTexture model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
             var newAtt = new VM_NPCAttributeFaceTexture(parentVM, parentShell);
@@ -297,7 +320,7 @@ namespace SynthEBD
         }
     }
 
-    public class VM_NPCAttributeRace
+    public class VM_NPCAttributeRace : ISubAttributeViewModel
     {
         public VM_NPCAttributeRace(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
@@ -306,13 +329,15 @@ namespace SynthEBD
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
             this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.AllowedFormKeyTypes = typeof(IRaceGetter).AsEnumerable();
+
+            this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
         }
         public ObservableCollection<FormKey> RaceFormKeys { get; set; }
         public VM_NPCAttribute ParentVM { get; set; }
         public RelayCommand DeleteCommand { get; }
         public ILinkCache lk { get; set; }
         public IEnumerable<Type> AllowedFormKeyTypes { get; set; }
-
+        public IObservable<Unit> NeedsRefresh { get; }
         public static VM_NPCAttributeRace getViewModelFromModel(NPCAttributeRace model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
             var newAtt = new VM_NPCAttributeRace(parentVM, parentShell);
@@ -326,7 +351,7 @@ namespace SynthEBD
         }
     }
 
-    public class VM_NPCAttributeNPC
+    public class VM_NPCAttributeNPC : ISubAttributeViewModel
     {
         public VM_NPCAttributeNPC(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
@@ -335,13 +360,15 @@ namespace SynthEBD
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
             this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.AllowedFormKeyTypes = typeof(INpcGetter).AsEnumerable();
+
+            this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
         }
         public ObservableCollection<FormKey> NPCFormKeys { get; set; }
         public VM_NPCAttribute ParentVM { get; set; }
         public RelayCommand DeleteCommand { get; }
         public ILinkCache lk { get; set; }
         public IEnumerable<Type> AllowedFormKeyTypes { get; set; }
-
+        public IObservable<Unit> NeedsRefresh { get; }
         public static VM_NPCAttributeNPC getViewModelFromModel(NPCAttributeNPC model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
             var newAtt = new VM_NPCAttributeNPC(parentVM, parentShell);
@@ -351,6 +378,47 @@ namespace SynthEBD
         public static NPCAttributeNPC DumpViewModelToModel(VM_NPCAttributeNPC viewModel, bool forceIf)
         {
             return new NPCAttributeNPC() { Type = NPCAttributeType.NPC, FormKeys = viewModel.NPCFormKeys.ToHashSet(), ForceIf = forceIf };
+        }
+    }
+
+    public class VM_NPCAttributeGroup : INotifyPropertyChanged, ISubAttributeViewModel
+    {
+        public VM_NPCAttributeGroup(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> attributeGroups)
+        {
+            this.AttributeCheckList = new VM_AttributeGroupCheckList(attributeGroups);
+            this.ParentVM = parentVM;
+            DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
+
+            NeedsRefresh = this.AttributeCheckList.AttributeSelections.Select(x => x.WhenAnyValue(x => x.IsSelected)).Merge().Unit();
+        }
+        public VM_AttributeGroupCheckList AttributeCheckList { get; set; }
+        public VM_NPCAttribute ParentVM { get; set; }
+        public RelayCommand DeleteCommand { get; }
+
+        public IObservable<Unit> NeedsRefresh { get; }
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        public static VM_NPCAttributeGroup getViewModelFromModel(NPCAttributeGroup model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> attributeGroups)
+        {
+            var newAtt = new VM_NPCAttributeGroup(parentVM, parentShell, attributeGroups);
+            
+            foreach (var candidateGroup in newAtt.AttributeCheckList.AttributeSelections)
+            {
+                if (model.SelectedLabels.Contains(candidateGroup.Label))
+                {
+                    candidateGroup.IsSelected = true;
+                }
+                else
+                {
+                    candidateGroup.IsSelected = false;
+                }
+            }
+
+            return newAtt;
+        }
+        public static NPCAttributeGroup DumpViewModelToModel(VM_NPCAttributeGroup viewModel, bool forceIf)
+        {
+            return new NPCAttributeGroup() { Type = NPCAttributeType.Group, SelectedLabels = viewModel.AttributeCheckList.AttributeSelections.Where(x => x.IsSelected).Select(x => x.Label).ToHashSet(), ForceIf = forceIf };
         }
     }
 }

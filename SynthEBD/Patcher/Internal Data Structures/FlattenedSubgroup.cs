@@ -110,6 +110,10 @@ namespace SynthEBD
                 flattened.AllowedAttributes = InheritParentAttributes(parent.AllowedAttributes, flattened.AllowedAttributes);
                 flattened.DisallowedAttributes = InheritParentAttributes(parent.DisallowedAttributes, flattened.DisallowedAttributes);
 
+                // replace Grouped attributes (if any) with their corresponding group members
+                NPCAttribute.SpreadGroupTypeAttributes(flattened.AllowedAttributes, parentAssetPack.Source.AttributeGroups);
+                NPCAttribute.SpreadGroupTypeAttributes(flattened.DisallowedAttributes, parentAssetPack.Source.AttributeGroups);
+
                 // Weight Range
                 if (parent.WeightRange.Lower > flattened.WeightRange.Lower) { flattened.WeightRange.Lower = parent.WeightRange.Lower; }
                 if (parent.WeightRange.Upper < flattened.WeightRange.Upper) { flattened.WeightRange.Upper = parent.WeightRange.Upper; }
@@ -164,14 +168,14 @@ namespace SynthEBD
                     {
                         var combinedAttribute = new NPCAttribute();
 
-                        foreach (var subParentAttribute in parentAttribute.GroupedSubAttributes)
+                        foreach (var subParentAttribute in parentAttribute.SubAttributes)
                         {
-                            combinedAttribute.GroupedSubAttributes.Add(subParentAttribute);
+                            combinedAttribute.SubAttributes.Add(subParentAttribute);
                         }
 
-                        foreach (var subChildAttribute in childAttribute.GroupedSubAttributes)
+                        foreach (var subChildAttribute in childAttribute.SubAttributes)
                         {
-                            combinedAttribute.GroupedSubAttributes.Add(subChildAttribute);
+                            combinedAttribute.SubAttributes.Add(subChildAttribute);
                         }
 
                         mergedAttributes.Add(combinedAttribute);

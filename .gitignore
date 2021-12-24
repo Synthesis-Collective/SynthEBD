@@ -3,6 +3,9 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+!SynthEBD/SynthEBD/bin/Debug/net5.0-windows/Settings
+!Debug/net5.0-windows/Settings
+
 # User-specific files
 *.rsuser
 *.suo

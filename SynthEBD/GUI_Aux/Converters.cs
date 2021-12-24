@@ -156,7 +156,7 @@ namespace SynthEBD
                 NPCAttributeClass tmpAttr = new NPCAttributeClass();
                 tmpAttr.FormKeys = classAttributes;
                 NPCAttribute newAttr = new NPCAttribute();
-                newAttr.GroupedSubAttributes.Add(tmpAttr);
+                newAttr.SubAttributes.Add(tmpAttr);
                 h.Add(newAttr);
             }
 
@@ -165,7 +165,7 @@ namespace SynthEBD
                 NPCAttributeFaceTexture tmpAttr = new NPCAttributeFaceTexture();
                 tmpAttr.FormKeys = faceTextureAttributes;
                 NPCAttribute newAttr = new NPCAttribute();
-                newAttr.GroupedSubAttributes.Add(tmpAttr);
+                newAttr.SubAttributes.Add(tmpAttr);
                 h.Add(newAttr);
             }
 
@@ -174,7 +174,7 @@ namespace SynthEBD
                 NPCAttributeFactions tmpAttr = new NPCAttributeFactions();
                 tmpAttr.FormKeys = factionAttributes;
                 NPCAttribute newAttr = new NPCAttribute();
-                newAttr.GroupedSubAttributes.Add(tmpAttr);
+                newAttr.SubAttributes.Add(tmpAttr);
                 h.Add(newAttr);
             }
 
@@ -183,7 +183,7 @@ namespace SynthEBD
                 NPCAttributeNPC tmpAttr = new NPCAttributeNPC();
                 tmpAttr.FormKeys = npcAttributes;
                 NPCAttribute newAttr = new NPCAttribute();
-                newAttr.GroupedSubAttributes.Add(tmpAttr);
+                newAttr.SubAttributes.Add(tmpAttr);
                 h.Add(newAttr);
             }
 
@@ -192,7 +192,7 @@ namespace SynthEBD
                 NPCAttributeRace tmpAttr = new NPCAttributeRace();
                 tmpAttr.FormKeys = raceAttributes;
                 NPCAttribute newAttr = new NPCAttribute();
-                newAttr.GroupedSubAttributes.Add(tmpAttr);
+                newAttr.SubAttributes.Add(tmpAttr);
                 h.Add(newAttr);
             }
 
@@ -201,7 +201,7 @@ namespace SynthEBD
                 NPCAttributeVoiceType tmpAttr = new NPCAttributeVoiceType();
                 tmpAttr.FormKeys = voiceTypeAttributes;
                 NPCAttribute newAttr = new NPCAttribute();
-                newAttr.GroupedSubAttributes.Add(tmpAttr);
+                newAttr.SubAttributes.Add(tmpAttr);
                 h.Add(newAttr);
             }
 
@@ -359,12 +359,12 @@ namespace SynthEBD
                 {
                     foreach (var match in matches)
                     {
-                        match.GroupedSubAttributes.FirstOrDefault().ForceIf = true;
+                        match.SubAttributes.FirstOrDefault().ForceIf = true;
                     }
                 }
                 else
                 {
-                    ofa.GroupedSubAttributes.FirstOrDefault().ForceIf = true;
+                    ofa.SubAttributes.FirstOrDefault().ForceIf = true;
                     allowedAttributes.Add(ofa);
                 }
             }

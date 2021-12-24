@@ -18,10 +18,10 @@ namespace SynthEBD
         public VM_BodyGenTemplateMenu(VM_BodyGenConfig parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
             this.Templates = new ObservableCollection<VM_BodyGenTemplate>();
-            this.CurrentlyDisplayedTemplate = new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, this.Templates);
+            this.CurrentlyDisplayedTemplate = new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, this.Templates, parentConfig);
             AddTemplate = new SynthEBD.RelayCommand(
     canExecute: _ => true,
-    execute: _ => this.Templates.Add(new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, this.Templates))
+    execute: _ => this.Templates.Add(new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, this.Templates, parentConfig))
     );
 
             RemoveTemplate = new SynthEBD.RelayCommand(
@@ -42,7 +42,7 @@ namespace SynthEBD
 
     public class VM_BodyGenTemplate : INotifyPropertyChanged
     {
-        public VM_BodyGenTemplate(ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyGenMorphDescriptorMenu morphDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodyGenTemplate> parentCollection)
+        public VM_BodyGenTemplate(ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyGenMorphDescriptorMenu morphDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodyGenTemplate> parentCollection, VM_BodyGenConfig parentConfig)
         {
             this.Label = "";
             this.Notes = "";
@@ -68,6 +68,7 @@ namespace SynthEBD
             this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
 
+            this.ParentConfig = parentConfig;
             this.ParentCollection = parentCollection;
             this.OtherGroupsTemplateCollection = new ObservableCollection<VM_BodyGenTemplate>();
             parentCollection.CollectionChanged += UpdateOtherGroupsTemplateCollection;
@@ -76,12 +77,12 @@ namespace SynthEBD
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.AllowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.AllowedAttributes, true))
+                execute: _ => this.AllowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.AllowedAttributes, true, ParentConfig.AttributeGroupMenu.Groups))
                 );
 
             AddDisallowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.DisallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.DisallowedAttributes, false))
+                execute: _ => this.DisallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.DisallowedAttributes, false, ParentConfig.AttributeGroupMenu.Groups))
                 );
 
             AddRequiredTemplate = new SynthEBD.RelayCommand(
@@ -125,6 +126,7 @@ namespace SynthEBD
         public RelayCommand AddRequiredTemplate { get; }
         public RelayCommand DeleteMe { get; }
 
+        public VM_BodyGenConfig ParentConfig { get; set; }
         public ObservableCollection<VM_BodyGenTemplate> ParentCollection {get; set;}
         public ObservableCollection<VM_BodyGenTemplate> OtherGroupsTemplateCollection { get; set; }
 
@@ -158,8 +160,8 @@ namespace SynthEBD
                 else { grouping.IsSelected = false; }
             }
 
-            viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, true);
-            viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, false);
+            viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, viewModel.ParentConfig.AttributeGroupMenu.Groups, true);
+            viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, viewModel.ParentConfig.AttributeGroupMenu.Groups, false);
             foreach (var x in viewModel.DisallowedAttributes) { x.DisplayForceIfOption = false; }
             viewModel.bAllowUnique = model.AllowUnique;
             viewModel.bAllowNonUnique = model.AllowNonUnique;

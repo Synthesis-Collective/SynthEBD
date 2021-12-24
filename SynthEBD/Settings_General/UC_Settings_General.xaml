@@ -167,7 +167,13 @@
 
             <TextBlock Grid.Column="0" Grid.Row="15">Attribute Groups</TextBlock>
             <Expander Grid.Column="2" Grid.Row="15" Header="" ExpandDirection="Down" >
-                <local:UC_AttributeGroupMenu DataContext="{Binding AttributeGroupMenu}"/>
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock ToolTip="If checked, when a plugin's Attribute list includes a Group type attribute, that Group's members will be overwritten by the ones in this menu.">Supercede Plugin Group Definitions with Main</TextBlock>
+                        <CheckBox IsChecked="{Binding Path=OverwritePluginAttGroups, Mode=TwoWay}"></CheckBox>
+                    </StackPanel>
+                    <local:UC_AttributeGroupMenu DataContext="{Binding AttributeGroupMenu}"/>
+                </StackPanel>
             </Expander>
 
             <TextBlock Grid.Column="0" Grid.Row="16">Verbose Mode for Conflict NPCs</TextBlock>

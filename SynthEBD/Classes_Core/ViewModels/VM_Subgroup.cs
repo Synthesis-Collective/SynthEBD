@@ -55,12 +55,12 @@ namespace SynthEBD
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.allowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.allowedAttributes, true))
+                execute: _ => this.allowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.allowedAttributes, true, parentAssetPack.AttributeGroupMenu.Groups))
                 );
 
             AddDisallowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.disallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.disallowedAttributes, false))
+                execute: _ => this.disallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.disallowedAttributes, false, parentAssetPack.AttributeGroupMenu.Groups))
                 );
 
             AddNPCKeyword = new SynthEBD.RelayCommand(
@@ -152,8 +152,8 @@ namespace SynthEBD
             viewModel.AllowedRaceGroupings = GetRaceGroupingsByLabel(model.allowedRaceGroupings, generalSettingsVM.RaceGroupings);
             viewModel.disallowedRaces = new ObservableCollection<FormKey>(model.disallowedRaces);
             viewModel.DisallowedRaceGroupings = GetRaceGroupingsByLabel(model.disallowedRaceGroupings, generalSettingsVM.RaceGroupings);
-            viewModel.allowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.allowedAttributes, true);
-            viewModel.disallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.disallowedAttributes, false);
+            viewModel.allowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.allowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, true);
+            viewModel.disallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.disallowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, false);
             foreach (var x in viewModel.disallowedAttributes) { x.DisplayForceIfOption = false; }
             viewModel.bAllowUnique = model.bAllowUnique;
             viewModel.bAllowNonUnique = model.bAllowNonUnique;

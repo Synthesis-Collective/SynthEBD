@@ -54,6 +54,7 @@ namespace SynthEBD
                     case "Class": return jo.ToObject<NPCAttributeClass>(serializer);
                     case "FaceTexture": return jo.ToObject<NPCAttributeFaceTexture>(serializer);
                     case "Faction": return jo.ToObject<NPCAttributeFactions>(serializer);
+                    case "Group": return jo.ToObject<NPCAttributeGroup>(serializer);
                     case "NPC": return jo.ToObject<NPCAttributeNPC>(serializer);
                     case "Race": return jo.ToObject<NPCAttributeRace>(serializer);
                     case "VoiceType": return jo.ToObject<NPCAttributeVoiceType>(serializer);

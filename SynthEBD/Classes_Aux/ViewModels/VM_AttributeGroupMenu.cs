@@ -40,7 +40,11 @@ namespace SynthEBD
             models.Clear();
             foreach (var subVM in viewModel.Groups)
             {
-                models.Add(VM_AttributeGroup.DumpViewModelToModel(subVM));
+                var model = VM_AttributeGroup.DumpViewModelToModel(subVM);
+                if (model.Attributes.Any())
+                {
+                    models.Add(model);
+                }
             }
         }
     }

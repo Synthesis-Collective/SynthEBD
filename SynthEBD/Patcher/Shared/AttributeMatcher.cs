@@ -36,7 +36,7 @@ namespace SynthEBD
             foreach (var attribute in attributeList)
             {
                 bool subAttributeMatched = true;
-                foreach (var subAttribute in attribute.GroupedSubAttributes)
+                foreach (var subAttribute in attribute.SubAttributes)
                 {
                     switch(subAttribute.Type)
                     {

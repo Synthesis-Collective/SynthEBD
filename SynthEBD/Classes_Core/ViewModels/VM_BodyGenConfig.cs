@@ -23,6 +23,7 @@ namespace SynthEBD
             this.DescriptorUI = new VM_BodyGenMorphDescriptorMenu();
             this.TemplateMorphUI = new VM_BodyGenTemplateMenu(this, raceGroupingVMs);
             this.DisplayedUI = this.TemplateMorphUI;
+            this.AttributeGroupMenu = new VM_AttributeGroupMenu();
 
             ClickTemplateMenu = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -48,6 +49,8 @@ namespace SynthEBD
         public VM_BodyGenGroupsMenu GroupUI { get; set; }
         public VM_BodyGenMorphDescriptorMenu DescriptorUI { get; set; }
         public VM_BodyGenTemplateMenu TemplateMorphUI { get; set; }
+
+        public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
 
         public ICommand ClickTemplateMenu { get; }
         public ICommand ClickGroupMappingMenu { get; }
@@ -87,7 +90,7 @@ namespace SynthEBD
 
             foreach (var template in model.Templates)
             {
-                var templateVM = new VM_BodyGenTemplate(viewModel.GroupUI.TemplateGroups, viewModel.DescriptorUI, raceGroupingVMs, viewModel.TemplateMorphUI.Templates);
+                var templateVM = new VM_BodyGenTemplate(viewModel.GroupUI.TemplateGroups, viewModel.DescriptorUI, raceGroupingVMs, viewModel.TemplateMorphUI.Templates, viewModel);
                 VM_BodyGenTemplate.GetViewModelFromModel(template, templateVM, viewModel.DescriptorUI, raceGroupingVMs);
                 viewModel.TemplateMorphUI.Templates.Add(templateVM);
             }

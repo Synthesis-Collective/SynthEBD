@@ -22,6 +22,7 @@ namespace SynthEBD
             this.AdditionalRecordTemplateAssignments = new HashSet<AdditionalRecordTemplate>();
             this.AssociatedBodyGenConfigName = "";
             this.RecordTemplateAdditionalRacesPaths = new HashSet<string>();
+            this.AttributeGroups = new HashSet<AttributeGroup>();
         }
 
         public string GroupName { get; set; }
@@ -33,6 +34,7 @@ namespace SynthEBD
         public HashSet<AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
         public string AssociatedBodyGenConfigName { get; set; }
         public HashSet<string> RecordTemplateAdditionalRacesPaths { get; set; }
+        public HashSet<AttributeGroup> AttributeGroups { get; set; }
         [Newtonsoft.Json.JsonIgnore]
         public string FilePath { get; set; }
 

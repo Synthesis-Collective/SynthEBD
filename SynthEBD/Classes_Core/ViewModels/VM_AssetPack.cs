@@ -49,6 +49,8 @@ namespace SynthEBD
             this.AdditionalRecordTemplateAssignments = new ObservableCollection<VM_AdditionalRecordTemplate>();
             this.RecordTemplateAdditionalRacesPaths = new ObservableCollection<VM_CollectionMemberString>();
 
+            this.AttributeGroupMenu = new VM_AttributeGroupMenu();
+
             /*
             switch (this.gender)
             {
@@ -70,6 +72,21 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ => { this.RecordTemplateAdditionalRacesPaths.Add(new VM_CollectionMemberString("", this.RecordTemplateAdditionalRacesPaths)); }
                 );
+
+            ImportAttributeGroups = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => 
+                {
+                    var alreadyContainedGroups = AttributeGroupMenu.Groups.Select(x => x.Label).ToHashSet();
+                    foreach (var attGroup in VM_Settings_General.AttributeGroupMenu.Groups)
+                    {
+                        if (!alreadyContainedGroups.Contains(attGroup.Label))
+                        {
+                            AttributeGroupMenu.Groups.Add(VM_AttributeGroup.Copy(attGroup, AttributeGroupMenu));
+                        }
+                    }
+                }
+                );
         }
 
         public string groupName { get; set; }
@@ -90,6 +107,7 @@ namespace SynthEBD
         public ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> RecordTemplateLinkCache { get; set; }
 
         public FormKey DefaultTemplateFK { get; set; }
+        public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
 
         public IEnumerable<Type> NPCFormKeyTypes { get; set; }
 
@@ -101,6 +119,7 @@ namespace SynthEBD
 
         public RelayCommand AddAdditionalRecordTemplateAssignment { get; }
         public RelayCommand AddRecordTemplateAdditionalRacesPath { get; }
+        public RelayCommand ImportAttributeGroups { get; }
 
         public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>() // referenced by xaml; don't trust VS reference count
         {
@@ -152,6 +171,8 @@ namespace SynthEBD
                 viewModel.TrackedBodyGenConfig = new VM_BodyGenConfig(generalSettingsVM.RaceGroupings);
             }
 
+            VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu);
+
             foreach (var sg in model.Subgroups)
             {
                 viewModel.subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM, viewModel.subgroups, viewModel));
@@ -198,6 +219,8 @@ namespace SynthEBD
                 model.DefaultRecordTemplate = vm.DefaultTemplateFK;
                 model.AdditionalRecordTemplateAssignments = vm.AdditionalRecordTemplateAssignments.Select(x => VM_AdditionalRecordTemplate.DumpViewModelToModel(x)).ToHashSet();
                 model.RecordTemplateAdditionalRacesPaths = vm.RecordTemplateAdditionalRacesPaths.Select(x => x.Content).ToHashSet();
+
+                VM_AttributeGroupMenu.DumpViewModelToModels(vm.AttributeGroupMenu, model.AttributeGroups);
 
                 foreach (var svm in vm.subgroups)
                 {

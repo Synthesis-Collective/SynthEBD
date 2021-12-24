@@ -1,10 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DynamicData;
+using DynamicData.Binding;
+using Noggog;
+using ReactiveUI;
 
 namespace SynthEBD
 {
@@ -19,12 +26,21 @@ namespace SynthEBD
             Remove = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => ParentMenu.Groups.Remove(this)
-                ) ;
+                );
 
             AddAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => Attributes.Add(VM_NPCAttribute.CreateNewFromUI(Attributes, true)) 
+                execute: _ => Attributes.Add(VM_NPCAttribute.CreateNewFromUI(Attributes, false, parent.Groups))
                 );
+
+            Attributes.ToObservableChangeSet().TransformMany(x => x.GroupedSubAttributes).Transform(x => x.Attribute).Transform(
+                x =>
+                {
+                    var unSubDisposable = x.WhenAnyValue(x => x.NeedsRefresh).Switch().Subscribe(_ => CheckForCircularReferences());
+                    return unSubDisposable;
+                }).DisposeMany().Subscribe();
+
+            Attributes.CollectionChanged += CheckForCircularReferences;
         }
 
         public string Label { get; set; }
@@ -34,13 +50,29 @@ namespace SynthEBD
         public RelayCommand Remove { get; }
         public RelayCommand AddAttribute { get; }
 
+        public ObservableCollection<VM_NPCAttribute> Attributes_Bak { get; set; }
+
         public event PropertyChangedEventHandler PropertyChanged;
+
+        public void CheckForCircularReferences()
+        {
+            if (CheckForCircularReferences(this, new HashSet<string>()))
+            {
+                System.Windows.MessageBox.Show("Circular reference detected.");
+                Attributes = new ObservableCollection<VM_NPCAttribute>(Attributes_Bak);
+            }
+            else
+            {
+                Attributes_Bak = new ObservableCollection<VM_NPCAttribute>(Attributes);
+            }
+        }
 
         public static VM_AttributeGroup GetViewModelFromModel(AttributeGroup model, VM_AttributeGroupMenu parentMenu)
         {
             VM_AttributeGroup vm = new VM_AttributeGroup(parentMenu);
             vm.Label = model.Label;
-            vm.Attributes = VM_NPCAttribute.GetViewModelsFromModels(model.Attributes, true);
+            vm.Attributes = VM_NPCAttribute.GetViewModelsFromModels(model.Attributes, parentMenu.Groups, false);
+            vm.Attributes_Bak = new ObservableCollection<VM_NPCAttribute>(vm.Attributes);
             return vm;
         }
 
@@ -50,6 +82,81 @@ namespace SynthEBD
             model.Label = viewModel.Label;
             model.Attributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.Attributes);
             return model;
+        }
+
+        public static VM_AttributeGroup Copy(VM_AttributeGroup input, VM_AttributeGroupMenu parent)
+        {
+            var copy = new VM_AttributeGroup(parent);
+            copy.Label = input.Label;
+            copy.Attributes = new ObservableCollection<VM_NPCAttribute>(input.Attributes);
+            return copy;
+        }
+      
+
+        public void CheckForCircularReferences(object sender, PropertyChangedEventArgs e)
+        {
+            if (CheckForCircularReferences(this, new HashSet<string>()))
+            {
+                System.Windows.MessageBox.Show("Circular reference detected.");
+                Attributes = new ObservableCollection<VM_NPCAttribute>(Attributes_Bak);
+            }
+            else
+            {
+                Attributes_Bak = new ObservableCollection<VM_NPCAttribute>(Attributes);
+            }
+        }
+
+        public void CheckForCircularReferences(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (CheckForCircularReferences(this, new HashSet<string>()))
+            {
+                System.Windows.MessageBox.Show("Circular reference detected.");
+                Attributes = new ObservableCollection<VM_NPCAttribute>(Attributes_Bak);
+            }
+            else
+            {
+                Attributes_Bak = new ObservableCollection<VM_NPCAttribute>(Attributes);
+            }
+        }
+
+        private static bool CheckForCircularReferences(VM_AttributeGroup attGroup, HashSet<string> referencedGroups)
+        {
+            foreach (var attribute in attGroup.Attributes)
+            {
+                if (CheckForCircularReference(attribute, referencedGroups, attGroup.ParentMenu.Groups))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool CheckForCircularReference(VM_NPCAttribute attribute, HashSet<string> referencedGroups, ObservableCollection<VM_AttributeGroup> allGroups)
+        {
+            foreach (var subAttributeShell in attribute.GroupedSubAttributes)
+            {
+                if (subAttributeShell.Type == NPCAttributeType.Group)
+                {
+                    var groupAttribute = (VM_NPCAttributeGroup)subAttributeShell.Attribute;
+
+                    foreach (var label in groupAttribute.AttributeCheckList.AttributeSelections.Where(x => x.IsSelected).Select(x => x.Label))
+                    {
+                        var subGroup = allGroups.Where(x => x.Label == label).FirstOrDefault();
+                        if (subGroup != null)
+                        {
+                            if (referencedGroups.Contains(subGroup.Label))
+                            {
+                                return true;
+                            }
+                        }
+                        else
+                        {
+                            CheckForCircularReferences(subGroup, referencedGroups);
+                        }
+                    }
+                }
+            }
+            return false;
         }
     }
 }

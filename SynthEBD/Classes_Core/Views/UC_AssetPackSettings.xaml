@@ -115,6 +115,14 @@
                         <Button Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding AddRecordTemplateAdditionalRacesPath}" Foreground="LightGreen">Add New</Button>
                     </Grid>
                 </Expander>
+
+                <TextBlock Grid.Row="8" Grid.Column="0"></TextBlock>
+                <Expander Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" Header="Attribute Groups" ExpandDirection="Down" >
+                    <StackPanel>
+                        <local:UC_AttributeGroupMenu DataContext="{Binding AttributeGroupMenu}"/>
+                        <Button Command="{Binding ImportAttributeGroups}" Foreground="Lightgreen">Import from General Settings</Button>
+                    </StackPanel>
+                </Expander>
             </Grid>
         </Expander>
         <Button Grid.Column="2" Grid.Row="0" VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding RemoveAssetPackConfigFile}" Foreground="FireBrick">X</Button>

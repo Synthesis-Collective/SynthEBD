@@ -28,6 +28,7 @@ namespace SynthEBD
             this.raceAliases = new List<RaceAlias>();
             this.RaceGroupings = new List<RaceGrouping>();
             this.AttributeGroups = new HashSet<AttributeGroup>();
+            this.OverwritePluginAttGroups = true;
         }
 
         public bool bShowToolTips { get; set; }
@@ -53,5 +54,6 @@ namespace SynthEBD
 
         public List<RaceGrouping> RaceGroupings { get; set; }
         public HashSet<AttributeGroup> AttributeGroups { get; set; }
+        public bool OverwritePluginAttGroups { get; set; }
     }
 }
