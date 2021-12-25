@@ -29,9 +29,38 @@ namespace SynthEBD
 
         public static void GetViewModelFromModels(HashSet<AttributeGroup> models, VM_AttributeGroupMenu viewModel)
         {
+            // first add each group to the menu
             foreach (var model in models)
             {
                 viewModel.Groups.Add(VM_AttributeGroup.GetViewModelFromModel(model, viewModel));
+            }
+            // then set IsSelected once all the groups are populated (VM_AttributeGroup.GetViewModelFromModel can't do this because if model[i] references model[i+1], the correposndoing viewModel[i] can't have that selection checked because viewModel[i+1] hasn't been built yet.
+            foreach (var model in models)
+            {
+                foreach (var att in model.Attributes)
+                {
+                    foreach (var subAtt in att.SubAttributes)
+                    {
+                        if (subAtt.Type == NPCAttributeType.Group)
+                        {
+                            var subAttModel = (NPCAttributeGroup)subAtt;
+                            var correspondingVM = viewModel.Groups.Where(x => x.Label == model.Label).First();
+                            foreach (var groupAttribute in correspondingVM.Attributes)
+                            {
+                                var groupAttributes = groupAttribute.GroupedSubAttributes.Where(x => x.Type == NPCAttributeType.Group);
+                                foreach (var groupAtt in groupAttributes)
+                                {
+                                    var castGroupAtt = (VM_NPCAttributeGroup)groupAtt.Attribute;
+                                    var checkListEntries = castGroupAtt.AttributeCheckList.AttributeSelections.Where(x => subAttModel.SelectedLabels.Contains(x.Label)).ToHashSet();
+                                    foreach (var toSelect in checkListEntries)
+                                    {
+                                        toSelect.IsSelected = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 

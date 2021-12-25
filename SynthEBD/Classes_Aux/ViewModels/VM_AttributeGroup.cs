@@ -33,14 +33,16 @@ namespace SynthEBD
                 execute: _ => Attributes.Add(VM_NPCAttribute.CreateNewFromUI(Attributes, false, parent.Groups))
                 );
 
-            Attributes.ToObservableChangeSet().TransformMany(x => x.GroupedSubAttributes).Transform(x => x.Attribute).Transform(
+            Attributes.ToObservableChangeSet().TransformMany(x => x.GroupedSubAttributes).Transform(
                 x =>
                 {
-                    var unSubDisposable = x.WhenAnyValue(x => x.NeedsRefresh).Switch().Subscribe(_ => CheckForCircularReferences());
+                    var unSubDisposable = x.WhenAnyValue(x => x.Attribute.NeedsRefresh).Switch().Subscribe(_ => CheckForCircularReferences());
                     return unSubDisposable;
                 }).DisposeMany().Subscribe();
 
             Attributes.CollectionChanged += CheckForCircularReferences;
+
+            ParentMenu.Groups.CollectionChanged += RefreshAttributeWatch; // this is needed because the Subscription set in this constructor will not follow other attribute groups added to the parent collection after the current one is loaded
         }
 
         public string Label { get; set; }
@@ -53,6 +55,16 @@ namespace SynthEBD
         public ObservableCollection<VM_NPCAttribute> Attributes_Bak { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
+
+        public void RefreshAttributeWatch(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            Attributes.ToObservableChangeSet().TransformMany(x => x.GroupedSubAttributes).Transform(
+                x =>
+                {
+                    var unSubDisposable = x.WhenAnyValue(x => x.Attribute.NeedsRefresh).Switch().Subscribe(_ => CheckForCircularReferences());
+                    return unSubDisposable;
+                }).DisposeMany().Subscribe();
+        }
 
         public void CheckForCircularReferences()
         {
@@ -146,12 +158,14 @@ namespace SynthEBD
                         {
                             if (referencedGroups.Contains(subGroup.Label))
                             {
+                                //test
+                                var toUnSet = groupAttribute.AttributeCheckList.AttributeSelections.Where(x => x.Label == label).First();
+                                toUnSet.IsSelected = false;
+                                //
                                 return true;
                             }
-                        }
-                        else
-                        {
-                            CheckForCircularReferences(subGroup, referencedGroups);
+                            referencedGroups.Add(subGroup.Label);
+                            return CheckForCircularReferences(subGroup, referencedGroups);
                         }
                     }
                 }

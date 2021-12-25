@@ -86,7 +86,7 @@ namespace SynthEBD
                     case NPCAttributeType.Race: shellVM.Attribute = VM_NPCAttributeRace.getViewModelFromModel((NPCAttributeRace)attributeShellModel, viewModel, shellVM); break;
                     case NPCAttributeType.NPC: shellVM.Attribute = VM_NPCAttributeNPC.getViewModelFromModel((NPCAttributeNPC)attributeShellModel, viewModel, shellVM); break;
                     case NPCAttributeType.VoiceType: shellVM.Attribute = VM_NPCAttributeVoiceType.getViewModelFromModel((NPCAttributeVoiceType)attributeShellModel, viewModel, shellVM); break;
-                    case NPCAttributeType.Group: shellVM.Attribute = VM_NPCAttributeGroup.getViewModelFromModel((NPCAttributeGroup)attributeShellModel, viewModel, shellVM, attributeGroups); break;
+                    case NPCAttributeType.Group: shellVM.Attribute = VM_NPCAttributeGroup.GetViewModelFromModel((NPCAttributeGroup)attributeShellModel, viewModel, shellVM, attributeGroups); break; //new VM_NPCAttributeGroup(viewModel, shellVM, attributeGroups); break; // Setting the checkbox selections MUST be done in the calling function after all `attributeGroups` view models have been created from their corresponding model (otherwise the required checkbox entry may not yet exist). This is done in VM_AttributeGroupMenu.GetViewModelFromModels().
                     default: //WARN USER
                         break;
                 }
@@ -387,6 +387,11 @@ namespace SynthEBD
         {
             this.AttributeCheckList = new VM_AttributeGroupCheckList(attributeGroups);
             this.ParentVM = parentVM;
+
+            this.SubscribedAttributeGroupCollection = attributeGroups;
+
+            SubscribedAttributeGroupCollection.CollectionChanged += RebuildCheckList; // this is needed because the Subscription set in this constructor will not follow other attribute groups added to the parent collection after the current one is loaded
+
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
 
             NeedsRefresh = this.AttributeCheckList.AttributeSelections.Select(x => x.WhenAnyValue(x => x.IsSelected)).Merge().Unit();
@@ -395,23 +400,24 @@ namespace SynthEBD
         public VM_NPCAttribute ParentVM { get; set; }
         public RelayCommand DeleteCommand { get; }
 
-        public IObservable<Unit> NeedsRefresh { get; }
+        public ObservableCollection<VM_AttributeGroup> SubscribedAttributeGroupCollection { get; set; }
+
+        public IObservable<Unit> NeedsRefresh { get; set; }
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static VM_NPCAttributeGroup getViewModelFromModel(NPCAttributeGroup model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> attributeGroups)
+        public void RebuildCheckList(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            AttributeCheckList = new VM_AttributeGroupCheckList(SubscribedAttributeGroupCollection);
+            NeedsRefresh = this.AttributeCheckList.AttributeSelections.Select(x => x.WhenAnyValue(x => x.IsSelected)).Merge().Unit();
+        }
+
+        public static VM_NPCAttributeGroup GetViewModelFromModel(NPCAttributeGroup model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> attributeGroups)
         {
             var newAtt = new VM_NPCAttributeGroup(parentVM, parentShell, attributeGroups);
             
-            foreach (var candidateGroup in newAtt.AttributeCheckList.AttributeSelections)
+            foreach (var group in newAtt.AttributeCheckList.AttributeSelections.Where(x => model.SelectedLabels.Contains(x.Label)))
             {
-                if (model.SelectedLabels.Contains(candidateGroup.Label))
-                {
-                    candidateGroup.IsSelected = true;
-                }
-                else
-                {
-                    candidateGroup.IsSelected = false;
-                }
+                group.IsSelected = true;
             }
 
             return newAtt;
