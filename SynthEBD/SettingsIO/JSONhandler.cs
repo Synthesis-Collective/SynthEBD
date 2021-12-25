@@ -12,7 +12,7 @@ namespace SynthEBD
 {
     public class JSONhandler<T>
     {
-        public static T loadJSONFile(string loadLoc)
+        public static JsonSerializerSettings GetSynthEBDJSONSettings()
         {
             var jsonSettings = new JsonSerializerSettings();
             jsonSettings.AddMutagenConverters();
@@ -21,22 +21,29 @@ namespace SynthEBD
             jsonSettings.Converters.Add(new AttributeConverter()); // https://blog.codeinside.eu/2015/03/30/json-dotnet-deserialize-to-abstract-class-or-interface/
             jsonSettings.Converters.Add(new Newtonsoft.Json.Converters.StringEnumConverter()); // https://stackoverflow.com/questions/2441290/javascriptserializer-json-serialization-of-enum-as-string
 
-            string text = File.ReadAllText(loadLoc);
-            return JsonConvert.DeserializeObject<T>(text, jsonSettings);
+            return jsonSettings;
+        }
+
+        public static T Deserialize(string jsonInputStr)
+        {
+            return JsonConvert.DeserializeObject<T>(jsonInputStr, GetSynthEBDJSONSettings());
+        }
+
+        public static T loadJSONFile(string loadLoc)
+        {
+            return Deserialize(File.ReadAllText(loadLoc));
+        }
+
+        public static string Serialize(T input)
+        {
+            return JsonConvert.SerializeObject(input, Formatting.Indented, GetSynthEBDJSONSettings());
         }
 
         public static void SaveJSONFile(T input, string saveLoc)
         {
-            var jsonSettings = new JsonSerializerSettings();
-            jsonSettings.AddMutagenConverters();
-            jsonSettings.ObjectCreationHandling = ObjectCreationHandling.Replace;
-            jsonSettings.Formatting = Formatting.Indented;
-            jsonSettings.Converters.Add(new AttributeConverter()); // https://blog.codeinside.eu/2015/03/30/json-dotnet-deserialize-to-abstract-class-or-interface/
-            jsonSettings.Converters.Add(new Newtonsoft.Json.Converters.StringEnumConverter()); // https://stackoverflow.com/questions/2441290/javascriptserializer-json-serialization-of-enum-as-string
-
-            string jsonString = JsonConvert.SerializeObject(input, Formatting.Indented, jsonSettings);
-            File.WriteAllText(saveLoc, jsonString);
+            File.WriteAllText(saveLoc, Serialize(input));
         }
+
 
         private class AttributeConverter : JsonConverter
         {

@@ -112,7 +112,7 @@ namespace SynthEBD
         {
             foreach (var bgConfig in bodyGenConfigs)
             {
-                if (bgConfig.FilePath != "")
+                if (bgConfig.FilePath != null && bgConfig.FilePath != "")
                 {
                     JSONhandler<BodyGenConfig>.SaveJSONFile(bgConfig, bgConfig.FilePath);
                 }

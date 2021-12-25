@@ -32,11 +32,19 @@ namespace SynthEBD
             return true;
         }
 
-        public static void SpreadGroupTypeAttributes(HashSet<NPCAttribute> attributeList, HashSet<AttributeGroup> groupDefinitions)
+        public static HashSet<NPCAttribute> SpreadGroupTypeAttributes(HashSet<NPCAttribute> attributeList, HashSet<AttributeGroup> groupDefinitions)
         {
+            HashSet<NPCAttribute> output = new HashSet<NPCAttribute>();
+
             foreach (var att in attributeList)
             {
                 var groupAttributes = att.SubAttributes.Where(x => x.Type == NPCAttributeType.Group).ToHashSet();
+                if (!groupAttributes.Any())
+                {
+                    output.Add(att);
+                }
+
+                var additionalSubAttributes = att.SubAttributes.Where(x => x.Type != NPCAttributeType.Group).ToHashSet(); // to be merged into output attributes
 
                 foreach (var IGroup in groupAttributes)
                 {
@@ -44,11 +52,19 @@ namespace SynthEBD
                     foreach (var label in group.SelectedLabels)
                     {
                         var subattributesFromGroup = GetGroupedAttributesByLabel(label, groupDefinitions, group.ForceIf);
-                        att.SubAttributes.UnionWith(subattributesFromGroup);
+
+                        foreach (var subAtt in subattributesFromGroup)
+                        {
+                            var newAttribute = new NPCAttribute();
+                            newAttribute.SubAttributes.UnionWith(additionalSubAttributes);
+                            newAttribute.SubAttributes.Add(subAtt);
+                            output.Add(newAttribute);
+                        }
                     }
-                    att.SubAttributes.Remove(IGroup);
                 }
             }
+
+            return output;
         }
 
         public static HashSet<ITypedNPCAttribute> GetGroupedAttributesByLabel(string label, HashSet<AttributeGroup> groupDefinitions, bool groupForceIf)
@@ -63,7 +79,7 @@ namespace SynthEBD
             }
 
             // fall back to plugin-supplied group definitions if necessary
-            var matchedPluginGroup = PatcherSettings.General.AttributeGroups.Where(x => x.Label == label).FirstOrDefault();
+            var matchedPluginGroup = groupDefinitions.Where(x => x.Label == label).FirstOrDefault();
             if (matchedPluginGroup != null)
             {
                 return GetGroupedAttributesFromGroup(matchedPluginGroup, groupDefinitions, groupForceIf);

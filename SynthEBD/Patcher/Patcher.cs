@@ -50,6 +50,9 @@ namespace SynthEBD
 
             HeightConfig currentHeightConfig = null;
 
+            // Several operations are performed that mutate the input settings. For Asset Packs this does not affect saved settings because the operations are performed on the derived FlattenedAssetPacks, but for BodyGen configs these are made directly to the settings files. Therefore, create a deep copy of the configs and operate on those to avoid altering the user's saved settings upon exiting the program
+            BodyGenConfigs copiedBodyGenConfigs = JSONhandler<BodyGenConfigs>.Deserialize(JSONhandler<BodyGenConfigs>.Serialize(bodyGenConfigs));
+
             if (PatcherSettings.General.bChangeMeshesOrTextures)
             {
                 HashSet<FlattenedAssetPack> flattenedAssetPacks = new HashSet<FlattenedAssetPack>();
@@ -64,7 +67,9 @@ namespace SynthEBD
 
             if (PatcherSettings.General.bEnableBodyGenIntegration)
             {
-                CompileBodyGenRaces(bodyGenConfigs);
+                // Pre-process some aspects of the configs to improve performance. Mutates the input configs so be sure to use a copy to avoid altering users settings
+                BodyGenPreprocessing.CompileBodyGenRaces(copiedBodyGenConfigs);
+                BodyGenPreprocessing.FlattenGroupAttributes(copiedBodyGenConfigs);
             }
 
             if (PatcherSettings.General.bChangeHeight)
@@ -85,9 +90,9 @@ namespace SynthEBD
             statusBar.ProgressBarCurrent = 0;
             statusBar.ProgressBarDisp = "Patched " + statusBar.ProgressBarCurrent + " NPCs";
             // Patch main NPCs
-            MainLoop(allNPCs, true, outputMod, maleAssetPacks, femaleAssetPacks, bodyGenConfigs, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCGroups,  recordTemplateLinkCache, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, statusBar);
+            MainLoop(allNPCs, true, outputMod, maleAssetPacks, femaleAssetPacks, copiedBodyGenConfigs, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCGroups,  recordTemplateLinkCache, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, statusBar);
             // Finish assigning non-primary linked NPCs
-            MainLoop(skippedLinkedNPCs, false, outputMod, maleAssetPacks, femaleAssetPacks, bodyGenConfigs, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCGroups, recordTemplateLinkCache, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, statusBar);
+            MainLoop(skippedLinkedNPCs, false, outputMod, maleAssetPacks, femaleAssetPacks, copiedBodyGenConfigs, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCGroups, recordTemplateLinkCache, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, statusBar);
 
             Logger.StopTimer();
             Logger.LogMessage("Finished patching in " + Logger.GetEllapsedTime());
@@ -101,7 +106,8 @@ namespace SynthEBD
 
             if (PatcherSettings.General.bEnableBodyGenIntegration)
             {
-                BodyGenWriter.WriteBodyGenOutputs(bodyGenConfigs);
+                BodyGenWriter.WriteBodyGenOutputs(copiedBodyGenConfigs);
+
             }
 
             statusBar.IsPatching = false;
@@ -337,48 +343,6 @@ namespace SynthEBD
             IgnoredArmorAddons.Add(Skyrim.ArmorAddon.NakedTorsoWerewolfBeast.FormKey.AsLinkGetter<IArmorAddonGetter>());
             IgnoredArmorAddons.Add(Dawnguard.ArmorAddon.DLC1NakedVampireLord.FormKey.AsLinkGetter<IArmorAddonGetter>());
             IgnoredArmorAddons.Add(Dragonborn.ArmorAddon.DLC2NakedTorsoWerebearBeast.FormKey.AsLinkGetter<IArmorAddonGetter>());
-        }
-
-        /// <summary>
-        /// Initializes the Compiled(Dis)AllowedRaces property in BodyGenConfigs by merging their AllowedRaces and AllowedRaceGroupings
-        /// </summary>
-        /// <param name="bodyGenConfigs"></param>
-        private static void CompileBodyGenRaces(BodyGenConfigs bodyGenConfigs)
-        {
-            foreach (var config in bodyGenConfigs.Male)
-            {
-                CompileBodyGenConfigRaces(config);
-            }
-            foreach (var config in bodyGenConfigs.Female)
-            {
-                CompileBodyGenConfigRaces(config);
-            }
-        }
-
-        /// <summary>
-        /// Initializes the Compiled(Dis)AllowedRaces property in BodyGenConfig classes by merging their AllowedRaces and AllowedRaceGroupings
-        /// </summary>
-        /// <param name="bodyGenConfig"></param>
-        private static void CompileBodyGenConfigRaces (BodyGenConfig bodyGenConfig)
-        {
-            foreach (var template in bodyGenConfig.Templates)
-            {
-                template.CompiledAllowedRaces = new HashSet<FormKey>(template.AllowedRaces);
-                foreach (var allowedRaceGrouping in template.AllowedRaceGroupings)
-                {
-                    var grouping = PatcherSettings.General.RaceGroupings.Where(x => x.Label == allowedRaceGrouping).FirstOrDefault();
-                    if (grouping == null) { continue; }
-                    template.CompiledAllowedRaces = template.AllowedRaces.Union(grouping.Races).ToHashSet();
-                }
-
-                template.CompiledDisallowedRaces = new HashSet<FormKey>(template.DisallowedRaces);
-                foreach (var disallowedRaceGrouping in template.DisallowedRaceGroupings)
-                {
-                    var grouping = PatcherSettings.General.RaceGroupings.Where(x => x.Label == disallowedRaceGrouping).FirstOrDefault();
-                    if (grouping == null) { continue; }
-                    template.CompiledDisallowedRaces = template.DisallowedRaces.Union(grouping.Races).ToHashSet();
-                }
-            }
         }
 
         public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker();

@@ -116,7 +116,6 @@
                     </Grid>
                 </Expander>
 
-                <TextBlock Grid.Row="8" Grid.Column="0"></TextBlock>
                 <Expander Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" Header="Attribute Groups" ExpandDirection="Down" >
                     <StackPanel>
                         <local:UC_AttributeGroupMenu DataContext="{Binding AttributeGroupMenu}"/>

@@ -87,6 +87,19 @@ namespace SynthEBD
             }
             return viewModel;
         }
+
+        public static BodyGenConfig.RacialMapping DumpViewModelToModel(VM_BodyGenRacialMapping viewModel)
+        {
+            BodyGenConfig.RacialMapping model = new BodyGenConfig.RacialMapping();
+            model.Label = viewModel.Label;
+            model.Races = viewModel.Races.ToHashSet();
+            model.RaceGroupings = viewModel.RaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.Label).ToHashSet();
+            foreach (var combination in viewModel.Combinations)
+            {
+                model.Combinations.Add(VM_BodyGenCombination.DumpViewModelToModel(combination));
+            }
+            return model;
+        }
     }
     public class VM_BodyGenCombination : INotifyPropertyChanged
     {
@@ -130,6 +143,14 @@ namespace SynthEBD
             viewModel.ProbabilityWeighting = model.ProbabilityWeighting;
             viewModel.Members = new ObservableCollection<string>(model.Members);
             return viewModel;
+        }
+
+        public static BodyGenConfig.RacialMapping.BodyGenCombination DumpViewModelToModel(VM_BodyGenCombination viewModel)
+        {
+            BodyGenConfig.RacialMapping.BodyGenCombination model = new BodyGenConfig.RacialMapping.BodyGenCombination();
+            model.ProbabilityWeighting = viewModel.ProbabilityWeighting;
+            model.Members = viewModel.Members.ToHashSet();
+            return model;
         }
 
         public void CheckForEmptyCombination(object sender, NotifyCollectionChangedEventArgs e)

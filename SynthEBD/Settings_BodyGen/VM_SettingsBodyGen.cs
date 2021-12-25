@@ -132,7 +132,7 @@ namespace SynthEBD
             return null;
         }
 
-        public static void DumpViewModelToModel(VM_SettingsBodyGen viewModel, Settings_BodyGen model)
+        public static void DumpViewModelToModel(VM_SettingsBodyGen viewModel, Settings_BodyGen model, BodyGenConfigs configModels)
         {
             if (viewModel.CurrentMaleConfig != null)
             {
@@ -150,6 +150,19 @@ namespace SynthEBD
             else
             {
                 model.CurrentFemaleConfig = null;
+            }
+
+
+            configModels.Male.Clear();
+            configModels.Female.Clear();
+
+            foreach (var maleVM in viewModel.MaleConfigs)
+            {
+                configModels.Male.Add(VM_BodyGenConfig.DumpViewModelToModel(maleVM));    
+            }
+            foreach (var femaleVM in viewModel.FemaleConfigs)
+            {
+                configModels.Female.Add(VM_BodyGenConfig.DumpViewModelToModel(femaleVM));
             }
         }
     }

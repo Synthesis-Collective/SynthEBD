@@ -90,6 +90,21 @@ namespace SynthEBD
 
             return viewModels;
         }
+
+        public static HashSet<BodyGenConfig.MorphDescriptor> DumpViewModelsToModels(ObservableCollection<VM_BodyGenMorphDescriptorShell> viewModels)
+        {
+            HashSet<BodyGenConfig.MorphDescriptor> models = new HashSet<BodyGenConfig.MorphDescriptor>();
+
+            foreach (var categoryVM in viewModels)
+            {
+                foreach (var descriptor in categoryVM.Descriptors)
+                {
+                    models.Add(new BodyGenConfig.MorphDescriptor() { Category = categoryVM.Category, Value = descriptor.Value, DispString = descriptor.DispString });
+                }
+            }
+
+            return models;
+        }
     }
 
     public class VM_BodyGenMorphDescriptor : INotifyPropertyChanged

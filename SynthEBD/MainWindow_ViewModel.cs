@@ -131,7 +131,7 @@ namespace SynthEBD
             VM_AssetPack.DumpViewModelsToModels(TMVM.AssetPacks, AssetPacks);
             VM_SettingsHeight.DumpViewModelToModel(HVM, PatcherSettings.Height);
             VM_HeightConfig.DumpViewModelsToModels(HVM.AvailableHeightConfigs, HeightConfigs);
-            VM_SettingsBodyGen.DumpViewModelToModel(BGVM, PatcherSettings.BodyGen);
+            VM_SettingsBodyGen.DumpViewModelToModel(BGVM, PatcherSettings.BodyGen, BodyGenConfigs);
             VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(SAUIVM, SpecificNPCAssignments);
             VM_ConsistencyUI.DumpViewModelsToModels(CUIVM.Assignments, Consistency);
             VM_LinkedNPCGroup.DumpViewModelsToModels(LinkedNPCGroups, SGVM.LinkedNPCGroups);

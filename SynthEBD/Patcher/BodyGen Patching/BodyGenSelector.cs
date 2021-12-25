@@ -354,13 +354,13 @@ namespace SynthEBD
             if (ignoredFactors != ValidationIgnore.Race)
             {
                 // Allowed Races
-                if (!candidateMorph.CompiledAllowedRaces.Contains(npcInfo.BodyGenRace))
+                if (!candidateMorph.AllowedRaces.Contains(npcInfo.BodyGenRace))
                 {
                     return false;
                 }
 
                 // Disallowed Races
-                if (candidateMorph.CompiledDisallowedRaces.Contains(npcInfo.BodyGenRace))
+                if (candidateMorph.DisallowedRaces.Contains(npcInfo.BodyGenRace))
                 {
                     return false;
                 }

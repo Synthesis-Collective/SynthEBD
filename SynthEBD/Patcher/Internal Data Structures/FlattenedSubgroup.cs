@@ -21,6 +21,11 @@ namespace SynthEBD
             this.AllowedRaces = AllowedDisallowedCombiners.TrimDisallowedRacesFromAllowed(this.AllowedRaces, this.DisallowedRaces);
             this.AllowedAttributes = new HashSet<NPCAttribute>(template.allowedAttributes);
             this.DisallowedAttributes = new HashSet<NPCAttribute>(template.disallowedAttributes);
+
+            // replace Grouped attributes (if any) with their corresponding group members
+            this.AllowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(this.AllowedAttributes, parent.Source.AttributeGroups);
+            this.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(this.DisallowedAttributes, parent.Source.AttributeGroups);
+
             this.AllowUnique = template.bAllowUnique;
             this.AllowNonUnique = template.bAllowNonUnique;
             this.RequiredSubgroupIDs = DictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.requiredSubgroups, subgroupHierarchy);
@@ -109,10 +114,6 @@ namespace SynthEBD
                 // Attribute Merging
                 flattened.AllowedAttributes = InheritParentAttributes(parent.AllowedAttributes, flattened.AllowedAttributes);
                 flattened.DisallowedAttributes = InheritParentAttributes(parent.DisallowedAttributes, flattened.DisallowedAttributes);
-
-                // replace Grouped attributes (if any) with their corresponding group members
-                NPCAttribute.SpreadGroupTypeAttributes(flattened.AllowedAttributes, parentAssetPack.Source.AttributeGroups);
-                NPCAttribute.SpreadGroupTypeAttributes(flattened.DisallowedAttributes, parentAssetPack.Source.AttributeGroups);
 
                 // Weight Range
                 if (parent.WeightRange.Lower > flattened.WeightRange.Lower) { flattened.WeightRange.Lower = parent.WeightRange.Lower; }

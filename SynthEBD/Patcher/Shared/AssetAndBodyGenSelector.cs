@@ -150,6 +150,12 @@ namespace SynthEBD
                                 {
                                     Logger.LogReport("Could not find the subgroup specified in the consistency file: " + npcInfo.ConsistencyNPCAssignment.SubgroupIDs[i]);
                                 }
+                                else if (!SubgroupValidForCurrentNPC(consistencySubgroup, npcInfo))
+                                {
+                                    Logger.LogReport("Consistency subgroup " + consistencySubgroup.Id + " (" + consistencySubgroup.Name + ") is no longer valid for this NPC. Choosing a different subgroup at this position");
+                                    consistencyAssetPack.Subgroups[i].Remove(consistencySubgroup);
+                                }
+                                    
                                 else
                                 {
                                     consistencyAssetPack.Subgroups[i] = new List<FlattenedSubgroup>() { consistencySubgroup };

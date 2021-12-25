@@ -29,6 +29,7 @@ namespace SynthEBD
             this.Templates = new HashSet<BodyGenTemplate>();
             this.TemplateGroups = new HashSet<string>();
             this.TemplateDescriptors = new HashSet<MorphDescriptor>();
+            this.AttributeGroups = new HashSet<AttributeGroup>();
         }
 
         public string Label { get; set; }
@@ -37,6 +38,7 @@ namespace SynthEBD
         public HashSet<BodyGenTemplate> Templates { get; set; }
         public HashSet<string> TemplateGroups { get; set; }
         public HashSet<MorphDescriptor> TemplateDescriptors { get; set; }
+        public HashSet<AttributeGroup> AttributeGroups { get; set; }
         [Newtonsoft.Json.JsonIgnore]
         public string FilePath { get; set; }
 
@@ -102,8 +104,6 @@ namespace SynthEBD
 
                 // used during patching, not written to settings file
                 this.MatchedForceIfCount = 0;
-                this.CompiledAllowedRaces = new HashSet<FormKey>();
-                this.CompiledDisallowedRaces = new HashSet<FormKey>();
             }
 
             public string Label { get; set; }
@@ -126,10 +126,6 @@ namespace SynthEBD
 
             [JsonIgnore]
             public int MatchedForceIfCount { get; set; }
-            [JsonIgnore]
-            public HashSet<FormKey> CompiledAllowedRaces { get; set; }
-            [JsonIgnore]
-            public HashSet<FormKey> CompiledDisallowedRaces { get; set; }
         }
     }
 

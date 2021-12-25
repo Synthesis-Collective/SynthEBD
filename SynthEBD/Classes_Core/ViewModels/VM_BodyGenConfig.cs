@@ -42,6 +42,25 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ => this.DisplayedUI = this.GroupUI
                 );
+            ClickAttributeGroupsMenu = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.DisplayedUI = this.AttributeGroupMenu
+                );
+
+            ImportAttributeGroups = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    var alreadyContainedGroups = AttributeGroupMenu.Groups.Select(x => x.Label).ToHashSet();
+                    foreach (var attGroup in VM_Settings_General.AttributeGroupMenu.Groups)
+                    {
+                        if (!alreadyContainedGroups.Contains(attGroup.Label))
+                        {
+                            AttributeGroupMenu.Groups.Add(VM_AttributeGroup.Copy(attGroup, AttributeGroupMenu));
+                        }
+                    }
+                }
+                );
         }
 
         public object DisplayedUI { get; set; }
@@ -52,10 +71,14 @@ namespace SynthEBD
 
         public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
 
+        public string SourcePath { get; set; }
+
         public ICommand ClickTemplateMenu { get; }
         public ICommand ClickGroupMappingMenu { get; }
         public ICommand ClickDescriptorMenu { get; }
         public ICommand ClickGroupsMenu { get; }
+        public ICommand ClickAttributeGroupsMenu { get; }
+        public RelayCommand ImportAttributeGroups { get; }
 
         public string Label { get; set; }
         public Gender Gender { get; set; }
@@ -95,7 +118,31 @@ namespace SynthEBD
                 viewModel.TemplateMorphUI.Templates.Add(templateVM);
             }
 
+            VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu);
+
+            viewModel.SourcePath = model.FilePath;
+
             return viewModel;
+        }
+
+        public static BodyGenConfig DumpViewModelToModel(VM_BodyGenConfig viewModel)
+        {
+            BodyGenConfig model = new BodyGenConfig();
+            model.Label = viewModel.Label;
+            model.Gender = viewModel.Gender;
+            model.TemplateGroups = viewModel.GroupUI.TemplateGroups.Select(x => x.Content).ToHashSet();
+            foreach (var RTG in viewModel.GroupMappingUI.RacialTemplateGroupMap)
+            {
+                model.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.DumpViewModelToModel(RTG));
+            }
+            model.TemplateDescriptors = VM_BodyGenMorphDescriptorShell.DumpViewModelsToModels(viewModel.DescriptorUI.TemplateDescriptors);
+            foreach (var template in viewModel.TemplateMorphUI.Templates)
+            {
+                model.Templates.Add(VM_BodyGenTemplate.DumpViewModelToModel(template));
+            }
+            VM_AttributeGroupMenu.DumpViewModelToModels(viewModel.AttributeGroupMenu, model.AttributeGroups);
+            model.FilePath = viewModel.SourcePath;
+            return model;
         }
     }
 

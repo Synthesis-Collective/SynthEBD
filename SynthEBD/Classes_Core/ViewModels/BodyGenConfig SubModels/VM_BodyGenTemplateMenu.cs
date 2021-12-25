@@ -171,6 +171,29 @@ namespace SynthEBD
             viewModel.WeightRange = model.WeightRange;
         }
 
+        public static BodyGenConfig.BodyGenTemplate DumpViewModelToModel(VM_BodyGenTemplate viewModel)
+        {
+            BodyGenConfig.BodyGenTemplate model = new BodyGenConfig.BodyGenTemplate();
+            model.Label = viewModel.Label;
+            model.Notes = viewModel.Notes;
+            model.Specs = viewModel.Specs;
+            model.MemberOfTemplateGroups = viewModel.GroupSelectionCheckList.CollectionMemberStrings.Where(x => x.IsSelected).Select(x => x.SubscribedString.Content).ToHashSet();
+            model.MorphDescriptors = VM_BodyGenMorphDescriptorSelectionMenu.DumpToHashSet(viewModel.DescriptorsSelectionMenu);
+            model.AllowedRaces = viewModel.AllowedRaces.ToHashSet();
+            model.AllowedRaceGroupings = viewModel.AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.Label).ToHashSet();
+            model.DisallowedRaces = viewModel.DisallowedRaces.ToHashSet();
+            model.DisallowedRaceGroupings = viewModel.DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.Label).ToHashSet();
+            model.AllowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.AllowedAttributes);
+            model.DisallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.DisallowedAttributes);
+            model.AllowUnique = viewModel.bAllowUnique;
+            model.AllowNonUnique = viewModel.bAllowNonUnique;
+            model.AllowRandom = viewModel.bAllowRandom;
+            model.ProbabilityWeighting = viewModel.ProbabilityWeighting;
+            model.RequiredTemplates = viewModel.RequiredTemplates.Select(x => x.Content).ToHashSet();
+            model.WeightRange = viewModel.WeightRange;
+            return model;
+        }
+
         public void UpdateOtherGroupsTemplateCollection(object sender, NotifyCollectionChangedEventArgs e)
         {
             var excludedCollection = this.UpdateThisOtherGroupsTemplateCollection();
