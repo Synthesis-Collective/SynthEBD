@@ -162,8 +162,8 @@ namespace SynthEBD
     }
     public enum CustomAttributeType // moved outside of NPCAttributeCustom so that it can be visible to UC_NPCAttributeCustom's View binding
     {
-        String,
-        Int,
+        Text,
+        Integer,
         Decimal,
         FormKey
     }
@@ -228,29 +228,33 @@ namespace SynthEBD
         public NPCAttributeCustom()
         {
             this.Path = "";
-            this.CustomType = CustomAttributeType.String;
-            this.Value = "";
+            this.CustomType = CustomAttributeType.Text;
+            this.ValueStr = "";
+            this.ValueFKs = new HashSet<FormKey>();
             this.Type = NPCAttributeType.Custom;
             this.ForceIf = false;
         }
 
-        public string Path;
-        public dynamic Value;
-        public CustomAttributeType CustomType;
-
+        public string Path { get; set; }
+        public string ValueStr { get; set; }
+        public HashSet<FormKey> ValueFKs { get; set; }
+        public CustomAttributeType CustomType { get; set; }
+        public string Comparator { get; set; }
         public NPCAttributeType Type { get; set; }
         public bool ForceIf { get; set; }
+
+        public FormKey ReferenceNPCFK { get; set; } // this is not used by the patcher but saving it avoids making the user reselect it in the UI
 
         public bool Equals(ITypedNPCAttribute other)
         {
             var otherTyped = (NPCAttributeCustom)other;
             if (otherTyped.CustomType != this.CustomType) { return false; }
             if (otherTyped.Path != this.Path) { return false; }
-            if (this.CustomType == CustomAttributeType.FormKey && this.Value.ToString() != otherTyped.Value.ToString())
+            if (this.CustomType == CustomAttributeType.FormKey && !FormKeyHashSetComparer.Equals(this.ValueFKs, otherTyped.ValueFKs))
             {
                 return false;
             }
-            else if (this.Value != otherTyped.Value)
+            else if (this.ValueStr != otherTyped.ValueStr)
             {
                 return false;
             }
@@ -266,12 +270,15 @@ namespace SynthEBD
             output.Type = input.Type;
             if (input.CustomType == CustomAttributeType.FormKey)
             {
-                FormKey inputFK = (FormKey)input.Value;
-                output.Value = new FormKey(inputFK.ModKey, inputFK.ID);
+                output.ValueFKs = new HashSet<FormKey>();
+                foreach (var fk in input.ValueFKs)
+                {
+                    output.ValueFKs.Add(new FormKey(fk.ModKey, fk.ID));
+                }
             }
             else
             {
-                output.Value = input.Value;
+                output.ValueStr = input.ValueStr;
             }
             return output;
         }

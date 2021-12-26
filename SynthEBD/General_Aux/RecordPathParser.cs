@@ -331,6 +331,28 @@ namespace SynthEBD
 
         public static bool GetSubObject(dynamic root, string propertyName, out dynamic outputObj)
         {
+            // DEBUGGING SHORT CIRCUIT
+            Type type = root.GetType();
+            var prop = type.GetProperty(propertyName);
+            if (prop is not null)
+            {
+                outputObj = prop.GetValue(root);
+                if (outputObj is not null)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                outputObj = null;
+                return false;
+            }
+            // END DEBUGGING
+
             outputObj = null;
             if (GetAccessor(root, propertyName, AccessorType.Getter, out Delegate getter))
             {
@@ -551,13 +573,13 @@ namespace SynthEBD
 
         public static Delegate CreateDelegateGetter(PropertyInfo property)
         {
-            var delegateType = Expression.GetFuncType(property.DeclaringType, property.PropertyType);
+            var delegateType = Expression.GetFuncType(property.DeclaringType, property.GetMethod.ReturnType);
             return property.GetMethod.CreateDelegate(delegateType);
         }
 
         public static Delegate CreateDelegateSetter(PropertyInfo property)
         {
-            var delegateType = Expression.GetActionType(property.DeclaringType, property.PropertyType);
+            var delegateType = Expression.GetActionType(property.DeclaringType, property.SetMethod.ReturnType);
             return property.SetMethod.CreateDelegate(delegateType);
         }
     }

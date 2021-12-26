@@ -82,6 +82,7 @@ namespace SynthEBD
                 switch (attributeShellModel.Type)
                 {
                     case NPCAttributeType.Class: shellVM.Attribute = VM_NPCAttributeClass.getViewModelFromModel((NPCAttributeClass)attributeShellModel, viewModel, shellVM); break;
+                    case NPCAttributeType.Custom: shellVM.Attribute = VM_NPCAttributeCustom.GetViewModelFromModel((NPCAttributeCustom)attributeShellModel, viewModel, shellVM); break;
                     case NPCAttributeType.Faction: shellVM.Attribute = VM_NPCAttributeFactions.getViewModelFromModel((NPCAttributeFactions)attributeShellModel, viewModel, shellVM); break;
                     case NPCAttributeType.FaceTexture: shellVM.Attribute = VM_NPCAttributeFaceTexture.getViewModelFromModel((NPCAttributeFaceTexture)attributeShellModel, viewModel, shellVM); break;
                     case NPCAttributeType.Race: shellVM.Attribute = VM_NPCAttributeRace.getViewModelFromModel((NPCAttributeRace)attributeShellModel, viewModel, shellVM); break;
@@ -117,6 +118,7 @@ namespace SynthEBD
                 switch(subAttVM.Type)
                 {
                     case NPCAttributeType.Class: model.SubAttributes.Add(VM_NPCAttributeClass.DumpViewModelToModel((VM_NPCAttributeClass)subAttVM.Attribute, subAttVM.ForceIf)); break;
+                    case NPCAttributeType.Custom: model.SubAttributes.Add(VM_NPCAttributeCustom.DumpViewModelToModel((VM_NPCAttributeCustom)subAttVM.Attribute, subAttVM.ForceIf)); break;
                     case NPCAttributeType.Faction: model.SubAttributes.Add(VM_NPCAttributeFactions.DumpViewModelToModel((VM_NPCAttributeFactions)subAttVM.Attribute, subAttVM.ForceIf)); break;
                     case NPCAttributeType.FaceTexture: model.SubAttributes.Add(VM_NPCAttributeFaceTexture.DumpViewModelToModel((VM_NPCAttributeFaceTexture)subAttVM.Attribute, subAttVM.ForceIf)); break;
                     case NPCAttributeType.Group: model.SubAttributes.Add(VM_NPCAttributeGroup.DumpViewModelToModel((VM_NPCAttributeGroup)subAttVM.Attribute, subAttVM.ForceIf)); break;
@@ -259,7 +261,7 @@ namespace SynthEBD
     {
         public VM_NPCAttributeCustom(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
-            this.CustomType = CustomAttributeType.String;
+            this.CustomType = CustomAttributeType.Text;
             this.Path = "";
             this.ValueStr = "";
             this.ValueFKs = new ObservableCollection<FormKey>();
@@ -271,6 +273,12 @@ namespace SynthEBD
             this.ChosenPathSuggestion = null;
             this.ReferenceNPCFK = new FormKey();
             this.ReferenceNPCType = typeof(INpcGetter).AsEnumerable();
+            this.ValueGetterTypes = Loqui.LoquiRegistration.StaticRegister.Registrations
+                .Where(x => x.ProtocolKey.Namespace == "Skyrim")
+                .Select(x => x.GetterType)
+                .Where(x => x.IsAssignableTo(typeof(Mutagen.Bethesda.Plugins.Records.IMajorRecordGetter)));
+
+            this.Comparators = new ObservableCollection<string>();
 
             this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             ParsingLinkCache = GameEnvironmentProvider.MyEnvironment.LoadOrder.ToMutableLinkCache(); // solely for compatibility with RecordPathParser.GetObjectAtPath - shoud contain the same members as this.lk
@@ -283,19 +291,34 @@ namespace SynthEBD
 
             this.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => RefreshPathSuggestions());
             this.WhenAnyValue(x => x.Path).Subscribe(x => RefreshPathSuggestions());
-            this.WhenAnyValue(x => x.ChosenPathSuggestion).Subscribe(x => UpdatePath());
+            this.WhenAnyValue(vm => vm.ChosenPathSuggestion).WhereNotNull().Subscribe(pathSuggestion => UpdatePath(pathSuggestion));
+
+            this.WhenAnyValue(x => x.ValueFKtype).Subscribe(x => UpdateFormKeyPickerRecordType());
+
+            this.WhenAnyValue(x => x.CustomType).Subscribe(x => Evaluate());
+            this.WhenAnyValue(x => x.Path).Subscribe(x => Evaluate());
+            this.WhenAnyValue(x => x.ChosenComparator).Subscribe(x => Evaluate());
+            this.WhenAnyValue(x => x.ValueStr).Subscribe(x => Evaluate());
+            this.WhenAnyValue(x => x.ValueFKs).Subscribe(x => Evaluate());
+            this.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => Evaluate());
         }
 
         public CustomAttributeType CustomType { get; set; }
         public string Path { get; set; }
         public string ValueStr { get; set; }
         public ObservableCollection<FormKey> ValueFKs { get; set; }
+        public IEnumerable<Type> ValueGetterTypes { get; set; }
+        public Type ValueFKtype { get; set; }
+        public IEnumerable<Type> ValueFKtypeCollection { get; set; }
         public ILinkCache lk { get; set; }
         public ILinkCache<ISkyrimMod, ISkyrimModGetter> ParsingLinkCache { get; set; }
         public ObservableCollection<PathSuggestion> PathSuggestions { get; set; }
         public PathSuggestion ChosenPathSuggestion { get; set; }
         public FormKey ReferenceNPCFK { get; set; }
         public IEnumerable<Type> ReferenceNPCType { get; set; }
+        public ObservableCollection<string> Comparators { get; set; }
+        public string ChosenComparator { get; set; }
+        public string EvalResult { get; set; }
 
         public bool ShowValueTextField { get; set; }
         public bool ShowValueFormKeyPicker { get; set; }
@@ -305,6 +328,71 @@ namespace SynthEBD
         public IObservable<Unit> NeedsRefresh { get; }
 
         public event PropertyChangedEventHandler PropertyChanged;
+        public static VM_NPCAttributeCustom GetViewModelFromModel(NPCAttributeCustom model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+        {
+            var viewModel = new VM_NPCAttributeCustom(parentVM, parentShell);
+            viewModel.ChosenComparator = model.Comparator;
+            viewModel.CustomType = model.CustomType;
+            viewModel.Path = model.Path;
+            viewModel.ValueStr = model.ValueStr;
+            viewModel.ValueFKs = new ObservableCollection<FormKey>(model.ValueFKs);
+            viewModel.ReferenceNPCFK = model.ReferenceNPCFK;
+            return viewModel;
+        }
+
+        public static NPCAttributeCustom DumpViewModelToModel(VM_NPCAttributeCustom viewModel, bool forceIf)
+        {
+            var model = new NPCAttributeCustom();
+            model.Type = NPCAttributeType.Custom;
+            model.Comparator = viewModel.ChosenComparator;
+            model.CustomType = viewModel.CustomType;
+            model.Path = viewModel.Path;
+            model.ValueStr = viewModel.ValueStr;
+            model.ValueFKs = viewModel.ValueFKs.ToHashSet();
+            model.ForceIf = forceIf;
+            model.ReferenceNPCFK = viewModel.ReferenceNPCFK;
+            return model;
+        }
+
+        public void Evaluate()
+        {
+            if (this.ReferenceNPCFK.IsNull)
+            {
+                EvalResult = "Can't evaluate: Reference NPC not set";
+            }
+            else if (this.CustomType != CustomAttributeType.FormKey && this.ValueStr == "")
+            {
+                EvalResult = "Can't evaluate: No value provided";
+            }
+            else if (this.CustomType == CustomAttributeType.FormKey && !this.ValueFKs.Any())
+            {
+                EvalResult = "Can't evaluate: No FormKeys selected";
+            }
+            else if (this.CustomType == CustomAttributeType.Integer && !Int32.TryParse(ValueStr, out _))
+            {
+                EvalResult = "Can't convert " + ValueStr + " to an Integer value";
+            }
+            else if (this.CustomType == CustomAttributeType.Decimal && !float.TryParse(ValueStr, out _))
+            {
+                EvalResult = "Can't convert " + ValueStr + " to a Decimal value";
+            }
+            else
+            {
+                if (!GameEnvironmentProvider.MyEnvironment.LinkCache.TryResolve<INpcGetter>(ReferenceNPCFK, out var refNPC))
+                {
+                    EvalResult = "Error: can't resolve reference NPC.";
+                }
+                bool matched = AttributeMatcher.EvaluateCustomAttribute(refNPC, DumpViewModelToModel(this, false), ParsingLinkCache, out string dispMessage);
+                if (matched)
+                {
+                    EvalResult = "Matched!";
+                }
+                else
+                {
+                    EvalResult = dispMessage;
+                }
+            }
+        }
 
         public void RefreshPathSuggestions()
         {
@@ -316,7 +404,7 @@ namespace SynthEBD
                 var properties = type.GetProperties();
                 foreach (var property in properties)
                 {
-                    var newPathSuggestion = new PathSuggestion() { SubPath = property.Name, PropInfo = property, Type = PathSuggestion.PathType.Property, SubPathType = type };
+                    var newPathSuggestion = new PathSuggestion() { SubPath = property.Name, PropInfo = property, Type = PathSuggestion.PathType.Property, SubPathType = type, SubObject = (object)subObj };
                     PathSuggestion.FinalizePathSuggestion(newPathSuggestion);
                     PathSuggestions.Add(newPathSuggestion);
                 }
@@ -347,6 +435,7 @@ namespace SynthEBD
             public PropertyInfo PropInfo { get; set; }
             public MethodInfo MethInfo { get; set; }
             public Type SubPathType { get; set; }
+            public object SubObject { get; set; }
 
             public enum PathType
             {
@@ -360,17 +449,9 @@ namespace SynthEBD
                 {
                     case PathType.Property:
                         input.SubPath = input.PropInfo.Name;
-
-                        if (input.PropInfo.AsEnumerable() != null)
+                        if (IsEnumerable(input.PropInfo.PropertyType))
                         {
-                            if (input.PropInfo.AsEnumerable().Any())
-                            {
-                                input.SubPath += "[0]";
-                            }
-                            else
-                            {
-                                input.SubPath += "[INDEX]";
-                            }
+                            input.SubPath += "[0]";
                         }
 
                         input.DispString = input.PropInfo.Name + " (" + input.PropInfo.PropertyType.Name + ")";
@@ -396,14 +477,34 @@ namespace SynthEBD
             }
         }
 
-        public void UpdatePath()
+        private static bool IsEnumerable(Type type)
         {
-            if (ChosenPathSuggestion == null) { return; }
+            var containedInterfaces = type.GetInterfaces();
+            if (containedInterfaces.Contains(typeof(System.Collections.IEnumerable)))
+            {
+                return true;
+            }
+            else
+            {
+                foreach (var subInterface in containedInterfaces)
+                {
+                    if (IsEnumerable(subInterface))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        public void UpdatePath(PathSuggestion chosenPathSuggestion)
+        {
+            if (chosenPathSuggestion is null) { return; }
             if (Path.Length > 0)
             {
                 Path += ".";
             }
-            Path += ChosenPathSuggestion.SubPath;
+            Path += chosenPathSuggestion.SubPath; 
         }
 
         public void UpdateValueDisplay()
@@ -418,6 +519,20 @@ namespace SynthEBD
                 this.ShowValueFormKeyPicker = false;
                 this.ShowValueTextField = true;
             }
+
+            this.Comparators = new ObservableCollection<string>() { "=", "!=" };
+            if (this.CustomType == CustomAttributeType.Integer || this.CustomType == CustomAttributeType.Decimal)
+            {
+                this.Comparators.Add("<");
+                this.Comparators.Add("<=");
+                this.Comparators.Add(">");
+                this.Comparators.Add(">=");
+            }
+        }
+
+        public void UpdateFormKeyPickerRecordType()
+        {
+            ValueFKtypeCollection = ValueFKtype.AsEnumerable();
         }
     }
 
