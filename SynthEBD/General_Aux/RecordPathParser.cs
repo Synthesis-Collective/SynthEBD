@@ -30,6 +30,12 @@ namespace SynthEBD
                 return false;
             }
 
+            if (relativePath == "")
+            {
+                outputObj = rootObj;
+                return true;
+            }
+
             Dictionary<string, dynamic> objectCache;
 
             if (objectLinkMap.ContainsKey(rootObj))
@@ -64,7 +70,6 @@ namespace SynthEBD
                 string currentSubPath = splitPath[i];
 
                 // handle arrays
-                //if (PathIsArray(currentSubPath, out string arraySubPath, out string arrIndex))
                 if (PathIsArray(currentSubPath, out string arrIndex))
                 {
                     if (!GetArrayObjectAtIndex(currentObj, arrIndex, objectLinkMap, linkCache, out currentObj, out indexInParent))
@@ -487,6 +492,8 @@ namespace SynthEBD
             accessor = null;
             PropertyInfo property = null;
             Dictionary<Type, Dictionary<string, Delegate>> cache = null;
+
+            if (obj == null) { return false; }
 
             switch(accessorType)
             {

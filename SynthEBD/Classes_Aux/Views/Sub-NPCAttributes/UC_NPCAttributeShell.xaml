@@ -36,6 +36,9 @@
                 <DataTemplate DataType="{x:Type local:VM_NPCAttributeClass}">
                     <local:UC_NPCAttributeClass/>
                 </DataTemplate>
+                <DataTemplate DataType="{x:Type local:VM_NPCAttributeCustom}">
+                    <local:UC_NPCAttributeCustom/>
+                </DataTemplate>
                 <DataTemplate DataType="{x:Type local:VM_NPCAttributeFaceTexture}">
                     <local:UC_NPCAttributeFaceTexture/>
                 </DataTemplate>

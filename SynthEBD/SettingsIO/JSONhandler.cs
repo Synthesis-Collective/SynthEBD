@@ -59,6 +59,7 @@ namespace SynthEBD
                 switch (jo["Type"].Value<string>())
                 {
                     case "Class": return jo.ToObject<NPCAttributeClass>(serializer);
+                    case "Custom": return jo.ToObject<NPCAttributeCustom>(serializer);
                     case "FaceTexture": return jo.ToObject<NPCAttributeFaceTexture>(serializer);
                     case "Faction": return jo.ToObject<NPCAttributeFactions>(serializer);
                     case "Group": return jo.ToObject<NPCAttributeGroup>(serializer);

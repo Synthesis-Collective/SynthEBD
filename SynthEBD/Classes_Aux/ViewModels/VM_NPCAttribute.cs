@@ -15,6 +15,7 @@ using DynamicData;
 using DynamicData.Binding;
 using System.Text;
 using System.Threading.Tasks;
+using System.Reflection;
 
 namespace SynthEBD
 {
@@ -149,6 +150,7 @@ namespace SynthEBD
                 switch (this.Type)
                 {
                     case NPCAttributeType.Class: this.Attribute = new VM_NPCAttributeClass(parentVM, this); break;
+                    case NPCAttributeType.Custom: this.Attribute = new VM_NPCAttributeCustom(parentVM, this); break;
                     case NPCAttributeType.FaceTexture: this.Attribute = new VM_NPCAttributeFaceTexture(parentVM, this); break;
                     case NPCAttributeType.Faction: this.Attribute = new VM_NPCAttributeFactions(parentVM, this); break;
                     case NPCAttributeType.Group: this.Attribute = new VM_NPCAttributeGroup(parentVM, this, attributeGroups); break;
@@ -250,6 +252,172 @@ namespace SynthEBD
         public static NPCAttributeClass DumpViewModelToModel(VM_NPCAttributeClass viewModel, bool forceIf)
         {
             return new NPCAttributeClass() { Type = NPCAttributeType.Class, FormKeys = viewModel.ClassFormKeys.ToHashSet(), ForceIf = forceIf};
+        }
+    }
+
+    public class VM_NPCAttributeCustom : ISubAttributeViewModel, INotifyPropertyChanged
+    {
+        public VM_NPCAttributeCustom(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+        {
+            this.CustomType = CustomAttributeType.String;
+            this.Path = "";
+            this.ValueStr = "";
+            this.ValueFKs = new ObservableCollection<FormKey>();
+
+            this.ShowValueTextField = true;
+            this.ShowValueFormKeyPicker = false;
+
+            this.PathSuggestions = new ObservableCollection<PathSuggestion>();
+            this.ChosenPathSuggestion = null;
+            this.ReferenceNPCFK = new FormKey();
+            this.ReferenceNPCType = typeof(INpcGetter).AsEnumerable();
+
+            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            ParsingLinkCache = GameEnvironmentProvider.MyEnvironment.LoadOrder.ToMutableLinkCache(); // solely for compatibility with RecordPathParser.GetObjectAtPath - shoud contain the same members as this.lk
+
+            ParentVM = parentVM;
+            DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
+            this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
+
+            this.WhenAnyValue(x => x.CustomType).Subscribe(x => UpdateValueDisplay());
+
+            this.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => RefreshPathSuggestions());
+            this.WhenAnyValue(x => x.Path).Subscribe(x => RefreshPathSuggestions());
+            this.WhenAnyValue(x => x.ChosenPathSuggestion).Subscribe(x => UpdatePath());
+        }
+
+        public CustomAttributeType CustomType { get; set; }
+        public string Path { get; set; }
+        public string ValueStr { get; set; }
+        public ObservableCollection<FormKey> ValueFKs { get; set; }
+        public ILinkCache lk { get; set; }
+        public ILinkCache<ISkyrimMod, ISkyrimModGetter> ParsingLinkCache { get; set; }
+        public ObservableCollection<PathSuggestion> PathSuggestions { get; set; }
+        public PathSuggestion ChosenPathSuggestion { get; set; }
+        public FormKey ReferenceNPCFK { get; set; }
+        public IEnumerable<Type> ReferenceNPCType { get; set; }
+
+        public bool ShowValueTextField { get; set; }
+        public bool ShowValueFormKeyPicker { get; set; }
+
+        public VM_NPCAttribute ParentVM { get; set; }
+        public RelayCommand DeleteCommand { get; }
+        public IObservable<Unit> NeedsRefresh { get; }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        public void RefreshPathSuggestions()
+        {
+            PathSuggestions.Clear();
+
+            if (lk.TryResolve<INpcGetter>(ReferenceNPCFK, out var referenceNPC) && RecordPathParser.GetObjectAtPath(referenceNPC, Path, new Dictionary<dynamic, Dictionary<string, dynamic>>(), ParsingLinkCache, out var subObj))
+            {
+                Type type = subObj.GetType();
+                var properties = type.GetProperties();
+                foreach (var property in properties)
+                {
+                    var newPathSuggestion = new PathSuggestion() { SubPath = property.Name, PropInfo = property, Type = PathSuggestion.PathType.Property, SubPathType = type };
+                    PathSuggestion.FinalizePathSuggestion(newPathSuggestion);
+                    PathSuggestions.Add(newPathSuggestion);
+                }
+                /* Not implementing methods for now
+                var methods = type.GetMethods();
+                foreach (var method in methods)
+                {
+                    if (method.Name.StartsWith("get_")) { continue; }
+                    var newPathSuggestion = new PathSuggestion() { SubPath = method.Name, MethInfo = method, Type = PathSuggestion.PathType.Method };
+                    PathSuggestion.FinalizePathSuggestion(newPathSuggestion);
+                    PathSuggestions.Add(newPathSuggestion);
+                }
+                */
+            }
+        }
+
+        public class PathSuggestion
+        {
+            public PathSuggestion()
+            {
+                SubPath = "";
+                DispString = "";
+                Type = PathType.Property;
+            }
+            public string SubPath { get; set; }
+            public string DispString { get; set; }
+            public PathType Type { get; set; }
+            public PropertyInfo PropInfo { get; set; }
+            public MethodInfo MethInfo { get; set; }
+            public Type SubPathType { get; set; }
+
+            public enum PathType
+            {
+                Property,
+                Method
+            }
+
+            public static void FinalizePathSuggestion(PathSuggestion input)
+            {
+                switch(input.Type)
+                {
+                    case PathType.Property:
+                        input.SubPath = input.PropInfo.Name;
+
+                        if (input.PropInfo.AsEnumerable() != null)
+                        {
+                            if (input.PropInfo.AsEnumerable().Any())
+                            {
+                                input.SubPath += "[0]";
+                            }
+                            else
+                            {
+                                input.SubPath += "[INDEX]";
+                            }
+                        }
+
+                        input.DispString = input.PropInfo.Name + " (" + input.PropInfo.PropertyType.Name + ")";
+                        break;
+                    case PathType.Method:
+                        input.SubPath = input.MethInfo.Name + "(";
+                        var parameters = input.MethInfo.GetParameters();
+                        for(int i = 0; i < parameters.Length; i++)
+                        {
+                            var param = parameters[i];
+                            if (param.IsOut) { input.SubPath += "out "; }
+                            input.SubPath += param.ParameterType.Name + " " + param.Name;
+                            if (i < parameters.Length - 1)
+                            {
+                                input.SubPath += ", ";
+                            }
+                        }
+                        input.SubPath += ")";
+
+                        input.DispString = "(Method) " + input.SubPath + " (" + input.MethInfo.ReturnType.Name + ")";
+                        break;
+                }
+            }
+        }
+
+        public void UpdatePath()
+        {
+            if (ChosenPathSuggestion == null) { return; }
+            if (Path.Length > 0)
+            {
+                Path += ".";
+            }
+            Path += ChosenPathSuggestion.SubPath;
+        }
+
+        public void UpdateValueDisplay()
+        {
+            if (this.CustomType == CustomAttributeType.FormKey)
+            {
+                this.ShowValueFormKeyPicker = true;
+                this.ShowValueTextField = false;
+            }
+            else
+            {
+                this.ShowValueFormKeyPicker = false;
+                this.ShowValueTextField = true;
+            }
         }
     }
 

@@ -32,6 +32,7 @@ namespace SynthEBD
             return true;
         }
 
+        #region Group-Type Attribute Manipulation
         public static HashSet<NPCAttribute> SpreadGroupTypeAttributes(HashSet<NPCAttribute> attributeList, HashSet<AttributeGroup> groupDefinitions)
         {
             HashSet<NPCAttribute> output = new HashSet<NPCAttribute>();
@@ -119,6 +120,7 @@ namespace SynthEBD
             }
             return outputs;
         }
+        #endregion
 
         public static NPCAttribute CloneAsNew(NPCAttribute input)
         {
@@ -135,6 +137,7 @@ namespace SynthEBD
             switch(inputInterface.Type)
             {
                 case NPCAttributeType.Class: return NPCAttributeClass.CloneAsNew((NPCAttributeClass)inputInterface);
+                case NPCAttributeType.Custom: return NPCAttributeCustom.CloneAsNew((NPCAttributeCustom)inputInterface);
                 case NPCAttributeType.FaceTexture: return NPCAttributeFaceTexture.CloneAsNew((NPCAttributeFaceTexture)inputInterface);
                 case NPCAttributeType.Faction: return NPCAttributeFactions.CloneAsNew((NPCAttributeFactions)inputInterface);
                 case NPCAttributeType.Group: return NPCAttributeGroup.CloneAsNew((NPCAttributeGroup)inputInterface);
@@ -157,7 +160,13 @@ namespace SynthEBD
         Race,
         VoiceType
     }
-
+    public enum CustomAttributeType // moved outside of NPCAttributeCustom so that it can be visible to UC_NPCAttributeCustom's View binding
+    {
+        String,
+        Int,
+        Decimal,
+        FormKey
+    }
     public class NPCAttributeVoiceType : ITypedNPCAttribute
     {
         public NPCAttributeVoiceType()
@@ -210,6 +219,60 @@ namespace SynthEBD
             output.ForceIf = input.ForceIf;
             output.Type = input.Type;
             output.FormKeys = input.FormKeys;
+            return output;
+        }
+    }
+
+    public class NPCAttributeCustom : ITypedNPCAttribute
+    {
+        public NPCAttributeCustom()
+        {
+            this.Path = "";
+            this.CustomType = CustomAttributeType.String;
+            this.Value = "";
+            this.Type = NPCAttributeType.Custom;
+            this.ForceIf = false;
+        }
+
+        public string Path;
+        public dynamic Value;
+        public CustomAttributeType CustomType;
+
+        public NPCAttributeType Type { get; set; }
+        public bool ForceIf { get; set; }
+
+        public bool Equals(ITypedNPCAttribute other)
+        {
+            var otherTyped = (NPCAttributeCustom)other;
+            if (otherTyped.CustomType != this.CustomType) { return false; }
+            if (otherTyped.Path != this.Path) { return false; }
+            if (this.CustomType == CustomAttributeType.FormKey && this.Value.ToString() != otherTyped.Value.ToString())
+            {
+                return false;
+            }
+            else if (this.Value != otherTyped.Value)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        public static NPCAttributeCustom CloneAsNew(NPCAttributeCustom input)
+        {
+            var output = new NPCAttributeCustom();
+            output.CustomType = input.CustomType;
+            output.ForceIf = input.ForceIf;
+            output.Path = input.Path;
+            output.Type = input.Type;
+            if (input.CustomType == CustomAttributeType.FormKey)
+            {
+                FormKey inputFK = (FormKey)input.Value;
+                output.Value = new FormKey(inputFK.ModKey, inputFK.ID);
+            }
+            else
+            {
+                output.Value = input.Value;
+            }
             return output;
         }
     }
