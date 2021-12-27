@@ -59,7 +59,7 @@ namespace SynthEBD
                 }
 
                 // check object cache to see if the given object has already been resolved
-                string concatPath = String.Join(".", splitPath.ToList().GetRange(0, i+1));
+                string concatPath = RecordGenerator.BuildPath(splitPath.ToList().GetRange(0, i + 1)); //String.Join(".", splitPath.ToList().GetRange(0, i+1));
                 if (objectCache.ContainsKey(concatPath))
                 {
                     currentObj = objectCache[concatPath];
@@ -72,6 +72,9 @@ namespace SynthEBD
                 // handle arrays
                 if (PathIsArray(currentSubPath, out string arrIndex))
                 {
+                    // special case of UI transition where user deletes the array index
+                    if (currentSubPath == "[]") { return false; }
+
                     if (!GetArrayObjectAtIndex(currentObj, arrIndex, objectLinkMap, linkCache, out currentObj, out indexInParent))
                     {
                         return false;
@@ -99,6 +102,124 @@ namespace SynthEBD
 
             outputObj = currentObj;
             return true;
+        }
+
+        public static bool GetObjectCollectionAtPath(dynamic rootObj, string relativePath, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, List<dynamic> outputObjectCollection)
+        {
+            if (rootObj == null)
+            {
+                return false;
+            }
+
+            if (relativePath == "")
+            {
+                outputObjectCollection.Add(rootObj);
+                return true;
+            }
+
+            Dictionary<string, dynamic> objectCache;
+
+            if (objectLinkMap.ContainsKey(rootObj))
+            {
+                objectCache = objectLinkMap[rootObj];
+            }
+            else
+            {
+                objectCache = new Dictionary<string, dynamic>();
+                objectLinkMap.Add(rootObj, objectCache);
+            }
+
+            string[] splitPath = SplitPath(relativePath);
+            dynamic currentObj = rootObj;
+
+            for (int i = 0; i < splitPath.Length; i++)
+            {
+                if (currentObj == null)
+                {
+                    return false;
+                }
+
+                // check object cache to see if the given object has already been resolved
+                string concatPath = RecordGenerator.BuildPath(splitPath.ToList().GetRange(0, i + 1)); //String.Join(".", splitPath.ToList().GetRange(0, i+1));
+                if (objectCache.ContainsKey(concatPath))
+                {
+                    currentObj = objectCache[concatPath];
+                    continue;
+                }
+
+                // otherwise search for the given value via Reflection
+                string currentSubPath = splitPath[i];
+
+                // handle arrays
+                if (PathIsArray(currentSubPath, out string arrIndex))
+                {
+                    // special case of UI transition where user deletes the array index
+                    if (currentSubPath == "[]") { return false; }
+
+                    if (!GetArrayObjectCollectionAtIndex(currentObj, arrIndex, objectLinkMap, linkCache, outputObjectCollection) || !outputObjectCollection.Any())
+                    {
+                        return false;
+                    }
+                }
+                else if (!GetSubObject(currentObj, currentSubPath, out currentObj))
+                {
+                    return false;
+                }
+
+                // traverse all subObjects if any
+                if (outputObjectCollection.Any())
+                {
+                    var tmpCollection = new List<dynamic>();
+                    var subPath = relativePath.Remove(0, concatPath.Length);
+
+                    if (subPath.StartsWith('.')) 
+                    { 
+                        subPath = subPath.Remove(0, 1); 
+                    }
+
+                    if (!subPath.Any()) 
+                    { 
+                        return true; 
+                    }
+
+                    foreach (var obj in outputObjectCollection)
+                    {
+                        List<dynamic> collectionSubObjects = new List<dynamic>();
+                        if (GetObjectCollectionAtPath(obj, subPath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), linkCache, collectionSubObjects))
+                        {
+                            foreach (var subObj in collectionSubObjects)
+                            {
+                                if (!tmpCollection.Contains(subObj))
+                                {
+                                    tmpCollection.Add(subObj);
+                                }
+                            }
+                        }
+                    }
+
+                    outputObjectCollection.Clear();
+                    outputObjectCollection.AddRange(tmpCollection);
+
+                    return outputObjectCollection.Any();
+                }
+
+                // if the current property is another record, resolve it to traverse
+                if (ObjectHasFormKey(currentObj, out FormKey? subrecordFK))
+                {
+                    if (subrecordFK != null && !subrecordFK.Value.IsNull && linkCache.TryResolve(subrecordFK.Value, (Type)currentObj.Type, out var subRecordGetter))
+                    {
+                        currentObj = subRecordGetter;
+                    }
+                }
+            }
+
+            if (!objectCache.ContainsKey(relativePath))
+            {
+                objectCache.Add(relativePath, currentObj);
+            }
+
+            outputObjectCollection.Add(currentObj);
+            return outputObjectCollection.Any();
         }
 
         public static bool GetNearestParentGetter(IMajorRecordGetter rootGetter, string path, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out IMajorRecordGetter parentRecordGetter, out string relativePath)
@@ -181,6 +302,57 @@ namespace SynthEBD
             return true;
         }
 
+        private static bool GetArrayObjectCollectionAtIndex(dynamic currentObj, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, List<dynamic> outputObjectCollection)
+        {
+            outputObjectCollection.Clear();
+
+            var collectionObj = currentObj as IReadOnlyList<dynamic>;
+            if (collectionObj == null)
+            {
+                Logger.LogError("Could not cast " + currentObj.GetType() + "as an IReadOnlyList");
+                return false;
+            }
+
+            //if array index is numeric
+            if (int.TryParse(arrIndex, out int iIndex))
+            {
+                if (iIndex < 0 || iIndex < collectionObj.Count())
+                {
+                    outputObjectCollection.Add(collectionObj.ElementAt(iIndex));
+                    return true;
+                }
+                else
+                {
+                    string currentSubPath = "[" + arrIndex + "]";
+                    Logger.LogError("Could not get object at " + currentSubPath + " because the " + currentObj.GetType() + " does not have an element at index " + iIndex);
+                    return false;
+                }
+            }
+            else if (arrIndex == "*")
+            {
+                foreach (var arrElement in collectionObj)
+                {
+                    outputObjectCollection.Add(arrElement);
+                }
+                return true;
+            }
+
+            // if array index specifies object by property, figure out which index is the right one
+            else
+            {
+                if (ChooseSelectedArrayObjects(collectionObj, arrIndex, objectLinkMap, linkCache, outputObjectCollection))
+                {
+                    return true;
+                }
+                else
+                {
+                    string currentSubPath = "[" + arrIndex + "]";
+                    Logger.LogError("Could not get object at " + currentSubPath + " because " + currentObj.GetType() + " does not have an element that matches condition: " + arrIndex);
+                    return false;
+                }
+            }
+        }
+
         private class ArrayPathCondition
         {
             private ArrayPathCondition(string strIndex)
@@ -251,7 +423,6 @@ namespace SynthEBD
             int patchableRaceArgIndex = argIndex;
             bool addPatchableRaceArg = false;
 
-            //foreach (var candidateObj in variants)
             for (int i = 0; i < variants.Count(); i++)
             {
                 var candidateObj = variants[i];
@@ -262,7 +433,7 @@ namespace SynthEBD
                 IMajorRecordCommonGetter candidateRecordGetter = null;
 
                 bool candidateObjIsRecord = ObjectHasFormKey(candidateObj, out FormKey? objFormKey) && objFormKey != null;
-                bool candidateObjIsResolved = !objFormKey.Value.IsNull && linkCache.TryResolve(objFormKey.Value, (Type)candidateObj.Type, out candidateRecordGetter);
+                bool candidateObjIsResolved = objFormKey != null && !objFormKey.Value.IsNull && linkCache.TryResolve(objFormKey.Value, (Type)candidateObj.Type, out candidateRecordGetter);
 
                 foreach (var condition in arrayMatchConditions)
                 {
@@ -308,6 +479,87 @@ namespace SynthEBD
                     outputObj = candidateObj;
                     indexInParent = i;
                     return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool ChooseSelectedArrayObjects(IReadOnlyList<dynamic> variants, string matchConditionStr, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, List<dynamic> matchedObjects)
+        {
+            var arrayMatchConditions = ArrayPathCondition.GetConditionsFromString(matchConditionStr);
+
+            int argIndex = 0;
+            foreach (var condition in arrayMatchConditions)
+            {
+                string argStr = '{' + argIndex.ToString() + '}';
+                for (int i = 0; i < matchConditionStr.Length - condition.ReplacerTemplate.Length; i++)
+                {
+                    if (matchConditionStr.Substring(i, condition.ReplacerTemplate.Length) == condition.ReplacerTemplate && (i == 0 || matchConditionStr[i - 1] == '(' || matchConditionStr[i - 1] == ' '))
+                    {
+                        matchConditionStr = matchConditionStr.Remove(i, condition.ReplacerTemplate.Length);
+                        matchConditionStr = matchConditionStr.Insert(i, argStr);
+                    }
+                }
+                argIndex++;
+            }
+
+            int patchableRaceArgIndex = argIndex;
+            bool addPatchableRaceArg = false;
+
+            for (int i = 0; i < variants.Count(); i++)
+            {
+                var candidateObj = variants[i];
+                List<dynamic> evalParameters = new List<dynamic>();
+                argIndex = 0;
+                bool skipToNext = false;
+
+                IMajorRecordCommonGetter candidateRecordGetter = null;
+
+                bool candidateObjIsRecord = ObjectHasFormKey(candidateObj, out FormKey? objFormKey) && objFormKey != null;
+                bool candidateObjIsResolved = !objFormKey.Value.IsNull && linkCache.TryResolve(objFormKey.Value, (Type)candidateObj.Type, out candidateRecordGetter);
+
+                foreach (var condition in arrayMatchConditions)
+                {
+                    dynamic comparisonObject;
+
+                    if (candidateObjIsResolved && candidateRecordGetter != null && GetObjectAtPath(candidateRecordGetter, condition.Path, objectLinkMap, linkCache, out comparisonObject))
+                    {
+                        evalParameters.Add(comparisonObject);
+                    }
+                    else if (candidateObjIsRecord) // warn if the object is a record but the corresponding Form couldn't be resolved
+                    {
+                        Logger.LogError("Could not resolve record for array member object " + objFormKey.Value.ToString());
+                        skipToNext = true;
+                        break;
+                    }
+                    else if (GetObjectAtPath(candidateObj, condition.Path, objectLinkMap, linkCache, out comparisonObject))
+                    {
+                        evalParameters.Add(comparisonObject);
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                    argIndex++;
+
+                    if (condition.SpecialHandling == "PatchableRaces")
+                    {
+                        matchConditionStr = matchConditionStr.Replace("PatchableRaces", '{' + patchableRaceArgIndex.ToString() + "}");
+                        addPatchableRaceArg = true;
+                        evalParameters[evalParameters.Count - 1] = evalParameters[evalParameters.Count - 1].FormKey.AsLinkGetter<IRaceGetter>();
+                    }
+                }
+                if (skipToNext) { continue; }
+
+                // reference PatchableRaces if necessary
+                if (addPatchableRaceArg)
+                {
+                    evalParameters.Add(Patcher.PatchableRaces);
+                }
+
+                if (Eval.Execute<bool>(matchConditionStr, evalParameters.ToArray()))
+                {
+                    matchedObjects.Add(candidateObj);
                 }
             }
             return false;

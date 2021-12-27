@@ -58,7 +58,7 @@
                 <plugins:FormKeyPicker Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" MaxHeight="500" FormKey="{Binding ReferenceNPCFK}" ScopedTypes="{Binding ReferenceNPCType}" LinkCache="{Binding lk}" Margin="0 5 0 5" BorderThickness="1" BorderBrush="#5844b4"/>
 
                 <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Center">Result</TextBlock>
-                <TextBlock Grid.Row="5" Grid.Column="1"  Grid.ColumnSpan="3" VerticalAlignment="Center" Text="{Binding EvalResult}"/>
+                <TextBlock Grid.Row="5" Grid.Column="1"  Grid.ColumnSpan="3" VerticalAlignment="Center" Text="{Binding EvalResult}" Foreground="{Binding Path=StatusFontColor}"/>
             </Grid>
         </ScrollViewer>
     </Grid>

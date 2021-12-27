@@ -244,6 +244,7 @@ namespace SynthEBD
         public bool ForceIf { get; set; }
 
         public FormKey ReferenceNPCFK { get; set; } // this is not used by the patcher but saving it avoids making the user reselect it in the UI
+        public Type SelectedFormKeyType { get; set; } // this is not used by the patcher but saving it avoids making the user reselect it in the UI
 
         public bool Equals(ITypedNPCAttribute other)
         {

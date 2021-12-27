@@ -16,6 +16,7 @@ using DynamicData.Binding;
 using System.Text;
 using System.Threading.Tasks;
 using System.Reflection;
+using System.Windows.Media;
 
 namespace SynthEBD
 {
@@ -287,20 +288,26 @@ namespace SynthEBD
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
             this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
 
+            this.StatusFontColor = new SolidColorBrush(Colors.White);
+
             this.WhenAnyValue(x => x.CustomType).Subscribe(x => UpdateValueDisplay());
 
             this.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => RefreshPathSuggestions());
             this.WhenAnyValue(x => x.Path).Subscribe(x => RefreshPathSuggestions());
-            this.WhenAnyValue(vm => vm.ChosenPathSuggestion).WhereNotNull().Subscribe(pathSuggestion => UpdatePath(pathSuggestion));
+            this.WhenAnyValue(vm => vm.ChosenPathSuggestion).Skip(2).WhereNotNull().Subscribe(pathSuggestion => UpdatePath(pathSuggestion));
 
+            this.WhenAnyValue(x => x.ValueStr).Subscribe(x => Evaluate());
             this.WhenAnyValue(x => x.ValueFKtype).Subscribe(x => UpdateFormKeyPickerRecordType());
 
-            this.WhenAnyValue(x => x.CustomType).Subscribe(x => Evaluate());
-            this.WhenAnyValue(x => x.Path).Subscribe(x => Evaluate());
-            this.WhenAnyValue(x => x.ChosenComparator).Subscribe(x => Evaluate());
-            this.WhenAnyValue(x => x.ValueStr).Subscribe(x => Evaluate());
             this.WhenAnyValue(x => x.ValueFKs).Subscribe(x => Evaluate());
+            this.WhenAnyValue(x => x.ChosenComparator).Subscribe(x => Evaluate());
+            this.ValueFKs.CollectionChanged += Evaluate;
+
+            /*
+            this.WhenAnyValue(x => x.Path).Subscribe(x => Evaluate());
+            
             this.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => Evaluate());
+            */
         }
 
         public CustomAttributeType CustomType { get; set; }
@@ -326,6 +333,7 @@ namespace SynthEBD
         public VM_NPCAttribute ParentVM { get; set; }
         public RelayCommand DeleteCommand { get; }
         public IObservable<Unit> NeedsRefresh { get; }
+        public System.Windows.Media.SolidColorBrush StatusFontColor { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
         public static VM_NPCAttributeCustom GetViewModelFromModel(NPCAttributeCustom model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
@@ -336,6 +344,7 @@ namespace SynthEBD
             viewModel.Path = model.Path;
             viewModel.ValueStr = model.ValueStr;
             viewModel.ValueFKs = new ObservableCollection<FormKey>(model.ValueFKs);
+            viewModel.ValueFKtype = model.SelectedFormKeyType;
             viewModel.ReferenceNPCFK = model.ReferenceNPCFK;
             return viewModel;
         }
@@ -351,45 +360,58 @@ namespace SynthEBD
             model.ValueFKs = viewModel.ValueFKs.ToHashSet();
             model.ForceIf = forceIf;
             model.ReferenceNPCFK = viewModel.ReferenceNPCFK;
+            model.SelectedFormKeyType = viewModel.ValueFKtype;
             return model;
         }
 
+        public void Evaluate(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            Evaluate();
+        }
         public void Evaluate()
         {
             if (this.ReferenceNPCFK.IsNull)
             {
                 EvalResult = "Can't evaluate: Reference NPC not set";
+                this.StatusFontColor = new SolidColorBrush(Colors.Yellow);
             }
             else if (this.CustomType != CustomAttributeType.FormKey && this.ValueStr == "")
             {
                 EvalResult = "Can't evaluate: No value provided";
+                this.StatusFontColor = new SolidColorBrush(Colors.Yellow);
             }
             else if (this.CustomType == CustomAttributeType.FormKey && !this.ValueFKs.Any())
             {
                 EvalResult = "Can't evaluate: No FormKeys selected";
+                this.StatusFontColor = new SolidColorBrush(Colors.Yellow);
             }
             else if (this.CustomType == CustomAttributeType.Integer && !Int32.TryParse(ValueStr, out _))
             {
                 EvalResult = "Can't convert " + ValueStr + " to an Integer value";
+                this.StatusFontColor = new SolidColorBrush(Colors.Red);
             }
             else if (this.CustomType == CustomAttributeType.Decimal && !float.TryParse(ValueStr, out _))
             {
                 EvalResult = "Can't convert " + ValueStr + " to a Decimal value";
+                this.StatusFontColor = new SolidColorBrush(Colors.Red);
             }
             else
             {
                 if (!GameEnvironmentProvider.MyEnvironment.LinkCache.TryResolve<INpcGetter>(ReferenceNPCFK, out var refNPC))
                 {
                     EvalResult = "Error: can't resolve reference NPC.";
+                    this.StatusFontColor = new SolidColorBrush(Colors.Red);
                 }
                 bool matched = AttributeMatcher.EvaluateCustomAttribute(refNPC, DumpViewModelToModel(this, false), ParsingLinkCache, out string dispMessage);
                 if (matched)
                 {
                     EvalResult = "Matched!";
+                    this.StatusFontColor = new SolidColorBrush(Colors.Green);
                 }
                 else
                 {
                     EvalResult = dispMessage;
+                    this.StatusFontColor = new SolidColorBrush(Colors.Red);
                 }
             }
         }
@@ -398,7 +420,14 @@ namespace SynthEBD
         {
             PathSuggestions.Clear();
 
-            if (lk.TryResolve<INpcGetter>(ReferenceNPCFK, out var referenceNPC) && RecordPathParser.GetObjectAtPath(referenceNPC, Path, new Dictionary<dynamic, Dictionary<string, dynamic>>(), ParsingLinkCache, out var subObj))
+            var tmpPath = Path.Replace("[*]", "[0]"); // evaluate the first member of any collection to determine subpaths
+
+            if (tmpPath.EndsWith('.'))
+            {
+                tmpPath = tmpPath.Remove(tmpPath.Length - 1, 1);
+            }
+
+            if (lk.TryResolve<INpcGetter>(ReferenceNPCFK, out var referenceNPC) && RecordPathParser.GetObjectAtPath(referenceNPC, tmpPath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), ParsingLinkCache, out var subObj))
             {
                 Type type = subObj.GetType();
                 var properties = type.GetProperties();
@@ -419,6 +448,7 @@ namespace SynthEBD
                 }
                 */
             }
+            Evaluate();
         }
 
         public class PathSuggestion
@@ -451,7 +481,7 @@ namespace SynthEBD
                         input.SubPath = input.PropInfo.Name;
                         if (IsEnumerable(input.PropInfo.PropertyType))
                         {
-                            input.SubPath += "[0]";
+                            input.SubPath += "[*]";
                         }
 
                         input.DispString = input.PropInfo.Name + " (" + input.PropInfo.PropertyType.Name + ")";
@@ -479,20 +509,13 @@ namespace SynthEBD
 
         private static bool IsEnumerable(Type type)
         {
+            //explicitly check for string because it is an IEnumerable but should not be treated as an array of chars
+            if (type == typeof(string)) { return false; }
+
             var containedInterfaces = type.GetInterfaces();
             if (containedInterfaces.Contains(typeof(System.Collections.IEnumerable)))
             {
                 return true;
-            }
-            else
-            {
-                foreach (var subInterface in containedInterfaces)
-                {
-                    if (IsEnumerable(subInterface))
-                    {
-                        return true;
-                    }
-                }
             }
             return false;
         }
@@ -500,11 +523,18 @@ namespace SynthEBD
         public void UpdatePath(PathSuggestion chosenPathSuggestion)
         {
             if (chosenPathSuggestion is null) { return; }
-            if (Path.Length > 0)
+            if (Path.Length > 0 && !Path.EndsWith('.'))
             {
-                Path += ".";
+                Path += "." + chosenPathSuggestion.SubPath;
             }
-            Path += chosenPathSuggestion.SubPath; 
+            else
+            {
+                Path += chosenPathSuggestion.SubPath;
+            }
+
+            chosenPathSuggestion = new PathSuggestion(); // clear the dropdown box
+
+            Evaluate();
         }
 
         public void UpdateValueDisplay()
@@ -528,11 +558,14 @@ namespace SynthEBD
                 this.Comparators.Add(">");
                 this.Comparators.Add(">=");
             }
+
+            Evaluate();
         }
 
         public void UpdateFormKeyPickerRecordType()
         {
             ValueFKtypeCollection = ValueFKtype.AsEnumerable();
+            Evaluate();
         }
     }
 

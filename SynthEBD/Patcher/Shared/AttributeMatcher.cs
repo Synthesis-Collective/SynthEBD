@@ -127,8 +127,13 @@ namespace SynthEBD
 
         public static bool EvaluateCustomAttribute(INpcGetter npc, NPCAttributeCustom attribute, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out string dispMessage)
         {
-            bool success = RecordPathParser.GetObjectAtPath(npc, attribute.Path, new Dictionary<dynamic, Dictionary<string, dynamic>>(), linkCache, out dynamic resolvedObject);
+            var resolvedObjects = new List<dynamic>();
+            bool success = RecordPathParser.GetObjectCollectionAtPath(npc, attribute.Path, new Dictionary<dynamic, Dictionary<string, dynamic>>(), linkCache, resolvedObjects);
             dispMessage = "";
+
+            bool currentTypeMatched = false;
+            bool typeMatched = false;
+            bool valueMatched = false;
 
             if (!success) 
             {
@@ -139,69 +144,98 @@ namespace SynthEBD
             {
                 switch(attribute.CustomType)
                 {
-                    case CustomAttributeType.Text: 
-                        if (resolvedObject.GetType() != typeof(string))
+                    case CustomAttributeType.Text:
+                        foreach (var resolvedObject in resolvedObjects)
+                        {
+                            currentTypeMatched = false;
+                            if (resolvedObject.GetType() == typeof(string)) { typeMatched = true; currentTypeMatched = true; }
+                            if (currentTypeMatched && resolvedObject == attribute.ValueStr) { valueMatched = true; break; }
+                        }
+
+                        if (typeMatched == false)
                         {
                             dispMessage = "The value at the specified path is not a text string";
                             return false;
                         }
-                        else if (resolvedObject != attribute.ValueStr)
-                        {
-                            dispMessage = "The value at the specified path does not match the attribute value.";
-                            return false;
-                        }
                         else
                         {
-                            return true;
+                            switch(attribute.Comparator)
+                            {
+                                case "=":
+                                    if (valueMatched) { return true; }
+                                    else { dispMessage = "The text at the specified path(s) does not match the attribute value.";  return false; }
+                                case "!=":
+                                    if (!valueMatched) { return true; }
+                                    else { dispMessage = "The text at the specified path(s) matches the attribute value."; return false; }
+                                default: return false;
+                            }  
                         }
 
                     case CustomAttributeType.Integer:
                         int.TryParse(attribute.ValueStr, out var iValue);
-                        if (!int.TryParse(resolvedObject.ToString(), out int iResult))
+                        int iResult;
+                        foreach (var resolvedObject in resolvedObjects)
                         {
-                            dispMessage = "The value at the specified path is not an integer";
-                            return false;
+                            currentTypeMatched = false;
+                            if (int.TryParse(resolvedObject.ToString(), out iResult)) { typeMatched = true; currentTypeMatched = true; }
+                            if (currentTypeMatched && CompareResult(iResult, iValue, attribute.Comparator, out dispMessage)) { valueMatched = true; break; }
                         }
-                        else if (!CompareResult(iResult, iValue, attribute.Comparator, out dispMessage))
+
+                        if (typeMatched == false)
                         {
+                            dispMessage = "The value at the specified path is not an integer.";
                             return false;
                         }
                         else
                         {
-                            return true;
+                            return valueMatched;
                         }
 
                     case CustomAttributeType.Decimal:
                         float.TryParse(attribute.ValueStr, out var fValue);
-                        if (!float.TryParse(resolvedObject.ToString(), out float fResult))
+                        float fResult;
+                        foreach (var resolvedObject in resolvedObjects)
                         {
-                            dispMessage = "The value at the specified path is not an decimal";
-                            return false;
+                            currentTypeMatched = false;
+                            if (float.TryParse(resolvedObject.ToString(), out fResult)) { typeMatched = true; currentTypeMatched = true; }
+                            if (currentTypeMatched && CompareResult(fResult, fValue, attribute.Comparator, out dispMessage)) { valueMatched = true; break; }
                         }
-                        else if (!CompareResult(fResult, fValue, attribute.Comparator, out dispMessage))
+
+                        if (typeMatched == false)
                         {
-                            dispMessage = "The decimal at the specified path does not match the attribute value.";
+                            dispMessage = "The value at the specified path is not an decimal number.";
                             return false;
                         }
                         else
                         {
-                            return true;
+                            return valueMatched;
                         }
 
                     case CustomAttributeType.FormKey:
-                        if (!RecordPathParser.ObjectHasFormKey(resolvedObject))
+                        foreach (var resolvedObject in resolvedObjects)
                         {
-                            dispMessage = "The value at the specified path is not a record.";
-                            return false;
+                            currentTypeMatched = false;
+                            if (RecordPathParser.ObjectHasFormKey(resolvedObject)) { typeMatched = true; currentTypeMatched = true; }
+                            if(currentTypeMatched && FormKeyHashSetComparer.Contains(attribute.ValueFKs, resolvedObject.FormKey)) { valueMatched = true; break; }
                         }
-                        else if (!FormKeyHashSetComparer.Contains(attribute.ValueFKs, resolvedObject.FormKey))
+
+                        if (typeMatched == false)
                         {
-                            dispMessage = "The value at the specified path is not one of the specified FormKey(s)";
+                            dispMessage = "The value(s) at the specified paths are not records.";
                             return false;
                         }
                         else
                         {
-                            return true;
+                            switch (attribute.Comparator)
+                            {
+                                case "=":
+                                    if (valueMatched) { return true; }
+                                    else { dispMessage = "The record(s) at the specified path do not match the selected value(s)."; return false; }
+                                case "!=":
+                                    if (!valueMatched) { return true; }
+                                    else { dispMessage = "The record(s) at the specified path match the selected value(s)."; return false; }
+                                default: return false;
+                            }
                         }
                     default: return false;
                 }
