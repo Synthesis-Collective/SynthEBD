@@ -296,18 +296,14 @@ namespace SynthEBD
             this.WhenAnyValue(x => x.Path).Subscribe(x => RefreshPathSuggestions());
             this.WhenAnyValue(vm => vm.ChosenPathSuggestion).Skip(2).WhereNotNull().Subscribe(pathSuggestion => UpdatePath(pathSuggestion));
 
-            this.WhenAnyValue(x => x.ValueStr).Subscribe(x => Evaluate());
             this.WhenAnyValue(x => x.ValueFKtype).Subscribe(x => UpdateFormKeyPickerRecordType());
 
+            this.WhenAnyValue(x => x.ValueStr).Subscribe(x => Evaluate());
             this.WhenAnyValue(x => x.ValueFKs).Subscribe(x => Evaluate());
             this.WhenAnyValue(x => x.ChosenComparator).Subscribe(x => Evaluate());
             this.ValueFKs.CollectionChanged += Evaluate;
-
-            /*
             this.WhenAnyValue(x => x.Path).Subscribe(x => Evaluate());
-            
             this.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => Evaluate());
-            */
         }
 
         public CustomAttributeType CustomType { get; set; }
@@ -346,6 +342,7 @@ namespace SynthEBD
             viewModel.ValueFKs = new ObservableCollection<FormKey>(model.ValueFKs);
             viewModel.ValueFKtype = model.SelectedFormKeyType;
             viewModel.ReferenceNPCFK = model.ReferenceNPCFK;
+            viewModel.ChosenPathSuggestion = null;
             return viewModel;
         }
 
@@ -418,7 +415,7 @@ namespace SynthEBD
 
         public void RefreshPathSuggestions()
         {
-            PathSuggestions.Clear();
+            ChosenPathSuggestion = null; // clear this now to avoid the previous chosen path suggestion being added by the Subscription due to the current PathSuggestions being modified
 
             var tmpPath = Path.Replace("[*]", "[0]"); // evaluate the first member of any collection to determine subpaths
 
@@ -427,6 +424,7 @@ namespace SynthEBD
                 tmpPath = tmpPath.Remove(tmpPath.Length - 1, 1);
             }
 
+            HashSet<PathSuggestion> newSuggestions = new HashSet<PathSuggestion>();
             if (lk.TryResolve<INpcGetter>(ReferenceNPCFK, out var referenceNPC) && RecordPathParser.GetObjectAtPath(referenceNPC, tmpPath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), ParsingLinkCache, out var subObj))
             {
                 Type type = subObj.GetType();
@@ -435,7 +433,7 @@ namespace SynthEBD
                 {
                     var newPathSuggestion = new PathSuggestion() { SubPath = property.Name, PropInfo = property, Type = PathSuggestion.PathType.Property, SubPathType = type, SubObject = (object)subObj };
                     PathSuggestion.FinalizePathSuggestion(newPathSuggestion);
-                    PathSuggestions.Add(newPathSuggestion);
+                    newSuggestions.Add(newPathSuggestion);
                 }
                 /* Not implementing methods for now
                 var methods = type.GetMethods();
@@ -448,7 +446,8 @@ namespace SynthEBD
                 }
                 */
             }
-            Evaluate();
+
+            PathSuggestions = new ObservableCollection<PathSuggestion>(newSuggestions.OrderBy(x => x.DispString));
         }
 
         public class PathSuggestion
@@ -533,8 +532,6 @@ namespace SynthEBD
             }
 
             chosenPathSuggestion = new PathSuggestion(); // clear the dropdown box
-
-            Evaluate();
         }
 
         public void UpdateValueDisplay()

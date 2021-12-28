@@ -276,7 +276,7 @@ namespace SynthEBD
             {
                 if (iIndex < 0 || iIndex < collectionObj.Count())
                 {
-                    currentObj = collectionObj.ElementAt(iIndex);
+                    outputObj = collectionObj.ElementAt(iIndex);
                     indexInParent = iIndex;
                 }
                 else
@@ -290,7 +290,7 @@ namespace SynthEBD
             // if array index specifies object by property, figure out which index is the right one
             else
             {
-                if (!ChooseWhichArrayObject(collectionObj, arrIndex, objectLinkMap, linkCache, out currentObj, out indexInParent))
+                if (!ChooseWhichArrayObject(collectionObj, arrIndex, objectLinkMap, linkCache, out outputObj, out indexInParent))
                 {
                     string currentSubPath = "[" + arrIndex + "]";
                     Logger.LogError("Could not get object at " + currentSubPath + " because " + currentObj.GetType() + " does not have an element that matches condition: " + arrIndex);
@@ -298,7 +298,6 @@ namespace SynthEBD
                 }
             }
 
-            outputObj = currentObj;
             return true;
         }
 
@@ -355,16 +354,42 @@ namespace SynthEBD
 
         private class ArrayPathCondition
         {
-            private ArrayPathCondition(string strIndex)
+            private ArrayPathCondition(string strIndex, out bool parsed)
             {
-                int sepIndex = strIndex.LastIndexOf(',');
+                parsed = false;
+
+                int sepIndex = -1;
+                Comparator = "";
+                foreach (var comparator in Comparators)
+                {
+                    if (strIndex.Contains(comparator))
+                    {
+                        sepIndex = strIndex.LastIndexOf(comparator);
+                        Comparator = comparator;
+                        break;
+                    }
+                }
+                if (sepIndex == -1) { return; }
+
                 Path = strIndex.Substring(0, sepIndex).Trim();
-                ReplacerTemplate = strIndex.Substring(0, sepIndex) + ","; // unlike Path, can include whitespace provided by the user and also includes the separator comma
-                MatchCondition = strIndex.Substring(sepIndex + 1, strIndex.Length - sepIndex - 1).Trim();
+                ReplacerTemplate = strIndex.Substring(0, sepIndex); // unlike Path, can include whitespace provided by the user and also includes the separator comma
+
+                var split = strIndex.Split(Comparator);
+                if (Comparator == ".Invoke:")
+                {
+                    ReplacerTemplate += Comparator;
+                    MatchCondition = "." + split[split.Length - 1].Trim();
+                }
+                else
+                {
+                    MatchCondition = Comparator + " " + split[split.Length - 1].Trim();
+                }
+                
                 if (Path.StartsWith('!'))
                 {
                     Path = Path.Remove(0, 1).Trim();
                 }
+                parsed = true;
             }
             private ArrayPathCondition()
             {
@@ -374,9 +399,13 @@ namespace SynthEBD
             public string ReplacerTemplate;
             public string MatchCondition;
             public string SpecialHandling = "";
+            public string Comparator;
 
-            public static List<ArrayPathCondition> GetConditionsFromString(string input)
+            public static HashSet<string> Comparators = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=", ".Invoke:" };
+
+            public static List<ArrayPathCondition> GetConditionsFromString(string input, out bool parsed)
             {
+                parsed = true;
                 String[] result = input.Split(new Char[] { '|', '&' }, StringSplitOptions.RemoveEmptyEntries); // split on logical operators
                 List<ArrayPathCondition> output = new List<ArrayPathCondition>();
                 foreach (var conditionStr in result)
@@ -392,7 +421,13 @@ namespace SynthEBD
                         output.Add(patchableRaceCondition);
                         continue;
                     }
-                    output.Add(new ArrayPathCondition(conditionStr));
+                    var condition = new ArrayPathCondition(conditionStr, out bool conditionParsed);
+                    if (conditionParsed) { output.Add(condition); }
+                    else
+                    {
+                        parsed = false;
+                        return new List<ArrayPathCondition>();
+                    }
                 }
                 return output;
             }
@@ -403,7 +438,11 @@ namespace SynthEBD
             outputObj = null;
             indexInParent = null;
 
-            var arrayMatchConditions = ArrayPathCondition.GetConditionsFromString(matchConditionStr);
+            var arrayMatchConditions = ArrayPathCondition.GetConditionsFromString(matchConditionStr, out bool parsed);
+            if (!parsed)
+            {
+                return false;
+            }
 
             int argIndex = 0;
             foreach (var condition in arrayMatchConditions)
@@ -413,8 +452,15 @@ namespace SynthEBD
                 {
                     if (matchConditionStr.Substring(i, condition.ReplacerTemplate.Length) == condition.ReplacerTemplate && (i == 0 || matchConditionStr[i - 1] == '(' || matchConditionStr[i - 1] == ' '))
                     {
-                       matchConditionStr = matchConditionStr.Remove(i, condition.ReplacerTemplate.Length);
-                       matchConditionStr = matchConditionStr.Insert(i, argStr);
+                        matchConditionStr = matchConditionStr.Remove(i, condition.ReplacerTemplate.Length);
+                        if (condition.Comparator == ".Invoke:")
+                        {
+                            matchConditionStr = matchConditionStr.Insert(i, argStr + ".");
+                        }
+                        else
+                        {
+                            matchConditionStr = matchConditionStr.Insert(i, argStr);
+                        }
                     }
                 }
                 argIndex++;
@@ -474,11 +520,18 @@ namespace SynthEBD
                     evalParameters.Add(Patcher.PatchableRaces); 
                 }
 
-                if (Eval.Execute<bool>(matchConditionStr, evalParameters.ToArray()))
+                try
                 {
-                    outputObj = candidateObj;
-                    indexInParent = i;
-                    return true;
+                    if (Eval.Execute<bool>(matchConditionStr, evalParameters.ToArray()))
+                    {
+                        outputObj = candidateObj;
+                        indexInParent = i;
+                        return true;
+                    }
+                }
+                catch
+                {
+                    return false; // should only happen when user is screwing around with UI
                 }
             }
             return false;
@@ -486,7 +539,11 @@ namespace SynthEBD
 
         private static bool ChooseSelectedArrayObjects(IReadOnlyList<dynamic> variants, string matchConditionStr, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, List<dynamic> matchedObjects)
         {
-            var arrayMatchConditions = ArrayPathCondition.GetConditionsFromString(matchConditionStr);
+            var arrayMatchConditions = ArrayPathCondition.GetConditionsFromString(matchConditionStr, out bool parsed);
+            if (!parsed)
+            {
+                return false;
+            }
 
             int argIndex = 0;
             foreach (var condition in arrayMatchConditions)
@@ -516,7 +573,7 @@ namespace SynthEBD
                 IMajorRecordCommonGetter candidateRecordGetter = null;
 
                 bool candidateObjIsRecord = ObjectHasFormKey(candidateObj, out FormKey? objFormKey) && objFormKey != null;
-                bool candidateObjIsResolved = !objFormKey.Value.IsNull && linkCache.TryResolve(objFormKey.Value, (Type)candidateObj.Type, out candidateRecordGetter);
+                bool candidateObjIsResolved = objFormKey != null && !objFormKey.Value.IsNull && linkCache.TryResolve(objFormKey.Value, (Type)candidateObj.Type, out candidateRecordGetter);
 
                 foreach (var condition in arrayMatchConditions)
                 {
@@ -557,12 +614,19 @@ namespace SynthEBD
                     evalParameters.Add(Patcher.PatchableRaces);
                 }
 
-                if (Eval.Execute<bool>(matchConditionStr, evalParameters.ToArray()))
+                try
                 {
-                    matchedObjects.Add(candidateObj);
+                    if (Eval.Execute<bool>(matchConditionStr, evalParameters.ToArray()))
+                    {
+                        matchedObjects.Add(candidateObj);
+                    }
+                }
+                catch
+                {
+                    return false; // should only happen when user is screwing around with UI
                 }
             }
-            return false;
+            return matchedObjects.Any();
         }
 
         private static bool PathIsArray(string path, out string index) //correct input is of form [y]
@@ -570,7 +634,7 @@ namespace SynthEBD
             index = "";
             if (path.StartsWith('[') && path.EndsWith(']'))
             {
-                index = path.Substring(1, path.Length - 2);
+                index = path.Substring(1, path.IndexOf(']') - 1);
                 return true;
             }
             return false;
@@ -619,6 +683,20 @@ namespace SynthEBD
 
         public static bool SetSubObject(dynamic root, string propertyName, dynamic value)
         {
+            //DEBUGGING SHORT CIRCUIT
+            Type type = root.GetType();
+            var prop = type.GetProperty(propertyName);
+            if (prop != null)
+            {
+                prop.SetValue(root, value);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+            //END DEBUGGING
+
             if (GetAccessor(root, propertyName, AccessorType.Setter, out Delegate setter))
             {
                 setter.DynamicInvoke(root, value);
@@ -831,8 +909,8 @@ namespace SynthEBD
 
         public static Delegate CreateDelegateSetter(PropertyInfo property)
         {
-            var delegateType = Expression.GetActionType(property.DeclaringType, property.SetMethod.ReturnType);
-            return property.SetMethod.CreateDelegate(delegateType);
+            var delegateType = Expression.GetActionType(property.PropertyType);
+            return Delegate.CreateDelegate(delegateType, null, property.GetSetMethod());
         }
     }
 }
