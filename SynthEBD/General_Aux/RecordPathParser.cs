@@ -466,6 +466,9 @@ namespace SynthEBD
                 argIndex++;
             }
 
+            //catch for user type Invoke: but hasn't yet finished the function
+            if (matchConditionStr.Contains(".Invoke:")) { return false; }
+
             int patchableRaceArgIndex = argIndex;
             bool addPatchableRaceArg = false;
 

@@ -165,7 +165,8 @@ namespace SynthEBD
         Text,
         Integer,
         Decimal,
-        FormKey
+        Boolean,
+        Record
     }
     public class NPCAttributeVoiceType : ITypedNPCAttribute
     {
@@ -251,7 +252,7 @@ namespace SynthEBD
             var otherTyped = (NPCAttributeCustom)other;
             if (otherTyped.CustomType != this.CustomType) { return false; }
             if (otherTyped.Path != this.Path) { return false; }
-            if (this.CustomType == CustomAttributeType.FormKey && !FormKeyHashSetComparer.Equals(this.ValueFKs, otherTyped.ValueFKs))
+            if (this.CustomType == CustomAttributeType.Record && !FormKeyHashSetComparer.Equals(this.ValueFKs, otherTyped.ValueFKs))
             {
                 return false;
             }
@@ -269,7 +270,7 @@ namespace SynthEBD
             output.ForceIf = input.ForceIf;
             output.Path = input.Path;
             output.Type = input.Type;
-            if (input.CustomType == CustomAttributeType.FormKey)
+            if (input.CustomType == CustomAttributeType.Record)
             {
                 output.ValueFKs = new HashSet<FormKey>();
                 foreach (var fk in input.ValueFKs)

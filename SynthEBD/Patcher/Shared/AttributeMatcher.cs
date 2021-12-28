@@ -211,7 +211,36 @@ namespace SynthEBD
                             return valueMatched;
                         }
 
-                    case CustomAttributeType.FormKey:
+                    case CustomAttributeType.Boolean:
+                        bool.TryParse(attribute.ValueStr, out var bValue);
+                        bool bResult;
+                        foreach (var resolvedObject in resolvedObjects)
+                        {
+                            currentTypeMatched = false;
+                            if (bool.TryParse(resolvedObject.ToString(), out bResult)) { typeMatched = true; currentTypeMatched = true; }
+                            if (currentTypeMatched && bValue == bResult) { valueMatched = true; break; }
+                        }
+
+                        if (typeMatched == false)
+                        {
+                            dispMessage = "The value at the specified path is not a Boolean value.";
+                            return false;
+                        }
+                        else
+                        {
+                            switch (attribute.Comparator)
+                            {
+                                case "=":
+                                    if (valueMatched) { return true; }
+                                    else { dispMessage = "The value at the specified path is not " + attribute.ValueStr; return false; }
+                                case "!=":
+                                    if (!valueMatched) { return true; }
+                                    else { dispMessage = "The value at the specified path is not " + attribute.ValueStr; return false; }
+                                default: return false;
+                            }
+                        }
+
+                    case CustomAttributeType.Record:
                         foreach (var resolvedObject in resolvedObjects)
                         {
                             currentTypeMatched = false;

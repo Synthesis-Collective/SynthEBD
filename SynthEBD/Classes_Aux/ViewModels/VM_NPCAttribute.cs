@@ -269,15 +269,19 @@ namespace SynthEBD
 
             this.ShowValueTextField = true;
             this.ShowValueFormKeyPicker = false;
+            this.ShowValueBoolPicker = false;
 
             this.PathSuggestions = new ObservableCollection<PathSuggestion>();
             this.ChosenPathSuggestion = null;
             this.ReferenceNPCFK = new FormKey();
             this.ReferenceNPCType = typeof(INpcGetter).AsEnumerable();
-            this.ValueGetterTypes = Loqui.LoquiRegistration.StaticRegister.Registrations
-                .Where(x => x.ProtocolKey.Namespace == "Skyrim")
-                .Select(x => x.GetterType)
-                .Where(x => x.IsAssignableTo(typeof(Mutagen.Bethesda.Plugins.Records.IMajorRecordGetter)));
+            
+            this.ValueGetterTypes = new SortedDictionary<string, Type>();
+
+            foreach (var reg in Loqui.LoquiRegistration.StaticRegister.Registrations.Where(x => x.ProtocolKey.Namespace == "Skyrim").Where(x => x.GetterType.IsAssignableTo(typeof(Mutagen.Bethesda.Plugins.Records.IMajorRecordGetter))))
+            {
+                ValueGetterTypes.Add(reg.Name, reg.GetterType);
+            }
 
             this.Comparators = new ObservableCollection<string>();
 
@@ -294,7 +298,7 @@ namespace SynthEBD
 
             this.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => RefreshPathSuggestions());
             this.WhenAnyValue(x => x.Path).Subscribe(x => RefreshPathSuggestions());
-            this.WhenAnyValue(vm => vm.ChosenPathSuggestion).Skip(2).WhereNotNull().Subscribe(pathSuggestion => UpdatePath(pathSuggestion));
+            this.WhenAnyValue(vm => vm.ChosenPathSuggestion).Skip(1).WhereNotNull().Subscribe(pathSuggestion => UpdatePath(pathSuggestion));
 
             this.WhenAnyValue(x => x.ValueFKtype).Subscribe(x => UpdateFormKeyPickerRecordType());
 
@@ -310,7 +314,7 @@ namespace SynthEBD
         public string Path { get; set; }
         public string ValueStr { get; set; }
         public ObservableCollection<FormKey> ValueFKs { get; set; }
-        public IEnumerable<Type> ValueGetterTypes { get; set; }
+        public SortedDictionary<string, Type> ValueGetterTypes { get; set; }
         public Type ValueFKtype { get; set; }
         public IEnumerable<Type> ValueFKtypeCollection { get; set; }
         public ILinkCache lk { get; set; }
@@ -325,6 +329,7 @@ namespace SynthEBD
 
         public bool ShowValueTextField { get; set; }
         public bool ShowValueFormKeyPicker { get; set; }
+        public bool ShowValueBoolPicker { get; set; }
 
         public VM_NPCAttribute ParentVM { get; set; }
         public RelayCommand DeleteCommand { get; }
@@ -372,12 +377,12 @@ namespace SynthEBD
                 EvalResult = "Can't evaluate: Reference NPC not set";
                 this.StatusFontColor = new SolidColorBrush(Colors.Yellow);
             }
-            else if (this.CustomType != CustomAttributeType.FormKey && this.ValueStr == "")
+            else if (this.CustomType != CustomAttributeType.Record && this.ValueStr == "")
             {
                 EvalResult = "Can't evaluate: No value provided";
                 this.StatusFontColor = new SolidColorBrush(Colors.Yellow);
             }
-            else if (this.CustomType == CustomAttributeType.FormKey && !this.ValueFKs.Any())
+            else if (this.CustomType == CustomAttributeType.Record && !this.ValueFKs.Any())
             {
                 EvalResult = "Can't evaluate: No FormKeys selected";
                 this.StatusFontColor = new SolidColorBrush(Colors.Yellow);
@@ -390,6 +395,11 @@ namespace SynthEBD
             else if (this.CustomType == CustomAttributeType.Decimal && !float.TryParse(ValueStr, out _))
             {
                 EvalResult = "Can't convert " + ValueStr + " to a Decimal value";
+                this.StatusFontColor = new SolidColorBrush(Colors.Red);
+            }
+            else if (this.CustomType == CustomAttributeType.Boolean && !bool.TryParse(ValueStr, out _))
+            {
+                EvalResult = "Can't convert " + ValueStr + " to a Boolean value";
                 this.StatusFontColor = new SolidColorBrush(Colors.Red);
             }
             else
@@ -536,15 +546,23 @@ namespace SynthEBD
 
         public void UpdateValueDisplay()
         {
-            if (this.CustomType == CustomAttributeType.FormKey)
+            if (this.CustomType == CustomAttributeType.Record)
             {
                 this.ShowValueFormKeyPicker = true;
                 this.ShowValueTextField = false;
+                this.ShowValueBoolPicker = false;
+            }
+            else if (this.CustomType == CustomAttributeType.Boolean)
+            {
+                this.ShowValueFormKeyPicker = false;
+                this.ShowValueTextField = false;
+                this.ShowValueBoolPicker = true;
             }
             else
             {
                 this.ShowValueFormKeyPicker = false;
                 this.ShowValueTextField = true;
+                this.ShowValueBoolPicker = false;
             }
 
             this.Comparators = new ObservableCollection<string>() { "=", "!=" };
@@ -739,5 +757,11 @@ namespace SynthEBD
         {
             return new NPCAttributeGroup() { Type = NPCAttributeType.Group, SelectedLabels = viewModel.AttributeCheckList.AttributeSelections.Where(x => x.IsSelected).Select(x => x.Label).ToHashSet(), ForceIf = forceIf };
         }
+    }
+
+    public enum BoolVals
+    {
+        True,
+        False
     }
 }
