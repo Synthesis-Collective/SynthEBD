@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SynthEBD.UC_AssetPackSettings"
+﻿<UserControl x:Class="SynthEBD.UC_AssetPack"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -72,8 +72,12 @@
 
                 <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Associated BodyGen Configuration</TextBlock>
                 <ComboBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding AvailableBodyGenConfigs}" DisplayMemberPath="Label" SelectedValue="{Binding TrackedBodyGenConfig}"></ComboBox>
-                
-                <Expander Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Header="Record Templates" Margin="0 10 0 0">
+
+                <Expander Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Header="Direct Replacers" Margin="0 10 0 0">
+                    <local:UC_AssetPackDirectReplacerMenu DataContext="{Binding ReplacersMenu}"/>
+                </Expander>
+
+                <Expander Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" Header="Record Templates" Margin="0 10 0 0">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="auto"/>
@@ -116,7 +120,7 @@
                     </Grid>
                 </Expander>
 
-                <Expander Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" Header="Attribute Groups" ExpandDirection="Down" >
+                <Expander Grid.Row="9" Grid.Column="0" Grid.ColumnSpan="2" Header="Attribute Groups" ExpandDirection="Down" Margin="0 10 0 0">
                     <StackPanel>
                         <local:UC_AttributeGroupMenu DataContext="{Binding AttributeGroupMenu}"/>
                         <Button Command="{Binding ImportAttributeGroups}" Foreground="Lightgreen">Import from General Settings</Button>

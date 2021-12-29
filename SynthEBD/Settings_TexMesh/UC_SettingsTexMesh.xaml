@@ -71,7 +71,7 @@
             <ItemsControl Grid.Column="0" Grid.Row="8" Grid.ColumnSpan="2" ItemsSource="{Binding AssetPacks, UpdateSourceTrigger=PropertyChanged}" Margin="0 15 0 0">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type local:VM_AssetPack}">
-                        <local:UC_AssetPackSettings Background="Black" Margin="0 0 0 10"/>
+                        <local:UC_AssetPack Background="Black" Margin="0 0 0 10"/>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

@@ -23,6 +23,7 @@ namespace SynthEBD
             this.AssociatedBodyGenConfigName = "";
             this.RecordTemplateAdditionalRacesPaths = new HashSet<string>();
             this.AttributeGroups = new HashSet<AttributeGroup>();
+            this.ReplacerGroups = new List<AssetReplacerGroup>();
         }
 
         public string GroupName { get; set; }
@@ -33,6 +34,8 @@ namespace SynthEBD
         public FormKey DefaultRecordTemplate { get; set; }
         public HashSet<AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
         public string AssociatedBodyGenConfigName { get; set; }
+
+        public List<AssetReplacerGroup> ReplacerGroups { get; set; }
         public HashSet<string> RecordTemplateAdditionalRacesPaths { get; set; }
         public HashSet<AttributeGroup> AttributeGroups { get; set; }
         [Newtonsoft.Json.JsonIgnore]
@@ -90,6 +93,18 @@ namespace SynthEBD
             public HashSet<Subgroup> subgroups { get; set; }
             public string TopLevelSubgroupID { get; set; }
         }
+    }
+
+    public class AssetReplacerGroup
+    {
+        public AssetReplacerGroup()
+        {
+            this.Label = "";
+            this.Subgroups = new List<AssetPack.Subgroup>();
+        }
+
+        public string Label;
+        public List<AssetPack.Subgroup> Subgroups;
     }
 
     // Backward compatibility classes for loading zEBD settings files and converting to synthEBD

@@ -51,6 +51,8 @@ namespace SynthEBD
 
             this.AttributeGroupMenu = new VM_AttributeGroupMenu();
 
+            this.ReplacersMenu = new VM_AssetPackDirectReplacerMenu(this);
+
             /*
             switch (this.gender)
             {
@@ -112,6 +114,7 @@ namespace SynthEBD
         public IEnumerable<Type> NPCFormKeyTypes { get; set; }
 
         public ObservableCollection<VM_AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
+        public VM_AssetPackDirectReplacerMenu ReplacersMenu { get; set; }
 
         public ObservableCollection<VM_AssetPack> ParentCollection { get; set; }
 
@@ -179,8 +182,11 @@ namespace SynthEBD
             }
 
             // go back through now that all subgroups have corresponding view models, and link the required and excluded subgroups
-            ObservableCollection<VM_Subgroup> flattenedSubgroupList = flattenSubgroupVMs(viewModel.subgroups, new ObservableCollection<VM_Subgroup>());
+            ObservableCollection<VM_Subgroup> flattenedSubgroupList = FlattenSubgroupVMs(viewModel.subgroups, new ObservableCollection<VM_Subgroup>());
             LinkRequiredSubgroups(flattenedSubgroupList);
+            LinkExcludedSubgroups(flattenedSubgroupList);
+
+            viewModel.ReplacersMenu = VM_AssetPackDirectReplacerMenu.GetViewModelFromModels(model.ReplacerGroups, viewModel, generalSettingsVM);
 
             viewModel.DefaultTemplateFK = model.DefaultRecordTemplate;
             foreach(var additionalTemplateAssignment in model.AdditionalRecordTemplateAssignments)
@@ -226,22 +232,25 @@ namespace SynthEBD
                 {
                     model.Subgroups.Add(VM_Subgroup.DumpViewModelToModel(svm));
                 }
+
+                model.ReplacerGroups = VM_AssetPackDirectReplacerMenu.DumpViewModelToModels(vm.ReplacersMenu);
+
                 model.FilePath = vm.SourcePath;
                 models.Add(model);
             }
         }
 
-        public static ObservableCollection<VM_Subgroup> flattenSubgroupVMs(ObservableCollection<VM_Subgroup> currentLevelSGs, ObservableCollection<VM_Subgroup> flattened)
+        public static ObservableCollection<VM_Subgroup> FlattenSubgroupVMs(ObservableCollection<VM_Subgroup> currentLevelSGs, ObservableCollection<VM_Subgroup> flattened)
         {
             foreach(var sg in currentLevelSGs)
             {
                 flattened.Add(sg);
-                flattenSubgroupVMs(sg.subgroups, flattened);
+                FlattenSubgroupVMs(sg.subgroups, flattened);
             }
             return flattened;
         }
 
-        private static void LinkRequiredSubgroups(ObservableCollection<VM_Subgroup> flattenedSubgroups)
+        public static void LinkRequiredSubgroups(ObservableCollection<VM_Subgroup> flattenedSubgroups)
         {
             foreach (var sg in flattenedSubgroups)
             {
@@ -259,7 +268,7 @@ namespace SynthEBD
             }
         }
 
-        private static void LinkExcludedSubgroups(ObservableCollection<VM_Subgroup> flattenedSubgroups)
+        public static void LinkExcludedSubgroups(ObservableCollection<VM_Subgroup> flattenedSubgroups)
         {
             foreach (var sg in flattenedSubgroups)
             {
