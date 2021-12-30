@@ -7,6 +7,7 @@
              d:DataContext="{d:DesignInstance Type=local:VM_FilePathReplacement}"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -20,7 +21,8 @@
 
         <Button Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding FindPath}" Foreground="Lightgreen" Margin="0 0 5 0">Search</Button>
         <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Source, UpdateSourceTrigger=PropertyChanged}" BorderBrush="{Binding SourceBorderColor}" BorderThickness="1" />
-        <TextBox Grid.Row="0" Grid.Column="2" Text="{Binding Destination, UpdateSourceTrigger=PropertyChanged}" BorderBrush="{Binding DestBorderColor}" BorderThickness="1" />
+        <TextBox Grid.Row="0" Grid.Column="2" Text="{Binding IntellisensedPath, UpdateSourceTrigger=PropertyChanged}" BorderBrush="{Binding DestBorderColor}" BorderThickness="1" />
+        <ComboBox Template="{DynamicResource IntelliPathComboBox}" Grid.Row="0" Grid.Column="2" Width="25" HorizontalAlignment="Right" SelectedValue="{Binding ChosenPathSuggestion}" ItemsSource="{Binding PathSuggestions}" DisplayMemberPath="DispString"  ScrollViewer.HorizontalScrollBarVisibility="auto" />
         <Button Grid.Row="0" Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}" Foreground="Firebrick">x</Button>
     </Grid>
 </UserControl>

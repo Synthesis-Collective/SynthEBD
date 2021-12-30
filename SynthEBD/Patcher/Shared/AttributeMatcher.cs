@@ -125,7 +125,7 @@ namespace SynthEBD
             return matched;
         }
 
-        public static bool EvaluateCustomAttribute(INpcGetter npc, NPCAttributeCustom attribute, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out string dispMessage)
+        public static bool EvaluateCustomAttribute(INpcGetter npc, NPCAttributeCustom attribute, ILinkCache linkCache, out string dispMessage)
         {
             var resolvedObjects = new List<dynamic>();
             bool success = RecordPathParser.GetObjectCollectionAtPath(npc, attribute.Path, new Dictionary<dynamic, Dictionary<string, dynamic>>(), linkCache, resolvedObjects);

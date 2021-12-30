@@ -104,7 +104,7 @@ namespace SynthEBD
             return true;
         }
 
-        public static bool GetObjectCollectionAtPath(dynamic rootObj, string relativePath, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, List<dynamic> outputObjectCollection)
+        public static bool GetObjectCollectionAtPath(dynamic rootObj, string relativePath, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, List<dynamic> outputObjectCollection)
         {
             if (rootObj == null)
             {
@@ -301,7 +301,7 @@ namespace SynthEBD
             return true;
         }
 
-        private static bool GetArrayObjectCollectionAtIndex(dynamic currentObj, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, List<dynamic> outputObjectCollection)
+        private static bool GetArrayObjectCollectionAtIndex(dynamic currentObj, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, List<dynamic> outputObjectCollection)
         {
             outputObjectCollection.Clear();
 
@@ -540,7 +540,7 @@ namespace SynthEBD
             return false;
         }
 
-        private static bool ChooseSelectedArrayObjects(IReadOnlyList<dynamic> variants, string matchConditionStr, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, List<dynamic> matchedObjects)
+        private static bool ChooseSelectedArrayObjects(IReadOnlyList<dynamic> variants, string matchConditionStr, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, List<dynamic> matchedObjects)
         {
             var arrayMatchConditions = ArrayPathCondition.GetConditionsFromString(matchConditionStr, out bool parsed);
             if (!parsed)
@@ -653,7 +653,7 @@ namespace SynthEBD
             // DEBUGGING SHORT CIRCUIT
             Type type = root.GetType();
             var prop = type.GetProperty(propertyName);
-            if (prop is not null)
+            if (prop is not null && prop.GetMethod.GetParameters().Length == 0) // length check because some weird getters have multiple parameters and I'm not sure how to deal with them yet.
             {
                 outputObj = prop.GetValue(root);
                 if (outputObj is not null)

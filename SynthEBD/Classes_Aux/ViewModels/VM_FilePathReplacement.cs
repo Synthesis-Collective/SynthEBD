@@ -12,18 +12,37 @@ using ReactiveUI;
 using Mutagen.Bethesda.Skyrim;
 using System.Windows;
 using System.ComponentModel;
+using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
 
 namespace SynthEBD
 {
-    public class VM_FilePathReplacement : INotifyPropertyChanged
+    public class VM_FilePathReplacement : INotifyPropertyChanged, IImplementsRecordIntellisense
     {
         public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu)
         {
             this.Source = "";
-            this.Destination = "";
+            this.IntellisensedPath = "";
 
             this.SourceBorderColor = new SolidColorBrush(Colors.Red);
             this.DestBorderColor = new SolidColorBrush(Colors.Red);
+
+            ChosenPathSuggestion = new RecordIntellisense.PathSuggestion();
+            PathSuggestions = new ObservableCollection<RecordIntellisense.PathSuggestion>();
+            ReferenceNPCFormKey = parentMenu.ReferenceNPCFK;
+            LinkCache = parentMenu.lk;
+
+            parentMenu.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => ReferenceNPCFormKey = parentMenu.ReferenceNPCFK);
+            parentMenu.WhenAnyValue(x => x.ReferenceNPC).Subscribe(x =>
+            {
+                if (parentMenu.ReferenceNPC != null)
+                {
+                    ReferenceNPCFormKey = parentMenu.ReferenceNPC.FormKey;
+                }
+            }); // can be changed from record templates without the user modifying parentMenu.NPCFK, so need an explicit watch
+            parentMenu.WhenAnyValue(x => x.lk).Subscribe(x => LinkCache = parentMenu.lk);
+
+            RecordIntellisense.InitializeSubscriptions(this);
 
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentMenu.Paths.Remove(this));
             FindPath = new SynthEBD.RelayCommand(
@@ -39,8 +58,8 @@ namespace SynthEBD
                             dialog.InitialDirectory = initDir;
                         }
                     }
-                    if (dialog.ShowDialog() == true) 
-                    { 
+                    if (dialog.ShowDialog() == true)
+                    {
                         // try to figure out the root directory
                         if (dialog.FileName.Contains(GameEnvironmentProvider.MyEnvironment.DataFolderPath))
                         {
@@ -68,12 +87,12 @@ namespace SynthEBD
             ParentMenu = parentMenu;
 
             this.WhenAnyValue(x => x.Source).Subscribe(x => RefreshSourceColor());
-            this.WhenAnyValue(x => x.Destination).Subscribe(x => RefreshDestColor());
+            this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => RefreshDestColor());
             ParentMenu.WhenAnyValue(x => x.ReferenceNPC).Subscribe(x => RefreshDestColor());
         }
 
         public string Source { get; set; }
-        public string Destination { get; set; }
+        public string IntellisensedPath { get; set; }
 
         public SolidColorBrush SourceBorderColor { get; set; }
         public SolidColorBrush DestBorderColor { get; set; }
@@ -82,6 +101,10 @@ namespace SynthEBD
         public RelayCommand FindPath { get; }
 
         public VM_FilePathReplacementMenu ParentMenu { get; set; }
+        public RecordIntellisense.PathSuggestion ChosenPathSuggestion { get; set; }
+        public ObservableCollection<RecordIntellisense.PathSuggestion> PathSuggestions { get; set; }
+        public FormKey ReferenceNPCFormKey { get; set; }
+        public ILinkCache LinkCache { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -89,7 +112,7 @@ namespace SynthEBD
         {
             VM_FilePathReplacement viewModel = new VM_FilePathReplacement(parentMenu);
             viewModel.Source = model.Source;
-            viewModel.Destination = model.Destination;
+            viewModel.IntellisensedPath = model.Destination;
 
             return viewModel;
         }
@@ -109,7 +132,7 @@ namespace SynthEBD
 
         public void RefreshDestColor()
         {
-            if(RecordPathParser.GetObjectAtPath(ParentMenu.ReferenceNPC, this.Destination, new Dictionary<dynamic, Dictionary<string, dynamic>>(), ParentMenu.ReferenceLinkCache, out var objAtPath) && objAtPath != null && objAtPath.GetType() == typeof(string))
+            if(RecordPathParser.GetObjectAtPath(ParentMenu.ReferenceNPC, this.IntellisensedPath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), ParentMenu.ReferenceLinkCache, out var objAtPath) && objAtPath != null && objAtPath.GetType() == typeof(string))
             {
                 this.DestBorderColor = new SolidColorBrush(Colors.LightGreen);
             }

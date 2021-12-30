@@ -78,7 +78,7 @@ namespace SynthEBD
 
         public static HashSet<FilePathReplacement> DumpViewModelToModels(VM_FilePathReplacementMenu viewModel)
         {
-            return viewModel.Paths.Select(x => new FilePathReplacement() { Source = x.Source, Destination = x.Destination }).ToHashSet();
+            return viewModel.Paths.Select(x => new FilePathReplacement() { Source = x.Source, Destination = x.IntellisensedPath }).ToHashSet();
         }
 
         public void RefreshHasContents()

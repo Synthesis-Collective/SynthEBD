@@ -17,6 +17,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Reflection;
 using System.Windows.Media;
+using static SynthEBD.RecordIntellisense;
 
 namespace SynthEBD
 {
@@ -258,12 +259,12 @@ namespace SynthEBD
         }
     }
 
-    public class VM_NPCAttributeCustom : ISubAttributeViewModel, INotifyPropertyChanged
+    public class VM_NPCAttributeCustom : ISubAttributeViewModel, INotifyPropertyChanged, IImplementsRecordIntellisense
     {
         public VM_NPCAttributeCustom(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
         {
             this.CustomType = CustomAttributeType.Text;
-            this.Path = "";
+            this.IntellisensedPath = "";
             this.ValueStr = "";
             this.ValueFKs = new ObservableCollection<FormKey>();
 
@@ -273,7 +274,7 @@ namespace SynthEBD
 
             this.PathSuggestions = new ObservableCollection<PathSuggestion>();
             this.ChosenPathSuggestion = null;
-            this.ReferenceNPCFK = new FormKey();
+            this.ReferenceNPCFormKey = new FormKey();
             this.ReferenceNPCType = typeof(INpcGetter).AsEnumerable();
             
             this.ValueGetterTypes = new SortedDictionary<string, Type>();
@@ -285,8 +286,7 @@ namespace SynthEBD
 
             this.Comparators = new ObservableCollection<string>();
 
-            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
-            ParsingLinkCache = GameEnvironmentProvider.MyEnvironment.LoadOrder.ToMutableLinkCache(); // solely for compatibility with RecordPathParser.GetObjectAtPath - shoud contain the same members as this.lk
+            this.LinkCache = GameEnvironmentProvider.MyEnvironment.LinkCache;
 
             ParentVM = parentVM;
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
@@ -294,11 +294,9 @@ namespace SynthEBD
 
             this.StatusFontColor = new SolidColorBrush(Colors.White);
 
-            this.WhenAnyValue(x => x.CustomType).Subscribe(x => UpdateValueDisplay());
+            InitializeSubscriptions(this);
 
-            this.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => RefreshPathSuggestions());
-            this.WhenAnyValue(x => x.Path).Subscribe(x => RefreshPathSuggestions());
-            this.WhenAnyValue(vm => vm.ChosenPathSuggestion).Skip(1).WhereNotNull().Subscribe(pathSuggestion => UpdatePath(pathSuggestion));
+            this.WhenAnyValue(x => x.CustomType).Subscribe(x => UpdateValueDisplay());
 
             this.WhenAnyValue(x => x.ValueFKtype).Subscribe(x => UpdateFormKeyPickerRecordType());
 
@@ -306,22 +304,21 @@ namespace SynthEBD
             this.WhenAnyValue(x => x.ValueFKs).Subscribe(x => Evaluate());
             this.WhenAnyValue(x => x.ChosenComparator).Subscribe(x => Evaluate());
             this.ValueFKs.CollectionChanged += Evaluate;
-            this.WhenAnyValue(x => x.Path).Subscribe(x => Evaluate());
-            this.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => Evaluate());
+            this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => Evaluate());
+            this.WhenAnyValue(x => x.ReferenceNPCFormKey).Subscribe(x => Evaluate());
         }
 
         public CustomAttributeType CustomType { get; set; }
-        public string Path { get; set; }
+        public string IntellisensedPath { get; set; }
         public string ValueStr { get; set; }
         public ObservableCollection<FormKey> ValueFKs { get; set; }
         public SortedDictionary<string, Type> ValueGetterTypes { get; set; }
         public Type ValueFKtype { get; set; }
         public IEnumerable<Type> ValueFKtypeCollection { get; set; }
-        public ILinkCache lk { get; set; }
-        public ILinkCache<ISkyrimMod, ISkyrimModGetter> ParsingLinkCache { get; set; }
+        public ILinkCache LinkCache { get; set; }
         public ObservableCollection<PathSuggestion> PathSuggestions { get; set; }
         public PathSuggestion ChosenPathSuggestion { get; set; }
-        public FormKey ReferenceNPCFK { get; set; }
+        public FormKey ReferenceNPCFormKey { get; set; }
         public IEnumerable<Type> ReferenceNPCType { get; set; }
         public ObservableCollection<string> Comparators { get; set; }
         public string ChosenComparator { get; set; }
@@ -342,11 +339,11 @@ namespace SynthEBD
             var viewModel = new VM_NPCAttributeCustom(parentVM, parentShell);
             viewModel.ChosenComparator = model.Comparator;
             viewModel.CustomType = model.CustomType;
-            viewModel.Path = model.Path;
+            viewModel.IntellisensedPath = model.Path;
             viewModel.ValueStr = model.ValueStr;
             viewModel.ValueFKs = new ObservableCollection<FormKey>(model.ValueFKs);
             viewModel.ValueFKtype = model.SelectedFormKeyType;
-            viewModel.ReferenceNPCFK = model.ReferenceNPCFK;
+            viewModel.ReferenceNPCFormKey = model.ReferenceNPCFK;
             viewModel.ChosenPathSuggestion = null;
             return viewModel;
         }
@@ -357,11 +354,11 @@ namespace SynthEBD
             model.Type = NPCAttributeType.Custom;
             model.Comparator = viewModel.ChosenComparator;
             model.CustomType = viewModel.CustomType;
-            model.Path = viewModel.Path;
+            model.Path = viewModel.IntellisensedPath;
             model.ValueStr = viewModel.ValueStr;
             model.ValueFKs = viewModel.ValueFKs.ToHashSet();
             model.ForceIf = forceIf;
-            model.ReferenceNPCFK = viewModel.ReferenceNPCFK;
+            model.ReferenceNPCFK = viewModel.ReferenceNPCFormKey;
             model.SelectedFormKeyType = viewModel.ValueFKtype;
             return model;
         }
@@ -372,7 +369,7 @@ namespace SynthEBD
         }
         public void Evaluate()
         {
-            if (this.ReferenceNPCFK.IsNull)
+            if (this.ReferenceNPCFormKey.IsNull)
             {
                 EvalResult = "Can't evaluate: Reference NPC not set";
                 this.StatusFontColor = new SolidColorBrush(Colors.Yellow);
@@ -404,12 +401,12 @@ namespace SynthEBD
             }
             else
             {
-                if (!GameEnvironmentProvider.MyEnvironment.LinkCache.TryResolve<INpcGetter>(ReferenceNPCFK, out var refNPC))
+                if (!GameEnvironmentProvider.MyEnvironment.LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC))
                 {
                     EvalResult = "Error: can't resolve reference NPC.";
                     this.StatusFontColor = new SolidColorBrush(Colors.Red);
                 }
-                bool matched = AttributeMatcher.EvaluateCustomAttribute(refNPC, DumpViewModelToModel(this, false), ParsingLinkCache, out string dispMessage);
+                bool matched = AttributeMatcher.EvaluateCustomAttribute(refNPC, DumpViewModelToModel(this, false), LinkCache, out string dispMessage);
                 if (matched)
                 {
                     EvalResult = "Matched!";
@@ -421,127 +418,6 @@ namespace SynthEBD
                     this.StatusFontColor = new SolidColorBrush(Colors.Red);
                 }
             }
-        }
-
-        public void RefreshPathSuggestions()
-        {
-            ChosenPathSuggestion = null; // clear this now to avoid the previous chosen path suggestion being added by the Subscription due to the current PathSuggestions being modified
-
-            var tmpPath = Path.Replace("[*]", "[0]"); // evaluate the first member of any collection to determine subpaths
-
-            if (tmpPath.EndsWith('.'))
-            {
-                tmpPath = tmpPath.Remove(tmpPath.Length - 1, 1);
-            }
-
-            HashSet<PathSuggestion> newSuggestions = new HashSet<PathSuggestion>();
-            if (lk.TryResolve<INpcGetter>(ReferenceNPCFK, out var referenceNPC) && RecordPathParser.GetObjectAtPath(referenceNPC, tmpPath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), ParsingLinkCache, out var subObj))
-            {
-                Type type = subObj.GetType();
-                var properties = type.GetProperties();
-                foreach (var property in properties)
-                {
-                    var newPathSuggestion = new PathSuggestion() { SubPath = property.Name, PropInfo = property, Type = PathSuggestion.PathType.Property, SubPathType = type, SubObject = (object)subObj };
-                    PathSuggestion.FinalizePathSuggestion(newPathSuggestion);
-                    newSuggestions.Add(newPathSuggestion);
-                }
-                /* Not implementing methods for now
-                var methods = type.GetMethods();
-                foreach (var method in methods)
-                {
-                    if (method.Name.StartsWith("get_")) { continue; }
-                    var newPathSuggestion = new PathSuggestion() { SubPath = method.Name, MethInfo = method, Type = PathSuggestion.PathType.Method };
-                    PathSuggestion.FinalizePathSuggestion(newPathSuggestion);
-                    PathSuggestions.Add(newPathSuggestion);
-                }
-                */
-            }
-
-            PathSuggestions = new ObservableCollection<PathSuggestion>(newSuggestions.OrderBy(x => x.DispString));
-        }
-
-        public class PathSuggestion
-        {
-            public PathSuggestion()
-            {
-                SubPath = "";
-                DispString = "";
-                Type = PathType.Property;
-            }
-            public string SubPath { get; set; }
-            public string DispString { get; set; }
-            public PathType Type { get; set; }
-            public PropertyInfo PropInfo { get; set; }
-            public MethodInfo MethInfo { get; set; }
-            public Type SubPathType { get; set; }
-            public object SubObject { get; set; }
-
-            public enum PathType
-            {
-                Property,
-                Method
-            }
-
-            public static void FinalizePathSuggestion(PathSuggestion input)
-            {
-                switch(input.Type)
-                {
-                    case PathType.Property:
-                        input.SubPath = input.PropInfo.Name;
-                        if (IsEnumerable(input.PropInfo.PropertyType))
-                        {
-                            input.SubPath += "[*]";
-                        }
-
-                        input.DispString = input.PropInfo.Name + " (" + input.PropInfo.PropertyType.Name + ")";
-                        break;
-                    case PathType.Method:
-                        input.SubPath = input.MethInfo.Name + "(";
-                        var parameters = input.MethInfo.GetParameters();
-                        for(int i = 0; i < parameters.Length; i++)
-                        {
-                            var param = parameters[i];
-                            if (param.IsOut) { input.SubPath += "out "; }
-                            input.SubPath += param.ParameterType.Name + " " + param.Name;
-                            if (i < parameters.Length - 1)
-                            {
-                                input.SubPath += ", ";
-                            }
-                        }
-                        input.SubPath += ")";
-
-                        input.DispString = "(Method) " + input.SubPath + " (" + input.MethInfo.ReturnType.Name + ")";
-                        break;
-                }
-            }
-        }
-
-        private static bool IsEnumerable(Type type)
-        {
-            //explicitly check for string because it is an IEnumerable but should not be treated as an array of chars
-            if (type == typeof(string)) { return false; }
-
-            var containedInterfaces = type.GetInterfaces();
-            if (containedInterfaces.Contains(typeof(System.Collections.IEnumerable)))
-            {
-                return true;
-            }
-            return false;
-        }
-
-        public void UpdatePath(PathSuggestion chosenPathSuggestion)
-        {
-            if (chosenPathSuggestion is null) { return; }
-            if (Path.Length > 0 && !Path.EndsWith('.'))
-            {
-                Path += "." + chosenPathSuggestion.SubPath;
-            }
-            else
-            {
-                Path += chosenPathSuggestion.SubPath;
-            }
-
-            chosenPathSuggestion = new PathSuggestion(); // clear the dropdown box
         }
 
         public void UpdateValueDisplay()

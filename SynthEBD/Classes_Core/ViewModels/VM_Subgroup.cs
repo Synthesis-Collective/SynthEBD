@@ -13,6 +13,7 @@ using Noggog;
 using System.Windows;
 using System.Windows.Controls;
 using System.Collections.Specialized;
+using ReactiveUI;
 
 namespace SynthEBD
 {
@@ -60,6 +61,7 @@ namespace SynthEBD
             else
             {
                 this.PathsMenu = new VM_FilePathReplacementMenu(this, setExplicitReferenceNPC, parentAssetPack.RecordTemplateLinkCache);
+                parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => this.PathsMenu.lk = parentAssetPack.RecordTemplateLinkCache);
             }
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
