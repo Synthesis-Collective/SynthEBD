@@ -45,7 +45,6 @@ namespace SynthEBD
         public BlockList BlockList { get; }
         public HashSet<string> LinkedNPCNameExclusions { get; set; }
         public HashSet<LinkedNPCGroup> LinkedNPCGroups { get; set; }
-        public HashSet<TrimPath> TrimPaths { get; set; }
 
         public List<SkyrimMod> RecordTemplatePlugins { get; set; }
         public ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> RecordTemplateLinkCache { get; set; }
@@ -74,6 +73,10 @@ namespace SynthEBD
 
             // get paths
             PatcherSettings.Paths = new Paths();
+
+            // Initialize patchable races from general settings (required by some UI elements)
+            Patcher.MainLinkCache = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            Patcher.ResolvePatchableRaces();
 
             // Load texture and mesh settings
             RecordTemplatePlugins = SettingsIO_AssetPack.LoadRecordTemplates();
@@ -113,8 +116,6 @@ namespace SynthEBD
             SGVM.LinkedNameExclusions = VM_CollectionMemberString.InitializeCollectionFromHashSet(LinkedNPCNameExclusions);
             LinkedNPCGroups = SettingsIO_Misc.LoadLinkedNPCGroups();
             SGVM.LinkedNPCGroups = VM_LinkedNPCGroup.GetViewModelsFromModels(LinkedNPCGroups);
-            TrimPaths = SettingsIO_Misc.LoadTrimPaths();
-            TMVM.TrimPaths = new ObservableCollection<TrimPath>(TrimPaths);
 
             // Start on the settings VM
             DisplayedViewModel = SGVM;

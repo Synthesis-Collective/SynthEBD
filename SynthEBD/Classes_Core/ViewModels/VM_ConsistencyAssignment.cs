@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ReactiveUI;
 
 namespace SynthEBD
 {
@@ -15,6 +16,12 @@ namespace SynthEBD
         {
             this.SubgroupIDs = new ObservableCollection<VM_CollectionMemberString>();
             this.BodyGenMorphNames = new ObservableCollection<VM_CollectionMemberString>();
+
+            this.AssetPackAssigned = false;
+            this.HeightAssigned = false;
+
+            this.WhenAnyValue(x => x.AssetPackName).Subscribe(x => AssetPackAssigned = AssetPackName != null && AssetPackName.Any());
+            this.WhenAnyValue(x => x.Height).Subscribe(x => HeightAssigned = Height != null && Height.Any());
 
             DeleteAssetPackCommand = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -40,6 +47,9 @@ namespace SynthEBD
 
         public RelayCommand DeleteAssetPackCommand { get; set; }
         public RelayCommand DeleteHeightCommand { get; set; }
+
+        public bool AssetPackAssigned { get; set; }
+        public bool HeightAssigned { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 

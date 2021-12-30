@@ -22,6 +22,8 @@ namespace SynthEBD
                 texMeshSettings = JsonConvert.DeserializeObject<Settings_TexMesh>(text);
             }
 
+            texMeshSettings.TrimPaths = SettingsIO_Misc.LoadTrimPaths();
+
             return texMeshSettings;
         }
 

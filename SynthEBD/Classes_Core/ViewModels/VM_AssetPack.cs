@@ -178,7 +178,7 @@ namespace SynthEBD
 
             foreach (var sg in model.Subgroups)
             {
-                viewModel.subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM, viewModel.subgroups, viewModel));
+                viewModel.subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM, viewModel.subgroups, viewModel, false));
             }
 
             // go back through now that all subgroups have corresponding view models, and link the required and excluded subgroups

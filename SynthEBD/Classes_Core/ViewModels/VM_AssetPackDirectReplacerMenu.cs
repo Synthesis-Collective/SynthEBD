@@ -1,10 +1,15 @@
-﻿using System;
+﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
+using Mutagen.Bethesda.Skyrim;
+using Noggog;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ReactiveUI;
 
 namespace SynthEBD
 {
@@ -58,6 +63,9 @@ namespace SynthEBD
             this.Subgroups = new ObservableCollection<VM_Subgroup>();
             this.ParentMenu = parent;
 
+            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.NPCType = typeof(INpcGetter).AsEnumerable();
+
             Remove = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => ParentMenu.ReplacerGroups.Remove(this)
@@ -65,14 +73,27 @@ namespace SynthEBD
 
             AddTopLevelSubgroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.Subgroups.Add(new VM_Subgroup(parent.ParentAssetPack.RaceGroupingList, Subgroups, parent.ParentAssetPack))
+                execute: _ => this.Subgroups.Add(new VM_Subgroup(parent.ParentAssetPack.RaceGroupingList, Subgroups, parent.ParentAssetPack, true))
                 );
+
+            this.WhenAnyValue(x => x.TemplateNPCFK).Subscribe(x =>
+            {
+                foreach (var sg in Subgroups)
+                {
+                    SetTemplates(sg, TemplateNPCFK);
+                }
+            });
         }
 
         public string Label { get; set; }
         public ObservableCollection<VM_Subgroup> Subgroups { get; set; }
 
         public VM_AssetPackDirectReplacerMenu ParentMenu{ get; set; }
+
+        public FormKey TemplateNPCFK { get; set; }
+
+        public ILinkCache lk { get; set; }
+        public IEnumerable<Type> NPCType { get; set; }
 
         public RelayCommand Remove { get; }
 
@@ -86,9 +107,10 @@ namespace SynthEBD
             viewModel.Label = model.Label;
             foreach (var sg in model.Subgroups)
             {
-                viewModel.Subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM, viewModel.Subgroups, viewModel.ParentMenu.ParentAssetPack));
+                var sgVM = VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM, viewModel.Subgroups, viewModel.ParentMenu.ParentAssetPack, true);
+                viewModel.Subgroups.Add(sgVM);
             }
-
+            viewModel.TemplateNPCFK = model.TemplateNPCFormKey;
             ObservableCollection<VM_Subgroup> flattenedSubgroupList = VM_AssetPack.FlattenSubgroupVMs(viewModel.Subgroups, new ObservableCollection<VM_Subgroup>());
             VM_AssetPack.LinkRequiredSubgroups(flattenedSubgroupList);
             VM_AssetPack.LinkExcludedSubgroups(flattenedSubgroupList);
@@ -100,11 +122,21 @@ namespace SynthEBD
         {
             AssetReplacerGroup model = new AssetReplacerGroup();
             model.Label = viewModel.Label;
+            model.TemplateNPCFormKey = viewModel.TemplateNPCFK;
             foreach (var svm in viewModel.Subgroups)
             {
                 model.Subgroups.Add(VM_Subgroup.DumpViewModelToModel(svm));
             }
             return model;
+        }
+
+        private static void SetTemplates(VM_Subgroup subgroup, FormKey templateNPCFormKey)
+        {
+            subgroup.PathsMenu.ReferenceNPCFK = templateNPCFormKey;
+            foreach (var sg in subgroup.subgroups)
+            {
+                SetTemplates(sg, templateNPCFormKey);
+            }
         }
     }
 }

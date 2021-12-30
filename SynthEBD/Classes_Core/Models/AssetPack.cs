@@ -101,10 +101,12 @@ namespace SynthEBD
         {
             this.Label = "";
             this.Subgroups = new List<AssetPack.Subgroup>();
+            this.TemplateNPCFormKey = new FormKey();
         }
 
-        public string Label;
-        public List<AssetPack.Subgroup> Subgroups;
+        public string Label { get; set; }
+        public List<AssetPack.Subgroup> Subgroups { get; set; }
+        public FormKey TemplateNPCFormKey { get; set; }
     }
 
     // Backward compatibility classes for loading zEBD settings files and converting to synthEBD

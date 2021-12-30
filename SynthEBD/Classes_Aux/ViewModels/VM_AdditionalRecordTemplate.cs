@@ -22,7 +22,7 @@ namespace SynthEBD
             this.RecordTemplateLinkCache = recordTemplateLinkCache;
             this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
             this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
-            this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
+            this.RacePickerTypes = typeof(IRaceGetter).AsEnumerable();
             this.ParentCollection = parentCollection;
 
             DeleteCommand = new SynthEBD.RelayCommand(
@@ -39,7 +39,7 @@ namespace SynthEBD
         public ObservableCollection<FormKey> RaceFormKeys { get; set; }
 
         public ILinkCache lk { get; set; }
-        public IEnumerable<Type> RacePickerFormKeys { get; set; }
+        public IEnumerable<Type> RacePickerTypes { get; set; }
 
         public FormKey TemplateNPC { get; set; }
 

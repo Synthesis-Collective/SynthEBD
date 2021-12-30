@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,6 +19,7 @@ namespace SynthEBD
             this.bDisplayPopupAlerts = true;
             this.bGenerateAssignmentLog = true;
             this.SelectedAssetPacks = new HashSet<string>();
+            this.TrimPaths = new HashSet<TrimPath>();
         }
 
         public bool bChangeNPCTextures { get; set; }
@@ -29,5 +31,7 @@ namespace SynthEBD
         public bool bGenerateAssignmentLog { get; set; }
 
         public HashSet<string> SelectedAssetPacks { get; set; }
+        [JsonIgnore]
+        public HashSet<TrimPath> TrimPaths { get; set; }
     }
 }

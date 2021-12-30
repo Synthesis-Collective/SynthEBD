@@ -4,11 +4,12 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD"
-             d:DataContext="local:VM_FilePathReplacement"
+             d:DataContext="{d:DesignInstance Type=local:VM_FilePathReplacement}"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
         <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="auto"/>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="auto"/>
@@ -17,8 +18,9 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <TextBox Grid.Row="0" Grid.Column="0" Text="{Binding Path=Source, UpdateSourceTrigger=PropertyChanged}"></TextBox>
-        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Path=Destination, UpdateSourceTrigger=PropertyChanged}" Margin="15 0 0 0" MinWidth="150"></TextBox>
-        <Button Grid.Row="0" Grid.Column="2" Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}" Foreground="Firebrick">Remove</Button>
+        <Button Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding FindPath}" Foreground="Lightgreen" Margin="0 0 5 0">Search</Button>
+        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Source, UpdateSourceTrigger=PropertyChanged}" BorderBrush="{Binding SourceBorderColor}" BorderThickness="1" />
+        <TextBox Grid.Row="0" Grid.Column="2" Text="{Binding Destination, UpdateSourceTrigger=PropertyChanged}" BorderBrush="{Binding DestBorderColor}" BorderThickness="1" />
+        <Button Grid.Row="0" Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}" Foreground="Firebrick">x</Button>
     </Grid>
 </UserControl>

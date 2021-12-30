@@ -65,6 +65,7 @@ namespace SynthEBD
             viewModel.bForwardArmatureFromExistingWNAMs = model.bForwardArmatureFromExistingWNAMs;
             viewModel.bDisplayPopupAlerts = model.bDisplayPopupAlerts;
             viewModel.bGenerateAssignmentLog = model.bGenerateAssignmentLog;
+            viewModel.TrimPaths = new ObservableCollection<TrimPath>(model.TrimPaths);
         }
 
         public static void DumpViewModelToModel(VM_SettingsTexMesh viewModel, Settings_TexMesh model)

@@ -17,11 +17,11 @@ namespace SynthEBD
 {
     public class RecordPathParser
     {
-        public static bool GetObjectAtPath(dynamic rootObj, string relativePath, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out dynamic outputObj)
+        public static bool GetObjectAtPath(dynamic rootObj, string relativePath, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, out dynamic outputObj)
         {
             return GetObjectAtPath(rootObj, relativePath, objectLinkMap, linkCache, out outputObj, out int? unusedArrayIndex);
         }
-        public static bool GetObjectAtPath(dynamic rootObj, string relativePath, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out dynamic outputObj, out int? indexInParent)
+        public static bool GetObjectAtPath(dynamic rootObj, string relativePath, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, out dynamic outputObj, out int? indexInParent)
         {
             outputObj = null;
             indexInParent = null;
@@ -255,11 +255,11 @@ namespace SynthEBD
 
             return true;
         }
-        private static bool GetArrayObjectAtIndex(dynamic currentObj, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out dynamic outputObj)
+        private static bool GetArrayObjectAtIndex(dynamic currentObj, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, out dynamic outputObj)
         {
             return GetArrayObjectAtIndex(currentObj, arrIndex, objectLinkMap, linkCache, out outputObj, out int? unusedIndex);
         }
-        private static bool GetArrayObjectAtIndex(dynamic currentObj, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out dynamic outputObj, out int? indexInParent)
+        private static bool GetArrayObjectAtIndex(dynamic currentObj, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, out dynamic outputObj, out int? indexInParent)
         {
             outputObj = null;
             indexInParent = null;
@@ -433,7 +433,7 @@ namespace SynthEBD
             }
         }
 
-        private static bool ChooseWhichArrayObject(IReadOnlyList<dynamic> variants, string matchConditionStr, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, out dynamic outputObj, out int? indexInParent)
+        private static bool ChooseWhichArrayObject(IReadOnlyList<dynamic> variants, string matchConditionStr, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, out dynamic outputObj, out int? indexInParent)
         {
             outputObj = null;
             indexInParent = null;

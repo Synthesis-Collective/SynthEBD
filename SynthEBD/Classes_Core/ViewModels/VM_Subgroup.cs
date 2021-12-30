@@ -18,7 +18,7 @@ namespace SynthEBD
 {
     public class VM_Subgroup : INotifyPropertyChanged
     {
-        public VM_Subgroup(ObservableCollection<VM_RaceGrouping> RaceGroupingVMs, ObservableCollection<VM_Subgroup> parentCollection, VM_AssetPack parentAssetPack)
+        public VM_Subgroup(ObservableCollection<VM_RaceGrouping> RaceGroupingVMs, ObservableCollection<VM_Subgroup> parentCollection, VM_AssetPack parentAssetPack, bool setExplicitReferenceNPC)
         {
             this.id = "";
             this.name = "New";
@@ -36,7 +36,6 @@ namespace SynthEBD
             this.excludedSubgroups = new ObservableCollection<VM_Subgroup>();
             this.addKeywords = new ObservableCollection<VM_CollectionMemberString>();
             this.probabilityWeighting = 1;
-            this.paths = new ObservableCollection<VM_FilePathReplacement>();
             if (parentAssetPack.TrackedBodyGenConfig != null)
             {
                 this.allowedBodyGenDescriptors = new VM_BodyGenMorphDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
@@ -52,6 +51,16 @@ namespace SynthEBD
             this.ExcludedSubgroupIDs = new HashSet<string>();
             this.ParentCollection = parentCollection;
             this.ParentAssetPack = parentAssetPack;
+
+            // must be set after Parent Asset Pack
+            if (setExplicitReferenceNPC)
+            {
+                this.PathsMenu = new VM_FilePathReplacementMenu(this, setExplicitReferenceNPC, this.lk);
+            }
+            else
+            {
+                this.PathsMenu = new VM_FilePathReplacementMenu(this, setExplicitReferenceNPC, parentAssetPack.RecordTemplateLinkCache);
+            }
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -70,12 +79,12 @@ namespace SynthEBD
 
             AddPath = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.paths.Add(new VM_FilePathReplacement(this.paths))
+                execute: _ => this.PathsMenu.Paths.Add(new VM_FilePathReplacement(this.PathsMenu))
                 );
 
             AddSubgroup = new SynthEBD.RelayCommand(
                canExecute: _ => true,
-               execute: _ => this.subgroups.Add(new VM_Subgroup(RaceGroupingVMs, this.subgroups, this.ParentAssetPack))
+               execute: _ => this.subgroups.Add(new VM_Subgroup(RaceGroupingVMs, this.subgroups, this.ParentAssetPack, setExplicitReferenceNPC))
                );
 
             DeleteMe = new SynthEBD.RelayCommand(
@@ -110,7 +119,8 @@ namespace SynthEBD
         public ObservableCollection<VM_Subgroup> excludedSubgroups { get; set; }
         public ObservableCollection<VM_CollectionMemberString> addKeywords { get; set; }
         public int probabilityWeighting { get; set; }
-        public ObservableCollection<VM_FilePathReplacement> paths { get; set; }
+        //public ObservableCollection<VM_FilePathReplacement> paths { get; set; }
+        public VM_FilePathReplacementMenu PathsMenu { get; set; }
         public VM_BodyGenMorphDescriptorSelectionMenu allowedBodyGenDescriptors { get; set; }
         public VM_BodyGenMorphDescriptorSelectionMenu disallowedBodyGenDescriptors { get; set; }
         public NPCWeightRange weightRange { get; set; }
@@ -136,13 +146,13 @@ namespace SynthEBD
         public HashSet<string> ExcludedSubgroupIDs { get; set; } // temporary placeholder for ExcludedSubgroups until all subgroups are loaded in
 
         ObservableCollection<VM_Subgroup> ParentCollection { get; set; }
-        VM_AssetPack ParentAssetPack { get; set; }
+        public VM_AssetPack ParentAssetPack { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static VM_Subgroup GetViewModelFromModel(AssetPack.Subgroup model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_Subgroup> parentCollection, VM_AssetPack parentAssetPack)
+        public static VM_Subgroup GetViewModelFromModel(AssetPack.Subgroup model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_Subgroup> parentCollection, VM_AssetPack parentAssetPack, bool setExplicitReferenceNPC)
         {
-            var viewModel = new VM_Subgroup(generalSettingsVM.RaceGroupings, parentCollection, parentAssetPack);
+            var viewModel = new VM_Subgroup(generalSettingsVM.RaceGroupings, parentCollection, parentAssetPack, setExplicitReferenceNPC);
 
             viewModel.id = model.id;
             viewModel.name = model.name;
@@ -164,7 +174,7 @@ namespace SynthEBD
             viewModel.addKeywords = new ObservableCollection<VM_CollectionMemberString>();
             getModelKeywords(model, viewModel);
             viewModel.probabilityWeighting = model.ProbabilityWeighting;
-            viewModel.paths = VM_FilePathReplacement.GetViewModelsFromModels(model.paths);
+            viewModel.PathsMenu = VM_FilePathReplacementMenu.GetViewModelFromModels(model.paths, viewModel, setExplicitReferenceNPC);
             viewModel.weightRange = model.weightRange;
 
             if (parentAssetPack.TrackedBodyGenConfig != null)
@@ -175,7 +185,7 @@ namespace SynthEBD
 
             foreach (var sg in model.subgroups)
             {
-                viewModel.subgroups.Add(GetViewModelFromModel(sg, generalSettingsVM, viewModel.subgroups, parentAssetPack));
+                viewModel.subgroups.Add(GetViewModelFromModel(sg, generalSettingsVM, viewModel.subgroups, parentAssetPack, setExplicitReferenceNPC));
             }
 
             return viewModel;
@@ -247,7 +257,7 @@ namespace SynthEBD
             model.excludedSubgroups = viewModel.excludedSubgroups.Select(x => x.id).ToHashSet();
             model.addKeywords = viewModel.addKeywords.Select(x => x.Content).ToHashSet();
             model.ProbabilityWeighting = viewModel.probabilityWeighting;
-            model.paths = viewModel.paths.Select(x => new FilePathReplacement() { Source = x.Source, Destination = x.Destination }).ToHashSet();
+            model.paths = VM_FilePathReplacementMenu.DumpViewModelToModels(viewModel.PathsMenu);
             model.weightRange = viewModel.weightRange;
 
             model.allowedBodyGenDescriptors = VM_BodyGenMorphDescriptorSelectionMenu.DumpToHashSet(viewModel.allowedBodyGenDescriptors);
