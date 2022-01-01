@@ -224,7 +224,7 @@ namespace SynthEBD
             return filteredPacks;
         }
 
-        private static SubgroupCombination ChooseRandomCombination(HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, List<string> chosenMorphs, NPCInfo npcInfo, bool blockBodyGen)
+        public static SubgroupCombination ChooseRandomCombination(HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, List<string> chosenMorphs, NPCInfo npcInfo, bool blockBodyGen)
         {
             List<string> candidateMorphs = new List<string>();
             bool notifyOfPermutationMorphConflict = false;
@@ -675,5 +675,63 @@ namespace SynthEBD
 
             return true;
         }
+        public static HashSet<SubgroupCombination> SelectAssetReplacers(FlattenedAssetPack chosenAssetPack, NPCInfo npcInfo)
+        {
+            HashSet<SubgroupCombination> combinations = new HashSet<SubgroupCombination>();
+            // determine which replacer groups are valid for the current NPC
+            foreach (var replacerGroup in chosenAssetPack.AssetReplacerGroups)
+            {
+                HashSet<string> targetPaths = new HashSet<string>();
+                // get collection of paths that must be matched
+
+                foreach (var subgroupsAtIndex in replacerGroup.Subgroups)
+                {
+                    foreach (var subgroup in subgroupsAtIndex)
+                    {
+                        foreach (var path in subgroup.Paths)
+                        {
+                            if (!targetPaths.Contains(path.Destination))
+                            {
+                                targetPaths.Add(path.Destination);
+                            }
+                        }
+                    }
+                }
+
+                // check if NPC has those paths
+
+                bool assignReplacer = true;
+                if (KnownRecordTypes.ContainsKey(targetPaths))
+                {
+                    ///////////////////////////////////////////////////////////////// Add hardcoded checks here for known record types
+                }
+                else
+                {
+                    foreach (string destPath in targetPaths)
+                    {
+                        if (!(RecordPathParser.GetObjectAtPath(npcInfo.NPC, destPath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), Patcher.MainLinkCache, out dynamic objAtPath) && objAtPath is not null))
+                        {
+                            assignReplacer = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (assignReplacer)
+                {
+                    var virtualFlattenedAssetPack = FlattenedAssetPack.CreateVirtualFromReplacerGroup(replacerGroup);
+                    var assignedCombination = ChooseRandomCombination(new HashSet<FlattenedAssetPack>() { virtualFlattenedAssetPack }, null, null, npcInfo, true);
+
+                    if (assignedCombination != null)
+                    {
+                        combinations.Add(assignedCombination);
+                    }
+                }
+            }
+
+            return combinations;
+        }
+
+        public static Dictionary<HashSet<string>, string> KnownRecordTypes = new Dictionary<HashSet<string>, string>();
     }
 }

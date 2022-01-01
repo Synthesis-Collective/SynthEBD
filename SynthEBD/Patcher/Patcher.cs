@@ -210,6 +210,13 @@ namespace SynthEBD
                         if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
                         npcRecord.Keywords.Add(EBDFaceKW);
                         npcRecord.Keywords.Add(EBDScriptKW);
+
+                        // assign direct replacers
+                        var assignedReplacers = AssetAndBodyGenSelector.SelectAssetReplacers(assignedComboAndBodyGen.Item1.AssetPack, currentNPCInfo);
+                        foreach (var replacerCombination in assignedReplacers)
+                        {
+                            RecordGenerator.ReplacerCombinationToRecords(replacerCombination, currentNPCInfo, outputMod);
+                        }
                     }
                     if (bodyGenAssignedWithAssets)
                     {

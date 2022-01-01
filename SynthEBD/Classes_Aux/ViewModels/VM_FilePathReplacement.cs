@@ -30,26 +30,18 @@ namespace SynthEBD
             ChosenPathSuggestion = new RecordIntellisense.PathSuggestion();
             PathSuggestions = new ObservableCollection<RecordIntellisense.PathSuggestion>();
             ReferenceNPCFormKey = parentMenu.ReferenceNPCFK;
-            LinkCache = parentMenu.lk;
-
-            parentMenu.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => ReferenceNPCFormKey = parentMenu.ReferenceNPCFK);
-            parentMenu.WhenAnyValue(x => x.ReferenceNPC).Subscribe(x =>
-            {
-                if (parentMenu.ReferenceNPC != null)
-                {
-                    ReferenceNPCFormKey = parentMenu.ReferenceNPC.FormKey;
-                }
-            }); // can be changed from record templates without the user modifying parentMenu.NPCFK, so need an explicit watch
-            parentMenu.WhenAnyValue(x => x.lk).Subscribe(x => LinkCache = parentMenu.lk);
+            LinkCache = parentMenu.ReferenceLinkCache;
 
             RecordIntellisense.InitializeSubscriptions(this);
+            parentMenu.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => SyncReferenceWithParent()); // can be changed from record templates without the user modifying parentMenu.NPCFK, so need an explicit watch
+            parentMenu.WhenAnyValue(x => x.ReferenceLinkCache).Subscribe(x => LinkCache = parentMenu.ReferenceLinkCache);
 
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentMenu.Paths.Remove(this));
             FindPath = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    var dialog = new Microsoft.Win32.OpenFileDialog();
+                    System.Windows.Forms.OpenFileDialog dialog = LongPathHandler.CreateLongPathOpenFileDialog();
                     if (Source != "")
                     {
                         var initDir = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, Path.GetDirectoryName(Source));
@@ -58,7 +50,8 @@ namespace SynthEBD
                             dialog.InitialDirectory = initDir;
                         }
                     }
-                    if (dialog.ShowDialog() == true)
+
+                    if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                     {
                         // try to figure out the root directory
                         if (dialog.FileName.Contains(GameEnvironmentProvider.MyEnvironment.DataFolderPath))
@@ -88,7 +81,7 @@ namespace SynthEBD
 
             this.WhenAnyValue(x => x.Source).Subscribe(x => RefreshSourceColor());
             this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => RefreshDestColor());
-            ParentMenu.WhenAnyValue(x => x.ReferenceNPC).Subscribe(x => RefreshDestColor());
+            this.WhenAnyValue(x => x.ReferenceNPCFormKey).Subscribe(x => RefreshDestColor());
         }
 
         public string Source { get; set; }
@@ -120,7 +113,8 @@ namespace SynthEBD
         public void RefreshSourceColor()
         {
             var searchStr = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, this.Source);
-            if (File.Exists(searchStr))
+            //if (File.Exists(searchStr))
+            if (LongPathHandler.PathExists(searchStr))
             {
                 this.SourceBorderColor = new SolidColorBrush(Colors.LightGreen);
             }
@@ -132,7 +126,7 @@ namespace SynthEBD
 
         public void RefreshDestColor()
         {
-            if(RecordPathParser.GetObjectAtPath(ParentMenu.ReferenceNPC, this.IntellisensedPath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), ParentMenu.ReferenceLinkCache, out var objAtPath) && objAtPath != null && objAtPath.GetType() == typeof(string))
+            if(LinkCache != null && ReferenceNPCFormKey != null && LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC) && RecordPathParser.GetObjectAtPath(refNPC, this.IntellisensedPath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), ParentMenu.ReferenceLinkCache, out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
             {
                 this.DestBorderColor = new SolidColorBrush(Colors.LightGreen);
             }
@@ -154,6 +148,14 @@ namespace SynthEBD
                 }
             }
             return false;
+        }
+
+        private void SyncReferenceWithParent()
+        {
+            if (ParentMenu != null)
+            {
+                this.ReferenceNPCFormKey = ParentMenu.ReferenceNPCFK;
+            }
         }
     }
 }

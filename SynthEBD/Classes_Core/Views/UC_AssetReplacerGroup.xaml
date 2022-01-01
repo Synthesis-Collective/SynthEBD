@@ -39,6 +39,11 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
+        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
+            <TextBlock Text="Allow Record Cacheing"/>
+            <CheckBox IsChecked="{Binding EnableRecordCacheing}"/>
+        </StackPanel>
+        
         <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Reference NPC</TextBlock>
         <plugins:FormKeyPicker MaxHeight="500" Grid.Row="3" Grid.Column="1" MinWidth="150" FormKey="{Binding TemplateNPCFK}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCType}"/>
     </Grid>

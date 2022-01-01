@@ -18,6 +18,7 @@ namespace SynthEBD
             this.AdditionalRecordTemplateAssignments = source.AdditionalRecordTemplateAssignments;
             this.AssociatedBodyGenConfigName = source.AssociatedBodyGenConfigName;
             this.Source = source;
+            this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
         }
 
         public FlattenedAssetPack(string groupName, Gender gender, FormKey defaultRecordTemplate, HashSet<AdditionalRecordTemplate> additionalRecordTemplateAssignments, string associatedBodyGenConfigName, AssetPack source)
@@ -29,6 +30,19 @@ namespace SynthEBD
             this.AdditionalRecordTemplateAssignments = additionalRecordTemplateAssignments;
             this.AssociatedBodyGenConfigName = associatedBodyGenConfigName;
             this.Source = source;
+            this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
+        }
+
+        public FlattenedAssetPack()
+        {
+            this.GroupName = "";
+            this.Gender = Gender.male;
+            this.Subgroups = new List<List<FlattenedSubgroup>>();
+            this.DefaultRecordTemplate = new FormKey();
+            this.AdditionalRecordTemplateAssignments = new HashSet<AdditionalRecordTemplate>();
+            this.AssociatedBodyGenConfigName = "";
+            this.Source = new AssetPack();
+            this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
         }
 
         public string GroupName { get; set; }
@@ -38,6 +52,7 @@ namespace SynthEBD
         public HashSet<AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
         public string AssociatedBodyGenConfigName { get; set; }
         public AssetPack Source { get; set; }
+        public List<FlattenedReplacerGroup> AssetReplacerGroups { get; set; }
 
         public static FlattenedAssetPack FlattenAssetPack(AssetPack source, List<RaceGrouping> raceGroupingList, bool includeBodyGen)
         {
@@ -50,6 +65,11 @@ namespace SynthEBD
                 output.Subgroups.Add(flattenedSubgroups);
             }
 
+            for (int i = 0; i < source.ReplacerGroups.Count; i++)
+            {
+                output.AssetReplacerGroups.Add(FlattenedReplacerGroup.FlattenReplacerGroup(source.ReplacerGroups[i], raceGroupingList, output, includeBodyGen));
+            }
+
             return output;
         }
 
@@ -60,7 +80,23 @@ namespace SynthEBD
             {
                 copy.Subgroups.Add(new List<FlattenedSubgroup>(subgroupList));
             }
+            foreach (var replacer in this.AssetReplacerGroups)
+            {
+                copy.AssetReplacerGroups.Add(replacer.ShallowCopy());
+            }
             return copy;
+        }
+
+        public static FlattenedAssetPack CreateVirtualFromReplacerGroup(FlattenedReplacerGroup source)
+        {
+            FlattenedAssetPack virtualFAP = new FlattenedAssetPack();
+            virtualFAP.GroupName = source.GroupName;
+            foreach (var subgroupsAtPos in source.Subgroups)
+            {
+                virtualFAP.Subgroups.Add(subgroupsAtPos);
+            }
+            virtualFAP.Source = source.Source;
+            return virtualFAP;
         }
     }
 }

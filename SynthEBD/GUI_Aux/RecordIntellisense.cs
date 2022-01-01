@@ -40,6 +40,8 @@ namespace SynthEBD
                 tmpPath = tmpPath.Remove(tmpPath.Length - 1, 1);
             }
 
+            if (parent is null || parent.LinkCache is null) { return; }
+
             HashSet<PathSuggestion> newSuggestions = new HashSet<PathSuggestion>();
             if (parent.LinkCache.TryResolve<INpcGetter>(parent.ReferenceNPCFormKey, out var referenceNPC) && RecordPathParser.GetObjectAtPath(referenceNPC, tmpPath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), parent.LinkCache, out var subObj))
             {

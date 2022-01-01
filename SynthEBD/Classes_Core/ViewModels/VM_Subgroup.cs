@@ -61,7 +61,7 @@ namespace SynthEBD
             else
             {
                 this.PathsMenu = new VM_FilePathReplacementMenu(this, setExplicitReferenceNPC, parentAssetPack.RecordTemplateLinkCache);
-                parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => this.PathsMenu.lk = parentAssetPack.RecordTemplateLinkCache);
+                parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => this.PathsMenu.ReferenceLinkCache = parentAssetPack.RecordTemplateLinkCache);
             }
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(

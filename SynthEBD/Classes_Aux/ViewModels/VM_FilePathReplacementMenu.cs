@@ -22,36 +22,31 @@ namespace SynthEBD
             this.Paths = new ObservableCollection<VM_FilePathReplacement>();
             this.ParentSubgroup = parent;
 
-            this.ReferenceNPC = null;
             this.ReferenceNPCFK = new FormKey();
             this.ReferenceLinkCache = refLinkCache;
             this.SetExplicitReferenceNPC = setExplicitReferenceNPC;
 
-            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.NPCType = typeof(INpcGetter).AsEnumerable();
 
             Paths.ToObservableChangeSet().Subscribe(x => RefreshHasContents());
 
-            ParentSubgroup.allowedRaces.ToObservableChangeSet().Subscribe(x => RefreshReferenceNPC());
-            ParentSubgroup.disallowedRaces.ToObservableChangeSet().Subscribe(x => RefreshReferenceNPC());
-            this.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => RefreshReferenceNPC());
-            ParentSubgroup.ParentAssetPack.WhenAnyValue(x => x.DefaultTemplateFK).Subscribe(x => RefreshReferenceNPC());
-            ParentSubgroup.ParentAssetPack.AdditionalRecordTemplateAssignments.ToObservableChangeSet().Subscribe(x => RefreshReferenceNPC());
             if (!setExplicitReferenceNPC)
             {
+                ParentSubgroup.allowedRaces.ToObservableChangeSet().Subscribe(x => RefreshReferenceNPC());
+                ParentSubgroup.disallowedRaces.ToObservableChangeSet().Subscribe(x => RefreshReferenceNPC());
+                ParentSubgroup.ParentAssetPack.WhenAnyValue(x => x.DefaultTemplateFK).Subscribe(x => RefreshReferenceNPC());
+                ParentSubgroup.ParentAssetPack.AdditionalRecordTemplateAssignments.ToObservableChangeSet().Subscribe(x => RefreshReferenceNPC());
                 ParentSubgroup.ParentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => this.ReferenceLinkCache = this.ParentSubgroup.ParentAssetPack.RecordTemplateLinkCache);
+                ParentSubgroup.ParentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => RefreshReferenceNPC());
             }
-            ParentSubgroup.ParentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => RefreshReferenceNPC());
         }
         public ObservableCollection<VM_FilePathReplacement> Paths { get; set; }
 
         public VM_Subgroup ParentSubgroup { get; set; }
-        public INpcGetter ReferenceNPC { get; set; }
         public bool SetExplicitReferenceNPC { get; set; }
         public FormKey ReferenceNPCFK { get; set; }
         public ILinkCache ReferenceLinkCache { get; set; }
         public IEnumerable<Type> NPCType { get; set; }
-        public ILinkCache lk { get; set; }
         public bool HasContents { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -89,17 +84,10 @@ namespace SynthEBD
 
         public void RefreshReferenceNPC()
         {
-            if (SetExplicitReferenceNPC && ReferenceNPCFK.IsNull) { ReferenceNPC = null; }
-
-            var templateFormKey = new FormKey();
-
-            if (SetExplicitReferenceNPC)
-            {
-                templateFormKey = this.ReferenceNPCFK;
-            }
-
+            if (SetExplicitReferenceNPC || ReferenceNPCFK.IsNull) { return; }
             else
             {
+                var templateFormKey = new FormKey();
                 bool raceMatched = false;
 
                 var disallowedRaces = ParentSubgroup.disallowedRaces.ToHashSet();
@@ -121,11 +109,11 @@ namespace SynthEBD
                 {
                     templateFormKey = ParentSubgroup.ParentAssetPack.DefaultTemplateFK;
                 }
-            }
 
-            if (!templateFormKey.IsNull && ReferenceLinkCache != null && ReferenceLinkCache.TryResolve<INpcGetter>(templateFormKey, out var templateNPC))
-            {
-                ReferenceNPC = templateNPC;
+                if (!templateFormKey.IsNull && ReferenceLinkCache != null && ReferenceLinkCache.TryResolve<INpcGetter>(templateFormKey, out _))
+                {
+                    ReferenceNPCFK = templateFormKey;
+                }
             }
         }
     }

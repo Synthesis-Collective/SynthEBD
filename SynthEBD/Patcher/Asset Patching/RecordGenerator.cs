@@ -71,6 +71,61 @@ namespace SynthEBD
             }
         }
 
+        public static void ReplacerCombinationToRecords(SubgroupCombination combination, NPCInfo npcInfo, SkyrimMod outputMod)
+        {
+            // put known paths here
+            //HashSet<FilePathReplacement> wnamPaths = new HashSet<FilePathReplacement>();
+            //HashSet<FilePathReplacement> headtexPaths = new HashSet<FilePathReplacement>();
+            List<FilePathReplacementParsed> nonHardcodedPaths = new List<FilePathReplacementParsed>();
+
+            int longestPath = 0;
+
+            foreach (var subgroup in combination.ContainedSubgroups)
+            {
+                foreach (var path in subgroup.Paths)
+                {
+                    var parsed = new FilePathReplacementParsed(path);
+
+                    //if (WornArmorPaths.Contains(path.Destination)) { wnamPaths.Add(path); }
+                    //else if (HeadTexturePaths.Contains(path.Destination)) { headtexPaths.Add(path); }
+                    //else
+                    {
+                        nonHardcodedPaths.Add(parsed);
+                        if (parsed.Destination.Length > longestPath)
+                        {
+                            longestPath = parsed.Destination.Length;
+                        }
+                    }
+
+                    // temp debugging for profiling generic record assignment function
+                    /*
+                    nonHardcodedPaths.Add(parsed);
+                    if (parsed.Destination.Length > longestPath)
+                    {
+                        longestPath = parsed.Destination.Length;
+                    }
+                    */
+                    // end temp debugging
+                }
+            }
+
+            // put known paths here
+            /*
+            if (headtexPaths.Any())
+            {
+                AssignHeadTexture(npcInfo.NPC, outputMod, template, Patcher.MainLinkCache, recordTemplateLinkCache, headtexPaths);
+            }
+            if (wnamPaths.Any())
+            {
+                AssignBodyTextures(npcInfo, outputMod, template, Patcher.MainLinkCache, recordTemplateLinkCache, wnamPaths);
+            }
+            */
+            if (nonHardcodedPaths.Any())
+            {
+                AssignNonHardCodedTextures(npcInfo, null, nonHardcodedPaths, null, outputMod, longestPath, false);
+            }
+        }
+
         public static void AssignNonHardCodedTextures(NPCInfo npcInfo, INpcGetter template, List<FilePathReplacementParsed> nonHardcodedPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SkyrimMod outputMod, int longestPath, bool assignFromTemplate)
         { 
             HashSet<IMajorRecord> assignedRecords = new HashSet<IMajorRecord>();
@@ -86,7 +141,11 @@ namespace SynthEBD
 
             Dictionary<string, dynamic> objectsAtPath_Template = new Dictionary<string, dynamic>();
             objectsAtPath_Template.Add("", template);
-            objectLinkMap.Add(template, objectsAtPath_Template);
+
+            if (template != null)
+            {
+                objectLinkMap.Add(template, objectsAtPath_Template);
+            }
 
             dynamic currentObj;
 
@@ -123,6 +182,10 @@ namespace SynthEBD
                         { ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////Double check that the extra TryResolve is necessary. GetObjectAtPath already resolves Getters, so it should be possible to just get case currentObj to ImajorRecordGetter and call GetOrAddGenericRecordAsOverride()
                             if (!recordFormKey.Value.IsNull)
                             {
+                                Type objType = currentObj.GetType();
+                                var register = LoquiRegistration.GetRegister(objType);
+                                Type recordType = register.GetterType;
+                                /*
                                 Type recordType = null;
                                 if (RecordPathParser.GetSubObject(currentObj, "Type", out dynamic recordTypeDyn))
                                 {
@@ -134,6 +197,8 @@ namespace SynthEBD
                                     var register = LoquiRegistration.GetRegister(objType);
                                     recordType = register.GetterType;
                                 }
+                                */
+
                                 if (Patcher.MainLinkCache.TryResolve(recordFormKey.Value, recordType, out var currentMajorRecordCommonGetter)) //if the current object is an existing record, resolve it so that it can be traversed
                                 {
                                     if (!templateDerivedRecords.Contains(currentMajorRecordCommonGetter)) // make a copy of the record that the NPC currently has at this position, unless this record was set from a record template during a previous iteration, in which case it does not need to be copied.

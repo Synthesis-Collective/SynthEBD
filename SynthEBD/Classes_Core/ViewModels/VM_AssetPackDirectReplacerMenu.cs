@@ -61,6 +61,7 @@ namespace SynthEBD
         {
             this.Label = "";
             this.Subgroups = new ObservableCollection<VM_Subgroup>();
+            this.EnableRecordCacheing = true;
             this.ParentMenu = parent;
 
             this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
@@ -75,7 +76,7 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ => this.Subgroups.Add(new VM_Subgroup(parent.ParentAssetPack.RaceGroupingList, Subgroups, parent.ParentAssetPack, true))
                 );
-
+            
             this.WhenAnyValue(x => x.TemplateNPCFK).Subscribe(x =>
             {
                 foreach (var sg in Subgroups)
@@ -87,6 +88,7 @@ namespace SynthEBD
 
         public string Label { get; set; }
         public ObservableCollection<VM_Subgroup> Subgroups { get; set; }
+        public bool EnableRecordCacheing { get; set; }
 
         public VM_AssetPackDirectReplacerMenu ParentMenu{ get; set; }
 
@@ -105,12 +107,13 @@ namespace SynthEBD
         {
             VM_AssetReplacerGroup viewModel = new VM_AssetReplacerGroup(parentMenu);
             viewModel.Label = model.Label;
+            viewModel.TemplateNPCFK = model.TemplateNPCFormKey;
             foreach (var sg in model.Subgroups)
             {
                 var sgVM = VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM, viewModel.Subgroups, viewModel.ParentMenu.ParentAssetPack, true);
+                SetTemplates(sgVM, viewModel.TemplateNPCFK);
                 viewModel.Subgroups.Add(sgVM);
             }
-            viewModel.TemplateNPCFK = model.TemplateNPCFormKey;
             ObservableCollection<VM_Subgroup> flattenedSubgroupList = VM_AssetPack.FlattenSubgroupVMs(viewModel.Subgroups, new ObservableCollection<VM_Subgroup>());
             VM_AssetPack.LinkRequiredSubgroups(flattenedSubgroupList);
             VM_AssetPack.LinkExcludedSubgroups(flattenedSubgroupList);
@@ -132,7 +135,7 @@ namespace SynthEBD
 
         private static void SetTemplates(VM_Subgroup subgroup, FormKey templateNPCFormKey)
         {
-            subgroup.PathsMenu.ReferenceNPCFK = templateNPCFormKey;
+            subgroup.PathsMenu.ReferenceNPCFK = new FormKey(templateNPCFormKey.ModKey, templateNPCFormKey.ID);
             foreach (var sg in subgroup.subgroups)
             {
                 SetTemplates(sg, templateNPCFormKey);
