@@ -296,14 +296,14 @@ namespace SynthEBD
                         {
                             try
                             {
-                                if (!RecordPathParser.GetNearestParentGetter(template, path, recordTemplateLinkCache, out IMajorRecordGetter parentRecordGetter, out string relativePath))
+                                if (!RecordPathParser.GetNearestParentGetter(template, path, recordTemplateLinkCache, false, out IMajorRecordGetter parentRecordGetter, out string relativePath))
                                 {
                                     continue;
                                 }
 
                                 var parentRecord = RecordGenerator.GetOrAddGenericRecordAsOverride(parentRecordGetter, templateMod);
 
-                                if (RecordPathParser.GetObjectAtPath(parentRecord, relativePath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), recordTemplateLinkCache, out dynamic additionalRaces))
+                                if (RecordPathParser.GetObjectAtPath(parentRecord, relativePath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), recordTemplateLinkCache, false, out dynamic additionalRaces))
                                 {
                                     foreach (var race in PatcherSettings.General.patchableRaces)
                                     {

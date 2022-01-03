@@ -78,6 +78,7 @@ namespace SynthEBD
             this.LinkedNPCNameExclusionsPath = Path.Combine(RelativePath, settingsDirRelPath, "LinkedNPCNameExclusions.json");
             this.LinkedNPCsPath = Path.Combine(RelativePath, settingsDirRelPath, "LinkedNPCs.json");
             this.TrimPathsPath = Path.Combine(RelativePath, settingsDirRelPath, "TrimPathsByExtension.json");
+            this.RecordReplacerSpecifiersPath = Path.Combine(RelativePath, settingsDirRelPath, "RecordReplacerSpecifiers.json");
             this.RecordTemplatesDirPath = Path.Combine(RelativePath, recordTemplatesDirRelPath);
 
             this.FallBackTexMeshSettingsPath = Path.Combine(SynthEBDexePath, settingsDirPath, "TexMeshSettings.json");
@@ -93,6 +94,7 @@ namespace SynthEBD
             this.FallBackLinkedNPCNameExclusionsPath = Path.Combine(SynthEBDexePath, settingsDirPath, "LinkedNPCNameExclusions.json");
             this.FallBackLinkedNPCsPath = Path.Combine(SynthEBDexePath, settingsDirPath, "LinkedNPCs.json");
             this.FallBackTrimPathsPath = Path.Combine(SynthEBDexePath, settingsDirPath, "TrimPathsByExtension.json");
+            this.FallBackRecordReplacerSpecifiersPath = Path.Combine(SynthEBDexePath, settingsDirPath, "RecordReplacerSpecifiers.json");
             this.FallBackRecordTemplatesDirPath = Path.Combine(SynthEBDexePath, recordTemplatesDirRelPath);
         }
 
@@ -111,7 +113,7 @@ namespace SynthEBD
         public string LinkedNPCNameExclusionsPath { get; set; }
         public string LinkedNPCsPath { get; set; }
         public string TrimPathsPath { get; set; }
-
+        public string RecordReplacerSpecifiersPath { get; set; }
         public string RecordTemplatesDirPath { get; set; }
 
         public string FallBackTexMeshSettingsPath { get; set; } // path of the Textures and Meshes settings file
@@ -128,6 +130,7 @@ namespace SynthEBD
         public string FallBackLinkedNPCNameExclusionsPath { get; set; }
         public string FallBackLinkedNPCsPath { get; set; }
         public string FallBackTrimPathsPath { get; set; }
+        public string FallBackRecordReplacerSpecifiersPath { get; set; }
 
         public string FallBackRecordTemplatesDirPath { get; set; }
     }

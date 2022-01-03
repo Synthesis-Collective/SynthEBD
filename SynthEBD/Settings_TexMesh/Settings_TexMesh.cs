@@ -33,5 +33,6 @@ namespace SynthEBD
         public HashSet<string> SelectedAssetPacks { get; set; }
         [JsonIgnore]
         public HashSet<TrimPath> TrimPaths { get; set; }
+
     }
 }

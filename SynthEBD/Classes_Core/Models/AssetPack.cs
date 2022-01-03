@@ -14,6 +14,7 @@ namespace SynthEBD
         public AssetPack()
         {
             this.GroupName = "";
+            this.ShortName = "";
             this.Gender = Gender.male;
             this.DisplayAlerts = true;
             this.UserAlert = "";
@@ -27,6 +28,7 @@ namespace SynthEBD
         }
 
         public string GroupName { get; set; }
+        public string ShortName { get; set; }
         public Gender Gender { get; set; }
         public bool DisplayAlerts { get; set; }
         public string UserAlert { get; set; }
@@ -109,6 +111,17 @@ namespace SynthEBD
         public List<AssetPack.Subgroup> Subgroups { get; set; }
         public FormKey TemplateNPCFormKey { get; set; }
         public bool EnableRecordCacheing { get; set; }
+    }
+
+    public class RecordReplacerSpecifier
+    {
+        public RecordReplacerSpecifier()
+        {
+            Paths = new HashSet<string>();
+        }
+        public HashSet<string> Paths { get; set; }
+        public FormKey DestFormKeySpecifier { get; set; }
+        public SubgroupCombination.DestinationSpecifier DestSpecifier { get; set; }
     }
 
     // Backward compatibility classes for loading zEBD settings files and converting to synthEBD

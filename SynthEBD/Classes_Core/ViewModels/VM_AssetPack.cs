@@ -20,6 +20,7 @@ namespace SynthEBD
         public VM_AssetPack(ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM)
         {
             this.groupName = "";
+            this.ShortName = "";
             this.gender = Gender.male;
             this.displayAlerts = true;
             this.userAlert = "";
@@ -92,6 +93,7 @@ namespace SynthEBD
         }
 
         public string groupName { get; set; }
+        public string ShortName { get; set; }
         public Gender gender { get; set; }
         public bool displayAlerts { get; set; }
         public string userAlert { get; set; }
@@ -151,6 +153,7 @@ namespace SynthEBD
         {
             var viewModel = new VM_AssetPack(parentCollection, bodygenSettingsVM);
             viewModel.groupName = model.GroupName;
+            viewModel.ShortName = model.ShortName;
             viewModel.gender = model.Gender;
             viewModel.displayAlerts = model.DisplayAlerts;
             viewModel.userAlert = model.UserAlert;
@@ -213,6 +216,7 @@ namespace SynthEBD
             {
                 AssetPack model = new AssetPack();
                 model.GroupName = vm.groupName;
+                model.ShortName = vm.ShortName;
                 model.Gender = vm.gender;
                 model.DisplayAlerts = vm.displayAlerts;
                 model.UserAlert = vm.userAlert;

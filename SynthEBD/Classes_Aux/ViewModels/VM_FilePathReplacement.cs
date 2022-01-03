@@ -126,7 +126,7 @@ namespace SynthEBD
 
         public void RefreshDestColor()
         {
-            if(LinkCache != null && ReferenceNPCFormKey != null && LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC) && RecordPathParser.GetObjectAtPath(refNPC, this.IntellisensedPath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), ParentMenu.ReferenceLinkCache, out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
+            if(LinkCache != null && ReferenceNPCFormKey != null && LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC) && RecordPathParser.GetObjectAtPath(refNPC, this.IntellisensedPath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), ParentMenu.ReferenceLinkCache, true, out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
             {
                 this.DestBorderColor = new SolidColorBrush(Colors.LightGreen);
             }

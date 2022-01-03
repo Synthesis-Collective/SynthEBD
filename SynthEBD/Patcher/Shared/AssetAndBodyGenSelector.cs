@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Skyrim;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -701,15 +703,20 @@ namespace SynthEBD
                 // check if NPC has those paths
 
                 bool assignReplacer = true;
-                if (KnownRecordTypes.ContainsKey(targetPaths))
+                var destinationType = SelectRecordType(targetPaths, out FormKey destinationFK);
+                if (destinationType == SubgroupCombination.DestinationSpecifier.HeadPartFormKey)
                 {
-                    ///////////////////////////////////////////////////////////////// Add hardcoded checks here for known record types
+                    assignReplacer = CheckIfReplacerTargetExists(destinationFK, npcInfo.NPC);
+                }
+                else if (destinationType != SubgroupCombination.DestinationSpecifier.Generic)
+                {
+                    assignReplacer = CheckIfReplacerTargetExists(destinationType, npcInfo.NPC);
                 }
                 else
                 {
                     foreach (string destPath in targetPaths)
                     {
-                        if (!(RecordPathParser.GetObjectAtPath(npcInfo.NPC, destPath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), Patcher.MainLinkCache, out dynamic objAtPath) && objAtPath is not null))
+                        if (!(RecordPathParser.GetObjectAtPath(npcInfo.NPC, destPath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), Patcher.MainLinkCache, true, out dynamic objAtPath) && objAtPath is not null))
                         {
                             assignReplacer = false;
                             break;
@@ -724,6 +731,9 @@ namespace SynthEBD
 
                     if (assignedCombination != null)
                     {
+                        assignedCombination.DestinationType = destinationType;
+                        assignedCombination.ReplacerDestinationFormKey = destinationFK;
+                        assignedCombination.Signature = string.Join(".", assignedCombination.ContainedSubgroups.Select(x => x.Id));
                         combinations.Add(assignedCombination);
                     }
                 }
@@ -732,6 +742,49 @@ namespace SynthEBD
             return combinations;
         }
 
-        public static Dictionary<HashSet<string>, string> KnownRecordTypes = new Dictionary<HashSet<string>, string>();
+        public static SubgroupCombination.DestinationSpecifier SelectRecordType(HashSet<string> targetPaths, out FormKey fkToMatch)
+        {
+            fkToMatch = new FormKey();
+            foreach (var specifier in AssetReplacerHardcodedPaths.ReplacersByPaths)
+            {
+                if (MiscFunctions.StringHashSetsEqualCaseInvariant(targetPaths, specifier.Paths))
+                {
+                    if (specifier.DestSpecifier == SubgroupCombination.DestinationSpecifier.HeadPartFormKey)
+                    {
+                        fkToMatch = specifier.DestFormKeySpecifier;
+                    }
+                    return specifier.DestSpecifier;
+                }
+            }
+
+            return SubgroupCombination.DestinationSpecifier.Generic;
+        }
+
+        public static bool CheckIfReplacerTargetExists(SubgroupCombination.DestinationSpecifier specifier, INpcGetter npc)
+        {
+            switch(specifier)
+            {
+                case SubgroupCombination.DestinationSpecifier.MarksFemaleHumanoid04RightGashR: return HasSpecialHeadPartTexture(npc, "actors\\character\\female\\facedetails\\facefemalerightsidegash_04.dds"); // none of the vanilla records use this texture so can't check for FormKey
+                case SubgroupCombination.DestinationSpecifier.MarksFemaleHumanoid06RightGashR: return HasSpecialHeadPartTexture(npc, "actors\\character\\female\\facedetails\\facefemalerightsidegash_06.dds"); // none of the vanilla records use this texture so can't check for FormKey
+                default: return false;
+            }
+        }
+
+        public static bool CheckIfReplacerTargetExists(FormKey specifierFK, INpcGetter npc)
+        {
+            return npc.HeadParts.Where(x => x.FormKey == specifierFK).Any();
+        }
+
+        public static bool HasSpecialHeadPartTexture(INpcGetter npc, string diffusePath)
+        {
+            foreach (var part in npc.HeadParts)
+            {
+                if (Patcher.MainLinkCache.TryResolve<IHeadPartGetter>(part.FormKey, out var headPartGetter) && Patcher.MainLinkCache.TryResolve<ITextureSetGetter>(headPartGetter.TextureSet.FormKey, out var headPartTextureSetGetter) && headPartTextureSetGetter.Diffuse.Equals(diffusePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 }

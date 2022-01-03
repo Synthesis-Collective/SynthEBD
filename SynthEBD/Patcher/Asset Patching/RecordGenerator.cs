@@ -67,66 +67,46 @@ namespace SynthEBD
             }
             if (nonHardcodedPaths.Any())
             {
-                AssignNonHardCodedTextures(npcInfo, template, nonHardcodedPaths, recordTemplateLinkCache, outputMod, longestPath, true);
+                AssignNonHardCodedTextures(npcInfo, template, nonHardcodedPaths, recordTemplateLinkCache, outputMod, longestPath, true, false);
             }
         }
 
         public static void ReplacerCombinationToRecords(SubgroupCombination combination, NPCInfo npcInfo, SkyrimMod outputMod)
         {
-            // put known paths here
-            //HashSet<FilePathReplacement> wnamPaths = new HashSet<FilePathReplacement>();
-            //HashSet<FilePathReplacement> headtexPaths = new HashSet<FilePathReplacement>();
-            List<FilePathReplacementParsed> nonHardcodedPaths = new List<FilePathReplacementParsed>();
-
-            int longestPath = 0;
-
-            foreach (var subgroup in combination.ContainedSubgroups)
+            if (combination.DestinationType == SubgroupCombination.DestinationSpecifier.HeadPartFormKey)
             {
-                foreach (var path in subgroup.Paths)
-                {
-                    var parsed = new FilePathReplacementParsed(path);
+                AssignKnownHeadPartReplacer(combination, npcInfo.NPC, outputMod);
+            }
+            else if (combination.DestinationType == SubgroupCombination.DestinationSpecifier.Generic)
+            {
+                List<FilePathReplacementParsed> nonHardcodedPaths = new List<FilePathReplacementParsed>();
+                int longestPath = 0;
 
-                    //if (WornArmorPaths.Contains(path.Destination)) { wnamPaths.Add(path); }
-                    //else if (HeadTexturePaths.Contains(path.Destination)) { headtexPaths.Add(path); }
-                    //else
+                foreach (var subgroup in combination.ContainedSubgroups)
+                {
+                    foreach (var path in subgroup.Paths)
                     {
+                        var parsed = new FilePathReplacementParsed(path);
+
                         nonHardcodedPaths.Add(parsed);
                         if (parsed.Destination.Length > longestPath)
                         {
                             longestPath = parsed.Destination.Length;
                         }
                     }
-
-                    // temp debugging for profiling generic record assignment function
-                    /*
-                    nonHardcodedPaths.Add(parsed);
-                    if (parsed.Destination.Length > longestPath)
-                    {
-                        longestPath = parsed.Destination.Length;
-                    }
-                    */
-                    // end temp debugging
+                }
+                if (nonHardcodedPaths.Any())
+                {
+                    AssignNonHardCodedTextures(npcInfo, null, nonHardcodedPaths, null, outputMod, longestPath, false, true);
                 }
             }
-
-            // put known paths here
-            /*
-            if (headtexPaths.Any())
+            else if (combination.DestinationType != SubgroupCombination.DestinationSpecifier.Main)
             {
-                AssignHeadTexture(npcInfo.NPC, outputMod, template, Patcher.MainLinkCache, recordTemplateLinkCache, headtexPaths);
-            }
-            if (wnamPaths.Any())
-            {
-                AssignBodyTextures(npcInfo, outputMod, template, Patcher.MainLinkCache, recordTemplateLinkCache, wnamPaths);
-            }
-            */
-            if (nonHardcodedPaths.Any())
-            {
-                AssignNonHardCodedTextures(npcInfo, null, nonHardcodedPaths, null, outputMod, longestPath, false);
+                AssignSpecialCaseAssetReplacer(combination, npcInfo.NPC, outputMod);
             }
         }
 
-        public static void AssignNonHardCodedTextures(NPCInfo npcInfo, INpcGetter template, List<FilePathReplacementParsed> nonHardcodedPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SkyrimMod outputMod, int longestPath, bool assignFromTemplate)
+        public static void AssignNonHardCodedTextures(NPCInfo npcInfo, INpcGetter template, List<FilePathReplacementParsed> nonHardcodedPaths, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SkyrimMod outputMod, int longestPath, bool assignFromTemplate, bool suppressMissingPathErrors)
         { 
             HashSet<IMajorRecord> assignedRecords = new HashSet<IMajorRecord>();
 
@@ -135,8 +115,11 @@ namespace SynthEBD
             Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap = new Dictionary<dynamic, Dictionary<string, dynamic>>();
 
             Dictionary<string, dynamic> objectsAtPath_NPC = new Dictionary<string, dynamic>();
-            objectsAtPath_NPC.Add("", npcInfo.NPC);
-            objectLinkMap.Add(npcInfo.NPC, objectsAtPath_NPC);
+
+            var currentNPC = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
+
+            objectsAtPath_NPC.Add("", currentNPC);
+            objectLinkMap.Add(currentNPC, objectsAtPath_NPC);
 
 
             Dictionary<string, dynamic> objectsAtPath_Template = new Dictionary<string, dynamic>();
@@ -172,7 +155,7 @@ namespace SynthEBD
                     int? indexIfInArray = null;
 
                     // step through the path
-                    bool npcHasObject = RecordPathParser.GetObjectAtPath(rootObj, currentSubPath, objectLinkMap, Patcher.MainLinkCache, out currentObj, out indexIfInArray); // update this function to out the aray index
+                    bool npcHasObject = RecordPathParser.GetObjectAtPath(rootObj, currentSubPath, objectLinkMap, Patcher.MainLinkCache, suppressMissingPathErrors, out currentObj, out indexIfInArray); // update this function to out the aray index
                     bool npcHasNullFormLink = false;
                     bool templateHasObject = false;
                     if (npcHasObject)
@@ -238,7 +221,7 @@ namespace SynthEBD
                     }
 
                     // if the NPC doesn't have the given object (e.g. the NPC doesn't have a WNAM), assign in from template
-                    if (assignFromTemplate && (!npcHasObject || npcHasNullFormLink) && RecordPathParser.GetObjectAtPath(template, group.Key, objectLinkMap, recordTemplateLinkCache, out currentObj)) // get corresponding object from template NPC
+                    if (assignFromTemplate && (!npcHasObject || npcHasNullFormLink) && RecordPathParser.GetObjectAtPath(template, group.Key, objectLinkMap, recordTemplateLinkCache, suppressMissingPathErrors, out currentObj)) // get corresponding object from template NPC
                     {
                         templateHasObject = true;
                         // if the template object is a record, add it to the generated patch and then copy it to the NPC
@@ -309,7 +292,7 @@ namespace SynthEBD
                             currentObj = assetAssignment.Source;
                         }
                     }
-                    else
+                    else if (!objectsAtPath_NPC.ContainsKey(group.Key)) // this condition evaluates true only when the current subpath is a top-level subpath (e.g. npc.x rather than npc.x.y) because GetObjectAtPath will populate the first subpath of the root object, which in this case is the NPC
                     {
                         objectsAtPath_NPC.Add(group.Key, currentObj); // for next iteration of top for loop
                     }
@@ -744,6 +727,93 @@ namespace SynthEBD
             }
             if (!filteredFlags.Any()) { return null; }
             return filteredFlags.Where(x => requiredRaceFKstrs.Contains(x.Race.FormKey.ToString())).FirstOrDefault();
+        }
+
+        private static void AssignKnownHeadPartReplacer(SubgroupCombination subgroupCombination, INpcGetter npcGetter, SkyrimMod outputMod)
+        {
+            var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
+            for (int i = 0; i < npc.HeadParts.Count; i++)
+            {
+                if (npc.HeadParts[i].FormKey == subgroupCombination.ReplacerDestinationFormKey)
+                {
+                    if(Patcher.MainLinkCache.TryResolve<IHeadPartGetter>(npc.HeadParts[i].FormKey, out var hpGetter) && Patcher.MainLinkCache.TryResolve<ITextureSetGetter>(hpGetter.TextureSet.FormKey, out var tsGetter))
+                    {
+                        var copiedHP = outputMod.HeadParts.AddNew();
+                        copiedHP.DeepCopyIn(hpGetter);
+
+                        var copiedTS = outputMod.TextureSets.AddNew();
+                        copiedTS.DeepCopyIn(tsGetter);
+                        
+                        foreach (var subgroup in subgroupCombination.ContainedSubgroups)
+                        {
+                            foreach (var path in subgroup.Paths)
+                            {
+                                if (path.Destination.EndsWith("TextureSet.Diffuse", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    copiedTS.Diffuse = path.Source;
+                                }
+                                else if (path.Destination.EndsWith("TextureSet.NormalOrGloss", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    copiedTS.NormalOrGloss = path.Source;
+                                }
+                            }
+                        }
+                        copiedTS.EditorID += "_" + subgroupCombination.AssetPack.Source.ShortName + "." + subgroupCombination.Signature;
+                        copiedHP.TextureSet.SetTo(copiedTS);
+                        copiedHP.EditorID += "_" + subgroupCombination.AssetPack.Source.ShortName + "." + subgroupCombination.Signature;
+                        npc.HeadParts[i] = copiedHP.AsLinkGetter();
+                    }
+                    else
+                    {
+                        // Warn user
+                    }
+                }
+            }
+        }
+
+        private static void AssignSpecialCaseAssetReplacer(SubgroupCombination subgroupCombination, INpcGetter npcGetter, SkyrimMod outputMod)
+        {
+            var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
+            switch (subgroupCombination.DestinationType)
+            {
+                case SubgroupCombination.DestinationSpecifier.MarksFemaleHumanoid04RightGashR: AssignHeadPartByDiffusePath(subgroupCombination, npc, outputMod, "actors\\character\\female\\facedetails\\facefemalerightsidegash_04.dds"); break;
+                case SubgroupCombination.DestinationSpecifier.MarksFemaleHumanoid06RightGashR: AssignHeadPartByDiffusePath(subgroupCombination, npc, outputMod, "actors\\character\\female\\facedetails\\facefemalerightsidegash_06.dds"); break;
+                default: break; // Warn user
+            }
+        }
+
+        private static void AssignHeadPartByDiffusePath(SubgroupCombination subgroupCombination, Npc npc, SkyrimMod outputMod, string diffusePath)
+        {
+            for (int i = 0; i < npc.HeadParts.Count; i++)
+            {
+                if (Patcher.MainLinkCache.TryResolve<IHeadPartGetter>(npc.HeadParts[i].FormKey, out var hpGetter) && Patcher.MainLinkCache.TryResolve<ITextureSetGetter>(hpGetter.TextureSet.FormKey, out var tsGetter) && tsGetter.Diffuse == diffusePath)
+                {
+                    var copiedHP = outputMod.HeadParts.AddNew();
+                    copiedHP.DeepCopyIn(hpGetter);
+
+                    var copiedTS = outputMod.TextureSets.AddNew();
+                    copiedTS.DeepCopyIn(tsGetter);
+
+                    foreach (var subgroup in subgroupCombination.ContainedSubgroups)
+                    {
+                        foreach (var path in subgroup.Paths)
+                        {
+                            if (path.Destination.EndsWith("TextureSet.Diffuse", StringComparison.OrdinalIgnoreCase))
+                            {
+                                copiedTS.Diffuse = path.Source;
+                            }
+                            else if (path.Destination.EndsWith("TextureSet.NormalOrGloss", StringComparison.OrdinalIgnoreCase))
+                            {
+                                copiedTS.NormalOrGloss = path.Source;
+                            }
+                        }
+                    }
+                    copiedTS.EditorID += "_" + subgroupCombination.AssetPack.Source.ShortName + "." + subgroupCombination.Signature;
+                    copiedHP.TextureSet.SetTo(copiedTS);
+                    copiedHP.EditorID += "_" + subgroupCombination.AssetPack.Source.ShortName + "." + subgroupCombination.Signature;
+                    npc.HeadParts[i] = copiedHP.AsLinkGetter();
+                }
+            }
         }
 
         private static HashSet<string> TorsoArmorAddonPaths = new HashSet<string>()
