@@ -483,7 +483,7 @@ namespace SynthEBD
                 argIndex = 0;
                 bool skipToNext = false;
 
-                IMajorRecordCommonGetter candidateRecordGetter = null;
+                IMajorRecordGetter candidateRecordGetter = null;
 
                 bool candidateObjIsRecord = ObjectHasFormKey(candidateObj, out FormKey? objFormKey) && objFormKey != null;
                 bool candidateObjIsResolved = objFormKey != null && !objFormKey.Value.IsNull && linkCache.TryResolve(objFormKey.Value, (Type)candidateObj.Type, out candidateRecordGetter);
@@ -580,7 +580,7 @@ namespace SynthEBD
                 argIndex = 0;
                 bool skipToNext = false;
 
-                IMajorRecordCommonGetter candidateRecordGetter = null;
+                IMajorRecordGetter candidateRecordGetter = null;
 
                 bool candidateObjIsRecord = ObjectHasFormKey(candidateObj, out FormKey? objFormKey) && objFormKey != null;
                 bool candidateObjIsResolved = objFormKey != null && !objFormKey.Value.IsNull && linkCache.TryResolve(objFormKey.Value, (Type)candidateObj.Type, out candidateRecordGetter);

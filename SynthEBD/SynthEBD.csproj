@@ -11,10 +11,10 @@
     <PackageReference Include="gong-wpf-dragdrop" Version="3.0.0" />
     <PackageReference Include="MahApps.Metro" Version="2.4.9" />
     <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.39" />
-    <PackageReference Include="Mutagen.Bethesda" Version="0.33.7-pr001" />
+    <PackageReference Include="Mutagen.Bethesda" Version="0.35.0-pr003" />
     <PackageReference Include="Mutagen.Bethesda.FormKeys.SkyrimSE" Version="2.1.0" />
-    <PackageReference Include="Mutagen.Bethesda.Json" Version="0.33.7-pr001" />
-    <PackageReference Include="Mutagen.Bethesda.Skyrim" Version="0.33.7-pr001" />
+    <PackageReference Include="Mutagen.Bethesda.Json" Version="0.35.0-pr003" />
+    <PackageReference Include="Mutagen.Bethesda.Skyrim" Version="0.35.0-pr003" />
     <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.33.7-pr001" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
     <PackageReference Include="Noggog.WPF" Version="2.34.0" />

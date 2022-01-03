@@ -292,7 +292,11 @@ namespace SynthEBD
                             currentObj = assetAssignment.Source;
                         }
                     }
-                    else if (!objectsAtPath_NPC.ContainsKey(group.Key)) // this condition evaluates true only when the current subpath is a top-level subpath (e.g. npc.x rather than npc.x.y) because GetObjectAtPath will populate the first subpath of the root object, which in this case is the NPC
+                    else if (objectsAtPath_NPC.ContainsKey(group.Key))
+                    {
+                        objectsAtPath_NPC[group.Key] = currentObj; // RecordPathParser.GetObjectAtPath() populates this with the Getter. Update it here with the newly generated Setter
+                    }
+                    else if (!objectsAtPath_NPC.ContainsKey(group.Key)) // this condition evaluates true only when the current subpath is a top-level subpath (e.g. npc.x rather than npc.x.y) because GetObjectAtPath() will populate the first subpath of the root object, which in this case is the NPC
                     {
                         objectsAtPath_NPC.Add(group.Key, currentObj); // for next iteration of top for loop
                     }
