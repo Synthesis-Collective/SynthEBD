@@ -19,7 +19,8 @@ namespace SynthEBD
             }
             else
             {
-                throw new Exception("Cannot find General Settings file at " + Paths.GeneralSettingsPath);
+                Logger.LogErrorWithStatusUpdate("Cannot find General Settings file at " + Paths.GeneralSettingsPath, ErrorType.Warning);
+                PatcherSettings.General = new Settings_General();
             }
         }
     }
