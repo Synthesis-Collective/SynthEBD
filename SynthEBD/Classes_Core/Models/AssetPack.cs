@@ -124,6 +124,32 @@ namespace SynthEBD
         public SubgroupCombination.DestinationSpecifier DestSpecifier { get; set; }
     }
 
+    /* Will probably need to discard - can't edit tints
+    public class TintMaskSelector
+    {
+        public TintMaskSelector()
+        {
+
+        }
+
+        public string TexturePath { get; set; }
+        public TintAssets.TintMaskType MaskType { get; set; }
+        public TintMaskDistributionMode DistributionMode { get; set; }
+
+    }
+
+    public enum TintMaskDistributionMode
+    {
+        Replace, // replace a given tint mask path with the given selector
+        DistributeAndReplace, // distribute to any NPC if the attribute allows for it, but remove a given path if the NPC has it
+        Distribute // distribute to any NPC without replacing any existing tint masks
+    }
+
+    public class TintColorSelector : IProbabilityWeighted
+    {
+
+    } */
+
     // Backward compatibility classes for loading zEBD settings files and converting to synthEBD
     class ZEBDAssetPack
     {

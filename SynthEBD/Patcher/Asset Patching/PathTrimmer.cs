@@ -26,6 +26,24 @@ namespace SynthEBD
                         }
                     }
                 }
+
+                foreach (var replacer in ap.AssetReplacerGroups)
+                {
+                    foreach (var subgroupsAtIndex in replacer.Subgroups)
+                    {
+                        foreach (var subgroup in subgroupsAtIndex)
+                        {
+                            foreach (var path in subgroup.Paths)
+                            {
+                                var matchedTrimPath = trimPaths.Where(x => path.Source.EndsWith(x.Extension, StringComparison.CurrentCultureIgnoreCase)).FirstOrDefault();
+                                if (matchedTrimPath != null && path.Source.StartsWith(matchedTrimPath.PathToTrim, StringComparison.CurrentCultureIgnoreCase))
+                                {
+                                    path.Source = path.Source.Remove(0, matchedTrimPath.PathToTrim.Length + 1); // +1 to account for subsequent \\
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
