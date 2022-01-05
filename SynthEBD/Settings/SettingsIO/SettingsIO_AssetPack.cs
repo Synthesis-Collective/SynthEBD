@@ -21,6 +21,11 @@ namespace SynthEBD
                 string text = File.ReadAllText(PatcherSettings.Paths.TexMeshSettingsPath);
                 texMeshSettings = JsonConvert.DeserializeObject<Settings_TexMesh>(text);
             }
+            else if (File.Exists(PatcherSettings.Paths.FallBackTexMeshSettingsPath))
+            {
+                string text = File.ReadAllText(PatcherSettings.Paths.FallBackTexMeshSettingsPath);
+                texMeshSettings = JsonConvert.DeserializeObject<Settings_TexMesh>(text);
+            }
 
             texMeshSettings.TrimPaths = SettingsIO_Misc.LoadTrimPaths();
 

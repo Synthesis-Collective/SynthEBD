@@ -19,6 +19,11 @@ namespace SynthEBD
                 string text = File.ReadAllText(PatcherSettings.Paths.BodyGenSettingsPath);
                 bodygenSettings = JsonConvert.DeserializeObject<Settings_BodyGen>(text);
             }
+            else if (File.Exists(PatcherSettings.Paths.FallBackBodyGenSettingsPath))
+            {
+                string text = File.ReadAllText(PatcherSettings.Paths.FallBackBodyGenSettingsPath);
+                bodygenSettings = JsonConvert.DeserializeObject<Settings_BodyGen>(text);
+            }
 
             return bodygenSettings;
         }

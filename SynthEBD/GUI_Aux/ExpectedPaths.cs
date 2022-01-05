@@ -80,6 +80,7 @@ namespace SynthEBD
             this.TrimPathsPath = Path.Combine(RelativePath, settingsDirRelPath, "TrimPathsByExtension.json");
             this.RecordReplacerSpecifiersPath = Path.Combine(RelativePath, settingsDirRelPath, "RecordReplacerSpecifiers.json");
             this.RecordTemplatesDirPath = Path.Combine(RelativePath, recordTemplatesDirRelPath);
+            this.ModManagerSettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "ModManagerSettings.json");
 
             this.FallBackTexMeshSettingsPath = Path.Combine(SynthEBDexePath, settingsDirPath, "TexMeshSettings.json");
             this.FallBackAssetPackDirPath = Path.Combine(SynthEBDexePath, assetsDirPath);
@@ -96,6 +97,7 @@ namespace SynthEBD
             this.FallBackTrimPathsPath = Path.Combine(SynthEBDexePath, settingsDirPath, "TrimPathsByExtension.json");
             this.FallBackRecordReplacerSpecifiersPath = Path.Combine(SynthEBDexePath, settingsDirPath, "RecordReplacerSpecifiers.json");
             this.FallBackRecordTemplatesDirPath = Path.Combine(SynthEBDexePath, recordTemplatesDirRelPath);
+            this.FallBackModManagerSettingsPath = Path.Combine(SynthEBDexePath, settingsDirRelPath, "ModManagerSettings.json");
         }
 
         private string RelativePath { get; set; } 
@@ -115,6 +117,7 @@ namespace SynthEBD
         public string TrimPathsPath { get; set; }
         public string RecordReplacerSpecifiersPath { get; set; }
         public string RecordTemplatesDirPath { get; set; }
+        public string ModManagerSettingsPath { get; set; }
 
         public string FallBackTexMeshSettingsPath { get; set; } // path of the Textures and Meshes settings file
         public string FallBackAssetPackDirPath { get; set; }
@@ -133,6 +136,7 @@ namespace SynthEBD
         public string FallBackRecordReplacerSpecifiersPath { get; set; }
 
         public string FallBackRecordTemplatesDirPath { get; set; }
+        public string FallBackModManagerSettingsPath { get; set; }
     }
 }
 

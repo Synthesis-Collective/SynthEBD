@@ -33,6 +33,26 @@ namespace SynthEBD
                 }
             }
 
+            else if (File.Exists(PatcherSettings.Paths.FallBackBlockListPath))
+            {
+                try
+                {
+                    loadedList = JSONhandler<BlockList>.loadJSONFile(PatcherSettings.Paths.FallBackBlockListPath);
+                }
+                catch
+                {
+                    try
+                    {
+                        var loadedZList = JSONhandler<zEBDBlockList>.loadJSONFile(PatcherSettings.Paths.FallBackBlockListPath);
+                        loadedList = zEBDBlockList.ToSynthEBD(loadedZList);
+                    }
+                    catch
+                    {
+                        // Warn User
+                    }
+                }
+            }
+
             return loadedList;
         }
 

@@ -26,7 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Page Update="Settings_TexMesh\UC_SettingsTexMesh.xaml">
+    <Page Update="Settings\Settings_TexMesh\UC_SettingsTexMesh.xaml">
       <XamlRuntime>$(DefaultXamlRuntime)</XamlRuntime>
     </Page>
   </ItemGroup>

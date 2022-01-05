@@ -12,6 +12,7 @@ namespace SynthEBD
         public static Settings_TexMesh TexMesh { get; set; }
         public static Settings_BodyGen BodyGen { get; set; }
         public static Settings_Height Height { get; set; }
+        public static Settings_ModManager ModManagerIntegration { get; set; }
         public static Paths Paths { get; set; }
     }
 }

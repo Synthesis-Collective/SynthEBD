@@ -67,6 +67,9 @@
                 <DataTemplate DataType="{x:Type local:VM_BlockListUI}">
                     <local:UC_BlockListUI/>
                 </DataTemplate>
+                <DataTemplate DataType="{x:Type local:VM_SettingsModManager}">
+                    <local:UC_ModManagerSettings/>
+                </DataTemplate>
                 <DataTemplate DataType="{x:Type local:VM_LogDisplay}">
                     <local:UC_LogDisplay/>
                 </DataTemplate>

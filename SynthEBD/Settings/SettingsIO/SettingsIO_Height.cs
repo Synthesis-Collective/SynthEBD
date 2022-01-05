@@ -19,6 +19,11 @@ namespace SynthEBD
                 string text = File.ReadAllText(PatcherSettings.Paths.HeightSettingsPath);
                 heightSettings = JsonConvert.DeserializeObject<Settings_Height>(text);
             }
+            else if (File.Exists(PatcherSettings.Paths.FallBackHeightSettingsPath))
+            {
+                string text = File.ReadAllText(PatcherSettings.Paths.FallBackHeightSettingsPath);
+                heightSettings = JsonConvert.DeserializeObject<Settings_Height>(text);
+            }
 
             return heightSettings;
         }

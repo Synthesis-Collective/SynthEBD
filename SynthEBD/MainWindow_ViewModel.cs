@@ -27,7 +27,7 @@ namespace SynthEBD
         public VM_SpecificNPCAssignmentsUI SAUIVM { get; }
         public VM_ConsistencyUI CUIVM { get; }
         public VM_BlockListUI BUIVM { get; } = new();
-
+        public VM_SettingsModManager MMVM { get; } = new();
         public VM_NavPanel NavPanel { get; }
 
         public VM_RunButton RunButton { get; }
@@ -61,7 +61,7 @@ namespace SynthEBD
             SAUIVM = new VM_SpecificNPCAssignmentsUI(TMVM, BGVM);
             CUIVM = new VM_ConsistencyUI();
 
-            NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, HVM, SAUIVM, CUIVM, BUIVM, LogDisplayVM);
+            NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, HVM, SAUIVM, CUIVM, BUIVM, LogDisplayVM, MMVM);
 
             StatusBarVM = new VM_StatusBar();
 
@@ -111,6 +111,10 @@ namespace SynthEBD
             BlockList = SettingsIO_BlockList.LoadBlockList();
             VM_BlockListUI.GetViewModelFromModel(BlockList, BUIVM);
 
+            // load Mod Manager Integration
+            PatcherSettings.ModManagerIntegration = SettingsIO_ModManager.LoadModManagerSettings();
+            VM_SettingsModManager.GetViewModelFromModel(PatcherSettings.ModManagerIntegration, MMVM);
+
             // load Misc settings
             LinkedNPCNameExclusions = SettingsIO_Misc.LoadNPCNameExclusions();
             SGVM.LinkedNameExclusions = VM_CollectionMemberString.InitializeCollectionFromHashSet(LinkedNPCNameExclusions);
@@ -136,6 +140,7 @@ namespace SynthEBD
             VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(SAUIVM, SpecificNPCAssignments);
             VM_ConsistencyUI.DumpViewModelsToModels(CUIVM.Assignments, Consistency);
             VM_LinkedNPCGroup.DumpViewModelsToModels(LinkedNPCGroups, SGVM.LinkedNPCGroups);
+            VM_SettingsModManager.DumpViewModelToModel(PatcherSettings.ModManagerIntegration, MMVM);
         }
 
         void MainWindow_Closing(object sender, CancelEventArgs e)
@@ -163,6 +168,8 @@ namespace SynthEBD
             SettingsIO_Misc.SaveNPCNameExclusions(SGVM.LinkedNameExclusions.Select(cms => cms.Content).ToHashSet());
 
             SettingsIO_Misc.SaveTrimPaths(TMVM.TrimPaths.ToHashSet());
+
+            JSONhandler<Settings_ModManager>.SaveJSONFile(PatcherSettings.ModManagerIntegration, PatcherSettings.Paths.ModManagerSettingsPath);
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
