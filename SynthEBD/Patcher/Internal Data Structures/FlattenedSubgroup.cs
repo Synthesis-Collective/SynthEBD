@@ -33,8 +33,8 @@ namespace SynthEBD
             this.AddKeywords = new HashSet<string>(template.addKeywords);
             this.ProbabilityWeighting = template.ProbabilityWeighting;
             this.Paths = new HashSet<FilePathReplacement>(template.paths);
-            this.AllowedBodyGenDescriptors = DictionaryMapper.MorphDescriptorsToDictionary(template.allowedBodyGenDescriptors);
-            this.DisallowedBodyGenDescriptors = DictionaryMapper.MorphDescriptorsToDictionary(template.disallowedBodyGenDescriptors);
+            this.AllowedBodyGenDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.allowedBodyGenDescriptors);
+            this.DisallowedBodyGenDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.disallowedBodyGenDescriptors);
             this.WeightRange = new NPCWeightRange { Lower = template.weightRange.Lower, Upper = template.weightRange.Upper };
             this.ContainedSubgroupIDs = new List<string> { this.Id };
             this.ContainedSubgroupNames = new List<string> { this.Name };
@@ -126,9 +126,9 @@ namespace SynthEBD
                 {
                     flattened.AllowedBodyGenDescriptors = DictionaryMapper.GetMorphDictionaryIntersection(flattened.AllowedBodyGenDescriptors, parent.AllowedBodyGenDescriptors);
                     flattened.DisallowedBodyGenDescriptors = DictionaryMapper.MergeDictionaries(new List<Dictionary<string, HashSet<string>>> { flattened.DisallowedBodyGenDescriptors, parent.DisallowedBodyGenDescriptors });
-                    bool morphDescriptorsValid = true;
-                    flattened.AllowedBodyGenDescriptors = AllowedDisallowedCombiners.TrimDisallowedDescriptorsFromAllowed(flattened.AllowedBodyGenDescriptors, flattened.DisallowedBodyGenDescriptors, out morphDescriptorsValid);
-                    if (!morphDescriptorsValid) { return; }
+                    bool BodyShapeDescriptorsValid = true;
+                    flattened.AllowedBodyGenDescriptors = AllowedDisallowedCombiners.TrimDisallowedDescriptorsFromAllowed(flattened.AllowedBodyGenDescriptors, flattened.DisallowedBodyGenDescriptors, out BodyShapeDescriptorsValid);
+                    if (!BodyShapeDescriptorsValid) { return; }
                 }
             }
 

@@ -73,6 +73,7 @@ namespace SynthEBD
             this.HeightSettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "HeightSettings.json");
             this.HeightConfigDirPath= Path.Combine(RelativePath, heightsDirRelPath);
             this.BodyGenSettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "BodyGenSettings.json");
+            this.OBodySettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "OBodySettings.json");
             this.BodyGenConfigDirPath = Path.Combine(RelativePath, bodyGenDirRelPath);
             this.ConsistencyPath = Path.Combine(RelativePath, NPCConfigDirRelPath, "Consistency.json");
             this.SpecificNPCAssignmentsPath = Path.Combine(RelativePath, NPCConfigDirRelPath, "Specific NPC Assignments.json");
@@ -90,6 +91,7 @@ namespace SynthEBD
             this.FallBackHeightConfigDirPath = Path.Combine(SynthEBDexeDirPath, heightsDirPath);
             this.FallBackHeightConfigCurrentPath = Path.Combine(this.FallBackHeightConfigDirPath, "HeightConfig.json");
             this.FallBackBodyGenSettingsPath = Path.Combine(SynthEBDexeDirPath, settingsDirPath, "BodyGenSettings.json");
+            this.FallBackOBodySettingsPath = Path.Combine(SynthEBDexeDirPath, settingsDirRelPath, "OBodySettings.json");
             this.FallBackBodyGenConfigDirPath = Path.Combine(SynthEBDexeDirPath, bodyGenDirPath);
             this.FallBackConsistencyPath = Path.Combine(SynthEBDexeDirPath, NPCConfigDirRelPath, "Consistency.json");
             this.FallBackSpecificNPCAssignmentsPath = Path.Combine(SynthEBDexeDirPath, NPCConfigDirPath, "Specific NPC Assignments.json");
@@ -111,6 +113,7 @@ namespace SynthEBD
         public string HeightConfigDirPath { get; set; }
         public string BodyGenSettingsPath { get; set; }
         public string BodyGenConfigDirPath { get; set; }
+        public string OBodySettingsPath { get; set; }
         public string ConsistencyPath { get; set; }
         public string SpecificNPCAssignmentsPath { get; set; }
         public string BlockListPath { get; set; }
@@ -129,6 +132,7 @@ namespace SynthEBD
         public string FallBackHeightConfigCurrentPath { get; set; }
         public string FallBackBodyGenSettingsPath { get; set; }
         public string FallBackBodyGenConfigDirPath { get; set; }
+        public string FallBackOBodySettingsPath { get; set; }
         public string FallBackConsistencyPath { get; set; }
         public string FallBackSpecificNPCAssignmentsPath { get; set; }
         public string FallBackBlockListPath { get; set; }

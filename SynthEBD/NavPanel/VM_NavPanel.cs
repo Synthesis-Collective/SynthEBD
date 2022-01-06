@@ -13,6 +13,7 @@ namespace SynthEBD
         public ICommand ClickSG { get; }
         public ICommand ClickTM { get; }
         public ICommand ClickBG { get; }
+        public ICommand ClickOB { get; }
         public ICommand ClickH { get; }
         public ICommand ClickSA { get; }
         public ICommand ClickC { get; }
@@ -20,7 +21,7 @@ namespace SynthEBD
         public ICommand ClickLog { get; }
         public ICommand ClickMM { get; }
 
-        public VM_NavPanel(MainWindow_ViewModel MWVM, VM_Settings_General SGVM, VM_SettingsTexMesh TMVM, VM_SettingsBodyGen BGVM, VM_SettingsHeight HVM, VM_SpecificNPCAssignmentsUI SAUIVM, VM_ConsistencyUI CUIVM, VM_BlockListUI BUIVM, VM_LogDisplay LogVM, VM_SettingsModManager MMVM)
+        public VM_NavPanel(MainWindow_ViewModel MWVM, VM_Settings_General SGVM, VM_SettingsTexMesh TMVM, VM_SettingsBodyGen BGVM, VM_SettingsOBody OBVM, VM_SettingsHeight HVM, VM_SpecificNPCAssignmentsUI SAUIVM, VM_ConsistencyUI CUIVM, VM_BlockListUI BUIVM, VM_LogDisplay LogVM, VM_SettingsModManager MMVM)
         {
             ClickSG = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -34,6 +35,10 @@ namespace SynthEBD
             ClickBG = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => MWVM.DisplayedViewModel = BGVM
+                );
+            ClickOB = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => MWVM.DisplayedViewModel = OBVM
                 );
             ClickH = new SynthEBD.RelayCommand(
                 canExecute: _ => true,

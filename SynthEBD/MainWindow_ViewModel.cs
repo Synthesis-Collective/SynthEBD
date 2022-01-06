@@ -23,6 +23,7 @@ namespace SynthEBD
         public VM_Settings_General SGVM { get; } = new();
         public VM_SettingsTexMesh TMVM { get; }
         public VM_SettingsBodyGen BGVM { get; }
+        public VM_SettingsOBody OBVM { get; }
         public VM_SettingsHeight HVM { get; } = new();
         public VM_SpecificNPCAssignmentsUI SAUIVM { get; }
         public VM_ConsistencyUI CUIVM { get; }
@@ -40,6 +41,7 @@ namespace SynthEBD
         public List<AssetPack> AssetPacks { get; }
         public List<HeightConfig> HeightConfigs { get; }
         public BodyGenConfigs BodyGenConfigs { get; }
+        public Settings_OBody OBodySettings { get; set; }
         public Dictionary<string, NPCAssignment> Consistency { get; }
         public HashSet<NPCAssignment> SpecificNPCAssignments { get; }
         public BlockList BlockList { get; }
@@ -57,11 +59,12 @@ namespace SynthEBD
             var LoadOrder = env.LoadOrder;
 
             BGVM = new VM_SettingsBodyGen(SGVM.RaceGroupings);
+            OBVM = new VM_SettingsOBody(SGVM.RaceGroupings);
             TMVM = new VM_SettingsTexMesh(BGVM);
             SAUIVM = new VM_SpecificNPCAssignmentsUI(TMVM, BGVM);
             CUIVM = new VM_ConsistencyUI();
 
-            NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, HVM, SAUIVM, CUIVM, BUIVM, LogDisplayVM, MMVM);
+            NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, OBVM, HVM, SAUIVM, CUIVM, BUIVM, LogDisplayVM, MMVM);
 
             StatusBarVM = new VM_StatusBar();
 
@@ -88,6 +91,10 @@ namespace SynthEBD
             PatcherSettings.BodyGen = SettingsIO_BodyGen.LoadBodyGenSettings();
             BodyGenConfigs = SettingsIO_BodyGen.loadBodyGenConfigs(PatcherSettings.General.RaceGroupings);
             VM_SettingsBodyGen.GetViewModelFromModel(BodyGenConfigs, PatcherSettings.BodyGen, BGVM, SGVM.RaceGroupings);
+
+            // load OBody settings before asset packs - asset packs depend on BodyGen but not vice versa
+            OBodySettings = SettingsIO_OBody.LoadOBodySettings();
+            VM_SettingsOBody.GetViewModelFromModel(OBodySettings, OBVM, SGVM.RaceGroupings);
 
             // load asset packs
             AssetPacks = SettingsIO_AssetPack.loadAssetPacks(PatcherSettings.General.RaceGroupings, RecordTemplatePlugins, BodyGenConfigs); // load asset pack models from json
@@ -137,6 +144,7 @@ namespace SynthEBD
             VM_SettingsHeight.DumpViewModelToModel(HVM, PatcherSettings.Height);
             VM_HeightConfig.DumpViewModelsToModels(HVM.AvailableHeightConfigs, HeightConfigs);
             VM_SettingsBodyGen.DumpViewModelToModel(BGVM, PatcherSettings.BodyGen, BodyGenConfigs);
+            VM_SettingsOBody.DumpViewModelToModel(OBodySettings, OBVM);
             VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(SAUIVM, SpecificNPCAssignments);
             VM_ConsistencyUI.DumpViewModelsToModels(CUIVM.Assignments, Consistency);
             VM_LinkedNPCGroup.DumpViewModelsToModels(LinkedNPCGroups, SGVM.LinkedNPCGroups);
@@ -158,6 +166,8 @@ namespace SynthEBD
             JSONhandler<Settings_BodyGen>.SaveJSONFile(PatcherSettings.BodyGen, PatcherSettings.Paths.BodyGenSettingsPath);
             SettingsIO_BodyGen.SaveBodyGenConfigs(BodyGenConfigs.Female);
             SettingsIO_BodyGen.SaveBodyGenConfigs(BodyGenConfigs.Male);
+
+            JSONhandler<Settings_OBody>.SaveJSONFile(OBodySettings, PatcherSettings.Paths.OBodySettingsPath);
 
             SettingsIO_Misc.SaveConsistency(Consistency);
 

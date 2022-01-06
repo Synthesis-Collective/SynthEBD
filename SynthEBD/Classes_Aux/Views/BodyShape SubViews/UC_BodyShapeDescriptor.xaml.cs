@@ -16,11 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_BodyGenMorphDescriptorMenu.xaml
+    /// Interaction logic for UC_BodyShapeDescriptor.xaml
     /// </summary>
-    public partial class UC_BodyGenMorphDescriptorMenu : UserControl
+    public partial class UC_BodyShapeDescriptor : UserControl
     {
-        public UC_BodyGenMorphDescriptorMenu()
+        public UC_BodyShapeDescriptor()
         {
             InitializeComponent();
         }

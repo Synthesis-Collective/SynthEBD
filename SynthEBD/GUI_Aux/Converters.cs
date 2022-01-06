@@ -318,9 +318,9 @@ namespace SynthEBD
             return weightRange;
         }
 
-        public static BodyGenConfig.MorphDescriptor StringToMorphDescriptor(string s)
+        public static BodyShapeDescriptor StringToBodyShapeDescriptor(string s)
         {
-            BodyGenConfig.MorphDescriptor newDescriptor = new BodyGenConfig.MorphDescriptor();
+            BodyShapeDescriptor newDescriptor = new BodyShapeDescriptor();
             try
             {
                 string[] split = s.Split(':');

@@ -64,8 +64,8 @@ namespace SynthEBD
                 this.addKeywords = new HashSet<string>();
                 this.ProbabilityWeighting = 1;
                 this.paths = new HashSet<FilePathReplacement>();
-                this.allowedBodyGenDescriptors = new HashSet<BodyGenConfig.MorphDescriptor>();
-                this.disallowedBodyGenDescriptors = new HashSet<BodyGenConfig.MorphDescriptor>();
+                this.allowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>();
+                this.disallowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>();
                 this.weightRange = new NPCWeightRange();
                 this.subgroups = new HashSet<Subgroup>();
 
@@ -89,8 +89,8 @@ namespace SynthEBD
             public HashSet<string> addKeywords { get; set; }
             public int ProbabilityWeighting { get; set; }
             public HashSet<FilePathReplacement> paths { get; set; }
-            public HashSet<BodyGenConfig.MorphDescriptor> allowedBodyGenDescriptors { get; set; }
-            public HashSet<BodyGenConfig.MorphDescriptor> disallowedBodyGenDescriptors { get; set; }
+            public HashSet<BodyShapeDescriptor> allowedBodyGenDescriptors { get; set; }
+            public HashSet<BodyShapeDescriptor> disallowedBodyGenDescriptors { get; set; }
             public NPCWeightRange weightRange { get; set; }
             public HashSet<Subgroup> subgroups { get; set; }
             public string TopLevelSubgroupID { get; set; }
@@ -314,11 +314,11 @@ namespace SynthEBD
 
                 foreach (string str in g.allowedBodyGenDescriptors)
                 {
-                    s.allowedBodyGenDescriptors.Add(Converters.StringToMorphDescriptor(str));
+                    s.allowedBodyGenDescriptors.Add(Converters.StringToBodyShapeDescriptor(str));
                 }
                 foreach (string str in g.disallowedBodyGenDescriptors)
                 {
-                    s.disallowedBodyGenDescriptors.Add(Converters.StringToMorphDescriptor(str));
+                    s.disallowedBodyGenDescriptors.Add(Converters.StringToBodyShapeDescriptor(str));
                 }
 
                 if (topLevelSubgroupID == "")

@@ -9,25 +9,25 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
-    public class VM_BodyGenMorphDescriptorSelectionMenu : INotifyPropertyChanged
+    public class VM_BodyShapeDescriptorSelectionMenu : INotifyPropertyChanged
     {
-        public VM_BodyGenMorphDescriptorSelectionMenu(VM_BodyGenMorphDescriptorMenu trackedMenu)
+        public VM_BodyShapeDescriptorSelectionMenu(VM_BodyShapeDescriptorCreationMenu trackedMenu)
         {
             this.Header = "";
             this.TrackedMenu = trackedMenu;
-            this.DescriptorShells = new ObservableCollection<VM_BodyGenMorphDescriptorShellSelector>();
+            this.DescriptorShells = new ObservableCollection<VM_BodyShapeDescriptorShellSelector>();
             foreach (var Descriptor in TrackedMenu.TemplateDescriptors)
             {
-                this.DescriptorShells.Add(new VM_BodyGenMorphDescriptorShellSelector(Descriptor, this));
+                this.DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(Descriptor, this));
             }
-            this.CurrentlyDisplayedShell = new VM_BodyGenMorphDescriptorShellSelector(new VM_BodyGenMorphDescriptorShell(new ObservableCollection<VM_BodyGenMorphDescriptorShell>()), this);
+            this.CurrentlyDisplayedShell = new VM_BodyShapeDescriptorShellSelector(new VM_BodyShapeDescriptorShell(new ObservableCollection<VM_BodyShapeDescriptorShell>()), this);
 
             trackedMenu.TemplateDescriptors.CollectionChanged += UpdateShellList;
         }
         public string Header { get; set; }
-        public VM_BodyGenMorphDescriptorMenu TrackedMenu { get; set; }
-        public ObservableCollection<VM_BodyGenMorphDescriptorShellSelector> DescriptorShells { get; set; }
-        public VM_BodyGenMorphDescriptorShellSelector CurrentlyDisplayedShell { get; set; }
+        public VM_BodyShapeDescriptorCreationMenu TrackedMenu { get; set; }
+        public ObservableCollection<VM_BodyShapeDescriptorShellSelector> DescriptorShells { get; set; }
+        public VM_BodyShapeDescriptorShellSelector CurrentlyDisplayedShell { get; set; }
         public event PropertyChangedEventHandler PropertyChanged;
 
         public void UpdateShellList(object sender, NotifyCollectionChangedEventArgs e)
@@ -65,17 +65,17 @@ namespace SynthEBD
                 }
                 if (found == false)
                 {
-                    this.DescriptorShells.Add(new VM_BodyGenMorphDescriptorShellSelector(sourceShell, this));
+                    this.DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(sourceShell, this));
                 }
             }
 
             this.UpdateHeader();
         }
 
-        public static VM_BodyGenMorphDescriptorSelectionMenu InitializeFromHashSet(HashSet<BodyGenConfig.MorphDescriptor> morphDescriptors, VM_BodyGenMorphDescriptorMenu trackedMenu)
+        public static VM_BodyShapeDescriptorSelectionMenu InitializeFromHashSet(HashSet<BodyShapeDescriptor> BodyShapeDescriptors, VM_BodyShapeDescriptorCreationMenu trackedMenu)
         {
-            var menu = new VM_BodyGenMorphDescriptorSelectionMenu(trackedMenu);
-            foreach (var descriptor in morphDescriptors)
+            var menu = new VM_BodyShapeDescriptorSelectionMenu(trackedMenu);
+            foreach (var descriptor in BodyShapeDescriptors)
             {
                 bool keepLooking = true;
                 foreach (var Descriptor in menu.DescriptorShells)
@@ -96,12 +96,12 @@ namespace SynthEBD
             return menu;
         }
 
-        public static HashSet<BodyGenConfig.MorphDescriptor> DumpToHashSet(VM_BodyGenMorphDescriptorSelectionMenu viewModel)
+        public static HashSet<BodyShapeDescriptor> DumpToHashSet(VM_BodyShapeDescriptorSelectionMenu viewModel)
         {
-            HashSet<BodyGenConfig.MorphDescriptor> output = new HashSet<BodyGenConfig.MorphDescriptor>();
+            HashSet<BodyShapeDescriptor> output = new HashSet<BodyShapeDescriptor>();
             foreach (var shell in viewModel.DescriptorShells)
             {
-                output.UnionWith(shell.DescriptorSelectors.Where(x => x.IsSelected).Select(x => new BodyGenConfig.MorphDescriptor() { Category = shell.TrackedShell.Category, Value = x.Value, DispString = x.TrackedDescriptor.DispString}).ToHashSet());
+                output.UnionWith(shell.DescriptorSelectors.Where(x => x.IsSelected).Select(x => new BodyShapeDescriptor() { Category = shell.TrackedShell.Category, Value = x.Value, DispString = x.TrackedDescriptor.DispString }).ToHashSet());
             }
 
             return output;
@@ -112,7 +112,7 @@ namespace SynthEBD
             this.Header = BuildHeader(this);
         }
 
-        static string BuildHeader(VM_BodyGenMorphDescriptorSelectionMenu menu)
+        static string BuildHeader(VM_BodyShapeDescriptorSelectionMenu menu)
         {
             string header = "";
             foreach (var Descriptor in menu.DescriptorShells)
@@ -144,23 +144,23 @@ namespace SynthEBD
         }
     }
 
-    public class VM_BodyGenMorphDescriptorShellSelector : INotifyPropertyChanged
+    public class VM_BodyShapeDescriptorShellSelector : INotifyPropertyChanged
     {
-        public VM_BodyGenMorphDescriptorShellSelector(VM_BodyGenMorphDescriptorShell trackedShell, VM_BodyGenMorphDescriptorSelectionMenu parentMenu)
+        public VM_BodyShapeDescriptorShellSelector(VM_BodyShapeDescriptorShell trackedShell, VM_BodyShapeDescriptorSelectionMenu parentMenu)
         {
             this.TrackedShell = trackedShell;
             this.ParentMenu = parentMenu;
-            this.DescriptorSelectors = new ObservableCollection<VM_BodyGenMorphDescriptorSelector>();
+            this.DescriptorSelectors = new ObservableCollection<VM_BodyShapeDescriptorSelector>();
             foreach (var descriptor in this.TrackedShell.Descriptors)
             {
-                this.DescriptorSelectors.Add(new VM_BodyGenMorphDescriptorSelector(descriptor, this.ParentMenu));
+                this.DescriptorSelectors.Add(new VM_BodyShapeDescriptorSelector(descriptor, this.ParentMenu));
             }
             this.TrackedShell.Descriptors.CollectionChanged += UpdateDescriptorList;
 
         }
-        public VM_BodyGenMorphDescriptorShell TrackedShell { get; set; }
-        public VM_BodyGenMorphDescriptorSelectionMenu ParentMenu { get; set; }
-        public ObservableCollection<VM_BodyGenMorphDescriptorSelector> DescriptorSelectors { get; set; }
+        public VM_BodyShapeDescriptorShell TrackedShell { get; set; }
+        public VM_BodyShapeDescriptorSelectionMenu ParentMenu { get; set; }
+        public ObservableCollection<VM_BodyShapeDescriptorSelector> DescriptorSelectors { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -199,15 +199,15 @@ namespace SynthEBD
                 }
                 if (found == false)
                 {
-                    this.DescriptorSelectors.Add(new VM_BodyGenMorphDescriptorSelector(sourceDescriptor, this.ParentMenu));
+                    this.DescriptorSelectors.Add(new VM_BodyShapeDescriptorSelector(sourceDescriptor, this.ParentMenu));
                 }
             }
         }
     }
 
-    public class VM_BodyGenMorphDescriptorSelector : INotifyPropertyChanged
+    public class VM_BodyShapeDescriptorSelector : INotifyPropertyChanged
     {
-        public VM_BodyGenMorphDescriptorSelector(VM_BodyGenMorphDescriptor trackedDescriptor, VM_BodyGenMorphDescriptorSelectionMenu parentMenu)
+        public VM_BodyShapeDescriptorSelector(VM_BodyShapeDescriptor trackedDescriptor, VM_BodyShapeDescriptorSelectionMenu parentMenu)
         {
             this.TrackedDescriptor = trackedDescriptor;
             this.ParentMenu = parentMenu;
@@ -218,8 +218,8 @@ namespace SynthEBD
             this.PropertyChanged += refreshHeader;
         }
 
-        public VM_BodyGenMorphDescriptor TrackedDescriptor { get; set; }
-        public VM_BodyGenMorphDescriptorSelectionMenu ParentMenu { get; set; }
+        public VM_BodyShapeDescriptor TrackedDescriptor { get; set; }
+        public VM_BodyShapeDescriptorSelectionMenu ParentMenu { get; set; }
         public string Value { get; set; }
         public bool IsSelected { get; set; }
 

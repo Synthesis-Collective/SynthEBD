@@ -28,7 +28,7 @@ namespace SynthEBD
             this.RacialTemplateGroupMap = new HashSet<RacialMapping>();
             this.Templates = new HashSet<BodyGenTemplate>();
             this.TemplateGroups = new HashSet<string>();
-            this.TemplateDescriptors = new HashSet<MorphDescriptor>();
+            this.TemplateDescriptors = new HashSet<BodyShapeDescriptor>();
             this.AttributeGroups = new HashSet<AttributeGroup>();
         }
 
@@ -37,23 +37,11 @@ namespace SynthEBD
         public HashSet<RacialMapping> RacialTemplateGroupMap { get; set; }
         public HashSet<BodyGenTemplate> Templates { get; set; }
         public HashSet<string> TemplateGroups { get; set; }
-        public HashSet<MorphDescriptor> TemplateDescriptors { get; set; }
+        public HashSet<BodyShapeDescriptor> TemplateDescriptors { get; set; }
         public HashSet<AttributeGroup> AttributeGroups { get; set; }
         [Newtonsoft.Json.JsonIgnore]
         public string FilePath { get; set; }
 
-        public class MorphDescriptor
-        {
-            public MorphDescriptor()
-            {
-                this.Category = "";
-                this.Value = "";
-                this.DispString = "";
-            }
-            public string Category { get; set; }
-            public string Value { get; set; }
-            public string DispString { get; set; }
-        }
         public class RacialMapping
         {
             public RacialMapping()
@@ -88,7 +76,7 @@ namespace SynthEBD
                 this.Notes = "";
                 this.Specs = "";
                 this.MemberOfTemplateGroups = new HashSet<string>();
-                this.MorphDescriptors = new HashSet<MorphDescriptor>();
+                this.BodyShapeDescriptors = new HashSet<BodyShapeDescriptor>();
                 this.AllowedRaces = new HashSet<FormKey>();
                 this.AllowedRaceGroupings = new HashSet<string>();
                 this.DisallowedRaces = new HashSet<FormKey>();
@@ -110,7 +98,7 @@ namespace SynthEBD
             public string Notes { get; set; }
             public string Specs { get; set; } // will need special logic during I/O because in zEBD settings this is called "params" which is reserved in C#
             public HashSet<string> MemberOfTemplateGroups { get; set; }
-            public HashSet<MorphDescriptor> MorphDescriptors { get; set; }
+            public HashSet<BodyShapeDescriptor> BodyShapeDescriptors { get; set; }
             public HashSet<FormKey> AllowedRaces { get; set; }
             public HashSet<FormKey> DisallowedRaces { get; set; }
             public HashSet<string> AllowedRaceGroupings { get; set; }
@@ -227,8 +215,8 @@ namespace SynthEBD
         {
             zEBDSplitBodyGenConfig converted = new zEBDSplitBodyGenConfig();
 
-            List<BodyGenConfig.MorphDescriptor> usedMaleDescriptors = new List<BodyGenConfig.MorphDescriptor>();
-            List<BodyGenConfig.MorphDescriptor> usedFemaleDescriptors = new List<BodyGenConfig.MorphDescriptor>();
+            List<BodyShapeDescriptor> usedMaleDescriptors = new List<BodyShapeDescriptor>();
+            List<BodyShapeDescriptor> usedFemaleDescriptors = new List<BodyShapeDescriptor>();
 
             HashSet<string> usedMaleGroups = new HashSet<string>();
             HashSet<string> usedFemaleGroups = new HashSet<string>();
@@ -252,7 +240,7 @@ namespace SynthEBD
                 }
 
                 converted.Female.TemplateGroups = usedFemaleGroups;
-                converted.Female.TemplateDescriptors = new HashSet<BodyGenConfig.MorphDescriptor>(usedFemaleDescriptors);
+                converted.Female.TemplateDescriptors = new HashSet<BodyShapeDescriptor>(usedFemaleDescriptors);
                 converted.bFemaleInitialized = true;
             }
 
@@ -275,7 +263,7 @@ namespace SynthEBD
                 }
 
                 converted.Male.TemplateGroups = usedMaleGroups;
-                converted.Male.TemplateDescriptors = new HashSet<BodyGenConfig.MorphDescriptor>(usedMaleDescriptors);
+                converted.Male.TemplateDescriptors = new HashSet<BodyShapeDescriptor>(usedMaleDescriptors);
                 converted.bMaleInitialized = true;
             }
 
@@ -307,7 +295,7 @@ namespace SynthEBD
             return newRS;
         }
 
-        public static BodyGenConfig.BodyGenTemplate zEBDBodyGenRacialTemplateToSynthEBD(zEBDBodyGenConfig.BodyGenTemplate zTemplate, List<RaceGrouping> raceGroupings, List<BodyGenConfig.MorphDescriptor> usedDescriptors)
+        public static BodyGenConfig.BodyGenTemplate zEBDBodyGenRacialTemplateToSynthEBD(zEBDBodyGenConfig.BodyGenTemplate zTemplate, List<RaceGrouping> raceGroupings, List<BodyShapeDescriptor> usedDescriptors)
         {
             BodyGenConfig.BodyGenTemplate newTemplate = new BodyGenConfig.BodyGenTemplate();
 
@@ -317,12 +305,12 @@ namespace SynthEBD
             newTemplate.MemberOfTemplateGroups = zTemplate.groups;
             foreach (string d in zTemplate.descriptors)
             {
-                var convertedDescriptor = Converters.StringToMorphDescriptor(d);
+                var convertedDescriptor = Converters.StringToBodyShapeDescriptor(d);
                 if(!usedDescriptors.Any(n=> n.DispString == d))
                 {
                     usedDescriptors.Add(convertedDescriptor);
                 }
-                newTemplate.MorphDescriptors.Add(convertedDescriptor);
+                newTemplate.BodyShapeDescriptors.Add(convertedDescriptor);
             }
 
             foreach (string id in zTemplate.allowedRaces)

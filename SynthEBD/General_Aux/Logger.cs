@@ -34,8 +34,6 @@ namespace SynthEBD
         System.Windows.Threading.DispatcherTimer UpdateTimer { get; set; }
         System.Diagnostics.Stopwatch EllapsedTimer { get; set; }
 
-
-
         public class NPCReport
         {
             public NPCReport(NPCInfo npcInfo)

@@ -1,11 +1,11 @@
-﻿<UserControl x:Class="SynthEBD.UC_BodyGenMorphDescriptorShell"
+﻿<UserControl x:Class="SynthEBD.UC_BodyShapeDescriptorShell"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD"
              mc:Ignorable="d" 
-             d:DataContext="{d:DesignInstance Type=local:VM_BodyGenMorphDescriptorShell}"
+             d:DataContext="{d:DesignInstance Type=local:VM_BodyShapeDescriptorShell}"
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
         <Grid.ColumnDefinitions>
@@ -21,8 +21,8 @@
         <Button Grid.Row="1" Grid.Column="0" Command="{Binding AddTemplateDescriptorValue}" Foreground="Lightgreen">Add New</Button>
         <ItemsControl Grid.Row="2" Grid.Column="0" ItemsSource="{Binding Descriptors}">
             <ItemsControl.ItemTemplate>
-                <DataTemplate DataType="{x:Type local:VM_BodyGenMorphDescriptor}">
-                    <local:UC_BodyGenMorphDescriptor Background="Black" Margin="0 0 0 10"/>
+                <DataTemplate DataType="{x:Type local:VM_BodyShapeDescriptor}">
+                    <local:UC_BodyShapeDescriptor Background="Black" Margin="0 0 0 10"/>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>

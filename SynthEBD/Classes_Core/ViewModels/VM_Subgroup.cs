@@ -39,8 +39,8 @@ namespace SynthEBD
             this.probabilityWeighting = 1;
             if (parentAssetPack.TrackedBodyGenConfig != null)
             {
-                this.allowedBodyGenDescriptors = new VM_BodyGenMorphDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
-                this.disallowedBodyGenDescriptors = new VM_BodyGenMorphDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
+                this.allowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
+                this.disallowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
             }
             this.weightRange = new NPCWeightRange();
             this.subgroups = new ObservableCollection<VM_Subgroup>();
@@ -123,8 +123,8 @@ namespace SynthEBD
         public int probabilityWeighting { get; set; }
         //public ObservableCollection<VM_FilePathReplacement> paths { get; set; }
         public VM_FilePathReplacementMenu PathsMenu { get; set; }
-        public VM_BodyGenMorphDescriptorSelectionMenu allowedBodyGenDescriptors { get; set; }
-        public VM_BodyGenMorphDescriptorSelectionMenu disallowedBodyGenDescriptors { get; set; }
+        public VM_BodyShapeDescriptorSelectionMenu allowedBodyGenDescriptors { get; set; }
+        public VM_BodyShapeDescriptorSelectionMenu disallowedBodyGenDescriptors { get; set; }
         public NPCWeightRange weightRange { get; set; }
         public ObservableCollection<VM_Subgroup> subgroups { get; set; }
 
@@ -181,8 +181,8 @@ namespace SynthEBD
 
             if (parentAssetPack.TrackedBodyGenConfig != null)
             {
-                viewModel.allowedBodyGenDescriptors = VM_BodyGenMorphDescriptorSelectionMenu.InitializeFromHashSet(model.allowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
-                viewModel.disallowedBodyGenDescriptors = VM_BodyGenMorphDescriptorSelectionMenu.InitializeFromHashSet(model.disallowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
+                viewModel.allowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.allowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
+                viewModel.disallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.disallowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
             }
 
             foreach (var sg in model.subgroups)
@@ -220,22 +220,22 @@ namespace SynthEBD
             }
         }
 
-        public void CallRefreshTrackedMorphDescriptorsC(object sender, NotifyCollectionChangedEventArgs e)
+        public void CallRefreshTrackedBodyShapeDescriptorsC(object sender, NotifyCollectionChangedEventArgs e)
         {
-            RefreshTrackedMorphDescriptors();
+            RefreshTrackedBodyShapeDescriptors();
         }
 
-        public void CallRefreshTrackedMorphDescriptorsP(object sender, PropertyChangedEventArgs e)
+        public void CallRefreshTrackedBodyShapeDescriptorsP(object sender, PropertyChangedEventArgs e)
         {
-            RefreshTrackedMorphDescriptors();
+            RefreshTrackedBodyShapeDescriptors();
         }
 
-        public void RefreshTrackedMorphDescriptors()
+        public void RefreshTrackedBodyShapeDescriptors()
         {
             if (this.ParentAssetPack.TrackedBodyGenConfig != null)
             {
-                this.allowedBodyGenDescriptors = new VM_BodyGenMorphDescriptorSelectionMenu(this.ParentAssetPack.TrackedBodyGenConfig.DescriptorUI);
-                this.disallowedBodyGenDescriptors = new VM_BodyGenMorphDescriptorSelectionMenu(this.ParentAssetPack.TrackedBodyGenConfig.DescriptorUI);
+                this.allowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(this.ParentAssetPack.TrackedBodyGenConfig.DescriptorUI);
+                this.disallowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(this.ParentAssetPack.TrackedBodyGenConfig.DescriptorUI);
             }
         }
 
@@ -262,8 +262,8 @@ namespace SynthEBD
             model.paths = VM_FilePathReplacementMenu.DumpViewModelToModels(viewModel.PathsMenu);
             model.weightRange = viewModel.weightRange;
 
-            model.allowedBodyGenDescriptors = VM_BodyGenMorphDescriptorSelectionMenu.DumpToHashSet(viewModel.allowedBodyGenDescriptors);
-            model.disallowedBodyGenDescriptors = VM_BodyGenMorphDescriptorSelectionMenu.DumpToHashSet(viewModel.disallowedBodyGenDescriptors);
+            model.allowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(viewModel.allowedBodyGenDescriptors);
+            model.disallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(viewModel.disallowedBodyGenDescriptors);
 
             foreach (var sg in viewModel.subgroups)
             {

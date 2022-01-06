@@ -187,8 +187,8 @@
         <TextBlock Grid.Row="19" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top">Allowed BodyGen Descriptors</TextBlock>
         <ContentPresenter Grid.Row="19" Grid.Column="1"  Content="{Binding allowedBodyGenDescriptors}">
             <ContentPresenter.Resources>
-                <DataTemplate DataType="{x:Type local:VM_BodyGenMorphDescriptorSelectionMenu}">
-                    <local:UC_BodyGenMorphDescriptorSelectionMenu Background="Black" Margin="0 0 0 10"/>
+                <DataTemplate DataType="{x:Type local:VM_BodyShapeDescriptorSelectionMenu}">
+                    <local:UC_BodyShapeDescriptorSelectionMenu Background="Black" Margin="0 0 0 10"/>
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>
@@ -196,8 +196,8 @@
         <TextBlock Grid.Row="20" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top">Disllowed BodyGen Descriptors</TextBlock>
         <ContentPresenter Grid.Row="20" Grid.Column="1"  Content="{Binding disallowedBodyGenDescriptors}">
             <ContentPresenter.Resources>
-                <DataTemplate DataType="{x:Type local:VM_BodyGenMorphDescriptorSelectionMenu}">
-                    <local:UC_BodyGenMorphDescriptorSelectionMenu Background="Black" Margin="0 0 0 10"/>
+                <DataTemplate DataType="{x:Type local:VM_BodyShapeDescriptorSelectionMenu}">
+                    <local:UC_BodyShapeDescriptorSelectionMenu Background="Black" Margin="0 0 0 10"/>
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>

@@ -65,10 +65,10 @@ namespace SynthEBD
             return true;
         }
 
-        public static Dictionary<string, HashSet<string>> MorphDescriptorsToDictionary(HashSet<BodyGenConfig.MorphDescriptor> morphDescriptors)
+        public static Dictionary<string, HashSet<string>> BodyShapeDescriptorsToDictionary(HashSet<BodyShapeDescriptor> BodyShapeDescriptors)
         {
             Dictionary<string, HashSet<string>> dict = new Dictionary<string, HashSet<string>>();
-            foreach (var m in morphDescriptors)
+            foreach (var m in BodyShapeDescriptors)
             {
                 if (!dict.ContainsKey(m.Category))
                 {
