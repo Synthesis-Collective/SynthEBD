@@ -11,8 +11,8 @@ namespace SynthEBD
 {
     public class Paths
     {
-        private static string SynthEBDexePath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
-        public static string GeneralSettingsPath = Path.Combine(SynthEBDexePath, "Settings\\GeneralSettings.json");
+        private static string SynthEBDexeDirPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+        public static string GeneralSettingsPath = Path.Combine(SynthEBDexeDirPath, "Settings\\GeneralSettings.json");
 
         public Paths()
         {
@@ -24,12 +24,12 @@ namespace SynthEBD
             string NPCConfigDirRelPath = "NPC Configuration";
             string recordTemplatesDirRelPath = "Record Templates";
 
-            string settingsDirPath = Path.Combine(SynthEBDexePath, settingsDirRelPath);
-            string assetsDirPath = Path.Combine(SynthEBDexePath, assetsDirRelPath);
-            string heightsDirPath = Path.Combine(SynthEBDexePath, heightsDirRelPath);
-            string bodyGenDirPath = Path.Combine(SynthEBDexePath, bodyGenDirRelPath);
-            string NPCConfigDirPath = Path.Combine(SynthEBDexePath, NPCConfigDirRelPath);
-            string recordTemplatesDirPath = Path.Combine(SynthEBDexePath, recordTemplatesDirRelPath);
+            string settingsDirPath = Path.Combine(SynthEBDexeDirPath, settingsDirRelPath);
+            string assetsDirPath = Path.Combine(SynthEBDexeDirPath, assetsDirRelPath);
+            string heightsDirPath = Path.Combine(SynthEBDexeDirPath, heightsDirRelPath);
+            string bodyGenDirPath = Path.Combine(SynthEBDexeDirPath, bodyGenDirRelPath);
+            string NPCConfigDirPath = Path.Combine(SynthEBDexeDirPath, NPCConfigDirRelPath);
+            string recordTemplatesDirPath = Path.Combine(SynthEBDexeDirPath, recordTemplatesDirRelPath);
 
             if (Directory.Exists(settingsDirPath) == false)
             {
@@ -59,12 +59,14 @@ namespace SynthEBD
             switch (PatcherSettings.General.bLoadSettingsFromDataFolder)
             {
                 case false:
-                    RelativePath = SynthEBDexePath;
+                    RelativePath = SynthEBDexeDirPath;
                     break;
                 case true:
                     RelativePath = GameEnvironmentProvider.MyEnvironment.DataFolderPath;
                     break;
             }
+
+            LogFolderPath = Path.Combine(SynthEBDexeDirPath, "Logs");
 
             this.TexMeshSettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "TexMeshSettings.json");
             this.AssetPackDirPath = Path.Combine(RelativePath, assetsDirRelPath);
@@ -82,25 +84,26 @@ namespace SynthEBD
             this.RecordTemplatesDirPath = Path.Combine(RelativePath, recordTemplatesDirRelPath);
             this.ModManagerSettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "ModManagerSettings.json");
 
-            this.FallBackTexMeshSettingsPath = Path.Combine(SynthEBDexePath, settingsDirPath, "TexMeshSettings.json");
-            this.FallBackAssetPackDirPath = Path.Combine(SynthEBDexePath, assetsDirPath);
-            this.FallBackHeightSettingsPath = Path.Combine(SynthEBDexePath, settingsDirPath, "HeightSettings.json");
-            this.FallBackHeightConfigDirPath = Path.Combine(SynthEBDexePath, heightsDirPath);
+            this.FallBackTexMeshSettingsPath = Path.Combine(SynthEBDexeDirPath, settingsDirPath, "TexMeshSettings.json");
+            this.FallBackAssetPackDirPath = Path.Combine(SynthEBDexeDirPath, assetsDirPath);
+            this.FallBackHeightSettingsPath = Path.Combine(SynthEBDexeDirPath, settingsDirPath, "HeightSettings.json");
+            this.FallBackHeightConfigDirPath = Path.Combine(SynthEBDexeDirPath, heightsDirPath);
             this.FallBackHeightConfigCurrentPath = Path.Combine(this.FallBackHeightConfigDirPath, "HeightConfig.json");
-            this.FallBackBodyGenSettingsPath = Path.Combine(SynthEBDexePath, settingsDirPath, "BodyGenSettings.json");
-            this.FallBackBodyGenConfigDirPath = Path.Combine(SynthEBDexePath, bodyGenDirPath);
-            this.FallBackConsistencyPath = Path.Combine(SynthEBDexePath, NPCConfigDirRelPath, "Consistency.json");
-            this.FallBackSpecificNPCAssignmentsPath = Path.Combine(SynthEBDexePath, NPCConfigDirPath, "Specific NPC Assignments.json");
-            this.FallBackBlockListPath = Path.Combine(SynthEBDexePath, NPCConfigDirPath, "BlockList.json");
-            this.FallBackLinkedNPCNameExclusionsPath = Path.Combine(SynthEBDexePath, settingsDirPath, "LinkedNPCNameExclusions.json");
-            this.FallBackLinkedNPCsPath = Path.Combine(SynthEBDexePath, settingsDirPath, "LinkedNPCs.json");
-            this.FallBackTrimPathsPath = Path.Combine(SynthEBDexePath, settingsDirPath, "TrimPathsByExtension.json");
-            this.FallBackRecordReplacerSpecifiersPath = Path.Combine(SynthEBDexePath, settingsDirPath, "RecordReplacerSpecifiers.json");
-            this.FallBackRecordTemplatesDirPath = Path.Combine(SynthEBDexePath, recordTemplatesDirRelPath);
-            this.FallBackModManagerSettingsPath = Path.Combine(SynthEBDexePath, settingsDirRelPath, "ModManagerSettings.json");
+            this.FallBackBodyGenSettingsPath = Path.Combine(SynthEBDexeDirPath, settingsDirPath, "BodyGenSettings.json");
+            this.FallBackBodyGenConfigDirPath = Path.Combine(SynthEBDexeDirPath, bodyGenDirPath);
+            this.FallBackConsistencyPath = Path.Combine(SynthEBDexeDirPath, NPCConfigDirRelPath, "Consistency.json");
+            this.FallBackSpecificNPCAssignmentsPath = Path.Combine(SynthEBDexeDirPath, NPCConfigDirPath, "Specific NPC Assignments.json");
+            this.FallBackBlockListPath = Path.Combine(SynthEBDexeDirPath, NPCConfigDirPath, "BlockList.json");
+            this.FallBackLinkedNPCNameExclusionsPath = Path.Combine(SynthEBDexeDirPath, settingsDirPath, "LinkedNPCNameExclusions.json");
+            this.FallBackLinkedNPCsPath = Path.Combine(SynthEBDexeDirPath, settingsDirPath, "LinkedNPCs.json");
+            this.FallBackTrimPathsPath = Path.Combine(SynthEBDexeDirPath, settingsDirPath, "TrimPathsByExtension.json");
+            this.FallBackRecordReplacerSpecifiersPath = Path.Combine(SynthEBDexeDirPath, settingsDirPath, "RecordReplacerSpecifiers.json");
+            this.FallBackRecordTemplatesDirPath = Path.Combine(SynthEBDexeDirPath, recordTemplatesDirRelPath);
+            this.FallBackModManagerSettingsPath = Path.Combine(SynthEBDexeDirPath, settingsDirRelPath, "ModManagerSettings.json");
         }
 
         private string RelativePath { get; set; } 
+        public string LogFolderPath { get; set; }
         
         public string TexMeshSettingsPath { get; set; } // path of the Textures and Meshes settings file
         public string AssetPackDirPath { get; set; }

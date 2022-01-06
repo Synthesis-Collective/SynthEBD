@@ -385,7 +385,7 @@ namespace SynthEBD
             }
             else
             {
-                Logger.LogReport("Could not set record " + settableRecord.EditorID + " at " + propertyName);
+                //Logger.LogReport("Could not set record " + settableRecord.EditorID + " at " + propertyName, true, npcInfo);
             }
         }
 
@@ -408,7 +408,7 @@ namespace SynthEBD
             }
             else
             {
-                Logger.LogReport("Could not set record at " + propertyName);
+                //Logger.LogReport("Could not set record at " + propertyName, true, npcInfo);
             }
         }
 
@@ -461,7 +461,7 @@ namespace SynthEBD
             }
             else
             {
-                Logger.LogReport("Could not resolve a head texture from NPC " + Logger.GetNPCLogNameString(currentNPC) + " or its corresponding record template.");
+                //Logger.LogReport("Could not resolve a head texture from NPC " + Logger.GetNPCLogNameString(currentNPC) + " or its corresponding record template.", true, npcInfo);
                 return null;
             }
 
@@ -498,7 +498,7 @@ namespace SynthEBD
             }
             else
             {
-                Logger.LogReport("Could not resolve a head texture from NPC " + npcInfo.LogIDstring + " or its corresponding record template.");
+                Logger.LogReport("Could not resolve a body texture from NPC " + npcInfo.LogIDstring + " or its corresponding record template.", true, npcInfo);
                 outputMod.Armors.Remove(newSkin);
                 return null;
             }
@@ -600,7 +600,7 @@ namespace SynthEBD
 
             if (templateAA == null)
             {
-                Logger.LogReport("Could not resolve " + type.ToString() + " armature for NPC " + npcInfo.LogIDstring + " or its template.");
+                Logger.LogReport("Could not resolve " + type.ToString() + " armature for NPC " + npcInfo.LogIDstring + " or its template.", true, npcInfo);
                 outputMod.ArmorAddons.Remove(newArmorAddon);
             }
             else if (replaceExistingArmature == false)
@@ -685,7 +685,7 @@ namespace SynthEBD
             }
             else
             {
-                Logger.LogReport("Could not resolve Skin Texture for NPC " + npcInfo.LogIDstring + " or its template.");
+                Logger.LogReport("Could not resolve Skin Texture for NPC " + npcInfo.LogIDstring + " or its template.", true, npcInfo);
                 return null;
             }
         }

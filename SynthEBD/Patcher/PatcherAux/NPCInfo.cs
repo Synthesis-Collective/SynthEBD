@@ -58,6 +58,8 @@ namespace SynthEBD
                 ConsistencyNPCAssignment.DispName = LogIDstring;
                 consistency.Add(this.NPC.FormKey.ToString(), ConsistencyNPCAssignment);
             }
+
+            Report = new Logger.NPCReport(this);
         }
 
         public INpcGetter NPC { get; set; }
@@ -72,6 +74,7 @@ namespace SynthEBD
         public bool IsValidLinkedUnique { get; set; }
         public NPCAssignment SpecificNPCAssignment { get; set; }
         public NPCAssignment ConsistencyNPCAssignment { get; set; }
+        public Logger.NPCReport Report { get; set; }
 
         public enum LinkGroupMemberType
         {

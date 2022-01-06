@@ -21,8 +21,8 @@ namespace SynthEBD
             string templatePath = Path.Combine(outputDirPath, "templates.ini");
             string morphsPath = Path.Combine(outputDirPath, "morphs.ini");
 
-            Task.Run(() => PatcherIO.WriteINIFile(templatePath, templates));
-            Task.Run(() => PatcherIO.WriteINIFile(morphsPath, morphs));
+            Task.Run(() => PatcherIO.WriteTextFile(templatePath, templates));
+            Task.Run(() => PatcherIO.WriteTextFile(morphsPath, morphs));
         }
 
         private static string CompileTemplateINI(BodyGenConfigs bodyGenConfigs)
@@ -35,7 +35,7 @@ namespace SynthEBD
 
                 foreach (var template in assignedTemplates)
                 {
-                    output += template.Label + "=" + template.Specs + "\n"; // trailing blank line is required by Bodygen
+                    output += template.Label + "=" + template.Specs + Environment.NewLine; // trailing blank line is required by Bodygen
                 }
             }
 
@@ -46,7 +46,7 @@ namespace SynthEBD
 
                 foreach (var template in assignedTemplates)
                 {
-                    output += template.Label + "=" + template.Specs + "\n"; // trailing blank line is required by Bodygen
+                    output += template.Label + "=" + template.Specs + Environment.NewLine; // trailing blank line is required by Bodygen
                 }
             }
 
@@ -67,7 +67,7 @@ namespace SynthEBD
                         output += ",";
                     }
                 }
-                output += "\n"; // trailing blank line is required by Bodygen
+                output += Environment.NewLine; // trailing blank line is required by Bodygen
             }
             return output;
         }

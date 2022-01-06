@@ -15,6 +15,9 @@ namespace SynthEBD
             Npc npc = null;
             float assignedHeight = 1;
 
+            Logger.OpenReportSubsection("Height", npcInfo);
+            Logger.LogReport("Assigning NPC height", false, npcInfo);
+
             if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.Height != null)
             {
                 npc = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
@@ -26,6 +29,8 @@ namespace SynthEBD
 
                 if (heightAssignment == null)
                 {
+                    Logger.LogReport("No heights were specified for NPCs of the current race.", false, npcInfo);
+                    Logger.CloseReportSubsection(npcInfo);
                     return;
                 }
 
@@ -57,7 +62,7 @@ namespace SynthEBD
                 else if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTracker(npcInfo, AssignmentType.Height) != -1)
                 {
                     assignedHeight = Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedHeight;
-                    Logger.LogReport("Another unique NPC with the same name was assigned a morph. Using that morph for current NPC.");
+                    Logger.LogReport("Another unique NPC with the same name was assigned a height. Using that height for current NPC.", false, npcInfo);
                 }
                 // assign by consistency if possible
                 else if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.Height != null && npcInfo.ConsistencyNPCAssignment.Height <= upperBound && npcInfo.ConsistencyNPCAssignment.Height >= lowerBound)
@@ -111,6 +116,8 @@ namespace SynthEBD
             {
                 Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedHeight = assignedHeight;
             }
+
+            Logger.CloseReportSubsection(npcInfo);
         }
 
         public static void AssignRacialHeight(HeightConfig heightConfig, SkyrimMod outputMod)

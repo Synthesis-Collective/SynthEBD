@@ -10,11 +10,14 @@ namespace SynthEBD
 {
     class PatcherIO
     {
-        public static async Task WriteINIFile(string path, string contents)
+        public static async Task WriteTextFile(string path, string contents)
         {
+            FileInfo file = new System.IO.FileInfo(path);
+            file.Directory.Create(); // If the directory already exists, this method does nothing.
+
             try
             {
-                await File.WriteAllTextAsync(path, contents);
+                await File.WriteAllTextAsync(file.FullName, contents);
             }
             catch
             {

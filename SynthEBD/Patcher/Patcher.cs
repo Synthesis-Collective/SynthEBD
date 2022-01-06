@@ -34,6 +34,7 @@ namespace SynthEBD
 
             Logger.UpdateStatus("Patching", false);
             Logger.StartTimer();
+            Logger.Instance.PatcherExecutionStart = DateTime.Now;
 
             statusBar.IsPatching = true;
 
@@ -167,6 +168,15 @@ namespace SynthEBD
                     UniqueNPCData.InitializeUniqueNPC(currentNPCInfo);
                 }
 
+                if (PatcherSettings.General.verboseModeNPClist.Contains(npc.FormKey) || PatcherSettings.General.bVerboseModeAssetsAll || PatcherSettings.General.bVerboseModeAssetsNoncompliant)
+                {
+                    Logger.TriggerNPCReporting(currentNPCInfo);
+                }
+                if (PatcherSettings.General.verboseModeNPClist.Contains(npc.FormKey) || PatcherSettings.General.bVerboseModeAssetsAll)
+                {
+                    Logger.TriggerNPCReportingSave(currentNPCInfo);
+                }
+
                 Logger.InitializeNewReport(currentNPCInfo);
 
                 blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(blockList, npc.FormKey);
@@ -263,6 +273,8 @@ namespace SynthEBD
                 {
                     HeightPatcher.AssignNPCHeight(currentNPCInfo, currentHeightConfig, outputMod);
                 }
+
+                Logger.SaveReport(currentNPCInfo);
             }
         }
 

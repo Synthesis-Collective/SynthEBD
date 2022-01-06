@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Media;
+using System.Xml.Linq;
 
 namespace SynthEBD
 {
@@ -20,7 +21,6 @@ namespace SynthEBD
         public VM_RunButton RunButton { get; set; }
         public string StatusString { get; set; }
         public string LogString { get; set; }
-        public string ReportString { get; set; }
 
         public SolidColorBrush StatusColor { get; set; }
 
@@ -29,8 +29,33 @@ namespace SynthEBD
         public SolidColorBrush ErrorColor = new SolidColorBrush(Colors.Red);
         public string ReadyString = "Ready To Patch";
 
+        public DateTime PatcherExecutionStart { get; set; }
+
         System.Windows.Threading.DispatcherTimer UpdateTimer { get; set; }
         System.Diagnostics.Stopwatch EllapsedTimer { get; set; }
+
+
+
+        public class NPCReport
+        {
+            public NPCReport(NPCInfo npcInfo)
+            {
+                NameString = GetNPCLogReportingString(npcInfo.NPC);
+                LogCurrentNPC = false;
+                SaveCurrentNPCLog = false;
+                RootElement = null;
+                CurrentElement = null;
+                ReportElementHierarchy = new Dictionary<XElement, XElement>();
+            }
+            public string NameString { get; set; }
+            public bool LogCurrentNPC { get; set; }
+            public bool SaveCurrentNPCLog { get; set; }
+            public System.Xml.Linq.XElement RootElement { get; set; }
+            public System.Xml.Linq.XElement CurrentElement { get; set; }
+            public Dictionary<System.Xml.Linq.XElement, System.Xml.Linq.XElement> ReportElementHierarchy { get; set; }
+            public int CurrentLayer;
+        }
+
         private Logger()
         {
             this.StatusColor = this.ReadyColor;
@@ -56,41 +81,172 @@ namespace SynthEBD
 
         public static void LogMessage(string message)
         {
-            Instance.LogString += message + "\n";
+            Instance.LogString += message + Environment.NewLine;
+        }
+
+        public static void TriggerNPCReporting(NPCInfo npcInfo)
+        {
+            npcInfo.Report.LogCurrentNPC = true;
+        }
+
+        public static void TriggerNPCReportingSave(NPCInfo npcInfo)
+        {
+            if (npcInfo.Report.LogCurrentNPC)
+            {
+                npcInfo.Report.SaveCurrentNPCLog = true;
+            }
         }
 
         public static void InitializeNewReport(NPCInfo npcInfo)
         {
-            Instance.ReportString = "Patching NPC " + npcInfo.LogIDstring + "\n";
-        }
-        public static void LogReport(string message) // detailed operation log; not reflected on screen
-        {
-           // Instance.ReportString += message + "\n";
+            if (npcInfo.Report.LogCurrentNPC)
+            {
+                npcInfo.Report.RootElement = new XElement("Report");
+                npcInfo.Report.CurrentElement = npcInfo.Report.RootElement;
+                npcInfo.Report.ReportElementHierarchy = new Dictionary<XElement, XElement>();
+
+                LogReport("Patching NPC " + npcInfo.Report.NameString, false, npcInfo);
+            }
         }
 
-        public static async Task WriteReport()
+        public static void OpenReportSubsection(string header, NPCInfo npcInfo)
         {
-            await System.IO.File.WriteAllTextAsync("Report.txt", Instance.ReportString);
+            if (npcInfo.Report.LogCurrentNPC)
+            {
+                var newElement = new XElement(header);
+                npcInfo.Report.ReportElementHierarchy.Add(newElement, npcInfo.Report.CurrentElement);
+                npcInfo.Report.CurrentElement.Add(newElement);
+                npcInfo.Report.CurrentElement = newElement;
+            }
+        }
+
+        public static void LogReport(string message, bool triggerSave, NPCInfo npcInfo) // detailed operation log; not reflected on screen
+        {
+            if (npcInfo.Report.LogCurrentNPC)
+            {
+                AddStringToReport(npcInfo.Report.CurrentElement, message);
+
+                if (triggerSave)
+                {
+                    npcInfo.Report.SaveCurrentNPCLog = true;
+                }
+            }
+        }
+
+        private static void AddStringToReport(XElement element, string value)
+        {
+            var split = value.Trim().Split(Environment.NewLine);
+
+            if (element.Value.Any())
+            {
+                element.Add(Environment.NewLine);
+            }
+
+            foreach (var item in split)
+            {
+                element.Add(item);
+                element.Add(Environment.NewLine);
+            }
+        }
+
+        public static void CloseReportSubsection(NPCInfo npcInfo)
+        {
+            if (npcInfo.Report.LogCurrentNPC)
+            {
+                npcInfo.Report.CurrentElement = npcInfo.Report.ReportElementHierarchy[npcInfo.Report.CurrentElement];
+            }
+        }
+
+        public static void CloseReportSubsectionsTo(string label, NPCInfo npcInfo)
+        {
+            if (npcInfo.Report.LogCurrentNPC)
+            {
+                while (npcInfo.Report.CurrentElement.Name != label)
+                {
+                    npcInfo.Report.CurrentElement = npcInfo.Report.ReportElementHierarchy[npcInfo.Report.CurrentElement];
+                }
+            }
+        }
+
+        public static void SaveReport(NPCInfo npcInfo)
+        {
+            if (npcInfo.Report.LogCurrentNPC)
+            {
+                if (npcInfo.Report.SaveCurrentNPCLog)
+                {
+                    string outputFile = System.IO.Path.Combine(PatcherSettings.Paths.LogFolderPath, Logger.Instance.PatcherExecutionStart.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture), npcInfo.Report.NameString + ".xml");
+
+                    XDocument output = new XDocument();
+                    output.Add(npcInfo.Report.RootElement);
+
+                    Task.Run(() => PatcherIO.WriteTextFile(outputFile, FormatLogStringIndents(output.ToString())));
+                }
+            }
+        }
+
+        private static string FormatLogStringIndents(string s)
+        {
+            int indent = 0;
+
+            s = s.Replace("><", ">" + Environment.NewLine + "<");
+
+            string[] split = s.Split(Environment.NewLine);
+            for (int i = 0; i < split.Length; i++)
+            {
+                if (split[i].Trim().StartsWith("</"))
+                {
+                    indent--;
+                    split[i] = Indent(split[i], indent);
+                }
+                else if (split[i].Trim().StartsWith('<'))
+                {
+                    split[i] = Indent(split[i], indent);
+                    indent++;
+                }
+                else
+                {
+                    split[i] = Indent(split[i], indent);
+                }
+            }
+
+            return string.Join(Environment.NewLine, split);
+        }
+
+        private static string Indent(string s, int count)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                s = "\t" + s;
+            }
+            return s;
+        }
+
+        private class Utf8StringWriter : System.IO.StringWriter
+        {
+            public override Encoding Encoding
+            {
+                get { return Encoding.UTF8; }
+            }
         }
 
         public static void LogError(string error)
         {
-            Instance.LogString += error + "\n";
+            Instance.LogString += error + Environment.NewLine;
         }
         public static string SpreadFlattenedAssetPack(FlattenedAssetPack ap, int index, bool indentAtIndex)
         {
-            string spread = "\n";
+            string spread = Environment.NewLine;
             for (int i = 0; i < ap.Subgroups.Count; i++)
             {
                 if (indentAtIndex && i == index) { spread += "\t"; }
-                spread += i + ": [" + String.Join(',', ap.Subgroups[i].Select(x => x.Id)) + "]\n";
+                spread += i + ": [" + String.Join(',', ap.Subgroups[i].Select(x => x.Id)) + "]" + Environment.NewLine;
             }
             return spread;
         }
 
         public static void LogErrorWithStatusUpdate(string error, ErrorType type)
         {
-            Instance.LogString += error + "\n";
+            Instance.LogString += error + Environment.NewLine;
             Instance.StatusString = error;
             switch (type)
             {
@@ -174,6 +330,11 @@ namespace SynthEBD
         public static string GetNPCLogNameString(INpcGetter npc)
         {
             return npc.Name?.String + " | " + npc.EditorID + " | " + npc.FormKey.ToString();
+        }
+
+        public static string GetNPCLogReportingString(INpcGetter npc)
+        {
+            return npc.Name?.String + " (" + npc.EditorID + ") " + npc.FormKey.ToString().Replace(':', '-');
         }
     }
 

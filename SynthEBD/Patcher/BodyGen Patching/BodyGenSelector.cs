@@ -10,6 +10,8 @@ namespace SynthEBD
     {
         public static List<string> SelectMorphs(NPCInfo npcInfo, out bool success, BodyGenConfigs bodyGenConfigs, SubgroupCombination assetCombination, BodyGenSelectorStatusFlag statusFlags)
         {
+            Logger.OpenReportSubsection("BodyGen", npcInfo);
+            Logger.LogReport("Selecting BodyGen morph(s) for currentNPC", false, npcInfo);
             BodyGenConfig currentBodyGenConfig = null;
             var genderedBodyGenConfigs = new HashSet<BodyGenConfig>();
             switch(npcInfo.Gender)
@@ -37,6 +39,8 @@ namespace SynthEBD
             if (currentBodyGenConfig == null)
             {
                 success = false;
+                Logger.LogReport("No BodyGen configs are available for NPCs of the current gender.", false, npcInfo);
+                Logger.CloseReportSubsection(npcInfo);
                 return null;
             }
 
@@ -68,7 +72,7 @@ namespace SynthEBD
                         availableCombinations = FilterBySpecificNPCAssignments(availableCombinations, npcInfo, out assignmentsSpecified);
                         if (!assignmentsSpecified)
                         {
-                            Logger.LogReport("No morph combinations could be generated while respecting the Specific Assignments for " + npcInfo.LogIDstring + ". A random morph will be chosen.");
+                            Logger.LogReport("No morph combinations could be generated while respecting the Specific Assignments for " + npcInfo.LogIDstring + ". A random morph will be chosen.", true, npcInfo);
                             availableCombinations = GetAvailableCombinations(currentBodyGenConfig, npcInfo, availableTemplatesGlobal); // revert to original
                         }
                     }
@@ -88,7 +92,7 @@ namespace SynthEBD
                 }
                 else
                 {
-                    Logger.LogReport("Could not find any combinations containing the morphs applied to the specified parent NPC.");
+                    Logger.LogReport("Could not find any combinations containing the morphs applied to the specified parent NPC.", true, npcInfo);
                 }
             }
             #endregion
@@ -102,7 +106,7 @@ namespace SynthEBD
                 if (linkedCombinations != null)
                 {
                     availableCombinations = linkedCombinations;
-                    Logger.LogReport("Another unique NPC with the same name was assigned a morph. Using that morph for current NPC.");
+                    Logger.LogReport("Another unique NPC with the same name was assigned a morph. Using that morph for current NPC.", false, npcInfo);
                 }
 
             }
@@ -119,7 +123,8 @@ namespace SynthEBD
 
             if (chosenMorphs == null)
             {
-                Logger.LogReport("Could not choose any valid morphs for NPC " + npcInfo.LogIDstring);
+                Logger.LogReport("Could not choose any valid morphs for NPC " + npcInfo.LogIDstring, false, npcInfo);
+                Logger.CloseReportSubsection(npcInfo);
                 success = false;
                 return chosenMorphs;
             }
@@ -146,6 +151,7 @@ namespace SynthEBD
                 statusFlags |= BodyGenSelectorStatusFlag.MatchesConsistency;
             }
 
+            Logger.CloseReportSubsection(npcInfo);
             return chosenMorphs;
         }
 
@@ -155,7 +161,7 @@ namespace SynthEBD
             
             if (availableCombinations.Count == 0)
             {
-                Logger.LogError("Could not get a BodyGen combination for Race " + npcInfo.BodyGenRace.ToString() + " ( NPC " + npcInfo.LogIDstring + ")");
+                Logger.LogReport("Could not get a BodyGen combination for Race " + npcInfo.BodyGenRace.ToString() + " ( NPC " + npcInfo.LogIDstring + ")", false, npcInfo);
                 return null;
             }
 
@@ -200,7 +206,7 @@ namespace SynthEBD
 
             if (!output.Any())
             {
-                Logger.LogError("Could not apply specific BodyGen morph assignment to NPC " + npcInfo.LogIDstring + " because no valid combinations contained the specified morphs");
+                Logger.LogReport("Could not apply specific BodyGen morph assignment to NPC " + npcInfo.LogIDstring + " because no valid combinations contained the specified morphs", true, npcInfo);
                 success = false;
                 return allCombinations;
             }
@@ -297,12 +303,12 @@ namespace SynthEBD
             }
             else if (partialMatches.Any())
             {
-                Logger.LogReport("NPC " + npcInfo.LogIDstring + "'s consistency morph could not be fully matched. Attempting to assign the closest available partial match.");
+                Logger.LogReport("NPC " + npcInfo.LogIDstring + "'s consistency morph could not be fully matched. Attempting to assign the closest available partial match.", true, npcInfo);
                 return partialMatches;
             }
             else
             {
-                Logger.LogReport("NPC " + npcInfo.LogIDstring + "'s consistency morph could not be matched. Assigning a random morph");
+                Logger.LogReport("NPC " + npcInfo.LogIDstring + "'s consistency morph could not be matched. Assigning a random morph", true, npcInfo);
                 return availableCombinations;
             }
         }
