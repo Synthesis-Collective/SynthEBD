@@ -19,9 +19,9 @@ namespace SynthEBD
                 string text = File.ReadAllText(PatcherSettings.Paths.HeightSettingsPath);
                 heightSettings = JsonConvert.DeserializeObject<Settings_Height>(text);
             }
-            else if (File.Exists(PatcherSettings.Paths.FallBackHeightSettingsPath))
+            else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightSettingsPath)))
             {
-                string text = File.ReadAllText(PatcherSettings.Paths.FallBackHeightSettingsPath);
+                string text = File.ReadAllText(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightSettingsPath));
                 heightSettings = JsonConvert.DeserializeObject<Settings_Height>(text);
             }
 
@@ -37,10 +37,10 @@ namespace SynthEBD
             {
                 searchPath = PatcherSettings.Paths.HeightConfigDirPath;
             }
-            else if (Directory.Exists(PatcherSettings.Paths.FallBackHeightConfigDirPath))
+            else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath)))
             {
                 // Warn User
-                searchPath = PatcherSettings.Paths.FallBackHeightConfigDirPath;
+                searchPath = PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath);
             }
             else
             {
@@ -150,9 +150,9 @@ namespace SynthEBD
                         {
                             newPath = Path.Combine(PatcherSettings.Paths.HeightConfigDirPath, heightConfigs[i].Label + ".json");
                         }
-                        else if (Directory.Exists(PatcherSettings.Paths.FallBackHeightConfigDirPath))
+                        else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath)))
                         {
-                            newPath = Path.Combine(PatcherSettings.Paths.FallBackHeightConfigDirPath, heightConfigs[i].Label + ".json");
+                            newPath = Path.Combine(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath), heightConfigs[i].Label + ".json");
                         }
 
                         JSONhandler<HeightConfig>.SaveJSONFile(heightConfigs[i], newPath);
@@ -169,9 +169,9 @@ namespace SynthEBD
                         {
                             dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.HeightConfigDirPath);
                         }
-                        else if (Directory.Exists(PatcherSettings.Paths.FallBackHeightConfigDirPath))
+                        else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath)))
                         {
-                            dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.FallBackHeightConfigDirPath);
+                            dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath));
                         }
 
                         dialog.RestoreDirectory = true;

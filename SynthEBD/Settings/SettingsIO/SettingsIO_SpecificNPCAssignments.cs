@@ -24,11 +24,11 @@ namespace SynthEBD
                     // Warn User
                 }
             }
-            else if (File.Exists(PatcherSettings.Paths.FallBackSpecificNPCAssignmentsPath))
+            else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.SpecificNPCAssignmentsPath)))
             {
                 try
                 {
-                    specificNPCAssignments = JSONhandler<HashSet<NPCAssignment>>.loadJSONFile(PatcherSettings.Paths.FallBackSpecificNPCAssignmentsPath);
+                    specificNPCAssignments = JSONhandler<HashSet<NPCAssignment>>.loadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.SpecificNPCAssignmentsPath));
                 }
                 catch
                 {

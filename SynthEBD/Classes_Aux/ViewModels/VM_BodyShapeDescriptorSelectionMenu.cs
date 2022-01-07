@@ -1,9 +1,12 @@
-﻿using System;
+﻿using Noggog;
+using ReactiveUI;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
+using System.Reactive.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -29,6 +32,21 @@ namespace SynthEBD
         public ObservableCollection<VM_BodyShapeDescriptorShellSelector> DescriptorShells { get; set; }
         public VM_BodyShapeDescriptorShellSelector CurrentlyDisplayedShell { get; set; }
         public event PropertyChangedEventHandler PropertyChanged;
+
+        public bool IsAnnotated()
+        {
+            foreach (var shell in DescriptorShells)
+            {
+                foreach (var descriptor in shell.DescriptorSelectors)
+                {
+                    if (descriptor.IsSelected)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
 
         public void UpdateShellList(object sender, NotifyCollectionChangedEventArgs e)
         {
@@ -156,7 +174,6 @@ namespace SynthEBD
                 this.DescriptorSelectors.Add(new VM_BodyShapeDescriptorSelector(descriptor, this.ParentMenu));
             }
             this.TrackedShell.Descriptors.CollectionChanged += UpdateDescriptorList;
-
         }
         public VM_BodyShapeDescriptorShell TrackedShell { get; set; }
         public VM_BodyShapeDescriptorSelectionMenu ParentMenu { get; set; }

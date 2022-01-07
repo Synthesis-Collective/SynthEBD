@@ -8,6 +8,7 @@
              d:DataContext="{d:DesignInstance Type=local:VM_BodySlideSetting}"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
+    <Border BorderThickness="1" BorderBrush="{Binding BorderColor}">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <Grid>
             <Grid.ColumnDefinitions>
@@ -119,4 +120,5 @@
             <Button Grid.Row="18" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding DeleteMe}">Delete Preset</Button>
         </Grid>
     </ScrollViewer>
+    </Border>
 </UserControl>

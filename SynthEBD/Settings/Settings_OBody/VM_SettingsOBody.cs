@@ -69,6 +69,11 @@ namespace SynthEBD
                 viewModel.DescriptorUI.TemplateDescriptorList.Add(VM_BodyShapeDescriptor.GetViewModelFromModel(descriptor));
             }
 
+            viewModel.BodySlidesUI.CurrentlyExistingBodySlides = model.CurrentlyExistingBodySlides; // must load before presets
+
+            viewModel.BodySlidesUI.BodySlidesMale.Clear();
+            viewModel.BodySlidesUI.BodySlidesFemale.Clear();
+
             foreach (var preset in model.BodySlidesMale)
             {
                 var presetVM = new VM_BodySlideSetting(viewModel.DescriptorUI, raceGroupingVMs, viewModel.BodySlidesUI.BodySlidesMale, viewModel);
@@ -89,6 +94,10 @@ namespace SynthEBD
         public static void DumpViewModelToModel(Settings_OBody model, VM_SettingsOBody viewModel)
         {
             model.TemplateDescriptors = VM_BodyShapeDescriptorShell.DumpViewModelsToModels(viewModel.DescriptorUI.TemplateDescriptors);
+
+            model.BodySlidesMale.Clear();
+            model.BodySlidesFemale.Clear();
+
             foreach (var preset in viewModel.BodySlidesUI.BodySlidesMale)
             {
                 model.BodySlidesMale.Add(VM_BodySlideSetting.DumpViewModelToModel(preset));

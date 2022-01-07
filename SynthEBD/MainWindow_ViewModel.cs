@@ -94,6 +94,7 @@ namespace SynthEBD
 
             // load OBody settings before asset packs - asset packs depend on BodyGen but not vice versa
             OBodySettings = SettingsIO_OBody.LoadOBodySettings();
+            OBodySettings.ImportBodySlides();
             VM_SettingsOBody.GetViewModelFromModel(OBodySettings, OBVM, SGVM.RaceGroupings);
 
             // load asset packs

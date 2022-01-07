@@ -18,10 +18,10 @@ namespace SynthEBD
             {
                 exclusions = JSONhandler<HashSet<string>>.loadJSONFile(PatcherSettings.Paths.LinkedNPCNameExclusionsPath);
             }
-            else if (File.Exists(PatcherSettings.Paths.FallBackLinkedNPCNameExclusionsPath))
+            else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.LinkedNPCNameExclusionsPath)))
             {
                 // Warn User
-                exclusions = JSONhandler<HashSet<string>>.loadJSONFile(PatcherSettings.Paths.FallBackLinkedNPCNameExclusionsPath);
+                exclusions = JSONhandler<HashSet<string>>.loadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.LinkedNPCNameExclusionsPath));
             }
             else
             {
@@ -51,10 +51,10 @@ namespace SynthEBD
             {
                 linkedNPCGroups = JSONhandler<HashSet<LinkedNPCGroup>>.loadJSONFile(PatcherSettings.Paths.LinkedNPCsPath);
             }
-            else if (File.Exists(PatcherSettings.Paths.FallBackLinkedNPCsPath))
+            else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.LinkedNPCsPath)))
             {
                 // Warn User
-                linkedNPCGroups = JSONhandler<HashSet<LinkedNPCGroup>>.loadJSONFile(PatcherSettings.Paths.FallBackLinkedNPCsPath);
+                linkedNPCGroups = JSONhandler<HashSet<LinkedNPCGroup>>.loadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.LinkedNPCsPath));
             }
             else
             {
@@ -84,10 +84,10 @@ namespace SynthEBD
             {
                 trimPaths = JSONhandler<HashSet<TrimPath>>.loadJSONFile(PatcherSettings.Paths.TrimPathsPath);
             }
-            else if (File.Exists(PatcherSettings.Paths.FallBackTrimPathsPath))
+            else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.TrimPathsPath)))
             {
                 // Warn User
-                trimPaths = JSONhandler<HashSet<TrimPath>>.loadJSONFile(PatcherSettings.Paths.FallBackTrimPathsPath);
+                trimPaths = JSONhandler<HashSet<TrimPath>>.loadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.TrimPathsPath));
             }
             else
             {
@@ -116,9 +116,9 @@ namespace SynthEBD
             {
                 loaded = JSONhandler<Dictionary<string, NPCAssignment>>.loadJSONFile(PatcherSettings.Paths.ConsistencyPath);
             }
-            else if (File.Exists(PatcherSettings.Paths.FallBackConsistencyPath))
+            else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.ConsistencyPath)))
             {
-                loaded = JSONhandler<Dictionary<string, NPCAssignment>>.loadJSONFile(PatcherSettings.Paths.FallBackConsistencyPath);
+                loaded = JSONhandler<Dictionary<string, NPCAssignment>>.loadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.ConsistencyPath));
             }
             // note: No need to alert user if consistency can't be loaded - it won't be available on first run
             return loaded;

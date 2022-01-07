@@ -9,6 +9,8 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Media;
+using ReactiveUI;
 
 namespace SynthEBD
 {
@@ -54,6 +56,7 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ => this.ParentCollection.Remove(this)
                 );
+            DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => UpdateBorder());
         }
 
         public string Label { get; set; }
@@ -84,6 +87,28 @@ namespace SynthEBD
 
         public VM_SettingsOBody ParentConfig { get; set; }
         public ObservableCollection<VM_BodySlideSetting> ParentCollection { get; set; }
+
+        public SolidColorBrush BorderColor { get; set; }
+
+        public void UpdateBorder()
+        {
+            if (!ParentConfig.BodySlidesUI.CurrentlyExistingBodySlides.Contains(this.Label))
+            {
+                BorderColor = new SolidColorBrush(Colors.Red);
+            }
+            else if (!bAllowRandom)
+            {
+                BorderColor = new SolidColorBrush(Colors.LightSlateGray);
+            }
+            else if(!DescriptorsSelectionMenu.IsAnnotated())
+            {
+                BorderColor = new SolidColorBrush(Colors.Yellow);
+            }
+            else
+            {
+                BorderColor = new SolidColorBrush(Colors.LightGreen);
+            }
+        }
 
         public static void GetViewModelFromModel(BodySlideSetting model, VM_BodySlideSetting viewModel, VM_BodyShapeDescriptorCreationMenu descriptorMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
@@ -121,6 +146,10 @@ namespace SynthEBD
             viewModel.bAllowRandom = model.AllowRandom;
             viewModel.ProbabilityWeighting = model.ProbabilityWeighting;
             viewModel.WeightRange = model.WeightRange;
+
+            viewModel.UpdateBorder();
+
+            viewModel.DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => viewModel.UpdateBorder());
         }
 
         public static BodySlideSetting DumpViewModelToModel(VM_BodySlideSetting viewModel)

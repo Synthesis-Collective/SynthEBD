@@ -19,9 +19,9 @@ namespace SynthEBD
                 string text = File.ReadAllText(PatcherSettings.Paths.BodyGenSettingsPath);
                 bodygenSettings = JsonConvert.DeserializeObject<Settings_BodyGen>(text);
             }
-            else if (File.Exists(PatcherSettings.Paths.FallBackBodyGenSettingsPath))
+            else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenSettingsPath)))
             {
-                string text = File.ReadAllText(PatcherSettings.Paths.FallBackBodyGenSettingsPath);
+                string text = File.ReadAllText(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenSettingsPath));
                 bodygenSettings = JsonConvert.DeserializeObject<Settings_BodyGen>(text);
             }
 
@@ -130,9 +130,9 @@ namespace SynthEBD
                         {
                             newPath = Path.Combine(PatcherSettings.Paths.BodyGenConfigDirPath, bgConfig.Label + ".json");
                         }
-                        else if (Directory.Exists(PatcherSettings.Paths.FallBackBodyGenConfigDirPath))
+                        else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath)))
                         {
-                            newPath = Path.Combine(PatcherSettings.Paths.FallBackBodyGenConfigDirPath, bgConfig.Label + ".json");
+                            newPath = Path.Combine(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath), bgConfig.Label + ".json");
                         }
 
                         JSONhandler<BodyGenConfig>.SaveJSONFile(bgConfig, newPath);
@@ -149,9 +149,9 @@ namespace SynthEBD
                         {
                             dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.BodyGenConfigDirPath);
                         }
-                        else if (Directory.Exists(PatcherSettings.Paths.FallBackBodyGenConfigDirPath))
+                        else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath)))
                         {
-                            dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.FallBackBodyGenConfigDirPath);
+                            dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath));
                         }
 
                         dialog.RestoreDirectory = true;

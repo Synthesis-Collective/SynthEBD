@@ -21,9 +21,9 @@ namespace SynthEBD
                 string text = File.ReadAllText(PatcherSettings.Paths.TexMeshSettingsPath);
                 texMeshSettings = JsonConvert.DeserializeObject<Settings_TexMesh>(text);
             }
-            else if (File.Exists(PatcherSettings.Paths.FallBackTexMeshSettingsPath))
+            else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.TexMeshSettingsPath)))
             {
-                string text = File.ReadAllText(PatcherSettings.Paths.FallBackTexMeshSettingsPath);
+                string text = File.ReadAllText(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.TexMeshSettingsPath));
                 texMeshSettings = JsonConvert.DeserializeObject<Settings_TexMesh>(text);
             }
 
@@ -45,7 +45,7 @@ namespace SynthEBD
             else
             {
                 // Warn User
-                filePaths = Directory.GetFiles(PatcherSettings.Paths.FallBackAssetPackDirPath, "*.json");
+                filePaths = Directory.GetFiles(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.AssetPackDirPath), "*.json");
             }
 
             foreach (string s in filePaths)
@@ -89,7 +89,7 @@ namespace SynthEBD
             else
             {
                 // Warn User
-                filePaths = Directory.GetFiles(PatcherSettings.Paths.FallBackRecordTemplatesDirPath, "*.esp");
+                filePaths = Directory.GetFiles(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.RecordTemplatesDirPath), "*.esp");
             }
 
             foreach (string s in filePaths)
@@ -123,9 +123,9 @@ namespace SynthEBD
                         {
                             newPath = Path.Combine(PatcherSettings.Paths.AssetPackDirPath, assetPacks[i].GroupName + ".json");
                         }
-                        else if (Directory.Exists(PatcherSettings.Paths.FallBackAssetPackDirPath))
+                        else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.AssetPackDirPath)))
                         {
-                            newPath = Path.Combine(PatcherSettings.Paths.FallBackAssetPackDirPath, assetPacks[i].GroupName + ".json");
+                            newPath = Path.Combine(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.AssetPackDirPath), assetPacks[i].GroupName + ".json");
                         }
 
                         JSONhandler<AssetPack>.SaveJSONFile(assetPacks[i], newPath);
@@ -142,9 +142,9 @@ namespace SynthEBD
                         {
                             dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.AssetPackDirPath);
                         }
-                        else if (Directory.Exists(PatcherSettings.Paths.FallBackAssetPackDirPath))
+                        else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.AssetPackDirPath)))
                         {
-                            dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.FallBackAssetPackDirPath);
+                            dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.AssetPackDirPath));
                         }
 
                         dialog.RestoreDirectory = true;

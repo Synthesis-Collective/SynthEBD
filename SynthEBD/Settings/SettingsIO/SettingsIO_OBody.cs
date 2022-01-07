@@ -19,9 +19,9 @@ namespace SynthEBD
                 string text = File.ReadAllText(PatcherSettings.Paths.OBodySettingsPath);
                 oBodySettings = JsonConvert.DeserializeObject<Settings_OBody>(text);
             }
-            else if (File.Exists(PatcherSettings.Paths.FallBackOBodySettingsPath))
+            else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.OBodySettingsPath)))
             {
-                string text = File.ReadAllText(PatcherSettings.Paths.FallBackOBodySettingsPath);
+                string text = File.ReadAllText(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.OBodySettingsPath));
                 oBodySettings = JsonConvert.DeserializeObject<Settings_OBody>(text);
             }
 

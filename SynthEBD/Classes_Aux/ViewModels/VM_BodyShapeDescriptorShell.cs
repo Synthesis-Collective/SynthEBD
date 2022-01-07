@@ -28,6 +28,7 @@ namespace SynthEBD
         public RelayCommand AddTemplateDescriptorValue { get; }
         public event PropertyChangedEventHandler PropertyChanged;
 
+
         public static ObservableCollection<VM_BodyShapeDescriptorShell> GetViewModelsFromModels(HashSet<BodyShapeDescriptor> models)
         {
             ObservableCollection<VM_BodyShapeDescriptorShell> viewModels = new ObservableCollection<VM_BodyShapeDescriptorShell>();

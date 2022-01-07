@@ -26,9 +26,10 @@
         <Button Grid.Row="2" Grid.Column="0" Command="{Binding AddPreset}" Foreground="Lightgreen">Add New</Button>
         <ScrollViewer Grid.Row="3" Grid.Column="0">
             <StackPanel >
-                <ListBox SelectedValue="{Binding CurrentlyDisplayedBodySlide}" ItemsSource="{Binding CurrentlyDisplayedBodySlides}" IsSynchronizedWithCurrentItem="True" >
+                <ListBox SelectedValue="{Binding CurrentlyDisplayedBodySlide}" ItemsSource="{Binding CurrentlyDisplayedBodySlides}" IsSynchronizedWithCurrentItem="True">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
+                            <Border BorderThickness="1" BorderBrush="{Binding BorderColor}">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -38,6 +39,7 @@
                                 <TextBox Grid.Column="0" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}" MinWidth="100" />
                                 <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemovePreset}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
                             </Grid>
+                            </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
 

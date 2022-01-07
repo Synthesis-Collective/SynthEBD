@@ -17,6 +17,7 @@ namespace SynthEBD
             BodySlidesFemale = new ObservableCollection<VM_BodySlideSetting>();
             SelectedGender = Gender.female;
             CurrentlyDisplayedBodySlide = null;
+            CurrentlyExistingBodySlides = new HashSet<string>();
             
             AddPreset = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -43,6 +44,8 @@ namespace SynthEBD
         public ObservableCollection<VM_BodySlideSetting> CurrentlyDisplayedBodySlides { get; set; }
         public VM_BodySlideSetting CurrentlyDisplayedBodySlide { get; set; }
         public Gender SelectedGender { get; set; }
+
+        public HashSet<string> CurrentlyExistingBodySlides { get; set; }
 
         public RelayCommand AddPreset { get; }
         public RelayCommand RemovePreset { get; }
