@@ -10,6 +10,7 @@ namespace SynthEBD
     {
         Assets,
         BodyGen,
+        BodySlide,
         Height
     }
 }

@@ -8,10 +8,10 @@ namespace SynthEBD
 {
     public class BodyGenSelector
     {
-        public static List<string> SelectMorphs(NPCInfo npcInfo, out bool success, BodyGenConfigs bodyGenConfigs, SubgroupCombination assetCombination, AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
+        public static List<string> SelectMorphs(NPCInfo npcInfo, out bool selectionMade, BodyGenConfigs bodyGenConfigs, SubgroupCombination assignedAssetCombination, AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
         {
-            Logger.OpenReportSubsection("BodyGen", npcInfo);
-            Logger.LogReport("Selecting BodyGen morph(s) for currentNPC", false, npcInfo);
+            Logger.OpenReportSubsection("BodyGenSelection", npcInfo);
+            Logger.LogReport("Selecting BodyGen morph(s) for the current NPC", false, npcInfo);
             BodyGenConfig currentBodyGenConfig = null;
             var genderedBodyGenConfigs = new HashSet<BodyGenConfig>();
             switch(npcInfo.Gender)
@@ -20,12 +20,12 @@ namespace SynthEBD
                 case Gender.female: genderedBodyGenConfigs = bodyGenConfigs.Female; break;
             }
 
-            if (assetCombination != null)
+            if (assignedAssetCombination != null)
             {
                 switch (npcInfo.Gender)
                 {
-                    case Gender.male: currentBodyGenConfig = bodyGenConfigs.Male.Where(x => x.Label == assetCombination.AssetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
-                    case Gender.female: currentBodyGenConfig = bodyGenConfigs.Female.Where(x => x.Label == assetCombination.AssetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
+                    case Gender.male: currentBodyGenConfig = bodyGenConfigs.Male.Where(x => x.Label == assignedAssetCombination.AssetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
+                    case Gender.female: currentBodyGenConfig = bodyGenConfigs.Female.Where(x => x.Label == assignedAssetCombination.AssetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
                 }
             }
             if (currentBodyGenConfig == null)
@@ -38,16 +38,16 @@ namespace SynthEBD
             }
             if (currentBodyGenConfig == null)
             {
-                success = false;
+                selectionMade = false;
                 Logger.LogReport("No BodyGen configs are available for NPCs of the current gender.", false, npcInfo);
                 Logger.CloseReportSubsection(npcInfo);
-                return null;
+                return new List<string>();
             }
 
             AssetAndBodyShapeSelector.ClearStatusFlags(statusFlags);
             List<string> chosenMorphs = new List<string>();
 
-            var availableTemplatesGlobal = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.None);
+            var availableTemplatesGlobal = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.None, assignedAssetCombination);
             var availableCombinations = GetAvailableCombinations(currentBodyGenConfig, npcInfo, availableTemplatesGlobal);
 
             HashSet<BodyGenConfig.BodyGenTemplate> availableTemplatesAll = new HashSet<BodyGenConfig.BodyGenTemplate>();
@@ -61,13 +61,13 @@ namespace SynthEBD
                 if (!assignmentsSpecified)
                 {
                     // if that didn't work, try forming combination objects out of all templates regardless of the Racial Template Map
-                    var availableTemplatesRaceIgnore = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.Race);
+                    var availableTemplatesRaceIgnore = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.Race, assignedAssetCombination);
                     availableCombinations = GetAvailableCombinations(currentBodyGenConfig, npcInfo, availableTemplatesRaceIgnore);
                     availableCombinations = FilterBySpecificNPCAssignments(availableCombinations, npcInfo, out assignmentsSpecified);
                     if (!assignmentsSpecified)
                     {
                         // if that still didn't work, ignore all 
-                        availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All);
+                        availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All, null);
                         availableCombinations = GetAllCombinations(genderedBodyGenConfigs, npcInfo, ValidationIgnore.All);
                         availableCombinations = FilterBySpecificNPCAssignments(availableCombinations, npcInfo, out assignmentsSpecified);
                         if (!assignmentsSpecified)
@@ -83,7 +83,7 @@ namespace SynthEBD
             #region Linked NPC Group
             if (!assignmentsSpecified && npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary)
             {
-                availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All);
+                availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All, null);
                 var allCombinations = GetAllCombinations(genderedBodyGenConfigs, npcInfo, ValidationIgnore.All);
                 var linkedCombinations = GetLinkedCombination(allCombinations, npcInfo.AssociatedLinkGroup.AssignedMorphs);
                 if (linkedCombinations != null)
@@ -98,17 +98,20 @@ namespace SynthEBD
             #endregion
 
             #region Unique NPC replicates
-            else if (UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName) && UniqueNPCData.GetUniqueNPCTracker(npcInfo, AssignmentType.BodyGen) != null)
+            else if (UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName))
             {
-                availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All);
-                var allCombinations = GetAllCombinations(genderedBodyGenConfigs, npcInfo, ValidationIgnore.All);
-                var linkedCombinations = GetLinkedCombination(allCombinations, Patcher.UniqueAssignmentsByName[npcName][npcInfo.Gender].AssignedMorphs);
-                if (linkedCombinations != null)
+                var uniqueBodyGenAssignment = (List<string>)UniqueNPCData.GetUniqueNPCTracker(npcInfo, AssignmentType.BodyGen);
+                if (uniqueBodyGenAssignment != null && uniqueBodyGenAssignment.Any())
                 {
-                    availableCombinations = linkedCombinations;
-                    Logger.LogReport("Another unique NPC with the same name was assigned a morph. Using that morph for current NPC.", false, npcInfo);
+                    availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All, null);
+                    var allCombinations = GetAllCombinations(genderedBodyGenConfigs, npcInfo, ValidationIgnore.All);
+                    var linkedCombinations = GetLinkedCombination(allCombinations, uniqueBodyGenAssignment);
+                    if (linkedCombinations != null)
+                    {
+                        availableCombinations = linkedCombinations;
+                        Logger.LogReport("Another unique NPC with the same name was assigned a morph. Using that morph for current NPC.", false, npcInfo);
+                    }
                 }
-
             }
             #endregion
 
@@ -125,12 +128,13 @@ namespace SynthEBD
             {
                 Logger.LogReport("Could not choose any valid morphs for NPC " + npcInfo.LogIDstring, false, npcInfo);
                 Logger.CloseReportSubsection(npcInfo);
-                success = false;
+                selectionMade = false;
                 return chosenMorphs;
             }
             else
             {
-                success = true;
+                Logger.LogReport("Selected morphs: " + String.Join(", ", chosenMorphs), false, npcInfo);
+                selectionMade = true;
             }
 
             //store selected morphs
@@ -319,12 +323,12 @@ namespace SynthEBD
         /// <param name="allMorphs">All templated contained within a BodyGenConfig</param>
         /// <param name="npcInfo"></param>
         /// <returns></returns>
-        public static HashSet<BodyGenConfig.BodyGenTemplate> InitializeMorphList(HashSet<BodyGenConfig.BodyGenTemplate> allMorphs, NPCInfo npcInfo, ValidationIgnore ignoredFactors)
+        public static HashSet<BodyGenConfig.BodyGenTemplate> InitializeMorphList(HashSet<BodyGenConfig.BodyGenTemplate> allMorphs, NPCInfo npcInfo, ValidationIgnore ignoredFactors, SubgroupCombination assignedAssetCombination)
         {
             HashSet<BodyGenConfig.BodyGenTemplate> outputMorphs = new HashSet<BodyGenConfig.BodyGenTemplate>();
             foreach (var candidateMorph in allMorphs)
             {
-                if (MorphIsValid(candidateMorph, npcInfo, ignoredFactors))
+                if (MorphIsValid(candidateMorph, npcInfo, ignoredFactors, assignedAssetCombination))
                 {
                     candidateMorph.MatchedForceIfCount = AttributeMatcher.GetForceIfAttributeCount(candidateMorph.AllowedAttributes, npcInfo.NPC);
                     outputMorphs.Add(candidateMorph);
@@ -333,27 +337,37 @@ namespace SynthEBD
             return outputMorphs;
         }
 
-        public static bool MorphIsValid(BodyGenConfig.BodyGenTemplate candidateMorph, NPCInfo npcInfo, ValidationIgnore ignoredFactors)
+        public static bool MorphIsValid(BodyGenConfig.BodyGenTemplate candidateMorph, NPCInfo npcInfo, ValidationIgnore ignoredFactors, SubgroupCombination assignedAssetCombination)
         {
             if (ignoredFactors == ValidationIgnore.All)
             {
+                Logger.LogReport("Ignoring morph validation.", false, npcInfo);
                 return true;
             }
 
             if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.BodyGenMorphNames.Contains(candidateMorph.Label))
             {
+                Logger.LogReport("Morph " + candidateMorph.Label + " is valid because it is specifically assigned by user.", false, npcInfo);
                 return true;
+            }
+
+            if (!candidateMorph.AllowRandom && candidateMorph.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above
+            {
+                Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because it can only be assigned via ForceIf attribtues or Specific NPC Assignments", false, npcInfo);
+                return false;
             }
 
             // Allow unique NPCs
             if (!candidateMorph.AllowUnique && npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
             {
+                Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the current morph is disallowed for unique NPCs", false, npcInfo);
                 return false;
             }
 
             // Allow non-unique NPCs
             if (!candidateMorph.AllowNonUnique && !npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
             {
+                Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the current morph is disallowed for non-unique NPCs", false, npcInfo);
                 return false;
             }
 
@@ -362,31 +376,57 @@ namespace SynthEBD
                 // Allowed Races
                 if (!candidateMorph.AllowedRaces.Contains(npcInfo.BodyShapeRace))
                 {
+                    Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its allowed races do not include the current NPC's race", false, npcInfo);
                     return false;
                 }
 
                 // Disallowed Races
                 if (candidateMorph.DisallowedRaces.Contains(npcInfo.BodyShapeRace))
                 {
+                    Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its disallowed races include the current NPC's race", false, npcInfo);
                     return false;
                 }
             }
             // Weight Range
             if (npcInfo.NPC.Weight < candidateMorph.WeightRange.Lower || npcInfo.NPC.Weight > candidateMorph.WeightRange.Upper)
             {
+                Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the current NPC's weight falls outside of the morph's allowed weight range", false, npcInfo);
                 return false;
             }
 
             // Allowed Attributes
             if (candidateMorph.AllowedAttributes.Any() && !AttributeMatcher.HasMatchedAttributes(candidateMorph.AllowedAttributes, npcInfo.NPC))
             {
+                Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the NPC does not match any of the morph's allowed attributes", false, npcInfo);
                 return false;
             }
 
             // Disallowed Attributes
             if (AttributeMatcher.HasMatchedAttributes(candidateMorph.DisallowedAttributes, npcInfo.NPC))
             {
+                Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the NPC matches one of the morph's disallowed attributes", false, npcInfo);
                 return false;
+            }
+
+            if (assignedAssetCombination != null)
+            {
+                foreach (var subgroup in assignedAssetCombination.ContainedSubgroups)
+                {
+                    if (subgroup.AllowedBodyGenDescriptors.Any())
+                    {
+                        if(!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodyGenDescriptors, candidateMorph.BodyShapeDescriptors))
+                        { 
+                            Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its descriptors does not match any of the assigned asset combination's allowed descriptors", false, npcInfo);
+                            return false;
+                        }
+                    }
+
+                    if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodyGenDescriptors, candidateMorph.BodyShapeDescriptors))
+                    {
+                        Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because one of its descriptors matches one of the assigned asset combination's disallowed descriptors", false, npcInfo);
+                        return false;
+                    }
+                }
             }
 
             // If the candidateMorph is still valid

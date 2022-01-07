@@ -17,6 +17,7 @@ namespace SynthEBD
             this.SubgroupIDs = null;
             this.Height = null;
             this.BodyGenMorphNames = null;
+            this.BodySlidePreset = "";
         }
 
         public string DispName { get; set; }

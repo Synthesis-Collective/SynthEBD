@@ -142,9 +142,17 @@ namespace SynthEBD
             {
                 if (!iterationInfo.AvailableSeeds.Any())
                 {
-                    Logger.LogMessage("No Asset Packs were able to be applied to " + npcInfo.LogIDstring);
-                    Logger.LogReport("No available seed subgroups remain.", true, npcInfo);
-                    break;
+                    if (wasFilteredByConsistency) // if no valid groups when filtering for consistency, try again without filtering for it
+                    {
+                        Logger.LogReport("Attempting to select a valid non-consistency Combination.", true, npcInfo);
+                        filteredAssetPacks = AssetSelector.FilterValidConfigsForNPC(availableAssetPacks, npcInfo, true, out wasFilteredByConsistency);
+                        iterationInfo.AvailableSeeds = AssetSelector.GetAllSubgroups(filteredAssetPacks);
+                    }
+                    else // no other filters can be relaxed
+                    {
+                        Logger.LogReport("No more asset packs remain to select assets from. Terminating combination selection.", true, npcInfo);
+                        break;
+                    }
                 }
 
                 // get an asset combination
@@ -242,22 +250,6 @@ namespace SynthEBD
                             case BodyShapeSelectionMode.OBody: firstValidCombinationShapePair = new Tuple<SubgroupCombination, object>(assignedCombination, assignment.AssignedOBodyPreset); break;
                         }
                         firstValidCombinationShapePairInitialized = true;
-                    }
-                }
-
-                // Fallbacks if the chosen combination is invalid
-                if (!combinationIsValid && filteredAssetPacks.Count == 0) // relax filters if possible
-                {
-                    if (wasFilteredByConsistency) // if no valid groups when filtering for consistency, try again without filtering for it
-                    {
-                        Logger.LogReport("Attempting to select a valid non-consistency Combination.", true, npcInfo);
-                        filteredAssetPacks = AssetSelector.FilterValidConfigsForNPC(availableAssetPacks, npcInfo, true, out wasFilteredByConsistency);
-                        iterationInfo.AvailableSeeds = AssetSelector.GetAllSubgroups(filteredAssetPacks);
-                    }
-                    else // no other filters can be relaxed
-                    {
-                        Logger.LogReport("No more asset packs remain to select assets from. Terminating combination selection.", true, npcInfo);
-                        break;
                     }
                 }
             }

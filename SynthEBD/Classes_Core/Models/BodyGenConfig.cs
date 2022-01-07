@@ -224,8 +224,6 @@ namespace SynthEBD
             // handle female section
             if (zConfig.racialSettingsFemale.Count > 0)
             {
-                
-
                 foreach (var rs in zConfig.racialSettingsFemale)
                 {
                     converted.Female.RacialTemplateGroupMap.Add(zEBDBodyGenRacialSettingsToSynthEBD(rs, usedFemaleGroups));
@@ -247,8 +245,6 @@ namespace SynthEBD
             // handle male section
             if (zConfig.racialSettingsMale.Count > 0)
             {
-                converted.Male.Label = Path.GetFileNameWithoutExtension(filePath) + "_Male";
-
                 foreach (var rs in zConfig.racialSettingsMale)
                 {
                     converted.Male.RacialTemplateGroupMap.Add(zEBDBodyGenRacialSettingsToSynthEBD(rs, usedMaleGroups));

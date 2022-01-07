@@ -31,6 +31,8 @@ namespace SynthEBD
                     return null;
                 }
 
+                Logger.LogReport("Choosing a new seed subgroup from the following list of available seeds and (matched ForceIf attributes):" + Environment.NewLine + string.Join(Environment.NewLine, iterationInfo.AvailableSeeds.Select(x => x.Id + ": " + x.Name + " (" + x.ForceIfMatchCount + ")")), false, npcInfo);
+
                 if (iterationInfo.AvailableSeeds[0].ForceIfMatchCount > 0)
                 {
                     iterationInfo.ChosenSeed = iterationInfo.AvailableSeeds[0];
@@ -232,11 +234,13 @@ namespace SynthEBD
         /// <returns></returns>
         public static HashSet<FlattenedAssetPack> FilterValidConfigsForNPC(HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo, bool ignoreConsistency, out bool wasFilteredByConsistency)
         {
+            Logger.OpenReportSubsection("ConfigFiltering", npcInfo);
             HashSet<FlattenedAssetPack> preFilteredPacks = new HashSet<FlattenedAssetPack>(availableAssetPacks); // available asset packs filtered by Specific NPC Assignments and Consistency
             HashSet<FlattenedAssetPack> filteredPacks = new HashSet<FlattenedAssetPack>(); // available asset packs (further) filtered by current NPC's compliance with each subgroup's rule set
             wasFilteredByConsistency = false;
             List<List<FlattenedSubgroup>> forcedAssignments = null; // must be a nested list because if the user forces a non-bottom-level subgroup, then at a given index multiple options will be forced
 
+            Logger.OpenReportSubsection("DirectAssignments", npcInfo);
             //handle specific NPC assignments
             FlattenedAssetPack forcedAssetPack = null;
             if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.AssetPackName != "")
@@ -322,10 +326,14 @@ namespace SynthEBD
                     }
                 }
             }
+            Logger.CloseReportSubsection(npcInfo);
 
             //handle non-predefined subgroups
+            Logger.OpenReportSubsection("GeneralFiltering", npcInfo);
             foreach (var ap in preFilteredPacks)
             {
+                Logger.OpenReportSubsection("AssetPack", npcInfo);
+                Logger.LogReport("Filtering asset pack: " + ap.GroupName, false, npcInfo);
                 var candidatePack = ap.ShallowCopy();
                 bool isValid = true;
 
@@ -355,6 +363,7 @@ namespace SynthEBD
                         }
                         else
                         {
+                            Logger.LogReport("Asset Pack " + ap.GroupName + " is invalid for NPC " + npcInfo.LogIDstring + " because no subgroups within " + ap.Source.Subgroups[i].id + " (" + ap.Source.Subgroups[i].name + ") are compatible with this NPC.", false, npcInfo);
                             isValid = false;
                             break;
                         }
@@ -368,13 +377,17 @@ namespace SynthEBD
                 {
                     filteredPacks.Add(candidatePack);
                 }
-
+                Logger.CloseReportSubsection(npcInfo);
             }
+
+            Logger.CloseReportSubsection(npcInfo);
 
             if (filteredPacks.Count == 0)
             {
                 Logger.LogMessage("No valid asset packs could be found for NPC " + npcInfo.LogIDstring);
             }
+
+            Logger.CloseReportSubsection(npcInfo);
 
             return filteredPacks;
         }
@@ -388,50 +401,59 @@ namespace SynthEBD
         /// <returns></returns>
         private static bool SubgroupValidForCurrentNPC(FlattenedSubgroup subgroup, NPCInfo npcInfo)
         {
+            var reportString = "Subgroup " + subgroup.Id + "(" + subgroup.Name + ") ";
             if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.SubgroupIDs.Contains(subgroup.Id))
             {
+                Logger.LogReport(reportString + "is valid because it is specifically assigned by user.", false, npcInfo);
                 return true;
             }
 
             // Allow unique NPCs
             if (!subgroup.AllowUnique && npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
             {
+                Logger.LogReport(reportString + "is invalid because the current morph is disallowed for unique NPCs", false, npcInfo);
                 return false;
             }
 
             // Allow non-unique NPCs
             if (!subgroup.AllowNonUnique && !npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
             {
+                Logger.LogReport(reportString + "is invalid because the current morph is disallowed for non-unique NPCs", false, npcInfo);
                 return false;
             }
 
             // Allowed Races
             if (!subgroup.AllowedRacesIsEmpty && !subgroup.AllowedRaces.Contains(npcInfo.AssetsRace))
             {
+                Logger.LogReport(reportString + "is invalid because its allowed races do not include the current NPC's race", false, npcInfo);
                 return false;
             }
 
             // Disallowed Races
             if (subgroup.DisallowedRaces.Contains(npcInfo.AssetsRace))
             {
+                Logger.LogReport(reportString + "is invalid because its disallowed races include the current NPC's race", false, npcInfo);
                 return false;
             }
 
             // Weight Range
             if (npcInfo.NPC.Weight < subgroup.WeightRange.Lower || npcInfo.NPC.Weight > subgroup.WeightRange.Upper)
             {
+                Logger.LogReport(reportString + "is invalid because the current NPC's weight falls outside of the morph's allowed weight range", false, npcInfo);
                 return false;
             }
 
             // Allowed Attributes
             if (subgroup.AllowedAttributes.Any() && !AttributeMatcher.HasMatchedAttributes(subgroup.AllowedAttributes, npcInfo.NPC))
             {
+                Logger.LogReport(reportString + "is invalid because the NPC does not match any of the morph's allowed attributes", false, npcInfo);
                 return false;
             }
 
             // Disallowed Attributes
             if (AttributeMatcher.HasMatchedAttributes(subgroup.DisallowedAttributes, npcInfo.NPC))
             {
+                Logger.LogReport(reportString + "is invalid because the NPC matches one of the morph's disallowed attributes", false, npcInfo);
                 return false;
             }
 
@@ -442,6 +464,7 @@ namespace SynthEBD
             // Distribution Enabled
             if (subgroup.ForceIfMatchCount == 0 && !subgroup.DistributionEnabled)
             {
+                Logger.LogReport(reportString + "is invalid because its distribution is disabled to random NPCs, it is not a Specific NPC Assignment, and the NPC does not match and of its ForceIf attributes.", false, npcInfo);
                 return false;
             }
 

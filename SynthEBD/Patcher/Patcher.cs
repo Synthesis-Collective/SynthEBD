@@ -117,6 +117,10 @@ namespace SynthEBD
             {
                 BodyGenWriter.WriteBodyGenOutputs(copiedBodyGenConfigs);
             }
+            else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.OBody)
+            {
+                // Write out assigned BodySlide Presets
+            }
 
             statusBar.IsPatching = false;
         }
@@ -257,6 +261,7 @@ namespace SynthEBD
                                 break;
 
                             case BodyShapeSelectionMode.OBody:
+                                BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedComboAndBodyShape.AssignedOBodyPreset);
                                 currentNPCInfo.ConsistencyNPCAssignment.BodySlidePreset = assignedComboAndBodyShape.AssignedOBodyPreset;
 
                                 // assign to linked group if necessary 
@@ -271,7 +276,6 @@ namespace SynthEBD
                                 }
                                 break;
                         }
-
                     }
                 }
 
@@ -281,8 +285,9 @@ namespace SynthEBD
                     case BodyShapeSelectionMode.None: break;
 
                     case BodyShapeSelectionMode.BodyGen:
-                        if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !blockBodyShape && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && BodyGenSelector.BodyGenAvailableForGender(currentNPCInfo.Gender, bodyGenConfigs))
+                        if (!blockBodyShape && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && BodyGenSelector.BodyGenAvailableForGender(currentNPCInfo.Gender, bodyGenConfigs))
                         {
+                            Logger.LogReport("Assigning a BodyGen morph independenlty of Asset Combination", false, currentNPCInfo);
                             var assignedMorphs = BodyGenSelector.SelectMorphs(currentNPCInfo, out bool success, bodyGenConfigs, null, new AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag());
                             if (success)
                             {
@@ -300,13 +305,38 @@ namespace SynthEBD
                                     UniqueAssignmentsByName[currentNPCInfo.Name][currentNPCInfo.Gender].AssignedMorphs = assignedMorphs;
                                 }
                             }
+                            else
+                            {
+                                Logger.LogReport("Could not independently assign a BodyGen Morph.", true, currentNPCInfo);
+                            }
                         }
                         break;
                     case BodyShapeSelectionMode.OBody:
+                        if (!blockBodyShape && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && OBodySelector.CurrentNPCHasAvailablePresets(currentNPCInfo, oBodySettings))
+                        {
+                            Logger.LogReport("Assigning a BodySlide preset independenlty of Asset Combination", false, currentNPCInfo);
+                            var assignedPreset = OBodySelector.SelectBodySlidePreset(currentNPCInfo, out bool success, oBodySettings, null, new AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag());
+                            if (success)
+                            {
+                                BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedPreset);
+                                currentNPCInfo.ConsistencyNPCAssignment.BodySlidePreset = assignedPreset;
 
-                        // FILL ME OUT
-
-
+                                // assign to linked group if necessary
+                                if (currentNPCInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
+                                {
+                                    currentNPCInfo.AssociatedLinkGroup.AssignedBodySlide = assignedPreset;
+                                }
+                                // assign to unique NPC list if necessary
+                                if (PatcherSettings.General.bLinkNPCsWithSameName && currentNPCInfo.IsValidLinkedUnique && UniqueAssignmentsByName[currentNPCInfo.Name][currentNPCInfo.Gender].AssignedBodySlidePreset == "")
+                                {
+                                    UniqueAssignmentsByName[currentNPCInfo.Name][currentNPCInfo.Gender].AssignedBodySlidePreset = assignedPreset;
+                                }
+                            }
+                            else
+                            {
+                                Logger.LogReport("Could not independently assign a BodySlide preset.", true, currentNPCInfo);
+                            }
+                        }
                         break;
                 }
                 // Height assignment
@@ -406,6 +436,7 @@ namespace SynthEBD
         }
 
         public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker(); // tracks unique selected morphs so that only assigned morphs are written to the generated templates.ini
+        public static Dictionary<FormKey, string> BodySlideTracker = new Dictionary<FormKey, string>(); // tracks which NPCs get which bodyslide presets
         public static Dictionary<string, int> EdidCounts = new Dictionary<string, int>(); // tracks the number of times a given record template was assigned so that a newly copied record can have its editor ID incremented
 
         public class BodyGenAssignmentTracker

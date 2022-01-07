@@ -104,6 +104,19 @@ namespace SynthEBD
                 npcInfo.Report.ReportElementHierarchy = new Dictionary<XElement, XElement>();
 
                 LogReport("Patching NPC " + npcInfo.Report.NameString, false, npcInfo);
+
+                if (Patcher.MainLinkCache.TryResolve<IRaceGetter>(npcInfo.AssetsRace, out var assetsRaceGetter))
+                {
+                    LogReport("Assets race: " + assetsRaceGetter.EditorID, false, npcInfo);
+                }
+                if (Patcher.MainLinkCache.TryResolve<IRaceGetter>(npcInfo.BodyShapeRace, out var bodyRaceGetter))
+                {
+                    LogReport("Body Shape race: " + bodyRaceGetter.EditorID, false, npcInfo);
+                }
+                if (Patcher.MainLinkCache.TryResolve<IRaceGetter>(npcInfo.HeightRace, out var heightRaceGetter))
+                {
+                    LogReport("Height race: " + heightRaceGetter.EditorID, false, npcInfo);
+                }
             }
         }
 
