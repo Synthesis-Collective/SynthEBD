@@ -16,11 +16,13 @@ namespace SynthEBD
             {
                 AssignedCombination = null;
                 AssignedMorphs = new List<string>();
+                AssignedBodySlidePreset = "";
                 AssignedHeight = -1;
             }
-            public SubgroupCombination AssignedCombination;
-            public List<string> AssignedMorphs;
-            public float AssignedHeight;
+            public SubgroupCombination AssignedCombination { get; set; }
+            public List<string> AssignedMorphs { get; set; }
+            public string AssignedBodySlidePreset { get; set; }
+            public float AssignedHeight { get; set; }
         }
 
         /// <summary>

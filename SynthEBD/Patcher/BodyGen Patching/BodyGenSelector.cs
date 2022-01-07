@@ -8,7 +8,7 @@ namespace SynthEBD
 {
     public class BodyGenSelector
     {
-        public static List<string> SelectMorphs(NPCInfo npcInfo, out bool success, BodyGenConfigs bodyGenConfigs, SubgroupCombination assetCombination, BodyGenSelectorStatusFlag statusFlags)
+        public static List<string> SelectMorphs(NPCInfo npcInfo, out bool success, BodyGenConfigs bodyGenConfigs, SubgroupCombination assetCombination, AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
         {
             Logger.OpenReportSubsection("BodyGen", npcInfo);
             Logger.LogReport("Selecting BodyGen morph(s) for currentNPC", false, npcInfo);
@@ -44,7 +44,7 @@ namespace SynthEBD
                 return null;
             }
 
-            ClearStatusFlags(statusFlags);
+            AssetAndBodyShapeSelector.ClearStatusFlags(statusFlags);
             List<string> chosenMorphs = new List<string>();
 
             var availableTemplatesGlobal = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.None);
@@ -148,7 +148,7 @@ namespace SynthEBD
 
             if (npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null && !npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames.Except(chosenMorphs).Any()) // https://stackoverflow.com/questions/407729/determine-if-a-sequence-contains-all-elements-of-another-sequence-using-linq
             {
-                statusFlags |= BodyGenSelectorStatusFlag.MatchesConsistency;
+                statusFlags |= AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag.MatchesConsistency;
             }
 
             Logger.CloseReportSubsection(npcInfo);
@@ -161,7 +161,7 @@ namespace SynthEBD
             
             if (availableCombinations.Count == 0)
             {
-                Logger.LogReport("Could not get a BodyGen combination for Race " + npcInfo.BodyGenRace.ToString() + " ( NPC " + npcInfo.LogIDstring + ")", false, npcInfo);
+                Logger.LogReport("Could not get a BodyGen combination for Race " + npcInfo.BodyShapeRace.ToString() + " ( NPC " + npcInfo.LogIDstring + ")", false, npcInfo);
                 return null;
             }
 
@@ -360,13 +360,13 @@ namespace SynthEBD
             if (ignoredFactors != ValidationIgnore.Race)
             {
                 // Allowed Races
-                if (!candidateMorph.AllowedRaces.Contains(npcInfo.BodyGenRace))
+                if (!candidateMorph.AllowedRaces.Contains(npcInfo.BodyShapeRace))
                 {
                     return false;
                 }
 
                 // Disallowed Races
-                if (candidateMorph.DisallowedRaces.Contains(npcInfo.BodyGenRace))
+                if (candidateMorph.DisallowedRaces.Contains(npcInfo.BodyShapeRace))
                 {
                     return false;
                 }
@@ -408,7 +408,7 @@ namespace SynthEBD
             {
                 bool candidateMatched = false;
                 // first try to get grouping by Race
-                if (FormKeyHashSetComparer.Contains(candidate.Races, npcInfo.BodyGenRace))
+                if (FormKeyHashSetComparer.Contains(candidate.Races, npcInfo.BodyShapeRace))
                 {
                     foreach (var stringCombination in candidate.Combinations)
                     {
@@ -427,7 +427,7 @@ namespace SynthEBD
                 {
                     var collection = PatcherSettings.General.RaceGroupings.Where(x => x.Label == raceGrouping).FirstOrDefault();
                     if (collection == null) { continue; }
-                    if (FormKeyHashSetComparer.Contains(collection.Races, npcInfo.BodyGenRace))
+                    if (FormKeyHashSetComparer.Contains(collection.Races, npcInfo.BodyShapeRace))
                     {
                         foreach (var stringCombination in candidate.Combinations)
                         {
@@ -493,21 +493,6 @@ namespace SynthEBD
             None,
             Race,
             All
-        }
-
-        [Flags]
-        public enum BodyGenSelectorStatusFlag
-        {
-            NoneValidForNPC = 1, // no morphs could be assigned irrespective of the rule set received from the assigned assetCombination
-            MatchesConsistency = 2, // all selected morphs are present in consistency
-            ConsistencyMorphIsInvalid = 4 // the consistency morph is no longer valid because its rule set no longer permits this NPC
-        }
-
-        public static void ClearStatusFlags(BodyGenSelectorStatusFlag flags)
-        {
-            flags = ~BodyGenSelectorStatusFlag.NoneValidForNPC;
-            flags = ~BodyGenSelectorStatusFlag.MatchesConsistency;
-            flags = ~BodyGenSelectorStatusFlag.ConsistencyMorphIsInvalid;
         }
 
         public class GroupCombinationObject : IProbabilityWeighted

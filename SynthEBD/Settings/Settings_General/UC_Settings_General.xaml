@@ -45,8 +45,8 @@
             <TextBlock Grid.Column="0" Grid.Row="2">Apply Textures and Meshes</TextBlock>
             <CheckBox Grid.Column="2" Grid.Row="2" IsChecked="{Binding Path=bChangeMeshesOrTextures, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="3">Apply BodyGen Presets</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="3" IsChecked="{Binding Path=bEnableBodyGenIntegration, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="3">Apply Body Shapes Using</TextBlock>
+            <ComboBox Grid.Column="2" Grid.Row="3" Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding BodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:BodyShapeSelectionMode}}}" IsSynchronizedWithCurrentItem="True"/>
 
             <TextBlock Grid.Column="0" Grid.Row="4">Apply Height Changes</TextBlock>
             <CheckBox Grid.Column="2" Grid.Row="4" IsChecked="{Binding Path=bChangeHeight, Mode=TwoWay}"></CheckBox>

@@ -18,7 +18,7 @@ namespace SynthEBD
             this.Gender = GetGender(npc);
             this.LinkGroupMember = LinkGroupMemberType.None;
             AssetsRace = AliasHandler.GetAliasTexMesh(npc.Race.FormKey);
-            BodyGenRace = AliasHandler.GetAliasBodyGen(npc.Race.FormKey);
+            BodyShapeRace = AliasHandler.GetAliasBodyGen(npc.Race.FormKey);
             HeightRace = AliasHandler.GetAliasHeight(npc.Race.FormKey);
 
             AssociatedLinkGroup = SearchLinkedInfoFromList(npc.FormKey);
@@ -67,7 +67,7 @@ namespace SynthEBD
         public string LogIDstring { get; set; }
         public Gender Gender { get; set; }
         public FormKey AssetsRace { get; set; }
-        public FormKey BodyGenRace { get; set; }
+        public FormKey BodyShapeRace { get; set; }
         public FormKey HeightRace { get; set; }
         public LinkedNPCGroupInfo AssociatedLinkGroup { get; set; }
         public LinkGroupMemberType LinkGroupMember { get; set; }

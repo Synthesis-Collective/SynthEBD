@@ -41,7 +41,6 @@ namespace SynthEBD
         public List<AssetPack> AssetPacks { get; }
         public List<HeightConfig> HeightConfigs { get; }
         public BodyGenConfigs BodyGenConfigs { get; }
-        public Settings_OBody OBodySettings { get; set; }
         public Dictionary<string, NPCAssignment> Consistency { get; }
         public HashSet<NPCAssignment> SpecificNPCAssignments { get; }
         public BlockList BlockList { get; }
@@ -93,9 +92,9 @@ namespace SynthEBD
             VM_SettingsBodyGen.GetViewModelFromModel(BodyGenConfigs, PatcherSettings.BodyGen, BGVM, SGVM.RaceGroupings);
 
             // load OBody settings before asset packs - asset packs depend on BodyGen but not vice versa
-            OBodySettings = SettingsIO_OBody.LoadOBodySettings();
-            OBodySettings.ImportBodySlides();
-            VM_SettingsOBody.GetViewModelFromModel(OBodySettings, OBVM, SGVM.RaceGroupings);
+            PatcherSettings.OBody = SettingsIO_OBody.LoadOBodySettings();
+            PatcherSettings.OBody.ImportBodySlides();
+            VM_SettingsOBody.GetViewModelFromModel(PatcherSettings.OBody, OBVM, SGVM.RaceGroupings);
 
             // load asset packs
             AssetPacks = SettingsIO_AssetPack.loadAssetPacks(PatcherSettings.General.RaceGroupings, RecordTemplatePlugins, BodyGenConfigs); // load asset pack models from json
@@ -145,7 +144,7 @@ namespace SynthEBD
             VM_SettingsHeight.DumpViewModelToModel(HVM, PatcherSettings.Height);
             VM_HeightConfig.DumpViewModelsToModels(HVM.AvailableHeightConfigs, HeightConfigs);
             VM_SettingsBodyGen.DumpViewModelToModel(BGVM, PatcherSettings.BodyGen, BodyGenConfigs);
-            VM_SettingsOBody.DumpViewModelToModel(OBodySettings, OBVM);
+            VM_SettingsOBody.DumpViewModelToModel(PatcherSettings.OBody, OBVM);
             VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(SAUIVM, SpecificNPCAssignments);
             VM_ConsistencyUI.DumpViewModelsToModels(CUIVM.Assignments, Consistency);
             VM_LinkedNPCGroup.DumpViewModelsToModels(LinkedNPCGroups, SGVM.LinkedNPCGroups);
@@ -168,7 +167,7 @@ namespace SynthEBD
             SettingsIO_BodyGen.SaveBodyGenConfigs(BodyGenConfigs.Female);
             SettingsIO_BodyGen.SaveBodyGenConfigs(BodyGenConfigs.Male);
 
-            JSONhandler<Settings_OBody>.SaveJSONFile(OBodySettings, PatcherSettings.Paths.OBodySettingsPath);
+            JSONhandler<Settings_OBody>.SaveJSONFile(PatcherSettings.OBody, PatcherSettings.Paths.OBodySettingsPath);
 
             SettingsIO_Misc.SaveConsistency(Consistency);
 

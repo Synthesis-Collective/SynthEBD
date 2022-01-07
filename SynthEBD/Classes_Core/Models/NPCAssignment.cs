@@ -25,6 +25,7 @@ namespace SynthEBD
         public List<string> SubgroupIDs { get; set; } // order matters
         public float? Height { get; set; }
         public List<string> BodyGenMorphNames { get; set; } // order matters
+        public string BodySlidePreset { get; set; }
     }
 
     public class zEBDSpecificNPCAssignment

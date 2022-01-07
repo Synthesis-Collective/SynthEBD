@@ -21,7 +21,7 @@ namespace SynthEBD
         {
             this.bShowToolTips = true;
             this.bChangeMeshesOrTextures = true;
-            this.bEnableBodyGenIntegration = false;
+            this.BodySelectionMode = BodyShapeSelectionMode.None;
             this.bChangeHeight = false;
             this.bEnableConsistency = true;
             this.ExcludePlayerCharacter = true;
@@ -75,7 +75,7 @@ namespace SynthEBD
         public bool bShowToolTips { get;  set;}
         public bool bChangeMeshesOrTextures { get; set;  }
 
-        public bool bEnableBodyGenIntegration { get; set;  }
+        public BodyShapeSelectionMode BodySelectionMode { get; set;  }
         public bool ExcludePlayerCharacter { get; set; }
         public bool ExcludePresets { get; set; }
         public bool bChangeHeight { get; set;  }
@@ -113,7 +113,7 @@ namespace SynthEBD
             var model = PatcherSettings.General;
             viewModel.bShowToolTips = model.bShowToolTips;
             viewModel.bChangeMeshesOrTextures = model.bChangeMeshesOrTextures;
-            viewModel.bEnableBodyGenIntegration = model.bEnableBodyGenIntegration;
+            viewModel.BodySelectionMode = model.BodySelectionMode;
             viewModel.bChangeHeight = model.bChangeHeight;
             viewModel.bEnableConsistency = model.bEnableConsistency;
             viewModel.ExcludePlayerCharacter = model.ExcludePlayerCharacter;
@@ -134,7 +134,7 @@ namespace SynthEBD
         {
             model.bShowToolTips = viewModel.bShowToolTips;
             model.bChangeMeshesOrTextures = viewModel.bChangeMeshesOrTextures;
-            model.bEnableBodyGenIntegration = viewModel.bEnableBodyGenIntegration;
+            model.BodySelectionMode = viewModel.BodySelectionMode;
             model.bChangeHeight = viewModel.bChangeHeight;
             model.bEnableConsistency = viewModel.bEnableConsistency;
             model.ExcludePlayerCharacter = viewModel.ExcludePlayerCharacter;

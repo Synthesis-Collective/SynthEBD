@@ -14,6 +14,7 @@ namespace SynthEBD
             this.NPCFormKeys = sourceGroup.NPCFormKeys;
             this.AssignedCombination = null;
             this.AssignedMorphs = new List<string>();
+            this.AssignedBodySlide = null;
             this.AssignedHeight = -1;
             this.PrimaryNPCFormKey = sourceGroup.Primary;
         }
@@ -22,6 +23,7 @@ namespace SynthEBD
         public FormKey PrimaryNPCFormKey { get; set; }
         public SubgroupCombination AssignedCombination { get; set; }
         public List<string> AssignedMorphs { get; set; }
+        public string AssignedBodySlide { get; set; }
         public float AssignedHeight { get; set; }
 
         public static LinkedNPCGroupInfo GetInfoFromLinkedNPCGroup(HashSet<LinkedNPCGroup> definedGroups, HashSet<LinkedNPCGroupInfo> createdGroups, FormKey npcFormKey) // links the UI-defined LinkedNPCGroup (which only contains NPCs) to the corresponding generated LinkedNPCGroupInfo (which contains patcher assignments)

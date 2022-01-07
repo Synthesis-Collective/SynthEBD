@@ -54,20 +54,20 @@ namespace SynthEBD
         public AssetPack Source { get; set; }
         public List<FlattenedReplacerGroup> AssetReplacerGroups { get; set; }
 
-        public static FlattenedAssetPack FlattenAssetPack(AssetPack source, List<RaceGrouping> raceGroupingList, bool includeBodyGen)
+        public static FlattenedAssetPack FlattenAssetPack(AssetPack source, List<RaceGrouping> raceGroupingList)
         {
             var output = new FlattenedAssetPack(source);
 
             for (int i = 0; i < source.Subgroups.Count; i++)
             {
                 var flattenedSubgroups = new List<FlattenedSubgroup>();
-                FlattenedSubgroup.FlattenSubgroups(source.Subgroups[i], null, flattenedSubgroups, raceGroupingList, output.GroupName, i, includeBodyGen, source.Subgroups, output);
+                FlattenedSubgroup.FlattenSubgroups(source.Subgroups[i], null, flattenedSubgroups, raceGroupingList, output.GroupName, i,  source.Subgroups, output);
                 output.Subgroups.Add(flattenedSubgroups);
             }
 
             for (int i = 0; i < source.ReplacerGroups.Count; i++)
             {
-                output.AssetReplacerGroups.Add(FlattenedReplacerGroup.FlattenReplacerGroup(source.ReplacerGroups[i], raceGroupingList, output, includeBodyGen));
+                output.AssetReplacerGroups.Add(FlattenedReplacerGroup.FlattenReplacerGroup(source.ReplacerGroups[i], raceGroupingList, output));
             }
 
             return output;

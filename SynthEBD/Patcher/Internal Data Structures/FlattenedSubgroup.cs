@@ -67,7 +67,7 @@ namespace SynthEBD
         public FlattenedAssetPack ParentAssetPack { get; set; }
         public int ForceIfMatchCount { get; set; }
 
-        public static void FlattenSubgroups(AssetPack.Subgroup toFlatten, FlattenedSubgroup parent, List<FlattenedSubgroup> bottomLevelSubgroups, List<RaceGrouping> raceGroupingList, string parentAssetPackName, int topLevelIndex, bool includeBodyGen, List<Subgroup> subgroupHierarchy, FlattenedAssetPack parentAssetPack)
+        public static void FlattenSubgroups(Subgroup toFlatten, FlattenedSubgroup parent, List<FlattenedSubgroup> bottomLevelSubgroups, List<RaceGrouping> raceGroupingList, string parentAssetPackName, int topLevelIndex, List<Subgroup> subgroupHierarchy, FlattenedAssetPack parentAssetPack)
         {
             if (toFlatten.enabled == false) { return; }
 
@@ -122,12 +122,11 @@ namespace SynthEBD
                 // Paths
                 flattened.Paths.UnionWith(parent.Paths);
 
-                if (includeBodyGen)
+                if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
                 {
                     flattened.AllowedBodyGenDescriptors = DictionaryMapper.GetMorphDictionaryIntersection(flattened.AllowedBodyGenDescriptors, parent.AllowedBodyGenDescriptors);
                     flattened.DisallowedBodyGenDescriptors = DictionaryMapper.MergeDictionaries(new List<Dictionary<string, HashSet<string>>> { flattened.DisallowedBodyGenDescriptors, parent.DisallowedBodyGenDescriptors });
-                    bool BodyShapeDescriptorsValid = true;
-                    flattened.AllowedBodyGenDescriptors = AllowedDisallowedCombiners.TrimDisallowedDescriptorsFromAllowed(flattened.AllowedBodyGenDescriptors, flattened.DisallowedBodyGenDescriptors, out BodyShapeDescriptorsValid);
+                    flattened.AllowedBodyGenDescriptors = AllowedDisallowedCombiners.TrimDisallowedDescriptorsFromAllowed(flattened.AllowedBodyGenDescriptors, flattened.DisallowedBodyGenDescriptors, out bool BodyShapeDescriptorsValid);
                     if (!BodyShapeDescriptorsValid) { return; }
                 }
             }
@@ -140,7 +139,7 @@ namespace SynthEBD
             {
                 foreach (var subgroup in toFlatten.subgroups)
                 {
-                    FlattenSubgroups(subgroup, flattened, bottomLevelSubgroups, raceGroupingList, parentAssetPackName, topLevelIndex, includeBodyGen, subgroupHierarchy, parentAssetPack);
+                    FlattenSubgroups(subgroup, flattened, bottomLevelSubgroups, raceGroupingList, parentAssetPackName, topLevelIndex, subgroupHierarchy, parentAssetPack);
                 }
             }
         }

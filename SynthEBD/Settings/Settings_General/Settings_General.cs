@@ -13,7 +13,7 @@ namespace SynthEBD
         {
             this.bShowToolTips = true;
             this.bChangeMeshesOrTextures = true;
-            this.bEnableBodyGenIntegration = false;
+            this.BodySelectionMode = BodyShapeSelectionMode.None;
             this.bChangeHeight = false;
             this.bEnableConsistency = true;
             this.ExcludePlayerCharacter = true;
@@ -34,7 +34,7 @@ namespace SynthEBD
         public bool bShowToolTips { get; set; }
         public bool bChangeMeshesOrTextures { get; set; }
 
-        public bool bEnableBodyGenIntegration { get; set; }
+        public BodyShapeSelectionMode BodySelectionMode { get; set; }
 
         public bool bChangeHeight { get; set; }
         public bool bEnableConsistency { get; set; }
@@ -55,5 +55,12 @@ namespace SynthEBD
         public List<RaceGrouping> RaceGroupings { get; set; }
         public HashSet<AttributeGroup> AttributeGroups { get; set; }
         public bool OverwritePluginAttGroups { get; set; }
+    }
+
+    public enum BodyShapeSelectionMode
+    {
+        None,
+        BodyGen,
+        OBody
     }
 }
