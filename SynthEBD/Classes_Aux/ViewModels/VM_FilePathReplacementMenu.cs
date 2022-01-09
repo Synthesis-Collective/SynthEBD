@@ -32,8 +32,8 @@ namespace SynthEBD
 
             if (!setExplicitReferenceNPC)
             {
-                ParentSubgroup.allowedRaces.ToObservableChangeSet().Subscribe(x => RefreshReferenceNPC());
-                ParentSubgroup.disallowedRaces.ToObservableChangeSet().Subscribe(x => RefreshReferenceNPC());
+                ParentSubgroup.AllowedRaces.ToObservableChangeSet().Subscribe(x => RefreshReferenceNPC());
+                ParentSubgroup.DisallowedRaces.ToObservableChangeSet().Subscribe(x => RefreshReferenceNPC());
                 ParentSubgroup.ParentAssetPack.WhenAnyValue(x => x.DefaultTemplateFK).Subscribe(x => RefreshReferenceNPC());
                 ParentSubgroup.ParentAssetPack.AdditionalRecordTemplateAssignments.ToObservableChangeSet().Subscribe(x => RefreshReferenceNPC());
                 ParentSubgroup.ParentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => this.ReferenceLinkCache = this.ParentSubgroup.ParentAssetPack.RecordTemplateLinkCache);
@@ -57,7 +57,7 @@ namespace SynthEBD
 
             if (setExplicitReferenceNPC)
             {
-                viewModel = new VM_FilePathReplacementMenu(parentSubgroup, setExplicitReferenceNPC, parentSubgroup.lk);
+                viewModel = new VM_FilePathReplacementMenu(parentSubgroup, setExplicitReferenceNPC, parentSubgroup.LinkCache);
             }
             else
             {
@@ -90,8 +90,8 @@ namespace SynthEBD
                 var templateFormKey = new FormKey();
                 bool raceMatched = false;
 
-                var disallowedRaces = ParentSubgroup.disallowedRaces.ToHashSet();
-                foreach (var allowedRace in ParentSubgroup.allowedRaces)
+                var disallowedRaces = ParentSubgroup.DisallowedRaces.ToHashSet();
+                foreach (var allowedRace in ParentSubgroup.AllowedRaces)
                 {
                     if (FormKeyHashSetComparer.Contains(disallowedRaces, allowedRace)) { continue; }
                     foreach (var templateRace in ParentSubgroup.ParentAssetPack.AdditionalRecordTemplateAssignments)

@@ -60,8 +60,15 @@
                 <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Subgroups</TextBlock>
                 <TreeView Grid.Row="6" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding subgroups}" Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" >
                     <TreeView.Resources>
-                        <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding subgroups}" >
-                            <TextBlock Text="{Binding Path=name}" PreviewMouseLeftButtonDown="HandleSelectPreviewMouseDown" MouseLeftButtonUp="HandleSelectPreviewMouseUp"/>
+                        <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
+                            <TextBlock PreviewMouseLeftButtonDown="HandleSelectPreviewMouseDown" MouseLeftButtonUp="HandleSelectPreviewMouseUp">
+                                <TextBlock.Text>
+                                    <MultiBinding StringFormat="{}{0}: {1}"> <!--https://stackoverflow.com/questions/541896/concatenate-strings-instead-of-using-a-stack-of-textblocks-->
+                                        <Binding Path="ID"/>
+                                        <Binding Path="Name"/>
+                                    </MultiBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
                         </HierarchicalDataTemplate>
                     </TreeView.Resources>
                 </TreeView>

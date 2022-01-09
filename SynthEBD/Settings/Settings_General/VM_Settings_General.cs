@@ -22,6 +22,7 @@ namespace SynthEBD
             this.bShowToolTips = true;
             this.bChangeMeshesOrTextures = true;
             this.BodySelectionMode = BodyShapeSelectionMode.None;
+            this.BSSelectionMode = BodySlideSelectionMode.OBody;
             this.bChangeHeight = false;
             this.bEnableConsistency = true;
             this.ExcludePlayerCharacter = true;
@@ -76,6 +77,7 @@ namespace SynthEBD
         public bool bChangeMeshesOrTextures { get; set;  }
 
         public BodyShapeSelectionMode BodySelectionMode { get; set;  }
+        public BodySlideSelectionMode BSSelectionMode { get; set; }
         public bool ExcludePlayerCharacter { get; set; }
         public bool ExcludePresets { get; set; }
         public bool bChangeHeight { get; set;  }
@@ -114,6 +116,7 @@ namespace SynthEBD
             viewModel.bShowToolTips = model.bShowToolTips;
             viewModel.bChangeMeshesOrTextures = model.bChangeMeshesOrTextures;
             viewModel.BodySelectionMode = model.BodySelectionMode;
+            viewModel.BSSelectionMode = model.BSSelectionMode;
             viewModel.bChangeHeight = model.bChangeHeight;
             viewModel.bEnableConsistency = model.bEnableConsistency;
             viewModel.ExcludePlayerCharacter = model.ExcludePlayerCharacter;
@@ -135,6 +138,7 @@ namespace SynthEBD
             model.bShowToolTips = viewModel.bShowToolTips;
             model.bChangeMeshesOrTextures = viewModel.bChangeMeshesOrTextures;
             model.BodySelectionMode = viewModel.BodySelectionMode;
+            model.BSSelectionMode = viewModel.BSSelectionMode;
             model.bChangeHeight = viewModel.bChangeHeight;
             model.bEnableConsistency = viewModel.bEnableConsistency;
             model.ExcludePlayerCharacter = viewModel.ExcludePlayerCharacter;
@@ -177,6 +181,6 @@ namespace SynthEBD
                     TooltipController.Instance.DisplayToolTips = false;
                     break;
             }
-        }
+        }   
     }
 }

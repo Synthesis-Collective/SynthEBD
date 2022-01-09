@@ -67,6 +67,7 @@ namespace SynthEBD
             }
 
             LogFolderPath = Path.Combine(SynthEBDexeDirPath, "Logs");
+            ResourcesFolderPath = Path.Combine(SynthEBDexeDirPath, "Resources");
 
             this.TexMeshSettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "TexMeshSettings.json");
             this.AssetPackDirPath = Path.Combine(RelativePath, assetsDirRelPath);
@@ -86,10 +87,12 @@ namespace SynthEBD
             this.RecordReplacerSpecifiersPath = Path.Combine(RelativePath, settingsDirRelPath, "RecordReplacerSpecifiers.json");
             this.RecordTemplatesDirPath = Path.Combine(RelativePath, recordTemplatesDirRelPath);
             this.ModManagerSettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "ModManagerSettings.json");
+            
         }
 
         private string RelativePath { get; set; } 
         public string LogFolderPath { get; set; }
+        public string ResourcesFolderPath { get; set; }
         
         public string TexMeshSettingsPath { get; set; } // path of the Textures and Meshes settings file
         public string AssetPackDirPath { get; set; }

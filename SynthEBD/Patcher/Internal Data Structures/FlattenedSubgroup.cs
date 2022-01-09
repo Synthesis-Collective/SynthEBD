@@ -35,6 +35,8 @@ namespace SynthEBD
             this.Paths = new HashSet<FilePathReplacement>(template.paths);
             this.AllowedBodyGenDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.allowedBodyGenDescriptors);
             this.DisallowedBodyGenDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.disallowedBodyGenDescriptors);
+            this.AllowedBodySlideDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.allowedBodySlideDescriptors);
+            this.DisallowedBodySlideDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.allowedBodySlideDescriptors);
             this.WeightRange = new NPCWeightRange { Lower = template.weightRange.Lower, Upper = template.weightRange.Upper };
             this.ContainedSubgroupIDs = new List<string> { this.Id };
             this.ContainedSubgroupNames = new List<string> { this.Name };
@@ -58,6 +60,8 @@ namespace SynthEBD
         public HashSet<FilePathReplacement> Paths { get; set; }
         public Dictionary<string, HashSet<string>> AllowedBodyGenDescriptors { get; set; }
         public Dictionary<string, HashSet<string>> DisallowedBodyGenDescriptors { get; set; }
+        public Dictionary<string, HashSet<string>> AllowedBodySlideDescriptors { get; set; }
+        public Dictionary<string, HashSet<string>> DisallowedBodySlideDescriptors { get; set; }
         public NPCWeightRange WeightRange { get; set; }
         public int TopLevelSubgroupIndex { get; set; }
         public List<string> ContainedSubgroupIDs { get; set; }

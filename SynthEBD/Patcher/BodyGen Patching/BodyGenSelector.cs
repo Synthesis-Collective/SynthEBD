@@ -374,7 +374,7 @@ namespace SynthEBD
             if (ignoredFactors != ValidationIgnore.Race)
             {
                 // Allowed Races
-                if (!candidateMorph.AllowedRaces.Contains(npcInfo.BodyShapeRace))
+                if (candidateMorph.AllowedRaces.Any() && !candidateMorph.AllowedRaces.Contains(npcInfo.BodyShapeRace))
                 {
                     Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its allowed races do not include the current NPC's race", false, npcInfo);
                     return false;

@@ -14,6 +14,7 @@ namespace SynthEBD
             this.bShowToolTips = true;
             this.bChangeMeshesOrTextures = true;
             this.BodySelectionMode = BodyShapeSelectionMode.None;
+            this.BSSelectionMode = BodySlideSelectionMode.OBody;
             this.bChangeHeight = false;
             this.bEnableConsistency = true;
             this.ExcludePlayerCharacter = true;
@@ -33,9 +34,8 @@ namespace SynthEBD
 
         public bool bShowToolTips { get; set; }
         public bool bChangeMeshesOrTextures { get; set; }
-
         public BodyShapeSelectionMode BodySelectionMode { get; set; }
-
+        public BodySlideSelectionMode BSSelectionMode { get; set; }
         public bool bChangeHeight { get; set; }
         public bool bEnableConsistency { get; set; }
         public bool ExcludePlayerCharacter { get; set; }
@@ -61,6 +61,12 @@ namespace SynthEBD
     {
         None,
         BodyGen,
-        OBody
+        BodySlide
+    }
+
+    public enum BodySlideSelectionMode
+    {
+        OBody,
+        AutoBodyAE
     }
 }

@@ -14,7 +14,7 @@ namespace SynthEBD
             this.NPCFormKeys = sourceGroup.NPCFormKeys;
             this.AssignedCombination = null;
             this.AssignedMorphs = new List<string>();
-            this.AssignedBodySlide = null;
+            this.AssignedBodySlide = "";
             this.AssignedHeight = -1;
             this.PrimaryNPCFormKey = sourceGroup.Primary;
         }

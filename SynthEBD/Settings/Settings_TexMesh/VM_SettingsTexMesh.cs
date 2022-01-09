@@ -13,7 +13,7 @@ namespace SynthEBD
     {
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public VM_SettingsTexMesh(VM_SettingsBodyGen bodygenSettingsVM)
+        public VM_SettingsTexMesh(VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, VM_Settings_General generalSettingsVM)
         {
             this.bChangeNPCTextures = true;
             this.bChangeNPCMeshes = true;
@@ -36,7 +36,7 @@ namespace SynthEBD
 
             AddNewAssetPackConfigFile = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.AssetPacks.Add(new VM_AssetPack(this.AssetPacks, bodygenSettingsVM))
+                execute: _ => this.AssetPacks.Add(new VM_AssetPack(this.AssetPacks, bodygenSettingsVM, OBodyDescriptorMenu, generalSettingsVM))
                 );
         }
 

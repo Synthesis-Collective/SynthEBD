@@ -12,21 +12,23 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ReactiveUI;
 
 namespace SynthEBD
 {
     public class VM_SpecificNPCAssignment : INotifyPropertyChanged
     {
-        public VM_SpecificNPCAssignment(ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen bodyGenSettings)
+        public VM_SpecificNPCAssignment(ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen bodyGenSettings, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM)
         {
             this.PropertyChanged += TriggerDispNameUpdate;
             
             this.DispName = "New Assignment";
             this.NPCFormKey = new FormKey();
-            this.ForcedAssetPack = new VM_AssetPack(new ObservableCollection<VM_AssetPack>(), bodyGenSettings);
+            this.ForcedAssetPack = new VM_AssetPack(new ObservableCollection<VM_AssetPack>(), bodyGenSettings, oBodySettings.DescriptorUI, generalSettingsVM);
             this.ForcedSubgroups = new ObservableCollection<VM_Subgroup>();
             this.ForcedHeight = "";
             this.ForcedBodyGenMorphs = new ObservableCollection<VM_BodyGenTemplate>();
+            this.ForcedBodySlide = "";
 
             this.Gender = Gender.female;
             this.AvailableAssetPacks = new ObservableCollection<VM_AssetPack>(); // filtered by gender
@@ -57,6 +59,14 @@ namespace SynthEBD
             this.SubscribedBodyGenSettings.CurrentMaleConfig.PropertyChanged += TriggerAvailableMorphsUpdate;
             this.SubscribedBodyGenSettings.CurrentFemaleConfig.PropertyChanged += TriggerAvailableMorphsUpdate;
 
+            UpdateAvailableBodySlides(oBodySettings, generalSettingsVM);
+
+            this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => UpdateAvailableBodySlides(oBodySettings, generalSettingsVM));
+            oBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesFemale).Subscribe(x => UpdateAvailableBodySlides(oBodySettings, generalSettingsVM));
+            oBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesMale).Subscribe(x => UpdateAvailableBodySlides(oBodySettings, generalSettingsVM));
+
+            SubscribedGeneralSettings = generalSettingsVM;
+
             DeleteForcedSubgroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => this.ForcedSubgroups.Remove((VM_Subgroup)x)
@@ -77,6 +87,7 @@ namespace SynthEBD
         public ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; }
         public string ForcedHeight { get; set; }
         public ObservableCollection<VM_BodyGenTemplate> ForcedBodyGenMorphs { get; set; }
+        public string ForcedBodySlide { get; set; }
 
         //Needed by UI
         public ObservableCollection<VM_AssetPack> AvailableAssetPacks { get; set; }
@@ -86,10 +97,13 @@ namespace SynthEBD
 
         public ObservableCollection<VM_BodyGenTemplate> AvailableMorphs { get; set; }
         public VM_SettingsBodyGen SubscribedBodyGenSettings { get; set; }
-
+        public ObservableCollection<VM_BodySlideSetting> SubscribedBodySlides { get; set; }
+        public ObservableCollection<VM_BodySlideSetting> AvailableBodySlides { get; set; }
         public VM_BodyGenTemplate SelectedTemplate { get; set; }
 
         public Gender Gender;
+
+        public VM_Settings_General SubscribedGeneralSettings { get; set; }
 
         public ILinkCache lk { get; set; }
         public IEnumerable<Type> NPCFormKeyTypes { get; set; }
@@ -100,9 +114,9 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static VM_SpecificNPCAssignment GetViewModelFromModel(NPCAssignment model, ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen BGVM, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env)
+        public static VM_SpecificNPCAssignment GetViewModelFromModel(NPCAssignment model, ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen BGVM, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM)
         {
-            var newVM = new VM_SpecificNPCAssignment(assetPacks, BGVM);
+            var newVM = new VM_SpecificNPCAssignment(assetPacks, BGVM, oBodySettings, generalSettingsVM);
             newVM.NPCFormKey = model.NPCFormKey;
 
             if (newVM.NPCFormKey.IsNull)
@@ -201,7 +215,7 @@ namespace SynthEBD
             NPCAssignment model = new NPCAssignment();
             model.DispName = viewModel.DispName;
             model.AssetPackName = viewModel.ForcedAssetPack.groupName;
-            model.SubgroupIDs = viewModel.ForcedSubgroups.Select(subgroup => subgroup.id).ToList();
+            model.SubgroupIDs = viewModel.ForcedSubgroups.Select(subgroup => subgroup.ID).ToList();
 
             if (viewModel.ForcedHeight == "")
             {
@@ -254,6 +268,7 @@ namespace SynthEBD
         public static void UpdateAvailableAssetPacks(VM_SpecificNPCAssignment assignment)
         {
             assignment.AvailableAssetPacks.Clear();
+            assignment.AvailableAssetPacks.Add(new VM_AssetPack(new ObservableCollection<VM_AssetPack>(), new VM_SettingsBodyGen(new ObservableCollection<VM_RaceGrouping>()), new VM_BodyShapeDescriptorCreationMenu(), new VM_Settings_General()) { groupName = "" }); // blank entry
             foreach (var assetPack in assignment.SubscribedAssetPacks)
             {
                 if (assetPack.gender == assignment.Gender)
@@ -271,7 +286,7 @@ namespace SynthEBD
                 bool topLevelTaken = false;
                 foreach (var forcedSubgroup in assignment.ForcedSubgroups)
                 {
-                    if (topLevelSubgroup == forcedSubgroup || ContainsSubgroupID(topLevelSubgroup.subgroups, forcedSubgroup.id))
+                    if (topLevelSubgroup == forcedSubgroup || ContainsSubgroupID(topLevelSubgroup.Subgroups, forcedSubgroup.ID))
                     {
                         topLevelTaken = true;
                         break;
@@ -288,10 +303,10 @@ namespace SynthEBD
         {
             foreach(var sg in subgroups)
             {
-                if (sg.id == id) { return true; }
+                if (sg.ID == id) { return true; }
                 else
                 {
-                    if (ContainsSubgroupID(sg.subgroups, id) == true) { return true; }
+                    if (ContainsSubgroupID(sg.Subgroups, id) == true) { return true; }
                 }
             }
             return false;
@@ -301,10 +316,10 @@ namespace SynthEBD
         {
             foreach (var sg in subgroups)
             {
-                if (sg.id == id) { return sg; }
+                if (sg.ID == id) { return sg; }
                 else
                 {
-                    var candidate = GetSubgroupByID(sg.subgroups, id);
+                    var candidate = GetSubgroupByID(sg.Subgroups, id);
                     if (candidate != null) { return candidate; }
                 }
             }
@@ -352,6 +367,16 @@ namespace SynthEBD
             }
         }
 
+        public void UpdateAvailableBodySlides(VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM)
+        {
+            switch(Gender)
+            {
+                case Gender.male: SubscribedBodySlides = oBodySettings.BodySlidesUI.BodySlidesMale; break;
+                case Gender.female: SubscribedBodySlides = oBodySettings.BodySlidesUI.BodySlidesFemale; break;
+            }
+            AvailableBodySlides = new ObservableCollection<VM_BodySlideSetting>() { new VM_BodySlideSetting(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, AvailableBodySlides, oBodySettings) { Label = "" } }; // blank entry
+            AvailableBodySlides.AddRange(SubscribedBodySlides);
+        }
         public void TriggerDispNameUpdate(object sender, PropertyChangedEventArgs e)
         {
             if (this.NPCFormKey.IsNull == false)

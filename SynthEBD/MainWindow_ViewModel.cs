@@ -59,8 +59,8 @@ namespace SynthEBD
 
             BGVM = new VM_SettingsBodyGen(SGVM.RaceGroupings);
             OBVM = new VM_SettingsOBody(SGVM.RaceGroupings);
-            TMVM = new VM_SettingsTexMesh(BGVM);
-            SAUIVM = new VM_SpecificNPCAssignmentsUI(TMVM, BGVM);
+            TMVM = new VM_SettingsTexMesh(BGVM, OBVM.DescriptorUI, SGVM);
+            SAUIVM = new VM_SpecificNPCAssignmentsUI(TMVM, BGVM, OBVM, SGVM);
             CUIVM = new VM_ConsistencyUI();
 
             NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, OBVM, HVM, SAUIVM, CUIVM, BUIVM, LogDisplayVM, MMVM);
@@ -98,7 +98,7 @@ namespace SynthEBD
 
             // load asset packs
             AssetPacks = SettingsIO_AssetPack.loadAssetPacks(PatcherSettings.General.RaceGroupings, RecordTemplatePlugins, BodyGenConfigs); // load asset pack models from json
-            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(AssetPacks, SGVM, PatcherSettings.TexMesh, BGVM, RecordTemplateLinkCache); // add asset pack view models to TexMesh shell view model here
+            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(AssetPacks, SGVM, PatcherSettings.TexMesh, BGVM, OBVM.DescriptorUI, RecordTemplateLinkCache); // add asset pack view models to TexMesh shell view model here
 
             // load heights
             PatcherSettings.Height = SettingsIO_Height.LoadHeightSettings();
@@ -112,7 +112,7 @@ namespace SynthEBD
 
             // load specific assignments
             SpecificNPCAssignments = SettingsIO_SpecificNPCAssignments.LoadAssignments();
-            VM_SpecificNPCAssignmentsUI.GetViewModelFromModels(SAUIVM, SpecificNPCAssignments);
+            VM_SpecificNPCAssignmentsUI.GetViewModelFromModels(SAUIVM, SpecificNPCAssignments, OBVM, SGVM);
 
             // load BlockList
             BlockList = SettingsIO_BlockList.LoadBlockList();

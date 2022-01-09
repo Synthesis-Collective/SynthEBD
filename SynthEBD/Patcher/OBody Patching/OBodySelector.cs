@@ -98,7 +98,7 @@ namespace SynthEBD
             #endregion
 
             #region Random Selection
-            if (selectedPreset != null)
+            if (selectedPreset == null)
             {
                 while (availablePresets.Any())
                 {
@@ -118,7 +118,7 @@ namespace SynthEBD
             }
             #endregion
 
-            if (!availablePresets.Any())
+            if (selectedPreset == null)
             {
                 Logger.LogReport("Could not choose any valid BodySlide presets for NPC " + npcInfo.LogIDstring, false, npcInfo);
                 Logger.CloseReportSubsection(npcInfo);
@@ -171,7 +171,7 @@ namespace SynthEBD
             }
 
             // Allowed Races
-            if (!candidatePreset.AllowedRaces.Contains(npcInfo.BodyShapeRace))
+            if (candidatePreset.AllowedRaces.Any() && !candidatePreset.AllowedRaces.Contains(npcInfo.BodyShapeRace))
             {
                 Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its allowed races do not include the current NPC's race", false, npcInfo);
                 return false;
@@ -211,14 +211,14 @@ namespace SynthEBD
                 {
                     if (subgroup.AllowedBodyGenDescriptors.Any())
                     {
-                        if (!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodyGenDescriptors, candidatePreset.BodyShapeDescriptors))
+                        if (!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors))
                         {
                             Logger.LogReport("Morph is invalid because its descriptors does not match any of the assigned asset combination's allowed descriptors", false, npcInfo);
                             return false;
                         }
                     }
 
-                    if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodyGenDescriptors, candidatePreset.BodyShapeDescriptors))
+                    if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors))
                     {
                         Logger.LogReport("Morph is invalid because one of its descriptors matches one of the assigned asset combination's disallowed descriptors", false, npcInfo);
                         return false;

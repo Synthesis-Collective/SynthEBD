@@ -41,7 +41,7 @@ namespace SynthEBD
             if (npcFormLink.TryResolve(GameEnvironmentProvider.MyEnvironment.LinkCache, out var npcRecord))
             {
                 string subName = "";
-                if (npcRecord.Name.ToString().Length > 0)
+                if (npcRecord.Name != null && !string.IsNullOrEmpty(npcRecord.Name.ToString()))
                 {
                     subName = npcRecord.Name.ToString();
                 }

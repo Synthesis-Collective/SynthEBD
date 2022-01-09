@@ -36,7 +36,6 @@ namespace SynthEBD
         public FormKey DefaultRecordTemplate { get; set; }
         public HashSet<AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
         public string AssociatedBodyGenConfigName { get; set; }
-
         public List<AssetReplacerGroup> ReplacerGroups { get; set; }
         public HashSet<string> RecordTemplateAdditionalRacesPaths { get; set; }
         public HashSet<AttributeGroup> AttributeGroups { get; set; }
@@ -66,6 +65,8 @@ namespace SynthEBD
                 this.paths = new HashSet<FilePathReplacement>();
                 this.allowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>();
                 this.disallowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>();
+                this.allowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>();
+                this.disallowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>();
                 this.weightRange = new NPCWeightRange();
                 this.subgroups = new HashSet<Subgroup>();
 
@@ -91,6 +92,8 @@ namespace SynthEBD
             public HashSet<FilePathReplacement> paths { get; set; }
             public HashSet<BodyShapeDescriptor> allowedBodyGenDescriptors { get; set; }
             public HashSet<BodyShapeDescriptor> disallowedBodyGenDescriptors { get; set; }
+            public HashSet<BodyShapeDescriptor> allowedBodySlideDescriptors { get; set; }
+            public HashSet<BodyShapeDescriptor> disallowedBodySlideDescriptors { get; set; }
             public NPCWeightRange weightRange { get; set; }
             public HashSet<Subgroup> subgroups { get; set; }
             public string TopLevelSubgroupID { get; set; }

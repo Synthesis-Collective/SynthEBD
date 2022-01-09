@@ -9,6 +9,12 @@
              xmlns:local="clr-namespace:SynthEBD"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <local:BodyGenVisibilityConverter x:Key="BGVisibilityConverter" />
+        <local:BodySlideVisibilityConverter x:Key="BSVisibilityConverter" />
+    </UserControl.Resources>
+    
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -65,15 +71,18 @@
         <TextBlock Grid.Row="4" Grid.Column="0">Forced Height</TextBlock>
         <TextBox Grid.Row="4" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ForcedHeight}"/>
 
-        <TextBlock Grid.Row="5" Grid.Column="0">Forced Morphs</TextBlock>
+        <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}">Forced Bodyslide</TextBlock>
+        <ComboBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding Path=AvailableBodySlides}" DisplayMemberPath="Label" SelectedValuePath="Label" SelectedValue="{Binding ForcedBodySlide, Mode=TwoWay}" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}" />
 
-        <TextBlock Grid.Row="5" Grid.Column="1" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center">Available</TextBlock>
+        <TextBlock Grid.Row="5" Grid.Column="0" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Forced Morphs</TextBlock>
 
-        <ListBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding AvailableMorphs}" DisplayMemberPath="Label" IsSynchronizedWithCurrentItem="True"  dd:DragDrop.IsDragSource="True" BorderThickness="1" BorderBrush="#5844b4">
+        <TextBlock Grid.Row="5" Grid.Column="1" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Available</TextBlock>
+
+        <ListBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding AvailableMorphs}" DisplayMemberPath="Label" IsSynchronizedWithCurrentItem="True"  dd:DragDrop.IsDragSource="True" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">
         </ListBox>
 
-        <TextBlock Grid.Row="5" Grid.Column="3" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center">Selected</TextBlock>
-        <ListBox Grid.Row="6" Grid.Column="3" ItemsSource="{Binding ForcedBodyGenMorphs}"  dd:DragDrop.IsDropTarget="True" BorderThickness="1" BorderBrush="#5844b4">
+        <TextBlock Grid.Row="5" Grid.Column="3" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Selected</TextBlock>
+        <ListBox Grid.Row="6" Grid.Column="3" ItemsSource="{Binding ForcedBodyGenMorphs}"  dd:DragDrop.IsDropTarget="True" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Grid>

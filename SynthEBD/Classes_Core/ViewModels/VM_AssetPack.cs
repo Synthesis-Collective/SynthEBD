@@ -12,12 +12,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using ReactiveUI;
 
 namespace SynthEBD
 {
     public class VM_AssetPack : INotifyPropertyChanged
     {
-        public VM_AssetPack(ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM)
+        public VM_AssetPack(ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, VM_Settings_General generalSettingsVM)
         {
             this.groupName = "";
             this.ShortName = "";
@@ -52,7 +53,10 @@ namespace SynthEBD
 
             this.AttributeGroupMenu = new VM_AttributeGroupMenu();
 
-            this.ReplacersMenu = new VM_AssetPackDirectReplacerMenu(this);
+            this.ReplacersMenu = new VM_AssetPackDirectReplacerMenu(this, OBodyDescriptorMenu);
+
+            this.BodyShapeMode = generalSettingsVM.BodySelectionMode;
+            generalSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
 
             /*
             switch (this.gender)
@@ -78,7 +82,7 @@ namespace SynthEBD
 
             ImportAttributeGroups = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => 
+                execute: _ =>
                 {
                     var alreadyContainedGroups = AttributeGroupMenu.Groups.Select(x => x.Label).ToHashSet();
                     foreach (var attGroup in VM_Settings_General.AttributeGroupMenu.Groups)
@@ -126,19 +130,21 @@ namespace SynthEBD
         public RelayCommand AddRecordTemplateAdditionalRacesPath { get; }
         public RelayCommand ImportAttributeGroups { get; }
 
+        public BodyShapeSelectionMode BodyShapeMode { get; set; }
+
         public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>() // referenced by xaml; don't trust VS reference count
         {
             {Gender.male, "Male"},
             {Gender.female, "Female"},
         };
 
-        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, VM_SettingsBodyGen bodygenSettingsVM, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
+        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
         {
             ObservableCollection<VM_AssetPack> viewModels = new ObservableCollection<VM_AssetPack>();
 
             for (int i = 0; i < assetPacks.Count; i++)
             {
-                var viewModel = GetViewModelFromModel(assetPacks[i], generalSettingsVM, viewModels, bodygenSettingsVM, recordTemplateLinkCache);
+                var viewModel = GetViewModelFromModel(assetPacks[i], generalSettingsVM, viewModels, bodygenSettingsVM, OBodyDescriptorMenu, recordTemplateLinkCache);
                 viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].GroupName);
 
                 viewModel.SourcePath = assetPacks[i].FilePath;
@@ -149,9 +155,9 @@ namespace SynthEBD
             }
             return viewModels;
         }
-        public static VM_AssetPack GetViewModelFromModel(AssetPack model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
+        public static VM_AssetPack GetViewModelFromModel(AssetPack model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
         {
-            var viewModel = new VM_AssetPack(parentCollection, bodygenSettingsVM);
+            var viewModel = new VM_AssetPack(parentCollection, bodygenSettingsVM, OBodyDescriptorMenu, generalSettingsVM);
             viewModel.groupName = model.GroupName;
             viewModel.ShortName = model.ShortName;
             viewModel.gender = model.Gender;
@@ -181,7 +187,7 @@ namespace SynthEBD
 
             foreach (var sg in model.Subgroups)
             {
-                viewModel.subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM, viewModel.subgroups, viewModel, false));
+                viewModel.subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM, viewModel.subgroups, viewModel, OBodyDescriptorMenu, false));
             }
 
             // go back through now that all subgroups have corresponding view models, and link the required and excluded subgroups
@@ -189,7 +195,7 @@ namespace SynthEBD
             LinkRequiredSubgroups(flattenedSubgroupList);
             LinkExcludedSubgroups(flattenedSubgroupList);
 
-            viewModel.ReplacersMenu = VM_AssetPackDirectReplacerMenu.GetViewModelFromModels(model.ReplacerGroups, viewModel, generalSettingsVM);
+            viewModel.ReplacersMenu = VM_AssetPackDirectReplacerMenu.GetViewModelFromModels(model.ReplacerGroups, viewModel, generalSettingsVM, OBodyDescriptorMenu);
 
             viewModel.DefaultTemplateFK = model.DefaultRecordTemplate;
             foreach(var additionalTemplateAssignment in model.AdditionalRecordTemplateAssignments)
@@ -249,7 +255,7 @@ namespace SynthEBD
             foreach(var sg in currentLevelSGs)
             {
                 flattened.Add(sg);
-                FlattenSubgroupVMs(sg.subgroups, flattened);
+                FlattenSubgroupVMs(sg.Subgroups, flattened);
             }
             return flattened;
         }
@@ -262,9 +268,9 @@ namespace SynthEBD
                 {
                     foreach (var candidate in flattenedSubgroups)
                     {
-                        if (candidate.id == id)
+                        if (candidate.ID == id)
                         {
-                            sg.requiredSubgroups.Add(candidate);
+                            sg.RequiredSubgroups.Add(candidate);
                             break;
                         }
                     }
@@ -280,9 +286,9 @@ namespace SynthEBD
                 {
                     foreach (var candidate in flattenedSubgroups)
                     {
-                        if (candidate.id == id)
+                        if (candidate.ID == id)
                         {
-                            sg.excludedSubgroups.Add(candidate);
+                            sg.ExcludedSubgroups.Add(candidate);
                             break;
                         }
                     }
