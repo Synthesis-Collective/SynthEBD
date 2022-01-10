@@ -18,7 +18,8 @@ namespace SynthEBD
             SelectedGender = Gender.female;
             CurrentlyDisplayedBodySlide = null;
             CurrentlyExistingBodySlides = new HashSet<string>();
-            
+            ShowHidden = false;
+
             AddPreset = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => CurrentlyDisplayedBodySlides.Add(new VM_BodySlideSetting(parentVM.DescriptorUI, raceGroupingVMs, this.CurrentlyDisplayedBodySlides, parentVM))
@@ -37,6 +38,13 @@ namespace SynthEBD
                     case Gender.male: CurrentlyDisplayedBodySlides = BodySlidesMale; break;
                 }
             });
+
+            this.WhenAnyValue(x => x.ShowHidden).Subscribe(x =>
+            {
+                TogglePresetVisibility(BodySlidesMale, ShowHidden);
+                TogglePresetVisibility(BodySlidesFemale, ShowHidden);
+            });
+
         }
         public ObservableCollection<VM_BodySlideSetting> BodySlidesMale { get; set; }
         public ObservableCollection<VM_BodySlideSetting> BodySlidesFemale { get; set; }
@@ -49,7 +57,26 @@ namespace SynthEBD
 
         public RelayCommand AddPreset { get; }
         public RelayCommand RemovePreset { get; }
+        public bool ShowHidden { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
+
+        private static void TogglePresetVisibility(ObservableCollection<VM_BodySlideSetting> bodySlides, bool showHidden)
+        {
+            foreach (var b in bodySlides)
+            {
+                switch (showHidden)
+                {
+                    case true: b.IsVisible = true; break;
+                    case false:
+                        switch (b.HideInMenu)
+                        {
+                            case true: b.IsVisible = false; break;
+                            case false: b.IsVisible = true; break;
+                        }
+                        break;
+                }
+            }
+        }
     }
 }

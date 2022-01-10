@@ -36,7 +36,8 @@
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
-            </Grid.RowDefinitions>
+                <RowDefinition Height="auto"/>
+                </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Name</TextBlock>
             <TextBox Grid.Row="0" Grid.Column="2" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
@@ -117,7 +118,9 @@
             <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Distribution Probability Weighting</TextBlock>
             <TextBox Grid.Row="16" Grid.Column="2" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ProbabilityWeighting}"/>
 
-            <Button Grid.Row="18" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding DeleteMe}">Delete Preset</Button>
+            <TextBlock Grid.Row="18" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left">Hide Preset</TextBlock>
+            <CheckBox Grid.Row="18" Grid.Column="2" IsChecked="{Binding HideInMenu}"/>
+            <Button Grid.Row="19" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding DeleteMe}">Delete Preset</Button>
         </Grid>
     </ScrollViewer>
     </Border>

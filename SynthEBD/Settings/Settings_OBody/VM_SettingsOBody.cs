@@ -15,6 +15,7 @@ namespace SynthEBD
             DescriptorUI = new VM_BodyShapeDescriptorCreationMenu();
             BodySlidesUI = new VM_BodySlidesMenu(this, raceGroupingVMs);
             AttributeGroupMenu = new VM_AttributeGroupMenu();
+            MiscUI = new VM_OBodyMiscSettings();
 
             DisplayedUI = BodySlidesUI;
 
@@ -47,17 +48,23 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ => DisplayedUI = AttributeGroupMenu
                 );
+
+            ClickMiscMenu = new RelayCommand(
+                canExecute: _ => true,
+                execute: _ => DisplayedUI = MiscUI
+                );
         }
 
         public object DisplayedUI { get; set; }
         public VM_BodyShapeDescriptorCreationMenu DescriptorUI { get; set; }
         public VM_BodySlidesMenu BodySlidesUI { get; set; }
         public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
+        public VM_OBodyMiscSettings MiscUI { get; set; }
         public RelayCommand ImportAttributeGroups { get; }
         public RelayCommand ClickBodySlidesMenu { get; }
         public RelayCommand ClickDescriptorsMenu { get; }
         public RelayCommand ClickAttributeGroupsMenu { get; }
-
+        public RelayCommand ClickMiscMenu { get; }
         public event PropertyChangedEventHandler PropertyChanged;
 
         public static void GetViewModelFromModel(Settings_OBody model, VM_SettingsOBody viewModel, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
@@ -89,6 +96,8 @@ namespace SynthEBD
             }
 
             VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu);
+
+            viewModel.MiscUI = VM_OBodyMiscSettings.GetViewModelFromModel(model);
         }
 
         public static void DumpViewModelToModel(Settings_OBody model, VM_SettingsOBody viewModel)
@@ -107,6 +116,8 @@ namespace SynthEBD
                 model.BodySlidesFemale.Add(VM_BodySlideSetting.DumpViewModelToModel(preset));
             }
             VM_AttributeGroupMenu.DumpViewModelToModels(viewModel.AttributeGroupMenu, model.AttributeGroups);
+
+            VM_OBodyMiscSettings.DumpViewModelToModel(model, viewModel.MiscUI);
         }
     }
 }

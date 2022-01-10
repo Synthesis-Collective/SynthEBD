@@ -49,7 +49,7 @@ namespace SynthEBD
             #endregion
 
             #region Linked NPC Group
-            if (selectedPreset != null && npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary)
+            if (selectedPreset == null && npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary)
             {
                 selectedPreset = availablePresets.Where(x => x.Label == npcInfo.AssociatedLinkGroup.AssignedBodySlide).FirstOrDefault();
                 if (selectedPreset != null)
@@ -64,7 +64,7 @@ namespace SynthEBD
             #endregion
 
             #region Unique NPC replicates
-            else if (UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName))
+            else if (selectedPreset == null && UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName))
             {
                 var uniqueBodySlideAssignment = UniqueNPCData.GetUniqueNPCTracker(npcInfo, AssignmentType.BodySlide);
                 if (uniqueBodySlideAssignment != null && uniqueBodySlideAssignment != "")
@@ -83,7 +83,7 @@ namespace SynthEBD
             #endregion
 
             #region Consistency
-            if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "")
+            if (selectedPreset == null && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "")
             {
                 selectedPreset = availablePresets.Where(x => x.Label == npcInfo.ConsistencyNPCAssignment.BodySlidePreset).FirstOrDefault();
                 if (selectedPreset != null)

@@ -205,6 +205,8 @@ namespace SynthEBD
                 }
             }
 
+            newVM.ForcedBodySlide = model.BodySlidePreset;
+
             newVM.DispName = Converters.CreateNPCDispNameFromFormKey(newVM.NPCFormKey);
 
             return newVM;
@@ -231,6 +233,7 @@ namespace SynthEBD
             }
             
             model.BodyGenMorphNames = viewModel.ForcedBodyGenMorphs.Select(morph => morph.Label).ToList();
+            model.BodySlidePreset = viewModel.ForcedBodySlide;
             model.NPCFormKey = viewModel.NPCFormKey;
             return model;
         }

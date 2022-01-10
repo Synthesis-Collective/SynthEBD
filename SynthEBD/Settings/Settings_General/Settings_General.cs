@@ -67,6 +67,6 @@ namespace SynthEBD
     public enum BodySlideSelectionMode
     {
         OBody,
-        AutoBodyAE
+        AutoBody
     }
 }

@@ -18,21 +18,23 @@ namespace SynthEBD
             this.TemplateDescriptors = new HashSet<BodyShapeDescriptor>();
             this.AttributeGroups = new HashSet<AttributeGroup>();
             this.CurrentlyExistingBodySlides = new HashSet<string>();
+            this.MaleSliderGroups = new HashSet<string>();
+            this.FemaleSliderGroups = new HashSet<string>();
         }
         public List<BodySlideSetting> BodySlidesMale { get; set; }
         public List<BodySlideSetting> BodySlidesFemale { get; set; }
         public HashSet<BodyShapeDescriptor> TemplateDescriptors { get; set; }
         public HashSet<AttributeGroup> AttributeGroups { get; set; }
+        public HashSet<string> MaleSliderGroups { get; set; }
+        public HashSet<string> FemaleSliderGroups { get; set; }
         
         [JsonIgnore]
         public HashSet<string> CurrentlyExistingBodySlides { get; set; }
 
         public void ImportBodySlides()
         {
-            List<string> maleSliderGroups = JSONhandler<List<string>>.loadJSONFile(PatcherSettings.Paths.MaleTemplateGroupsPath);
-            if (maleSliderGroups == null) { maleSliderGroups = new List<string>() { "HIMBO" }; }
-            List<string> femaleSliderGroups = JSONhandler<List<string>>.loadJSONFile(PatcherSettings.Paths.FemaleTemplateGroupsPath);
-            if (femaleSliderGroups == null) { femaleSliderGroups = new List<string>() { "CBBE, UNP" }; }
+            if (!MaleSliderGroups.Any()) { MaleSliderGroups = new HashSet<string>() { "HIMBO" }; }
+            if (!FemaleSliderGroups.Any()) { FemaleSliderGroups = new HashSet<string>() { "CBBE", "3BBB", "3BA", "UNP", "Unified UNP", "BHUNP 3BBB" }; }
 
             CurrentlyExistingBodySlides.Clear();
             List<BodySlideSetting> currentBodySlides = new List<BodySlideSetting>();
@@ -44,26 +46,32 @@ namespace SynthEBD
                 {
                     XDocument presetFile = XDocument.Load(xmlFilePath);
                     var presets = presetFile.Element("SliderPresets");
+                    var presetName = "";
                     foreach (var preset in presets.Elements())
                     {
-                        var group = preset.Element("Group");
-                        var groupName = group.Attribute("name").Value.ToString();
-                        var presetName = preset.Attribute("name").Value.ToString();
+                        var groups = preset.Elements("Group");
+                        bool genderFound = false;
+                        foreach (var group in groups)
+                        {
+                            var groupName = group.Attribute("name").Value.ToString();
+                            presetName = preset.Attribute("name").Value.ToString();
 
-                        CurrentlyExistingBodySlides.Add(presetName);
+                            CurrentlyExistingBodySlides.Add(presetName);
 
-                        if (maleSliderGroups.Contains(groupName))
-                        {
-                            currentBodySlides = BodySlidesMale;
+                            if (MaleSliderGroups.Contains(groupName))
+                            {
+                                currentBodySlides = BodySlidesMale;
+                                genderFound = true;
+                                break;
+                            }
+                            else if (FemaleSliderGroups.Contains(groupName))
+                            {
+                                currentBodySlides = BodySlidesFemale;
+                                genderFound=true;
+                                break;
+                            }
                         }
-                        else if (femaleSliderGroups.Contains(groupName))
-                        {
-                            currentBodySlides = BodySlidesFemale;
-                        }
-                        else
-                        {
-                            continue;
-                        }
+                        if (!genderFound) { continue; }
 
                         if (currentBodySlides.Where(x => x.Label == presetName).Any()) // skip already loaded presets
                         {
@@ -76,10 +84,12 @@ namespace SynthEBD
                         if (newPreset.Label.Contains("Zeroed Sliders", StringComparison.OrdinalIgnoreCase))
                         {
                             newPreset.AllowRandom = false;
+                            newPreset.HideInMenu = true;
                         }
                         if (newPreset.Label.Contains("Outfit", StringComparison.OrdinalIgnoreCase))
                         {
                             newPreset.AllowRandom = false;
+                            newPreset.HideInMenu = true;
                         }
 
                         currentBodySlides.Add(newPreset);
@@ -107,6 +117,7 @@ namespace SynthEBD
             this.AllowRandom = true;
             this.ProbabilityWeighting = 1;
             this.WeightRange = new NPCWeightRange();
+            this.HideInMenu = false;
 
             // used during patching, not written to settings file
             this.MatchedForceIfCount = 0;
@@ -126,6 +137,7 @@ namespace SynthEBD
         public bool AllowRandom { get; set; }
         public int ProbabilityWeighting { get; set; }
         public NPCWeightRange WeightRange { get; set; }
+        public bool HideInMenu { get; set; }
 
         [JsonIgnore]
         public int MatchedForceIfCount { get; set; }

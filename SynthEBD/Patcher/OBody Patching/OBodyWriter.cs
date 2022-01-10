@@ -26,7 +26,12 @@ namespace SynthEBD
             MGEFApplyBodySlide.VirtualMachineAdapter = new VirtualMachineAdapter();
 
             ScriptEntry ScriptApplyBodySlide = new ScriptEntry();
-            ScriptApplyBodySlide.Name = "SynthEBDBodySlideScript";
+            switch(PatcherSettings.General.BSSelectionMode)
+            {
+                case BodySlideSelectionMode.OBody: ScriptApplyBodySlide.Name = "SynthEBDBodySlideScriptOBody"; break;
+                case BodySlideSelectionMode.AutoBody: ScriptApplyBodySlide.Name = "SynthEBDBodySlideScriptAutoBody"; break;
+            }
+            
             MGEFApplyBodySlide.VirtualMachineAdapter.Scripts.Add(ScriptApplyBodySlide);
 
             // create Spell
@@ -49,12 +54,18 @@ namespace SynthEBD
         public static void CopyBodySlideScript()
         {
             var sourcePath = "";
+            var destPath = "";
             switch(PatcherSettings.General.BSSelectionMode)
             {
-                case BodySlideSelectionMode.OBody: sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScript", "OBody", "SynthEBDBodySlideScript.pex"); break;
-                case BodySlideSelectionMode.AutoBodyAE: sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScript", "AutoBodyAE", "SynthEBDBodySlideScript.pex"); break;
+                case BodySlideSelectionMode.OBody: 
+                    sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScript", "OBody", "SynthEBDBodySlideScriptOBody.pex");
+                    destPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "Scripts", "SynthEBDBodySlideScriptOBody.pex");
+                    break;
+                case BodySlideSelectionMode.AutoBody: 
+                    sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScript", "AutoBody", "SynthEBDBodySlideScriptAutoBody.pex");
+                    destPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "Scripts", "SynthEBDBodySlideScriptAutoBody.pex");
+                    break;
             }
-            var destPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "Scripts", "SynthEBDBodySlideScript.pex");
 
             if (!File.Exists(sourcePath))
             {

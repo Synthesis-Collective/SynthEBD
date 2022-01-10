@@ -7,6 +7,11 @@
              xmlns:local="clr-namespace:SynthEBD"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+    
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -22,11 +27,16 @@
 
         <ComboBox Grid.Row="0" Grid.Column="0" SelectedValue="{Binding SelectedGender}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" IsSynchronizedWithCurrentItem="True"/>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" HorizontalAlignment="Center">Preset</TextBlock>
+        <StackPanel  Grid.Row="1" Grid.Column="0" Orientation="Horizontal">
+            <TextBlock HorizontalAlignment="Center">Preset (</TextBlock>
+            <CheckBox IsChecked="{Binding ShowHidden}"/>
+            <TextBlock Text=" Show Hidden)"></TextBlock>
+
+        </StackPanel>
         <Button Grid.Row="2" Grid.Column="0" Command="{Binding AddPreset}" Foreground="Lightgreen">Add New</Button>
         <ScrollViewer Grid.Row="3" Grid.Column="0">
             <StackPanel >
-                <ListBox SelectedValue="{Binding CurrentlyDisplayedBodySlide}" ItemsSource="{Binding CurrentlyDisplayedBodySlides}" IsSynchronizedWithCurrentItem="True">
+                <ListBox SelectedValue="{Binding CurrentlyDisplayedBodySlide}" ItemsSource="{Binding CurrentlyDisplayedBodySlides}" IsSynchronizedWithCurrentItem="False" >
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Border BorderThickness="1" BorderBrush="{Binding BorderColor}">
@@ -56,6 +66,9 @@
                                         </Storyboard>
                                     </BeginStoryboard>
                                 </EventTrigger>
+                                <DataTrigger Binding="{Binding IsVisible}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </ListBox.ItemContainerStyle>

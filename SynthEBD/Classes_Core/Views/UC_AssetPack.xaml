@@ -63,8 +63,7 @@
                         <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
                             <TextBlock PreviewMouseLeftButtonDown="HandleSelectPreviewMouseDown" MouseLeftButtonUp="HandleSelectPreviewMouseUp">
                                 <TextBlock.Text>
-                                    <MultiBinding StringFormat="{}{0}: {1}"> <!--https://stackoverflow.com/questions/541896/concatenate-strings-instead-of-using-a-stack-of-textblocks-->
-                                        <Binding Path="ID"/>
+                                    <MultiBinding StringFormat="{}{0}"> <!--https://stackoverflow.com/questions/541896/concatenate-strings-instead-of-using-a-stack-of-textblocks-->
                                         <Binding Path="Name"/>
                                     </MultiBinding>
                                 </TextBlock.Text>

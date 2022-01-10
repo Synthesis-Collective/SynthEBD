@@ -41,6 +41,21 @@ namespace SynthEBD
             this.ParentConfig = parentConfig;
             this.ParentCollection = parentCollection;
 
+            this.HideInMenu = false;
+
+            this.WhenAnyValue(x => x.HideInMenu).Subscribe(x =>
+            {
+                if (!parentConfig.BodySlidesUI.ShowHidden && HideInMenu)
+                {
+                    IsVisible = false;
+                }
+                else
+                {
+                    IsVisible = true;
+                }
+                UpdateBorder();
+            });
+
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => this.AllowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.AllowedAttributes, true, ParentConfig.AttributeGroupMenu.Groups))
@@ -50,7 +65,6 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ => this.DisallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.DisallowedAttributes, false, ParentConfig.AttributeGroupMenu.Groups))
                 );
-
 
             DeleteMe = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -89,6 +103,8 @@ namespace SynthEBD
         public ObservableCollection<VM_BodySlideSetting> ParentCollection { get; set; }
 
         public SolidColorBrush BorderColor { get; set; }
+        public bool HideInMenu { get; set; }
+        public bool IsVisible {  get; set; }
 
         public void UpdateBorder()
         {
@@ -96,7 +112,7 @@ namespace SynthEBD
             {
                 BorderColor = new SolidColorBrush(Colors.Red);
             }
-            else if (!bAllowRandom)
+            else if (HideInMenu)
             {
                 BorderColor = new SolidColorBrush(Colors.LightSlateGray);
             }
@@ -150,6 +166,8 @@ namespace SynthEBD
             viewModel.UpdateBorder();
 
             viewModel.DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => viewModel.UpdateBorder());
+
+            viewModel.HideInMenu = model.HideInMenu;
         }
 
         public static BodySlideSetting DumpViewModelToModel(VM_BodySlideSetting viewModel)
@@ -169,6 +187,7 @@ namespace SynthEBD
             model.AllowRandom = viewModel.bAllowRandom;
             model.ProbabilityWeighting = viewModel.ProbabilityWeighting;
             model.WeightRange = viewModel.WeightRange;
+            model.HideInMenu = viewModel.HideInMenu;
             return model;
         }
     }
