@@ -1,5 +1,6 @@
 ﻿using Mutagen.Bethesda;
 using Mutagen.Bethesda.FormKeys.SkyrimSE;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 using System;
 using System.Collections.Generic;
@@ -12,7 +13,7 @@ namespace SynthEBD
 {
     public class OBodyWriter
     {
-        public static Spell CreateOBodyAssignmentSpell(SkyrimMod outputMod)
+        public static Spell CreateOBodyAssignmentSpell(SkyrimMod outputMod, GlobalShort settingsLoadedGlobal)
         {
             // create MGEF first
             MagicEffect MGEFApplyBodySlide = outputMod.MagicEffects.AddNew();
@@ -31,7 +32,10 @@ namespace SynthEBD
                 case BodySlideSelectionMode.OBody: ScriptApplyBodySlide.Name = "SynthEBDBodySlideScriptOBody"; break;
                 case BodySlideSelectionMode.AutoBody: ScriptApplyBodySlide.Name = "SynthEBDBodySlideScriptAutoBody"; break;
             }
-            
+            ScriptObjectProperty settingsLoadedProperty = new ScriptObjectProperty() { Name = "loadingCompleted", Flags = ScriptProperty.Flag.Edited } ;
+            settingsLoadedProperty.Object.SetTo(settingsLoadedGlobal);
+            ScriptApplyBodySlide.Properties.Add(settingsLoadedProperty);
+
             MGEFApplyBodySlide.VirtualMachineAdapter.Scripts.Add(ScriptApplyBodySlide);
 
             // create Spell
@@ -51,6 +55,70 @@ namespace SynthEBD
             return SPELApplyBodySlide;
         }
 
+        public static void CreateBodySlideLoaderQuest(SkyrimMod outputMod, GlobalShort settingsLoadedGlobal)
+        {
+            Quest bsLoaderQuest = outputMod.Quests.AddNew();
+            bsLoaderQuest.Name = "Loads SynthEBD BodySlide Assignments";
+            bsLoaderQuest.EditorID = "SynthEBDBSLoaderQuest";
+
+            bsLoaderQuest.Flags |= Quest.Flag.StartGameEnabled;
+            bsLoaderQuest.Flags |= Quest.Flag.RunOnce;
+
+            QuestAlias playerQuestAlias = new QuestAlias();
+            FormKey.TryFactory("000014:Skyrim.esm", out FormKey playerRefFK);
+            playerQuestAlias.ForcedReference.SetTo(playerRefFK);
+            bsLoaderQuest.Aliases.Add(playerQuestAlias);
+
+            QuestAdapter bsLoaderScriptAdapter = new QuestAdapter();
+
+            ScriptEntry bsLoaderScriptEntry = new ScriptEntry() { Name = "SynthEBDBodySlideLoaderQuestScript", Flags = ScriptEntry.Flag.Local };
+            ScriptObjectProperty settingsLoadedProperty = new ScriptObjectProperty() { Name = "loadingCompleted", Flags = ScriptProperty.Flag.Edited };
+            settingsLoadedProperty.Object.SetTo(settingsLoadedGlobal.FormKey);
+            bsLoaderScriptEntry.Properties.Add(settingsLoadedProperty);
+            bsLoaderScriptAdapter.Scripts.Add(bsLoaderScriptEntry);
+
+            QuestFragmentAlias loaderQuestFragmentAlias = new QuestFragmentAlias();
+            loaderQuestFragmentAlias.Property = new ScriptObjectProperty() { Name = "000 Player" };
+            loaderQuestFragmentAlias.Property.Object.SetTo(bsLoaderQuest.FormKey);
+            loaderQuestFragmentAlias.Property.Name = "Player";
+            loaderQuestFragmentAlias.Property.Alias = 0;
+
+            ScriptEntry playerAliasScriptEntry = new ScriptEntry();
+            playerAliasScriptEntry.Name = "SynthEBDBodySlideLoaderPAScript";
+            playerAliasScriptEntry.Flags = ScriptEntry.Flag.Local;
+            ScriptObjectProperty loaderQuestProperty = new ScriptObjectProperty() { Name = "QuestScript", Flags = ScriptProperty.Flag.Edited };
+            loaderQuestProperty.Object.SetTo(bsLoaderQuest.FormKey);
+
+            playerAliasScriptEntry.Properties.Add(loaderQuestProperty);
+            loaderQuestFragmentAlias.Scripts.Add(playerAliasScriptEntry);
+            bsLoaderScriptAdapter.Aliases.Add(loaderQuestFragmentAlias);
+            bsLoaderQuest.VirtualMachineAdapter = bsLoaderScriptAdapter;
+            /*
+            var templatePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideQuest", "BodySlide Quest Template.esp");
+
+            try
+            {
+                using ISkyrimModDisposableGetter template = SkyrimMod.CreateFromBinaryOverlay(templatePath, SkyrimRelease.SkyrimSE);
+                var BSloaderQuestTemplate = template.Quests.Where(x => x.EditorID == "SynthEBDBSLoaderQuest").FirstOrDefault();
+                if (BSloaderQuestTemplate != null)
+                {
+                    var BSloaderQuest = BSloaderQuestTemplate.DeepCopy();
+                    outputMod.Quests.Add(BSloaderQuest);
+                }
+                else
+                {
+                    Logger.LogErrorWithStatusUpdate("Could not copy expected resource " + templatePath, ErrorType.Error);
+                }
+            }
+            catch
+            {
+                Logger.LogErrorWithStatusUpdate("Could not copy expected resource " + templatePath, ErrorType.Error);
+            }
+
+            // copy quest scripts
+            */
+        }
+
         public static void CopyBodySlideScript()
         {
             var sourcePath = "";
@@ -59,11 +127,11 @@ namespace SynthEBD
             {
                 case BodySlideSelectionMode.OBody: 
                     sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScript", "OBody", "SynthEBDBodySlideScriptOBody.pex");
-                    destPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "Scripts", "SynthEBDBodySlideScriptOBody.pex");
+                    destPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Scripts", "SynthEBDBodySlideScriptOBody.pex");
                     break;
                 case BodySlideSelectionMode.AutoBody: 
                     sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScript", "AutoBody", "SynthEBDBodySlideScriptAutoBody.pex");
-                    destPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "Scripts", "SynthEBDBodySlideScriptAutoBody.pex");
+                    destPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Scripts", "SynthEBDBodySlideScriptAutoBody.pex");
                     break;
             }
 
@@ -111,7 +179,7 @@ namespace SynthEBD
             }
             outputStr += "}";
 
-            var destPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SynthEBD", "BodySlideDict.json");
+            var destPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "SynthEBD", "BodySlideDict.json");
 
             try
             {

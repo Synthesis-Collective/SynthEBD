@@ -16,6 +16,7 @@ namespace SynthEBD
             this.BodySelectionMode = BodyShapeSelectionMode.None;
             this.BSSelectionMode = BodySlideSelectionMode.OBody;
             this.bChangeHeight = false;
+            this.OutputDataFolder = GameEnvironmentProvider.MyEnvironment.DataFolderPath;
             this.bEnableConsistency = true;
             this.ExcludePlayerCharacter = true;
             this.ExcludePresets = true;
@@ -37,6 +38,7 @@ namespace SynthEBD
         public BodyShapeSelectionMode BodySelectionMode { get; set; }
         public BodySlideSelectionMode BSSelectionMode { get; set; }
         public bool bChangeHeight { get; set; }
+        public string OutputDataFolder { get; set; }
         public bool bEnableConsistency { get; set; }
         public bool ExcludePlayerCharacter { get; set; }
         public bool ExcludePresets { get; set; }

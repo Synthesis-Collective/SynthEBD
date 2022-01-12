@@ -87,7 +87,6 @@ namespace SynthEBD
             this.RecordReplacerSpecifiersPath = Path.Combine(RelativePath, settingsDirRelPath, "RecordReplacerSpecifiers.json");
             this.RecordTemplatesDirPath = Path.Combine(RelativePath, recordTemplatesDirRelPath);
             this.ModManagerSettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "ModManagerSettings.json");
-            
         }
 
         private string RelativePath { get; set; } 

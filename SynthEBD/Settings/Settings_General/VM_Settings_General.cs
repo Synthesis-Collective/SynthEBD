@@ -24,6 +24,7 @@ namespace SynthEBD
             this.BodySelectionMode = BodyShapeSelectionMode.None;
             this.BSSelectionMode = BodySlideSelectionMode.OBody;
             this.bChangeHeight = false;
+            this.OutputDataFolder = "";
             this.bEnableConsistency = true;
             this.ExcludePlayerCharacter = true;
             this.ExcludePresets = true;
@@ -71,6 +72,17 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: x => this.LinkedNPCGroups.Remove((VM_LinkedNPCGroup)x)
                 );
+
+            SelectOutputFolder = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    if (IO_Aux.SelectFolder(GameEnvironmentProvider.MyEnvironment.DataFolderPath, out var tmpFolder))
+                    {
+                        OutputDataFolder = tmpFolder;
+                    }
+                }
+                );
         }
 
         public bool bShowToolTips { get;  set;}
@@ -81,6 +93,7 @@ namespace SynthEBD
         public bool ExcludePlayerCharacter { get; set; }
         public bool ExcludePresets { get; set; }
         public bool bChangeHeight { get; set;  }
+        public string OutputDataFolder { get; set; }
         public bool bEnableConsistency { get; set;  }
         public bool bLinkNPCsWithSameName { get; set;  }
         public ObservableCollection<VM_CollectionMemberString> LinkedNameExclusions { get; set; }
@@ -109,6 +122,7 @@ namespace SynthEBD
         public RelayCommand AddLinkedNPCNameExclusion { get; }
         public RelayCommand AddLinkedNPCGroup { get; }
         public RelayCommand RemoveLinkedNPCGroup { get; }
+        public RelayCommand SelectOutputFolder { get; }
 
         public static void GetViewModelFromModel(VM_Settings_General viewModel)
         {
@@ -118,6 +132,7 @@ namespace SynthEBD
             viewModel.BodySelectionMode = model.BodySelectionMode;
             viewModel.BSSelectionMode = model.BSSelectionMode;
             viewModel.bChangeHeight = model.bChangeHeight;
+            viewModel.OutputDataFolder = model.OutputDataFolder;
             viewModel.bEnableConsistency = model.bEnableConsistency;
             viewModel.ExcludePlayerCharacter = model.ExcludePlayerCharacter;
             viewModel.ExcludePresets = model.ExcludePresets;
@@ -140,6 +155,7 @@ namespace SynthEBD
             model.BodySelectionMode = viewModel.BodySelectionMode;
             model.BSSelectionMode = viewModel.BSSelectionMode;
             model.bChangeHeight = viewModel.bChangeHeight;
+            model.OutputDataFolder = viewModel.OutputDataFolder;
             model.bEnableConsistency = viewModel.bEnableConsistency;
             model.ExcludePlayerCharacter = viewModel.ExcludePlayerCharacter;
             model.ExcludePresets = viewModel.ExcludePresets;

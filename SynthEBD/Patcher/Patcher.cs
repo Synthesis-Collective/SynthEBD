@@ -83,7 +83,12 @@ namespace SynthEBD
                 OBodyPreprocessing.CompilePresetRaces(copiedOBodySettings);
                 OBodyPreprocessing.FlattenPresetAttributes(copiedOBodySettings);
 
-                bodySlideAssignmentSpell = OBodyWriter.CreateOBodyAssignmentSpell(outputMod);
+                var bodyslidesLoaded = outputMod.Globals.AddNewShort();
+                bodyslidesLoaded.EditorID = "SynthEBDBodySlidesLoaded";
+                bodyslidesLoaded.Data = 0;
+
+                OBodyWriter.CreateBodySlideLoaderQuest(outputMod, bodyslidesLoaded);
+                bodySlideAssignmentSpell = OBodyWriter.CreateOBodyAssignmentSpell(outputMod, bodyslidesLoaded);
             }
 
             if (PatcherSettings.General.bChangeHeight)
@@ -112,11 +117,9 @@ namespace SynthEBD
             Logger.LogMessage("Finished patching in " + Logger.GetEllapsedTime());
             Logger.UpdateStatus("Finished Patching in " + Logger.GetEllapsedTime(), false);
 
-            if (PatcherSettings.General.bChangeMeshesOrTextures || PatcherSettings.General.bChangeHeight)
-            {
-                string patchOutputPath = System.IO.Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, PatcherSettings.General.patchFileName + ".esp");
-                PatcherIO.WritePatch(patchOutputPath, outputMod);
-            }
+            string patchOutputPath = System.IO.Path.Combine(PatcherSettings.General.OutputDataFolder, PatcherSettings.General.patchFileName + ".esp");
+            GameEnvironmentProvider.MyEnvironment.Dispose();
+            PatcherIO.WritePatch(patchOutputPath, outputMod);
 
             if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
             {

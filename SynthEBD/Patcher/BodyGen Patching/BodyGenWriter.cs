@@ -15,7 +15,7 @@ namespace SynthEBD
             string templates = CompileTemplateINI(bodyGenConfigs);
             string morphs = CompileMorphsINI(bodyGenConfigs);
 
-            string outputDirPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.patchFileName);
+            string outputDirPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.patchFileName);
             Directory.CreateDirectory(outputDirPath);
 
             string templatePath = Path.Combine(outputDirPath, "templates.ini");
