@@ -242,6 +242,21 @@ namespace SynthEBD
                         npcRecord.Keywords.Add(EBDFaceKW);
                         npcRecord.Keywords.Add(EBDScriptKW);
 
+                        if (PatcherSettings.General.bEnableConsistency)
+                        {
+                            currentNPCInfo.ConsistencyNPCAssignment.AssetPackName = assignedComboAndBodyShape.AssignedCombination.AssetPackName;
+                            currentNPCInfo.ConsistencyNPCAssignment.SubgroupIDs = assignedComboAndBodyShape.AssignedCombination.ContainedSubgroups.Select(x => x.Id).ToList();
+                        }
+                        if (currentNPCInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary && assignedComboAndBodyShape.AssignedCombination != null)
+                        {
+                            currentNPCInfo.AssociatedLinkGroup.AssignedCombination = assignedComboAndBodyShape.AssignedCombination;
+                        }
+
+                        if (PatcherSettings.General.bLinkNPCsWithSameName && currentNPCInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(currentNPCInfo, AssignmentType.Assets) == null)
+                        {
+                            UniqueAssignmentsByName[currentNPCInfo.Name][currentNPCInfo.Gender].AssignedCombination = assignedComboAndBodyShape.AssignedCombination;
+                        }
+
                         // assign direct replacers
                         var assignedReplacers = AssetSelector.SelectAssetReplacers(assignedComboAndBodyShape.AssignedCombination.AssetPack, currentNPCInfo);
                         foreach (var replacerCombination in assignedReplacers)

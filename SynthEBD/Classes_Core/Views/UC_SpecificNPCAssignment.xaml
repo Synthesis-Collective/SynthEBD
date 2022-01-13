@@ -29,6 +29,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -43,8 +44,8 @@
         <TextBlock Grid.Row="2" Grid.Column="1" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center">Available</TextBlock>
         <TreeView Grid.Row="3" Grid.Column="1" Name="TVsubgroups"  ItemsSource ="{Binding AvailableSubgroups}" dd:DragDrop.IsDragSource="True" BorderThickness="1" BorderBrush="#5844b4">
             <TreeView.Resources>
-                <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding subgroups}" >
-                    <TextBlock Text="{Binding Path=name}" />
+                <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
+                    <TextBlock Text="{Binding Path=Name}" />
                 </HierarchicalDataTemplate>
             </TreeView.Resources>
         </TreeView>
@@ -68,21 +69,33 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <TextBlock Grid.Row="4" Grid.Column="0">Forced Height</TextBlock>
-        <TextBox Grid.Row="4" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ForcedHeight}"/>
-
-        <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}">Forced Bodyslide</TextBlock>
-        <ComboBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding Path=AvailableBodySlides}" DisplayMemberPath="Label" SelectedValuePath="Label" SelectedValue="{Binding ForcedBodySlide, Mode=TwoWay}" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}" />
-
-        <TextBlock Grid.Row="5" Grid.Column="0" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Forced Morphs</TextBlock>
-
-        <TextBlock Grid.Row="5" Grid.Column="1" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Available</TextBlock>
-
-        <ListBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding AvailableMorphs}" DisplayMemberPath="Label" IsSynchronizedWithCurrentItem="True"  dd:DragDrop.IsDragSource="True" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">
+        <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Horizontal">
+            <TextBlock>Forced Asset Replacers</TextBlock>
+            <Button VerticalAlignment="Center" Command="{Binding AddForcedReplacer}" Foreground="LightGreen">Add</Button>
+        </StackPanel>
+        <ListBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding ForcedAssetReplacements}" IsSynchronizedWithCurrentItem="True">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <local:UC_AssetReplacerAssignment_SpecificAssignment/>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
         </ListBox>
 
-        <TextBlock Grid.Row="5" Grid.Column="3" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Selected</TextBlock>
-        <ListBox Grid.Row="6" Grid.Column="3" ItemsSource="{Binding ForcedBodyGenMorphs}"  dd:DragDrop.IsDropTarget="True" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">
+        <TextBlock Grid.Row="5" Grid.Column="0">Forced Height</TextBlock>
+        <TextBox Grid.Row="5" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ForcedHeight}"/>
+
+        <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}">Forced Bodyslide</TextBlock>
+        <ComboBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding Path=AvailableBodySlides}" DisplayMemberPath="Label" SelectedValuePath="Label" SelectedValue="{Binding ForcedBodySlide, Mode=TwoWay}" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}" />
+
+        <TextBlock Grid.Row="6" Grid.Column="0" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Forced Morphs</TextBlock>
+
+        <TextBlock Grid.Row="6" Grid.Column="1" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Available</TextBlock>
+
+        <ListBox Grid.Row="7" Grid.Column="1" ItemsSource="{Binding AvailableMorphs}" DisplayMemberPath="Label" IsSynchronizedWithCurrentItem="True"  dd:DragDrop.IsDragSource="True" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">
+        </ListBox>
+
+        <TextBlock Grid.Row="6" Grid.Column="3" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Selected</TextBlock>
+        <ListBox Grid.Row="7" Grid.Column="3" ItemsSource="{Binding ForcedBodyGenMorphs}"  dd:DragDrop.IsDropTarget="True" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Grid>

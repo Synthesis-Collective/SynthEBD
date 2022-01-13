@@ -18,7 +18,7 @@ namespace SynthEBD
             this.Height = null;
             this.BodyGenMorphNames = null;
             this.BodySlidePreset = "";
-            this.ReplacerAssignments = new List<AssetReplacerAssignment>();
+            this.AssetReplacerAssignments = new List<AssetReplacerAssignment>();
         }
 
         public string DispName { get; set; }
@@ -28,7 +28,7 @@ namespace SynthEBD
         public float? Height { get; set; }
         public List<string> BodyGenMorphNames { get; set; } // order matters
         public string BodySlidePreset { get; set; }
-        public List<AssetReplacerAssignment> ReplacerAssignments { get; set; }
+        public List<AssetReplacerAssignment> AssetReplacerAssignments { get; set; }
 
         public class AssetReplacerAssignment
         {

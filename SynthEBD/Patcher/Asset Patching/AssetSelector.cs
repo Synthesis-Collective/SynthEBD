@@ -259,7 +259,7 @@ namespace SynthEBD
                         break;
                     case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn: break; /////////////////////////////////////////////////////////////////////////////// Fill in later
                     case AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual: 
-                        var forcedReplacerGroup = npcInfo.SpecificNPCAssignment.ReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().GroupName).FirstOrDefault(); // Replacers are assigned from a pre-chosen asset pack so there must be exactly one in the set
+                        var forcedReplacerGroup = npcInfo.SpecificNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().GroupName).FirstOrDefault(); // Replacers are assigned from a pre-chosen asset pack so there must be exactly one in the set
                         if (forcedReplacerGroup != null)
                         {
                             forcedAssetPack = availableAssetPacks.First().ShallowCopy();
@@ -298,7 +298,7 @@ namespace SynthEBD
                     case AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary: consistencyAssetPackName = npcInfo.ConsistencyNPCAssignment.AssetPackName; break;
                     case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn: break; ////////////////////////////////////////////////////////////////////////////////////// Fill in later
                     case AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual:
-                        consistencyReplacer = npcInfo.ConsistencyNPCAssignment.ReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().GroupName).FirstOrDefault();
+                        consistencyReplacer = npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().GroupName).FirstOrDefault();
                         if (consistencyReplacer != null) { consistencyAssetPackName = consistencyReplacer.ReplacerName; }
                         break;
                 }
@@ -574,7 +574,7 @@ namespace SynthEBD
 
                 case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn: break; //////////////////////////////////////////////////////////////////////////////////////////// Fill in later
                 case AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual:
-                    var forcedReplacer = specificAssignment.ReplacerAssignments.Where(x => x.ReplacerName == selectedCombination.AssetPackName).FirstOrDefault();
+                    var forcedReplacer = specificAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == selectedCombination.AssetPackName).FirstOrDefault();
                     if (forcedReplacer != null)
                     {
                         if (forcedReplacer.SubgroupIDs.Count != selectedCombination.ContainedSubgroups.Count) { return false; }
@@ -653,7 +653,7 @@ namespace SynthEBD
                         if (PatcherSettings.General.bEnableConsistency)
                         {
                             NPCAssignment.AssetReplacerAssignment assetReplacerAssignment = new NPCAssignment.AssetReplacerAssignment() { ReplacerName = replacerGroup.GroupName, SubgroupIDs = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList() };
-                            npcInfo.ConsistencyNPCAssignment.ReplacerAssignments.Add(assetReplacerAssignment);
+                            npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Add(assetReplacerAssignment);
                         }
                         if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
                         {

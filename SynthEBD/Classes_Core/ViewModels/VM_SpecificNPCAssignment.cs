@@ -26,6 +26,7 @@ namespace SynthEBD
             this.NPCFormKey = new FormKey();
             this.ForcedAssetPack = new VM_AssetPack(new ObservableCollection<VM_AssetPack>(), bodyGenSettings, oBodySettings.DescriptorUI, generalSettingsVM);
             this.ForcedSubgroups = new ObservableCollection<VM_Subgroup>();
+            this.ForcedAssetReplacements = new ObservableCollection<VM_AssetReplacementAssignment>();
             this.ForcedHeight = "";
             this.ForcedBodyGenMorphs = new ObservableCollection<VM_BodyGenTemplate>();
             this.ForcedBodySlide = "";
@@ -65,6 +66,14 @@ namespace SynthEBD
             oBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesFemale).Subscribe(x => UpdateAvailableBodySlides(oBodySettings, generalSettingsVM));
             oBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesMale).Subscribe(x => UpdateAvailableBodySlides(oBodySettings, generalSettingsVM));
 
+            this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x =>
+            {
+                foreach (var replacer in ForcedAssetReplacements)
+                {
+                    replacer.ParentAssetPack = ForcedAssetPack;
+                }
+            });
+
             SubscribedGeneralSettings = generalSettingsVM;
 
             DeleteForcedSubgroup = new SynthEBD.RelayCommand(
@@ -76,6 +85,11 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: x => this.ForcedBodyGenMorphs.Remove((VM_BodyGenTemplate)x)
                 );
+
+            AddForcedReplacer = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x => this.ForcedAssetReplacements.Add(new VM_AssetReplacementAssignment(ForcedAssetPack, ForcedAssetReplacements))
+                );
         }
 
         // Caption
@@ -85,6 +99,7 @@ namespace SynthEBD
         public FormKey NPCFormKey { get; set; }
         public VM_AssetPack ForcedAssetPack { get; set; }
         public ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; }
+        public ObservableCollection<VM_AssetReplacementAssignment> ForcedAssetReplacements { get; set; }
         public string ForcedHeight { get; set; }
         public ObservableCollection<VM_BodyGenTemplate> ForcedBodyGenMorphs { get; set; }
         public string ForcedBodySlide { get; set; }
@@ -111,21 +126,22 @@ namespace SynthEBD
         public RelayCommand DeleteForcedSubgroup { get; set; }
 
         public RelayCommand DeleteForcedMorph { get; set; }
+        public RelayCommand AddForcedReplacer { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
         public static VM_SpecificNPCAssignment GetViewModelFromModel(NPCAssignment model, ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen BGVM, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM)
         {
-            var newVM = new VM_SpecificNPCAssignment(assetPacks, BGVM, oBodySettings, generalSettingsVM);
-            newVM.NPCFormKey = model.NPCFormKey;
+            var viewModel = new VM_SpecificNPCAssignment(assetPacks, BGVM, oBodySettings, generalSettingsVM);
+            viewModel.NPCFormKey = model.NPCFormKey;
 
-            if (newVM.NPCFormKey.IsNull)
+            if (viewModel.NPCFormKey.IsNull)
             {
                 // Warn User
                 return null;
             }
 
-            var npcFormLink = new FormLink<INpcGetter>(newVM.NPCFormKey);
+            var npcFormLink = new FormLink<INpcGetter>(viewModel.NPCFormKey);
 
             if (!npcFormLink.TryResolve(GameEnvironmentProvider.MyEnvironment.LinkCache, out var npcRecord))
             {
@@ -133,7 +149,7 @@ namespace SynthEBD
                 return null;
             }
 
-            newVM.Gender = getGender(newVM.NPCFormKey);
+            viewModel.Gender = getGender(viewModel.NPCFormKey);
 
             bool assetPackFound = false;
             if (model.AssetPackName.Length == 0) { assetPackFound = true; }
@@ -143,7 +159,7 @@ namespace SynthEBD
                 {
                     if (ap.groupName == model.DispName)
                     {
-                        newVM.ForcedAssetPack = ap;
+                        viewModel.ForcedAssetPack = ap;
                         assetPackFound = true;
 
                         foreach (var id in model.SubgroupIDs)
@@ -151,13 +167,18 @@ namespace SynthEBD
                             var foundSubgroup = GetSubgroupByID(ap.subgroups, id);
                             if (foundSubgroup != null)
                             {
-                                newVM.ForcedSubgroups.Add(foundSubgroup);
+                                viewModel.ForcedSubgroups.Add(foundSubgroup);
                                 continue;
                             }
                             else
                             {
                                 // Warn User
                             }
+                        }
+
+                        foreach (var replacer in model.AssetReplacerAssignments)
+                        {
+                            viewModel.ForcedAssetReplacements.Add(VM_AssetReplacementAssignment.GetViewModelFromModel(replacer, ap, viewModel.ForcedAssetReplacements));
                         }
                     }
                 }
@@ -169,15 +190,15 @@ namespace SynthEBD
 
             if (model.Height != null)
             {
-                newVM.ForcedHeight = model.Height.ToString();
+                viewModel.ForcedHeight = model.Height.ToString();
             }
             else
             {
-                newVM.ForcedHeight = "";
+                viewModel.ForcedHeight = "";
             }
 
             ObservableCollection<VM_BodyGenTemplate> templates = new ObservableCollection<VM_BodyGenTemplate>();
-            switch (newVM.Gender)
+            switch (viewModel.Gender)
             {
                 case Gender.male:
                     templates = BGVM.CurrentMaleConfig.TemplateMorphUI.Templates;
@@ -194,7 +215,7 @@ namespace SynthEBD
                 {
                     if (morph.Label == forcedMorph)
                     {
-                        newVM.ForcedBodyGenMorphs.Add(morph);
+                        viewModel.ForcedBodyGenMorphs.Add(morph);
                         morphFound = true;
                         break; ;
                     }
@@ -205,11 +226,11 @@ namespace SynthEBD
                 }
             }
 
-            newVM.ForcedBodySlide = model.BodySlidePreset;
+            viewModel.ForcedBodySlide = model.BodySlidePreset;
 
-            newVM.DispName = Converters.CreateNPCDispNameFromFormKey(newVM.NPCFormKey);
+            viewModel.DispName = Converters.CreateNPCDispNameFromFormKey(viewModel.NPCFormKey);
 
-            return newVM;
+            return viewModel;
         }
 
         public static NPCAssignment DumpViewModelToModel(VM_SpecificNPCAssignment viewModel)
@@ -284,6 +305,7 @@ namespace SynthEBD
         public static void UpdateAvailableSubgroups(VM_SpecificNPCAssignment assignment)
         {
             assignment.AvailableSubgroups.Clear();
+            if (assignment.ForcedAssetPack == null) { return; }
             foreach (var topLevelSubgroup in assignment.ForcedAssetPack.subgroups)
             {
                 bool topLevelTaken = false;

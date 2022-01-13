@@ -179,21 +179,6 @@ namespace SynthEBD
             {
                 assetsAssigned = true;
                 assignment.AssignedCombination = chosenCombination;
-
-                if (PatcherSettings.General.bEnableConsistency)
-                {
-                    npcInfo.ConsistencyNPCAssignment.AssetPackName = chosenCombination.AssetPackName;
-                    npcInfo.ConsistencyNPCAssignment.SubgroupIDs = chosenCombination.ContainedSubgroups.Select(x => x.Id).ToList();
-                }
-                if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary && chosenCombination != null)
-                {
-                    npcInfo.AssociatedLinkGroup.AssignedCombination = chosenCombination;
-                }
-
-                if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Assets) == null)
-                {
-                    Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedCombination = chosenCombination;
-                }
             }
             if (bodyShapeAssigned)
             {

@@ -15,6 +15,7 @@ namespace SynthEBD
         public VM_ConsistencyAssignment()
         {
             this.SubgroupIDs = new ObservableCollection<VM_CollectionMemberString>();
+            this.AssetReplacements = new ObservableCollection<VM_AssetReplacementAssignment>();
             this.BodyGenMorphNames = new ObservableCollection<VM_CollectionMemberString>();
             this.BodySlidePreset = "";
             this.AssetPackAssigned = false;
@@ -47,6 +48,7 @@ namespace SynthEBD
 
         public string AssetPackName { get; set; }
         public ObservableCollection<VM_CollectionMemberString> SubgroupIDs { get; set; }
+        public ObservableCollection<VM_AssetReplacementAssignment> AssetReplacements { get; set; }
         public ObservableCollection<VM_CollectionMemberString> BodyGenMorphNames { get; set; }
         public string BodySlidePreset { get; set; }
         public string Height { get; set; }
@@ -74,6 +76,10 @@ namespace SynthEBD
                 {
                     viewModel.SubgroupIDs.Add(new VM_CollectionMemberString(id, viewModel.SubgroupIDs));
                 }
+            }
+            foreach(var replacer in model.AssetReplacerAssignments)
+            {
+                viewModel.AssetReplacements.Add(VM_AssetReplacementAssignment.GetViewModelFromModel(replacer, null, viewModel.AssetReplacements));
             }
             viewModel.BodyGenMorphNames = new ObservableCollection<VM_CollectionMemberString>();
             if (model.BodyGenMorphNames != null)
@@ -104,6 +110,11 @@ namespace SynthEBD
             model.AssetPackName = viewModel.AssetPackName;
             model.SubgroupIDs = viewModel.SubgroupIDs.Select(x => x.Content).ToList();
             if (model.SubgroupIDs.Count == 0) { model.SubgroupIDs = null; }
+            model.AssetReplacerAssignments.Clear();
+            foreach (var replacer in viewModel.AssetReplacements)
+            {
+                model.AssetReplacerAssignments.Add(VM_AssetReplacementAssignment.DumpViewModelToModel(replacer));
+            }
             model.BodyGenMorphNames = viewModel.BodyGenMorphNames.Select(x => x.Content).ToList();
             if (model.BodyGenMorphNames.Count == 0) { model.BodyGenMorphNames = null; }
             model.BodySlidePreset = viewModel.BodySlidePreset;
