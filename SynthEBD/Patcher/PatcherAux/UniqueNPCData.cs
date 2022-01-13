@@ -18,11 +18,23 @@ namespace SynthEBD
                 AssignedMorphs = new List<string>();
                 AssignedBodySlidePreset = "";
                 AssignedHeight = -1;
+                this.ReplacerAssignments = new List<LinkedAssetReplacerAssignment>();
             }
             public SubgroupCombination AssignedCombination { get; set; }
             public List<string> AssignedMorphs { get; set; }
             public string AssignedBodySlidePreset { get; set; }
             public float AssignedHeight { get; set; }
+            public List<LinkedAssetReplacerAssignment> ReplacerAssignments { get; set; }
+            public class LinkedAssetReplacerAssignment
+            {
+                public LinkedAssetReplacerAssignment()
+                {
+                    ReplacerName = "";
+                    AssignedReplacerCombination = null;
+                }
+                public string ReplacerName { get; set; }
+                public SubgroupCombination AssignedReplacerCombination { get; set; }
+            }
         }
 
         /// <summary>
@@ -58,13 +70,14 @@ namespace SynthEBD
             }
         }
 
-        public static dynamic GetUniqueNPCTracker(NPCInfo npcInfo, AssignmentType property)
+        public static dynamic GetUniqueNPCTrackerData(NPCInfo npcInfo, AssignmentType property)
         {
             if (npcInfo.IsValidLinkedUnique && Patcher.UniqueAssignmentsByName.ContainsKey(npcInfo.Name) && Patcher.UniqueAssignmentsByName[npcInfo.Name].ContainsKey(npcInfo.Gender))
             {
                 switch (property)
                 {
                     case AssignmentType.Assets: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedCombination;
+                    case AssignmentType.ReplacerAssets: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].ReplacerAssignments;
                     case AssignmentType.BodyGen: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedMorphs;
                     case AssignmentType.BodySlide: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedBodySlidePreset;
                     case AssignmentType.Height: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedHeight;

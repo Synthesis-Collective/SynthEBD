@@ -179,6 +179,18 @@ namespace SynthEBD
             }
         }
 
+        public static void CloseReportSubsectionsToParentOf(string label, NPCInfo npcInfo)
+        {
+            if (npcInfo.Report.LogCurrentNPC)
+            {
+                while (npcInfo.Report.CurrentElement.Name != label)
+                {
+                    npcInfo.Report.CurrentElement = npcInfo.Report.ReportElementHierarchy[npcInfo.Report.CurrentElement];
+                }
+                npcInfo.Report.CurrentElement = npcInfo.Report.ReportElementHierarchy[npcInfo.Report.CurrentElement];
+            }
+        }
+
         public static void SaveReport(NPCInfo npcInfo)
         {
             if (npcInfo.Report.LogCurrentNPC)

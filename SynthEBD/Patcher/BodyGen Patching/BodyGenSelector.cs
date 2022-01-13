@@ -100,7 +100,7 @@ namespace SynthEBD
             #region Unique NPC replicates
             else if (UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName))
             {
-                var uniqueBodyGenAssignment = (List<string>)UniqueNPCData.GetUniqueNPCTracker(npcInfo, AssignmentType.BodyGen);
+                var uniqueBodyGenAssignment = (List<string>)UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodyGen);
                 if (uniqueBodyGenAssignment != null && uniqueBodyGenAssignment.Any())
                 {
                     availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All, null);

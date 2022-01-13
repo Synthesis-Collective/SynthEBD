@@ -23,6 +23,13 @@ namespace SynthEBD
             public string AssignedOBodyPreset { get; set; }
         }
 
+        public enum AssetPackAssignmentMode
+        {
+            Primary,
+            MixIn,
+            ReplacerVirtual
+        }
+
         /// <summary>
         /// Assigns a SubgroupCombination to the given NPC
         /// If BodyGen integration is enabled, attempts to assign a morph that complies with the chosen combination's bodygen restrictions.
@@ -31,48 +38,134 @@ namespace SynthEBD
         /// <param name="availableAssetPacks">Asset packs available to the current NPC</param>
         /// <param name="npcInfo">NPC info class</param>
         /// <returns></returns>
-        public static AssetAndBodyShapeAssignment ChooseCombinationAndBodyShape(out bool assetsAssigned, out bool bodyShapeAssigned, HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, NPCInfo npcInfo, bool blockBodyGen)
+        public static AssetAndBodyShapeAssignment ChooseCombinationAndBodyShape(out bool assetsAssigned, out bool bodyShapeAssigned, HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, NPCInfo npcInfo, bool blockBodyShape, AssetPackAssignmentMode mode)
         {
             AssetAndBodyShapeAssignment assignment = new AssetAndBodyShapeAssignment();
             SubgroupCombination chosenCombination = new SubgroupCombination();
             assetsAssigned = false;
             bodyShapeAssigned = false;
 
-            Logger.OpenReportSubsection("AssetsAndBody", npcInfo);
-            Logger.LogReport("Assigning Assets and Body Shape Combination", false, npcInfo);
-
-            if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary && npcInfo.AssociatedLinkGroup.AssignedCombination != null && AssetSelector.CombinationAllowedBySpecificNPCAssignment(npcInfo.SpecificNPCAssignment, npcInfo.AssociatedLinkGroup.AssignedCombination))
+            string subSectionLabel = string.Empty;
+            string reportLine = string.Empty;
+            if (mode == AssetPackAssignmentMode.Primary && !blockBodyShape)
             {
-                Logger.LogReport("Selected combination from NPC link group", false, npcInfo);
-                chosenCombination = npcInfo.AssociatedLinkGroup.AssignedCombination;
+                subSectionLabel = "AssetsAndBody";
+                reportLine = "Assigning Assets and Body Shape Combination";
+            }
+            else if (mode == AssetPackAssignmentMode.Primary)
+            {
+                subSectionLabel = "Assets";
+                reportLine = "Assigning Assets";
+            }
+            else if (mode == AssetPackAssignmentMode.MixIn)
+            {
+                subSectionLabel = "MixInAssets";
+                reportLine = "Assigning Assets for Mix In";
+            }
+            else if (mode == AssetPackAssignmentMode.ReplacerVirtual) // this function should never be called on Asset Replacers if there is not an availableAssetPack so first is fine to use
+            {
+                subSectionLabel = "ReplacerAssets";
+                reportLine = "Assigning Replacer Assets for " + availableAssetPacks.First().GroupName;
+            }
 
-                switch (PatcherSettings.General.BodySelectionMode)
+            Logger.OpenReportSubsection(subSectionLabel, npcInfo);
+            Logger.LogReport(reportLine, false, npcInfo);
+
+            bool selectedFromLinkedNPC = false;
+            if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary)
+            {
+                SubgroupCombination linkedCombination = null;
+                switch (mode)
                 {
-                    case BodyShapeSelectionMode.BodyGen:
-                        assignment.AssignedBodyGenMorphs = npcInfo.AssociatedLinkGroup.AssignedMorphs;
-                        bodyShapeAssigned = assignment.AssignedBodyGenMorphs.Any();
+                    case AssetPackAssignmentMode.Primary: linkedCombination = npcInfo.AssociatedLinkGroup.AssignedCombination; break;
+                    case AssetPackAssignmentMode.MixIn: break; ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// FILL OUT LATER 
+                    case AssetPackAssignmentMode.ReplacerVirtual: var linkedAssignmentGroup = npcInfo.AssociatedLinkGroup.ReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().GroupName).FirstOrDefault();
+                        if (linkedAssignmentGroup != null) {  linkedCombination = linkedAssignmentGroup.AssignedReplacerCombination; }
                         break;
-                    case BodyShapeSelectionMode.BodySlide:
-                        assignment.AssignedOBodyPreset = npcInfo.AssociatedLinkGroup.AssignedBodySlide;
-                        bodyShapeAssigned = assignment.AssignedOBodyPreset != "";
-                        break;
-                    default: break;
                 }
 
-                if (bodyShapeAssigned)
+                if (linkedCombination != null && AssetSelector.CombinationAllowedBySpecificNPCAssignment(npcInfo.SpecificNPCAssignment, linkedCombination, mode))
                 {
-                    Logger.LogReport("Selected body shape from NPC link group", false, npcInfo);
+                    Logger.LogReport("Selected combination from NPC link group", false, npcInfo);
+                    chosenCombination = npcInfo.AssociatedLinkGroup.AssignedCombination;
+
+                    if (!blockBodyShape && mode == AssetPackAssignmentMode.Primary)
+                    {
+                        switch (PatcherSettings.General.BodySelectionMode)
+                        {
+                            case BodyShapeSelectionMode.BodyGen:
+                                assignment.AssignedBodyGenMorphs = npcInfo.AssociatedLinkGroup.AssignedMorphs;
+                                bodyShapeAssigned = assignment.AssignedBodyGenMorphs.Any();
+                                break;
+                            case BodyShapeSelectionMode.BodySlide:
+                                assignment.AssignedOBodyPreset = npcInfo.AssociatedLinkGroup.AssignedBodySlide;
+                                bodyShapeAssigned = assignment.AssignedOBodyPreset != "";
+                                break;
+                            default: break;
+                        }
+
+                        if (bodyShapeAssigned)
+                        {
+                            Logger.LogReport("Selected body shape from NPC link group", false, npcInfo);
+                        }
+                    }
+                    selectedFromLinkedNPC = true;
+                }
+                else if (linkedCombination != null)
+                {
+                    Logger.LogReport("The linked combination (" + linkedCombination.Signature + ") assigned to the primary Link Group member was incompatible with the Specific Assignments for this NPC. Consider making Specific Assignments only for the primary link group member.", true, npcInfo);
                 }
             }
-            else if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTracker(npcInfo, AssignmentType.Assets) != null)
+            else if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique)
             {
-                chosenCombination = Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedCombination;
-                Logger.LogReport("Another unique NPC with the same name was assigned a combination. Using that combination for current NPC.", false, npcInfo);
+                SubgroupCombination linkedCombination = null;
+                switch (mode)
+                {
+                    case AssetPackAssignmentMode.Primary: linkedCombination = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Assets); break;
+                    case AssetPackAssignmentMode.MixIn: break; ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// FILL OUT LATER 
+                    case AssetPackAssignmentMode.ReplacerVirtual:
+                        List<UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment> linkedReplacerCombinations = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.ReplacerAssets);
+                        if (linkedReplacerCombinations != null)
+                        {
+                            var linkedAssignmentGroup = linkedReplacerCombinations.Where(x => x.ReplacerName == availableAssetPacks.First().GroupName).FirstOrDefault();
+                            if (linkedAssignmentGroup != null) { linkedCombination = linkedAssignmentGroup.AssignedReplacerCombination; }
+                        }
+                        break; 
+                }
+
+                if (linkedCombination != null && AssetSelector.CombinationAllowedBySpecificNPCAssignment(npcInfo.SpecificNPCAssignment, linkedCombination, mode))
+                {
+                    chosenCombination = Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedCombination;
+                    Logger.LogReport("Another unique NPC with the same name was assigned a combination. Using that combination for current NPC.", false, npcInfo);
+
+                    if (!blockBodyShape && mode == AssetPackAssignmentMode.Primary)
+                    {
+                        switch (PatcherSettings.General.BodySelectionMode)
+                        {
+                            case BodyShapeSelectionMode.BodyGen:
+                                assignment.AssignedBodyGenMorphs = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodyGen);
+                                bodyShapeAssigned = assignment.AssignedBodyGenMorphs.Any();
+                                break;
+                            case BodyShapeSelectionMode.BodySlide:
+                                assignment.AssignedOBodyPreset = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodySlide);
+                                bodyShapeAssigned = assignment.AssignedOBodyPreset != "";
+                                break;
+                            default: break;
+                        }
+
+                        if (bodyShapeAssigned)
+                        {
+                            Logger.LogReport("Another unique NPC with the same name was assigned a body shape. Using that body shape for current NPC.", false, npcInfo);
+                        }
+                    }
+                    selectedFromLinkedNPC = true;
+                }
             }
-            else
+            
+            if (!selectedFromLinkedNPC)
             {
                 Logger.LogReport("Choosing Asset Combination and BodyGen for " + npcInfo.LogIDstring, false, npcInfo);
-                chosenCombination = GenerateCombinationWithBodyShape(availableAssetPacks, bodyGenConfigs, oBodySettings, assignment, npcInfo, blockBodyGen); // chosenMorphs is populated by reference within ChooseRandomCombination
+                chosenCombination = GenerateCombinationWithBodyShape(availableAssetPacks, bodyGenConfigs, oBodySettings, assignment, npcInfo, blockBodyShape, mode); // chosenMorphs is populated by reference within ChooseRandomCombination
 
                 switch (PatcherSettings.General.BodySelectionMode)
                 {
@@ -87,15 +180,17 @@ namespace SynthEBD
                 assetsAssigned = true;
                 assignment.AssignedCombination = chosenCombination;
 
-                npcInfo.ConsistencyNPCAssignment.AssetPackName = chosenCombination.AssetPackName;
-                npcInfo.ConsistencyNPCAssignment.SubgroupIDs = chosenCombination.ContainedSubgroups.Select(x => x.Id).ToList();
-
+                if (PatcherSettings.General.bEnableConsistency)
+                {
+                    npcInfo.ConsistencyNPCAssignment.AssetPackName = chosenCombination.AssetPackName;
+                    npcInfo.ConsistencyNPCAssignment.SubgroupIDs = chosenCombination.ContainedSubgroups.Select(x => x.Id).ToList();
+                }
                 if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary && chosenCombination != null)
                 {
                     npcInfo.AssociatedLinkGroup.AssignedCombination = chosenCombination;
                 }
 
-                if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTracker(npcInfo, AssignmentType.Assets) == null)
+                if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Assets) == null)
                 {
                     Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedCombination = chosenCombination;
                 }
@@ -113,7 +208,7 @@ namespace SynthEBD
             return assignment;
         }
 
-        public static SubgroupCombination GenerateCombinationWithBodyShape(HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, AssetAndBodyShapeAssignment assignment, NPCInfo npcInfo, bool blockBodyShape)
+        public static SubgroupCombination GenerateCombinationWithBodyShape(HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, AssetAndBodyShapeAssignment assignment, NPCInfo npcInfo, bool blockBodyShape, AssetPackAssignmentMode mode)
         {
             List<string> candidateMorphs = new List<string>();
             string candidatePreset = null;
@@ -129,11 +224,11 @@ namespace SynthEBD
             Tuple<SubgroupCombination, object> firstValidCombinationShapePair = new Tuple<SubgroupCombination, object>(new SubgroupCombination(), new List<string>()); // object can be List<string> (BodyGen) or string (OBody)
             bool firstValidCombinationShapePairInitialized = false;
 
-            Logger.OpenReportSubsection("CombinationWithBodySelection", npcInfo);
+            Logger.OpenReportSubsection("CombinationGeneration", npcInfo);
             Logger.LogReport("Assigning an asset combination", false, npcInfo);
 
             // remove subgroups or entire asset packs whose distribution rules are incompatible with the current NPC
-            filteredAssetPacks = AssetSelector.FilterValidConfigsForNPC(availableAssetPacks, npcInfo, false, out bool wasFilteredByConsistency);
+            filteredAssetPacks = AssetSelector.FilterValidConfigsForNPC(availableAssetPacks, npcInfo, false, out bool wasFilteredByConsistency, mode);
 
             // initialize seeds
             iterationInfo.AvailableSeeds = AssetSelector.GetAllSubgroups(filteredAssetPacks).OrderByDescending(x => x.ForceIfMatchCount).ToList();
@@ -145,7 +240,7 @@ namespace SynthEBD
                     if (wasFilteredByConsistency) // if no valid groups when filtering for consistency, try again without filtering for it
                     {
                         Logger.LogReport("Attempting to select a valid non-consistency Combination.", true, npcInfo);
-                        filteredAssetPacks = AssetSelector.FilterValidConfigsForNPC(availableAssetPacks, npcInfo, true, out wasFilteredByConsistency);
+                        filteredAssetPacks = AssetSelector.FilterValidConfigsForNPC(availableAssetPacks, npcInfo, true, out wasFilteredByConsistency, mode);
                         iterationInfo.AvailableSeeds = AssetSelector.GetAllSubgroups(filteredAssetPacks);
                     }
                     else // no other filters can be relaxed

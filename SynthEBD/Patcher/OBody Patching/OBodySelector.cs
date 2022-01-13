@@ -66,7 +66,7 @@ namespace SynthEBD
             #region Unique NPC replicates
             else if (selectedPreset == null && UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName))
             {
-                var uniqueBodySlideAssignment = UniqueNPCData.GetUniqueNPCTracker(npcInfo, AssignmentType.BodySlide);
+                var uniqueBodySlideAssignment = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodySlide);
                 if (uniqueBodySlideAssignment != null && uniqueBodySlideAssignment != "")
                 {
                     selectedPreset = availablePresets.Where(x => x.Label == uniqueBodySlideAssignment).FirstOrDefault();

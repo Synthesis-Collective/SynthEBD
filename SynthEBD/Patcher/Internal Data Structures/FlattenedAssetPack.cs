@@ -19,6 +19,7 @@ namespace SynthEBD
             this.AssociatedBodyGenConfigName = source.AssociatedBodyGenConfigName;
             this.Source = source;
             this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
+            this.Type = AssetPackType.Primary;
         }
 
         public FlattenedAssetPack(string groupName, Gender gender, FormKey defaultRecordTemplate, HashSet<AdditionalRecordTemplate> additionalRecordTemplateAssignments, string associatedBodyGenConfigName, AssetPack source)
@@ -31,6 +32,7 @@ namespace SynthEBD
             this.AssociatedBodyGenConfigName = associatedBodyGenConfigName;
             this.Source = source;
             this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
+            this.Type = AssetPackType.Primary;
         }
 
         public FlattenedAssetPack()
@@ -43,6 +45,7 @@ namespace SynthEBD
             this.AssociatedBodyGenConfigName = "";
             this.Source = new AssetPack();
             this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
+            this.Type= AssetPackType.Primary;
         }
 
         public string GroupName { get; set; }
@@ -53,6 +56,14 @@ namespace SynthEBD
         public string AssociatedBodyGenConfigName { get; set; }
         public AssetPack Source { get; set; }
         public List<FlattenedReplacerGroup> AssetReplacerGroups { get; set; }
+        public AssetPackType Type { get; set; }
+
+        public enum AssetPackType
+        {
+            Primary,
+            MixIn,
+            ReplacerVirtual
+        }
 
         public static FlattenedAssetPack FlattenAssetPack(AssetPack source, List<RaceGrouping> raceGroupingList)
         {
@@ -90,12 +101,13 @@ namespace SynthEBD
         public static FlattenedAssetPack CreateVirtualFromReplacerGroup(FlattenedReplacerGroup source)
         {
             FlattenedAssetPack virtualFAP = new FlattenedAssetPack();
-            virtualFAP.GroupName = source.GroupName;
+            virtualFAP.GroupName = source.GroupName; // this is the name of the replacer group, not the asset pack
             foreach (var subgroupsAtPos in source.Subgroups)
             {
                 virtualFAP.Subgroups.Add(subgroupsAtPos);
             }
             virtualFAP.Source = source.Source;
+            virtualFAP.Type = AssetPackType.ReplacerVirtual;
             return virtualFAP;
         }
     }

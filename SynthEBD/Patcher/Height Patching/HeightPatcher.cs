@@ -59,7 +59,7 @@ namespace SynthEBD
                 {
                     assignedHeight = npcInfo.AssociatedLinkGroup.AssignedHeight;
                 }
-                else if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTracker(npcInfo, AssignmentType.Height) != -1)
+                else if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Height) != -1)
                 {
                     assignedHeight = Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedHeight;
                     Logger.LogReport("Another unique NPC with the same name was assigned a height. Using that height for current NPC.", false, npcInfo);
@@ -112,7 +112,7 @@ namespace SynthEBD
                 npcInfo.AssociatedLinkGroup.AssignedHeight = assignedHeight;
             }
 
-            if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTracker(npcInfo, AssignmentType.Height) == -1)
+            if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Height) == -1)
             {
                 Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedHeight = assignedHeight;
             }

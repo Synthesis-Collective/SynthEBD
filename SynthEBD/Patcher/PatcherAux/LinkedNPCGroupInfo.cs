@@ -17,6 +17,7 @@ namespace SynthEBD
             this.AssignedBodySlide = "";
             this.AssignedHeight = -1;
             this.PrimaryNPCFormKey = sourceGroup.Primary;
+            this.ReplacerAssignments = new List<LinkedAssetReplacerAssignment>();
         }
 
         public HashSet<FormKey> NPCFormKeys { get; set; }
@@ -25,6 +26,18 @@ namespace SynthEBD
         public List<string> AssignedMorphs { get; set; }
         public string AssignedBodySlide { get; set; }
         public float AssignedHeight { get; set; }
+        public List<LinkedAssetReplacerAssignment> ReplacerAssignments { get; set; }
+
+        public class LinkedAssetReplacerAssignment
+        {
+            public LinkedAssetReplacerAssignment()
+            {
+                ReplacerName = "";
+                AssignedReplacerCombination = null;
+            }
+            public string ReplacerName { get; set; }
+            public SubgroupCombination AssignedReplacerCombination { get; set; }
+        }
 
         public static LinkedNPCGroupInfo GetInfoFromLinkedNPCGroup(HashSet<LinkedNPCGroup> definedGroups, HashSet<LinkedNPCGroupInfo> createdGroups, FormKey npcFormKey) // links the UI-defined LinkedNPCGroup (which only contains NPCs) to the corresponding generated LinkedNPCGroupInfo (which contains patcher assignments)
         {

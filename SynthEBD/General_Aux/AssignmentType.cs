@@ -9,6 +9,7 @@ namespace SynthEBD
     public enum AssignmentType
     {
         Assets,
+        ReplacerAssets,
         BodyGen,
         BodySlide,
         Height

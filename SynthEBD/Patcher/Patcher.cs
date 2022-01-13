@@ -233,7 +233,7 @@ namespace SynthEBD
                         case Gender.male: availableAssetPacks = maleAssetPacks; break;
                     }
 
-                    var assignedComboAndBodyShape = AssetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, availableAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape);
+                    var assignedComboAndBodyShape = AssetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, availableAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary);
                     if (assetsAssigned)
                     {
                         RecordGenerator.CombinationToRecords(assignedComboAndBodyShape.AssignedCombination, currentNPCInfo, recordTemplateLinkCache, outputMod);
