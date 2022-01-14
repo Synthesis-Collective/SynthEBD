@@ -236,7 +236,7 @@ namespace SynthEBD
             {
                 return false;
             }
-            
+
             else
             {
                 foreach (var slide in currentBodySlides)
@@ -252,6 +252,20 @@ namespace SynthEBD
 
             return false;
         }
+        public static void RecordBodySlideConsistencyAndLinkedNPCs(BodySlideSetting assignedBodySlide, NPCInfo npcInfo)
+        {
+            npcInfo.ConsistencyNPCAssignment.BodySlidePreset = assignedBodySlide.Label;
 
+            // assign to linked group if necessary 
+            if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
+            {
+                npcInfo.AssociatedLinkGroup.AssignedBodySlide = assignedBodySlide;
+            }
+            // assign to unique NPC list if necessary
+            if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedBodySlidePreset == null)
+            {
+                Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedBodySlidePreset = assignedBodySlide;
+            }
+        }
     }
 }

@@ -59,7 +59,7 @@ namespace SynthEBD
 
             BGVM = new VM_SettingsBodyGen(SGVM.RaceGroupings);
             OBVM = new VM_SettingsOBody(SGVM.RaceGroupings);
-            TMVM = new VM_SettingsTexMesh(BGVM, OBVM.DescriptorUI, SGVM);
+            TMVM = new VM_SettingsTexMesh(this);
             SAUIVM = new VM_SpecificNPCAssignmentsUI(TMVM, BGVM, OBVM, SGVM);
             CUIVM = new VM_ConsistencyUI();
 
@@ -97,7 +97,7 @@ namespace SynthEBD
             VM_SettingsOBody.GetViewModelFromModel(PatcherSettings.OBody, OBVM, SGVM.RaceGroupings);
 
             // load asset packs
-            AssetPacks = SettingsIO_AssetPack.loadAssetPacks(PatcherSettings.General.RaceGroupings, RecordTemplatePlugins, BodyGenConfigs); // load asset pack models from json
+            AssetPacks = SettingsIO_AssetPack.LoadAssetPacks(PatcherSettings.General.RaceGroupings, RecordTemplatePlugins, BodyGenConfigs); // load asset pack models from json
             TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(AssetPacks, SGVM, PatcherSettings.TexMesh, BGVM, OBVM.DescriptorUI, RecordTemplateLinkCache); // add asset pack view models to TexMesh shell view model here
 
             // load heights

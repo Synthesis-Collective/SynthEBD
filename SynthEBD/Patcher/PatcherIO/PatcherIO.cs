@@ -24,6 +24,10 @@ namespace SynthEBD
                 Logger.LogError("Could not create file at " + path);
             }
         }
+        public static async Task WriteTextFile(string path, List<string> contents)
+        {
+            await WriteTextFile(path, string.Join(Environment.NewLine, contents));
+        }
         public static void WritePatch(string patchOutputPath, SkyrimMod outputMod)
         {
             try

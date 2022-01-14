@@ -75,7 +75,10 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <Button Grid.Column="0" Grid.Row="10" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddNewAssetPackConfigFile}" Foreground="LightGreen">Create New Config File</Button>
+            <StackPanel Grid.Column="0" Grid.Row="10" Orientation="Horizontal" Grid.ColumnSpan="2">
+                <Button Command="{Binding AddNewAssetPackConfigFile}" Foreground="LightGreen" Margin="5">Create New Config File</Button>
+                <Button Command="{Binding InstallFromJson}" Foreground="LightGreen" Margin="5">Install Config Json File</Button>
+            </StackPanel>
         </Grid>
     </ScrollViewer>
 </UserControl>

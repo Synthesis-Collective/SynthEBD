@@ -38,6 +38,7 @@ namespace SynthEBD
                 ParentSubgroup.ParentAssetPack.AdditionalRecordTemplateAssignments.ToObservableChangeSet().Subscribe(x => RefreshReferenceNPC());
                 ParentSubgroup.ParentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => this.ReferenceLinkCache = this.ParentSubgroup.ParentAssetPack.RecordTemplateLinkCache);
                 ParentSubgroup.ParentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => RefreshReferenceNPC());
+                GetReferenceNPCFromRecordTemplates();
             }
         }
         public ObservableCollection<VM_FilePathReplacement> Paths { get; set; }
@@ -84,36 +85,41 @@ namespace SynthEBD
 
         public void RefreshReferenceNPC()
         {
-            if (SetExplicitReferenceNPC || ReferenceNPCFK.IsNull) { return; }
+            if (SetExplicitReferenceNPC) { return; }
             else
             {
-                var templateFormKey = new FormKey();
-                bool raceMatched = false;
+                GetReferenceNPCFromRecordTemplates();
+            }
+        }
 
-                var disallowedRaces = ParentSubgroup.DisallowedRaces.ToHashSet();
-                foreach (var allowedRace in ParentSubgroup.AllowedRaces)
+        public void GetReferenceNPCFromRecordTemplates()
+        {
+            var templateFormKey = new FormKey();
+            bool raceMatched = false;
+
+            var disallowedRaces = ParentSubgroup.DisallowedRaces.ToHashSet();
+            foreach (var allowedRace in ParentSubgroup.AllowedRaces)
+            {
+                if (FormKeyHashSetComparer.Contains(disallowedRaces, allowedRace)) { continue; }
+                foreach (var templateRace in ParentSubgroup.ParentAssetPack.AdditionalRecordTemplateAssignments)
                 {
-                    if (FormKeyHashSetComparer.Contains(disallowedRaces, allowedRace)) { continue; }
-                    foreach (var templateRace in ParentSubgroup.ParentAssetPack.AdditionalRecordTemplateAssignments)
+                    if (FormKeyHashSetComparer.Contains(templateRace.RaceFormKeys.ToHashSet(), allowedRace))
                     {
-                        if (FormKeyHashSetComparer.Contains(templateRace.RaceFormKeys.ToHashSet(), allowedRace))
-                        {
-                            raceMatched = true;
-                            templateFormKey = templateRace.TemplateNPC;
-                            break;
-                        }
+                        raceMatched = true;
+                        templateFormKey = templateRace.TemplateNPC;
+                        break;
                     }
-                    if (raceMatched) { break; }
                 }
-                if (!raceMatched)
-                {
-                    templateFormKey = ParentSubgroup.ParentAssetPack.DefaultTemplateFK;
-                }
+                if (raceMatched) { break; }
+            }
+            if (!raceMatched)
+            {
+                templateFormKey = ParentSubgroup.ParentAssetPack.DefaultTemplateFK;
+            }
 
-                if (!templateFormKey.IsNull && ReferenceLinkCache != null && ReferenceLinkCache.TryResolve<INpcGetter>(templateFormKey, out _))
-                {
-                    ReferenceNPCFK = templateFormKey;
-                }
+            if (!templateFormKey.IsNull && ReferenceLinkCache != null && ReferenceLinkCache.TryResolve<INpcGetter>(templateFormKey, out _))
+            {
+                ReferenceNPCFK = templateFormKey;
             }
         }
     }

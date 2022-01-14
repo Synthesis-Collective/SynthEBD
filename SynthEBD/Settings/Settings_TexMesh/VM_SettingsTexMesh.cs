@@ -13,7 +13,7 @@ namespace SynthEBD
     {
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public VM_SettingsTexMesh(VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, VM_Settings_General generalSettingsVM)
+        public VM_SettingsTexMesh(MainWindow_ViewModel mainViewModel)
         {
             this.bChangeNPCTextures = true;
             this.bChangeNPCMeshes = true;
@@ -24,6 +24,8 @@ namespace SynthEBD
             this.bGenerateAssignmentLog = true;
             this.TrimPaths = new ObservableCollection<TrimPath>();
             this.AssetPacks = new ObservableCollection<VM_AssetPack>();
+
+            ParentViewModel = mainViewModel;
 
             AddTrimPath = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -36,7 +38,22 @@ namespace SynthEBD
 
             AddNewAssetPackConfigFile = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.AssetPacks.Add(new VM_AssetPack(this.AssetPacks, bodygenSettingsVM, OBodyDescriptorMenu, generalSettingsVM))
+                execute: _ => this.AssetPacks.Add(new VM_AssetPack(this.AssetPacks, ParentViewModel.BGVM, ParentViewModel.OBVM.DescriptorUI, ParentViewModel.SGVM, ParentViewModel.RecordTemplateLinkCache))
+                );
+
+            InstallFromJson = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    if (IO_Aux.SelectFile(PatcherSettings.Paths.AssetPackDirPath, out string path))
+                    {
+                        var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, ParentViewModel.RecordTemplatePlugins, ParentViewModel.BodyGenConfigs);
+                        if (newAssetPack != null)
+                        {
+                            AssetPacks.Add(VM_AssetPack.GetViewModelFromModel(newAssetPack, ParentViewModel.SGVM, AssetPacks, ParentViewModel.BGVM, ParentViewModel.OBVM.DescriptorUI, ParentViewModel.RecordTemplateLinkCache));
+                        }
+                    }
+                }
                 );
         }
 
@@ -52,9 +69,12 @@ namespace SynthEBD
 
         public ObservableCollection<VM_AssetPack> AssetPacks { get; set; }
 
+        public MainWindow_ViewModel ParentViewModel { get; set; }
+
         public RelayCommand AddTrimPath { get; }
         public RelayCommand RemoveTrimPath { get; }
         public RelayCommand AddNewAssetPackConfigFile { get; }
+        public RelayCommand InstallFromJson { get; }
 
         public static void GetViewModelFromModel(VM_SettingsTexMesh viewModel, Settings_TexMesh model)
         {

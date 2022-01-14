@@ -231,7 +231,7 @@ namespace SynthEBD
 
             public string hashKey { get; set; }
 
-            public static AssetPack.Subgroup ToSynthEBDSubgroup(ZEBDSubgroup g, List<RaceGrouping> raceGroupings, string topLevelSubgroupID, string assetPackName, ref bool notifyPathConversionError)
+            public static AssetPack.Subgroup ToSynthEBDSubgroup(ZEBDSubgroup g, List<RaceGrouping> raceGroupings, string topLevelSubgroupID, string assetPackName, List<string> conversionErrors)
             {
                 AssetPack.Subgroup s = new AssetPack.Subgroup();
 
@@ -264,8 +264,7 @@ namespace SynthEBD
                     }
                     else
                     {
-                        Logger.LogMessage("zEBD -> SynthEBD Conversion Warning: Asset Pack: " + assetPackName + ", Subgroup: " + g.id + ": Path " + pathPair[1] + " was not recognized as a default path. Please upgrade it manually to SynthEBD format.");
-                        notifyPathConversionError = true;
+                        conversionErrors.Add("Subgroup: " + g.id + ": The destination path " + pathPair[1] + " was not recognized as a default path, so it could not be converted to SynthEBD format. Please upgrade it manually.");
                     }
                     s.paths.Add(new FilePathReplacement { Source = newSource, Destination = newDest });
                 }
@@ -342,7 +341,7 @@ namespace SynthEBD
 
                 foreach (var sg in g.subgroups)
                 {
-                    s.subgroups.Add(ToSynthEBDSubgroup(sg, raceGroupings, s.TopLevelSubgroupID, assetPackName, ref notifyPathConversionError));
+                    s.subgroups.Add(ToSynthEBDSubgroup(sg, raceGroupings, s.TopLevelSubgroupID, assetPackName, conversionErrors));
                 }
 
                 return s;
@@ -351,7 +350,7 @@ namespace SynthEBD
 
         public static AssetPack ToSynthEBDAssetPack(ZEBDAssetPack z, List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs)
         {
-            bool notifyPathConversionError = false;
+            List<string> conversionErrors = new List<string>();
             AssetPack s = new AssetPack();
             s.GroupName = z.groupName;
             s.Gender = z.gender;
@@ -359,11 +358,7 @@ namespace SynthEBD
             s.UserAlert = z.userAlert;
             foreach (ZEBDAssetPack.ZEBDSubgroup sg in z.subgroups)
             {
-                s.Subgroups.Add(ZEBDAssetPack.ZEBDSubgroup.ToSynthEBDSubgroup(sg, raceGroupings, "", z.groupName, ref notifyPathConversionError));
-            }
-            if (notifyPathConversionError)
-            {
-                Logger.CallTimedNotifyStatusUpdateAsync("Errors were encountered during upgrade of a zEBD Config File. Please see log for details.", ErrorType.Error, 10);
+                s.Subgroups.Add(ZEBDAssetPack.ZEBDSubgroup.ToSynthEBDSubgroup(sg, raceGroupings, "", z.groupName, conversionErrors));
             }
 
             // Apply default record templates
@@ -423,6 +418,15 @@ namespace SynthEBD
                 {
                     s.AssociatedBodyGenConfigName = linkBodyGen.SelectedConfig.Label;
                 }
+            }
+
+            if (conversionErrors.Any())
+            {
+                string logFile = string.Join("_", z.groupName.Split(System.IO.Path.GetInvalidFileNameChars())) + ".txt";
+                string logPath = System.IO.Path.Combine(PatcherSettings.Paths.LogFolderPath, logFile);
+                Task.Run(() => PatcherIO.WriteTextFile(logPath, conversionErrors));
+                Logger.LogMessage(conversionErrors);
+                System.Windows.MessageBox.Show("Errors were encountered during upgrade of a zEBD Config File. Please see log at " + logPath + ".");
             }
 
             return s;

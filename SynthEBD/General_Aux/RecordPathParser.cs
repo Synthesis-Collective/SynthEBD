@@ -362,6 +362,11 @@ namespace SynthEBD
             {
                 parsed = false;
 
+                if (strIndex.Contains("Invoke:") && !ReplaceUncomparedInvokeCalls(strIndex, out strIndex))
+                {
+                    return;
+                }
+
                 int sepIndex = -1;
                 Comparator = "";
                 foreach (var comparator in Comparators)
@@ -375,10 +380,26 @@ namespace SynthEBD
                 }
                 if (sepIndex == -1) { return; }
 
-                Path = strIndex.Substring(0, sepIndex).Trim();
-                ReplacerTemplate = strIndex.Substring(0, sepIndex); // unlike Path, can include whitespace provided by the user and also includes the separator comma
-
                 var split = strIndex.Split(Comparator);
+
+                if (strIndex.Contains(".Invoke:"))
+                {
+                    string[] invokeSplit = strIndex.Split(".Invoke:");
+                    Path = invokeSplit[0].Trim();
+                    ReplacerTemplate = strIndex.Substring(0, strIndex.IndexOf(".Invoke:") + ".Invoke:".Length);
+                    MatchCondition = "." + invokeSplit[1].Trim();
+                    SpecialHandling = SpecialHandlingType.Invoke;
+                }
+                else
+                {
+                    Path = strIndex.Substring(0, sepIndex).Trim();
+                    ReplacerTemplate = strIndex.Substring(0, sepIndex); // unlike Path, can include whitespace provided by the user and also includes the separator comma
+                    MatchCondition = Comparator + " " + split[split.Length - 1].Trim();
+                }
+
+
+
+                /*
                 if (Comparator == ".Invoke:")
                 {
                     ReplacerTemplate += Comparator;
@@ -388,7 +409,8 @@ namespace SynthEBD
                 {
                     MatchCondition = Comparator + " " + split[split.Length - 1].Trim();
                 }
-                
+                */
+
                 if (Path.StartsWith('!'))
                 {
                     Path = Path.Remove(0, 1).Trim();
@@ -402,10 +424,65 @@ namespace SynthEBD
             public string Path;
             public string ReplacerTemplate;
             public string MatchCondition;
-            public string SpecialHandling = "";
+            public SpecialHandlingType SpecialHandling = SpecialHandlingType.None;
             public string Comparator;
 
-            public static HashSet<string> Comparators = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=", ".Invoke:" };
+            public enum SpecialHandlingType
+            {
+                None,
+                PatchableRaces,
+                Invoke
+            }
+
+            private static bool ReplaceUncomparedInvokeCalls(string argStr, out string replacedStr) // replaces Invoke calls, which are assumed to be boolean, with a corresponding comparison (== true)
+            {
+                replacedStr = "";
+                while (argStr.IndexOf("Invoke:") >= 0)
+                {
+                    string[] split = argStr.Split("Invoke:");
+                    if (split.Length < 2) { return false; }
+                    if (GetFunctionArgsString(split[1], out string paramStr))
+                    {
+                        argStr = split[0] + "invoke:" + paramStr + " == true";
+                        if (split.Length > 2)
+                        {
+                            List<string> additionalText = new List<string>();
+                            for(int i = 2; i < split.Length; i++)
+                            {
+                                additionalText.Add(split[i]);
+                            }
+                            argStr += string.Join("Invoke:", additionalText);
+                        }
+                    }
+                }
+
+                replacedStr = argStr.Replace("invoke:", "Invoke:");
+                return true;
+            }
+            private static bool GetFunctionArgsString(string subStr, out string parsedStr)
+            {
+                parsedStr = "";
+                int bracketCount = 0;
+                bool bracketsOpened = false;
+                for (int i = 0; i < subStr.Length; i++)
+                {
+                    char current = subStr[i];
+                    if (current == '(') {  bracketCount++; bracketsOpened = true; }
+                    else if (current == ')') { bracketCount--; }
+
+                    parsedStr += current;
+                    if (bracketsOpened && bracketCount == 0)
+                    {
+                        break;
+                    }
+                }
+
+                if (bracketsOpened && bracketCount == 0) { return true; }
+                else { return false; }
+            }
+
+            //public static HashSet<string> Comparators = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=", ".Invoke:" };
+            public static HashSet<string> Comparators = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
 
             public static List<ArrayPathCondition> GetConditionsFromString(string input, out bool parsed)
             {
@@ -420,7 +497,7 @@ namespace SynthEBD
                         var patchableRaceSubject = patchableRaceArgs[1].Trim();
                         var patchableRaceMethod = patchableRaceArgs[0].Replace("PatchableRaces.", "");
 
-                        var patchableRaceCondition = new ArrayPathCondition { Path = patchableRaceSubject.Substring(0, patchableRaceSubject.Length - 1), MatchCondition = patchableRaceMethod.Trim(), SpecialHandling = "PatchableRaces"};
+                        var patchableRaceCondition = new ArrayPathCondition { Path = patchableRaceSubject.Substring(0, patchableRaceSubject.Length - 1), MatchCondition = patchableRaceMethod.Trim(), SpecialHandling = SpecialHandlingType.PatchableRaces};
                         patchableRaceCondition.ReplacerTemplate = patchableRaceCondition.Path;
                         output.Add(patchableRaceCondition);
                         continue;
@@ -437,27 +514,19 @@ namespace SynthEBD
             }
         }
 
-        private static bool ChooseWhichArrayObject(IReadOnlyList<dynamic> variants, string matchConditionStr, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, bool suppressMissingPathErrors, out dynamic outputObj, out int? indexInParent)
+        private static string FormatMatchConditionString(string matchConditionStr, List<ArrayPathCondition> arrayMatchConditions)
         {
-            outputObj = null;
-            indexInParent = null;
-
-            var arrayMatchConditions = ArrayPathCondition.GetConditionsFromString(matchConditionStr, out bool parsed);
-            if (!parsed)
-            {
-                return false;
-            }
-
             int argIndex = 0;
             foreach (var condition in arrayMatchConditions)
             {
                 string argStr = '{' + argIndex.ToString() + '}';
+
                 for (int i = 0; i < matchConditionStr.Length - condition.ReplacerTemplate.Length; i++)
                 {
                     if (matchConditionStr.Substring(i, condition.ReplacerTemplate.Length) == condition.ReplacerTemplate && (i == 0 || matchConditionStr[i - 1] == '(' || matchConditionStr[i - 1] == ' '))
                     {
                         matchConditionStr = matchConditionStr.Remove(i, condition.ReplacerTemplate.Length);
-                        if (condition.Comparator == ".Invoke:")
+                        if (condition.SpecialHandling == ArrayPathCondition.SpecialHandlingType.Invoke)
                         {
                             matchConditionStr = matchConditionStr.Insert(i, argStr + ".");
                         }
@@ -469,18 +538,33 @@ namespace SynthEBD
                 }
                 argIndex++;
             }
+            return matchConditionStr;
+        }
+
+        private static bool ChooseWhichArrayObject(IReadOnlyList<dynamic> variants, string matchConditionStr, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, bool suppressMissingPathErrors, out dynamic outputObj, out int? indexInParent)
+        {
+            outputObj = null;
+            indexInParent = null;
+
+            var arrayMatchConditions = ArrayPathCondition.GetConditionsFromString(matchConditionStr, out bool parsed);
+            if (!parsed)
+            {
+                return false;
+            }
+
+            matchConditionStr = FormatMatchConditionString(matchConditionStr, arrayMatchConditions);
 
             //catch for user type Invoke: but hasn't yet finished the function
             if (matchConditionStr.Contains(".Invoke:")) { return false; }
 
-            int patchableRaceArgIndex = argIndex;
+            int patchableRaceArgIndex = arrayMatchConditions.Count;
             bool addPatchableRaceArg = false;
 
             for (int i = 0; i < variants.Count(); i++)
             {
                 var candidateObj = variants[i];
                 List<dynamic> evalParameters = new List<dynamic>();
-                argIndex = 0;
+                int argIndex = 0;
                 bool skipToNext = false;
 
                 IMajorRecordGetter candidateRecordGetter = null;
@@ -515,7 +599,7 @@ namespace SynthEBD
                     }
                     argIndex++;
 
-                    if (condition.SpecialHandling == "PatchableRaces")
+                    if (condition.SpecialHandling == ArrayPathCondition.SpecialHandlingType.PatchableRaces)
                     {
                         matchConditionStr = matchConditionStr.Replace("PatchableRaces", '{' + patchableRaceArgIndex.ToString() + "}");
                         addPatchableRaceArg = true;
@@ -555,29 +639,16 @@ namespace SynthEBD
                 return false;
             }
 
-            int argIndex = 0;
-            foreach (var condition in arrayMatchConditions)
-            {
-                string argStr = '{' + argIndex.ToString() + '}';
-                for (int i = 0; i < matchConditionStr.Length - condition.ReplacerTemplate.Length; i++)
-                {
-                    if (matchConditionStr.Substring(i, condition.ReplacerTemplate.Length) == condition.ReplacerTemplate && (i == 0 || matchConditionStr[i - 1] == '(' || matchConditionStr[i - 1] == ' '))
-                    {
-                        matchConditionStr = matchConditionStr.Remove(i, condition.ReplacerTemplate.Length);
-                        matchConditionStr = matchConditionStr.Insert(i, argStr);
-                    }
-                }
-                argIndex++;
-            }
+            matchConditionStr = FormatMatchConditionString(matchConditionStr, arrayMatchConditions);
 
-            int patchableRaceArgIndex = argIndex;
+            int patchableRaceArgIndex = arrayMatchConditions.Count;
             bool addPatchableRaceArg = false;
 
             for (int i = 0; i < variants.Count(); i++)
             {
                 var candidateObj = variants[i];
                 List<dynamic> evalParameters = new List<dynamic>();
-                argIndex = 0;
+                int argIndex = 0;
                 bool skipToNext = false;
 
                 IMajorRecordGetter candidateRecordGetter = null;
@@ -609,7 +680,7 @@ namespace SynthEBD
                     }
                     argIndex++;
 
-                    if (condition.SpecialHandling == "PatchableRaces")
+                    if (condition.SpecialHandling == ArrayPathCondition.SpecialHandlingType.PatchableRaces)
                     {
                         matchConditionStr = matchConditionStr.Replace("PatchableRaces", '{' + patchableRaceArgIndex.ToString() + "}");
                         addPatchableRaceArg = true;

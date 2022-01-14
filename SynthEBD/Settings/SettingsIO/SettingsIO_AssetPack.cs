@@ -32,7 +32,7 @@ namespace SynthEBD
             return texMeshSettings;
         }
 
-        public static List<SynthEBD.AssetPack> loadAssetPacks(List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs)
+        public static List<SynthEBD.AssetPack> LoadAssetPacks(List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs)
         {
             List<AssetPack> loadedPacks = new List<AssetPack>();
 
@@ -50,30 +50,39 @@ namespace SynthEBD
 
             foreach (string s in filePaths)
             {
-                var synthEBDconfig = new AssetPack();
-                
-                try // first try deserializing to SynthEBD asset pack
+                var synthEBDconfig = LoadAssetPack(s, raceGroupings, recordTemplatePlugins, availableBodyGenConfigs);
+                if (synthEBDconfig != null)
                 {
-                    synthEBDconfig = JSONhandler<AssetPack>.loadJSONFile(s);
+                    loadedPacks.Add(synthEBDconfig);
                 }
-                catch
-                {
-                    try
-                    {
-                        var zEBDconfig = JSONhandler<ZEBDAssetPack>.loadJSONFile(s);
-                        synthEBDconfig = ZEBDAssetPack.ToSynthEBDAssetPack(zEBDconfig, raceGroupings, recordTemplatePlugins, availableBodyGenConfigs);
-                    }
-                    catch
-                    {
-                        throw new Exception("Could not parse the config file at " + s);
-                    }
-                }
-
-                synthEBDconfig.FilePath = s;
-                loadedPacks.Add(synthEBDconfig);
             }
 
             return loadedPacks;
+        }
+
+        public static AssetPack LoadAssetPack(string path, List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs)
+        {
+            var synthEBDconfig = new AssetPack();
+
+            try // first try deserializing to SynthEBD asset pack
+            {
+                synthEBDconfig = JSONhandler<AssetPack>.loadJSONFile(path);
+            }
+            catch
+            {
+                try
+                {
+                    var zEBDconfig = JSONhandler<ZEBDAssetPack>.loadJSONFile(path);
+                    synthEBDconfig = ZEBDAssetPack.ToSynthEBDAssetPack(zEBDconfig, raceGroupings, recordTemplatePlugins, availableBodyGenConfigs);
+                }
+                catch
+                {
+                    throw new Exception("Could not parse the config file at " + path);
+                }
+            }
+
+            synthEBDconfig.FilePath = path;
+            return synthEBDconfig;
         }
 
         public static List<SkyrimMod> LoadRecordTemplates()

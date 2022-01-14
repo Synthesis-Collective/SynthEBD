@@ -18,7 +18,7 @@ namespace SynthEBD
 {
     public class VM_AssetPack : INotifyPropertyChanged
     {
-        public VM_AssetPack(ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, VM_Settings_General generalSettingsVM)
+        public VM_AssetPack(ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, VM_Settings_General generalSettingsVM, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
         {
             this.groupName = "";
             this.ShortName = "";
@@ -57,6 +57,8 @@ namespace SynthEBD
 
             this.BodyShapeMode = generalSettingsVM.BodySelectionMode;
             generalSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
+
+            RecordTemplateLinkCache = recordTemplateLinkCache;
 
             /*
             switch (this.gender)
@@ -147,18 +149,13 @@ namespace SynthEBD
             {
                 var viewModel = GetViewModelFromModel(assetPacks[i], generalSettingsVM, viewModels, bodygenSettingsVM, OBodyDescriptorMenu, recordTemplateLinkCache);
                 viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].GroupName);
-
-                viewModel.SourcePath = assetPacks[i].FilePath;
-
-                viewModel.RecordTemplateLinkCache = recordTemplateLinkCache;
-
                 viewModels.Add(viewModel);
             }
             return viewModels;
         }
         public static VM_AssetPack GetViewModelFromModel(AssetPack model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
         {
-            var viewModel = new VM_AssetPack(parentCollection, bodygenSettingsVM, OBodyDescriptorMenu, generalSettingsVM);
+            var viewModel = new VM_AssetPack(parentCollection, bodygenSettingsVM, OBodyDescriptorMenu, generalSettingsVM, recordTemplateLinkCache);
             viewModel.groupName = model.GroupName;
             viewModel.ShortName = model.ShortName;
             viewModel.ConfigType = model.ConfigType;
@@ -212,6 +209,8 @@ namespace SynthEBD
             {
                 viewModel.RecordTemplateAdditionalRacesPaths.Add(new VM_CollectionMemberString(path, viewModel.RecordTemplateAdditionalRacesPaths));
             }
+
+            viewModel.SourcePath = model.FilePath;
 
             return viewModel;
         }

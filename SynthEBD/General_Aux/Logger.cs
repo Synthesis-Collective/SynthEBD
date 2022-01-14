@@ -82,6 +82,14 @@ namespace SynthEBD
             Instance.LogString += message + Environment.NewLine;
         }
 
+        public static void LogMessage(IEnumerable<string> messages)
+        {
+            foreach (var message in messages)
+            {
+                Instance.LogString += message + Environment.NewLine;
+            }
+        }
+
         public static void TriggerNPCReporting(NPCInfo npcInfo)
         {
             npcInfo.Report.LogCurrentNPC = true;

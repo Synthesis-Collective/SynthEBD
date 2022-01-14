@@ -606,5 +606,21 @@ namespace SynthEBD
             }
             return false;
         }
+
+        public static void RecordBodyGenConsistencyAndLinkedNPCs(List<BodyGenConfig.BodyGenTemplate> assignedMorphs, NPCInfo npcInfo)
+        {
+            npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignedMorphs.Select(x => x.Label).ToList();
+
+            // assign to linked group if necessary
+            if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
+            {
+                npcInfo.AssociatedLinkGroup.AssignedMorphs = assignedMorphs;
+            }
+            // assign to unique NPC list if necessary
+            if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && !Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedMorphs.Any())
+            {
+                Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedMorphs = assignedMorphs;
+            }
+        }
     }
 }

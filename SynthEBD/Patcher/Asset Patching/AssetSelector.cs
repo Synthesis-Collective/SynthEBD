@@ -687,29 +687,7 @@ namespace SynthEBD
                         assignedCombination.ReplacerDestinationFormKey = destinationFK;
                         assignedCombination.Signature = string.Join(".", assignedCombination.ContainedSubgroups.Select(x => x.Id));
                         combinations.Add(assignedCombination);
-
-                        // record assignments where needed
-                        if (PatcherSettings.General.bEnableConsistency)
-                        {
-                            var existingAssignment = npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.GroupName).FirstOrDefault();
-                            if (existingAssignment != null) { existingAssignment.SubgroupIDs = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList(); }
-                            else { npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Add(new NPCAssignment.AssetReplacerAssignment() { ReplacerName = replacerGroup.GroupName, SubgroupIDs = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList() }); }
-                        }
-                        if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
-                        {
-                            var existingAssignment = npcInfo.AssociatedLinkGroup.ReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.GroupName).FirstOrDefault();
-                            if (existingAssignment != null) { existingAssignment.AssignedReplacerCombination = assignedCombination; }
-                            else { npcInfo.AssociatedLinkGroup.ReplacerAssignments.Add(new LinkedNPCGroupInfo.LinkedAssetReplacerAssignment() { ReplacerName = replacerGroup.GroupName, AssignedReplacerCombination = assignedCombination}); }
-                        }
-
-                        if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique)
-                        {
-                            List<UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment> linkedAssetReplacerAssignments = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.ReplacerAssets);
-                            var existingAssignment = linkedAssetReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.GroupName).FirstOrDefault();
-                            if (existingAssignment != null) { existingAssignment.AssignedReplacerCombination = assignedCombination; }
-                            else { linkedAssetReplacerAssignments.Add(new UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment() { ReplacerName = replacerGroup.GroupName, AssignedReplacerCombination = assignedCombination }); }
-                        }
-
+                        RecordAssetConsistencyAndLinkedNPCs(assignedCombination, npcInfo, replacerGroup);
                     }
                 }
             }
@@ -760,6 +738,66 @@ namespace SynthEBD
                 }
             }
             return false;
+        }
+
+        public static void RecordAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo) // Primary 
+        {
+            if (PatcherSettings.General.bEnableConsistency)
+            {
+                npcInfo.ConsistencyNPCAssignment.AssetPackName = assignedCombination.AssetPackName;
+                npcInfo.ConsistencyNPCAssignment.SubgroupIDs = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList();
+            }
+            if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary && assignedCombination != null)
+            {
+                npcInfo.AssociatedLinkGroup.AssignedCombination = assignedCombination;
+            }
+
+            if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Assets) == null)
+            {
+                Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedCombination = assignedCombination;
+            }
+        }
+
+        public static void RecordAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo, string mixInName) // MixIn 
+        {
+            if (PatcherSettings.General.bEnableConsistency)
+            {
+                npcInfo.ConsistencyNPCAssignment.AssetPackName = assignedCombination.AssetPackName;
+                npcInfo.ConsistencyNPCAssignment.SubgroupIDs = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList();
+            }
+            if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary && assignedCombination != null)
+            {
+                npcInfo.AssociatedLinkGroup.AssignedCombination = assignedCombination;
+            }
+
+            if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Assets) == null)
+            {
+                Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedCombination = assignedCombination;
+            }
+        }
+
+        public static void RecordAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo, FlattenedReplacerGroup replacerGroup) // Replacer
+        {
+            if (PatcherSettings.General.bEnableConsistency)
+            {
+                var existingAssignment = npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.GroupName).FirstOrDefault();
+                if (existingAssignment != null) { existingAssignment.SubgroupIDs = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList(); }
+                else { npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Add(new NPCAssignment.AssetReplacerAssignment() { ReplacerName = replacerGroup.GroupName, SubgroupIDs = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList() }); }
+            }
+            if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
+            {
+                var existingAssignment = npcInfo.AssociatedLinkGroup.ReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.GroupName).FirstOrDefault();
+                if (existingAssignment != null) { existingAssignment.AssignedReplacerCombination = assignedCombination; }
+                else { npcInfo.AssociatedLinkGroup.ReplacerAssignments.Add(new LinkedNPCGroupInfo.LinkedAssetReplacerAssignment() { ReplacerName = replacerGroup.GroupName, AssignedReplacerCombination = assignedCombination }); }
+            }
+
+            if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique)
+            {
+                List<UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment> linkedAssetReplacerAssignments = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.ReplacerAssets);
+                var existingAssignment = linkedAssetReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.GroupName).FirstOrDefault();
+                if (existingAssignment != null) { existingAssignment.AssignedReplacerCombination = assignedCombination; }
+                else { linkedAssetReplacerAssignments.Add(new UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment() { ReplacerName = replacerGroup.GroupName, AssignedReplacerCombination = assignedCombination }); }
+            }
         }
     }
 }

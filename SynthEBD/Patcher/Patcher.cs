@@ -39,8 +39,7 @@ namespace SynthEBD
             statusBar.IsPatching = true;
 
             HashSet<LinkedNPCGroupInfo> generatedLinkGroups = new HashSet<LinkedNPCGroupInfo>();
-            HashSet<FlattenedAssetPack> maleAssetPacks = new HashSet<FlattenedAssetPack>();
-            HashSet<FlattenedAssetPack> femaleAssetPacks = new HashSet<FlattenedAssetPack>();
+            CategorizedFlattenedAssetPacks availableAssetPacks = null;
 
             var allNPCs = GameEnvironmentProvider.MyEnvironment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
             HashSet<INpcGetter> skippedLinkedNPCs = new HashSet<INpcGetter>();
@@ -58,8 +57,7 @@ namespace SynthEBD
                 HashSet<FlattenedAssetPack> flattenedAssetPacks = new HashSet<FlattenedAssetPack>();
                 flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x, PatcherSettings.General.RaceGroupings)).ToHashSet();
                 PathTrimmer.TrimFlattenedAssetPacks(flattenedAssetPacks, PatcherSettings.TexMesh.TrimPaths);
-                maleAssetPacks = flattenedAssetPacks.Where(x => x.Gender == Gender.Male).ToHashSet();
-                femaleAssetPacks = flattenedAssetPacks.Where(x => x.Gender == Gender.Female).ToHashSet();
+                availableAssetPacks = new CategorizedFlattenedAssetPacks(flattenedAssetPacks);
 
                 EBDCoreRecords.CreateCoreRecords(outputMod, out EBDFaceKW, out EBDScriptKW, out EBDHelperSpell);
                 EBDCoreRecords.ApplyHelperSpell(outputMod, EBDHelperSpell);
@@ -109,9 +107,9 @@ namespace SynthEBD
             statusBar.ProgressBarCurrent = 0;
             statusBar.ProgressBarDisp = "Patched " + statusBar.ProgressBarCurrent + " NPCs";
             // Patch main NPCs
-            MainLoop(allNPCs, true, outputMod, maleAssetPacks, femaleAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCGroups,  recordTemplateLinkCache, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, statusBar);
+            MainLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCGroups,  recordTemplateLinkCache, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, statusBar);
             // Finish assigning non-primary linked NPCs
-            MainLoop(skippedLinkedNPCs, false, outputMod, maleAssetPacks, femaleAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCGroups, recordTemplateLinkCache, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, statusBar);
+            MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCGroups, recordTemplateLinkCache, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, statusBar);
 
             Logger.StopTimer();
             Logger.LogMessage("Finished patching in " + Logger.GetEllapsedTime());
@@ -148,7 +146,22 @@ namespace SynthEBD
             Logger.UpdateStatus("Finished Patching", false);
         }
 
-        private static void MainLoop(IEnumerable<INpcGetter> npcCollection, bool skipLinkedSecondaryNPCs, SkyrimMod outputMod, HashSet<FlattenedAssetPack> maleAssetPacks, HashSet<FlattenedAssetPack> femaleAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, HeightConfig currentHeightConfig, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<LinkedNPCGroup> linkedNPCGroups, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, int npcCounter, HashSet<LinkedNPCGroupInfo> generatedLinkGroups, HashSet<INpcGetter> skippedLinkedNPCs, Keyword EBDFaceKW, Keyword EBDScriptKW, Spell bodySlideAssignmentSpell, VM_StatusBar statusBar)
+        public class CategorizedFlattenedAssetPacks
+        {
+            public CategorizedFlattenedAssetPacks(HashSet<FlattenedAssetPack> availableAssetPacks)
+            {
+                PrimaryMale = availableAssetPacks.Where(x => x.Gender == Gender.Male && x.Type == FlattenedAssetPack.AssetPackType.Primary).ToHashSet();
+                PrimaryFemale = availableAssetPacks.Where(x => x.Gender == Gender.Female && x.Type == FlattenedAssetPack.AssetPackType.Primary).ToHashSet();
+                MixInMale = availableAssetPacks.Where(x => x.Gender == Gender.Male && x.Type == FlattenedAssetPack.AssetPackType.MixIn).ToHashSet();
+                MixInFemale = availableAssetPacks.Where(x => x.Gender == Gender.Female && x.Type == FlattenedAssetPack.AssetPackType.MixIn).ToHashSet();
+            }
+            public HashSet<FlattenedAssetPack> PrimaryMale { get; set; }
+            public HashSet<FlattenedAssetPack> PrimaryFemale { get; set; }
+            public HashSet<FlattenedAssetPack> MixInMale { get; set; }
+            public HashSet<FlattenedAssetPack> MixInFemale { get; set; }
+        }
+
+        private static void MainLoop(IEnumerable<INpcGetter> npcCollection, bool skipLinkedSecondaryNPCs, SkyrimMod outputMod, CategorizedFlattenedAssetPacks sortedAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, HeightConfig currentHeightConfig, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<LinkedNPCGroup> linkedNPCGroups, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, int npcCounter, HashSet<LinkedNPCGroupInfo> generatedLinkGroups, HashSet<INpcGetter> skippedLinkedNPCs, Keyword EBDFaceKW, Keyword EBDScriptKW, Spell bodySlideAssignmentSpell, VM_StatusBar statusBar)
         {
             bool blockAssets;
             bool blockBodyShape;
@@ -159,7 +172,8 @@ namespace SynthEBD
             BlockedNPC blockListNPCEntry;
             BlockedPlugin blockListPluginEntry;
 
-            HashSet<FlattenedAssetPack> availableAssetPacks = new HashSet<FlattenedAssetPack>();
+            HashSet<FlattenedAssetPack> primaryAssetPacks = new HashSet<FlattenedAssetPack>();
+            HashSet<FlattenedAssetPack> mixInAssetPacks = new HashSet<FlattenedAssetPack>();
 
             foreach (var npc in npcCollection)
             {
@@ -170,7 +184,7 @@ namespace SynthEBD
                 assetsAssigned = false;
                 bodyShapeAssigned = false;
 
-                // link group
+                #region Linked NPC Groups
                 if (skipLinkedSecondaryNPCs && currentNPCInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary)
                 {
                     skippedLinkedNPCs.Add(npc);
@@ -180,18 +194,21 @@ namespace SynthEBD
                 {
                     statusBar.ProgressBarCurrent++;
                 }
+                #endregion
 
                 if (statusBar.ProgressBarCurrent % 1000 == 0)
                 {
                     statusBar.ProgressBarDisp = "Patched " + statusBar.ProgressBarCurrent + " NPCs";
                 }
 
-                // link by name
+                #region link by name
                 if (PatcherSettings.General.bLinkNPCsWithSameName && currentNPCInfo.IsValidLinkedUnique)
                 {
                     UniqueNPCData.InitializeUniqueNPC(currentNPCInfo);
                 }
+                #endregion
 
+                #region Detailed logging
                 if (PatcherSettings.General.verboseModeNPClist.Contains(npc.FormKey) || PatcherSettings.General.bVerboseModeAssetsAll || PatcherSettings.General.bVerboseModeAssetsNoncompliant)
                 {
                     Logger.TriggerNPCReporting(currentNPCInfo);
@@ -202,7 +219,9 @@ namespace SynthEBD
                 }
 
                 Logger.InitializeNewReport(currentNPCInfo);
+                #endregion
 
+                #region Block List
                 blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(blockList, npc.FormKey);
                 blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey);
 
@@ -214,6 +233,7 @@ namespace SynthEBD
 
                 if (blockListNPCEntry.Height || blockListPluginEntry.Height) { blockHeight = true; }
                 else { blockHeight = false; }
+                #endregion
 
                 bodyShapeAssigned = false;
 
@@ -227,85 +247,47 @@ namespace SynthEBD
                     continue;
                 }
 
-                AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment assignedComboAndBodyShape = new AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment();
+                AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment assignedPrimaryComboAndBodyShape = new AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment();
 
-                // Primary Assets (and optionally Body Shape) assignment
+                #region Primary Assets (and optionally Body Shape) assignment
                 if (PatcherSettings.General.bChangeMeshesOrTextures && !blockAssets && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.AssetsRace))
                 {
-                    var debugSW = new System.Diagnostics.Stopwatch();
-                    debugSW.Start();
                     switch (currentNPCInfo.Gender)
                     {
-                        case Gender.Female: availableAssetPacks = femaleAssetPacks; break;
-                        case Gender.Male: availableAssetPacks = maleAssetPacks; break;
+                        case Gender.Female: primaryAssetPacks = sortedAssetPacks.PrimaryFemale; break;
+                        case Gender.Male: primaryAssetPacks = sortedAssetPacks.PrimaryMale; break;
                     }
 
-                    assignedComboAndBodyShape = AssetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, availableAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, null);
+                    assignedPrimaryComboAndBodyShape = AssetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, primaryAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, null);
                     if (assetsAssigned)
                     {
-                        RecordGenerator.CombinationToRecords(assignedComboAndBodyShape.AssignedCombination, currentNPCInfo, recordTemplateLinkCache, outputMod);
+                        RecordGenerator.CombinationToRecords(assignedPrimaryComboAndBodyShape.AssignedCombination, currentNPCInfo, recordTemplateLinkCache, outputMod);
                         var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
                         if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
                         npcRecord.Keywords.Add(EBDFaceKW);
                         npcRecord.Keywords.Add(EBDScriptKW);
-
-                        if (PatcherSettings.General.bEnableConsistency)
-                        {
-                            currentNPCInfo.ConsistencyNPCAssignment.AssetPackName = assignedComboAndBodyShape.AssignedCombination.AssetPackName;
-                            currentNPCInfo.ConsistencyNPCAssignment.SubgroupIDs = assignedComboAndBodyShape.AssignedCombination.ContainedSubgroups.Select(x => x.Id).ToList();
-                        }
-                        if (currentNPCInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary && assignedComboAndBodyShape.AssignedCombination != null)
-                        {
-                            currentNPCInfo.AssociatedLinkGroup.AssignedCombination = assignedComboAndBodyShape.AssignedCombination;
-                        }
-
-                        if (PatcherSettings.General.bLinkNPCsWithSameName && currentNPCInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(currentNPCInfo, AssignmentType.Assets) == null)
-                        {
-                            UniqueAssignmentsByName[currentNPCInfo.Name][currentNPCInfo.Gender].AssignedCombination = assignedComboAndBodyShape.AssignedCombination;
-                        }
+                        AssetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedCombination, currentNPCInfo);
                     }
                     if (bodyShapeAssigned)
                     {
                         switch (PatcherSettings.General.BodySelectionMode)
                         {
                             case BodyShapeSelectionMode.BodyGen:
-                                var assignedMorphNames = assignedComboAndBodyShape.AssignedBodyGenMorphs.Select(x => x.Label).ToList();
-                                BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedMorphNames);
-                                currentNPCInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignedMorphNames;
-
-                                // assign to linked group if necessary 
-                                if (currentNPCInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
-                                {
-                                    currentNPCInfo.AssociatedLinkGroup.AssignedMorphs = assignedComboAndBodyShape.AssignedBodyGenMorphs;
-                                }
-                                // assign to unique NPC list if necessary
-                                if (PatcherSettings.General.bLinkNPCsWithSameName && currentNPCInfo.IsValidLinkedUnique && !UniqueAssignmentsByName[currentNPCInfo.Name][currentNPCInfo.Gender].AssignedMorphs.Any())
-                                {
-                                    UniqueAssignmentsByName[currentNPCInfo.Name][currentNPCInfo.Gender].AssignedMorphs = assignedComboAndBodyShape.AssignedBodyGenMorphs;
-                                }
+                                BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedPrimaryComboAndBodyShape.AssignedBodyGenMorphs.Select(x => x.Label).ToList());
+                                BodyGenSelector.RecordBodyGenConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedBodyGenMorphs, currentNPCInfo);
                                 break;
 
                             case BodyShapeSelectionMode.BodySlide:
-                                BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedComboAndBodyShape.AssignedOBodyPreset.Label);
+                                BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedPrimaryComboAndBodyShape.AssignedOBodyPreset.Label);
                                 OBodyWriter.ApplyBodySlideSpell(npc, bodySlideAssignmentSpell, outputMod);
-                                currentNPCInfo.ConsistencyNPCAssignment.BodySlidePreset = assignedComboAndBodyShape.AssignedOBodyPreset.Label;
-
-                                // assign to linked group if necessary 
-                                if (currentNPCInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
-                                {
-                                    currentNPCInfo.AssociatedLinkGroup.AssignedBodySlide = assignedComboAndBodyShape.AssignedOBodyPreset;
-                                }
-                                // assign to unique NPC list if necessary
-                                if (PatcherSettings.General.bLinkNPCsWithSameName && currentNPCInfo.IsValidLinkedUnique && UniqueAssignmentsByName[currentNPCInfo.Name][currentNPCInfo.Gender].AssignedBodySlidePreset == null)
-                                {
-                                    UniqueAssignmentsByName[currentNPCInfo.Name][currentNPCInfo.Gender].AssignedBodySlidePreset = assignedComboAndBodyShape.AssignedOBodyPreset;
-                                }
+                                OBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedOBodyPreset, currentNPCInfo);
                                 break;
                         }
                     }
                 }
+                #endregion
 
-                // BodyGen assignment (if assets not assigned in Assets/BodyGen section)
+                #region Body Shape assignment (if assets not assigned with Assets)
                 switch (PatcherSettings.General.BodySelectionMode)
                 {
                     case BodyShapeSelectionMode.None: break;
@@ -317,21 +299,9 @@ namespace SynthEBD
                             var assignedMorphs = BodyGenSelector.SelectMorphs(currentNPCInfo, out bool success, bodyGenConfigs, null, out _);
                             if (success)
                             {
-                                var assignedMorphNames = assignedMorphs.Select(x => x.Label).ToList();
-                                BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedMorphNames);
-                                currentNPCInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignedMorphNames;
-
-                                // assign to linked group if necessary
-                                if (currentNPCInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
-                                {
-                                    currentNPCInfo.AssociatedLinkGroup.AssignedMorphs = assignedMorphs;
-                                }
-                                // assign to unique NPC list if necessary
-                                if (PatcherSettings.General.bLinkNPCsWithSameName && currentNPCInfo.IsValidLinkedUnique && !UniqueAssignmentsByName[currentNPCInfo.Name][currentNPCInfo.Gender].AssignedMorphs.Any())
-                                {
-                                    UniqueAssignmentsByName[currentNPCInfo.Name][currentNPCInfo.Gender].AssignedMorphs = assignedMorphs;
-                                }
-                                assignedComboAndBodyShape.AssignedBodyGenMorphs = assignedMorphs;
+                                BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedMorphs.Select(x => x.Label).ToList());
+                                BodyGenSelector.RecordBodyGenConsistencyAndLinkedNPCs(assignedMorphs, currentNPCInfo);
+                                assignedPrimaryComboAndBodyShape.AssignedBodyGenMorphs = assignedMorphs;
                             }
                             else
                             {
@@ -348,19 +318,8 @@ namespace SynthEBD
                             {
                                 BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedPreset.Label);
                                 OBodyWriter.ApplyBodySlideSpell(npc, bodySlideAssignmentSpell, outputMod);
-                                currentNPCInfo.ConsistencyNPCAssignment.BodySlidePreset = assignedPreset.Label;
-
-                                // assign to linked group if necessary
-                                if (currentNPCInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
-                                {
-                                    currentNPCInfo.AssociatedLinkGroup.AssignedBodySlide = assignedPreset;
-                                }
-                                // assign to unique NPC list if necessary
-                                if (PatcherSettings.General.bLinkNPCsWithSameName && currentNPCInfo.IsValidLinkedUnique && UniqueAssignmentsByName[currentNPCInfo.Name][currentNPCInfo.Gender].AssignedBodySlidePreset == null)
-                                {
-                                    UniqueAssignmentsByName[currentNPCInfo.Name][currentNPCInfo.Gender].AssignedBodySlidePreset = assignedPreset;
-                                }
-                                assignedComboAndBodyShape.AssignedOBodyPreset = assignedPreset;
+                                OBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedPreset, currentNPCInfo);
+                                assignedPrimaryComboAndBodyShape.AssignedOBodyPreset = assignedPreset;
                             }
                             else
                             {
@@ -369,24 +328,37 @@ namespace SynthEBD
                         }
                         break;
                 }
+                #endregion
 
-                // circle back to assign asset replacers and MixIn asset configs now that body shape has been assigned
+                #region Asset Replacer assignment
                 if (assetsAssigned) // assign direct replacers
                 {
-                    var assignedReplacers = AssetSelector.SelectAssetReplacers(assignedComboAndBodyShape.AssignedCombination.AssetPack, currentNPCInfo, assignedComboAndBodyShape);
+                    var assignedReplacers = AssetSelector.SelectAssetReplacers(assignedPrimaryComboAndBodyShape.AssignedCombination.AssetPack, currentNPCInfo, assignedPrimaryComboAndBodyShape);
                     foreach (var replacerCombination in assignedReplacers)
                     {
                         RecordGenerator.ReplacerCombinationToRecords(replacerCombination, currentNPCInfo, outputMod);
                     }
                 }
+                #endregion
 
-                // mix ins
+                #region MixIn Asset assignment
+                foreach (var mixInConfig in mixInAssetPacks)
+                {
+                    var assignedMixIn = AssetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out _, new HashSet<FlattenedAssetPack>() { mixInConfig }, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn, assignedPrimaryComboAndBodyShape);
+                    if (assetsAssigned)
+                    {
+                        RecordGenerator.CombinationToRecords(assignedMixIn.AssignedCombination, currentNPCInfo, recordTemplateLinkCache, outputMod);
 
-                // Height assignment
+                    }
+                }
+                #endregion
+
+                #region Height assignment
                 if (PatcherSettings.General.bChangeHeight && !blockHeight && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.HeightRace))
                 {
                     HeightPatcher.AssignNPCHeight(currentNPCInfo, currentHeightConfig, outputMod);
                 }
+                #endregion
 
                 Logger.SaveReport(currentNPCInfo);
             }
