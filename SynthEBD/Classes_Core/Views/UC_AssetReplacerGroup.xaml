@@ -24,8 +24,8 @@
         <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Subgroups</TextBlock>
         <TreeView Grid.Row="1" Grid.Column="0" Name="ReplacerTV"  ItemsSource ="{Binding Subgroups}" Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" MinWidth="75">
             <TreeView.Resources>
-                <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding subgroups}" >
-                    <TextBlock Text="{Binding Path=name}" PreviewMouseLeftButtonDown="HandleSelectPreviewMouseDown" MouseLeftButtonUp="HandleSelectPreviewMouseUp"/>
+                <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
+                    <TextBlock Text="{Binding Path=Name}" PreviewMouseLeftButtonDown="HandleSelectPreviewMouseDown" MouseLeftButtonUp="HandleSelectPreviewMouseUp"/>
                 </HierarchicalDataTemplate>
             </TreeView.Resources>
         </TreeView>

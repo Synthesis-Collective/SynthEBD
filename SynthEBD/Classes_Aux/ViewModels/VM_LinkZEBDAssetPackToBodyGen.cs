@@ -16,8 +16,8 @@ namespace SynthEBD
             this.DispString = "Attempting to upgrade " + assetPackLabel + " from zEBD Config to SynthEBD format. Which BodyGen Config should be associated with this config file?";
             switch (gender)
             {
-                case Gender.female: AvailableConfigs = availableConfigs.Female; break;
-                case Gender.male: AvailableConfigs = availableConfigs.Male; break;
+                case Gender.Female: AvailableConfigs = availableConfigs.Female; break;
+                case Gender.Male: AvailableConfigs = availableConfigs.Male; break;
             }
 
             this.SelectedConfig = null;

@@ -87,10 +87,10 @@ namespace SynthEBD
         {
             if (npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Female))
             {
-                return Gender.female;
+                return Gender.Female;
             }
 
-            return Gender.male;
+            return Gender.Male;
         }
 
         private static HashSet<LinkedNPCGroupInfo> AllLinkedNPCGroupInfos = new HashSet<LinkedNPCGroupInfo>();

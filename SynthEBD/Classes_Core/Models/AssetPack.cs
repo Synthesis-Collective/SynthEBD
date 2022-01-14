@@ -15,7 +15,8 @@ namespace SynthEBD
         {
             this.GroupName = "";
             this.ShortName = "";
-            this.Gender = Gender.male;
+            this.ConfigType = AssetPackType.Primary;
+            this.Gender = Gender.Male;
             this.DisplayAlerts = true;
             this.UserAlert = "";
             this.Subgroups = new List<Subgroup>();
@@ -29,6 +30,7 @@ namespace SynthEBD
 
         public string GroupName { get; set; }
         public string ShortName { get; set; }
+        public AssetPackType ConfigType { get; set; }
         public Gender Gender { get; set; }
         public bool DisplayAlerts { get; set; }
         public string UserAlert { get; set; }
@@ -100,6 +102,11 @@ namespace SynthEBD
         }
     }
 
+    public enum AssetPackType
+    {
+        Primary,
+        MixIn
+    }
     public class AssetReplacerGroup
     {
         public AssetReplacerGroup()
@@ -159,7 +166,7 @@ namespace SynthEBD
         public ZEBDAssetPack()
         {
             this.groupName = "";
-            this.gender = Gender.male;
+            this.gender = Gender.Male;
             this.displayAlerts = true;
             this.userAlert = "";
             this.subgroups = new HashSet<ZEBDSubgroup>();
@@ -375,13 +382,13 @@ namespace SynthEBD
                 {
                     switch (s.Gender)
                     {
-                        case Gender.female:
+                        case Gender.Female:
                             s.DefaultRecordTemplate = GetNPCByEDID(plugin, "DefaultFemale");
                             s.AdditionalRecordTemplateAssignments.Add(new AdditionalRecordTemplate { TemplateNPC = GetNPCByEDID(plugin, "KhajiitFemale"), Races = new HashSet<FormKey> { KhajiitRaceFK, KhajiitRaceVampireFK } });
                             s.AdditionalRecordTemplateAssignments.Add(new AdditionalRecordTemplate { TemplateNPC = GetNPCByEDID(plugin, "ArgonianFemale"), Races = new HashSet<FormKey> { ArgonianRaceFK, ArgonianRaceVampireFK } });
                             break;
 
-                        case Gender.male:
+                        case Gender.Male:
                             s.DefaultRecordTemplate = GetNPCByEDID(plugin, "DefaultMale");
                             s.AdditionalRecordTemplateAssignments.Add(new AdditionalRecordTemplate { TemplateNPC = GetNPCByEDID(plugin, "KhajiitMale"), Races = new HashSet<FormKey> { KhajiitRaceFK, KhajiitRaceVampireFK } });
                             s.AdditionalRecordTemplateAssignments.Add(new AdditionalRecordTemplate { TemplateNPC = GetNPCByEDID(plugin, "ArgonianMale"), Races = new HashSet<FormKey> { ArgonianRaceFK, ArgonianRaceVampireFK } });

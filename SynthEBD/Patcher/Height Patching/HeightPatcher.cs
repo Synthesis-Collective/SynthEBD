@@ -42,12 +42,12 @@ namespace SynthEBD
 
                 switch (npcInfo.Gender)
                 {
-                    case Gender.male:
+                    case Gender.Male:
                         lowerBound = 1 - heightAssignment.HeightMaleRange;
                         upperBound = 1 + heightAssignment.HeightMaleRange;
                         range = heightAssignment.HeightMaleRange;
                         break;
-                    case Gender.female:
+                    case Gender.Female:
                         lowerBound = 1 - heightAssignment.HeightFemaleRange;
                         upperBound = 1 + heightAssignment.HeightFemaleRange;
                         range = heightAssignment.HeightFemaleRange;

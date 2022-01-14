@@ -13,8 +13,8 @@ namespace SynthEBD
         {
             this.NPCFormKeys = sourceGroup.NPCFormKeys;
             this.AssignedCombination = null;
-            this.AssignedMorphs = new List<string>();
-            this.AssignedBodySlide = "";
+            this.AssignedMorphs = new List<BodyGenConfig.BodyGenTemplate>();
+            this.AssignedBodySlide = null;
             this.AssignedHeight = -1;
             this.PrimaryNPCFormKey = sourceGroup.Primary;
             this.ReplacerAssignments = new List<LinkedAssetReplacerAssignment>();
@@ -23,8 +23,8 @@ namespace SynthEBD
         public HashSet<FormKey> NPCFormKeys { get; set; }
         public FormKey PrimaryNPCFormKey { get; set; }
         public SubgroupCombination AssignedCombination { get; set; }
-        public List<string> AssignedMorphs { get; set; }
-        public string AssignedBodySlide { get; set; }
+        public List<BodyGenConfig.BodyGenTemplate> AssignedMorphs { get; set; }
+        public BodySlideSetting AssignedBodySlide { get; set; }
         public float AssignedHeight { get; set; }
         public List<LinkedAssetReplacerAssignment> ReplacerAssignments { get; set; }
 

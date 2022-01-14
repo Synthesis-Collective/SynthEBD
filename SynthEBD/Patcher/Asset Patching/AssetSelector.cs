@@ -153,7 +153,7 @@ namespace SynthEBD
 
             iterationInfo.PreviouslyGeneratedCombinations.Add(generatedSignature);
             generatedCombination.AssetPack = iterationInfo.ChosenAssetPack;
-
+            Logger.LogReport("Successfully generated combination: " + generatedSignature, false, npcInfo);
             Logger.CloseReportSubsectionsToParentOf("CombinationGeneration", npcInfo);
             return generatedCombination;
         }
@@ -232,7 +232,7 @@ namespace SynthEBD
         /// <param name="availableAssetPacks"></param>
         /// <param name="npcInfo"></param>
         /// <returns></returns>
-        public static HashSet<FlattenedAssetPack> FilterValidConfigsForNPC(HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo, bool ignoreConsistency, out bool wasFilteredByConsistency, AssetAndBodyShapeSelector.AssetPackAssignmentMode mode)
+        public static HashSet<FlattenedAssetPack> FilterValidConfigsForNPC(HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo, bool ignoreConsistency, out bool wasFilteredByConsistency, AssetAndBodyShapeSelector.AssetPackAssignmentMode mode, AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment currentAssignments)
         {
             Logger.OpenReportSubsection("ConfigFiltering", npcInfo);
             HashSet<FlattenedAssetPack> preFilteredPacks = new HashSet<FlattenedAssetPack>(availableAssetPacks); // available asset packs filtered by Specific NPC Assignments and Consistency
@@ -353,7 +353,7 @@ namespace SynthEBD
                                     {
                                         Logger.LogReport("Could not find the subgroup specified in the consistency file: " + consistencySubgroupIDs[i], true, npcInfo);
                                     }
-                                    else if (!SubgroupValidForCurrentNPC(consistencySubgroup, npcInfo, mode))
+                                    else if (!SubgroupValidForCurrentNPC(consistencySubgroup, npcInfo, mode, currentAssignments))
                                     {
                                         Logger.LogReport("Consistency subgroup " + consistencySubgroup.Id + " (" + consistencySubgroup.Name + ") is no longer valid for this NPC. Choosing a different subgroup at this position", true, npcInfo);
                                         consistencyAssetPack.Subgroups[i].Remove(consistencySubgroup);
@@ -387,7 +387,7 @@ namespace SynthEBD
                     for (int j = 0; j < candidatePack.Subgroups[i].Count; j++)
                     {
                         bool isSpecificNPCAssignment = forcedAssetPack != null && forcedAssignments[i].Any();
-                        if (!isSpecificNPCAssignment && !SubgroupValidForCurrentNPC(candidatePack.Subgroups[i][j], npcInfo, mode))
+                        if (!isSpecificNPCAssignment && !SubgroupValidForCurrentNPC(candidatePack.Subgroups[i][j], npcInfo, mode, currentAssignments))
                         {
                             candidatePack.Subgroups[i].RemoveAt(j);
                             j--;
@@ -444,7 +444,7 @@ namespace SynthEBD
         /// <param name="npcInfo"></param>
         /// <param name="forceIfAttributeCount">The number of ForceIf attributes within this subgroup that were matched by the current NPC</param>
         /// <returns></returns>
-        private static bool SubgroupValidForCurrentNPC(FlattenedSubgroup subgroup, NPCInfo npcInfo, AssetAndBodyShapeSelector.AssetPackAssignmentMode mode)
+        private static bool SubgroupValidForCurrentNPC(FlattenedSubgroup subgroup, NPCInfo npcInfo, AssetAndBodyShapeSelector.AssetPackAssignmentMode mode, AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment currentAssignments)
         {
             var reportString = "Subgroup " + subgroup.Id + "(" + subgroup.Name + ") ";
             if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.SubgroupIDs.Contains(subgroup.Id))
@@ -511,6 +511,45 @@ namespace SynthEBD
             {
                 Logger.LogReport(reportString + "is invalid because its distribution is disabled to random NPCs, it is not a Specific NPC Assignment, and the NPC does not match and of its ForceIf attributes.", false, npcInfo);
                 return false;
+            }
+
+            if (mode != AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary)
+            {
+                switch(PatcherSettings.General.BodySelectionMode)
+                {
+                    case BodyShapeSelectionMode.BodyGen:
+                        foreach (var bodyGenTemplate in currentAssignments.AssignedBodyGenMorphs)
+                        {
+                            if (subgroup.AllowedBodyGenDescriptors.Any() && !BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodyGenDescriptors, bodyGenTemplate.BodyShapeDescriptors))
+                            {
+                                Logger.LogReport(reportString + " is invalid because its allowed descriptors do not include any of those annotated in the descriptors of assigned morph " + bodyGenTemplate.Label, false, npcInfo);
+                                return false;
+                            }
+
+                            if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodyGenDescriptors, bodyGenTemplate.BodyShapeDescriptors))
+                            {
+                                Logger.LogReport(reportString + " is invalid because its disallowed descriptors include one of those annotated in the assigned morph " + bodyGenTemplate.Label + "'s descriptors", false, npcInfo);
+                                return false;
+                            }
+                        }
+                        break;
+                    case BodyShapeSelectionMode.BodySlide:
+                        if (currentAssignments.AssignedOBodyPreset != null)
+                        {
+                            if (subgroup.AllowedBodySlideDescriptors.Any() && !BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, currentAssignments.AssignedOBodyPreset.BodyShapeDescriptors))
+                            {
+                                Logger.LogReport(reportString + " is invalid because its allowed descriptors do not include any of those annotated in the assigned bodyslide's descriptors", false, npcInfo);
+                                return false;
+                            }
+
+                            if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, currentAssignments.AssignedOBodyPreset.BodyShapeDescriptors))
+                            {
+                                Logger.LogReport(reportString + " is invalid because its disallowed descriptors include one of those annotated in the assigned bodyslide's descriptors", false, npcInfo);
+                                return false;
+                            }
+                        }
+                        break;
+                }
             }
 
             // If the subgroup is still valid
@@ -590,7 +629,7 @@ namespace SynthEBD
             }
             return true;
         }
-        public static HashSet<SubgroupCombination> SelectAssetReplacers(FlattenedAssetPack chosenAssetPack, NPCInfo npcInfo)
+        public static HashSet<SubgroupCombination> SelectAssetReplacers(FlattenedAssetPack chosenAssetPack, NPCInfo npcInfo, AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment currentAssignments)
         {
             HashSet<SubgroupCombination> combinations = new HashSet<SubgroupCombination>();
             // determine which replacer groups are valid for the current NPC
@@ -640,7 +679,7 @@ namespace SynthEBD
                 if (assignReplacer)
                 {
                     var virtualFlattenedAssetPack = FlattenedAssetPack.CreateVirtualFromReplacerGroup(replacerGroup);
-                    var assignedCombination = AssetAndBodyShapeSelector.GenerateCombinationWithBodyShape(new HashSet<FlattenedAssetPack>() { virtualFlattenedAssetPack }, null, null, null, npcInfo, true, AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual);
+                    var assignedCombination = AssetAndBodyShapeSelector.GenerateCombinationWithBodyShape(new HashSet<FlattenedAssetPack>() { virtualFlattenedAssetPack }, null, null, null, npcInfo, true, AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual, currentAssignments);
 
                     if (assignedCombination != null)
                     {
@@ -649,22 +688,26 @@ namespace SynthEBD
                         assignedCombination.Signature = string.Join(".", assignedCombination.ContainedSubgroups.Select(x => x.Id));
                         combinations.Add(assignedCombination);
 
-                        // record assignments where relevant
+                        // record assignments where needed
                         if (PatcherSettings.General.bEnableConsistency)
                         {
-                            NPCAssignment.AssetReplacerAssignment assetReplacerAssignment = new NPCAssignment.AssetReplacerAssignment() { ReplacerName = replacerGroup.GroupName, SubgroupIDs = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList() };
-                            npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Add(assetReplacerAssignment);
+                            var existingAssignment = npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.GroupName).FirstOrDefault();
+                            if (existingAssignment != null) { existingAssignment.SubgroupIDs = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList(); }
+                            else { npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Add(new NPCAssignment.AssetReplacerAssignment() { ReplacerName = replacerGroup.GroupName, SubgroupIDs = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList() }); }
                         }
                         if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
                         {
-                            LinkedNPCGroupInfo.LinkedAssetReplacerAssignment linkedAssetReplacerAssignment = new LinkedNPCGroupInfo.LinkedAssetReplacerAssignment() { ReplacerName = replacerGroup.GroupName, AssignedReplacerCombination = assignedCombination };
-                            npcInfo.AssociatedLinkGroup.ReplacerAssignments.Add(linkedAssetReplacerAssignment);
+                            var existingAssignment = npcInfo.AssociatedLinkGroup.ReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.GroupName).FirstOrDefault();
+                            if (existingAssignment != null) { existingAssignment.AssignedReplacerCombination = assignedCombination; }
+                            else { npcInfo.AssociatedLinkGroup.ReplacerAssignments.Add(new LinkedNPCGroupInfo.LinkedAssetReplacerAssignment() { ReplacerName = replacerGroup.GroupName, AssignedReplacerCombination = assignedCombination}); }
                         }
 
-                        if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Assets) == null)
+                        if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique)
                         {
-                            UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment uniqueAssetReplacerAssignment = new UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment() { ReplacerName = replacerGroup.GroupName, AssignedReplacerCombination = assignedCombination };
-                            Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].ReplacerAssignments.Add(uniqueAssetReplacerAssignment);
+                            List<UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment> linkedAssetReplacerAssignments = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.ReplacerAssets);
+                            var existingAssignment = linkedAssetReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.GroupName).FirstOrDefault();
+                            if (existingAssignment != null) { existingAssignment.AssignedReplacerCombination = assignedCombination; }
+                            else { linkedAssetReplacerAssignments.Add(new UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment() { ReplacerName = replacerGroup.GroupName, AssignedReplacerCombination = assignedCombination }); }
                         }
 
                     }

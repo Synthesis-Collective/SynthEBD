@@ -15,8 +15,8 @@ namespace SynthEBD
 
             foreach (var raceFK in patchableRaces)
             {
-                var mTuple = new Tuple<FormKey, Gender>(raceFK, Gender.male);
-                var fTuple = new Tuple<FormKey, Gender>(raceFK, Gender.female);
+                var mTuple = new Tuple<FormKey, Gender>(raceFK, Gender.Male);
+                var fTuple = new Tuple<FormKey, Gender>(raceFK, Gender.Female);
 
                 HashSet<FlattenedAssetPack> prunedAssetPacksM = new HashSet<FlattenedAssetPack>();
                 HashSet<FlattenedAssetPack> prunedAssetPacksF = new HashSet<FlattenedAssetPack>();
@@ -28,8 +28,8 @@ namespace SynthEBD
                     {
                         switch (prunedAP.Gender)
                         {
-                            case Gender.male: prunedAssetPacksM.Add(prunedAP); break;
-                            case Gender.female: prunedAssetPacksF.Add(prunedAP); break;
+                            case Gender.Male: prunedAssetPacksM.Add(prunedAP); break;
+                            case Gender.Female: prunedAssetPacksF.Add(prunedAP); break;
                         }
                     }
                 }

@@ -22,7 +22,7 @@ namespace SynthEBD
         {
             this.groupName = "";
             this.ShortName = "";
-            this.gender = Gender.male;
+            this.gender = Gender.Male;
             this.displayAlerts = true;
             this.userAlert = "";
             this.subgroups = new ObservableCollection<VM_Subgroup>();
@@ -38,8 +38,8 @@ namespace SynthEBD
             this.CurrentBodyGenSettings = bodygenSettingsVM;
             switch (this.gender)
             {
-                case Gender.female: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.FemaleConfigs; break;
-                case Gender.male: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.MaleConfigs; break;
+                case Gender.Female: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.FemaleConfigs; break;
+                case Gender.Male: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.MaleConfigs; break;
             }
 
             this.PropertyChanged += RefreshTrackedBodyGenConfig;
@@ -98,6 +98,7 @@ namespace SynthEBD
 
         public string groupName { get; set; }
         public string ShortName { get; set; }
+        public AssetPackType ConfigType { get; set; }
         public Gender gender { get; set; }
         public bool displayAlerts { get; set; }
         public string userAlert { get; set; }
@@ -134,8 +135,8 @@ namespace SynthEBD
 
         public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>() // referenced by xaml; don't trust VS reference count
         {
-            {Gender.male, "Male"},
-            {Gender.female, "Female"},
+            {Gender.Male, "Male"},
+            {Gender.Female, "Female"},
         };
 
         public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
@@ -160,6 +161,7 @@ namespace SynthEBD
             var viewModel = new VM_AssetPack(parentCollection, bodygenSettingsVM, OBodyDescriptorMenu, generalSettingsVM);
             viewModel.groupName = model.GroupName;
             viewModel.ShortName = model.ShortName;
+            viewModel.ConfigType = model.ConfigType;
             viewModel.gender = model.Gender;
             viewModel.displayAlerts = model.DisplayAlerts;
             viewModel.userAlert = model.UserAlert;
@@ -170,10 +172,10 @@ namespace SynthEBD
             {
                 switch(viewModel.gender)
                 {
-                    case Gender.female:
+                    case Gender.Female:
                         viewModel.TrackedBodyGenConfig = bodygenSettingsVM.FemaleConfigs.Where(x => x.Label == model.AssociatedBodyGenConfigName).FirstOrDefault();
                         break;
-                    case Gender.male:
+                    case Gender.Male:
                         viewModel.TrackedBodyGenConfig = bodygenSettingsVM.MaleConfigs.Where(x => x.Label == model.AssociatedBodyGenConfigName).FirstOrDefault();
                         break;
                 }
@@ -223,6 +225,7 @@ namespace SynthEBD
                 AssetPack model = new AssetPack();
                 model.GroupName = vm.groupName;
                 model.ShortName = vm.ShortName;
+                model.ConfigType = vm.ConfigType;
                 model.Gender = vm.gender;
                 model.DisplayAlerts = vm.displayAlerts;
                 model.UserAlert = vm.userAlert;
@@ -325,8 +328,8 @@ namespace SynthEBD
         {
             switch (this.gender)
             {
-                case Gender.female: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.FemaleConfigs; break;
-                case Gender.male: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.MaleConfigs; break;
+                case Gender.Female: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.FemaleConfigs; break;
+                case Gender.Male: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.MaleConfigs; break;
             }
         }
 

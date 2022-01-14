@@ -632,18 +632,18 @@ namespace SynthEBD
                 case false: // parent record is from main link cache
                     switch (npcInfo.Gender)
                     {
-                        case Gender.male:
+                        case Gender.Male:
                            templateResolved = parentArmorAddonRecord.SkinTexture.Male.TryResolve<ITextureSetGetter>(mainLinkCache, out templateTextures); break;
-                        case Gender.female:
+                        case Gender.Female:
                             templateResolved = parentArmorAddonRecord.SkinTexture.Female.TryResolve<ITextureSetGetter>(mainLinkCache, out templateTextures); break;
                     } break;
 
                 case true: // parent record is from record template link cache
                     switch (npcInfo.Gender)
                     {
-                        case Gender.male:
+                        case Gender.Male:
                             templateResolved = parentArmorAddonRecord.SkinTexture.Male.TryResolve<ITextureSetGetter>(templateLinkCache, out templateTextures); break;
-                        case Gender.female:
+                        case Gender.Female:
                             templateResolved = parentArmorAddonRecord.SkinTexture.Female.TryResolve<ITextureSetGetter>(templateLinkCache, out templateTextures); break;
                     }
                     break;
@@ -675,8 +675,8 @@ namespace SynthEBD
 
                 switch(npcInfo.Gender)
                 {
-                    case Gender.male: parentArmorAddonRecord.SkinTexture.Male = newSkinTexture.AsNullableLinkGetter(); break;
-                    case Gender.female: parentArmorAddonRecord.SkinTexture.Female = newSkinTexture.AsNullableLinkGetter(); break;
+                    case Gender.Male: parentArmorAddonRecord.SkinTexture.Male = newSkinTexture.AsNullableLinkGetter(); break;
+                    case Gender.Female: parentArmorAddonRecord.SkinTexture.Female = newSkinTexture.AsNullableLinkGetter(); break;
                 }
 
                 AssignEditorID(newSkinTexture, npcInfo.NPC, assignedFromTemplate);

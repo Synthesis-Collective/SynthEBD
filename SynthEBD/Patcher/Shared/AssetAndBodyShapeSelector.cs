@@ -15,12 +15,12 @@ namespace SynthEBD
             public AssetAndBodyShapeAssignment()
             {
                 this.AssignedCombination = null;
-                this.AssignedBodyGenMorphs = new List<string>();
-                this.AssignedOBodyPreset = "";
+                this.AssignedBodyGenMorphs = new List<BodyGenConfig.BodyGenTemplate>();
+                this.AssignedOBodyPreset = null;
             }
             public SubgroupCombination AssignedCombination { get; set; }
-            public List<string> AssignedBodyGenMorphs { get; set; }
-            public string AssignedOBodyPreset { get; set; }
+            public List<BodyGenConfig.BodyGenTemplate> AssignedBodyGenMorphs { get; set; }
+            public BodySlideSetting AssignedOBodyPreset { get; set; }
         }
 
         public enum AssetPackAssignmentMode
@@ -38,7 +38,7 @@ namespace SynthEBD
         /// <param name="availableAssetPacks">Asset packs available to the current NPC</param>
         /// <param name="npcInfo">NPC info class</param>
         /// <returns></returns>
-        public static AssetAndBodyShapeAssignment ChooseCombinationAndBodyShape(out bool assetsAssigned, out bool bodyShapeAssigned, HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, NPCInfo npcInfo, bool blockBodyShape, AssetPackAssignmentMode mode)
+        public static AssetAndBodyShapeAssignment ChooseCombinationAndBodyShape(out bool assetsAssigned, out bool bodyShapeAssigned, HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, NPCInfo npcInfo, bool blockBodyShape, AssetPackAssignmentMode mode, AssetAndBodyShapeAssignment currentAssignments)
         {
             AssetAndBodyShapeAssignment assignment = new AssetAndBodyShapeAssignment();
             SubgroupCombination chosenCombination = new SubgroupCombination();
@@ -99,7 +99,7 @@ namespace SynthEBD
                                 break;
                             case BodyShapeSelectionMode.BodySlide:
                                 assignment.AssignedOBodyPreset = npcInfo.AssociatedLinkGroup.AssignedBodySlide;
-                                bodyShapeAssigned = assignment.AssignedOBodyPreset != "";
+                                bodyShapeAssigned = assignment.AssignedOBodyPreset != null;
                                 break;
                             default: break;
                         }
@@ -148,7 +148,7 @@ namespace SynthEBD
                                 break;
                             case BodyShapeSelectionMode.BodySlide:
                                 assignment.AssignedOBodyPreset = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodySlide);
-                                bodyShapeAssigned = assignment.AssignedOBodyPreset != "";
+                                bodyShapeAssigned = assignment.AssignedOBodyPreset != null;
                                 break;
                             default: break;
                         }
@@ -165,12 +165,12 @@ namespace SynthEBD
             if (!selectedFromLinkedNPC)
             {
                 Logger.LogReport("Choosing Asset Combination and BodyGen for " + npcInfo.LogIDstring, false, npcInfo);
-                chosenCombination = GenerateCombinationWithBodyShape(availableAssetPacks, bodyGenConfigs, oBodySettings, assignment, npcInfo, blockBodyShape, mode); // chosenMorphs is populated by reference within ChooseRandomCombination
+                chosenCombination = GenerateCombinationWithBodyShape(availableAssetPacks, bodyGenConfigs, oBodySettings, assignment, npcInfo, blockBodyShape, mode, currentAssignments); // chosenMorphs is populated by reference within ChooseRandomCombination
 
                 switch (PatcherSettings.General.BodySelectionMode)
                 {
                     case BodyShapeSelectionMode.BodyGen: bodyShapeAssigned = assignment.AssignedBodyGenMorphs.Any(); break;
-                    case BodyShapeSelectionMode.BodySlide: bodyShapeAssigned = assignment.AssignedOBodyPreset != ""; break;
+                    case BodyShapeSelectionMode.BodySlide: bodyShapeAssigned = assignment.AssignedOBodyPreset != null; break;
                     case BodyShapeSelectionMode.None: break;
                 }
             }
@@ -184,8 +184,8 @@ namespace SynthEBD
             {
                 switch(PatcherSettings.General.BodySelectionMode)
                 {
-                    case BodyShapeSelectionMode.BodyGen: npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignment.AssignedBodyGenMorphs.ToList(); break;
-                    case BodyShapeSelectionMode.BodySlide: npcInfo.ConsistencyNPCAssignment.BodySlidePreset = assignment.AssignedOBodyPreset; break;
+                    case BodyShapeSelectionMode.BodyGen: npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignment.AssignedBodyGenMorphs.Select(x => x.Label).ToList(); break;
+                    case BodyShapeSelectionMode.BodySlide: npcInfo.ConsistencyNPCAssignment.BodySlidePreset = assignment.AssignedOBodyPreset.Label; break;
                 }
             }
 
@@ -193,10 +193,10 @@ namespace SynthEBD
             return assignment;
         }
 
-        public static SubgroupCombination GenerateCombinationWithBodyShape(HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, AssetAndBodyShapeAssignment assignment, NPCInfo npcInfo, bool blockBodyShape, AssetPackAssignmentMode mode)
+        public static SubgroupCombination GenerateCombinationWithBodyShape(HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, AssetAndBodyShapeAssignment assignment, NPCInfo npcInfo, bool blockBodyShape, AssetPackAssignmentMode mode, AssetAndBodyShapeAssignment currentAssignments)
         {
-            List<string> candidateMorphs = new List<string>();
-            string candidatePreset = null;
+            List<BodyGenConfig.BodyGenTemplate> candidateMorphs = new List<BodyGenConfig.BodyGenTemplate>();
+            BodySlideSetting candidatePreset = null;
             bool notifyOfPermutationMorphConflict = false;
 
             SubgroupCombination assignedCombination = new SubgroupCombination();
@@ -206,14 +206,14 @@ namespace SynthEBD
 
             bool isFirstIteration = true;
             SubgroupCombination firstCombination = null;
-            Tuple<SubgroupCombination, object> firstValidCombinationShapePair = new Tuple<SubgroupCombination, object>(new SubgroupCombination(), new List<string>()); // object can be List<string> (BodyGen) or string (OBody)
+            Tuple<SubgroupCombination, object> firstValidCombinationShapePair = new Tuple<SubgroupCombination, object>(new SubgroupCombination(), new List<string>()); // object can be List<string> (BodyGen) or BodySlideSetting (OBody)
             bool firstValidCombinationShapePairInitialized = false;
 
             Logger.OpenReportSubsection("CombinationGeneration", npcInfo);
             Logger.LogReport("Assigning an asset combination", false, npcInfo);
 
             // remove subgroups or entire asset packs whose distribution rules are incompatible with the current NPC
-            filteredAssetPacks = AssetSelector.FilterValidConfigsForNPC(availableAssetPacks, npcInfo, false, out bool wasFilteredByConsistency, mode);
+            filteredAssetPacks = AssetSelector.FilterValidConfigsForNPC(availableAssetPacks, npcInfo, false, out bool wasFilteredByConsistency, mode, currentAssignments);
 
             // initialize seeds
             iterationInfo.AvailableSeeds = AssetSelector.GetAllSubgroups(filteredAssetPacks).OrderByDescending(x => x.ForceIfMatchCount).ToList();
@@ -225,7 +225,7 @@ namespace SynthEBD
                     if (wasFilteredByConsistency) // if no valid groups when filtering for consistency, try again without filtering for it
                     {
                         Logger.LogReport("Attempting to select a valid non-consistency Combination.", true, npcInfo);
-                        filteredAssetPacks = AssetSelector.FilterValidConfigsForNPC(availableAssetPacks, npcInfo, true, out wasFilteredByConsistency, mode);
+                        filteredAssetPacks = AssetSelector.FilterValidConfigsForNPC(availableAssetPacks, npcInfo, true, out wasFilteredByConsistency, mode, currentAssignments);
                         iterationInfo.AvailableSeeds = AssetSelector.GetAllSubgroups(filteredAssetPacks);
                     }
                     else // no other filters can be relaxed
@@ -261,8 +261,8 @@ namespace SynthEBD
                     var bodyShapeStatusFlags = new BodyShapeSelectorStatusFlag();
                     switch (PatcherSettings.General.BodySelectionMode)
                     {
-                        case BodyShapeSelectionMode.BodyGen: candidateMorphs = BodyGenSelector.SelectMorphs(npcInfo, out bodyShapeAssigned, bodyGenConfigs, assignedCombination, bodyShapeStatusFlags); break;
-                        case BodyShapeSelectionMode.BodySlide: candidatePreset = OBodySelector.SelectBodySlidePreset(npcInfo, out bodyShapeAssigned, oBodySettings, assignedCombination, bodyShapeStatusFlags); break;
+                        case BodyShapeSelectionMode.BodyGen: candidateMorphs = BodyGenSelector.SelectMorphs(npcInfo, out bodyShapeAssigned, bodyGenConfigs, assignedCombination, out bodyShapeStatusFlags); break;
+                        case BodyShapeSelectionMode.BodySlide: candidatePreset = OBodySelector.SelectBodySlidePreset(npcInfo, out bodyShapeAssigned, oBodySettings, assignedCombination, out bodyShapeStatusFlags); break;
                     }
 
                     // Decision Tree
@@ -270,8 +270,8 @@ namespace SynthEBD
                     bool npcHasBodyShapeConsistency = false;
                     switch (PatcherSettings.General.BodySelectionMode)
                     {
-                        case BodyShapeSelectionMode.BodyGen: npcHasBodyShapeConsistency = npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames == null || !npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames.Any(); break;
-                        case BodyShapeSelectionMode.BodySlide: npcHasBodyShapeConsistency = npcInfo.ConsistencyNPCAssignment.BodySlidePreset == null || npcInfo.ConsistencyNPCAssignment.BodySlidePreset == ""; break;
+                        case BodyShapeSelectionMode.BodyGen: npcHasBodyShapeConsistency = npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames.Any(); break;
+                        case BodyShapeSelectionMode.BodySlide: npcHasBodyShapeConsistency = npcInfo.ConsistencyNPCAssignment.BodySlidePreset != null && !string.IsNullOrWhiteSpace(npcInfo.ConsistencyNPCAssignment.BodySlidePreset); break;
                     }
 
                     // Branch 1: No body shape could be assigned in conjuction with the current combination
@@ -282,8 +282,8 @@ namespace SynthEBD
                         bool bodyShapeAssignable = false;
                         switch (PatcherSettings.General.BodySelectionMode)
                         {
-                            case BodyShapeSelectionMode.BodyGen: candidateMorphs = BodyGenSelector.SelectMorphs(npcInfo, out bool bodyGenAssignable, bodyGenConfigs, null, bodyShapeStatusFlags); break;
-                            case BodyShapeSelectionMode.BodySlide: candidatePreset = OBodySelector.SelectBodySlidePreset(npcInfo, out bodyShapeAssigned, oBodySettings, null, bodyShapeStatusFlags); break;
+                            case BodyShapeSelectionMode.BodyGen: candidateMorphs = BodyGenSelector.SelectMorphs(npcInfo, out bool bodyGenAssignable, bodyGenConfigs, null, out bodyShapeStatusFlags); break;
+                            case BodyShapeSelectionMode.BodySlide: candidatePreset = OBodySelector.SelectBodySlidePreset(npcInfo, out bodyShapeAssigned, oBodySettings, null, out bodyShapeStatusFlags); break;
                         }
 
                         // if not, then the curent combination is fine because no other combination would be compatible with any BodyGen morphs anyway
@@ -324,10 +324,13 @@ namespace SynthEBD
                     {
                         Logger.LogReport("Current combination is valid along with the current body shape selection, but only if the current body shape is not the consistency body shape. Attempting to find a different combination whose restrictions permit the consistency body shape.", false, npcInfo);
 
-                        switch (PatcherSettings.General.BodySelectionMode)
+                        if (!firstValidCombinationShapePairInitialized)
                         {
-                            case BodyShapeSelectionMode.BodyGen: firstValidCombinationShapePair = new Tuple<SubgroupCombination, object>(assignedCombination, assignment.AssignedBodyGenMorphs); break;
-                            case BodyShapeSelectionMode.BodySlide: firstValidCombinationShapePair = new Tuple<SubgroupCombination, object>(assignedCombination, assignment.AssignedOBodyPreset); break;
+                            switch (PatcherSettings.General.BodySelectionMode)
+                            {
+                                case BodyShapeSelectionMode.BodyGen: firstValidCombinationShapePair = new Tuple<SubgroupCombination, object>(assignedCombination, candidateMorphs); break;
+                                case BodyShapeSelectionMode.BodySlide: firstValidCombinationShapePair = new Tuple<SubgroupCombination, object>(assignedCombination, candidatePreset); break;
+                            }
                         }
                         firstValidCombinationShapePairInitialized = true;
                     }
@@ -339,13 +342,13 @@ namespace SynthEBD
                 if (firstValidCombinationShapePairInitialized)
                 {
                     Logger.LogMessage("Could not assign an asset combination to " + npcInfo.LogIDstring + " that is compatible with its consistency Body Shape. A valid combination was assigned, but Body Shape assignment will be re-randomized.");
-                    Logger.LogReport("Could not assign an asset combination to " + npcInfo.LogIDstring + " that is compatible with its consistency Body Shape. A valid combination was assigned, but Body Shape assignment will be re-randomized.", true, npcInfo);
+                    Logger.LogReport("Could not assign an asset combination to " + npcInfo.LogIDstring + " that is compatible with its consistency Body Shape (" + String.Join(", ", npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames) + "). A valid combination was assigned, but Body Shape assignment will be re-randomized.", true, npcInfo);
 
                     assignedCombination = firstValidCombinationShapePair.Item1;
                     switch (PatcherSettings.General.BodySelectionMode)
                     {
-                        case BodyShapeSelectionMode.BodyGen: assignment.AssignedBodyGenMorphs.AddRange((List<string>)firstValidCombinationShapePair.Item2); break;
-                        case BodyShapeSelectionMode.BodySlide: assignment.AssignedOBodyPreset = (string)firstValidCombinationShapePair.Item2; break;
+                        case BodyShapeSelectionMode.BodyGen: assignment.AssignedBodyGenMorphs.AddRange((List<BodyGenConfig.BodyGenTemplate>)firstValidCombinationShapePair.Item2); break;
+                        case BodyShapeSelectionMode.BodySlide: assignment.AssignedOBodyPreset = (BodySlideSetting)firstValidCombinationShapePair.Item2; break;
                     }
                 }
                 else if (notifyOfPermutationMorphConflict)

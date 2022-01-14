@@ -8,32 +8,33 @@ namespace SynthEBD
 {
     public class BodyGenSelector
     {
-        public static List<string> SelectMorphs(NPCInfo npcInfo, out bool selectionMade, BodyGenConfigs bodyGenConfigs, SubgroupCombination assignedAssetCombination, AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
+        public static List<BodyGenConfig.BodyGenTemplate> SelectMorphs(NPCInfo npcInfo, out bool selectionMade, BodyGenConfigs bodyGenConfigs, SubgroupCombination assignedAssetCombination, out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
         {
             Logger.OpenReportSubsection("BodyGenSelection", npcInfo);
             Logger.LogReport("Selecting BodyGen morph(s) for the current NPC", false, npcInfo);
             BodyGenConfig currentBodyGenConfig = null;
             var genderedBodyGenConfigs = new HashSet<BodyGenConfig>();
+            statusFlags = new AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag();
             switch(npcInfo.Gender)
             {
-                case Gender.male: genderedBodyGenConfigs = bodyGenConfigs.Male; break;
-                case Gender.female: genderedBodyGenConfigs = bodyGenConfigs.Female; break;
+                case Gender.Male: genderedBodyGenConfigs = bodyGenConfigs.Male; break;
+                case Gender.Female: genderedBodyGenConfigs = bodyGenConfigs.Female; break;
             }
 
             if (assignedAssetCombination != null)
             {
                 switch (npcInfo.Gender)
                 {
-                    case Gender.male: currentBodyGenConfig = bodyGenConfigs.Male.Where(x => x.Label == assignedAssetCombination.AssetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
-                    case Gender.female: currentBodyGenConfig = bodyGenConfigs.Female.Where(x => x.Label == assignedAssetCombination.AssetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
+                    case Gender.Male: currentBodyGenConfig = bodyGenConfigs.Male.Where(x => x.Label == assignedAssetCombination.AssetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
+                    case Gender.Female: currentBodyGenConfig = bodyGenConfigs.Female.Where(x => x.Label == assignedAssetCombination.AssetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
                 }
             }
             if (currentBodyGenConfig == null)
             {
                 switch (npcInfo.Gender)
                 {
-                    case Gender.male: currentBodyGenConfig = bodyGenConfigs.Male.Where(x => x.Label == PatcherSettings.BodyGen.CurrentMaleConfig).FirstOrDefault(); break;
-                    case Gender.female: currentBodyGenConfig = bodyGenConfigs.Female.Where(x => x.Label == PatcherSettings.BodyGen.CurrentFemaleConfig).FirstOrDefault(); break;
+                    case Gender.Male: currentBodyGenConfig = bodyGenConfigs.Male.Where(x => x.Label == PatcherSettings.BodyGen.CurrentMaleConfig).FirstOrDefault(); break;
+                    case Gender.Female: currentBodyGenConfig = bodyGenConfigs.Female.Where(x => x.Label == PatcherSettings.BodyGen.CurrentFemaleConfig).FirstOrDefault(); break;
                 }
             }
             if (currentBodyGenConfig == null)
@@ -41,11 +42,11 @@ namespace SynthEBD
                 selectionMade = false;
                 Logger.LogReport("No BodyGen configs are available for NPCs of the current gender.", false, npcInfo);
                 Logger.CloseReportSubsection(npcInfo);
-                return new List<string>();
+                return new List<BodyGenConfig.BodyGenTemplate>();
             }
 
             AssetAndBodyShapeSelector.ClearStatusFlags(statusFlags);
-            List<string> chosenMorphs = new List<string>();
+            List<BodyGenConfig.BodyGenTemplate> chosenMorphs = new List<BodyGenConfig.BodyGenTemplate>();
 
             var availableTemplatesGlobal = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.None, assignedAssetCombination);
             var availableCombinations = GetAvailableCombinations(currentBodyGenConfig, npcInfo, availableTemplatesGlobal);
@@ -100,7 +101,7 @@ namespace SynthEBD
             #region Unique NPC replicates
             else if (UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName))
             {
-                var uniqueBodyGenAssignment = (List<string>)UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodyGen);
+                var uniqueBodyGenAssignment = (List<BodyGenConfig.BodyGenTemplate>)UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodyGen);
                 if (uniqueBodyGenAssignment != null && uniqueBodyGenAssignment.Any())
                 {
                     availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All, null);
@@ -133,24 +134,25 @@ namespace SynthEBD
             }
             else
             {
-                Logger.LogReport("Selected morphs: " + String.Join(", ", chosenMorphs), false, npcInfo);
+                Logger.LogReport("Selected morphs: " + String.Join(", ", chosenMorphs.Select(x => x.Label)), false, npcInfo);
                 selectionMade = true;
             }
 
             //store selected morphs
+            var chosenMorphNames = chosenMorphs.Select(x => x.Label).ToList();
             Dictionary<string, HashSet<string>> allChosenMorphs = null;
             switch(npcInfo.Gender)
             {
-                case Gender.male: allChosenMorphs = Patcher.BodyGenTracker.AllChosenMorphsMale; break;
-                case Gender.female: allChosenMorphs = Patcher.BodyGenTracker.AllChosenMorphsFemale; break;
+                case Gender.Male: allChosenMorphs = Patcher.BodyGenTracker.AllChosenMorphsMale; break;
+                case Gender.Female: allChosenMorphs = Patcher.BodyGenTracker.AllChosenMorphsFemale; break;
             }
             if (!allChosenMorphs.ContainsKey(currentBodyGenConfig.Label))
             {
                 allChosenMorphs.Add(currentBodyGenConfig.Label, new HashSet<string>());
             }
-            allChosenMorphs[currentBodyGenConfig.Label].UnionWith(chosenMorphs);
+            allChosenMorphs[currentBodyGenConfig.Label].UnionWith(chosenMorphNames);
 
-            if (npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null && !npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames.Except(chosenMorphs).Any()) // https://stackoverflow.com/questions/407729/determine-if-a-sequence-contains-all-elements-of-another-sequence-using-linq
+            if (npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null && !npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames.Except(chosenMorphNames).Any()) // https://stackoverflow.com/questions/407729/determine-if-a-sequence-contains-all-elements-of-another-sequence-using-linq
             {
                 statusFlags |= AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag.MatchesConsistency;
             }
@@ -159,11 +161,11 @@ namespace SynthEBD
             return chosenMorphs;
         }
 
-        public static List<string> ChooseMorphs(HashSet<GroupCombinationObject> availableCombinations, NPCInfo npcInfo)
+        public static List<BodyGenConfig.BodyGenTemplate> ChooseMorphs(HashSet<GroupCombinationObject> availableCombinations, NPCInfo npcInfo)
         {
-            List<string> chosenMorphs = new List<string>();
+            var chosenMorphs = new List<BodyGenConfig.BodyGenTemplate>();
             
-            if (availableCombinations.Count == 0)
+            if (!availableCombinations.Any())
             {
                 Logger.LogReport("Could not get a BodyGen combination for Race " + npcInfo.BodyShapeRace.ToString() + " ( NPC " + npcInfo.LogIDstring + ")", false, npcInfo);
                 return null;
@@ -178,7 +180,7 @@ namespace SynthEBD
                 foreach (var availableMorphsAtPosition in currentCombination.Templates)
                 {
                     var candidateMorph = (BodyGenConfig.BodyGenTemplate)ProbabilityWeighting.SelectByProbability(availableMorphsAtPosition);
-                    chosenMorphs.Add(candidateMorph.Label);
+                    chosenMorphs.Add(candidateMorph);
                 }
             }
 
@@ -218,7 +220,7 @@ namespace SynthEBD
             return output;
         }
 
-        public static HashSet<GroupCombinationObject> GetLinkedCombination(HashSet<GroupCombinationObject> availableCombinations, List<string> searchMorphs)
+        public static HashSet<GroupCombinationObject> GetLinkedCombination(HashSet<GroupCombinationObject> availableCombinations, List<BodyGenConfig.BodyGenTemplate> searchMorphs)
         {
             HashSet<GroupCombinationObject> output = new HashSet<GroupCombinationObject>();
 
@@ -226,7 +228,7 @@ namespace SynthEBD
             {
                 if (combination.Templates.Count != searchMorphs.Count) { continue; }
                 GroupCombinationObject linkedCombination = new GroupCombinationObject(combination);
-                List<string> requiredMorphs = new List<string>(searchMorphs);
+                List<string> requiredMorphs = searchMorphs.Select(x => x.Label).ToList();
                 bool combinationValid = true;
                 for (int i = 0; i < requiredMorphs.Count; i++)
                 {
@@ -261,7 +263,7 @@ namespace SynthEBD
         public static HashSet<GroupCombinationObject> GetConsistencyCombinations(HashSet<GroupCombinationObject> availableCombinations, NPCInfo npcInfo)
         {
             var consistencyMorphs = npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames;
-            if (consistencyMorphs.Count == 0) { return availableCombinations; }
+            if (!consistencyMorphs.Any()) { return availableCombinations; }
 
             HashSet<GroupCombinationObject> consistencyCombinations = new HashSet<GroupCombinationObject>();
             HashSet<GroupCombinationObject> partialMatches = new HashSet<GroupCombinationObject>();
@@ -353,7 +355,7 @@ namespace SynthEBD
 
             if (!candidateMorph.AllowRandom && candidateMorph.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above
             {
-                Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because it can only be assigned via ForceIf attribtues or Specific NPC Assignments", false, npcInfo);
+                Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because it can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
                 return false;
             }
 
@@ -583,7 +585,7 @@ namespace SynthEBD
         {
             switch (gender)
             {
-                case Gender.male:
+                case Gender.Male:
                     if (bodyGenConfigs.Male.Any())
                     {
                         return true;
@@ -592,7 +594,7 @@ namespace SynthEBD
                     {
                         return false;
                     }
-                case Gender.female:
+                case Gender.Female:
                     if (bodyGenConfigs.Female.Any())
                     {
                         return true;

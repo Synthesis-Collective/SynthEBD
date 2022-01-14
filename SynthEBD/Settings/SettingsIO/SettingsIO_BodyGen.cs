@@ -44,10 +44,10 @@ namespace SynthEBD
                     synthEBDconfig.FilePath = s;
                     switch(synthEBDconfig.Gender)
                     {
-                        case Gender.female:
+                        case Gender.Female:
                             loadedPacks.Female.Add(synthEBDconfig);
                             break;
-                        case Gender.male:
+                        case Gender.Male:
                             loadedPacks.Male.Add(synthEBDconfig);
                             break;
                     }

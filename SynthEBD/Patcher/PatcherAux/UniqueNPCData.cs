@@ -15,14 +15,14 @@ namespace SynthEBD
             public UniqueNPCTracker()
             {
                 AssignedCombination = null;
-                AssignedMorphs = new List<string>();
-                AssignedBodySlidePreset = "";
+                AssignedMorphs = new List<BodyGenConfig.BodyGenTemplate>();
+                AssignedBodySlidePreset = null;
                 AssignedHeight = -1;
                 this.ReplacerAssignments = new List<LinkedAssetReplacerAssignment>();
             }
             public SubgroupCombination AssignedCombination { get; set; }
-            public List<string> AssignedMorphs { get; set; }
-            public string AssignedBodySlidePreset { get; set; }
+            public List<BodyGenConfig.BodyGenTemplate> AssignedMorphs { get; set; }
+            public BodySlideSetting AssignedBodySlidePreset { get; set; }
             public float AssignedHeight { get; set; }
             public List<LinkedAssetReplacerAssignment> ReplacerAssignments { get; set; }
             public class LinkedAssetReplacerAssignment

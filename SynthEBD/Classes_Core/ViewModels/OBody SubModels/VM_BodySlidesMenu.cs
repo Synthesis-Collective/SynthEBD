@@ -15,7 +15,7 @@ namespace SynthEBD
         {
             BodySlidesMale = new ObservableCollection<VM_BodySlideSetting>();
             BodySlidesFemale = new ObservableCollection<VM_BodySlideSetting>();
-            SelectedGender = Gender.female;
+            SelectedGender = Gender.Female;
             CurrentlyDisplayedBodySlide = null;
             CurrentlyExistingBodySlides = new HashSet<string>();
             ShowHidden = false;
@@ -34,8 +34,8 @@ namespace SynthEBD
             {
                 switch (SelectedGender)
                 {
-                    case Gender.female: CurrentlyDisplayedBodySlides = BodySlidesFemale; break;
-                    case Gender.male: CurrentlyDisplayedBodySlides = BodySlidesMale; break;
+                    case Gender.Female: CurrentlyDisplayedBodySlides = BodySlidesFemale; break;
+                    case Gender.Male: CurrentlyDisplayedBodySlides = BodySlidesMale; break;
                 }
             });
 

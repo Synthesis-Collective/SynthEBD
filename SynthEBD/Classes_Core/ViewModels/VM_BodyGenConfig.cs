@@ -16,7 +16,7 @@ namespace SynthEBD
         public VM_BodyGenConfig(ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
             this.Label = "";
-            this.Gender = Gender.female;
+            this.Gender = Gender.Female;
 
             this.GroupMappingUI = new VM_BodyGenGroupMappingMenu(this.GroupUI, raceGroupingVMs);
             this.GroupUI = new VM_BodyGenGroupsMenu(this);

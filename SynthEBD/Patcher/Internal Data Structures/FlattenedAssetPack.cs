@@ -38,7 +38,7 @@ namespace SynthEBD
         public FlattenedAssetPack()
         {
             this.GroupName = "";
-            this.Gender = Gender.male;
+            this.Gender = Gender.Male;
             this.Subgroups = new List<List<FlattenedSubgroup>>();
             this.DefaultRecordTemplate = new FormKey();
             this.AdditionalRecordTemplateAssignments = new HashSet<AdditionalRecordTemplate>();

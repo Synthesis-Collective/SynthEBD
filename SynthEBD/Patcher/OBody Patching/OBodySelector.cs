@@ -8,17 +8,18 @@ namespace SynthEBD
 {
     public class OBodySelector
     {
-        public static string SelectBodySlidePreset(NPCInfo npcInfo, out bool selectionMade, Settings_OBody oBodySettings, SubgroupCombination assignedAssetCombination, AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
+        public static BodySlideSetting SelectBodySlidePreset(NPCInfo npcInfo, out bool selectionMade, Settings_OBody oBodySettings, SubgroupCombination assignedAssetCombination, out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
         {
             selectionMade = false;
 
             Logger.OpenReportSubsection("OBodySelection", npcInfo);
             Logger.LogReport("Selecting a BodySlide preset for the current NPC", false, npcInfo);
             List<BodySlideSetting> availablePresets = null;
+            statusFlags = new AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag();
             switch (npcInfo.Gender)
             {
-                case Gender.male: availablePresets = new List<BodySlideSetting>(oBodySettings.BodySlidesMale); break; // shallow copy to allow pruning
-                case Gender.female: availablePresets = new List<BodySlideSetting>(oBodySettings.BodySlidesFemale); break;
+                case Gender.Male: availablePresets = new List<BodySlideSetting>(oBodySettings.BodySlidesMale); break; // shallow copy to allow pruning
+                case Gender.Female: availablePresets = new List<BodySlideSetting>(oBodySettings.BodySlidesFemale); break;
             }
 
             if (!availablePresets.Any())
@@ -26,7 +27,7 @@ namespace SynthEBD
                 selectionMade = false;
                 Logger.LogReport("No BodySlide presets are available for NPCs of the current gender.", false, npcInfo);
                 Logger.CloseReportSubsection(npcInfo);
-                return "";
+                return null;
             }
 
             AssetAndBodyShapeSelector.ClearStatusFlags(statusFlags);
@@ -49,9 +50,9 @@ namespace SynthEBD
             #endregion
 
             #region Linked NPC Group
-            if (selectedPreset == null && npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary)
+            if (selectedPreset == null && npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary) // check for selectedPreset == null to avoid overwriting Specific Assignment
             {
-                selectedPreset = availablePresets.Where(x => x.Label == npcInfo.AssociatedLinkGroup.AssignedBodySlide).FirstOrDefault();
+                selectedPreset = npcInfo.AssociatedLinkGroup.AssignedBodySlide;
                 if (selectedPreset != null)
                 {
                     Logger.LogReport("Assigned linked BodySlide preset " + selectedPreset.Label + " from primary NPC " + npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString(), false, npcInfo);
@@ -64,20 +65,12 @@ namespace SynthEBD
             #endregion
 
             #region Unique NPC replicates
-            else if (selectedPreset == null && UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName))
+            else if (selectedPreset == null && UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName)) // check for selectedPreset == null to avoid overwriting Specific Assignment
             {
-                var uniqueBodySlideAssignment = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodySlide);
-                if (uniqueBodySlideAssignment != null && uniqueBodySlideAssignment != "")
+                selectedPreset = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodySlide);
+                if (selectedPreset != null)
                 {
-                    selectedPreset = availablePresets.Where(x => x.Label == uniqueBodySlideAssignment).FirstOrDefault();
-                    if (selectedPreset != null)
-                    {
-                        Logger.LogReport("Assigned BodySlide preset " + selectedPreset.Label + " from unique NPC with same name: " + npcName, false, npcInfo);
-                    }
-                    else
-                    {
-                        Logger.LogReport("Could not find the linked BodySlide preset \"" + uniqueBodySlideAssignment + "\" from unique NPC with same name: " + npcName + " within the available presets. Attempting to assign another preset.", true, npcInfo);
-                    }
+                    Logger.LogReport("Assigned BodySlide preset " + selectedPreset.Label + " from unique NPC with same name: " + npcName, false, npcInfo);
                 }
             }
             #endregion
@@ -123,7 +116,7 @@ namespace SynthEBD
                 Logger.LogReport("Could not choose any valid BodySlide presets for NPC " + npcInfo.LogIDstring, false, npcInfo);
                 Logger.CloseReportSubsection(npcInfo);
                 selectionMade = false;
-                return "";
+                return null;
             }
             else
             {
@@ -139,7 +132,7 @@ namespace SynthEBD
 
             Logger.CloseReportSubsection(npcInfo);
 
-            return selectedPreset.Label;
+            return selectedPreset;
         }
 
         public static bool PresetIsValid(BodySlideSetting candidatePreset, NPCInfo npcInfo, SubgroupCombination assignedAssetCombination)
@@ -235,8 +228,8 @@ namespace SynthEBD
             List<BodySlideSetting> currentBodySlides = new List<BodySlideSetting>();
             switch (npcInfo.Gender)
             {
-                case Gender.male: currentBodySlides = oBodySettings.BodySlidesMale; break;
-                case Gender.female: currentBodySlides = oBodySettings.BodySlidesFemale; break;
+                case Gender.Male: currentBodySlides = oBodySettings.BodySlidesMale; break;
+                case Gender.Female: currentBodySlides = oBodySettings.BodySlidesFemale; break;
             }
 
             if (!currentBodySlides.Any())

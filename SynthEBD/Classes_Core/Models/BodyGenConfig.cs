@@ -24,7 +24,7 @@ namespace SynthEBD
         public BodyGenConfig()
         {
             this.Label = "";
-            this.Gender = Gender.female;
+            this.Gender = Gender.Female;
             this.RacialTemplateGroupMap = new HashSet<RacialMapping>();
             this.Templates = new HashSet<BodyGenTemplate>();
             this.TemplateGroups = new HashSet<string>();

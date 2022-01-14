@@ -49,14 +49,18 @@
                 <TextBox Grid.Row="1" Grid.Column="1" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=ShortName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
                 <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Gender</TextBlock>
-                <ComboBox Grid.Row="2" Grid.Column="1" Name="GenderComboBox" ItemsSource="{Binding Path=GenderEnumDict}" DisplayMemberPath="Value" SelectedValuePath="Key" SelectedValue="{Binding Path=gender, Mode=TwoWay}" />
+                <ComboBox Grid.Row="2" Grid.Column="1" Name="GenderComboBox" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" SelectedValue="{Binding Path=gender, Mode=TwoWay}" />
 
+                <!--
                 <TextBlock Grid.Row="3" Grid.Column="0">Display alerts from this config file</TextBlock>
                 <CheckBox Grid.Row="3" Grid.Column="1" IsChecked="{Binding Path=displayAlerts, Mode=TwoWay}"></CheckBox>
 
                 <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Alert to show</TextBlock>
                 <TextBox Grid.Row="4" Grid.Column="1" Name="TextBoxUserAlert" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=userAlert, UpdateSourceTrigger=PropertyChanged}"></TextBox>
-
+                -->
+                <TextBlock Grid.Row="3" Grid.Column="0">Type</TextBlock>
+                <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AssetPackType}}}" SelectedValue="{Binding Path=ConfigType, Mode=TwoWay}" />
+                
                 <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Subgroups</TextBlock>
                 <TreeView Grid.Row="6" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding subgroups}" Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" >
                     <TreeView.Resources>

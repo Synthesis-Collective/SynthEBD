@@ -31,7 +31,7 @@ namespace SynthEBD
             this.ForcedBodyGenMorphs = new ObservableCollection<VM_BodyGenTemplate>();
             this.ForcedBodySlide = "";
 
-            this.Gender = Gender.female;
+            this.Gender = Gender.Female;
             this.AvailableAssetPacks = new ObservableCollection<VM_AssetPack>(); // filtered by gender
             this.SubscribedAssetPacks = assetPacks;
 
@@ -200,10 +200,10 @@ namespace SynthEBD
             ObservableCollection<VM_BodyGenTemplate> templates = new ObservableCollection<VM_BodyGenTemplate>();
             switch (viewModel.Gender)
             {
-                case Gender.male:
+                case Gender.Male:
                     templates = BGVM.CurrentMaleConfig.TemplateMorphUI.Templates;
                     break;
-                case Gender.female:
+                case Gender.Female:
                     templates = BGVM.CurrentFemaleConfig.TemplateMorphUI.Templates;
                     break;
             }
@@ -359,8 +359,8 @@ namespace SynthEBD
             var allTemplateList = new ObservableCollection<VM_BodyGenTemplate>();
             switch(assignment.Gender)
             {
-                case Gender.male: allTemplateList = assignment.SubscribedBodyGenSettings.CurrentMaleConfig.TemplateMorphUI.Templates; break;
-                case Gender.female: allTemplateList = assignment.SubscribedBodyGenSettings.CurrentFemaleConfig.TemplateMorphUI.Templates; break;
+                case Gender.Male: allTemplateList = assignment.SubscribedBodyGenSettings.CurrentMaleConfig.TemplateMorphUI.Templates; break;
+                case Gender.Female: allTemplateList = assignment.SubscribedBodyGenSettings.CurrentFemaleConfig.TemplateMorphUI.Templates; break;
             }
 
             foreach (var candidateMorph in allTemplateList)
@@ -396,8 +396,8 @@ namespace SynthEBD
         {
             switch(Gender)
             {
-                case Gender.male: SubscribedBodySlides = oBodySettings.BodySlidesUI.BodySlidesMale; break;
-                case Gender.female: SubscribedBodySlides = oBodySettings.BodySlidesUI.BodySlidesFemale; break;
+                case Gender.Male: SubscribedBodySlides = oBodySettings.BodySlidesUI.BodySlidesMale; break;
+                case Gender.Female: SubscribedBodySlides = oBodySettings.BodySlidesUI.BodySlidesFemale; break;
             }
             AvailableBodySlides = new ObservableCollection<VM_BodySlideSetting>() { new VM_BodySlideSetting(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, AvailableBodySlides, oBodySettings) { Label = "" } }; // blank entry
             AvailableBodySlides.AddRange(SubscribedBodySlides);
@@ -423,16 +423,16 @@ namespace SynthEBD
             {
                 if (npcRecord.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Female))
                 {
-                    return Gender.female;
+                    return Gender.Female;
                 }
                 else
                 {
-                    return Gender.male;
+                    return Gender.Male;
                 }
             }
 
             // Warn User
-            return Gender.male;
+            return Gender.Male;
         }
 
 

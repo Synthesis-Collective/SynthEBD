@@ -8,7 +8,7 @@ namespace SynthEBD
 {
     public enum Gender
     {
-        male,
-        female
+        Male,
+        Female
     }
 }
