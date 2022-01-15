@@ -8,7 +8,8 @@ namespace SynthEBD
 {
     public enum AssignmentType
     {
-        Assets,
+        PrimaryAssets,
+        MixInAssets,
         ReplacerAssets,
         BodyGen,
         BodySlide,

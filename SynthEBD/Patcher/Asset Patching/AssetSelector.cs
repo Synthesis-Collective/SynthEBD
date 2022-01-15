@@ -257,7 +257,13 @@ namespace SynthEBD
                             forcedAssignments = GetForcedSubgroupsAtIndex(forcedAssetPack, npcInfo.SpecificNPCAssignment.SubgroupIDs, npcInfo);
                         }
                         break;
-                    case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn: break; /////////////////////////////////////////////////////////////////////////////// Fill in later
+                    case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn: 
+                        if (npcInfo.SpecificNPCAssignment.MixInAssignments.ContainsKey(availableAssetPacks.First().GroupName))
+                        {
+                            forcedAssetPack = availableAssetPacks.First().ShallowCopy();
+                            forcedAssignments = GetForcedSubgroupsAtIndex(forcedAssetPack, npcInfo.SpecificNPCAssignment.MixInAssignments[availableAssetPacks.First().GroupName], npcInfo);
+                        }
+                        break; 
                     case AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual: 
                         var forcedReplacerGroup = npcInfo.SpecificNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().GroupName).FirstOrDefault(); // Replacers are assigned from a pre-chosen asset pack so there must be exactly one in the set
                         if (forcedReplacerGroup != null)
@@ -296,7 +302,12 @@ namespace SynthEBD
                 switch (mode)
                 {
                     case AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary: consistencyAssetPackName = npcInfo.ConsistencyNPCAssignment.AssetPackName; break;
-                    case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn: break; ////////////////////////////////////////////////////////////////////////////////////// Fill in later
+                    case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn:
+                        if (npcInfo.ConsistencyNPCAssignment.MixInAssignments.ContainsKey(availableAssetPacks.First().GroupName))
+                        {
+                            consistencyAssetPackName = availableAssetPacks.First().GroupName;
+                        }
+                        break; ////////////////////////////////////////////////////////////////////////////////////// Fill in later
                     case AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual:
                         consistencyReplacer = npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().GroupName).FirstOrDefault();
                         if (consistencyReplacer != null) { consistencyAssetPackName = consistencyReplacer.ReplacerName; }
@@ -327,7 +338,7 @@ namespace SynthEBD
                             switch(mode)
                             {
                                 case AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary: consistencySubgroupIDs = npcInfo.ConsistencyNPCAssignment.SubgroupIDs; break;
-                                case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn: ///////////////////////////////////////////////////////////////////////////////// Fill in later
+                                case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn: consistencySubgroupIDs = npcInfo.ConsistencyNPCAssignment.MixInAssignments[consistencyAssetPackName]; break;
                                 case AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual: consistencySubgroupIDs = consistencyReplacer.SubgroupIDs; break;
                             }
 
@@ -611,7 +622,16 @@ namespace SynthEBD
                     }
                     break;
 
-                case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn: break; //////////////////////////////////////////////////////////////////////////////////////////// Fill in later
+                case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn: 
+                    if (specificAssignment.MixInAssignments.ContainsKey(selectedCombination.AssetPackName))
+                    {
+                        if (specificAssignment.MixInAssignments[selectedCombination.AssetPackName].Count != selectedCombination.ContainedSubgroups.Count) { return false; }
+                        for (int i = 0; i < specificAssignment.MixInAssignments[selectedCombination.AssetPackName].Count; i++)
+                        {
+                            if (specificAssignment.MixInAssignments[selectedCombination.AssetPackName][i] != selectedCombination.ContainedSubgroups[i].Id) { return false; }
+                        }
+                    }
+                    break;
                 case AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual:
                     var forcedReplacer = specificAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == selectedCombination.AssetPackName).FirstOrDefault();
                     if (forcedReplacer != null)
@@ -752,7 +772,7 @@ namespace SynthEBD
                 npcInfo.AssociatedLinkGroup.AssignedCombination = assignedCombination;
             }
 
-            if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Assets) == null)
+            if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.PrimaryAssets) == null)
             {
                 Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedCombination = assignedCombination;
             }
@@ -762,17 +782,37 @@ namespace SynthEBD
         {
             if (PatcherSettings.General.bEnableConsistency)
             {
-                npcInfo.ConsistencyNPCAssignment.AssetPackName = assignedCombination.AssetPackName;
-                npcInfo.ConsistencyNPCAssignment.SubgroupIDs = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList();
+                if (npcInfo.ConsistencyNPCAssignment.MixInAssignments.ContainsKey(mixInName))
+                {
+                    npcInfo.ConsistencyNPCAssignment.MixInAssignments[mixInName] = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList();
+                }
+                else
+                {
+                    npcInfo.ConsistencyNPCAssignment.MixInAssignments.Add(mixInName, assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList());
+                }
             }
             if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary && assignedCombination != null)
             {
-                npcInfo.AssociatedLinkGroup.AssignedCombination = assignedCombination;
+                if (npcInfo.AssociatedLinkGroup.MixInAssignments.ContainsKey(mixInName))
+                {
+                    npcInfo.AssociatedLinkGroup.MixInAssignments[mixInName] = assignedCombination;
+                }
+                else
+                {
+                    npcInfo.AssociatedLinkGroup.MixInAssignments.Add(mixInName, assignedCombination);
+                }
             }
 
-            if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Assets) == null)
+            if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.MixInAssets) == null)
             {
-                Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedCombination = assignedCombination;
+                if (Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].MixInAssignments.ContainsKey(mixInName))
+                {
+                    Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].MixInAssignments[mixInName] = assignedCombination;
+                }
+                else
+                {
+                    Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].MixInAssignments.Add(mixInName, assignedCombination);
+                }
             }
         }
 

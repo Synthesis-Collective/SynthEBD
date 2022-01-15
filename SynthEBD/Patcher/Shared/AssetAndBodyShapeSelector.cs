@@ -78,7 +78,12 @@ namespace SynthEBD
                 switch (mode)
                 {
                     case AssetPackAssignmentMode.Primary: linkedCombination = npcInfo.AssociatedLinkGroup.AssignedCombination; break;
-                    case AssetPackAssignmentMode.MixIn: break; ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// FILL OUT LATER 
+                    case AssetPackAssignmentMode.MixIn:
+                        if (npcInfo.AssociatedLinkGroup.MixInAssignments.ContainsKey(availableAssetPacks.First().GroupName))
+                        {
+                            linkedCombination = npcInfo.AssociatedLinkGroup.MixInAssignments[availableAssetPacks.First().GroupName];
+                        }
+                        break;
                     case AssetPackAssignmentMode.ReplacerVirtual: var linkedAssignmentGroup = npcInfo.AssociatedLinkGroup.ReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().GroupName).FirstOrDefault();
                         if (linkedAssignmentGroup != null) {  linkedCombination = linkedAssignmentGroup.AssignedReplacerCombination; }
                         break;
@@ -121,8 +126,14 @@ namespace SynthEBD
                 SubgroupCombination linkedCombination = null;
                 switch (mode)
                 {
-                    case AssetPackAssignmentMode.Primary: linkedCombination = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Assets); break;
-                    case AssetPackAssignmentMode.MixIn: break; ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// FILL OUT LATER 
+                    case AssetPackAssignmentMode.Primary: linkedCombination = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.PrimaryAssets); break;
+                    case AssetPackAssignmentMode.MixIn: 
+                        Dictionary<string, SubgroupCombination> linkedCombinationDict = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.MixInAssets);
+                        if (linkedCombinationDict.ContainsKey(availableAssetPacks.First().GroupName))
+                        {
+                            linkedCombination = linkedCombinationDict[availableAssetPacks.First().GroupName];
+                        }
+                        break; 
                     case AssetPackAssignmentMode.ReplacerVirtual:
                         List<UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment> linkedReplacerCombinations = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.ReplacerAssets);
                         if (linkedReplacerCombinations != null)

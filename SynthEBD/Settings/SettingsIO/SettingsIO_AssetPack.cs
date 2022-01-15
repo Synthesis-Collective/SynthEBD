@@ -119,7 +119,7 @@ namespace SynthEBD
         {
             for (int i = 0; i < assetPacks.Count; i++)
             {
-                if (assetPacks[i].FilePath != "")
+                if (assetPacks[i].FilePath != "" && assetPacks[i].FilePath.StartsWith(PatcherSettings.Paths.AssetPackDirPath, StringComparison.InvariantCultureIgnoreCase))
                 {
                     JSONhandler<AssetPack>.SaveJSONFile(assetPacks[i], assetPacks[i].FilePath);
                 }

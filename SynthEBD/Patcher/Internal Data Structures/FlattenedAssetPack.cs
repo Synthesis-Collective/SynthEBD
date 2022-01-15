@@ -9,7 +9,7 @@ namespace SynthEBD
 {
     public class FlattenedAssetPack
     {
-        public FlattenedAssetPack(AssetPack source)
+        public FlattenedAssetPack(AssetPack source, AssetPackType type)
         {
             this.GroupName = source.GroupName;
             this.Gender = source.Gender;
@@ -19,10 +19,10 @@ namespace SynthEBD
             this.AssociatedBodyGenConfigName = source.AssociatedBodyGenConfigName;
             this.Source = source;
             this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
-            this.Type = AssetPackType.Primary;
+            this.Type = type;
         }
 
-        public FlattenedAssetPack(string groupName, Gender gender, FormKey defaultRecordTemplate, HashSet<AdditionalRecordTemplate> additionalRecordTemplateAssignments, string associatedBodyGenConfigName, AssetPack source)
+        public FlattenedAssetPack(string groupName, Gender gender, FormKey defaultRecordTemplate, HashSet<AdditionalRecordTemplate> additionalRecordTemplateAssignments, string associatedBodyGenConfigName, AssetPack source, AssetPackType type)
         {
             this.GroupName = groupName;
             this.Gender = gender;
@@ -32,10 +32,10 @@ namespace SynthEBD
             this.AssociatedBodyGenConfigName = associatedBodyGenConfigName;
             this.Source = source;
             this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
-            this.Type = AssetPackType.Primary;
+            this.Type = type;
         }
 
-        public FlattenedAssetPack()
+        public FlattenedAssetPack(AssetPackType type)
         {
             this.GroupName = "";
             this.Gender = Gender.Male;
@@ -45,7 +45,7 @@ namespace SynthEBD
             this.AssociatedBodyGenConfigName = "";
             this.Source = new AssetPack();
             this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
-            this.Type= AssetPackType.Primary;
+            this.Type = type;
         }
 
         public string GroupName { get; set; }
@@ -67,7 +67,15 @@ namespace SynthEBD
 
         public static FlattenedAssetPack FlattenAssetPack(AssetPack source, List<RaceGrouping> raceGroupingList)
         {
-            var output = new FlattenedAssetPack(source);
+            FlattenedAssetPack output = null;
+            if (source.ConfigType == SynthEBD.AssetPackType.MixIn)
+            {
+                output = new FlattenedAssetPack(source, AssetPackType.MixIn);
+            }
+            else
+            {
+                output = new FlattenedAssetPack(source, AssetPackType.Primary);
+            }
 
             for (int i = 0; i < source.Subgroups.Count; i++)
             {
@@ -86,7 +94,7 @@ namespace SynthEBD
 
         public FlattenedAssetPack ShallowCopy()
         {
-            FlattenedAssetPack copy = new FlattenedAssetPack(this.GroupName, this.Gender, this.DefaultRecordTemplate, this.AdditionalRecordTemplateAssignments, this.AssociatedBodyGenConfigName, this.Source);
+            FlattenedAssetPack copy = new FlattenedAssetPack(this.GroupName, this.Gender, this.DefaultRecordTemplate, this.AdditionalRecordTemplateAssignments, this.AssociatedBodyGenConfigName, this.Source, this.Type);
             foreach (var subgroupList in this.Subgroups)
             {
                 copy.Subgroups.Add(new List<FlattenedSubgroup>(subgroupList));
@@ -100,14 +108,13 @@ namespace SynthEBD
 
         public static FlattenedAssetPack CreateVirtualFromReplacerGroup(FlattenedReplacerGroup source)
         {
-            FlattenedAssetPack virtualFAP = new FlattenedAssetPack();
+            FlattenedAssetPack virtualFAP = new FlattenedAssetPack(AssetPackType.ReplacerVirtual);
             virtualFAP.GroupName = source.GroupName; // this is the name of the replacer group, not the asset pack
             foreach (var subgroupsAtPos in source.Subgroups)
             {
                 virtualFAP.Subgroups.Add(subgroupsAtPos);
             }
             virtualFAP.Source = source.Source;
-            virtualFAP.Type = AssetPackType.ReplacerVirtual;
             return virtualFAP;
         }
     }

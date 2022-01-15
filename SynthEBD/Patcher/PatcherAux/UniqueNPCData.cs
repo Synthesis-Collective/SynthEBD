@@ -19,12 +19,14 @@ namespace SynthEBD
                 AssignedBodySlidePreset = null;
                 AssignedHeight = -1;
                 this.ReplacerAssignments = new List<LinkedAssetReplacerAssignment>();
+                this.MixInAssignments = new Dictionary<string, SubgroupCombination>();
             }
             public SubgroupCombination AssignedCombination { get; set; }
             public List<BodyGenConfig.BodyGenTemplate> AssignedMorphs { get; set; }
             public BodySlideSetting AssignedBodySlidePreset { get; set; }
             public float AssignedHeight { get; set; }
             public List<LinkedAssetReplacerAssignment> ReplacerAssignments { get; set; }
+            public Dictionary<string, SubgroupCombination> MixInAssignments { get; set; }
             public class LinkedAssetReplacerAssignment
             {
                 public LinkedAssetReplacerAssignment()
@@ -76,7 +78,8 @@ namespace SynthEBD
             {
                 switch (property)
                 {
-                    case AssignmentType.Assets: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedCombination;
+                    case AssignmentType.PrimaryAssets: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedCombination;
+                    case AssignmentType.MixInAssets: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].MixInAssignments;
                     case AssignmentType.ReplacerAssets: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].ReplacerAssignments;
                     case AssignmentType.BodyGen: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedMorphs;
                     case AssignmentType.BodySlide: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedBodySlidePreset;

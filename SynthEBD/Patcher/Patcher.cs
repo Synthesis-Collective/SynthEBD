@@ -254,8 +254,14 @@ namespace SynthEBD
                 {
                     switch (currentNPCInfo.Gender)
                     {
-                        case Gender.Female: primaryAssetPacks = sortedAssetPacks.PrimaryFemale; break;
-                        case Gender.Male: primaryAssetPacks = sortedAssetPacks.PrimaryMale; break;
+                        case Gender.Female: 
+                            primaryAssetPacks = sortedAssetPacks.PrimaryFemale;
+                            mixInAssetPacks = sortedAssetPacks.MixInFemale;
+                            break;
+                        case Gender.Male:
+                            primaryAssetPacks = sortedAssetPacks.PrimaryMale;
+                            mixInAssetPacks = sortedAssetPacks.MixInMale;
+                            break;
                     }
 
                     assignedPrimaryComboAndBodyShape = AssetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, primaryAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, null);
@@ -348,7 +354,7 @@ namespace SynthEBD
                     if (assetsAssigned)
                     {
                         RecordGenerator.CombinationToRecords(assignedMixIn.AssignedCombination, currentNPCInfo, recordTemplateLinkCache, outputMod);
-
+                        AssetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedMixIn.AssignedCombination, currentNPCInfo, mixInConfig.GroupName);
                     }
                 }
                 #endregion

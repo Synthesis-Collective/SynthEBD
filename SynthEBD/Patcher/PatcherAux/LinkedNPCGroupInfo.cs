@@ -18,6 +18,7 @@ namespace SynthEBD
             this.AssignedHeight = -1;
             this.PrimaryNPCFormKey = sourceGroup.Primary;
             this.ReplacerAssignments = new List<LinkedAssetReplacerAssignment>();
+            this.MixInAssignments = new Dictionary<string, SubgroupCombination>();
         }
 
         public HashSet<FormKey> NPCFormKeys { get; set; }
@@ -27,6 +28,7 @@ namespace SynthEBD
         public BodySlideSetting AssignedBodySlide { get; set; }
         public float AssignedHeight { get; set; }
         public List<LinkedAssetReplacerAssignment> ReplacerAssignments { get; set; }
+        public Dictionary<string, SubgroupCombination> MixInAssignments { get; set; }
 
         public class LinkedAssetReplacerAssignment
         {

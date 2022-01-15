@@ -41,10 +41,15 @@ namespace SynthEBD
             }
         }
 
-        public static bool SelectFile(string initDir, out string path)
+        public static bool SelectFile(string initDir, string filter, out string path)
         {
-            System.Windows.Forms.OpenFileDialog dialog = new System.Windows.Forms.OpenFileDialog();
             path = "";
+
+            System.Windows.Forms.OpenFileDialog dialog = new System.Windows.Forms.OpenFileDialog();
+            if (!string.IsNullOrWhiteSpace(filter))
+            {
+                dialog.Filter = filter;
+            }
 
             if (initDir != "")
             {
