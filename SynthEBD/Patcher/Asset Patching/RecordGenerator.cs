@@ -33,7 +33,7 @@ namespace SynthEBD
                 foreach (var path in subgroup.Paths)
                 {
                     var parsed = new FilePathReplacementParsed(path);
-                    
+                    /*
                     if (WornArmorPaths.Contains(path.Destination)) { wnamPaths.Add(path); }
                     else if (HeadTexturePaths.Contains(path.Destination)) { headtexPaths.Add(path); }
                     else
@@ -44,15 +44,15 @@ namespace SynthEBD
                             longestPath = parsed.Destination.Length;
                         }
                     }
-                    
+                    */
                     // temp debugging for profiling generic record assignment function
-                    /*
+                    
                     nonHardcodedPaths.Add(parsed);
                     if (parsed.Destination.Length > longestPath)
                     {
                         longestPath = parsed.Destination.Length;
                     }
-                    */
+                    
                     // end temp debugging
                 }
             }
@@ -196,9 +196,9 @@ namespace SynthEBD
                                         }
 
                                         copiedRecord.EditorID += "_" + npcInfo.NPC.EditorID;
-                                        currentObj = copiedRecord;
 
-                                        SetSubValue(rootObj, currentSubPath, currentObj, indexIfInArray, outputMod);
+                                        SetViaFormKeyReplacement(currentObj, copiedRecord, rootObj, currentSubPath, indexIfInArray, outputMod);
+                                        currentObj = copiedRecord;
                                     } 
                                 }
                                 else if (recordTemplateLinkCache.TryResolve(recordFormKey.Value, recordType, out currentMajorRecordGetter)) // note: current object can belong to a record template if it is an attribute of a class that was copied from a record template (since copying the struct doesn't deep copy the contained formlnks)
@@ -284,7 +284,7 @@ namespace SynthEBD
             IMajorRecord newRecord = null;
             HashSet<IMajorRecord> copiedRecords = new HashSet<IMajorRecord>(); // includes current record and its subrecords
 
-            if (ObjectIsFormLink(recordToCopy))
+            if (ObjectIsFormLink(recordToCopy, out bool _))
             {
                 IMajorRecordGetter linkedMajorRecordGetter = null;
                 if (TryGetRegister(recordToCopy, out Type recordType) && recordTemplateLinkCache.TryResolve(recordToCopy.FormKey, recordType, out linkedMajorRecordGetter))
@@ -308,9 +308,9 @@ namespace SynthEBD
             templateDerivedRecords.UnionWith(copiedRecords);
             IncrementEditorID(copiedRecords);
 
-            currentObj = newRecord;
+            SetViaFormKeyReplacement(recordToCopy, newRecord, rootObj, currentSubPath, indexIfInArray, outputMod);
 
-            SetSubValue(recordToCopy, currentSubPath, currentObj, indexIfInArray, outputMod);
+            currentObj = newRecord;
 
             recordsAtPaths.Add(pathSignature, newRecord); // store paths associated with this record for future lookup to avoid having to repeat the reflection for other NPCs who get the same combination and need to be assigned the same record
             return true;
@@ -324,19 +324,15 @@ namespace SynthEBD
             }
         }
 
-        private static void SetSubValue(dynamic toReplace, string currentSubPath, dynamic value, int? arrayIndex, SkyrimMod outputMod)
+        private static void SetViaFormKeyReplacement(dynamic toReplace, IMajorRecord replaceWith, dynamic root, string currentSubPath, int? arrayIndex, SkyrimMod outputMod)
         {
             if (RecordPathParser.PathIsArray(currentSubPath))
             {
-                SetRecordInArray(toReplace, arrayIndex.Value, value);
+                SetRecordInArray(root, arrayIndex.Value, replaceWith);
             }
-            else if (ObjectIsRecord(toReplace, outputMod, out IMajorRecord _) || ObjectIsFormLink(toReplace))
+            else if (RecordPathParser.GetSubObject(root, currentSubPath, out dynamic formLinkToSet))
             {
-                RecordPathParser.SetSubObject(toReplace, "FormKey", value.FormKey);
-            }
-            else if (RecordPathParser.ObjectHasFormKey(toReplace))
-            {
-                SetFormLinkByFormKey((IFormLinkContainerGetter)toReplace, currentSubPath, value, outputMod);
+                formLinkToSet.SetTo(replaceWith.FormKey);
             }
         }
 
@@ -361,11 +357,17 @@ namespace SynthEBD
             return false;
         }
 
-        private static bool ObjectIsFormLink(dynamic currentObject)
+        private static bool ObjectIsFormLink(dynamic currentObject, out bool nullable)
         {
+            nullable = false;
             Type objType = currentObject.GetType();
             if (objType.Name == "FormLink`1")
             {
+                return true;
+            }
+            else if (objType.Name == "FormLinkNullable`1")
+            {
+                nullable = true;
                 return true;
             }
             return false;
