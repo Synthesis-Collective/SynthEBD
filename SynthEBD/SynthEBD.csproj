@@ -11,11 +11,11 @@
     <PackageReference Include="FastMember" Version="1.5.0" />
     <PackageReference Include="gong-wpf-dragdrop" Version="3.0.0" />
     <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.39" />
-    <PackageReference Include="Mutagen.Bethesda" Version="0.35.0-pr003" />
+    <PackageReference Include="Mutagen.Bethesda" Version="0.35.0-pr004" />
     <PackageReference Include="Mutagen.Bethesda.FormKeys.SkyrimSE" Version="2.1.0" />
-    <PackageReference Include="Mutagen.Bethesda.Json" Version="0.35.0-pr003" />
-    <PackageReference Include="Mutagen.Bethesda.Skyrim" Version="0.35.0-pr003" />
-    <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.35.0-pr003" />
+    <PackageReference Include="Mutagen.Bethesda.Json" Version="0.35.0-pr004" />
+    <PackageReference Include="Mutagen.Bethesda.Skyrim" Version="0.35.0-pr004" />
+    <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.35.0-pr004" />
     <PackageReference Include="PropertyChanged.Fody" Version="3.4.0" />
     <PackageReference Include="Z.Expressions.Eval" Version="4.0.69" />
   </ItemGroup>

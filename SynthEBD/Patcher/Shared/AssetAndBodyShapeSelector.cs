@@ -300,12 +300,7 @@ namespace SynthEBD
                         // if not, then the curent combination is fine because no other combination would be compatible with any BodyGen morphs anyway
                         if (!bodyShapeAssignable)
                         {
-                            Logger.LogReport("No body shapes would be assignable even without the restrictions imposed by the current combination. Keeping the current combination and the current body shape.", false, npcInfo);
-                            switch (PatcherSettings.General.BodySelectionMode)
-                            {
-                                case BodyShapeSelectionMode.BodyGen: assignment.AssignedBodyGenMorphs.AddRange(candidateMorphs); break;
-                                case BodyShapeSelectionMode.BodySlide: assignment.AssignedOBodyPreset = candidatePreset; break;
-                            }
+                            Logger.LogReport("No body shapes would be assignable even without the restrictions imposed by the current combination. Keeping the current combination.", false, npcInfo);
                             combinationIsValid = true;
                         }
                         else // 

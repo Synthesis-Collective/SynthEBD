@@ -336,28 +336,31 @@ namespace SynthEBD
                 }
                 #endregion
 
-                #region Asset Replacer assignment
-                if (assetsAssigned) // assign direct replacers
+                if (PatcherSettings.General.bChangeMeshesOrTextures && !blockAssets && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.AssetsRace))
                 {
-                    var assignedReplacers = AssetSelector.SelectAssetReplacers(assignedPrimaryComboAndBodyShape.AssignedCombination.AssetPack, currentNPCInfo, assignedPrimaryComboAndBodyShape);
-                    foreach (var replacerCombination in assignedReplacers)
+                    #region Asset Replacer assignment
+                    if (assetsAssigned) // assign direct replacers
                     {
-                        RecordGenerator.ReplacerCombinationToRecords(replacerCombination, currentNPCInfo, outputMod);
+                        var assignedReplacers = AssetSelector.SelectAssetReplacers(assignedPrimaryComboAndBodyShape.AssignedCombination.AssetPack, currentNPCInfo, assignedPrimaryComboAndBodyShape);
+                        foreach (var replacerCombination in assignedReplacers)
+                        {
+                            RecordGenerator.ReplacerCombinationToRecords(replacerCombination, currentNPCInfo, outputMod);
+                        }
                     }
-                }
-                #endregion
+                    #endregion
 
-                #region MixIn Asset assignment
-                foreach (var mixInConfig in mixInAssetPacks)
-                {
-                    var assignedMixIn = AssetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out _, new HashSet<FlattenedAssetPack>() { mixInConfig }, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn, assignedPrimaryComboAndBodyShape);
-                    if (assetsAssigned)
+                    #region MixIn Asset assignment
+                    foreach (var mixInConfig in mixInAssetPacks)
                     {
-                        RecordGenerator.CombinationToRecords(assignedMixIn.AssignedCombination, currentNPCInfo, recordTemplateLinkCache, outputMod);
-                        AssetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedMixIn.AssignedCombination, currentNPCInfo, mixInConfig.GroupName);
+                        var assignedMixIn = AssetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out _, new HashSet<FlattenedAssetPack>() { mixInConfig }, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn, assignedPrimaryComboAndBodyShape);
+                        if (assetsAssigned)
+                        {
+                            RecordGenerator.CombinationToRecords(assignedMixIn.AssignedCombination, currentNPCInfo, recordTemplateLinkCache, outputMod);
+                            AssetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedMixIn.AssignedCombination, currentNPCInfo, mixInConfig.GroupName);
+                        }
                     }
+                    #endregion
                 }
-                #endregion
 
                 #region Height assignment
                 if (PatcherSettings.General.bChangeHeight && !blockHeight && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.HeightRace))
