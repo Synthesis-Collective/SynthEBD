@@ -77,7 +77,8 @@
             </ItemsControl>
             <StackPanel Grid.Column="0" Grid.Row="10" Orientation="Horizontal" Grid.ColumnSpan="2">
                 <Button Command="{Binding AddNewAssetPackConfigFile}" Foreground="LightGreen" Margin="5">Create New Config File</Button>
-                <Button Command="{Binding InstallFromJson}" Foreground="LightGreen" Margin="5">Install Config Json File</Button>
+                <Button Command="{Binding InstallFromArchive}" Foreground="LightGreen" Margin="5">Install Config from Archive</Button>
+                <Button Command="{Binding InstallFromJson}" Foreground="YellowGreen" Margin="5">Install Config Json File</Button>
             </StackPanel>
         </Grid>
     </ScrollViewer>

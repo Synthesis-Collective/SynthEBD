@@ -41,6 +41,23 @@ namespace SynthEBD
                 execute: _ => this.AssetPacks.Add(new VM_AssetPack(this.AssetPacks, ParentViewModel.BGVM, ParentViewModel.OBVM.DescriptorUI, ParentViewModel.SGVM, ParentViewModel.RecordTemplateLinkCache))
                 );
 
+            InstallFromArchive = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    if (IO_Aux.SelectFile(PatcherSettings.Paths.AssetPackDirPath, "Archive Files (*.7z;*.zip;*.rar)|*.7z;*.zip;*.rar|" + "All files (*.*)|*.*", out string path))
+                    {
+                        ConfigInstaller.InstallConfigFile(path);
+                        /*
+                        var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, ParentViewModel.RecordTemplatePlugins, ParentViewModel.BodyGenConfigs);
+                        if (newAssetPack != null)
+                        {
+                            AssetPacks.Add(VM_AssetPack.GetViewModelFromModel(newAssetPack, ParentViewModel.SGVM, AssetPacks, ParentViewModel.BGVM, ParentViewModel.OBVM.DescriptorUI, ParentViewModel.RecordTemplateLinkCache));
+                        }*/
+                    }
+                }
+                );
+
             InstallFromJson = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ =>
@@ -74,6 +91,7 @@ namespace SynthEBD
         public RelayCommand AddTrimPath { get; }
         public RelayCommand RemoveTrimPath { get; }
         public RelayCommand AddNewAssetPackConfigFile { get; }
+        public RelayCommand InstallFromArchive { get; }
         public RelayCommand InstallFromJson { get; }
 
         public static void GetViewModelFromModel(VM_SettingsTexMesh viewModel, Settings_TexMesh model)
