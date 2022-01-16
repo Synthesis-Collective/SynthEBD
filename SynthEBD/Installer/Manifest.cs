@@ -15,15 +15,17 @@ namespace SynthEBD
             AssetPackPaths = new HashSet<string>();
             RecordTemplatePaths = new HashSet<string>();
             BodyGenConfigPaths = new HashSet<string>();
+            OptionsDescription = "";
             Options = new HashSet<Option>();
-            MainDownloadInfo = new HashSet<DownloadInfo>();
+            DownloadInfo = new HashSet<DownloadInfoContainer>();
         }
         public string ConfigName { get; set; }
         public string ConfigDescription { get; set; }
         public HashSet<string> AssetPackPaths { get; set; }
         public HashSet<string> RecordTemplatePaths { get; set; }
         public HashSet<string> BodyGenConfigPaths { get; set; }
-        public HashSet<DownloadInfo> MainDownloadInfo { get; set; }
+        public HashSet<DownloadInfoContainer> DownloadInfo { get; set; }
+        public string OptionsDescription { get; set; }
         public HashSet<Option> Options { get; set; }
 
         public class Option
@@ -35,7 +37,8 @@ namespace SynthEBD
                 AssetPackPaths = new HashSet<string>();
                 RecordTemplatePaths = new HashSet<string>();
                 BodyGenConfigPaths = new HashSet<string>();
-                DownloadInfo = new HashSet<DownloadInfo>();
+                DownloadInfo = new HashSet<DownloadInfoContainer>();
+                OptionsDescription = "";
                 Options = new HashSet<Option>();
             }
             public string Name { get; set; }
@@ -43,17 +46,21 @@ namespace SynthEBD
             public HashSet<string> AssetPackPaths { get; set;}
             public HashSet<string> RecordTemplatePaths { get; set; }
             public HashSet<string> BodyGenConfigPaths { get; set; }
-            public HashSet<DownloadInfo> DownloadInfo { get; set; }
+            public HashSet<DownloadInfoContainer> DownloadInfo { get; set; }
+            public string OptionsDescription { get; set; }
             public HashSet<Option> Options { get; set; }
         }
 
-        public class DownloadInfo
+        public class DownloadInfoContainer
         {
-            public DownloadInfo()
+            public DownloadInfoContainer()
             {
+                ModPageName = "";
                 URL = "";
                 ExpectedFileName = "";
             }
+            public string ModPageName { get; set; }
+            public string ModDownloadName { get; set; }
             public string URL { get; set; }
             public string ExpectedFileName { get; set; }
         }

@@ -39,29 +39,41 @@ namespace SynthEBD
                 MessageBox.Show("Could not find Manifest.json in " + outputFolder + ". Installation aborted.");
             }
 
-            Manifest manifest = JSONhandler<Manifest>.loadJSONFile(manifestPath);
-            if (manifest == null)
+            Manifest manifest = null;
+            try
+            {
+                manifest = JSONhandler<Manifest>.loadJSONFile(manifestPath);
+                if (manifest == null)
+                {
+                    MessageBox.Show("Could not parse Manifest.json in " + outputFolder + ". Installation aborted.");
+                    return;
+                }
+            }
+            catch
             {
                 MessageBox.Show("Could not parse Manifest.json in " + outputFolder + ". Installation aborted.");
+                return;
             }
 
             var installerWindow = new Window_ConfigInstaller();
             var installerVM = new VM_ConfigInstaller(manifest, installerWindow);
             installerWindow.DataContext = installerVM;
-            installerVM.SelectedOption = installerVM;
+            //installerVM.SelectorMenu = new VM_ConfigSelector(manifest, installerWindow);
+            //installerVM.SelectorMenu.SelectedOption = installerVM.SelectorMenu;
+            //installerVM.DisplayedViewModel = installerVM.SelectorMenu;
             installerWindow.ShowDialog();
 
-            foreach (var bgPath in installerVM.SelectedBodyGenConfigPaths)
+            foreach (var bgPath in installerVM.SelectorMenu.SelectedBodyGenConfigPaths)
             {
                 File.Move(Path.Combine(outputFolder, bgPath), Path.Combine(PatcherSettings.Paths.BodyGenConfigDirPath, bgPath), false);
             }
 
-            foreach (var templatePath in installerVM.SelectedRecordTemplatePaths)
+            foreach (var templatePath in installerVM.SelectorMenu.SelectedRecordTemplatePaths)
             {
                 File.Move(Path.Combine(outputFolder, templatePath), Path.Combine(PatcherSettings.Paths.RecordTemplatesDirPath, templatePath), false);
             }
 
-            foreach (var assetPath in installerVM.SelectedAssetPackPaths)
+            foreach (var assetPath in installerVM.SelectorMenu.SelectedAssetPackPaths)
             {
                 File.Move(Path.Combine(outputFolder, assetPath), Path.Combine(PatcherSettings.Paths.AssetPackDirPath, assetPath), false);
             }
