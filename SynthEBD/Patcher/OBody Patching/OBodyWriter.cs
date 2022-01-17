@@ -143,8 +143,7 @@ namespace SynthEBD
 
             try
             {
-                FileInfo file = new System.IO.FileInfo(destPath);
-                file.Directory.Create(); // If the directory already exists, this method does nothing.
+                PatcherIO.CreateDirectoryIfNeeded(destPath);
                 File.Copy(sourcePath, destPath, true);
             }
             catch
@@ -183,8 +182,7 @@ namespace SynthEBD
 
             try
             {
-                FileInfo file = new System.IO.FileInfo(destPath);
-                file.Directory.Create(); // If the directory already exists, this method does nothing.
+                PatcherIO.CreateDirectoryIfNeeded(destPath);
                 File.WriteAllText(destPath, outputStr);
             }
             catch

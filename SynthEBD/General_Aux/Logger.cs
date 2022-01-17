@@ -20,9 +20,11 @@ namespace SynthEBD
 
         public VM_RunButton RunButton { get; set; }
         public string StatusString { get; set; }
+        public string BackupStatusString { get; set; }
         public string LogString { get; set; }
 
         public SolidColorBrush StatusColor { get; set; }
+        public SolidColorBrush BackupStatusColor { get; set; }
 
         public SolidColorBrush ReadyColor = new SolidColorBrush(Colors.Green);
         public SolidColorBrush WarningColor = new SolidColorBrush(Colors.Yellow);
@@ -293,6 +295,53 @@ namespace SynthEBD
             {
                 Instance.StatusColor = Instance.WarningColor;
             }
+        }
+
+        public static void UpdateStatusAsync(string message, bool triggerWarning)
+        {
+            Task.Run(() => _UpdateStatusAsync(message, triggerWarning));
+        }
+        
+        private static async Task _UpdateStatusAsync(string message, bool triggerWarning)
+        {
+            Instance.StatusString = message;
+            if (triggerWarning)
+            {
+                Instance.StatusColor = Instance.WarningColor;
+            }
+        }
+
+        public static void ArchiveStatusAsync()
+        {
+            Task.Run(() => _ArchiveStatusAsync());
+        }
+
+        private static async Task _ArchiveStatusAsync()
+        {
+            Instance.BackupStatusString = Instance.StatusString;
+            Instance.BackupStatusColor = Instance.StatusColor;
+        }
+        public static void ArchiveStatus()
+        {
+            Instance.BackupStatusString = Instance.StatusString;
+            Instance.BackupStatusColor = Instance.StatusColor;
+        }
+        
+        public static void DeArchiveStatusAsync()
+        {
+            Task.Run(() => _DeArchiveStatusAsync());
+        }
+
+        private static async Task _DeArchiveStatusAsync()
+        {
+            Instance.StatusString = Instance.BackupStatusString;
+            Instance.StatusColor = Instance.BackupStatusColor;
+        }
+
+        public static void DeArchiveStatus()
+        {
+            Instance.StatusString = Instance.BackupStatusString;
+            Instance.StatusColor = Instance.BackupStatusColor;
         }
 
         public static void TimedNotifyStatusUpdate(string error, ErrorType type, int durationSec)

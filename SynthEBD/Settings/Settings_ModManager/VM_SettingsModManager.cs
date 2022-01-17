@@ -30,6 +30,10 @@ namespace SynthEBD
                 );
 
             this.WhenAnyValue(x => x.ModManagerType).Subscribe(x => UpdateDisplayedVM());
+            this.WhenAnyValue(x => x.ModManagerType).Subscribe(x =>
+            {
+                UpdatePatcherSettings();
+            });
         }
 
         public ModManager ModManagerType { get; set; }
@@ -54,12 +58,26 @@ namespace SynthEBD
             }
         }
 
+        public void UpdatePatcherSettings()
+        {
+            if (this != null && PatcherSettings.ModManagerIntegration != null)
+            {
+                DumpViewModelToModel(PatcherSettings.ModManagerIntegration, this);
+            }
+        }
+
         public static void GetViewModelFromModel(Settings_ModManager model, VM_SettingsModManager viewModel)
         {
-            viewModel.ModManagerType = model.ModManagerType;
             VM_MO2Integration.GetViewModelFromModel(model.MO2Settings, viewModel.MO2IntegrationVM);
             VM_VortexIntergation.GetViewModelFromModel(model.VortexSettings, viewModel.VortexIntegrationVM);
             viewModel.TempFolder = model.TempExtractionFolder;
+            viewModel.ModManagerType = model.ModManagerType;
+            switch(model.ModManagerType)
+            {
+                case ModManager.None: model.CurrentInstallationFolder = model.DefaultInstallationFolder; break;
+                case ModManager.ModOrganizer2: model.CurrentInstallationFolder = model.MO2Settings.ModFolderPath; break;
+                case ModManager.Vortex: model.CurrentInstallationFolder = model.VortexSettings.StagingFolderPath; break;
+            }
         }
 
         public static void DumpViewModelToModel(Settings_ModManager model, VM_SettingsModManager viewModel)
@@ -68,6 +86,13 @@ namespace SynthEBD
             VM_MO2Integration.DumpViewModelToModel(model.MO2Settings, viewModel.MO2IntegrationVM);
             VM_VortexIntergation.DumpViewModelToModel(model.VortexSettings, viewModel.VortexIntegrationVM);
             model.TempExtractionFolder = viewModel.TempFolder;
+
+            switch (model.ModManagerType)
+            {
+                case ModManager.None: model.CurrentInstallationFolder = model.DefaultInstallationFolder; break;
+                case ModManager.ModOrganizer2: model.CurrentInstallationFolder = model.MO2Settings.ModFolderPath; break;
+                case ModManager.Vortex: model.CurrentInstallationFolder = model.VortexSettings.StagingFolderPath; break;
+            }
         }
     }
 

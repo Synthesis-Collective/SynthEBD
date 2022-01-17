@@ -23,7 +23,7 @@ namespace SynthEBD
                 execute: _ =>
                 {
                     ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
-                    ParentWindow.SyncModelsToViewModels();
+                    ParentWindow.DumpViewModelsToModels();
                     Patcher.RunPatcher(
                         ParentWindow.AssetPacks, ParentWindow.BodyGenConfigs, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
                         ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.RecordTemplateLinkCache, ParentWindow.RecordTemplatePlugins, ParentWindow.StatusBarVM);

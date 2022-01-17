@@ -16,6 +16,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" Foreground="White">Please download the required resources and navigate to them using the interface below</TextBlock>
@@ -60,5 +61,10 @@
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
+
+        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Bottom">
+            <Button Command="{Binding OK}" Foreground="LightGreen" Margin="0 0 10 0">Finish</Button>
+            <Button Command="{Binding Cancel}" Foreground="Firebrick">Cancel</Button>
+        </StackPanel>
     </Grid>
 </UserControl>

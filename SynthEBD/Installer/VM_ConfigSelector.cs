@@ -103,6 +103,7 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ =>
                 {
+                    parentVM.Cancelled = true;
                     AssociatedWindow.Close();
                 }
                 );
@@ -117,7 +118,7 @@ namespace SynthEBD
                         SelectedRecordTemplatePaths.UnionWith(selection.RecordTemplatePaths);
                         SelectedBodyGenConfigPaths.UnionWith(selection.BodyGenConfigPaths);
                         DownloadInfo.UnionWith(selection.DownloadInfo);
-                        parentVM.DownloadMenu = new VM_DownloadCoordinator(DownloadInfo);
+                        parentVM.DownloadMenu = new VM_DownloadCoordinator(DownloadInfo, AssociatedWindow, parentVM);
                         parentVM.DisplayedViewModel = parentVM.DownloadMenu;
                     }
                 }

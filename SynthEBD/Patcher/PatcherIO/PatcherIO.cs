@@ -10,10 +10,16 @@ namespace SynthEBD
 {
     class PatcherIO
     {
-        public static async Task WriteTextFile(string path, string contents)
+        public static FileInfo CreateDirectoryIfNeeded(string path)
         {
             FileInfo file = new System.IO.FileInfo(path);
             file.Directory.Create(); // If the directory already exists, this method does nothing.
+            return file;
+        }
+
+        public static async Task WriteTextFile(string path, string contents)
+        {
+            var file = CreateDirectoryIfNeeded(path);
 
             try
             {

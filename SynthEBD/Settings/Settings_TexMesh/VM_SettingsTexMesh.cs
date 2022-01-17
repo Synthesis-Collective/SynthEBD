@@ -45,16 +45,15 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    if (IO_Aux.SelectFile(PatcherSettings.Paths.AssetPackDirPath, "Archive Files (*.7z;*.zip;*.rar)|*.7z;*.zip;*.rar|" + "All files (*.*)|*.*", out string path))
+                    ParentViewModel.MMVM.UpdatePatcherSettings(); // make sure mod manager integration is synced w/ latest settings
+                    ConfigInstaller.InstallConfigFile();
+                    mainViewModel.SaveAndRefreshPlugins();
+                    /*
+                    var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, ParentViewModel.RecordTemplatePlugins, ParentViewModel.BodyGenConfigs);
+                    if (newAssetPack != null)
                     {
-                        ConfigInstaller.InstallConfigFile(path);
-                        /*
-                        var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, ParentViewModel.RecordTemplatePlugins, ParentViewModel.BodyGenConfigs);
-                        if (newAssetPack != null)
-                        {
-                            AssetPacks.Add(VM_AssetPack.GetViewModelFromModel(newAssetPack, ParentViewModel.SGVM, AssetPacks, ParentViewModel.BGVM, ParentViewModel.OBVM.DescriptorUI, ParentViewModel.RecordTemplateLinkCache));
-                        }*/
-                    }
+                        AssetPacks.Add(VM_AssetPack.GetViewModelFromModel(newAssetPack, ParentViewModel.SGVM, AssetPacks, ParentViewModel.BGVM, ParentViewModel.OBVM.DescriptorUI, ParentViewModel.RecordTemplateLinkCache));
+                    }*/
                 }
                 );
 

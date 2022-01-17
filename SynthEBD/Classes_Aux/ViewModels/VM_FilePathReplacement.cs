@@ -143,7 +143,7 @@ namespace SynthEBD
             {
                 if (s.Contains(trim.PathToTrim) && s.EndsWith(trim.Extension))
                 {
-                    trimmed = s.Remove(0, s.IndexOf(trim.PathToTrim)).TrimStart(Path.DirectorySeparatorChar);
+                    trimmed = s.Remove(0, s.IndexOf(trim.PathToTrim, StringComparison.OrdinalIgnoreCase)).TrimStart(Path.DirectorySeparatorChar);
                     return true;
                 }
             }

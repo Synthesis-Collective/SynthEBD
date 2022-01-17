@@ -30,9 +30,17 @@ namespace SynthEBD
 
         public static BodyGenConfigs loadBodyGenConfigs(List<RaceGrouping> raceGroupings)
         {
+            string[] empty = new string[0];
+            return loadBodyGenConfigs(empty, PatcherSettings.General.RaceGroupings);
+        }
+        public static BodyGenConfigs loadBodyGenConfigs(string[] filePaths, List<RaceGrouping> raceGroupings)
+        {
             BodyGenConfigs loadedPacks = new BodyGenConfigs();
 
-            string[] filePaths = Directory.GetFiles(PatcherSettings.Paths.BodyGenConfigDirPath, "*.json");
+            if (!filePaths.Any())
+            {
+                filePaths = Directory.GetFiles(PatcherSettings.Paths.BodyGenConfigDirPath, "*.json");
+            }
 
             foreach (string s in filePaths)
             {

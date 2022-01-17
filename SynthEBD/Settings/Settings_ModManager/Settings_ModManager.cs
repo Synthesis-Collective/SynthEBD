@@ -12,6 +12,7 @@ namespace SynthEBD
         {
             ModManagerType = ModManager.None;
             DefaultInstallationFolder = GameEnvironmentProvider.MyEnvironment.DataFolderPath;
+            CurrentInstallationFolder = DefaultInstallationFolder;
             MO2Settings = new MO2();
             VortexSettings = new Vortex();
             TempExtractionFolder = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location), "Temp");
@@ -21,6 +22,7 @@ namespace SynthEBD
         public MO2 MO2Settings { get; set; }
         public Vortex VortexSettings { get; set; }
         public string DefaultInstallationFolder { get; set; }
+        public string CurrentInstallationFolder { get; set; }
         public string TempExtractionFolder { get; set; }
         public class MO2
         {

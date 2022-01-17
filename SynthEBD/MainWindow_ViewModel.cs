@@ -38,9 +38,9 @@ namespace SynthEBD
         public VM_StatusBar StatusBarVM { get; set; }
 
         public VM_LogDisplay LogDisplayVM { get; set; } = new();
-        public List<AssetPack> AssetPacks { get; }
-        public List<HeightConfig> HeightConfigs { get; }
-        public BodyGenConfigs BodyGenConfigs { get; }
+        public List<AssetPack> AssetPacks { get; set; }
+        public List<HeightConfig> HeightConfigs { get; set; }
+        public BodyGenConfigs BodyGenConfigs { get; set; }
         public Dictionary<string, NPCAssignment> Consistency { get; }
         public HashSet<NPCAssignment> SpecificNPCAssignments { get; }
         public BlockList BlockList { get; }
@@ -81,30 +81,17 @@ namespace SynthEBD
             Patcher.ResolvePatchableRaces();
 
             // Load texture and mesh settings
-            RecordTemplatePlugins = SettingsIO_AssetPack.LoadRecordTemplates();
-            RecordTemplateLinkCache = RecordTemplatePlugins.ToImmutableLinkCache();
             PatcherSettings.TexMesh = SettingsIO_AssetPack.LoadTexMeshSettings();
             VM_SettingsTexMesh.GetViewModelFromModel(TMVM, PatcherSettings.TexMesh);
 
-            // load bodygen configs before asset packs - asset packs depend on BodyGen but not vice versa
             PatcherSettings.BodyGen = SettingsIO_BodyGen.LoadBodyGenSettings();
-            BodyGenConfigs = SettingsIO_BodyGen.loadBodyGenConfigs(PatcherSettings.General.RaceGroupings);
-            VM_SettingsBodyGen.GetViewModelFromModel(BodyGenConfigs, PatcherSettings.BodyGen, BGVM, SGVM.RaceGroupings);
 
             // load OBody settings before asset packs - asset packs depend on BodyGen but not vice versa
             PatcherSettings.OBody = SettingsIO_OBody.LoadOBodySettings();
             PatcherSettings.OBody.ImportBodySlides();
-            VM_SettingsOBody.GetViewModelFromModel(PatcherSettings.OBody, OBVM, SGVM.RaceGroupings);
-
-            // load asset packs
-            AssetPacks = SettingsIO_AssetPack.LoadAssetPacks(PatcherSettings.General.RaceGroupings, RecordTemplatePlugins, BodyGenConfigs); // load asset pack models from json
-            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(AssetPacks, SGVM, PatcherSettings.TexMesh, BGVM, OBVM.DescriptorUI, RecordTemplateLinkCache); // add asset pack view models to TexMesh shell view model here
 
             // load heights
             PatcherSettings.Height = SettingsIO_Height.LoadHeightSettings();
-            HeightConfigs = SettingsIO_Height.loadHeightConfigs();
-            VM_HeightConfig.GetViewModelsFromModels(HVM.AvailableHeightConfigs, HeightConfigs);
-            VM_SettingsHeight.GetViewModelFromModel(HVM, PatcherSettings.Height); /// must do after populating configs
 
             // Load Consistency
             Consistency = SettingsIO_Misc.LoadConsistency();
@@ -128,6 +115,8 @@ namespace SynthEBD
             LinkedNPCGroups = SettingsIO_Misc.LoadLinkedNPCGroups();
             SGVM.LinkedNPCGroups = VM_LinkedNPCGroup.GetViewModelsFromModels(LinkedNPCGroups);
 
+            LoadPluginViewModels();
+
             // Start on the settings VM
             DisplayedViewModel = SGVM;
             NavViewModel = NavPanel;
@@ -136,7 +125,41 @@ namespace SynthEBD
             Application.Current.MainWindow.Closing += new CancelEventHandler(MainWindow_Closing);
         }
 
-        public void SyncModelsToViewModels()
+        public void SaveAndRefreshPlugins()
+        {
+            SavePluginViewModels();
+            LoadPluginViewModels();
+        }
+
+        public void LoadPluginViewModels()
+        {
+            // load bodygen configs before asset packs - asset packs depend on BodyGen but not vice versa
+            BodyGenConfigs = SettingsIO_BodyGen.loadBodyGenConfigs(PatcherSettings.General.RaceGroupings);
+            VM_SettingsBodyGen.GetViewModelFromModel(BodyGenConfigs, PatcherSettings.BodyGen, BGVM, SGVM.RaceGroupings);
+
+            VM_SettingsOBody.GetViewModelFromModel(PatcherSettings.OBody, OBVM, SGVM.RaceGroupings);
+
+            RecordTemplatePlugins = SettingsIO_AssetPack.LoadRecordTemplates();
+            RecordTemplateLinkCache = RecordTemplatePlugins.ToImmutableLinkCache();
+
+            // load asset packs
+            AssetPacks = SettingsIO_AssetPack.LoadAssetPacks(PatcherSettings.General.RaceGroupings, RecordTemplatePlugins, BodyGenConfigs); // load asset pack models from json
+            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(AssetPacks, SGVM, PatcherSettings.TexMesh, BGVM, OBVM.DescriptorUI, RecordTemplateLinkCache); // add asset pack view models to TexMesh shell view model here
+
+            // load heights
+            HeightConfigs = SettingsIO_Height.loadHeightConfigs();
+            VM_HeightConfig.GetViewModelsFromModels(HVM.AvailableHeightConfigs, HeightConfigs);
+            VM_SettingsHeight.GetViewModelFromModel(HVM, PatcherSettings.Height); /// must do after populating configs
+        }
+
+        public void SavePluginViewModels()
+        {
+            VM_AssetPack.DumpViewModelsToModels(TMVM.AssetPacks, AssetPacks);
+            VM_HeightConfig.DumpViewModelsToModels(HVM.AvailableHeightConfigs, HeightConfigs);
+            VM_SettingsBodyGen.DumpViewModelToModel(BGVM, PatcherSettings.BodyGen, BodyGenConfigs);
+        }
+
+        public void DumpViewModelsToModels()
         {
             VM_Settings_General.DumpViewModelToModel(SGVM, PatcherSettings.General);
             VM_SettingsTexMesh.DumpViewModelToModel(TMVM, PatcherSettings.TexMesh);
@@ -153,7 +176,7 @@ namespace SynthEBD
 
         void MainWindow_Closing(object sender, CancelEventArgs e)
         {
-            SyncModelsToViewModels();
+            DumpViewModelsToModels();
 
             JSONhandler<Settings_General>.SaveJSONFile(PatcherSettings.General, Paths.GeneralSettingsPath);
 

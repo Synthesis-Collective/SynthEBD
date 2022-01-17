@@ -17,11 +17,14 @@ namespace SynthEBD
             SelectorMenu.SelectedOption = SelectorMenu; // shows the top-level choices
             DownloadMenu = null;
             DisplayedViewModel = SelectorMenu;
+
+            Cancelled = false;
         }
         public Window_ConfigInstaller Window { get; set; }
         public object DisplayedViewModel { get; set; }
         public VM_ConfigSelector SelectorMenu { get; set; }
         public VM_DownloadCoordinator DownloadMenu { get; set; }
+        public bool Cancelled { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
     }

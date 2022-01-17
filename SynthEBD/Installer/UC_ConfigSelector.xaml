@@ -55,8 +55,8 @@
 
 
         <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Horizontal">
-            <Button Command="{Binding OK}" Foreground="LightGreen" Visibility="{Binding OKvisibility, Converter={StaticResource BoolToVis}}">Finish</Button>
-            <Button Command="{Binding Back}" Foreground="LightBlue" Visibility="{Binding BackVisibility, Converter={StaticResource BoolToVis}}">Back</Button>
+            <Button Command="{Binding OK}" Foreground="LightGreen" Visibility="{Binding OKvisibility, Converter={StaticResource BoolToVis}}">Select Downloaded Assets</Button>
+            <Button Command="{Binding Back}" Foreground="LightBlue" Visibility="{Binding BackVisibility, Converter={StaticResource BoolToVis}}" Margin="10 0 10 0">Back</Button>
             <Button Command="{Binding Cancel}" Foreground="Firebrick">Cancel</Button>
         </StackPanel>
     </Grid>

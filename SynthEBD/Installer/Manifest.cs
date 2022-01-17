@@ -12,6 +12,8 @@ namespace SynthEBD
         {
             ConfigName = "";
             ConfigDescription = "";
+            DestinationModFolder = "";
+            FileExtensionMap = new Dictionary<string, string>() { { "nif", "meshes" }, { "dds", "textures" } };
             AssetPackPaths = new HashSet<string>();
             RecordTemplatePaths = new HashSet<string>();
             BodyGenConfigPaths = new HashSet<string>();
@@ -21,6 +23,8 @@ namespace SynthEBD
         }
         public string ConfigName { get; set; }
         public string ConfigDescription { get; set; }
+        public string DestinationModFolder { get; set; }
+        public Dictionary<string, string> FileExtensionMap { get; set; }
         public HashSet<string> AssetPackPaths { get; set; }
         public HashSet<string> RecordTemplatePaths { get; set; }
         public HashSet<string> BodyGenConfigPaths { get; set; }
