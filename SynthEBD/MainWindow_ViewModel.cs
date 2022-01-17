@@ -144,7 +144,7 @@ namespace SynthEBD
 
             // load asset packs
             AssetPacks = SettingsIO_AssetPack.LoadAssetPacks(PatcherSettings.General.RaceGroupings, RecordTemplatePlugins, BodyGenConfigs); // load asset pack models from json
-            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(AssetPacks, SGVM, PatcherSettings.TexMesh, BGVM, OBVM.DescriptorUI, RecordTemplateLinkCache); // add asset pack view models to TexMesh shell view model here
+            TMVM.AssetPacks = VM_AssetPack.GetViewModelsFromModels(AssetPacks, SGVM, PatcherSettings.TexMesh, BGVM, OBVM.DescriptorUI, RecordTemplateLinkCache, this); // add asset pack view models to TexMesh shell view model here
 
             // load heights
             HeightConfigs = SettingsIO_Height.loadHeightConfigs();

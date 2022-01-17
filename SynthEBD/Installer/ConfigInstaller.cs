@@ -330,7 +330,7 @@ namespace SynthEBD
             foreach (var subgroup in subgroups)
             {
                 collectedPaths.UnionWith(subgroup.paths.Select(x => x.Source));
-                collectedPaths = GetAssetPackSourcePaths(subgroup.subgroups, collectedPaths);
+                collectedPaths = GetAssetPackSourcePaths(subgroup.Subgroups, collectedPaths);
             }
             return collectedPaths;
         }
@@ -482,7 +482,7 @@ namespace SynthEBD
                 {
                     path.Source = pathMap[path.Source];
                 }
-                RemapAssetPackPaths(subgroup.subgroups, pathMap);
+                RemapAssetPackPaths(subgroup.Subgroups, pathMap);
             }
         }
 

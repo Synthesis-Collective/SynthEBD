@@ -18,6 +18,16 @@ namespace SynthEBD
         public string Value { get; set; }
         public string DispString { get; set; }
 
+        public bool Equals(BodyShapeDescriptor other)
+        {
+            if (other == null) { return false; }
+            if (other.Category == Category && other.Value == Value) { return true; }
+            else
+            {
+                return false;
+            }
+        }
+
         public static bool DescriptorsMatch(Dictionary<string, HashSet<string>> DescriptorSet, HashSet<BodyShapeDescriptor> shapeDescriptors)
         {
             foreach (var d in shapeDescriptors)
@@ -35,6 +45,18 @@ namespace SynthEBD
             if (Descriptors.ContainsKey(currentDescriptor.Category))
             {
                 if (Descriptors[currentDescriptor.Category].Contains(currentDescriptor.Value))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public bool CollectionContainsThisDescriptor(IEnumerable<BodyShapeDescriptor> collection)
+        {
+            foreach (var d in collection)
+            {
+                if (d.Equals(this))
                 {
                     return true;
                 }

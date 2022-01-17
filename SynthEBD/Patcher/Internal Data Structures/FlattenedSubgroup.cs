@@ -135,13 +135,13 @@ namespace SynthEBD
                 }
             }
 
-            if (toFlatten.subgroups.Count == 0)
+            if (toFlatten.Subgroups.Count == 0)
             {
                 bottomLevelSubgroups.Add(flattened);
             }
             else
             {
-                foreach (var subgroup in toFlatten.subgroups)
+                foreach (var subgroup in toFlatten.Subgroups)
                 {
                     FlattenSubgroups(subgroup, flattened, bottomLevelSubgroups, raceGroupingList, parentAssetPackName, topLevelIndex, subgroupHierarchy, parentAssetPack);
                 }

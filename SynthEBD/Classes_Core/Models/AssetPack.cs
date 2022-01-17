@@ -9,7 +9,7 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD
 {
-    public class AssetPack
+    public class AssetPack : IModelHasSubgroups
     {
         public AssetPack()
         {
@@ -44,7 +44,69 @@ namespace SynthEBD
         [Newtonsoft.Json.JsonIgnore]
         public string FilePath { get; set; }
 
-        public class Subgroup : IProbabilityWeighted
+        public bool Validate(List<string> errors, BodyGenConfigs bodyGenConfigs)
+        {
+            bool isValidated = true;
+
+            BodyGenConfig referencedBodyGenConfig = new BodyGenConfig();
+
+            if (string.IsNullOrWhiteSpace(GroupName))
+            {
+                errors.Add("Name cannot be empty");
+                isValidated = false;
+            }
+            if (string.IsNullOrWhiteSpace(ShortName) && ReplacerGroups.Any())
+            {
+                errors.Add("Prefix cannot be empty if replacers are included in a group");
+                isValidated = false;
+            }
+
+            if (DefaultRecordTemplate == null || DefaultRecordTemplate.IsNull)
+            {
+                errors.Add("A default record template must be set.");
+                isValidated = false;
+            }
+
+            if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !string.IsNullOrWhiteSpace(AssociatedBodyGenConfigName))
+            {
+                BodyGenConfig matchedConfig = null;
+                switch(Gender)
+                {
+                    case Gender.Male: matchedConfig = bodyGenConfigs.Male.Where(x => x.Label == AssociatedBodyGenConfigName).FirstOrDefault(); break;
+                    case Gender.Female: matchedConfig = bodyGenConfigs.Female.Where(x => x.Label == AssociatedBodyGenConfigName).FirstOrDefault(); break;
+                }
+                if (matchedConfig != null)
+                {
+                    referencedBodyGenConfig = matchedConfig;
+                }
+                else
+                {
+                    errors.Add("The expected associated BodyGen config " + AssociatedBodyGenConfigName + " could not be found.");
+                    isValidated = false;
+                }
+            }
+
+            if (!ValidateSubgroups(Subgroups, errors, this, referencedBodyGenConfig))
+            {
+                isValidated = false;
+            }
+            foreach (var replacer in ReplacerGroups)
+            {
+                if (!ValidateReplacer(replacer, referencedBodyGenConfig, errors))
+                {
+                    isValidated = false;
+                }
+            }
+
+            if(!isValidated)
+            {
+                errors.Insert(0, "Errors detected in Config File " + GroupName);
+            }
+
+            return isValidated;
+        }
+
+        public class Subgroup : IProbabilityWeighted, IModelHasSubgroups
         {
             public Subgroup()
             {
@@ -70,7 +132,7 @@ namespace SynthEBD
                 this.allowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>();
                 this.disallowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>();
                 this.weightRange = new NPCWeightRange();
-                this.subgroups = new HashSet<Subgroup>();
+                this.Subgroups = new List<Subgroup>();
 
                 this.TopLevelSubgroupID = "";
             }
@@ -97,8 +159,262 @@ namespace SynthEBD
             public HashSet<BodyShapeDescriptor> allowedBodySlideDescriptors { get; set; }
             public HashSet<BodyShapeDescriptor> disallowedBodySlideDescriptors { get; set; }
             public NPCWeightRange weightRange { get; set; }
-            public HashSet<Subgroup> subgroups { get; set; }
+            public List<Subgroup> Subgroups { get; set; }
             public string TopLevelSubgroupID { get; set; }
+        }
+
+        private static bool ValidateSubgroups(List<AssetPack.Subgroup> subgroups, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig)
+        {
+            bool isValid = true;
+            for (int i = 0; i < subgroups.Count; i++)
+            {
+                if (!ValidateSubgroup(subgroups[i], errors, parent, bodyGenConfig, i))
+                {
+                    isValid = false;
+                }
+            }
+            return isValid;
+        }
+
+        private static bool ValidateSubgroup(Subgroup subgroup, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, int topLevelIndex)
+        {
+            if (!subgroup.enabled) { return true; }
+
+            bool isValid = true;
+            List<string> subErrors = new List<string>();
+
+            if (string.IsNullOrWhiteSpace(subgroup.id))
+            {
+                subErrors.Add("Subgroup does not have an ID");
+            }
+            if (!ValidateID(subgroup.id))
+            {
+                subErrors.Add("ID must be alphanumeric or .");
+                isValid = false;
+            }
+
+            if (HasDuplicateSubgroupIDs(subgroup, subErrors))
+            {
+                isValid = false;
+            }
+            
+            if (string.IsNullOrWhiteSpace(subgroup.name))
+            {
+                subErrors.Add("Subgroup must have a name");
+                isValid = false;
+            }
+
+            var thisPosition = new List<int> { topLevelIndex };
+            var otherPostitions = new List<int>();
+            for (int i = 0; i < parent.Subgroups.Count; i++)
+            {
+                if (i == topLevelIndex)
+                {
+                    continue;
+                }
+                else
+                {
+                    otherPostitions.Add(i);
+                }
+            }
+
+            foreach (var id in subgroup.requiredSubgroups)
+            {
+                if (GetSubgroupByID(id, parent, out _, thisPosition) != null)
+                {
+                    subErrors.Add("Cannot use " + id + " as a required subgroup because it is in the same branch as " + subgroup.id);
+                    isValid = false;
+                }
+                else if (GetSubgroupByID(id, parent, out _, otherPostitions) == null)
+                {
+                    subErrors.Add("Cannot use " + id + " as a required subgroup because it was not found in the subgroup tree");
+                    isValid = false;
+                }
+            }
+
+            foreach (var id in subgroup.excludedSubgroups)
+            {
+                if (GetSubgroupByID(id, parent, out _, thisPosition) != null)
+                {
+                    subErrors.Add("Cannot use " + id + " as an excluded subgroup because it is in the same branch as " + subgroup.id);
+                    isValid = false;
+                }
+                else if (GetSubgroupByID(id, parent, out _, otherPostitions) == null)
+                {
+                    subErrors.Add("Cannot use " + id + " as an excluded subgroup because it was not found in the subgroup tree");
+                    isValid = false;
+                }
+            }
+
+            if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen && bodyGenConfig != null)
+            {
+                foreach (var descriptor in subgroup.allowedBodyGenDescriptors)
+                {
+                    if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors))
+                    {
+                        subErrors.Add("Allowed descriptor " + descriptor.DispString + " is invalid because it is not contained within the associated BodyGen config's descriptors");
+                        isValid=false;
+                    }
+                }
+                foreach (var descriptor in subgroup.disallowedBodyGenDescriptors)
+                {
+                    if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors))
+                    {
+                        subErrors.Add("Disallowed descriptor " + descriptor.DispString + " is invalid because it is not contained within the associated BodyGen config's descriptors");
+                        isValid = false;
+                    }
+                }
+            }
+
+            else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
+            {
+                foreach (var descriptor in subgroup.allowedBodyGenDescriptors)
+                {
+                    if (!descriptor.CollectionContainsThisDescriptor(PatcherSettings.OBody.TemplateDescriptors))
+                    {
+                        subErrors.Add("Allowed descriptor " + descriptor.DispString + " is invalid because it is not contained within your O/AutoBody descriptors");
+                        isValid = false;
+                    }
+                }
+                foreach (var descriptor in subgroup.disallowedBodyGenDescriptors)
+                {
+                    if (!descriptor.CollectionContainsThisDescriptor(PatcherSettings.OBody.TemplateDescriptors))
+                    {
+                        subErrors.Add("Disallowed descriptor " + descriptor.DispString + " is invalid because it is not contained within your O/AutoBody descriptors");
+                        isValid = false;
+                    }
+                }
+            }
+
+            foreach (var path in subgroup.paths)
+            {
+                var fullPath = System.IO.Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, path.Source);
+                if (!System.IO.File.Exists(fullPath))
+                {
+                    subErrors.Add("No file exists at " + fullPath);
+                    isValid = false;
+                }
+            }
+
+            if (!isValid)
+            {
+                subErrors.Insert(0, "Subgroup " + subgroup.id + ":" + subgroup.name + " within branch " + (topLevelIndex + 1).ToString());
+                errors.AddRange(subErrors);
+            }
+
+            foreach (var subSubgroup in subgroup.Subgroups)
+            {
+                if (!ValidateSubgroup(subSubgroup, errors, parent, bodyGenConfig, topLevelIndex))
+                {
+                    isValid = false;
+                }
+            }
+
+            return isValid;
+        }
+
+        private static bool ValidateID(string id)
+        {
+            string tmp = id.Replace(".", "");
+            if (tmp.All(char.IsLetterOrDigit))
+            {
+                return true;
+            }
+            else;
+            { return false; }
+        }
+
+        private static bool ValidateReplacer(AssetReplacerGroup group, BodyGenConfig bodyGenConfig, List<string> errors)
+        {
+            bool isValid = true;
+            if (string.IsNullOrWhiteSpace(group.Label))
+            {
+                errors.Add("A group with an empty name was detected");
+                isValid = false;
+            }
+
+            ValidateSubgroups(group.Subgroups, errors, group, bodyGenConfig);
+            return isValid;
+        }
+
+        private static bool HasDuplicateSubgroupIDs(IModelHasSubgroups model, List<string> errors)
+        {
+            List<string> ids = new List<string>();
+            List<string> duplicates = new List<string>();
+            foreach (var subgroup in model.Subgroups)
+            {
+                GetIDDuplicates(subgroup, ids, duplicates);
+            }
+
+            if (duplicates.Any())
+            {
+                errors.Add("Duplicate subgroup IDs within the same parent config are not allowed. The following IDs were found to be duplicated:");
+                foreach (string id in duplicates)
+                {
+                    errors.Add(id);
+                }
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        private static void GetIDDuplicates(IModelHasSubgroups model, List<string> searched, List<string> duplicates)
+        {
+            foreach (var subgroup in model.Subgroups)
+            {
+                if (!searched.Contains(subgroup.id))
+                {
+                    searched.Add(subgroup.id);
+                }
+                else
+                {
+                    duplicates.Add(subgroup.id);
+                }
+
+                foreach (var subSubgroup in subgroup.Subgroups)
+                {
+                    GetIDDuplicates(subSubgroup, searched, duplicates);
+                }
+            }
+        }
+
+        private static Subgroup GetSubgroupByID(string id, IModelHasSubgroups model, out bool foundMultiple, List<int> topLevelSubgroupsToSearch)
+        {
+            List<Subgroup> matched = new List<Subgroup>();
+
+            for (int i = 0; i < model.Subgroups.Count; i++)
+            {
+                if (!topLevelSubgroupsToSearch.Contains(i)) { continue; }
+                GetSubgroupByID(id, model.Subgroups[i], matched);
+            }
+
+          
+            if (matched.Count > 1)
+            {
+                foundMultiple = true;
+            }
+            else
+            {
+                foundMultiple = false;
+            }
+
+            return matched.FirstOrDefault();
+        }
+
+        private static void GetSubgroupByID(string id, IModelHasSubgroups model, List<Subgroup> matched)
+        {
+            for (int i = 0; i < model.Subgroups.Count; i++)
+            {
+                var subgroup = model.Subgroups[i];
+                if (subgroup.id == id)
+                {
+                    matched.Add(subgroup);
+                }
+                GetSubgroupByID(id, subgroup, matched);
+            }
         }
     }
 
@@ -107,7 +423,7 @@ namespace SynthEBD
         Primary,
         MixIn
     }
-    public class AssetReplacerGroup
+    public class AssetReplacerGroup : IModelHasSubgroups
     {
         public AssetReplacerGroup()
         {
@@ -132,6 +448,11 @@ namespace SynthEBD
         public HashSet<string> Paths { get; set; }
         public FormKey DestFormKeySpecifier { get; set; }
         public SubgroupCombination.DestinationSpecifier DestSpecifier { get; set; }
+    }
+
+    public interface IModelHasSubgroups
+    {
+        public List<AssetPack.Subgroup> Subgroups { get; set; }
     }
 
     /* Will probably need to discard - can't edit tints
@@ -341,7 +662,7 @@ namespace SynthEBD
 
                 foreach (var sg in g.subgroups)
                 {
-                    s.subgroups.Add(ToSynthEBDSubgroup(sg, raceGroupings, s.TopLevelSubgroupID, assetPackName, conversionErrors));
+                    s.Subgroups.Add(ToSynthEBDSubgroup(sg, raceGroupings, s.TopLevelSubgroupID, assetPackName, conversionErrors));
                 }
 
                 return s;

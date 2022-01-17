@@ -5,7 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
+using System.Windows;
 
 namespace SynthEBD
 {
@@ -35,10 +35,24 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: x => this.TrimPaths.Remove((TrimPath)x)
                 );
-
+            ValidateAll = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    if (ValidateAllConfigs(mainViewModel.BodyGenConfigs, out List<string> errors))
+                    {
+                        MessageBox.Show("No errors found.");
+                    }
+                    else
+                    {
+                        Logger.LogMessage(String.Join(Environment.NewLine, errors));
+                        mainViewModel.DisplayedViewModel = mainViewModel.LogDisplayVM;
+                    }
+                }
+                );
             AddNewAssetPackConfigFile = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.AssetPacks.Add(new VM_AssetPack(this.AssetPacks, ParentViewModel.BGVM, ParentViewModel.OBVM.DescriptorUI, ParentViewModel.SGVM, ParentViewModel.RecordTemplateLinkCache))
+                execute: _ => this.AssetPacks.Add(new VM_AssetPack(this.AssetPacks, ParentViewModel.BGVM, ParentViewModel.OBVM.DescriptorUI, ParentViewModel.SGVM, ParentViewModel.RecordTemplateLinkCache, ParentViewModel))
                 );
 
             InstallFromArchive = new SynthEBD.RelayCommand(
@@ -66,7 +80,7 @@ namespace SynthEBD
                         var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, ParentViewModel.RecordTemplatePlugins, ParentViewModel.BodyGenConfigs);
                         if (newAssetPack != null)
                         {
-                            AssetPacks.Add(VM_AssetPack.GetViewModelFromModel(newAssetPack, ParentViewModel.SGVM, AssetPacks, ParentViewModel.BGVM, ParentViewModel.OBVM.DescriptorUI, ParentViewModel.RecordTemplateLinkCache));
+                            AssetPacks.Add(VM_AssetPack.GetViewModelFromModel(newAssetPack, ParentViewModel.SGVM, AssetPacks, ParentViewModel.BGVM, ParentViewModel.OBVM.DescriptorUI, ParentViewModel.RecordTemplateLinkCache, ParentViewModel));
                         }
                     }
                 }
@@ -89,9 +103,26 @@ namespace SynthEBD
 
         public RelayCommand AddTrimPath { get; }
         public RelayCommand RemoveTrimPath { get; }
+        public RelayCommand ValidateAll { get; }
         public RelayCommand AddNewAssetPackConfigFile { get; }
         public RelayCommand InstallFromArchive { get; }
         public RelayCommand InstallFromJson { get; }
+
+        public bool ValidateAllConfigs(BodyGenConfigs bodyGenConfigs, out List<string> errors)
+        {
+            bool isValid = true;
+            errors = new List<string>();
+            foreach (var config in AssetPacks)
+            {
+                if (!config.Validate(bodyGenConfigs, out var configErrors))
+                {
+                    isValid = false;
+                    errors.AddRange(configErrors);
+                    errors.Add("");
+                }
+            }
+            return isValid;
+        }
 
         public static void GetViewModelFromModel(VM_SettingsTexMesh viewModel, Settings_TexMesh model)
         {

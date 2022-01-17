@@ -12,15 +12,15 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" Text="Status Log"/>
-        <Border Grid.Row="1" Grid.Column="0"  BorderBrush="DarkCyan" BorderThickness="1" Margin="10">
+        <Border Grid.Row="0" Grid.Column="0"  BorderBrush="DarkCyan" BorderThickness="1" Margin="10">
             <ScrollViewer local:AutoScrollBehavior.AutoScroll="True">
                 <TextBox Text="{Binding Path=DispString, Mode=OneWay}" Background="Transparent" BorderThickness="0" IsReadOnly="True" TextWrapping="Wrap" FontSize="12"/>
             </ScrollViewer>
         </Border>
+        <Button Grid.Row="1" Grid.Column="0" Command="{Binding Clear}" HorizontalAlignment="Left" Foreground="Firebrick">Clear</Button>
     </Grid>
 </UserControl>

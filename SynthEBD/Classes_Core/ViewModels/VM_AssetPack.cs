@@ -18,7 +18,7 @@ namespace SynthEBD
 {
     public class VM_AssetPack : INotifyPropertyChanged
     {
-        public VM_AssetPack(ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, VM_Settings_General generalSettingsVM, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
+        public VM_AssetPack(ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, VM_Settings_General generalSettingsVM, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)
         {
             this.groupName = "";
             this.ShortName = "";
@@ -96,6 +96,21 @@ namespace SynthEBD
                     }
                 }
                 );
+
+            ValidateButton = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => {
+                    if (Validate(mainVM.BodyGenConfigs, out List<string> errors))
+                    {
+                        MessageBox.Show("No errors found.");
+                    }
+                    else
+                    {
+                        Logger.LogMessage(String.Join(Environment.NewLine, errors));
+                        mainVM.DisplayedViewModel = mainVM.LogDisplayVM;
+                    }
+                }
+                );
         }
 
         public string groupName { get; set; }
@@ -133,6 +148,8 @@ namespace SynthEBD
         public RelayCommand AddRecordTemplateAdditionalRacesPath { get; }
         public RelayCommand ImportAttributeGroups { get; }
 
+        public RelayCommand ValidateButton { get; }
+
         public BodyShapeSelectionMode BodyShapeMode { get; set; }
 
         public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>() // referenced by xaml; don't trust VS reference count
@@ -141,21 +158,28 @@ namespace SynthEBD
             {Gender.Female, "Female"},
         };
 
-        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
+        public bool Validate(BodyGenConfigs bodyGenConfigs, out List<string> errors)
+        {
+            var model = DumpViewModelToViewModel(this);
+            errors = new List<string>();
+            return model.Validate(errors, bodyGenConfigs);
+        }
+
+        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)
         {
             ObservableCollection<VM_AssetPack> viewModels = new ObservableCollection<VM_AssetPack>();
 
             for (int i = 0; i < assetPacks.Count; i++)
             {
-                var viewModel = GetViewModelFromModel(assetPacks[i], generalSettingsVM, viewModels, bodygenSettingsVM, OBodyDescriptorMenu, recordTemplateLinkCache);
+                var viewModel = GetViewModelFromModel(assetPacks[i], generalSettingsVM, viewModels, bodygenSettingsVM, OBodyDescriptorMenu, recordTemplateLinkCache, mainVM);
                 viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].GroupName);
                 viewModels.Add(viewModel);
             }
             return viewModels;
         }
-        public static VM_AssetPack GetViewModelFromModel(AssetPack model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
+        public static VM_AssetPack GetViewModelFromModel(AssetPack model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)
         {
-            var viewModel = new VM_AssetPack(parentCollection, bodygenSettingsVM, OBodyDescriptorMenu, generalSettingsVM, recordTemplateLinkCache);
+            var viewModel = new VM_AssetPack(parentCollection, bodygenSettingsVM, OBodyDescriptorMenu, generalSettingsVM, recordTemplateLinkCache, mainVM);
             viewModel.groupName = model.GroupName;
             viewModel.ShortName = model.ShortName;
             viewModel.ConfigType = model.ConfigType;
@@ -221,36 +245,43 @@ namespace SynthEBD
 
             foreach (var vm in viewModels)
             {
-                AssetPack model = new AssetPack();
-                model.GroupName = vm.groupName;
-                model.ShortName = vm.ShortName;
-                model.ConfigType = vm.ConfigType;
-                model.Gender = vm.gender;
-                model.DisplayAlerts = vm.displayAlerts;
-                model.UserAlert = vm.userAlert;
-
-                if (vm.TrackedBodyGenConfig != null)
-                {
-                    model.AssociatedBodyGenConfigName = vm.TrackedBodyGenConfig.Label;
-                }
-
-                model.DefaultRecordTemplate = vm.DefaultTemplateFK;
-                model.AdditionalRecordTemplateAssignments = vm.AdditionalRecordTemplateAssignments.Select(x => VM_AdditionalRecordTemplate.DumpViewModelToModel(x)).ToHashSet();
-                model.RecordTemplateAdditionalRacesPaths = vm.RecordTemplateAdditionalRacesPaths.Select(x => x.Content).ToHashSet();
-
-                VM_AttributeGroupMenu.DumpViewModelToModels(vm.AttributeGroupMenu, model.AttributeGroups);
-
-                foreach (var svm in vm.subgroups)
-                {
-                    model.Subgroups.Add(VM_Subgroup.DumpViewModelToModel(svm));
-                }
-
-                model.ReplacerGroups = VM_AssetPackDirectReplacerMenu.DumpViewModelToModels(vm.ReplacersMenu);
-
-                model.FilePath = vm.SourcePath;
-                models.Add(model);
+                models.Add(DumpViewModelToViewModel(vm));
             }
         }
+
+        public static AssetPack DumpViewModelToViewModel(VM_AssetPack viewModel)
+        {
+            AssetPack model = new AssetPack();
+            model.GroupName = viewModel.groupName;
+            model.ShortName = viewModel.ShortName;
+            model.ConfigType = viewModel.ConfigType;
+            model.Gender = viewModel.gender;
+            model.DisplayAlerts = viewModel.displayAlerts;
+            model.UserAlert = viewModel.userAlert;
+
+            if (viewModel.TrackedBodyGenConfig != null)
+            {
+                model.AssociatedBodyGenConfigName = viewModel.TrackedBodyGenConfig.Label;
+            }
+
+            model.DefaultRecordTemplate = viewModel.DefaultTemplateFK;
+            model.AdditionalRecordTemplateAssignments = viewModel.AdditionalRecordTemplateAssignments.Select(x => VM_AdditionalRecordTemplate.DumpViewModelToModel(x)).ToHashSet();
+            model.RecordTemplateAdditionalRacesPaths = viewModel.RecordTemplateAdditionalRacesPaths.Select(x => x.Content).ToHashSet();
+
+            VM_AttributeGroupMenu.DumpViewModelToModels(viewModel.AttributeGroupMenu, model.AttributeGroups);
+
+            foreach (var svm in viewModel.subgroups)
+            {
+                model.Subgroups.Add(VM_Subgroup.DumpViewModelToModel(svm));
+            }
+
+            model.ReplacerGroups = VM_AssetPackDirectReplacerMenu.DumpViewModelToModels(viewModel.ReplacersMenu);
+
+            model.FilePath = viewModel.SourcePath;
+
+            return model;
+        }
+
 
         public static ObservableCollection<VM_Subgroup> FlattenSubgroupVMs(ObservableCollection<VM_Subgroup> currentLevelSGs, ObservableCollection<VM_Subgroup> flattened)
         {

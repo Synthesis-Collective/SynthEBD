@@ -189,7 +189,7 @@ namespace SynthEBD
                 viewModel.DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.disallowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
             }
 
-            foreach (var sg in model.subgroups)
+            foreach (var sg in model.Subgroups)
             {
                 viewModel.Subgroups.Add(GetViewModelFromModel(sg, generalSettingsVM, viewModel.Subgroups, parentAssetPack, OBodyDescriptorMenu, setExplicitReferenceNPC));
             }
@@ -271,7 +271,7 @@ namespace SynthEBD
 
             foreach (var sg in viewModel.Subgroups)
             {
-                model.subgroups.Add(DumpViewModelToModel(sg));
+                model.Subgroups.Add(DumpViewModelToModel(sg));
             }
 
             return model;

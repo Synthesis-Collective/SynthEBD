@@ -25,7 +25,7 @@ namespace SynthEBD
             
             this.DispName = "New Assignment";
             this.NPCFormKey = new FormKey();
-            this.ForcedAssetPack = new VM_AssetPack(assetPacks, bodyGenSettings, oBodySettings.DescriptorUI, generalSettingsVM, null);
+            this.ForcedAssetPack = new VM_AssetPack(assetPacks, bodyGenSettings, oBodySettings.DescriptorUI, generalSettingsVM, null, null);
             this.ForcedSubgroups = new ObservableCollection<VM_Subgroup>();
             this.ForcedAssetReplacements = new ObservableCollection<VM_AssetReplacementAssignment>();
             this.ForcedHeight = "";
@@ -293,7 +293,7 @@ namespace SynthEBD
         public static void UpdateAvailableAssetPacks(VM_SpecificNPCAssignment assignment)
         {
             assignment.AvailableAssetPacks.Clear();
-            assignment.AvailableAssetPacks.Add(new VM_AssetPack(new ObservableCollection<VM_AssetPack>(), new VM_SettingsBodyGen(new ObservableCollection<VM_RaceGrouping>()), new VM_BodyShapeDescriptorCreationMenu(), new VM_Settings_General(), null) { groupName = "" }); // blank entry
+            assignment.AvailableAssetPacks.Add(new VM_AssetPack(new ObservableCollection<VM_AssetPack>(), new VM_SettingsBodyGen(new ObservableCollection<VM_RaceGrouping>()), new VM_BodyShapeDescriptorCreationMenu(), new VM_Settings_General(), null, null) { groupName = "" }); // blank entry
             foreach (var assetPack in assignment.SubscribedAssetPacks)
             {
                 if (assetPack.gender == assignment.Gender)

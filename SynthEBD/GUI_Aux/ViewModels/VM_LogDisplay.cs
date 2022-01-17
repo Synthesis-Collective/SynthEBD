@@ -15,12 +15,19 @@ namespace SynthEBD
 
         public string DispString { get; set; }
 
+        public RelayCommand Clear { get; set; }
+
         public VM_LogDisplay()
         {
             this.SubscribedLogger = Logger.Instance;
             this.DispString = "";
 
             this.SubscribedLogger.PropertyChanged += RefreshDisp;
+
+            Clear = new RelayCommand(
+               canExecute: _ => true,
+               execute: x => SubscribedLogger.LogString = ""
+               );
         }
 
         public void RefreshDisp(object sender, PropertyChangedEventArgs e)
