@@ -13,6 +13,16 @@ namespace SynthEBD
 {
     public class OBodyWriter
     {
+        public static void CreateSynthEBDDomain()
+        {
+            string domainPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "SKSE","Plugins","JCData","Domains","PSM_SynthEBD");
+            Directory.CreateDirectory(domainPath);
+
+            string domainScriptPath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "JContainers Domain", "PSM_SynthEBD.pex");
+            string domainScriptDestPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Scripts", "PSM_SynthEBD.pex");
+            TryCopyResourceFile(domainScriptPath, domainScriptDestPath);
+        }
+
         public static Spell CreateOBodyAssignmentSpell(SkyrimMod outputMod, GlobalShort settingsLoadedGlobal)
         {
             // create MGEF first
@@ -93,30 +103,19 @@ namespace SynthEBD
             loaderQuestFragmentAlias.Scripts.Add(playerAliasScriptEntry);
             bsLoaderScriptAdapter.Aliases.Add(loaderQuestFragmentAlias);
             bsLoaderQuest.VirtualMachineAdapter = bsLoaderScriptAdapter;
-            /*
-            var templatePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideQuest", "BodySlide Quest Template.esp");
 
-            try
-            {
-                using ISkyrimModDisposableGetter template = SkyrimMod.CreateFromBinaryOverlay(templatePath, SkyrimRelease.SkyrimSE);
-                var BSloaderQuestTemplate = template.Quests.Where(x => x.EditorID == "SynthEBDBSLoaderQuest").FirstOrDefault();
-                if (BSloaderQuestTemplate != null)
-                {
-                    var BSloaderQuest = BSloaderQuestTemplate.DeepCopy();
-                    outputMod.Quests.Add(BSloaderQuest);
-                }
-                else
-                {
-                    Logger.LogErrorWithStatusUpdate("Could not copy expected resource " + templatePath, ErrorType.Error);
-                }
-            }
-            catch
-            {
-                Logger.LogErrorWithStatusUpdate("Could not copy expected resource " + templatePath, ErrorType.Error);
-            }
-
-            // copy quest scripts
-            */
+            // copy quest script
+            string questSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideQuest", "SynthEBDBodySlideLoaderQuestScript.pex");
+            string questDestPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Scripts", "SynthEBDBodySlideLoaderQuestScript.pex");
+            TryCopyResourceFile(questSourcePath, questDestPath);
+            // copy quest alias script
+            string questAliasSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideQuest", "SynthEBDBodySlideLoaderPAScript.pex");
+            string questAliasDestPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Scripts", "SynthEBDBodySlideLoaderPAScript.pex");
+            TryCopyResourceFile(questAliasSourcePath, questAliasDestPath);
+            // copy Seq file
+            string questSeqSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideQuest", "SynthEBD.seq");
+            string questSeqDestPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Seq", "SynthEBD.seq");
+            TryCopyResourceFile(questSeqSourcePath, questSeqDestPath);
         }
 
         public static void CopyBodySlideScript()
@@ -135,21 +134,7 @@ namespace SynthEBD
                     break;
             }
 
-            if (!File.Exists(sourcePath))
-            {
-                Logger.LogErrorWithStatusUpdate("Could not find " + sourcePath, ErrorType.Error);
-                return;
-            }
-
-            try
-            {
-                PatcherIO.CreateDirectoryIfNeeded(destPath);
-                File.Copy(sourcePath, destPath, true);
-            }
-            catch
-            {
-                Logger.LogErrorWithStatusUpdate("Could not copy " + sourcePath + "to " + destPath, ErrorType.Error);
-            }
+            TryCopyResourceFile(sourcePath, destPath);
         }
 
         public static void ApplyBodySlideSpell(INpcGetter npcGetter, Spell bodySlideSpell, SkyrimMod outputMod)
@@ -188,6 +173,25 @@ namespace SynthEBD
             catch
             {
                 Logger.LogErrorWithStatusUpdate("Could not write BodySlide assignments to " + destPath, ErrorType.Error);
+            }
+        }
+
+        public static void TryCopyResourceFile(string sourcePath, string destPath)
+        {
+            if (!File.Exists(sourcePath))
+            {
+                Logger.LogErrorWithStatusUpdate("Could not find " + sourcePath, ErrorType.Error);
+                return;
+            }
+
+            try
+            {
+                PatcherIO.CreateDirectoryIfNeeded(destPath);
+                File.Copy(sourcePath, destPath, true);
+            }
+            catch
+            {
+                Logger.LogErrorWithStatusUpdate("Could not copy " + sourcePath + "to " + destPath, ErrorType.Error);
             }
         }
     }

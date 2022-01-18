@@ -34,7 +34,6 @@
 
                                 <TextBox Grid.Column="0" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}" MinWidth="100" />
                                 <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding Remove}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
-                                <!--<Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveTemplate}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>-->
                             </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>

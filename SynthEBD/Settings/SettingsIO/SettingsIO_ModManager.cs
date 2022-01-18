@@ -18,6 +18,11 @@ namespace SynthEBD
             {
                 string text = File.ReadAllText(PatcherSettings.Paths.ModManagerSettingsPath);
                 modManagerSettings = JsonConvert.DeserializeObject<Settings_ModManager>(text);
+
+                if (modManagerSettings != null && string.IsNullOrWhiteSpace(modManagerSettings.CurrentInstallationFolder))
+                {
+                    modManagerSettings.CurrentInstallationFolder = GameEnvironmentProvider.MyEnvironment.DataFolderPath;
+                }
             }
 
             return modManagerSettings;

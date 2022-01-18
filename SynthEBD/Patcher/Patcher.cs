@@ -85,6 +85,7 @@ namespace SynthEBD
                 bodyslidesLoaded.EditorID = "SynthEBDBodySlidesLoaded";
                 bodyslidesLoaded.Data = 0;
 
+                OBodyWriter.CreateSynthEBDDomain();
                 OBodyWriter.CreateBodySlideLoaderQuest(outputMod, bodyslidesLoaded);
                 bodySlideAssignmentSpell = OBodyWriter.CreateOBodyAssignmentSpell(outputMod, bodyslidesLoaded);
             }

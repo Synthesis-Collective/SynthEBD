@@ -33,7 +33,7 @@ namespace SynthEBD
                 foreach (var path in subgroup.Paths)
                 {
                     var parsed = new FilePathReplacementParsed(path);
-                    /*
+                    
                     if (WornArmorPaths.Contains(path.Destination)) { wnamPaths.Add(path); }
                     else if (HeadTexturePaths.Contains(path.Destination)) { headtexPaths.Add(path); }
                     else
@@ -44,15 +44,15 @@ namespace SynthEBD
                             longestPath = parsed.Destination.Length;
                         }
                     }
-                    */
-                    // temp debugging for profiling generic record assignment function
                     
+                    // temp debugging for profiling generic record assignment function
+                    /*
                     nonHardcodedPaths.Add(parsed);
                     if (parsed.Destination.Length > longestPath)
                     {
                         longestPath = parsed.Destination.Length;
                     }
-                    
+                    */
                     // end temp debugging
                 }
             }

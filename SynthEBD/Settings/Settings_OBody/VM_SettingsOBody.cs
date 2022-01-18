@@ -10,7 +10,7 @@ namespace SynthEBD
 {
     public class VM_SettingsOBody : INotifyPropertyChanged
     {
-        public VM_SettingsOBody(ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
+        public VM_SettingsOBody(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_General generalSettingsVM)
         {
             DescriptorUI = new VM_BodyShapeDescriptorCreationMenu();
             BodySlidesUI = new VM_BodySlidesMenu(this, raceGroupingVMs);
@@ -24,7 +24,7 @@ namespace SynthEBD
                 execute: _ =>
                 {
                     var alreadyContainedGroups = AttributeGroupMenu.Groups.Select(x => x.Label).ToHashSet();
-                    foreach (var attGroup in VM_Settings_General.AttributeGroupMenu.Groups)
+                    foreach (var attGroup in generalSettingsVM.AttributeGroupMenu.Groups)
                     {
                         if (!alreadyContainedGroups.Contains(attGroup.Label))
                         {

@@ -20,7 +20,7 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0"  HorizontalAlignment="Center">Races</TextBlock>
-        <plugins:FormKeyMultiPicker Grid.Row="1" Grid.Column="0" MaxHeight="500" FormKeys="{Binding RaceFormKeys}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}"  />
+        <plugins:FormKeyMultiPicker Grid.Row="1" Grid.Column="0" MaxHeight="500" FormKeys="{Binding RaceFormKeys}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerTypes}"  />
 
         <TextBlock Grid.Row="0" Grid.Column="2"  HorizontalAlignment="Center">Template NPC</TextBlock>
         <plugins:FormKeyPicker Grid.Row="1" Grid.Column="2" FormKey="{Binding TemplateNPC}" LinkCache="{Binding RecordTemplateLinkCache}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />

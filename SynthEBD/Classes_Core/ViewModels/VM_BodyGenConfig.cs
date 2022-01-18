@@ -13,15 +13,15 @@ namespace SynthEBD
 {
     public class VM_BodyGenConfig : INotifyPropertyChanged
     {
-        public VM_BodyGenConfig(ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
+        public VM_BodyGenConfig(VM_Settings_General generalSettingsVM)
         {
             this.Label = "";
             this.Gender = Gender.Female;
 
-            this.GroupMappingUI = new VM_BodyGenGroupMappingMenu(this.GroupUI, raceGroupingVMs);
+            this.GroupMappingUI = new VM_BodyGenGroupMappingMenu(this.GroupUI, generalSettingsVM.RaceGroupings);
             this.GroupUI = new VM_BodyGenGroupsMenu(this);
             this.DescriptorUI = new VM_BodyShapeDescriptorCreationMenu();
-            this.TemplateMorphUI = new VM_BodyGenTemplateMenu(this, raceGroupingVMs);
+            this.TemplateMorphUI = new VM_BodyGenTemplateMenu(this, generalSettingsVM.RaceGroupings);
             this.DisplayedUI = this.TemplateMorphUI;
             this.AttributeGroupMenu = new VM_AttributeGroupMenu();
 
@@ -52,7 +52,7 @@ namespace SynthEBD
                 execute: _ =>
                 {
                     var alreadyContainedGroups = AttributeGroupMenu.Groups.Select(x => x.Label).ToHashSet();
-                    foreach (var attGroup in VM_Settings_General.AttributeGroupMenu.Groups)
+                    foreach (var attGroup in generalSettingsVM.AttributeGroupMenu.Groups)
                     {
                         if (!alreadyContainedGroups.Contains(attGroup.Label))
                         {
@@ -85,9 +85,9 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static VM_BodyGenConfig GetViewModelFromModel(BodyGenConfig model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
+        public static VM_BodyGenConfig GetViewModelFromModel(BodyGenConfig model, VM_Settings_General generalSettingsVM)
         {
-            VM_BodyGenConfig viewModel = new VM_BodyGenConfig(raceGroupingVMs);
+            VM_BodyGenConfig viewModel = new VM_BodyGenConfig(generalSettingsVM);
             viewModel.Label = model.Label;
             viewModel.Gender = model.Gender;
             
@@ -99,7 +99,7 @@ namespace SynthEBD
 
             foreach (var RTG in model.RacialTemplateGroupMap)
             {
-                viewModel.GroupMappingUI.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.GetViewModelFromModel(RTG, viewModel.GroupUI, raceGroupingVMs));
+                viewModel.GroupMappingUI.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.GetViewModelFromModel(RTG, viewModel.GroupUI, generalSettingsVM.RaceGroupings));
             }
 
             viewModel.DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors);
@@ -111,8 +111,8 @@ namespace SynthEBD
 
             foreach (var template in model.Templates)
             {
-                var templateVM = new VM_BodyGenTemplate(viewModel.GroupUI.TemplateGroups, viewModel.DescriptorUI, raceGroupingVMs, viewModel.TemplateMorphUI.Templates, viewModel);
-                VM_BodyGenTemplate.GetViewModelFromModel(template, templateVM, viewModel.DescriptorUI, raceGroupingVMs);
+                var templateVM = new VM_BodyGenTemplate(viewModel.GroupUI.TemplateGroups, viewModel.DescriptorUI, generalSettingsVM.RaceGroupings, viewModel.TemplateMorphUI.Templates, viewModel);
+                VM_BodyGenTemplate.GetViewModelFromModel(template, templateVM, viewModel.DescriptorUI, generalSettingsVM.RaceGroupings);
                 viewModel.TemplateMorphUI.Templates.Add(templateVM);
             }
 

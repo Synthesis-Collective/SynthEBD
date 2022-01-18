@@ -111,7 +111,7 @@ namespace SynthEBD
 
         public RelayCommand AddRaceAlias { get; }
 
-        public static VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
+        public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
         public bool OverwritePluginAttGroups { get; set; }
         public ILinkCache lk { get; set; }
         public IEnumerable<Type> RacePickerFormKeys { get; set; }
@@ -145,7 +145,7 @@ namespace SynthEBD
             viewModel.patchableRaces = new ObservableCollection<FormKey>(model.patchableRaces);
             viewModel.raceAliases = VM_raceAlias.GetViewModelsFromModels(model.raceAliases, GameEnvironmentProvider.MyEnvironment, viewModel);
             viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, GameEnvironmentProvider.MyEnvironment, viewModel);
-            VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, AttributeGroupMenu);
+            VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu);
             viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;
         }
         public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
@@ -180,7 +180,7 @@ namespace SynthEBD
                 model.RaceGroupings.Add(VM_RaceGrouping.DumpViewModelToModel(x));
             }
 
-            VM_AttributeGroupMenu.DumpViewModelToModels(AttributeGroupMenu, model.AttributeGroups);
+            VM_AttributeGroupMenu.DumpViewModelToModels(viewModel.AttributeGroupMenu, model.AttributeGroups);
             model.OverwritePluginAttGroups = viewModel.OverwritePluginAttGroups;
 
             PatcherSettings.General = model;

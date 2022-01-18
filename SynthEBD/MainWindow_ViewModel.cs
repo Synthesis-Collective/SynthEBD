@@ -57,8 +57,8 @@ namespace SynthEBD
             var LinkCache = env.LinkCache;
             var LoadOrder = env.LoadOrder;
 
-            BGVM = new VM_SettingsBodyGen(SGVM.RaceGroupings);
-            OBVM = new VM_SettingsOBody(SGVM.RaceGroupings);
+            BGVM = new VM_SettingsBodyGen(SGVM);
+            OBVM = new VM_SettingsOBody(SGVM.RaceGroupings, SGVM);
             TMVM = new VM_SettingsTexMesh(this);
             SAUIVM = new VM_SpecificNPCAssignmentsUI(TMVM, BGVM, OBVM, SGVM);
             CUIVM = new VM_ConsistencyUI();
@@ -135,7 +135,7 @@ namespace SynthEBD
         {
             // load bodygen configs before asset packs - asset packs depend on BodyGen but not vice versa
             BodyGenConfigs = SettingsIO_BodyGen.loadBodyGenConfigs(PatcherSettings.General.RaceGroupings);
-            VM_SettingsBodyGen.GetViewModelFromModel(BodyGenConfigs, PatcherSettings.BodyGen, BGVM, SGVM.RaceGroupings);
+            VM_SettingsBodyGen.GetViewModelFromModel(BodyGenConfigs, PatcherSettings.BodyGen, BGVM, SGVM);
 
             VM_SettingsOBody.GetViewModelFromModel(PatcherSettings.OBody, OBVM, SGVM.RaceGroupings);
 

@@ -10,12 +10,12 @@ namespace SynthEBD
 {
     public class VM_SettingsBodyGen : INotifyPropertyChanged
     {
-        public VM_SettingsBodyGen(ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
+        public VM_SettingsBodyGen(VM_Settings_General generalSettingsVM)
         {
             this.MaleConfigs = new ObservableCollection<VM_BodyGenConfig>();
             this.FemaleConfigs = new ObservableCollection<VM_BodyGenConfig>();
-            this.CurrentMaleConfig = new VM_BodyGenConfig(raceGroupingVMs);
-            this.CurrentFemaleConfig = new VM_BodyGenConfig(raceGroupingVMs);
+            this.CurrentMaleConfig = new VM_BodyGenConfig(generalSettingsVM);
+            this.CurrentFemaleConfig = new VM_BodyGenConfig(generalSettingsVM);
             this.CurrentlyDisplayedConfig = null;
 
             DisplayMaleConfig = new SynthEBD.RelayCommand(
@@ -53,16 +53,16 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static void GetViewModelFromModel(BodyGenConfigs configModels, Settings_BodyGen model, VM_SettingsBodyGen viewModel, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
+        public static void GetViewModelFromModel(BodyGenConfigs configModels, Settings_BodyGen model, VM_SettingsBodyGen viewModel, VM_Settings_General generalSettingsVM)
         {
             foreach(var config in configModels.Female)
             {
-                viewModel.FemaleConfigs.Add(VM_BodyGenConfig.GetViewModelFromModel(config, raceGroupingVMs));
+                viewModel.FemaleConfigs.Add(VM_BodyGenConfig.GetViewModelFromModel(config, generalSettingsVM));
             }
 
             foreach(var config in configModels.Male)
             {
-                viewModel.MaleConfigs.Add(VM_BodyGenConfig.GetViewModelFromModel(config, raceGroupingVMs));
+                viewModel.MaleConfigs.Add(VM_BodyGenConfig.GetViewModelFromModel(config, generalSettingsVM));
             }
 
             viewModel.CurrentMaleConfig = GetConfigByLabel(model.CurrentMaleConfig, viewModel.MaleConfigs);
@@ -100,11 +100,11 @@ namespace SynthEBD
             //add blank configs if necessary
             if (viewModel.CurrentFemaleConfig == null)
             {
-                viewModel.CurrentFemaleConfig = new VM_BodyGenConfig(raceGroupingVMs);
+                viewModel.CurrentFemaleConfig = new VM_BodyGenConfig(generalSettingsVM);
             }
             if (viewModel.CurrentMaleConfig == null)
             {
-                viewModel.CurrentMaleConfig = new VM_BodyGenConfig(raceGroupingVMs);
+                viewModel.CurrentMaleConfig = new VM_BodyGenConfig(generalSettingsVM);
             }
         }
 

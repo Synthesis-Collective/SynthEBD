@@ -293,7 +293,7 @@ namespace SynthEBD
         public static void UpdateAvailableAssetPacks(VM_SpecificNPCAssignment assignment)
         {
             assignment.AvailableAssetPacks.Clear();
-            assignment.AvailableAssetPacks.Add(new VM_AssetPack(new ObservableCollection<VM_AssetPack>(), new VM_SettingsBodyGen(new ObservableCollection<VM_RaceGrouping>()), new VM_BodyShapeDescriptorCreationMenu(), new VM_Settings_General(), null, null) { groupName = "" }); // blank entry
+            assignment.AvailableAssetPacks.Add(new VM_AssetPack(new ObservableCollection<VM_AssetPack>(), new VM_SettingsBodyGen(new VM_Settings_General()), new VM_BodyShapeDescriptorCreationMenu(), new VM_Settings_General(), null, null) { groupName = "" }); // blank entry
             foreach (var assetPack in assignment.SubscribedAssetPacks)
             {
                 if (assetPack.gender == assignment.Gender)
@@ -358,10 +358,20 @@ namespace SynthEBD
             assignment.AvailableMorphs.Clear();
 
             var allTemplateList = new ObservableCollection<VM_BodyGenTemplate>();
-            switch(assignment.Gender)
+            switch (assignment.Gender)
             {
-                case Gender.Male: allTemplateList = assignment.SubscribedBodyGenSettings.CurrentMaleConfig.TemplateMorphUI.Templates; break;
-                case Gender.Female: allTemplateList = assignment.SubscribedBodyGenSettings.CurrentFemaleConfig.TemplateMorphUI.Templates; break;
+                case Gender.Male:
+                    if (assignment.SubscribedBodyGenSettings.CurrentMaleConfig != null && assignment.SubscribedBodyGenSettings.CurrentMaleConfig.TemplateMorphUI != null)
+                    { 
+                        allTemplateList = assignment.SubscribedBodyGenSettings.CurrentMaleConfig.TemplateMorphUI.Templates;
+                    } 
+                    break;
+                case Gender.Female:
+                    if (assignment.SubscribedBodyGenSettings.CurrentFemaleConfig != null && assignment.SubscribedBodyGenSettings.CurrentFemaleConfig.TemplateMorphUI != null)
+                    {
+                        allTemplateList = assignment.SubscribedBodyGenSettings.CurrentFemaleConfig.TemplateMorphUI.Templates;
+                    }
+                    break;
             }
 
             foreach (var candidateMorph in allTemplateList)

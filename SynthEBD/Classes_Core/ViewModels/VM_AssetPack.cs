@@ -87,7 +87,7 @@ namespace SynthEBD
                 execute: _ =>
                 {
                     var alreadyContainedGroups = AttributeGroupMenu.Groups.Select(x => x.Label).ToHashSet();
-                    foreach (var attGroup in VM_Settings_General.AttributeGroupMenu.Groups)
+                    foreach (var attGroup in generalSettingsVM.AttributeGroupMenu.Groups)
                     {
                         if (!alreadyContainedGroups.Contains(attGroup.Label))
                         {
@@ -203,7 +203,7 @@ namespace SynthEBD
             }
             else
             {
-                viewModel.TrackedBodyGenConfig = new VM_BodyGenConfig(generalSettingsVM.RaceGroupings);
+                viewModel.TrackedBodyGenConfig = new VM_BodyGenConfig(generalSettingsVM);
             }
 
             VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu);
