@@ -18,14 +18,14 @@ namespace SynthEBD
         public VM_RaceGrouping(RaceGrouping raceGrouping, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env, VM_Settings_General parentVM)
         {
             this.Label = raceGrouping.Label;
-            this.Races = raceGrouping.Races;
+            this.Races = new ObservableCollection<FormKey>(raceGrouping.Races);
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
             this.lk = env.LinkCache;
 
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.RaceGroupings.Remove(this));
         }
         public string Label { get; set; }
-        public HashSet<FormKey> Races { get; set; }
+        public ObservableCollection<FormKey> Races { get; set; }
         public IEnumerable<Type> RacePickerFormKeys { get; set; }
         public ILinkCache lk { get; set; }
         public VM_Settings_General ParentVM { get; set; }

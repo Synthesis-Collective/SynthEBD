@@ -208,16 +208,6 @@ namespace SynthEBD
 
             VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu);
 
-            foreach (var sg in model.Subgroups)
-            {
-                viewModel.subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM, viewModel.subgroups, viewModel, OBodyDescriptorMenu, false));
-            }
-
-            // go back through now that all subgroups have corresponding view models, and link the required and excluded subgroups
-            ObservableCollection<VM_Subgroup> flattenedSubgroupList = FlattenSubgroupVMs(viewModel.subgroups, new ObservableCollection<VM_Subgroup>());
-            LinkRequiredSubgroups(flattenedSubgroupList);
-            LinkExcludedSubgroups(flattenedSubgroupList);
-
             viewModel.ReplacersMenu = VM_AssetPackDirectReplacerMenu.GetViewModelFromModels(model.ReplacerGroups, viewModel, generalSettingsVM, OBodyDescriptorMenu);
 
             viewModel.DefaultTemplateFK = model.DefaultRecordTemplate;
@@ -233,6 +223,16 @@ namespace SynthEBD
             {
                 viewModel.RecordTemplateAdditionalRacesPaths.Add(new VM_CollectionMemberString(path, viewModel.RecordTemplateAdditionalRacesPaths));
             }
+
+            foreach (var sg in model.Subgroups)
+            {
+                viewModel.subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM, viewModel.subgroups, viewModel, OBodyDescriptorMenu, false));
+            }
+
+            // go back through now that all subgroups have corresponding view models, and link the required and excluded subgroups
+            ObservableCollection<VM_Subgroup> flattenedSubgroupList = FlattenSubgroupVMs(viewModel.subgroups, new ObservableCollection<VM_Subgroup>());
+            LinkRequiredSubgroups(flattenedSubgroupList);
+            LinkExcludedSubgroups(flattenedSubgroupList);
 
             viewModel.SourcePath = model.FilePath;
 
