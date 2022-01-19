@@ -26,7 +26,7 @@ namespace SynthEBD
             var outputMod = new SkyrimMod(patchModKey, SkyrimRelease.SkyrimSE);
             MainLinkCache = GameEnvironmentProvider.MyEnvironment.LoadOrder.ToMutableLinkCache(outputMod);
             ResolvePatchableRaces();
-            InitializeIgnoredArmorAddons();
+            //InitializeIgnoredArmorAddons();
             UpdateRecordTemplateAdditonalRaces(assetPacks, recordTemplateLinkCache, recordTemplatePlugins);
             BodyGenTracker = new BodyGenAssignmentTracker();
             UniqueAssignmentsByName.Clear();
@@ -137,7 +137,7 @@ namespace SynthEBD
 
         public static HashSet<IFormLinkGetter<IRaceGetter>> PatchableRaces;
 
-        public static HashSet<IFormLinkGetter<IArmorAddonGetter>> IgnoredArmorAddons;
+        //public static HashSet<IFormLinkGetter<IArmorAddonGetter>> IgnoredArmorAddons;
 
         public static Dictionary<string, Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>> UniqueAssignmentsByName = new Dictionary<string, Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>>();
 
@@ -452,13 +452,14 @@ namespace SynthEBD
             PatchableRaces.Add(Skyrim.Race.DefaultRace.TryResolve(MainLinkCache).AsLinkGetter());
         }
 
+        /*
         private static void InitializeIgnoredArmorAddons()
         {
             IgnoredArmorAddons = new HashSet<IFormLinkGetter<IArmorAddonGetter>>();
             IgnoredArmorAddons.Add(Skyrim.ArmorAddon.NakedTorsoWerewolfBeast.FormKey.AsLinkGetter<IArmorAddonGetter>());
             IgnoredArmorAddons.Add(Dawnguard.ArmorAddon.DLC1NakedVampireLord.FormKey.AsLinkGetter<IArmorAddonGetter>());
             IgnoredArmorAddons.Add(Dragonborn.ArmorAddon.DLC2NakedTorsoWerebearBeast.FormKey.AsLinkGetter<IArmorAddonGetter>());
-        }
+        }*/
 
         public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker(); // tracks unique selected morphs so that only assigned morphs are written to the generated templates.ini
         public static Dictionary<FormKey, string> BodySlideTracker = new Dictionary<FormKey, string>(); // tracks which NPCs get which bodyslide presets
