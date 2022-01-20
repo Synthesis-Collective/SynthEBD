@@ -175,6 +175,8 @@ namespace SynthEBD
 
             HashSet<FlattenedAssetPack> primaryAssetPacks = new HashSet<FlattenedAssetPack>();
             HashSet<FlattenedAssetPack> mixInAssetPacks = new HashSet<FlattenedAssetPack>();
+            
+            List<SubgroupCombination> AssignedCombinations = new List<SubgroupCombination>();
 
             foreach (var npc in npcCollection)
             {
@@ -184,7 +186,7 @@ namespace SynthEBD
 
                 assetsAssigned = false;
                 bodyShapeAssigned = false;
-
+                AssignedCombinations = new List<SubgroupCombination>();
                 #region Linked NPC Groups
                 if (skipLinkedSecondaryNPCs && currentNPCInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary)
                 {
@@ -268,11 +270,7 @@ namespace SynthEBD
                     assignedPrimaryComboAndBodyShape = AssetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, primaryAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, null);
                     if (assetsAssigned)
                     {
-                        RecordGenerator.CombinationToRecords(assignedPrimaryComboAndBodyShape.AssignedCombination, currentNPCInfo, recordTemplateLinkCache, outputMod);
-                        var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
-                        if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
-                        npcRecord.Keywords.Add(EBDFaceKW);
-                        npcRecord.Keywords.Add(EBDScriptKW);
+                        AssignedCombinations.Add(assignedPrimaryComboAndBodyShape.AssignedCombination);
                         AssetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedCombination, currentNPCInfo);
                     }
                     if (bodyShapeAssigned)
@@ -337,29 +335,39 @@ namespace SynthEBD
                 }
                 #endregion
 
+                // now that Body Shapes have been assigned, finish assigning mix-in combinations and asset replacers, and write them to the output file
                 if (PatcherSettings.General.bChangeMeshesOrTextures && !blockAssets && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.AssetsRace))
                 {
-                    #region Asset Replacer assignment
-                    if (assetsAssigned) // assign direct replacers
-                    {
-                        var assignedReplacers = AssetSelector.SelectAssetReplacers(assignedPrimaryComboAndBodyShape.AssignedCombination.AssetPack, currentNPCInfo, assignedPrimaryComboAndBodyShape);
-                        foreach (var replacerCombination in assignedReplacers)
-                        {
-                            RecordGenerator.ReplacerCombinationToRecords(replacerCombination, currentNPCInfo, outputMod);
-                        }
-                    }
-                    #endregion
-
                     #region MixIn Asset assignment
                     foreach (var mixInConfig in mixInAssetPacks)
                     {
                         var assignedMixIn = AssetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out _, new HashSet<FlattenedAssetPack>() { mixInConfig }, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn, assignedPrimaryComboAndBodyShape);
                         if (assetsAssigned)
                         {
-                            RecordGenerator.CombinationToRecords(assignedMixIn.AssignedCombination, currentNPCInfo, recordTemplateLinkCache, outputMod);
+                            //RecordGenerator.CombinationToRecords(assignedMixIn.AssignedCombination, currentNPCInfo, recordTemplateLinkCache, outputMod);
+                            AssignedCombinations.Add(assignedMixIn.AssignedCombination);
                             AssetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedMixIn.AssignedCombination, currentNPCInfo, mixInConfig.GroupName);
                         }
                     }
+                    #endregion
+
+                    #region Asset Replacer assignment
+                    if (assetsAssigned) // assign direct replacers
+                    {
+                        var assignedReplacers = AssetSelector.SelectAssetReplacers(assignedPrimaryComboAndBodyShape.AssignedCombination.AssetPack, currentNPCInfo, assignedPrimaryComboAndBodyShape);
+                        foreach (var replacerCombination in assignedReplacers)
+                        {
+                            RecordGenerator.ReplacerCombinationToRecords(replacerCombination, currentNPCInfo, outputMod, recordTemplateLinkCache);
+                        }
+                    }
+                    #endregion
+
+                    #region Generate Records
+                    RecordGenerator.CombinationToRecords(AssignedCombinations, currentNPCInfo, recordTemplateLinkCache, outputMod);
+                    var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
+                    if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
+                    npcRecord.Keywords.Add(EBDFaceKW);
+                    npcRecord.Keywords.Add(EBDScriptKW);
                     #endregion
                 }
 
