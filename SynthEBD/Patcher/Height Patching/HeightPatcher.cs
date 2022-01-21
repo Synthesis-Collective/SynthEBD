@@ -25,6 +25,13 @@ namespace SynthEBD
             }
             else
             {
+                if (heightConfig is null)
+                {
+                    Logger.LogReport("No height configurations were installed.", false, npcInfo);
+                    Logger.CloseReportSubsection(npcInfo);
+                    return;
+                }
+
                 var heightAssignment = heightConfig.HeightAssignments.Where(x => x.Races.Contains(npcInfo.HeightRace)).FirstOrDefault();
 
                 if (heightAssignment == null)

@@ -688,7 +688,7 @@ namespace SynthEBD
                 {
                     foreach (string destPath in targetPaths)
                     {
-                        if (!(RecordPathParser.GetObjectAtPath(npcInfo.NPC, destPath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), Patcher.MainLinkCache, true, out dynamic objAtPath) && objAtPath is not null))
+                        if (!(RecordPathParser.GetObjectAtPath(npcInfo.NPC, destPath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), Patcher.MainLinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out dynamic objAtPath) && objAtPath is not null))
                         {
                             assignReplacer = false;
                             break;

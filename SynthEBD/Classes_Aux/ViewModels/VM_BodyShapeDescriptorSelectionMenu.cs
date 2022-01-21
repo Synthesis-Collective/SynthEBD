@@ -117,11 +117,13 @@ namespace SynthEBD
         public static HashSet<BodyShapeDescriptor> DumpToHashSet(VM_BodyShapeDescriptorSelectionMenu viewModel)
         {
             HashSet<BodyShapeDescriptor> output = new HashSet<BodyShapeDescriptor>();
-            foreach (var shell in viewModel.DescriptorShells)
+            if (viewModel is not null && viewModel.DescriptorShells is not null)
             {
-                output.UnionWith(shell.DescriptorSelectors.Where(x => x.IsSelected).Select(x => new BodyShapeDescriptor() { Category = shell.TrackedShell.Category, Value = x.Value, DispString = x.TrackedDescriptor.DispString }).ToHashSet());
+                foreach (var shell in viewModel.DescriptorShells)
+                {
+                    output.UnionWith(shell.DescriptorSelectors.Where(x => x.IsSelected).Select(x => new BodyShapeDescriptor() { Category = shell.TrackedShell.Category, Value = x.Value, DispString = x.TrackedDescriptor.DispString }).ToHashSet());
+                }
             }
-
             return output;
         }
 

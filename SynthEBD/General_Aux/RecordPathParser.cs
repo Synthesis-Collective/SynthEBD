@@ -17,11 +17,11 @@ namespace SynthEBD
 {
     public class RecordPathParser
     {
-        public static bool GetObjectAtPath(dynamic rootObj, string relativePath, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, bool suppressMissingPathErrors, out dynamic outputObj)
+        public static bool GetObjectAtPath(dynamic rootObj, string relativePath, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj)
         {
-            return GetObjectAtPath(rootObj, relativePath, objectLinkMap, linkCache, suppressMissingPathErrors, out outputObj, out int? unusedArrayIndex);
+            return GetObjectAtPath(rootObj, relativePath, objectLinkMap, linkCache, suppressMissingPathErrors, errorCaption, out outputObj, out int? unusedArrayIndex);
         }
-        public static bool GetObjectAtPath(dynamic rootObj, string relativePath, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, bool suppressMissingPathErrors, out dynamic outputObj, out int? indexInParent)
+        public static bool GetObjectAtPath(dynamic rootObj, string relativePath, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out int? indexInParent)
         {
             outputObj = null;
             indexInParent = null;
@@ -75,7 +75,7 @@ namespace SynthEBD
                     // special case of UI transition where user deletes the array index
                     if (currentSubPath == "[]") { return false; }
 
-                    if (!GetArrayObjectAtIndex(currentObj, arrIndex, objectLinkMap, linkCache, suppressMissingPathErrors, out currentObj, out indexInParent))
+                    if (!GetArrayObjectAtIndex(currentObj, arrIndex, objectLinkMap, linkCache, suppressMissingPathErrors, errorCaption, out currentObj, out indexInParent))
                     {
                         return false;
                     }
@@ -104,7 +104,7 @@ namespace SynthEBD
             return true;
         }
 
-        public static bool GetObjectCollectionAtPath(dynamic rootObj, string relativePath, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, bool suppressMissingPathErrors, List<dynamic> outputObjectCollection)
+        public static bool GetObjectCollectionAtPath(dynamic rootObj, string relativePath, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> outputObjectCollection)
         {
             if (rootObj == null)
             {
@@ -156,7 +156,7 @@ namespace SynthEBD
                     // special case of UI transition where user deletes the array index
                     if (currentSubPath == "[]") { return false; }
 
-                    if (!GetArrayObjectCollectionAtIndex(currentObj, arrIndex, objectLinkMap, linkCache, suppressMissingPathErrors, outputObjectCollection) || !outputObjectCollection.Any())
+                    if (!GetArrayObjectCollectionAtIndex(currentObj, arrIndex, objectLinkMap, linkCache, suppressMissingPathErrors, errorCaption, outputObjectCollection) || !outputObjectCollection.Any())
                     {
                         return false;
                     }
@@ -185,7 +185,7 @@ namespace SynthEBD
                     foreach (var obj in outputObjectCollection)
                     {
                         List<dynamic> collectionSubObjects = new List<dynamic>();
-                        if (GetObjectCollectionAtPath(obj, subPath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), linkCache, suppressMissingPathErrors, collectionSubObjects))
+                        if (GetObjectCollectionAtPath(obj, subPath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), linkCache, suppressMissingPathErrors, errorCaption, collectionSubObjects))
                         {
                             foreach (var subObj in collectionSubObjects)
                             {
@@ -222,7 +222,7 @@ namespace SynthEBD
             return outputObjectCollection.Any();
         }
 
-        public static bool GetNearestParentGetter(IMajorRecordGetter rootGetter, string path, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, bool suppressMissingPathErrors, out IMajorRecordGetter parentRecordGetter, out string relativePath)
+        public static bool GetNearestParentGetter(IMajorRecordGetter rootGetter, string path, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, bool suppressMissingPathErrors, string errorCaption, out IMajorRecordGetter parentRecordGetter, out string relativePath)
         {
             string[] splitPath = SplitPath(path);
             dynamic currentObj = rootGetter;
@@ -231,7 +231,7 @@ namespace SynthEBD
 
             for (int i = 0; i < splitPath.Length; i++)
             {
-                if (GetObjectAtPath(currentObj, splitPath[i], new Dictionary<dynamic, Dictionary<string, dynamic>>(), linkCache, suppressMissingPathErrors, out currentObj))
+                if (GetObjectAtPath(currentObj, splitPath[i], new Dictionary<dynamic, Dictionary<string, dynamic>>(), linkCache, suppressMissingPathErrors, errorCaption, out currentObj))
                 {
                     if (ObjectHasFormKey(currentObj))
                     {
@@ -255,11 +255,11 @@ namespace SynthEBD
 
             return true;
         }
-        private static bool GetArrayObjectAtSpecifier(dynamic currentObj, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, bool suppressMissingPathErrors, out dynamic outputObj)
+        private static bool GetArrayObjectAtSpecifier(dynamic currentObj, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj)
         {
-            return GetArrayObjectAtIndex(currentObj, arrIndex, objectLinkMap, linkCache, suppressMissingPathErrors, out outputObj, out int? unusedIndex);
+            return GetArrayObjectAtIndex(currentObj, arrIndex, objectLinkMap, linkCache, suppressMissingPathErrors, errorCaption, out outputObj, out int? unusedIndex);
         }
-        private static bool GetArrayObjectAtIndex(dynamic currentObj, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, bool suppressMissingPathErrors, out dynamic outputObj, out int? indexInParent)
+        private static bool GetArrayObjectAtIndex(dynamic currentObj, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out int? indexInParent)
         {
             outputObj = null;
             indexInParent = null;
@@ -283,7 +283,7 @@ namespace SynthEBD
                 {
                     if (!suppressMissingPathErrors)
                     {
-                        Logger.LogError("Could not get object at [" + arrIndex + "] because the " + currentObj.GetType() + " does not have an element at this index.");
+                        Logger.LogError(errorCaption + ": Could not get object at [" + arrIndex + "] because the " + currentObj.GetType() + " does not have an element at this index.");
                     }
                     return false;
                 }
@@ -292,11 +292,11 @@ namespace SynthEBD
             // if array index specifies object by property, figure out which index is the right one
             else
             {
-                if (!ChooseWhichArrayObject(collectionObj, arrIndex, objectLinkMap, linkCache, suppressMissingPathErrors, out outputObj, out indexInParent))
+                if (!ChooseWhichArrayObject(collectionObj, arrIndex, objectLinkMap, linkCache, suppressMissingPathErrors, errorCaption, out outputObj, out indexInParent))
                 {
                     if (!suppressMissingPathErrors)
                     {
-                        Logger.LogError("Could not get object at [" + arrIndex + "] because " + currentObj.GetType() + " does not have an element that matches this condition.");
+                        Logger.LogError(errorCaption + ": Could not get object at [" + arrIndex + "] because " + currentObj.GetType() + " does not have an element that matches this condition.");
                     }
                     return false;
                 }
@@ -305,7 +305,7 @@ namespace SynthEBD
             return true;
         }
 
-        private static bool GetArrayObjectCollectionAtIndex(dynamic currentObj, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, bool suppressMissingPathErrors, List<dynamic> outputObjectCollection)
+        private static bool GetArrayObjectCollectionAtIndex(dynamic currentObj, string arrIndex, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> outputObjectCollection)
         {
             outputObjectCollection.Clear();
 
@@ -343,7 +343,7 @@ namespace SynthEBD
             // if array index specifies object by property, figure out which index is the right one
             else
             {
-                if (ChooseSelectedArrayObjects(collectionObj, arrIndex, objectLinkMap, linkCache, suppressMissingPathErrors, outputObjectCollection))
+                if (ChooseSelectedArrayObjects(collectionObj, arrIndex, objectLinkMap, linkCache, suppressMissingPathErrors, errorCaption, outputObjectCollection))
                 {
                     return true;
                 }
@@ -541,7 +541,7 @@ namespace SynthEBD
             return matchConditionStr;
         }
 
-        private static bool ChooseWhichArrayObject(IReadOnlyList<dynamic> variants, string matchConditionStr, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, bool suppressMissingPathErrors, out dynamic outputObj, out int? indexInParent)
+        private static bool ChooseWhichArrayObject(IReadOnlyList<dynamic> variants, string matchConditionStr, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out int? indexInParent)
         {
             outputObj = null;
             indexInParent = null;
@@ -576,7 +576,7 @@ namespace SynthEBD
                 {
                     dynamic comparisonObject;
                     
-                    if (candidateObjIsResolved && candidateRecordGetter != null && GetObjectAtPath(candidateRecordGetter, condition.Path, objectLinkMap, linkCache, suppressMissingPathErrors, out comparisonObject))
+                    if (candidateObjIsResolved && candidateRecordGetter != null && GetObjectAtPath(candidateRecordGetter, condition.Path, objectLinkMap, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
                     {
                         evalParameters.Add(comparisonObject);
                     }
@@ -589,7 +589,7 @@ namespace SynthEBD
                         skipToNext = true;
                         break;
                     }
-                    else if (GetObjectAtPath(candidateObj, condition.Path, objectLinkMap, linkCache, suppressMissingPathErrors, out comparisonObject))
+                    else if (GetObjectAtPath(candidateObj, condition.Path, objectLinkMap, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
                     {
                         evalParameters.Add(comparisonObject);
                     }
@@ -631,7 +631,7 @@ namespace SynthEBD
             return false;
         }
 
-        private static bool ChooseSelectedArrayObjects(IReadOnlyList<dynamic> variants, string matchConditionStr, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, bool suppressMissingPathErrors, List<dynamic> matchedObjects)
+        private static bool ChooseSelectedArrayObjects(IReadOnlyList<dynamic> variants, string matchConditionStr, Dictionary<dynamic, Dictionary<string, dynamic>> objectLinkMap, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> matchedObjects)
         {
             var arrayMatchConditions = ArrayPathCondition.GetConditionsFromString(matchConditionStr, out bool parsed);
             if (!parsed)
@@ -660,7 +660,7 @@ namespace SynthEBD
                 {
                     dynamic comparisonObject;
 
-                    if (candidateObjIsResolved && candidateRecordGetter != null && GetObjectAtPath(candidateRecordGetter, condition.Path, objectLinkMap, linkCache, suppressMissingPathErrors, out comparisonObject))
+                    if (candidateObjIsResolved && candidateRecordGetter != null && GetObjectAtPath(candidateRecordGetter, condition.Path, objectLinkMap, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
                     {
                         evalParameters.Add(comparisonObject);
                     }
@@ -670,7 +670,7 @@ namespace SynthEBD
                         skipToNext = true;
                         break;
                     }
-                    else if (GetObjectAtPath(candidateObj, condition.Path, objectLinkMap, linkCache, suppressMissingPathErrors, out comparisonObject))
+                    else if (GetObjectAtPath(candidateObj, condition.Path, objectLinkMap, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
                     {
                         evalParameters.Add(comparisonObject);
                     }

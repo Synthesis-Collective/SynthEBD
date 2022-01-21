@@ -1,5 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins.Cache.Internals.Implementations;
-using Mutagen.Bethesda.Plugins;
+﻿using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
@@ -15,7 +14,7 @@ namespace SynthEBD
 {
     public class VM_AdditionalRecordTemplate : INotifyPropertyChanged
     {
-        public VM_AdditionalRecordTemplate(ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, ObservableCollection<VM_AdditionalRecordTemplate> parentCollection)
+        public VM_AdditionalRecordTemplate(ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, ObservableCollection<VM_AdditionalRecordTemplate> parentCollection)
         {
             this.RaceFormKeys = new ObservableCollection<FormKey>();
             this.TemplateNPC = new FormKey();
@@ -45,7 +44,7 @@ namespace SynthEBD
 
         public IEnumerable<Type> NPCFormKeyTypes { get; set; }
 
-        public ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> RecordTemplateLinkCache { get; set; }
+        public ILinkCache<ISkyrimMod, ISkyrimModGetter> RecordTemplateLinkCache { get; set; }
 
         public ObservableCollection<VM_AdditionalRecordTemplate> ParentCollection { get; set; }
 

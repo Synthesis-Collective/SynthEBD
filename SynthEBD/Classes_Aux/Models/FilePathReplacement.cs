@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins.Cache.Internals.Implementations;
+﻿using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using System;
 using System.Collections.Generic;
@@ -23,7 +23,7 @@ namespace SynthEBD
     
     public class FilePathReplacementParsed
     {
-        public FilePathReplacementParsed(FilePathReplacement pathTemplate, NPCInfo npcInfo, FlattenedAssetPack sourceAssetPack, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
+        public FilePathReplacementParsed(FilePathReplacement pathTemplate, NPCInfo npcInfo, FlattenedAssetPack sourceAssetPack, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
         {
             this.Source = pathTemplate.Source;
             this.Destination = RecordPathParser.SplitPath(pathTemplate.Destination);

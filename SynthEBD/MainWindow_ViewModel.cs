@@ -1,9 +1,7 @@
 ﻿using Mutagen.Bethesda;
-using Mutagen.Bethesda.Plugins.Cache.Internals.Implementations;
 using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
-using Mutagen.Bethesda.Plugins.Cache.Internals.Implementations;
 using Mutagen.Bethesda.Skyrim;
 using System;
 using System.Collections.Generic;
@@ -48,7 +46,7 @@ namespace SynthEBD
         public HashSet<LinkedNPCGroup> LinkedNPCGroups { get; set; }
 
         public List<SkyrimMod> RecordTemplatePlugins { get; set; }
-        public ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> RecordTemplateLinkCache { get; set; }
+        public ILinkCache<ISkyrimMod, ISkyrimModGetter> RecordTemplateLinkCache { get; set; }
 
         public MainWindow_ViewModel()
         {

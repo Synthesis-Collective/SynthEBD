@@ -1,6 +1,6 @@
 ﻿
 using Mutagen.Bethesda.Plugins;
-using Mutagen.Bethesda.Plugins.Cache.Internals.Implementations;
+using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System;
@@ -18,7 +18,7 @@ namespace SynthEBD
 {
     public class VM_AssetPack : INotifyPropertyChanged
     {
-        public VM_AssetPack(ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, VM_Settings_General generalSettingsVM, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)
+        public VM_AssetPack(ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, VM_Settings_General generalSettingsVM, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)
         {
             this.groupName = "";
             this.ShortName = "";
@@ -130,7 +130,7 @@ namespace SynthEBD
 
         public string SourcePath { get; set; }
 
-        public ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> RecordTemplateLinkCache { get; set; }
+        public ILinkCache<ISkyrimMod, ISkyrimModGetter> RecordTemplateLinkCache { get; set; }
 
         public FormKey DefaultTemplateFK { get; set; }
         public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
@@ -165,7 +165,7 @@ namespace SynthEBD
             return model.Validate(errors, bodyGenConfigs);
         }
 
-        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)
+        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)
         {
             ObservableCollection<VM_AssetPack> viewModels = new ObservableCollection<VM_AssetPack>();
 
@@ -177,7 +177,7 @@ namespace SynthEBD
             }
             return viewModels;
         }
-        public static VM_AssetPack GetViewModelFromModel(AssetPack model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, ImmutableLoadOrderLinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)
+        public static VM_AssetPack GetViewModelFromModel(AssetPack model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)
         {
             var viewModel = new VM_AssetPack(parentCollection, bodygenSettingsVM, OBodyDescriptorMenu, generalSettingsVM, recordTemplateLinkCache, mainVM);
             viewModel.groupName = model.GroupName;
