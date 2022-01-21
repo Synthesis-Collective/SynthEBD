@@ -337,17 +337,28 @@ namespace SynthEBD
                 // now that Body Shapes have been assigned, finish assigning mix-in combinations and asset replacers, and write them to the output file
                 if (PatcherSettings.General.bChangeMeshesOrTextures && !blockAssets && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.AssetsRace))
                 {
+                    Dictionary<FormKey, Dictionary<string, dynamic>> objectLinkMap = new Dictionary<FormKey, Dictionary<string, dynamic>>();
+
                     #region MixIn Asset assignment
+                    bool mixInAssigned = false;
                     foreach (var mixInConfig in mixInAssetPacks)
                     {
-                        var assignedMixIn = AssetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out _, new HashSet<FlattenedAssetPack>() { mixInConfig }, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn, assignedPrimaryComboAndBodyShape);
-                        if (assetsAssigned)
+                        var assignedMixIn = AssetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out mixInAssigned, out _, new HashSet<FlattenedAssetPack>() { mixInConfig }, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn, assignedPrimaryComboAndBodyShape);
+                        if (mixInAssigned)
                         {
-                            //RecordGenerator.CombinationToRecords(assignedMixIn.AssignedCombination, currentNPCInfo, recordTemplateLinkCache, outputMod);
                             AssignedCombinations.Add(assignedMixIn.AssignedCombination);
                             AssetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedMixIn.AssignedCombination, currentNPCInfo, mixInConfig.GroupName);
+                            assetsAssigned = true;
                         }
                     }
+                    #endregion
+
+                    #region Generate Records
+                    RecordGenerator.CombinationToRecords(AssignedCombinations, currentNPCInfo, recordTemplateLinkCache, objectLinkMap, outputMod);
+                    var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
+                    if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
+                    npcRecord.Keywords.Add(EBDFaceKW);
+                    npcRecord.Keywords.Add(EBDScriptKW);
                     #endregion
 
                     #region Asset Replacer assignment
@@ -356,17 +367,9 @@ namespace SynthEBD
                         var assignedReplacers = AssetSelector.SelectAssetReplacers(assignedPrimaryComboAndBodyShape.AssignedCombination.AssetPack, currentNPCInfo, assignedPrimaryComboAndBodyShape);
                         foreach (var replacerCombination in assignedReplacers)
                         {
-                            RecordGenerator.ReplacerCombinationToRecords(replacerCombination, currentNPCInfo, outputMod, recordTemplateLinkCache);
+                            RecordGenerator.ReplacerCombinationToRecords(replacerCombination, currentNPCInfo, outputMod, recordTemplateLinkCache, objectLinkMap);
                         }
                     }
-                    #endregion
-
-                    #region Generate Records
-                    RecordGenerator.CombinationToRecords(AssignedCombinations, currentNPCInfo, recordTemplateLinkCache, outputMod);
-                    var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
-                    if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
-                    npcRecord.Keywords.Add(EBDFaceKW);
-                    npcRecord.Keywords.Add(EBDScriptKW);
                     #endregion
                 }
 
@@ -418,7 +421,7 @@ namespace SynthEBD
 
                                 var parentRecord = RecordGenerator.GetOrAddGenericRecordAsOverride(parentRecordGetter, templateMod);
 
-                                if (RecordPathParser.GetObjectAtPath(parentRecord, relativePath, new Dictionary<dynamic, Dictionary<string, dynamic>>(), recordTemplateLinkCache, false, Logger.GetNPCLogNameString(template), out dynamic additionalRaces))
+                                if (RecordPathParser.GetObjectAtPath(parentRecord, relativePath, new Dictionary<string, dynamic>(), recordTemplateLinkCache, false, Logger.GetNPCLogNameString(template), out dynamic additionalRaces))
                                 {
                                     foreach (var race in PatcherSettings.General.patchableRaces)
                                     {
