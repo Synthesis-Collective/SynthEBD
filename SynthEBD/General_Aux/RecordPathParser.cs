@@ -12,19 +12,46 @@ using Mutagen.Bethesda.Skyrim;
 using Mutagen.Bethesda.Plugins.Cache;
 using FastMember;
 using System.Linq.Expressions;
+using Loqui;
 
 namespace SynthEBD
 {
+    public class ObjectInfo
+    {
+        public ObjectInfo()
+        {
+            HasFormKey = false;
+            IsNullFormLink = false;
+            RecordType = null;
+            LoquiRegistration = null;
+            IndexInParentArray = null;
+            RecordFormKey = new FormKey();
+        }
+
+        public bool HasFormKey { get; set; }
+        public bool IsNullFormLink { get; set; }
+        public Type RecordType { get; set; }
+        public ILoquiRegistration LoquiRegistration { get; set; }
+        public FormKey RecordFormKey { get; set; }
+        public int? IndexInParentArray { get; set; }
+    }
     public class RecordPathParser
     {
         public static bool GetObjectAtPath(dynamic rootObj, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj)
         {
-            return GetObjectAtPath(rootObj, relativePath, objectCache, linkCache, suppressMissingPathErrors, errorCaption, out outputObj, out int? unusedArrayIndex);
+            return GetObjectAtPath(rootObj, relativePath, objectCache, linkCache, suppressMissingPathErrors, errorCaption, out outputObj, out ObjectInfo _);
         }
-        public static bool GetObjectAtPath(dynamic rootObj, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out int? indexInParent)
+        public static bool GetObjectAtPath(dynamic rootObj, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out ObjectInfo outputObjInfo)
         {
             outputObj = null;
-            indexInParent = null;
+            outputObjInfo = new ObjectInfo();
+
+            int? indexInParentArray = null;
+            bool isRecord = false;
+            bool isNullFormLink = false;
+            Type loquiType = null;
+            FormKey recordFormKey = new FormKey();
+
             if (rootObj == null)
             {
                 return false;
@@ -33,6 +60,15 @@ namespace SynthEBD
             if (relativePath == "")
             {
                 outputObj = rootObj;
+                if (ObjectHasFormKey(rootObj))
+                {
+                    outputObjInfo.HasFormKey = true;
+                    if (TryGetRegister(outputObj, out loquiType))
+                    {
+                        outputObjInfo.RecordType = loquiType;
+                    }
+                }
+                
                 return true;
             }
 
@@ -41,6 +77,13 @@ namespace SynthEBD
 
             for (int i = 0; i < splitPath.Length; i++)
             {
+                // reinitialize all output object info so that only the info from splitPath[last] is returned 
+                indexInParentArray = null;
+                isRecord = false;
+                isNullFormLink = false;
+                loquiType = null;
+                recordFormKey = new FormKey();
+
                 if (currentObj == null)
                 {
                     return false;
@@ -63,7 +106,7 @@ namespace SynthEBD
                     // special case of UI transition where user deletes the array index
                     if (currentSubPath == "[]") { return false; }
 
-                    if (!GetArrayObjectAtIndex(currentObj, arrIndex, objectCache, linkCache, suppressMissingPathErrors, errorCaption, out currentObj, out indexInParent))
+                    if (!GetArrayObjectAtIndex(currentObj, arrIndex, objectCache, linkCache, suppressMissingPathErrors, errorCaption, out currentObj, out indexInParentArray))
                     {
                         return false;
                     }
@@ -74,18 +117,36 @@ namespace SynthEBD
                 }
 
                 // if the current property is another record, resolve it to traverse
+                IMajorRecordGetter subRecordGetter = null;
                 if (ObjectHasFormKey(currentObj, out FormKey? subrecordFK))
                 {
-                    if (subrecordFK != null && !subrecordFK.Value.IsNull && linkCache.TryResolve(subrecordFK.Value, (Type)currentObj.Type, out var subRecordGetter))
+                    if (!subrecordFK.Value.IsNull && TryGetRegister(currentObj, out loquiType) && linkCache.TryResolve(subrecordFK.Value, loquiType, out subRecordGetter))
                     {
+                        isRecord = true;
+                        recordFormKey = subrecordFK.Value;
                         currentObj = subRecordGetter;
+                    }
+                    else
+                    {
+                        isNullFormLink = true;
                     }
                 }
             }
 
-            if (!objectCache.ContainsKey(relativePath))
+            if (!objectCache.ContainsKey(relativePath) && !isNullFormLink) // don't cache null formlinks - improves performance of upstream code because it doesn't have to check for null formlink before deciding to add vs. overwrite existing dictionary key
             {
                 objectCache.Add(relativePath, currentObj);
+            }
+
+            outputObjInfo.HasFormKey = isRecord;
+            outputObjInfo.IsNullFormLink = isNullFormLink;
+            outputObjInfo.RecordFormKey = recordFormKey;
+            outputObjInfo.RecordType = loquiType;
+            outputObjInfo.IndexInParentArray = indexInParentArray;
+
+            if (isRecord)
+            {
+                outputObjInfo.LoquiRegistration = LoquiRegistration.GetRegister(loquiType);
             }
 
             outputObj = currentObj;
@@ -207,9 +268,9 @@ namespace SynthEBD
 
             for (int i = 0; i < splitPath.Length; i++)
             {
-                if (GetObjectAtPath(currentObj, splitPath[i], new Dictionary<string, dynamic>(), linkCache, suppressMissingPathErrors, errorCaption, out currentObj))
+                if (GetObjectAtPath(currentObj, splitPath[i], new Dictionary<string, dynamic>(), linkCache, suppressMissingPathErrors, errorCaption, out currentObj, out ObjectInfo currentObjInfo))
                 {
-                    if (ObjectHasFormKey(currentObj))
+                    if (currentObjInfo.HasFormKey)
                     {
                         parentRecordGetter = currentObj;
                         relativePath = "";
@@ -542,6 +603,7 @@ namespace SynthEBD
                 List<dynamic> evalParameters = new List<dynamic>();
                 int argIndex = 0;
                 bool skipToNext = false;
+                Dictionary<string, dynamic> variantObjectCache = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase);
 
                 IMajorRecordGetter candidateRecordGetter = null;
 
@@ -552,20 +614,16 @@ namespace SynthEBD
                 {
                     dynamic comparisonObject;
                     
-                    if (candidateObjIsResolved && candidateRecordGetter != null && GetObjectAtPath(candidateRecordGetter, condition.Path, objectCache, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
+                    if (candidateObjIsResolved && candidateRecordGetter != null && GetObjectAtPath(candidateRecordGetter, condition.Path, variantObjectCache, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
                     {
                         evalParameters.Add(comparisonObject);
                     }
-                    else if (candidateObjIsRecord) // warn if the object is a record but the corresponding Form couldn't be resolved
+                    else if (candidateObjIsRecord) // Can occur if link cache is record template link cache and the given variant belongs to a non-template plugin (ex if variants is an armature array and the current variant is an armature from the base game)
                     {
-                        if (!suppressMissingPathErrors)
-                        {
-                            Logger.LogError("Could not resolve record for array member object " + objFormKey.Value.ToString());
-                        }
                         skipToNext = true;
                         break;
                     }
-                    else if (GetObjectAtPath(candidateObj, condition.Path, objectCache, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
+                    else if (GetObjectAtPath(candidateObj, condition.Path, variantObjectCache, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
                     {
                         evalParameters.Add(comparisonObject);
                     }
@@ -700,6 +758,42 @@ namespace SynthEBD
         public static bool PathIsArray(string path) //correct input is of form [y]
         {
             return PathIsArray(path, out string _);
+        }
+
+        public static bool TryGetRegister(dynamic currentObject, out Type registerType)
+        {
+            Type objType = currentObject.GetType();
+            if (LoquiRegistration.IsLoquiType(objType))
+            {
+                registerType = objType;
+                return true;
+            }
+            else if (objType.Name == "FormLink`1")
+            {
+                var formLink = currentObject as IFormLinkGetter;
+                if (LoquiRegistration.IsLoquiType(formLink.Type))
+                {
+                    registerType = formLink.Type;
+                    return true;
+                }
+            }
+            else if (objType.Name == "FormLinkNullable`1")
+            {
+                try
+                {
+                    if (LoquiRegistration.IsLoquiType(currentObject.Type))
+                    {
+                        registerType = currentObject.Type;
+                        return true;
+                    }
+                }
+                catch
+                {
+                    //fall through
+                }
+            }
+            registerType = null;
+            return false;
         }
 
         public static bool GetSubObject(dynamic root, string propertyName, out dynamic outputObj)

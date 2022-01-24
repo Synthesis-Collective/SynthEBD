@@ -5,6 +5,7 @@ using Noggog;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
@@ -23,6 +24,7 @@ namespace SynthEBD
 
             this.PrimaryCandidates = new HashSet<string>();
             this.PropertyChanged += RefereshPrimaryAssignment;
+            this.NPCFormKeys.CollectionChanged += RefereshPrimaryAssignment;
         }
 
         public string GroupName { get; set; }
@@ -35,6 +37,16 @@ namespace SynthEBD
         public event PropertyChangedEventHandler PropertyChanged;
 
         public void RefereshPrimaryAssignment(object sender, PropertyChangedEventArgs e)
+        {
+            RefereshPrimaryAssignment();
+        }
+
+        public void RefereshPrimaryAssignment(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            RefereshPrimaryAssignment();
+        }
+
+        public void RefereshPrimaryAssignment()
         {
             this.PrimaryCandidates.Clear();
             foreach (var fk in this.NPCFormKeys)
