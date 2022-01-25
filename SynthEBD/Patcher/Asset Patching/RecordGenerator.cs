@@ -221,8 +221,9 @@ namespace SynthEBD
                                 continue;
                             }
                         }
-                        else // if the current object is not a record, copy it directly
+                        else if (!currentObjInfo.IsNullFormLink) // if the current object is not a record, copy it directly
                         {
+                            currentObj = CopyGenericObject(currentObj); // Make a copy to avoid inadvertently editing other NPCs that share the given object
                             RecordPathParser.SetSubObject(rootObj, currentSubPath, currentObj);
                         }
                     }
@@ -253,6 +254,7 @@ namespace SynthEBD
                             }
                             else if (!currentObjInfo.IsNullFormLink)
                             {
+                                currentObj = CopyGenericObject(currentObj); // Make a copy to avoid inadvertently editing other NPCs that share the given object
                                 RecordPathParser.SetSubObject(rootObj, currentSubPath, currentObj);
                             }
 
@@ -356,6 +358,11 @@ namespace SynthEBD
             return false;
         }
         
+        public static dynamic CopyGenericObject(dynamic input) // expand later to make more performant
+        {
+            var copy = DeepCopyByExpressionTrees.DeepCopyByExpressionTree(input);
+            return copy;
+        }
         public static void RemovePathsFromList(List<FilePathReplacementParsed> allPaths, IGrouping<string, FilePathReplacementParsed> toRemove)
         {
             foreach (var path in toRemove)

@@ -451,7 +451,7 @@ namespace SynthEBD
             }
             Logger.CloseReportSubsection(npcInfo);
 
-            if (filteredPacks.Count == 0)
+            if (filteredPacks.Count == 0 && mode == AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary)
             {
                 Logger.LogMessage("No valid asset packs could be found for NPC " + npcInfo.LogIDstring);
             }
