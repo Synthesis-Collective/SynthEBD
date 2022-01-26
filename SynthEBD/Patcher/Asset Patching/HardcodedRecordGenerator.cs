@@ -103,7 +103,7 @@ namespace SynthEBD
 
             INpcGetter templateNPC = GetTemplateForHardcodedAssignments(paths, HeadTexturePaths, "HeadTexture");
 
-            if (npcInfo.NPC.HeadTexture != null && !npcInfo.NPC.HeadTexture.IsNull && RecordGenerator.TryGetGeneratedRecord(pathSignature, npcInfo.NPC.HeadTexture.FormKey, out headTex))
+            if (npcInfo.NPC.HeadTexture != null && !npcInfo.NPC.HeadTexture.IsNull && RecordGenerator.TryGetModifiedRecord(pathSignature, npcInfo.NPC.HeadTexture.FormKey, out headTex))
             {
                 assignedFromDictionary = true;
             }
@@ -171,7 +171,7 @@ namespace SynthEBD
 
             INpcGetter templateNPC = GetTemplateForHardcodedAssignments(paths, WornArmorPaths, "WornArmor");
 
-            if (npcInfo.NPC.WornArmor != null && !npcInfo.NPC.WornArmor.IsNull && RecordGenerator.TryGetGeneratedRecord(pathSignature, npcInfo.NPC.WornArmor.FormKey, out newSkin))
+            if (npcInfo.NPC.WornArmor != null && !npcInfo.NPC.WornArmor.IsNull && RecordGenerator.TryGetModifiedRecord(pathSignature, npcInfo.NPC.WornArmor.FormKey, out newSkin))
             {
                 assignedFromDictionary = true;
             }
@@ -327,7 +327,7 @@ namespace SynthEBD
             sourceArmorAddon = ChooseArmature(candidateAAs, type, currentRaceIDstrs);
             replaceExistingArmature = sourceArmorAddon is not null;
 
-            if (sourceArmorAddon != null && !RecordGenerator.TryGetGeneratedRecord(pathSignature, sourceArmorAddon.FormKey, out newArmorAddon))
+            if (sourceArmorAddon != null && !RecordGenerator.TryGetModifiedRecord(pathSignature, sourceArmorAddon.FormKey, out newArmorAddon))
             {
                 newArmorAddon = outputMod.ArmorAddons.AddNew();
                 newArmorAddon.DeepCopyIn(sourceArmorAddon);
@@ -419,7 +419,7 @@ namespace SynthEBD
             bool assignedFromDictionary = false;
             var pathSignature = paths.Select(x => x.Source).ToHashSet();
 
-            if (parentSkinTexture != null && !parentSkinTexture.IsNull && RecordGenerator.TryGetGeneratedRecord(pathSignature, npcInfo.NPC.HeadTexture.FormKey, out newSkinTexture))
+            if (parentSkinTexture != null && !parentSkinTexture.IsNull && RecordGenerator.TryGetModifiedRecord(pathSignature, npcInfo.NPC.HeadTexture.FormKey, out newSkinTexture))
             {
                 assignedFromDictionary = true;
             }

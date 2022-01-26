@@ -234,7 +234,7 @@ namespace SynthEBD
         {
             outputObj = currentObj;
             IMajorRecord copiedRecord = null;
-            if (!TryGetGeneratedRecord(pathSignature, currentObjInfo.RecordFormKey, out copiedRecord) && !currentObjInfo.RecordFormKey.IsNull)
+            if (!TryGetModifiedRecord(pathSignature, currentObjInfo.RecordFormKey, out copiedRecord) && !currentObjInfo.RecordFormKey.IsNull)
             {
                 if (currentObjInfo.LoquiRegistration == null)
                 {
@@ -451,11 +451,23 @@ namespace SynthEBD
         private static void AssignKnownHeadPartReplacer(SubgroupCombination subgroupCombination, INpcGetter npcGetter, SkyrimMod outputMod)
         {
             var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
+            var headPart = npc.HeadParts.Where(x => x.FormKey == subgroupCombination.ReplacerDestinationFormKey).FirstOrDefault();
+
+            var pathSignature = new HashSet<string>();
+            foreach (var subgroup in subgroupCombination.ContainedSubgroups)
+            {
+                pathSignature.UnionWith(subgroup.Paths.Select(x => x.Source));
+            }
+
             for (int i = 0; i < npc.HeadParts.Count; i++)
             {
                 if (npc.HeadParts[i].FormKey == subgroupCombination.ReplacerDestinationFormKey)
                 {
-                    if(Patcher.MainLinkCache.TryResolve<IHeadPartGetter>(npc.HeadParts[i].FormKey, out var hpGetter) && Patcher.MainLinkCache.TryResolve<ITextureSetGetter>(hpGetter.TextureSet.FormKey, out var tsGetter))
+                    if (TryGetModifiedRecord(pathSignature, npc.HeadParts[i].FormKey, out HeadPart existingReplacer))
+                    {
+                        npc.HeadParts[i] = existingReplacer.AsLinkGetter();
+                    }
+                    else if(Patcher.MainLinkCache.TryResolve<IHeadPartGetter>(npc.HeadParts[i].FormKey, out var hpGetter) && Patcher.MainLinkCache.TryResolve<ITextureSetGetter>(hpGetter.TextureSet.FormKey, out var tsGetter))
                     {
                         var copiedHP = outputMod.HeadParts.AddNew();
                         copiedHP.DeepCopyIn(hpGetter);
@@ -480,6 +492,9 @@ namespace SynthEBD
                         copiedTS.EditorID += "_" + subgroupCombination.AssetPack.Source.ShortName + "." + subgroupCombination.Signature;
                         copiedHP.TextureSet.SetTo(copiedTS);
                         copiedHP.EditorID += "_" + subgroupCombination.AssetPack.Source.ShortName + "." + subgroupCombination.Signature;
+
+                        AddModifiedRecordToDictionary(pathSignature, npc.HeadParts[i].FormKey, copiedHP);
+
                         npc.HeadParts[i] = copiedHP.AsLinkGetter();
                     }
                     else
@@ -503,9 +518,19 @@ namespace SynthEBD
 
         private static void AssignHeadPartByDiffusePath(SubgroupCombination subgroupCombination, Npc npc, SkyrimMod outputMod, string diffusePath)
         {
+            var pathSignature = new HashSet<string>();
+            foreach (var subgroup in subgroupCombination.ContainedSubgroups)
+            {
+                pathSignature.UnionWith(subgroup.Paths.Select(x => x.Source));
+            }
+
             for (int i = 0; i < npc.HeadParts.Count; i++)
             {
-                if (Patcher.MainLinkCache.TryResolve<IHeadPartGetter>(npc.HeadParts[i].FormKey, out var hpGetter) && Patcher.MainLinkCache.TryResolve<ITextureSetGetter>(hpGetter.TextureSet.FormKey, out var tsGetter) && tsGetter.Diffuse == diffusePath)
+                if (TryGetModifiedRecord(pathSignature, npc.HeadParts[i].FormKey, out HeadPart existingReplacer))
+                {
+                    npc.HeadParts[i] = existingReplacer.AsLinkGetter();
+                }
+                else if (Patcher.MainLinkCache.TryResolve<IHeadPartGetter>(npc.HeadParts[i].FormKey, out var hpGetter) && Patcher.MainLinkCache.TryResolve<ITextureSetGetter>(hpGetter.TextureSet.FormKey, out var tsGetter) && tsGetter.Diffuse == diffusePath)
                 {
                     var copiedHP = outputMod.HeadParts.AddNew();
                     copiedHP.DeepCopyIn(hpGetter);
@@ -530,6 +555,9 @@ namespace SynthEBD
                     copiedTS.EditorID += "_" + subgroupCombination.AssetPack.Source.ShortName + "." + subgroupCombination.Signature;
                     copiedHP.TextureSet.SetTo(copiedTS);
                     copiedHP.EditorID += "_" + subgroupCombination.AssetPack.Source.ShortName + "." + subgroupCombination.Signature;
+
+                    AddModifiedRecordToDictionary(pathSignature, npc.HeadParts[i].FormKey, copiedHP);
+
                     npc.HeadParts[i] = copiedHP.AsLinkGetter();
                 }
             }
@@ -538,7 +566,7 @@ namespace SynthEBD
         //Dictionary[SourcePaths.ToHashSet()][OriginalRecordGetter.FormKey.ToString()] = IMajorRecord Generated
         private static Dictionary<HashSet<string>, Dictionary<string, IMajorRecord>> ModifiedRecords = new Dictionary<HashSet<string>, Dictionary<string, IMajorRecord>>(HashSet<string>.CreateSetComparer()); // https://stackoverflow.com/questions/5910137/how-do-i-use-hashsett-as-a-dictionary-key
 
-        public static bool TryGetGeneratedRecord<T>(HashSet<string> pathSignature, FormKey originalFormKey, out T record) where T : class
+        public static bool TryGetModifiedRecord<T>(HashSet<string> pathSignature, FormKey originalFormKey, out T record) where T : class
         {
             string fkStr = originalFormKey.ToString();
 
