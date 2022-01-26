@@ -37,42 +37,6 @@ namespace SynthEBD
             }
         }
 
-        public static void ReplacerCombinationToRecords(SubgroupCombination combination, NPCInfo npcInfo, SkyrimMod outputMod, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches)
-        {
-            if (combination.DestinationType == SubgroupCombination.DestinationSpecifier.HeadPartFormKey)
-            {
-                AssignKnownHeadPartReplacer(combination, npcInfo.NPC, outputMod);
-            }
-            else if (combination.DestinationType == SubgroupCombination.DestinationSpecifier.Generic)
-            {
-                List<FilePathReplacementParsed> nonHardcodedPaths = new List<FilePathReplacementParsed>();
-                int longestPath = 0;
-
-                foreach (var subgroup in combination.ContainedSubgroups)
-                {
-                    foreach (var path in subgroup.Paths)
-                    {
-                        var parsed = new FilePathReplacementParsed(path, npcInfo, combination.AssetPack, recordTemplateLinkCache);
-
-                        nonHardcodedPaths.Add(parsed);
-                        if (parsed.Destination.Length > longestPath)
-                        {
-                            longestPath = parsed.Destination.Length;
-                        }
-                    }
-                }
-                if (nonHardcodedPaths.Any())
-                {
-                    var currentNPC = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
-                    AssignGenericAssetPaths(npcInfo, nonHardcodedPaths, currentNPC, null, outputMod, longestPath, false, true, npcObjectMap, objectCaches);
-                }
-            }
-            else if (combination.DestinationType != SubgroupCombination.DestinationSpecifier.Main)
-            {
-                AssignSpecialCaseAssetReplacer(combination, npcInfo.NPC, outputMod);
-            }
-        }
-
         private class TemplateSignatureRecordPair
         {
             public HashSet<INpcGetter> TemplateSignature { get; set; }
@@ -179,7 +143,7 @@ namespace SynthEBD
                     #region Get object at current subpath from template NPC
                     else if (assignFromTemplate)
                     {
-                        var templateSignature = group.Select(x => x.TemplateNPC).ToHashSet();
+                        var templateSignature = group.Select(x => x.TemplateNPC).Where(x => x is not null).ToHashSet();
                         if (TryGetGeneratedObject(pathSignature, group.Key, templateSignature, out currentObj, out int? indexIfInArray))
                         {
                             if (RecordPathParser.ObjectHasFormKey(currentObj, out FormKey? _))
@@ -214,7 +178,8 @@ namespace SynthEBD
                     #endregion
                     else
                     {
-                        Logger.LogError("Error: neither NPC " + npcInfo.LogIDstring + " nor the record templates " + string.Join(", ", group.Select(x => x.TemplateNPC).Select(x => x.EditorID)) + " contained a record at " + group.Key + ". Cannot assign this record.");
+                        
+                        Logger.LogError("Error: neither NPC " + npcInfo.LogIDstring + " nor the record templates " + GetTemplateName(group) + " contained a record at " + group.Key + ". Cannot assign this record.");
                         RemovePathsFromList(nonHardcodedPaths, group);
                     }
 
@@ -291,7 +256,7 @@ namespace SynthEBD
 
         public static dynamic GetObjectFromAvailableTemplates(string currentSubPath, FilePathReplacementParsed[] allPaths, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, bool suppressMissingPathErrors, out dynamic outputObj, out ObjectInfo outputObjInfo)
         {
-            foreach (var templateNPC in allPaths.Select(x => x.TemplateNPC).ToHashSet())
+            foreach (var templateNPC in allPaths.Select(x => x.TemplateNPC).Where(x => x is not null).ToHashSet())
             {
                 if (!objectCaches.ContainsKey(templateNPC.FormKey))
                 {
@@ -446,122 +411,20 @@ namespace SynthEBD
             }
         }
 
+        public static string GetTemplateName(IGrouping<string, FilePathReplacementParsed> group)
+        {
+            List<string> templateNames = new List<string>();
+            foreach (var item in group)
+            {
+                if (item.TemplateNPC != null)
+                {
+                    templateNames.Add(item.TemplateNPC.EditorID);
+                }
+            }
+            return string.Join(", ", templateNames);
+        }
+
         private static Dictionary<string, int> ModifiedRecordCounts = new Dictionary<string, int>(); // for modified Editor IDs only
-
-        private static void AssignKnownHeadPartReplacer(SubgroupCombination subgroupCombination, INpcGetter npcGetter, SkyrimMod outputMod)
-        {
-            var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
-            var headPart = npc.HeadParts.Where(x => x.FormKey == subgroupCombination.ReplacerDestinationFormKey).FirstOrDefault();
-
-            var pathSignature = new HashSet<string>();
-            foreach (var subgroup in subgroupCombination.ContainedSubgroups)
-            {
-                pathSignature.UnionWith(subgroup.Paths.Select(x => x.Source));
-            }
-
-            for (int i = 0; i < npc.HeadParts.Count; i++)
-            {
-                if (npc.HeadParts[i].FormKey == subgroupCombination.ReplacerDestinationFormKey)
-                {
-                    if (TryGetModifiedRecord(pathSignature, npc.HeadParts[i].FormKey, out HeadPart existingReplacer))
-                    {
-                        npc.HeadParts[i] = existingReplacer.AsLinkGetter();
-                    }
-                    else if(Patcher.MainLinkCache.TryResolve<IHeadPartGetter>(npc.HeadParts[i].FormKey, out var hpGetter) && Patcher.MainLinkCache.TryResolve<ITextureSetGetter>(hpGetter.TextureSet.FormKey, out var tsGetter))
-                    {
-                        var copiedHP = outputMod.HeadParts.AddNew();
-                        copiedHP.DeepCopyIn(hpGetter);
-
-                        var copiedTS = outputMod.TextureSets.AddNew();
-                        copiedTS.DeepCopyIn(tsGetter);
-                        
-                        foreach (var subgroup in subgroupCombination.ContainedSubgroups)
-                        {
-                            foreach (var path in subgroup.Paths)
-                            {
-                                if (path.Destination.EndsWith("TextureSet.Diffuse", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    copiedTS.Diffuse = path.Source;
-                                }
-                                else if (path.Destination.EndsWith("TextureSet.NormalOrGloss", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    copiedTS.NormalOrGloss = path.Source;
-                                }
-                            }
-                        }
-                        copiedTS.EditorID += "_" + subgroupCombination.AssetPack.Source.ShortName + "." + subgroupCombination.Signature;
-                        copiedHP.TextureSet.SetTo(copiedTS);
-                        copiedHP.EditorID += "_" + subgroupCombination.AssetPack.Source.ShortName + "." + subgroupCombination.Signature;
-
-                        AddModifiedRecordToDictionary(pathSignature, npc.HeadParts[i].FormKey, copiedHP);
-
-                        npc.HeadParts[i] = copiedHP.AsLinkGetter();
-                    }
-                    else
-                    {
-                        // Warn user
-                    }
-                }
-            }
-        }
-
-        private static void AssignSpecialCaseAssetReplacer(SubgroupCombination subgroupCombination, INpcGetter npcGetter, SkyrimMod outputMod)
-        {
-            var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
-            switch (subgroupCombination.DestinationType)
-            {
-                case SubgroupCombination.DestinationSpecifier.MarksFemaleHumanoid04RightGashR: AssignHeadPartByDiffusePath(subgroupCombination, npc, outputMod, "actors\\character\\female\\facedetails\\facefemalerightsidegash_04.dds"); break;
-                case SubgroupCombination.DestinationSpecifier.MarksFemaleHumanoid06RightGashR: AssignHeadPartByDiffusePath(subgroupCombination, npc, outputMod, "actors\\character\\female\\facedetails\\facefemalerightsidegash_06.dds"); break;
-                default: break; // Warn user
-            }
-        }
-
-        private static void AssignHeadPartByDiffusePath(SubgroupCombination subgroupCombination, Npc npc, SkyrimMod outputMod, string diffusePath)
-        {
-            var pathSignature = new HashSet<string>();
-            foreach (var subgroup in subgroupCombination.ContainedSubgroups)
-            {
-                pathSignature.UnionWith(subgroup.Paths.Select(x => x.Source));
-            }
-
-            for (int i = 0; i < npc.HeadParts.Count; i++)
-            {
-                if (TryGetModifiedRecord(pathSignature, npc.HeadParts[i].FormKey, out HeadPart existingReplacer))
-                {
-                    npc.HeadParts[i] = existingReplacer.AsLinkGetter();
-                }
-                else if (Patcher.MainLinkCache.TryResolve<IHeadPartGetter>(npc.HeadParts[i].FormKey, out var hpGetter) && Patcher.MainLinkCache.TryResolve<ITextureSetGetter>(hpGetter.TextureSet.FormKey, out var tsGetter) && tsGetter.Diffuse == diffusePath)
-                {
-                    var copiedHP = outputMod.HeadParts.AddNew();
-                    copiedHP.DeepCopyIn(hpGetter);
-
-                    var copiedTS = outputMod.TextureSets.AddNew();
-                    copiedTS.DeepCopyIn(tsGetter);
-
-                    foreach (var subgroup in subgroupCombination.ContainedSubgroups)
-                    {
-                        foreach (var path in subgroup.Paths)
-                        {
-                            if (path.Destination.EndsWith("TextureSet.Diffuse", StringComparison.OrdinalIgnoreCase))
-                            {
-                                copiedTS.Diffuse = path.Source;
-                            }
-                            else if (path.Destination.EndsWith("TextureSet.NormalOrGloss", StringComparison.OrdinalIgnoreCase))
-                            {
-                                copiedTS.NormalOrGloss = path.Source;
-                            }
-                        }
-                    }
-                    copiedTS.EditorID += "_" + subgroupCombination.AssetPack.Source.ShortName + "." + subgroupCombination.Signature;
-                    copiedHP.TextureSet.SetTo(copiedTS);
-                    copiedHP.EditorID += "_" + subgroupCombination.AssetPack.Source.ShortName + "." + subgroupCombination.Signature;
-
-                    AddModifiedRecordToDictionary(pathSignature, npc.HeadParts[i].FormKey, copiedHP);
-
-                    npc.HeadParts[i] = copiedHP.AsLinkGetter();
-                }
-            }
-        }
 
         //Dictionary[SourcePaths.ToHashSet()][OriginalRecordGetter.FormKey.ToString()] = IMajorRecord Generated
         private static Dictionary<HashSet<string>, Dictionary<string, IMajorRecord>> ModifiedRecords = new Dictionary<HashSet<string>, Dictionary<string, IMajorRecord>>(HashSet<string>.CreateSetComparer()); // https://stackoverflow.com/questions/5910137/how-do-i-use-hashsett-as-a-dictionary-key

@@ -353,15 +353,6 @@ namespace SynthEBD
                     }
                     #endregion
 
-                    #region Generate Records
-                    var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
-                    var npcObjectMap = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", npcRecord} };
-                    RecordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, recordTemplateLinkCache, npcObjectMap, objectCaches, outputMod);
-                    if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
-                    npcRecord.Keywords.Add(EBDFaceKW);
-                    npcRecord.Keywords.Add(EBDScriptKW);
-                    #endregion
-
                     #region Asset Replacer assignment
                     if (assetsAssigned) // assign direct replacers
                     {
@@ -371,11 +362,17 @@ namespace SynthEBD
                             assetReplacerCombinations.UnionWith(AssetSelector.SelectAssetReplacers(combination.AssetPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
                         }
 
-                        foreach (var replacerCombination in assetReplacerCombinations)
-                        {
-                            RecordGenerator.ReplacerCombinationToRecords(replacerCombination, currentNPCInfo, outputMod, recordTemplateLinkCache, npcObjectMap, objectCaches);
-                        }
+                        assignedCombinations.AddRange(assetReplacerCombinations);
                     }
+                    #endregion
+
+                    #region Generate Records
+                    var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
+                    var npcObjectMap = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", npcRecord} };
+                    RecordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, recordTemplateLinkCache, npcObjectMap, objectCaches, outputMod);
+                    if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
+                    npcRecord.Keywords.Add(EBDFaceKW);
+                    npcRecord.Keywords.Add(EBDScriptKW);
                     #endregion
                 }
 

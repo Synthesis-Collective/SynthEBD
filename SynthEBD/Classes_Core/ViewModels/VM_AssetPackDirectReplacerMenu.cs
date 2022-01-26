@@ -61,7 +61,6 @@ namespace SynthEBD
         {
             this.Label = "";
             this.Subgroups = new ObservableCollection<VM_Subgroup>();
-            this.EnableRecordCacheing = true;
             this.ParentMenu = parent;
 
             this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
@@ -88,7 +87,6 @@ namespace SynthEBD
 
         public string Label { get; set; }
         public ObservableCollection<VM_Subgroup> Subgroups { get; set; }
-        public bool EnableRecordCacheing { get; set; }
 
         public VM_AssetPackDirectReplacerMenu ParentMenu{ get; set; }
 
