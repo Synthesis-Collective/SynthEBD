@@ -81,7 +81,17 @@ namespace SynthEBD
                         BodySlideSetting newPreset = new BodySlideSetting();
                         newPreset.Label = presetName;
 
+                        if (newPreset.Label.Contains("Zero for OBody", StringComparison.OrdinalIgnoreCase))
+                        {
+                            newPreset.AllowRandom = false;
+                            newPreset.HideInMenu = true;
+                        }
                         if (newPreset.Label.Contains("Zeroed Sliders", StringComparison.OrdinalIgnoreCase))
+                        {
+                            newPreset.AllowRandom = false;
+                            newPreset.HideInMenu = true;
+                        }
+                        if (newPreset.Label.Contains("Clothes", StringComparison.OrdinalIgnoreCase))
                         {
                             newPreset.AllowRandom = false;
                             newPreset.HideInMenu = true;

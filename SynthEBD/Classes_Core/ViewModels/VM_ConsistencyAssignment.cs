@@ -15,6 +15,7 @@ namespace SynthEBD
         public VM_ConsistencyAssignment()
         {
             this.SubgroupIDs = new ObservableCollection<VM_CollectionMemberString>();
+            this.MixInAssignments = new ObservableCollection<VM_MixInConsistencyAssignment>();
             this.AssetReplacements = new ObservableCollection<VM_AssetReplacementAssignment>();
             this.BodyGenMorphNames = new ObservableCollection<VM_CollectionMemberString>();
             this.BodySlidePreset = "";
@@ -48,6 +49,7 @@ namespace SynthEBD
 
         public string AssetPackName { get; set; }
         public ObservableCollection<VM_CollectionMemberString> SubgroupIDs { get; set; }
+        public ObservableCollection<VM_MixInConsistencyAssignment> MixInAssignments { get; set; }
         public ObservableCollection<VM_AssetReplacementAssignment> AssetReplacements { get; set; }
         public ObservableCollection<VM_CollectionMemberString> BodyGenMorphNames { get; set; }
         public string BodySlidePreset { get; set; }
@@ -76,6 +78,15 @@ namespace SynthEBD
                 {
                     viewModel.SubgroupIDs.Add(new VM_CollectionMemberString(id, viewModel.SubgroupIDs));
                 }
+            }
+            foreach (var mixIn in model.MixInAssignments)
+            {
+                var mixInVM = new VM_MixInConsistencyAssignment(viewModel.MixInAssignments) { AssetPackName = mixIn.Key};
+                foreach (var id in mixIn.Value)
+                {
+                    mixInVM.SubgroupIDs.Add(new VM_CollectionMemberString(id, mixInVM.SubgroupIDs));
+                }
+                viewModel.MixInAssignments.Add(mixInVM);
             }
             foreach(var replacer in model.AssetReplacerAssignments)
             {
@@ -110,6 +121,11 @@ namespace SynthEBD
             model.AssetPackName = viewModel.AssetPackName;
             model.SubgroupIDs = viewModel.SubgroupIDs.Select(x => x.Content).ToList();
             if (model.SubgroupIDs.Count == 0) { model.SubgroupIDs = null; }
+            model.MixInAssignments.Clear();
+            foreach (var mixInVM in viewModel.MixInAssignments)
+            {
+                model.MixInAssignments.Add(mixInVM.AssetPackName, mixInVM.SubgroupIDs.Select(x => x.Content).ToList());
+            }
             model.AssetReplacerAssignments.Clear();
             foreach (var replacer in viewModel.AssetReplacements)
             {
@@ -134,6 +150,28 @@ namespace SynthEBD
             model.DispName = viewModel.DispName;
             model.NPCFormKey = viewModel.NPCFormKey;
             return model;
+        }
+
+        public class VM_MixInConsistencyAssignment
+        {
+            public VM_MixInConsistencyAssignment(ObservableCollection<VM_MixInConsistencyAssignment> parentCollection)
+            {
+                this.SubgroupIDs = new ObservableCollection<VM_CollectionMemberString>();
+                ParentCollection = parentCollection;
+
+                DeleteCommand = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x =>
+                {
+                    ParentCollection.Remove(this);
+                }
+                );
+            }
+            public string AssetPackName { get; set; }
+            public ObservableCollection<VM_CollectionMemberString> SubgroupIDs { get; set; }
+            public ObservableCollection<VM_MixInConsistencyAssignment> ParentCollection { get; set; }
+
+            public RelayCommand DeleteCommand { get; set; }
         }
     }
 }
