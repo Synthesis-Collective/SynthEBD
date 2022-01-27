@@ -30,6 +30,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -42,7 +43,7 @@
         <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Forced Subgroups</TextBlock>
         
         <TextBlock Grid.Row="2" Grid.Column="1" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center">Available</TextBlock>
-        <TreeView Grid.Row="3" Grid.Column="1" Name="TVsubgroups"  ItemsSource ="{Binding AvailableSubgroups}" dd:DragDrop.IsDragSource="True" BorderThickness="1" BorderBrush="#5844b4">
+        <TreeView Grid.Row="3" Grid.Column="1" Name="TVsubgroups"  ItemsSource ="{Binding AvailableSubgroups}" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="None" BorderThickness="1" BorderBrush="#5844b4">
             <TreeView.Resources>
                 <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
                     <TextBlock Text="{Binding Path=Name}" />
@@ -51,15 +52,15 @@
         </TreeView>
 
         <TextBlock Grid.Row="2" Grid.Column="3" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center">Selected</TextBlock>
-        <ListBox Grid.Row="3" Grid.Column="3" ItemsSource="{Binding ForcedSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4">
+        <ListBox Grid.Row="3" Grid.Column="3" ItemsSource="{Binding ForcedSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock>
                             <TextBlock.Text>
                                 <MultiBinding StringFormat="{}{0}:{1}">
-                                    <Binding Path="id" />
-                                    <Binding Path="name" />
+                                    <Binding Path="ID" />
+                                    <Binding Path="Name" />
                                 </MultiBinding>
                             </TextBlock.Text>
                         </TextBlock>
@@ -69,11 +70,76 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
+
         <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Horizontal">
+            <TextBlock>Forced MixIns</TextBlock>
+            <Button HorizontalAlignment="Right" HorizontalContentAlignment="Right" VerticalAlignment="Top" Margin="47 0 0 0" Command="{Binding AddForcedMixIn}" Foreground="LightGreen">Add</Button>
+        </StackPanel>
+        <ItemsControl Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="4" Margin="0 10 0 0" ItemsSource="{Binding ForcedMixIns}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border BorderBrush="MediumPurple" BorderThickness="1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="25"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="auto"/>
+                                <RowDefinition Height="auto"/>
+                                <RowDefinition Height="auto"/>
+                            </Grid.RowDefinitions>
+
+                            <ComboBox Grid.Row="0" Grid.Column="0"  ItemsSource="{Binding Path=AvailableMixInAssetPacks}" DisplayMemberPath="groupName" SelectedValue="{Binding ForcedAssetPack, Mode=TwoWay}" />
+                            <Button Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}" Foreground="Firebrick">X</Button>
+
+                            <!--Subgroup List -->
+                            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center">Available</TextBlock>
+                            <TreeView Grid.Row="2" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding AvailableSubgroups}" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton" BorderThickness="1" BorderBrush="#5844b4">
+                                <TreeView.Resources>
+                                    <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
+                                        <TextBlock Text="{Binding Path=Name}" />
+                                    </HierarchicalDataTemplate>
+                                </TreeView.Resources>
+                            </TreeView>
+
+                            <TextBlock Grid.Row="1" Grid.Column="2" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center">Selected</TextBlock>
+                            <ListBox Grid.Row="2" Grid.Column="2" ItemsSource="{Binding ForcedSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock>
+                                                <TextBlock.Text>
+                                                    <MultiBinding StringFormat="{}{0}:{1}">
+                                                        <Binding Path="ID" />
+                                                        <Binding Path="Name" />
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
+                                            <Button Width="75" Height="20" Margin="15 0 0 0" VerticalAlignment="Center" HorizontalAlignment="Left" HorizontalContentAlignment="Left"  Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.DeleteForcedSubgroup}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <!-- End Subgroup List-->
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <StackPanel Grid.Row="5" Grid.Column="0" Orientation="Horizontal">
             <TextBlock>Forced Asset Replacers</TextBlock>
             <Button VerticalAlignment="Center" Command="{Binding AddForcedReplacer}" Foreground="LightGreen">Add</Button>
         </StackPanel>
-        <ListBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding ForcedAssetReplacements}" IsSynchronizedWithCurrentItem="True">
+        <ListBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding ForcedAssetReplacements}" IsSynchronizedWithCurrentItem="True">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <local:UC_AssetReplacerAssignment_SpecificAssignment/>
@@ -81,21 +147,21 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <TextBlock Grid.Row="5" Grid.Column="0">Forced Height</TextBlock>
-        <TextBox Grid.Row="5" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ForcedHeight}"/>
+        <TextBlock Grid.Row="6" Grid.Column="0">Forced Height</TextBlock>
+        <TextBox Grid.Row="6" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ForcedHeight}"/>
 
-        <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}">Forced Bodyslide</TextBlock>
-        <ComboBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding Path=AvailableBodySlides}" DisplayMemberPath="Label" SelectedValuePath="Label" SelectedValue="{Binding ForcedBodySlide, Mode=TwoWay}" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}" />
+        <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}">Forced Bodyslide</TextBlock>
+        <ComboBox Grid.Row="7" Grid.Column="1" ItemsSource="{Binding Path=AvailableBodySlides}" DisplayMemberPath="Label" SelectedValuePath="Label" SelectedValue="{Binding ForcedBodySlide, Mode=TwoWay}" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}" />
 
-        <TextBlock Grid.Row="6" Grid.Column="0" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Forced Morphs</TextBlock>
+        <TextBlock Grid.Row="7" Grid.Column="0" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Forced Morphs</TextBlock>
 
-        <TextBlock Grid.Row="6" Grid.Column="1" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Available</TextBlock>
+        <TextBlock Grid.Row="7" Grid.Column="1" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Available</TextBlock>
 
-        <ListBox Grid.Row="7" Grid.Column="1" ItemsSource="{Binding AvailableMorphs}" DisplayMemberPath="Label" IsSynchronizedWithCurrentItem="True"  dd:DragDrop.IsDragSource="True" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">
+        <ListBox Grid.Row="8" Grid.Column="1" ItemsSource="{Binding AvailableMorphs}" DisplayMemberPath="Label" IsSynchronizedWithCurrentItem="True"  dd:DragDrop.IsDragSource="True" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">
         </ListBox>
 
-        <TextBlock Grid.Row="6" Grid.Column="3" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Selected</TextBlock>
-        <ListBox Grid.Row="7" Grid.Column="3" ItemsSource="{Binding ForcedBodyGenMorphs}"  dd:DragDrop.IsDropTarget="True" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">
+        <TextBlock Grid.Row="7" Grid.Column="3" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Selected</TextBlock>
+        <ListBox Grid.Row="8" Grid.Column="3" ItemsSource="{Binding ForcedBodyGenMorphs}"  dd:DragDrop.IsDropTarget="True" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Grid>

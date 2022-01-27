@@ -63,7 +63,7 @@
                 <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AssetPackType}}}" SelectedValue="{Binding Path=ConfigType, Mode=TwoWay}" />
                 
                 <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Subgroups</TextBlock>
-                <TreeView Grid.Row="6" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding subgroups}" Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" >
+                <TreeView Grid.Row="6" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding subgroups}" Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton">
                     <TreeView.Resources>
                         <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
                             <TextBlock PreviewMouseLeftButtonDown="HandleSelectPreviewMouseDown" MouseLeftButtonUp="HandleSelectPreviewMouseUp">

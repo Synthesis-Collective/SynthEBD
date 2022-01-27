@@ -48,7 +48,6 @@ namespace SynthEBD
 
         public static void GetViewModelFromModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<NPCAssignment> models, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM)
         {
-            var env = GameEnvironmentProvider.MyEnvironment;
             foreach (var assignment in models)
             {
                 viewModel.Assignments.Add(VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, viewModel.TexMeshSettings.AssetPacks, viewModel.BodyGenSettings, oBodySettings, generalSettingsVM));

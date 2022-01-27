@@ -17,7 +17,7 @@ using Mutagen.Bethesda.Plugins.Cache.Internals.Implementations;
 
 namespace SynthEBD
 {
-    public class VM_SpecificNPCAssignment : INotifyPropertyChanged
+    public class VM_SpecificNPCAssignment : INotifyPropertyChanged, IHasForcedAssets
     {
         public VM_SpecificNPCAssignment(ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen bodyGenSettings, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM)
         {
@@ -27,6 +27,7 @@ namespace SynthEBD
             this.NPCFormKey = new FormKey();
             this.ForcedAssetPack = new VM_AssetPack(assetPacks, bodyGenSettings, oBodySettings.DescriptorUI, generalSettingsVM, null, null);
             this.ForcedSubgroups = new ObservableCollection<VM_Subgroup>();
+            this.ForcedMixIns = new ObservableCollection<VM_MixInSpecificAssignment>();
             this.ForcedAssetReplacements = new ObservableCollection<VM_AssetReplacementAssignment>();
             this.ForcedHeight = "";
             this.ForcedBodyGenMorphs = new ObservableCollection<VM_BodyGenTemplate>();
@@ -34,6 +35,7 @@ namespace SynthEBD
 
             this.Gender = Gender.Female;
             this.AvailableAssetPacks = new ObservableCollection<VM_AssetPack>(); // filtered by gender
+            this.AvailableMixInAssetPacks = new ObservableCollection<VM_AssetPack>(); // filtered by gender
             this.SubscribedAssetPacks = assetPacks;
 
             this.AvailableSubgroups = new ObservableCollection<VM_Subgroup>();
@@ -61,6 +63,7 @@ namespace SynthEBD
             this.SubscribedBodyGenSettings.CurrentMaleConfig.PropertyChanged += TriggerAvailableMorphsUpdate;
             this.SubscribedBodyGenSettings.CurrentFemaleConfig.PropertyChanged += TriggerAvailableMorphsUpdate;
 
+            UpdateAvailableAssetPacks(this);
             UpdateAvailableBodySlides(oBodySettings, generalSettingsVM);
 
             this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => UpdateAvailableBodySlides(oBodySettings, generalSettingsVM));
@@ -87,6 +90,11 @@ namespace SynthEBD
                 execute: x => this.ForcedBodyGenMorphs.Remove((VM_BodyGenTemplate)x)
                 );
 
+            AddForcedMixIn = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x => this.ForcedMixIns.Add(new VM_MixInSpecificAssignment(this, assetPacks, bodyGenSettings, oBodySettings, generalSettingsVM, ForcedMixIns))
+                );
+
             AddForcedReplacer = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => this.ForcedAssetReplacements.Add(new VM_AssetReplacementAssignment(ForcedAssetPack, ForcedAssetReplacements))
@@ -100,6 +108,7 @@ namespace SynthEBD
         public FormKey NPCFormKey { get; set; }
         public VM_AssetPack ForcedAssetPack { get; set; }
         public ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; }
+        public ObservableCollection<VM_MixInSpecificAssignment> ForcedMixIns { get; set; }
         public ObservableCollection<VM_AssetReplacementAssignment> ForcedAssetReplacements { get; set; }
         public string ForcedHeight { get; set; }
         public ObservableCollection<VM_BodyGenTemplate> ForcedBodyGenMorphs { get; set; }
@@ -111,6 +120,7 @@ namespace SynthEBD
 
         public ObservableCollection<VM_Subgroup> AvailableSubgroups { get; set; }
 
+        public ObservableCollection<VM_AssetPack> AvailableMixInAssetPacks { get; set; }
         public ObservableCollection<VM_BodyGenTemplate> AvailableMorphs { get; set; }
         public VM_SettingsBodyGen SubscribedBodyGenSettings { get; set; }
         public ObservableCollection<VM_BodySlideSetting> SubscribedBodySlides { get; set; }
@@ -127,6 +137,7 @@ namespace SynthEBD
         public RelayCommand DeleteForcedSubgroup { get; set; }
 
         public RelayCommand DeleteForcedMorph { get; set; }
+        public RelayCommand AddForcedMixIn { get; set; }
         public RelayCommand AddForcedReplacer { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -158,7 +169,7 @@ namespace SynthEBD
             {
                 foreach (var ap in assetPacks)
                 {
-                    if (ap.groupName == model.DispName)
+                    if (ap.groupName == model.AssetPackName)
                     {
                         viewModel.ForcedAssetPack = ap;
                         assetPackFound = true;
@@ -292,18 +303,37 @@ namespace SynthEBD
 
         public static void UpdateAvailableAssetPacks(VM_SpecificNPCAssignment assignment)
         {
-            assignment.AvailableAssetPacks.Clear();
-            assignment.AvailableAssetPacks.Add(new VM_AssetPack(new ObservableCollection<VM_AssetPack>(), new VM_SettingsBodyGen(new VM_Settings_General()), new VM_BodyShapeDescriptorCreationMenu(), new VM_Settings_General(), null, null) { groupName = "" }); // blank entry
+            for (int i = 0; i < assignment.AvailableAssetPacks.Count; i++)
+            {
+                var ap = assignment.AvailableAssetPacks[i];
+                if (assignment.ForcedAssetPack != ap)
+                {
+                    assignment.AvailableAssetPacks.Remove(ap);
+                }
+            }
+
+            assignment.AvailableMixInAssetPacks.Clear();
+
+            assignment.AvailableAssetPacks.Insert(0, new VM_AssetPack(new ObservableCollection<VM_AssetPack>(), new VM_SettingsBodyGen(new VM_Settings_General()), new VM_BodyShapeDescriptorCreationMenu(), new VM_Settings_General(), null, null) { groupName = "" }); // blank entry
             foreach (var assetPack in assignment.SubscribedAssetPacks)
             {
+                if (assignment.ForcedAssetPack == assetPack) { continue;}
+
                 if (assetPack.gender == assignment.Gender)
                 {
-                    assignment.AvailableAssetPacks.Add(assetPack);
+                    if (assetPack.ConfigType == AssetPackType.Primary)
+                    {
+                        assignment.AvailableAssetPacks.Add(assetPack);
+                    }
+                    else if (assetPack.ConfigType == AssetPackType.MixIn && !assignment.ForcedMixIns.Where(x => x.ForcedAssetPack != null && x.ForcedAssetPack.groupName != assetPack.groupName).Any())
+                    {
+                        assignment.AvailableMixInAssetPacks.Add(assetPack);
+                    }
                 }
             }
         }
 
-        public static void UpdateAvailableSubgroups(VM_SpecificNPCAssignment assignment)
+        public static void UpdateAvailableSubgroups(IHasForcedAssets assignment)
         {
             assignment.AvailableSubgroups.Clear();
             if (assignment.ForcedAssetPack == null) { return; }
@@ -446,6 +476,57 @@ namespace SynthEBD
             return Gender.Male;
         }
 
+        public class VM_MixInSpecificAssignment : INotifyPropertyChanged, IHasForcedAssets
+        {
+            public VM_MixInSpecificAssignment(VM_SpecificNPCAssignment parent, ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen bodyGenSettings, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, ObservableCollection<VM_MixInSpecificAssignment> parentCollection)
+            {
+                ParentCollection = parentCollection;
+                Parent = parent;
 
+                this.AvailableMixInAssetPacks = Parent.AvailableMixInAssetPacks;
+                this.ForcedAssetPack = new VM_AssetPack(assetPacks, bodyGenSettings, oBodySettings.DescriptorUI, generalSettingsVM, null, null);
+                this.ForcedSubgroups = new ObservableCollection<VM_Subgroup>();
+                this.AvailableSubgroups = new ObservableCollection<VM_Subgroup>();
+
+                this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x => UpdateAvailableSubgroups(this));
+                this.ForcedSubgroups.CollectionChanged += TriggerAvailableSubgroupsUpdate;
+
+                DeleteCommand = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x =>
+                {
+                    ParentCollection.Remove(this);
+                }
+                );
+
+                DeleteForcedSubgroup = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x => this.ForcedSubgroups.Remove((VM_Subgroup)x)
+                );
+            }
+            public VM_AssetPack ForcedAssetPack { get; set; }
+            public ObservableCollection<VM_AssetPack> AvailableMixInAssetPacks { get; set; }
+            public ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; }
+            public ObservableCollection<VM_Subgroup> AvailableSubgroups { get; set; }
+            public ObservableCollection<VM_MixInSpecificAssignment> ParentCollection { get; set; }
+            public VM_SpecificNPCAssignment Parent { get; set; }
+
+            public RelayCommand DeleteCommand { get; set; }
+            public RelayCommand DeleteForcedSubgroup { get; set; }
+
+            public event PropertyChangedEventHandler PropertyChanged;
+
+            public void TriggerAvailableSubgroupsUpdate(object sender, NotifyCollectionChangedEventArgs e)
+            {
+                UpdateAvailableSubgroups(this);
+            }
+        }
+    }
+
+    public interface IHasForcedAssets
+    {
+        public VM_AssetPack ForcedAssetPack { get; set; }
+        ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; }
+        public ObservableCollection<VM_Subgroup> AvailableSubgroups { get; set; }
     }
 }
