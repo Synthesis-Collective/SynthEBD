@@ -16,7 +16,7 @@ using ReactiveUI;
 
 namespace SynthEBD
 {
-    public class VM_AssetPack : INotifyPropertyChanged
+    public class VM_AssetPack : INotifyPropertyChanged, IHasAttributeGroupMenu
     {
         public VM_AssetPack(ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, VM_Settings_General generalSettingsVM, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)
         {

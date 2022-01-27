@@ -12,6 +12,7 @@
             <ColumnDefinition Width="auto"/>
             <ColumnDefinition Width="10"/>
             <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
@@ -24,7 +25,8 @@
 
         <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Replacer Group</TextBlock>
         <ComboBox Grid.Row="0" Grid.Column="2" ItemsSource="{Binding ParentAssetPack.ReplacersMenu.ReplacerGroups}" DisplayMemberPath="Label" SelectedValuePath="Label" SelectedValue="{Binding ReplacerName}" />
-
+        <Button Grid.Row="0" Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="5 0 0 0" Command="{Binding DeleteCommand}" Foreground="Firebrick">X</Button>
+        
         <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Subgroups</TextBlock>
         <Button Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Command="{Binding AddSubgroupCommand}" Foreground="Green">+</Button>
         <ItemsControl Grid.Row="1" Grid.Column="2" Margin="0 10 0 0" ItemsSource="{Binding SubgroupIDs}">

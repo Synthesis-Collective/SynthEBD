@@ -14,7 +14,7 @@ namespace SynthEBD
 {
     public class VM_BodyShapeDescriptorSelectionMenu : INotifyPropertyChanged
     {
-        public VM_BodyShapeDescriptorSelectionMenu(VM_BodyShapeDescriptorCreationMenu trackedMenu)
+        public VM_BodyShapeDescriptorSelectionMenu(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
         {
             this.Header = "";
             this.TrackedMenu = trackedMenu;
@@ -23,7 +23,7 @@ namespace SynthEBD
             {
                 this.DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(Descriptor, this));
             }
-            this.CurrentlyDisplayedShell = new VM_BodyShapeDescriptorShellSelector(new VM_BodyShapeDescriptorShell(new ObservableCollection<VM_BodyShapeDescriptorShell>()), this);
+            this.CurrentlyDisplayedShell = new VM_BodyShapeDescriptorShellSelector(new VM_BodyShapeDescriptorShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), raceGroupingVMs, parentConfig), this);
 
             trackedMenu.TemplateDescriptors.CollectionChanged += UpdateShellList;
         }
@@ -90,9 +90,9 @@ namespace SynthEBD
             this.UpdateHeader();
         }
 
-        public static VM_BodyShapeDescriptorSelectionMenu InitializeFromHashSet(HashSet<BodyShapeDescriptor> BodyShapeDescriptors, VM_BodyShapeDescriptorCreationMenu trackedMenu)
+        public static VM_BodyShapeDescriptorSelectionMenu InitializeFromHashSet(HashSet<BodyShapeDescriptor> BodyShapeDescriptors, VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
         {
-            var menu = new VM_BodyShapeDescriptorSelectionMenu(trackedMenu);
+            var menu = new VM_BodyShapeDescriptorSelectionMenu(trackedMenu, raceGroupingVMs, parentConfig);
             foreach (var descriptor in BodyShapeDescriptors)
             {
                 bool keepLooking = true;
@@ -100,7 +100,7 @@ namespace SynthEBD
                 {
                     foreach (var selectableDescriptor in Descriptor.DescriptorSelectors)
                     {
-                        if (selectableDescriptor.TrackedDescriptor.DispString == descriptor.DispString)
+                        if (selectableDescriptor.TrackedDescriptor.Signature == descriptor.Signature)
                         {
                             selectableDescriptor.IsSelected = true;
                             keepLooking = false;
@@ -121,7 +121,7 @@ namespace SynthEBD
             {
                 foreach (var shell in viewModel.DescriptorShells)
                 {
-                    output.UnionWith(shell.DescriptorSelectors.Where(x => x.IsSelected).Select(x => new BodyShapeDescriptor() { Category = shell.TrackedShell.Category, Value = x.Value, DispString = x.TrackedDescriptor.DispString }).ToHashSet());
+                    output.UnionWith(shell.DescriptorSelectors.Where(x => x.IsSelected).Select(x => new BodyShapeDescriptor() { Category = shell.TrackedShell.Category, Value = x.Value, Signature = x.TrackedDescriptor.Signature }).ToHashSet());
                 }
             }
             return output;

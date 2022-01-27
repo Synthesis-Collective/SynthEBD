@@ -10,6 +10,7 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
@@ -19,7 +20,7 @@
 
         <TextBlock Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center">Value</TextBlock>
         <Button Grid.Row="1" Grid.Column="0" Command="{Binding AddTemplateDescriptorValue}" Foreground="Lightgreen">Add New</Button>
-        <ItemsControl Grid.Row="2" Grid.Column="0" ItemsSource="{Binding Descriptors}">
+        <ItemsControl Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" ItemsSource="{Binding Descriptors}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_BodyShapeDescriptor}">
                     <local:UC_BodyShapeDescriptor Background="Black" Margin="0 0 0 10"/>

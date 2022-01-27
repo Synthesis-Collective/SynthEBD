@@ -70,15 +70,17 @@ namespace SynthEBD
             if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
             {
                 // Pre-process some aspects of the configs to improve performance. Mutates the input configs so be sure to use a copy to avoid altering users settings
-                BodyGenPreprocessing.CompileBodyGenRaces(copiedBodyGenConfigs);
+                BodyGenPreprocessing.CompileBodyGenRaces(copiedBodyGenConfigs); // descriptor rules compiled here as well
                 BodyGenPreprocessing.FlattenGroupAttributes(copiedBodyGenConfigs);
+                BodyGenPreprocessing.ImplementDescriptorRules(copiedBodyGenConfigs);
             }
             else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
             {
                 copiedOBodySettings.BodySlidesFemale = copiedOBodySettings.BodySlidesFemale.Where(x => copiedOBodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).ToList(); // don't assign BodySlides that have been uninstalled
                 copiedOBodySettings.BodySlidesMale = copiedOBodySettings.BodySlidesMale.Where(x => copiedOBodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).ToList();
                 OBodyPreprocessing.CompilePresetRaces(copiedOBodySettings);
-                OBodyPreprocessing.FlattenPresetAttributes(copiedOBodySettings);
+                OBodyPreprocessing.CompileRulesRaces(copiedOBodySettings);
+                OBodyPreprocessing.FlattenGroupAttributes(copiedOBodySettings);
 
                 var bodyslidesLoaded = outputMod.Globals.AddNewShort();
                 bodyslidesLoaded.EditorID = "SynthEBDBodySlidesLoaded";
@@ -464,15 +466,6 @@ namespace SynthEBD
             }
             PatchableRaces.Add(Skyrim.Race.DefaultRace.TryResolve(MainLinkCache).AsLinkGetter());
         }
-
-        /*
-        private static void InitializeIgnoredArmorAddons()
-        {
-            IgnoredArmorAddons = new HashSet<IFormLinkGetter<IArmorAddonGetter>>();
-            IgnoredArmorAddons.Add(Skyrim.ArmorAddon.NakedTorsoWerewolfBeast.FormKey.AsLinkGetter<IArmorAddonGetter>());
-            IgnoredArmorAddons.Add(Dawnguard.ArmorAddon.DLC1NakedVampireLord.FormKey.AsLinkGetter<IArmorAddonGetter>());
-            IgnoredArmorAddons.Add(Dragonborn.ArmorAddon.DLC2NakedTorsoWerebearBeast.FormKey.AsLinkGetter<IArmorAddonGetter>());
-        }*/
 
         public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker(); // tracks unique selected morphs so that only assigned morphs are written to the generated templates.ini
         public static Dictionary<FormKey, string> BodySlideTracker = new Dictionary<FormKey, string>(); // tracks which NPCs get which bodyslide presets

@@ -11,12 +11,17 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
             <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <TextBox Grid.Row="0" Grid.Column="0" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Value, UpdateSourceTrigger=PropertyChanged}"></TextBox>
         <Button Grid.Row="0" Grid.Column="1" Command="{Binding RemoveDescriptorValue}" Foreground="Firebrick">X</Button>
+        <Expander Grid.Row="0" Grid.RowSpan="2" Grid.Column="2" Header="Distribution Rules">
+            <local:UC_BodyShapeDescriptorRules DataContext="{Binding AssociatedRules}"/>
+        </Expander>
     </Grid>
 </UserControl>

@@ -19,7 +19,8 @@ namespace SynthEBD
         public HashSet<BodyGenConfig> Male { get; set; }
         public HashSet<BodyGenConfig> Female { get; set; }
     }
-    public class BodyGenConfig
+
+    public class BodyGenConfig : IHasDescriptorRules
     {
         public BodyGenConfig()
         {
@@ -30,6 +31,7 @@ namespace SynthEBD
             this.TemplateGroups = new HashSet<string>();
             this.TemplateDescriptors = new HashSet<BodyShapeDescriptor>();
             this.AttributeGroups = new HashSet<AttributeGroup>();
+            this.DescriptorRules = new HashSet<BodyShapeDescriptorRules>();
         }
 
         public string Label { get; set; }
@@ -39,6 +41,7 @@ namespace SynthEBD
         public HashSet<string> TemplateGroups { get; set; }
         public HashSet<BodyShapeDescriptor> TemplateDescriptors { get; set; }
         public HashSet<AttributeGroup> AttributeGroups { get; set; }
+        public HashSet<BodyShapeDescriptorRules> DescriptorRules { get; set; }
         [Newtonsoft.Json.JsonIgnore]
         public string FilePath { get; set; }
 
@@ -302,7 +305,7 @@ namespace SynthEBD
             foreach (string d in zTemplate.descriptors)
             {
                 var convertedDescriptor = Converters.StringToBodyShapeDescriptor(d);
-                if(!usedDescriptors.Any(n=> n.DispString == d))
+                if(!usedDescriptors.Any(n=> n.Signature == d))
                 {
                     usedDescriptors.Add(convertedDescriptor);
                 }

@@ -326,7 +326,7 @@ namespace SynthEBD
                 string[] split = s.Split(':');
                 newDescriptor.Category = split[0].Trim();
                 newDescriptor.Value = split[1].Trim();
-                newDescriptor.DispString = s;
+                newDescriptor.Signature = s;
             }
             catch
             {

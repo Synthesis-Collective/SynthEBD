@@ -9,7 +9,7 @@ using System.Xml.Linq;
 
 namespace SynthEBD
 {
-    public class Settings_OBody
+    public class Settings_OBody: IHasDescriptorRules
     {
         public Settings_OBody()
         {
@@ -20,6 +20,7 @@ namespace SynthEBD
             this.CurrentlyExistingBodySlides = new HashSet<string>();
             this.MaleSliderGroups = new HashSet<string>();
             this.FemaleSliderGroups = new HashSet<string>();
+            this.DescriptorRules = new HashSet<BodyShapeDescriptorRules>();
         }
         public List<BodySlideSetting> BodySlidesMale { get; set; }
         public List<BodySlideSetting> BodySlidesFemale { get; set; }
@@ -27,6 +28,7 @@ namespace SynthEBD
         public HashSet<AttributeGroup> AttributeGroups { get; set; }
         public HashSet<string> MaleSliderGroups { get; set; }
         public HashSet<string> FemaleSliderGroups { get; set; }
+        public HashSet<BodyShapeDescriptorRules> DescriptorRules { get; set; }
         
         [JsonIgnore]
         public HashSet<string> CurrentlyExistingBodySlides { get; set; }

@@ -10,7 +10,7 @@ namespace SynthEBD
 {
     public class VM_BodyShapeDescriptorShell : INotifyPropertyChanged
     {
-        public VM_BodyShapeDescriptorShell(ObservableCollection<VM_BodyShapeDescriptorShell> parentCollection)
+        public VM_BodyShapeDescriptorShell(ObservableCollection<VM_BodyShapeDescriptorShell> parentCollection, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig)
         {
             this.Category = "";
             this.Descriptors = new ObservableCollection<VM_BodyShapeDescriptor>();
@@ -18,7 +18,7 @@ namespace SynthEBD
 
             AddTemplateDescriptorValue = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.Descriptors.Add(new VM_BodyShapeDescriptor(this))
+                execute: _ => this.Descriptors.Add(new VM_BodyShapeDescriptor(this, raceGroupings, parentConfig))
                 );
         }
 
@@ -29,20 +29,20 @@ namespace SynthEBD
         public event PropertyChangedEventHandler PropertyChanged;
 
 
-        public static ObservableCollection<VM_BodyShapeDescriptorShell> GetViewModelsFromModels(HashSet<BodyShapeDescriptor> models)
+        public static ObservableCollection<VM_BodyShapeDescriptorShell> GetViewModelsFromModels(HashSet<BodyShapeDescriptor> models, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig, IHasDescriptorRules parentDescriptorConfig)
         {
             ObservableCollection<VM_BodyShapeDescriptorShell> viewModels = new ObservableCollection<VM_BodyShapeDescriptorShell>();
-            VM_BodyShapeDescriptorShell shellViewModel = new VM_BodyShapeDescriptorShell(viewModels);
-            VM_BodyShapeDescriptor viewModel = new VM_BodyShapeDescriptor(shellViewModel);
+            VM_BodyShapeDescriptorShell shellViewModel = new VM_BodyShapeDescriptorShell(viewModels, raceGroupings, parentConfig);
+            VM_BodyShapeDescriptor viewModel = new VM_BodyShapeDescriptor(shellViewModel, raceGroupings, parentConfig);
             List<string> usedCategories = new List<string>();
 
             foreach (var model in models)
             {
-                viewModel = VM_BodyShapeDescriptor.GetViewModelFromModel(model);
+                viewModel = VM_BodyShapeDescriptor.GetViewModelFromModel(model, raceGroupings, parentConfig, parentDescriptorConfig);
 
                 if (!usedCategories.Contains(model.Category))
                 {
-                    shellViewModel = new VM_BodyShapeDescriptorShell(viewModels);
+                    shellViewModel = new VM_BodyShapeDescriptorShell(viewModels, raceGroupings, parentConfig);
                     shellViewModel.Category = model.Category;
                     viewModel.ParentShell = shellViewModel;
                     shellViewModel.Descriptors.Add(viewModel);
@@ -60,7 +60,7 @@ namespace SynthEBD
             return viewModels;
         }
 
-        public static HashSet<BodyShapeDescriptor> DumpViewModelsToModels(ObservableCollection<VM_BodyShapeDescriptorShell> viewModels)
+        public static HashSet<BodyShapeDescriptor> DumpViewModelsToModels(ObservableCollection<VM_BodyShapeDescriptorShell> viewModels, HashSet<BodyShapeDescriptorRules> configDescriptorRules)
         {
             HashSet<BodyShapeDescriptor> models = new HashSet<BodyShapeDescriptor>();
 
@@ -68,7 +68,7 @@ namespace SynthEBD
             {
                 foreach (var descriptor in categoryVM.Descriptors)
                 {
-                    models.Add(new BodyShapeDescriptor() { Category = categoryVM.Category, Value = descriptor.Value, DispString = descriptor.DispString });
+                    models.Add(VM_BodyShapeDescriptor.DumpViewModeltoModel(descriptor, configDescriptorRules));
                 }
             }
 

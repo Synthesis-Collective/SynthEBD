@@ -9,18 +9,14 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows.Media;
-using ReactiveUI;
 
 namespace SynthEBD
 {
-    public class VM_BodySlideSetting : INotifyPropertyChanged
+    public class VM_BodyShapeDescriptorRules : INotifyPropertyChanged
     {
-        public VM_BodySlideSetting(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection, VM_SettingsOBody parentConfig)
+        public VM_BodyShapeDescriptorRules(VM_BodyShapeDescriptor descriptor, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
         {
-            this.Label = "";
-            this.Notes = "";
-            this.DescriptorsSelectionMenu = new VM_BodyShapeDescriptorSelectionMenu(BodyShapeDescriptors, raceGroupingVMs, parentConfig);
+            DescriptorSignature = descriptor.Signature;
             this.AllowedRaces = new ObservableCollection<FormKey>();
             this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
             this.DisallowedRaces = new ObservableCollection<FormKey>();
@@ -33,49 +29,23 @@ namespace SynthEBD
             this.ProbabilityWeighting = 1;
             this.WeightRange = new NPCWeightRange();
 
-            this.Caption_BodyShapeDescriptors = "";
-
             this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
 
-            this.ParentConfig = parentConfig;
-            this.ParentCollection = parentCollection;
-
-            this.HideInMenu = false;
-
-            this.WhenAnyValue(x => x.HideInMenu).Subscribe(x =>
-            {
-                if (!parentConfig.BodySlidesUI.ShowHidden && HideInMenu)
-                {
-                    IsVisible = false;
-                }
-                else
-                {
-                    IsVisible = true;
-                }
-                UpdateBorder();
-            });
+            ParentConfig = parentConfig;
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
-                canExecute: _ => true,
-                execute: _ => this.AllowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.AllowedAttributes, true, ParentConfig.AttributeGroupMenu.Groups))
-                );
+               canExecute: _ => true,
+               execute: _ => this.AllowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.AllowedAttributes, true, ParentConfig.AttributeGroupMenu.Groups))
+               );
 
             AddDisallowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => this.DisallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.DisallowedAttributes, false, ParentConfig.AttributeGroupMenu.Groups))
                 );
-
-            DeleteMe = new SynthEBD.RelayCommand(
-                canExecute: _ => true,
-                execute: _ => this.ParentCollection.Remove(this)
-                );
-            DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => UpdateBorder());
         }
 
-        public string Label { get; set; }
-        public string Notes { get; set; }
-        public VM_BodyShapeDescriptorSelectionMenu DescriptorsSelectionMenu { get; set; }
+        public string DescriptorSignature { get; set; }
         public ObservableCollection<FormKey> AllowedRaces { get; set; }
         public ObservableCollection<FormKey> DisallowedRaces { get; set; }
         public VM_RaceGroupingCheckboxList AllowedRaceGroupings { get; set; }
@@ -88,47 +58,19 @@ namespace SynthEBD
         public int ProbabilityWeighting { get; set; }
         public NPCWeightRange WeightRange { get; set; }
 
-        public event PropertyChangedEventHandler PropertyChanged;
-        public string Caption_BodyShapeDescriptors { get; set; }
+        IHasAttributeGroupMenu ParentConfig { get; set; }
         public ILinkCache lk { get; set; }
         public IEnumerable<Type> RacePickerFormKeys { get; set; }
 
         public RelayCommand AddAllowedAttribute { get; }
         public RelayCommand AddDisallowedAttribute { get; }
-        public RelayCommand DeleteMe { get; }
 
-        public VM_SettingsOBody ParentConfig { get; set; }
-        public ObservableCollection<VM_BodySlideSetting> ParentCollection { get; set; }
+        public event PropertyChangedEventHandler PropertyChanged;
 
-        public SolidColorBrush BorderColor { get; set; }
-        public bool HideInMenu { get; set; }
-        public bool IsVisible {  get; set; }
-
-        public void UpdateBorder()
+        public static VM_BodyShapeDescriptorRules GetViewModelFromModel(BodyShapeDescriptorRules model, VM_BodyShapeDescriptor parentVM, IHasAttributeGroupMenu parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
-            if (!ParentConfig.BodySlidesUI.CurrentlyExistingBodySlides.Contains(this.Label))
-            {
-                BorderColor = new SolidColorBrush(Colors.Red);
-            }
-            else if (HideInMenu)
-            {
-                BorderColor = new SolidColorBrush(Colors.LightSlateGray);
-            }
-            else if(!DescriptorsSelectionMenu.IsAnnotated())
-            {
-                BorderColor = new SolidColorBrush(Colors.Yellow);
-            }
-            else
-            {
-                BorderColor = new SolidColorBrush(Colors.LightGreen);
-            }
-        }
-
-        public static void GetViewModelFromModel(BodySlideSetting model, VM_BodySlideSetting viewModel, VM_BodyShapeDescriptorCreationMenu descriptorMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
-        {
-            viewModel.Label = model.Label;
-            viewModel.Notes = model.Notes;
-            viewModel.DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.BodyShapeDescriptors, descriptorMenu, raceGroupingVMs, parentConfig);
+            VM_BodyShapeDescriptorRules viewModel = new VM_BodyShapeDescriptorRules(parentVM, raceGroupingVMs, parentConfig);
+            viewModel.DescriptorSignature = model.DescriptorSignature;
             viewModel.AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
             viewModel.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
             foreach (var grouping in viewModel.AllowedRaceGroupings.RaceGroupingSelections)
@@ -161,19 +103,13 @@ namespace SynthEBD
             viewModel.ProbabilityWeighting = model.ProbabilityWeighting;
             viewModel.WeightRange = model.WeightRange;
 
-            viewModel.UpdateBorder();
-
-            viewModel.DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => viewModel.UpdateBorder());
-
-            viewModel.HideInMenu = model.HideInMenu;
+            return viewModel;
         }
 
-        public static BodySlideSetting DumpViewModelToModel(VM_BodySlideSetting viewModel)
+        public static BodyShapeDescriptorRules DumpViewModelToModel(VM_BodyShapeDescriptorRules viewModel)
         {
-            BodySlideSetting model = new BodySlideSetting();
-            model.Label = viewModel.Label;
-            model.Notes = viewModel.Notes;
-            model.BodyShapeDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(viewModel.DescriptorsSelectionMenu);
+            BodyShapeDescriptorRules model = new BodyShapeDescriptorRules();
+            model.DescriptorSignature = viewModel.DescriptorSignature;
             model.AllowedRaces = viewModel.AllowedRaces.ToHashSet();
             model.AllowedRaceGroupings = viewModel.AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.Label).ToHashSet();
             model.DisallowedRaces = viewModel.DisallowedRaces.ToHashSet();
@@ -185,8 +121,9 @@ namespace SynthEBD
             model.AllowRandom = viewModel.bAllowRandom;
             model.ProbabilityWeighting = viewModel.ProbabilityWeighting;
             model.WeightRange = viewModel.WeightRange;
-            model.HideInMenu = viewModel.HideInMenu;
             return model;
         }
     }
+
+
 }

@@ -48,7 +48,7 @@ namespace SynthEBD
             this.Notes = "";
             this.Specs = "";
             this.GroupSelectionCheckList = new VM_CollectionMemberStringCheckboxList(templateGroups);
-            this.DescriptorsSelectionMenu = new VM_BodyShapeDescriptorSelectionMenu(BodyShapeDescriptors);
+            this.DescriptorsSelectionMenu = new VM_BodyShapeDescriptorSelectionMenu(BodyShapeDescriptors, raceGroupingVMs, parentConfig);
             this.AllowedRaces = new ObservableCollection<FormKey>();
             this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
             this.DisallowedRaces = new ObservableCollection<FormKey>();
@@ -122,7 +122,6 @@ namespace SynthEBD
 
         public RelayCommand AddAllowedAttribute { get; }
         public RelayCommand AddDisallowedAttribute { get; }
-        public RelayCommand AddForceIfAttribute { get; }
         public RelayCommand AddRequiredTemplate { get; }
         public RelayCommand DeleteMe { get; }
 
@@ -136,7 +135,7 @@ namespace SynthEBD
             viewModel.Notes = model.Notes;
             viewModel.Specs = model.Specs;
             viewModel.GroupSelectionCheckList.InitializeFromHashSet(model.MemberOfTemplateGroups);
-            viewModel.DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.BodyShapeDescriptors, descriptorMenu);
+            viewModel.DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.BodyShapeDescriptors, descriptorMenu, raceGroupingVMs, viewModel.ParentConfig);
             viewModel.AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
             viewModel.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
             foreach (var grouping in viewModel.AllowedRaceGroupings.RaceGroupingSelections)

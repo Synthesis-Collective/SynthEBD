@@ -70,12 +70,23 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
-
         <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Horizontal">
+            <TextBlock>Forced Asset Replacers</TextBlock>
+            <Button VerticalAlignment="Center" Command="{Binding AddForcedReplacer}" Foreground="LightGreen">Add</Button>
+        </StackPanel>
+        <ListBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding ForcedAssetReplacements}" IsSynchronizedWithCurrentItem="True">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <local:UC_AssetReplacerAssignment_SpecificAssignment/>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <StackPanel Grid.Row="5" Grid.Column="0" Orientation="Horizontal">
             <TextBlock>Forced MixIns</TextBlock>
             <Button HorizontalAlignment="Right" HorizontalContentAlignment="Right" VerticalAlignment="Top" Margin="47 0 0 0" Command="{Binding AddForcedMixIn}" Foreground="LightGreen">Add</Button>
         </StackPanel>
-        <ItemsControl Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="4" Margin="0 10 0 0" ItemsSource="{Binding ForcedMixIns}">
+        <ItemsControl Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="4" Margin="0 10 0 0" ItemsSource="{Binding ForcedMixIns}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                     <StackPanel/>
@@ -92,6 +103,8 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
+                                <RowDefinition Height="auto"/>
+                                <RowDefinition Height="auto"/>
                                 <RowDefinition Height="auto"/>
                                 <RowDefinition Height="auto"/>
                                 <RowDefinition Height="auto"/>
@@ -129,23 +142,22 @@
                                 </ListBox.ItemTemplate>
                             </ListBox>
                             <!-- End Subgroup List-->
+
+                            <TextBlock Grid.Row="3" Grid.Column="0">MixIn Asset Replacers</TextBlock>
+                            <Button Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Command="{Binding AddForcedReplacer}" Foreground="LightGreen">Add</Button>
+                            
+                            <ListBox Grid.Row="4" Grid.Column="2" ItemsSource="{Binding ForcedAssetReplacements}" IsSynchronizedWithCurrentItem="True">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <local:UC_AssetReplacerAssignment_SpecificAssignment/>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
                         </Grid>
                     </Border>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
-
-        <StackPanel Grid.Row="5" Grid.Column="0" Orientation="Horizontal">
-            <TextBlock>Forced Asset Replacers</TextBlock>
-            <Button VerticalAlignment="Center" Command="{Binding AddForcedReplacer}" Foreground="LightGreen">Add</Button>
-        </StackPanel>
-        <ListBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding ForcedAssetReplacements}" IsSynchronizedWithCurrentItem="True">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <local:UC_AssetReplacerAssignment_SpecificAssignment/>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
 
         <TextBlock Grid.Row="6" Grid.Column="0">Forced Height</TextBlock>
         <TextBox Grid.Row="6" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ForcedHeight}"/>

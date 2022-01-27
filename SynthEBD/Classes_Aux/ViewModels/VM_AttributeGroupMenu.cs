@@ -77,4 +77,9 @@ namespace SynthEBD
             }
         }
     }
+
+    public interface IHasAttributeGroupMenu
+    {
+        public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
+    }
 }

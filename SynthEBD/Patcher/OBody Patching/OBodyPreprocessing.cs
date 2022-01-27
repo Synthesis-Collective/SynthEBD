@@ -8,7 +8,7 @@ namespace SynthEBD
 {
     public class OBodyPreprocessing
     {
-        public static void FlattenPresetAttributes(Settings_OBody oBodySettings)
+        public static void FlattenGroupAttributes(Settings_OBody oBodySettings)
         {
             foreach (var preset in oBodySettings.BodySlidesMale)
             {
@@ -19,6 +19,12 @@ namespace SynthEBD
             {
                 preset.AllowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(preset.AllowedAttributes, oBodySettings.AttributeGroups);
                 preset.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(preset.DisallowedAttributes, oBodySettings.AttributeGroups);
+            }
+
+            foreach (var rule in oBodySettings.DescriptorRules)
+            {
+                rule.AllowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(rule.AllowedAttributes, oBodySettings.AttributeGroups);
+                rule.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(rule.DisallowedAttributes, oBodySettings.AttributeGroups);
             }
         }
 
@@ -33,6 +39,14 @@ namespace SynthEBD
             {
                 preset.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(preset.AllowedRaceGroupings, PatcherSettings.General.RaceGroupings, preset.AllowedRaces);
                 preset.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(preset.DisallowedRaceGroupings, PatcherSettings.General.RaceGroupings, preset.DisallowedRaces);
+            }
+        }
+
+        public static void CompileRulesRaces(Settings_OBody oBodySettings)
+        {
+            foreach (var rule in oBodySettings.DescriptorRules)
+            {
+                rule.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(rule.AllowedRaceGroupings, PatcherSettings.General.RaceGroupings, rule.AllowedRaces);
             }
         }
     }

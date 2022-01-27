@@ -11,7 +11,7 @@ using System.Windows.Input;
 
 namespace SynthEBD
 {
-    public class VM_BodyGenConfig : INotifyPropertyChanged
+    public class VM_BodyGenConfig : INotifyPropertyChanged, IHasAttributeGroupMenu
     {
         public VM_BodyGenConfig(VM_Settings_General generalSettingsVM)
         {
@@ -20,7 +20,7 @@ namespace SynthEBD
 
             this.GroupMappingUI = new VM_BodyGenGroupMappingMenu(this.GroupUI, generalSettingsVM.RaceGroupings);
             this.GroupUI = new VM_BodyGenGroupsMenu(this);
-            this.DescriptorUI = new VM_BodyShapeDescriptorCreationMenu();
+            this.DescriptorUI = new VM_BodyShapeDescriptorCreationMenu(generalSettingsVM.RaceGroupings, this);
             this.TemplateMorphUI = new VM_BodyGenTemplateMenu(this, generalSettingsVM.RaceGroupings);
             this.DisplayedUI = this.TemplateMorphUI;
             this.AttributeGroupMenu = new VM_AttributeGroupMenu();
@@ -102,11 +102,11 @@ namespace SynthEBD
                 viewModel.GroupMappingUI.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.GetViewModelFromModel(RTG, viewModel.GroupUI, generalSettingsVM.RaceGroupings));
             }
 
-            viewModel.DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors);
+            viewModel.DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, generalSettingsVM.RaceGroupings, viewModel, model);
 
             foreach (var descriptor in model.TemplateDescriptors)
             {
-                viewModel.DescriptorUI.TemplateDescriptorList.Add(VM_BodyShapeDescriptor.GetViewModelFromModel(descriptor));
+                viewModel.DescriptorUI.TemplateDescriptorList.Add(VM_BodyShapeDescriptor.GetViewModelFromModel(descriptor, generalSettingsVM.RaceGroupings, viewModel, model));
             }
 
             foreach (var template in model.Templates)
@@ -133,7 +133,7 @@ namespace SynthEBD
             {
                 model.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.DumpViewModelToModel(RTG));
             }
-            model.TemplateDescriptors = VM_BodyShapeDescriptorShell.DumpViewModelsToModels(viewModel.DescriptorUI.TemplateDescriptors);
+            model.TemplateDescriptors = VM_BodyShapeDescriptorShell.DumpViewModelsToModels(viewModel.DescriptorUI.TemplateDescriptors, model.DescriptorRules);
             foreach (var template in viewModel.TemplateMorphUI.Templates)
             {
                 model.Templates.Add(VM_BodyGenTemplate.DumpViewModelToModel(template));

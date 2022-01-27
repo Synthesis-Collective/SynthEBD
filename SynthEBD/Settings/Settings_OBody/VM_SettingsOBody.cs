@@ -8,11 +8,11 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
-    public class VM_SettingsOBody : INotifyPropertyChanged
+    public class VM_SettingsOBody : INotifyPropertyChanged, IHasAttributeGroupMenu
     {
         public VM_SettingsOBody(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_General generalSettingsVM)
         {
-            DescriptorUI = new VM_BodyShapeDescriptorCreationMenu();
+            DescriptorUI = new VM_BodyShapeDescriptorCreationMenu(raceGroupingVMs, this);
             BodySlidesUI = new VM_BodySlidesMenu(this, raceGroupingVMs);
             AttributeGroupMenu = new VM_AttributeGroupMenu();
             MiscUI = new VM_OBodyMiscSettings();
@@ -69,11 +69,11 @@ namespace SynthEBD
 
         public static void GetViewModelFromModel(Settings_OBody model, VM_SettingsOBody viewModel, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
-            viewModel.DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors);
+            viewModel.DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, raceGroupingVMs, viewModel, model);
 
             foreach (var descriptor in model.TemplateDescriptors)
             {
-                viewModel.DescriptorUI.TemplateDescriptorList.Add(VM_BodyShapeDescriptor.GetViewModelFromModel(descriptor));
+                viewModel.DescriptorUI.TemplateDescriptorList.Add(VM_BodyShapeDescriptor.GetViewModelFromModel(descriptor, raceGroupingVMs, viewModel, model));
             }
 
             viewModel.BodySlidesUI.CurrentlyExistingBodySlides = model.CurrentlyExistingBodySlides; // must load before presets
@@ -84,14 +84,14 @@ namespace SynthEBD
             foreach (var preset in model.BodySlidesMale)
             {
                 var presetVM = new VM_BodySlideSetting(viewModel.DescriptorUI, raceGroupingVMs, viewModel.BodySlidesUI.BodySlidesMale, viewModel);
-                VM_BodySlideSetting.GetViewModelFromModel(preset, presetVM, viewModel.DescriptorUI, raceGroupingVMs);
+                VM_BodySlideSetting.GetViewModelFromModel(preset, presetVM, viewModel.DescriptorUI, raceGroupingVMs, viewModel);
                 viewModel.BodySlidesUI.BodySlidesMale.Add(presetVM);
             }
 
             foreach (var preset in model.BodySlidesFemale)
             {
                 var presetVM = new VM_BodySlideSetting(viewModel.DescriptorUI, raceGroupingVMs, viewModel.BodySlidesUI.BodySlidesFemale, viewModel);
-                VM_BodySlideSetting.GetViewModelFromModel(preset, presetVM, viewModel.DescriptorUI, raceGroupingVMs);
+                VM_BodySlideSetting.GetViewModelFromModel(preset, presetVM, viewModel.DescriptorUI, raceGroupingVMs, viewModel);
                 viewModel.BodySlidesUI.BodySlidesFemale.Add(presetVM);
             }
 
@@ -102,7 +102,7 @@ namespace SynthEBD
 
         public static void DumpViewModelToModel(Settings_OBody model, VM_SettingsOBody viewModel)
         {
-            model.TemplateDescriptors = VM_BodyShapeDescriptorShell.DumpViewModelsToModels(viewModel.DescriptorUI.TemplateDescriptors);
+            model.TemplateDescriptors = VM_BodyShapeDescriptorShell.DumpViewModelsToModels(viewModel.DescriptorUI.TemplateDescriptors, model.DescriptorRules);
 
             model.BodySlidesMale.Clear();
             model.BodySlidesFemale.Clear();

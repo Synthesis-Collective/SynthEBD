@@ -12,11 +12,11 @@ namespace SynthEBD
         {
             this.Category = "";
             this.Value = "";
-            this.DispString = "";
+            this.Signature = "";
         }
         public string Category { get; set; }
         public string Value { get; set; }
-        public string DispString { get; set; }
+        public string Signature { get; set; }
 
         public bool Equals(BodyShapeDescriptor other)
         {

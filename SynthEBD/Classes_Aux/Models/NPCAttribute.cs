@@ -147,6 +147,48 @@ namespace SynthEBD
                 default: return null;
             }
         }
+
+        // Grouped Sub Attributes get merged together. E.g:
+        // Parent has attributes (A && B) || (C && D)
+        // Child has attributes (E && F) || (G && H)
+        // After inheriting, child will have attributes (A && B && E && F) || (A && B && G && H) || (C && D && E && F) || (C && D && G && H)
+        public static HashSet<NPCAttribute> InheritAttributes(HashSet<NPCAttribute> inheritFrom, HashSet<NPCAttribute> inherits)
+        {
+            var mergedAttributes = new HashSet<NPCAttribute>();
+
+            if (inheritFrom.Count > 0 && inherits.Count == 0)
+            {
+                return inheritFrom;
+            }
+            else if (inherits.Count > 0 && inheritFrom.Count == 0)
+            {
+                return inherits;
+            }
+            else
+            {
+                foreach (var childAttribute in inherits)
+                {
+                    foreach (var parentAttribute in inheritFrom)
+                    {
+                        var combinedAttribute = new NPCAttribute();
+
+                        foreach (var subParentAttribute in parentAttribute.SubAttributes)
+                        {
+                            combinedAttribute.SubAttributes.Add(subParentAttribute);
+                        }
+
+                        foreach (var subChildAttribute in childAttribute.SubAttributes)
+                        {
+                            combinedAttribute.SubAttributes.Add(subChildAttribute);
+                        }
+
+                        mergedAttributes.Add(combinedAttribute);
+                    }
+                }
+            }
+
+            return mergedAttributes;
+        }
     }
 
     public enum NPCAttributeType

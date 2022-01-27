@@ -167,37 +167,12 @@ namespace SynthEBD
             if (model.AssetPackName.Length == 0) { assetPackFound = true; }
             else
             {
-                foreach (var ap in assetPacks)
-                {
-                    if (ap.groupName == model.AssetPackName)
-                    {
-                        viewModel.ForcedAssetPack = ap;
-                        assetPackFound = true;
+                LinkAssetPackToForcedAssignment(model, viewModel, model.AssetPackName, assetPacks);
+            }
 
-                        foreach (var id in model.SubgroupIDs)
-                        {
-                            var foundSubgroup = GetSubgroupByID(ap.subgroups, id);
-                            if (foundSubgroup != null)
-                            {
-                                viewModel.ForcedSubgroups.Add(foundSubgroup);
-                                continue;
-                            }
-                            else
-                            {
-                                // Warn User
-                            }
-                        }
-
-                        foreach (var replacer in model.AssetReplacerAssignments)
-                        {
-                            viewModel.ForcedAssetReplacements.Add(VM_AssetReplacementAssignment.GetViewModelFromModel(replacer, ap, viewModel.ForcedAssetReplacements));
-                        }
-                    }
-                }
-                if (assetPackFound == false)
-                {
-                    // Warn user
-                }
+            foreach (var forcedMixIn in model.MixInAssignments)
+            {
+                viewModel.ForcedMixIns.Add(new VM_MixInSpecificAssignment(viewModel, assetPacks, BGVM, oBodySettings, generalSettingsVM, viewModel.ForcedMixIns));
             }
 
             if (model.Height != null)
@@ -238,11 +213,59 @@ namespace SynthEBD
                 }
             }
 
+
+            foreach (var replacer in model.AssetReplacerAssignments)
+            {
+                var parentAssetPack = assetPacks.Where(x => x.groupName == replacer.GroupName).FirstOrDefault();
+                if (parentAssetPack != null)
+                {
+                    viewModel.ForcedAssetReplacements.Add(VM_AssetReplacementAssignment.GetViewModelFromModel(replacer, parentAssetPack, viewModel.ForcedAssetReplacements));
+                }
+                else
+                {
+                    // Warn user
+                }
+            }
+
             viewModel.ForcedBodySlide = model.BodySlidePreset;
 
             viewModel.DispName = Converters.CreateNPCDispNameFromFormKey(viewModel.NPCFormKey);
 
             return viewModel;
+        }
+
+        private static bool LinkAssetPackToForcedAssignment(NPCAssignment model, IHasForcedAssets viewModel, string assetPackName, ObservableCollection<VM_AssetPack> assetPacks)
+        {
+            bool assetPackFound = false;
+            foreach (var ap in assetPacks)
+            {
+                if (ap.groupName == assetPackName)
+                {
+                    viewModel.ForcedAssetPack = ap;
+                    assetPackFound = true;
+
+                    foreach (var id in model.SubgroupIDs)
+                    {
+                        var foundSubgroup = GetSubgroupByID(ap.subgroups, id);
+                        if (foundSubgroup != null)
+                        {
+                            viewModel.ForcedSubgroups.Add(foundSubgroup);
+                            continue;
+                        }
+                        else
+                        {
+                            // Warn User
+                        }
+                    }
+                }
+            }
+
+            if (!assetPackFound)
+            {
+                // Warn User
+            }
+
+            return assetPackFound;
         }
 
         public static NPCAssignment DumpViewModelToModel(VM_SpecificNPCAssignment viewModel)
@@ -251,6 +274,12 @@ namespace SynthEBD
             model.DispName = viewModel.DispName;
             model.AssetPackName = viewModel.ForcedAssetPack.groupName;
             model.SubgroupIDs = viewModel.ForcedSubgroups.Select(subgroup => subgroup.ID).ToList();
+
+            model.AssetReplacerAssignments.Clear();
+            foreach (var replacer in viewModel.ForcedAssetReplacements)
+            {
+                model.AssetReplacerAssignments.Add(VM_AssetReplacementAssignment.DumpViewModelToModel(replacer));
+            }
 
             if (viewModel.ForcedHeight == "")
             {
@@ -314,7 +343,8 @@ namespace SynthEBD
 
             assignment.AvailableMixInAssetPacks.Clear();
 
-            assignment.AvailableAssetPacks.Insert(0, new VM_AssetPack(new ObservableCollection<VM_AssetPack>(), new VM_SettingsBodyGen(new VM_Settings_General()), new VM_BodyShapeDescriptorCreationMenu(), new VM_Settings_General(), null, null) { groupName = "" }); // blank entry
+            assignment.AvailableAssetPacks.Insert(0, null);
+            //assignment.AvailableAssetPacks.Insert(0, new VM_AssetPack(new ObservableCollection<VM_AssetPack>(), new VM_SettingsBodyGen(new VM_Settings_General()), new VM_BodyShapeDescriptorCreationMenu(raceGroupingVMs, new VM_BodyGenConfig(), new VM_Settings_General(), null, null) { groupName = "" }); // blank entry
             foreach (var assetPack in assignment.SubscribedAssetPacks)
             {
                 if (assignment.ForcedAssetPack == assetPack) { continue;}
@@ -487,6 +517,7 @@ namespace SynthEBD
                 this.ForcedAssetPack = new VM_AssetPack(assetPacks, bodyGenSettings, oBodySettings.DescriptorUI, generalSettingsVM, null, null);
                 this.ForcedSubgroups = new ObservableCollection<VM_Subgroup>();
                 this.AvailableSubgroups = new ObservableCollection<VM_Subgroup>();
+                this.ForcedAssetReplacements = new ObservableCollection<VM_AssetReplacementAssignment>();
 
                 this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x => UpdateAvailableSubgroups(this));
                 this.ForcedSubgroups.CollectionChanged += TriggerAvailableSubgroupsUpdate;
@@ -503,16 +534,31 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: x => this.ForcedSubgroups.Remove((VM_Subgroup)x)
                 );
+
+                AddForcedReplacer = new SynthEBD.RelayCommand(
+                    canExecute: _ => true,
+                    execute: x => this.ForcedAssetReplacements.Add(new VM_AssetReplacementAssignment(ForcedAssetPack, ForcedAssetReplacements))
+                    );
+
+                this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x =>
+                {
+                    foreach (var replacer in ForcedAssetReplacements)
+                    {
+                        replacer.ParentAssetPack = ForcedAssetPack;
+                    }
+                });
             }
             public VM_AssetPack ForcedAssetPack { get; set; }
             public ObservableCollection<VM_AssetPack> AvailableMixInAssetPacks { get; set; }
             public ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; }
             public ObservableCollection<VM_Subgroup> AvailableSubgroups { get; set; }
+            public ObservableCollection<VM_AssetReplacementAssignment> ForcedAssetReplacements { get; set; }
             public ObservableCollection<VM_MixInSpecificAssignment> ParentCollection { get; set; }
             public VM_SpecificNPCAssignment Parent { get; set; }
 
             public RelayCommand DeleteCommand { get; set; }
             public RelayCommand DeleteForcedSubgroup { get; set; }
+            public RelayCommand AddForcedReplacer { get; set; }
 
             public event PropertyChangedEventHandler PropertyChanged;
 

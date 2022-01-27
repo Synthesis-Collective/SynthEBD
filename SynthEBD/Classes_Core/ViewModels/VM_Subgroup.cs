@@ -18,16 +18,19 @@ namespace SynthEBD
 {
     public class VM_Subgroup : INotifyPropertyChanged
     {
-        public VM_Subgroup(ObservableCollection<VM_RaceGrouping> RaceGroupingVMs, ObservableCollection<VM_Subgroup> parentCollection, VM_AssetPack parentAssetPack, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, bool setExplicitReferenceNPC)
+        public VM_Subgroup(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_Subgroup> parentCollection, VM_AssetPack parentAssetPack, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, bool setExplicitReferenceNPC)
         {
+            SubscribedRaceGroupings = raceGroupingVMs;
+            ParentAssetPack = parentAssetPack;
+
             this.ID = "";
             this.Name = "New";
             this.Enabled = true;
             this.DistributionEnabled = true;
             this.AllowedRaces = new ObservableCollection<FormKey>();
-            this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(RaceGroupingVMs);
+            this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
             this.DisallowedRaces = new ObservableCollection<FormKey>();
-            this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(RaceGroupingVMs);
+            this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
             this.AllowedAttributes = new ObservableCollection<VM_NPCAttribute>();
             this.DisallowedAttributes = new ObservableCollection<VM_NPCAttribute>();
             this.AllowUnique = true;
@@ -38,11 +41,11 @@ namespace SynthEBD
             this.ProbabilityWeighting = 1;
             if (parentAssetPack.TrackedBodyGenConfig != null)
             {
-                this.AllowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
-                this.DisallowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
+                this.AllowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
+                this.DisallowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
             }
-            AllowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(OBodyDescriptorMenu);
-            DisallowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(OBodyDescriptorMenu);
+            AllowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(OBodyDescriptorMenu, SubscribedRaceGroupings, parentAssetPack);
+            DisallowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(OBodyDescriptorMenu, SubscribedRaceGroupings, parentAssetPack);
 
             this.WeightRange = new NPCWeightRange();
             this.Subgroups = new ObservableCollection<VM_Subgroup>();
@@ -53,7 +56,6 @@ namespace SynthEBD
             this.RequiredSubgroupIDs = new HashSet<string>();
             this.ExcludedSubgroupIDs = new HashSet<string>();
             this.ParentCollection = parentCollection;
-            this.ParentAssetPack = parentAssetPack;
 
             // must be set after Parent Asset Pack
             if (setExplicitReferenceNPC)
@@ -88,7 +90,7 @@ namespace SynthEBD
 
             AddSubgroup = new SynthEBD.RelayCommand(
                canExecute: _ => true,
-               execute: _ => this.Subgroups.Add(new VM_Subgroup(RaceGroupingVMs, this.Subgroups, this.ParentAssetPack, OBodyDescriptorMenu, setExplicitReferenceNPC))
+               execute: _ => this.Subgroups.Add(new VM_Subgroup(raceGroupingVMs, this.Subgroups, this.ParentAssetPack, OBodyDescriptorMenu, setExplicitReferenceNPC))
                );
 
             DeleteMe = new SynthEBD.RelayCommand(
@@ -139,7 +141,6 @@ namespace SynthEBD
 
         public RelayCommand AddAllowedAttribute { get; }
         public RelayCommand AddDisallowedAttribute { get; }
-        public RelayCommand AddForceIfAttribute { get; }
         public RelayCommand AddNPCKeyword { get; }
         public RelayCommand AddPath { get; }
         public RelayCommand AddSubgroup { get; }
@@ -152,6 +153,7 @@ namespace SynthEBD
 
         ObservableCollection<VM_Subgroup> ParentCollection { get; set; }
         public VM_AssetPack ParentAssetPack { get; set; }
+        public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -184,8 +186,8 @@ namespace SynthEBD
 
             if (parentAssetPack.TrackedBodyGenConfig != null)
             {
-                viewModel.AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.allowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
-                viewModel.DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.disallowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI);
+                viewModel.AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.allowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, viewModel.SubscribedRaceGroupings, parentAssetPack);
+                viewModel.DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.disallowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, viewModel.SubscribedRaceGroupings, parentAssetPack);
             }
 
             foreach (var sg in model.Subgroups)
@@ -237,8 +239,8 @@ namespace SynthEBD
         {
             if (this.ParentAssetPack.TrackedBodyGenConfig != null)
             {
-                this.AllowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(this.ParentAssetPack.TrackedBodyGenConfig.DescriptorUI);
-                this.DisallowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(this.ParentAssetPack.TrackedBodyGenConfig.DescriptorUI);
+                this.AllowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(this.ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
+                this.DisallowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(this.ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
             }
         }
 

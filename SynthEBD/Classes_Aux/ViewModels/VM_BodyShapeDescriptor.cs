@@ -10,12 +10,13 @@ namespace SynthEBD
 {
     public class VM_BodyShapeDescriptor : INotifyPropertyChanged
     {
-        public VM_BodyShapeDescriptor(VM_BodyShapeDescriptorShell parentShell)
+        public VM_BodyShapeDescriptor(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
         {
             this.Category = "";
             this.Value = "";
-            this.DispString = "";
+            this.Signature = "";
             this.ParentShell = parentShell;
+            AssociatedRules = new VM_BodyShapeDescriptorRules(this, raceGroupingVMs, parentConfig);
 
             RemoveDescriptorValue = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -24,7 +25,8 @@ namespace SynthEBD
         }
         public string Category { get; set; }
         public string Value { get; set; }
-        public string DispString { get; set; }
+        public string Signature { get; set; }
+        public VM_BodyShapeDescriptorRules AssociatedRules { get; set; }
 
         public VM_BodyShapeDescriptorShell ParentShell { get; set; }
 
@@ -32,13 +34,30 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static VM_BodyShapeDescriptor GetViewModelFromModel(BodyShapeDescriptor model)
+        public static VM_BodyShapeDescriptor GetViewModelFromModel(BodyShapeDescriptor model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, IHasDescriptorRules parentDescriptorConfig)
         {
-            VM_BodyShapeDescriptor viewModel = new VM_BodyShapeDescriptor(new VM_BodyShapeDescriptorShell(new ObservableCollection<VM_BodyShapeDescriptorShell>()));
+            VM_BodyShapeDescriptor viewModel = new VM_BodyShapeDescriptor(new VM_BodyShapeDescriptorShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), raceGroupingVMs, parentConfig), raceGroupingVMs, parentConfig);
             viewModel.Category = model.Category;
             viewModel.Value = model.Value;
-            viewModel.DispString = model.DispString;
+            viewModel.Signature = model.Signature;
+
+            var descriptorRules = parentDescriptorConfig.DescriptorRules.Where(x => x.DescriptorSignature == viewModel.Signature).FirstOrDefault();
+            if (descriptorRules != null)
+            {
+                viewModel.AssociatedRules = VM_BodyShapeDescriptorRules.GetViewModelFromModel(descriptorRules, viewModel, parentConfig, raceGroupingVMs);
+            }
+
             return viewModel;
+        }
+
+        public static BodyShapeDescriptor DumpViewModeltoModel(VM_BodyShapeDescriptor viewModel, HashSet<BodyShapeDescriptorRules> descriptorRules)
+        {
+            BodyShapeDescriptor model = new BodyShapeDescriptor() { Category = viewModel.Category, Value = viewModel.Value, Signature = viewModel.Signature };
+            if (!descriptorRules.Where(x => x.DescriptorSignature == model.Signature).Any())
+            {
+                descriptorRules.Add(VM_BodyShapeDescriptorRules.DumpViewModelToModel(viewModel.AssociatedRules));
+            }
+            return model;
         }
     }
 }

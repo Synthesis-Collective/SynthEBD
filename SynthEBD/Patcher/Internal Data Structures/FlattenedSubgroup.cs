@@ -17,6 +17,7 @@ namespace SynthEBD
             this.DistributionEnabled = template.distributionEnabled;
             this.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(template.allowedRaceGroupings, raceGroupingList, template.allowedRaces);
             if (this.AllowedRaces.Count == 0) { this.AllowedRacesIsEmpty = true; }
+            else { this.AllowedRacesIsEmpty = false; }
             this.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(template.disallowedRaceGroupings, raceGroupingList, template.disallowedRaces);
             this.AllowedRaces = AllowedDisallowedCombiners.TrimDisallowedRacesFromAllowed(this.AllowedRaces, this.DisallowedRaces);
             this.AllowedAttributes = new HashSet<NPCAttribute>(template.allowedAttributes);
@@ -91,6 +92,7 @@ namespace SynthEBD
                 //handle DisallowedRaces first
                 flattened.DisallowedRaces.UnionWith(parent.DisallowedRaces);
 
+
                 // if both flattened and parent AllowedRaces are empty, do nothing
                 // else if parent AllowedRaces is empty and flatted AllowedRaces is not empty, do nothing
                 // else if parent AllowedRaces is not empty and flattened AllowedRaces is empty:
@@ -116,8 +118,8 @@ namespace SynthEBD
                 if (!requiredSubgroupsValid) { return; }
 
                 // Attribute Merging
-                flattened.AllowedAttributes = InheritParentAttributes(parent.AllowedAttributes, flattened.AllowedAttributes);
-                flattened.DisallowedAttributes = InheritParentAttributes(parent.DisallowedAttributes, flattened.DisallowedAttributes);
+                flattened.AllowedAttributes = NPCAttribute.InheritAttributes(parent.AllowedAttributes, flattened.AllowedAttributes);
+                flattened.DisallowedAttributes = NPCAttribute.InheritAttributes(parent.DisallowedAttributes, flattened.DisallowedAttributes);
 
                 // Weight Range
                 if (parent.WeightRange.Lower > flattened.WeightRange.Lower) { flattened.WeightRange.Lower = parent.WeightRange.Lower; }
@@ -146,48 +148,6 @@ namespace SynthEBD
                     FlattenSubgroups(subgroup, flattened, bottomLevelSubgroups, raceGroupingList, parentAssetPackName, topLevelIndex, subgroupHierarchy, parentAssetPack);
                 }
             }
-        }
-
-        // Grouped Sub Attributes get merged together. E.g:
-        // Parent has attributes (A && B) || (C && D)
-        // Child has attributes (E && F) || (G && H)
-        // After inheriting, child will have attributes (A && B && E && F) || (A && B && G && H) || (C && D && E && F) || (C && D && G && H)
-        private static HashSet<NPCAttribute> InheritParentAttributes(HashSet<NPCAttribute> parentAttributes, HashSet<NPCAttribute> childAttributes)
-        {
-            var mergedAttributes = new HashSet<NPCAttribute>();
-
-            if (parentAttributes.Count > 0 && childAttributes.Count == 0)
-            {
-                return parentAttributes;
-            }
-            else if (childAttributes.Count > 0 && parentAttributes.Count == 0)
-            {
-                return childAttributes;
-            }
-            else
-            {
-                foreach (var childAttribute in childAttributes)
-                {
-                    foreach (var parentAttribute in parentAttributes)
-                    {
-                        var combinedAttribute = new NPCAttribute();
-
-                        foreach (var subParentAttribute in parentAttribute.SubAttributes)
-                        {
-                            combinedAttribute.SubAttributes.Add(subParentAttribute);
-                        }
-
-                        foreach (var subChildAttribute in childAttribute.SubAttributes)
-                        {
-                            combinedAttribute.SubAttributes.Add(subChildAttribute);
-                        }
-
-                        mergedAttributes.Add(combinedAttribute);
-                    }
-                }
-            }
-
-            return mergedAttributes;
         }
     }
 }
