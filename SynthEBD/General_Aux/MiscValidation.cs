@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using BespokeFusion;
+using System.Windows.Media;
 
 namespace SynthEBD
 {
@@ -111,6 +113,117 @@ namespace SynthEBD
             }
 
             return verified;
+        }
+
+        public static bool VerifyBodyGenAnnotations(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs)
+        {
+            bool valid = true;
+            List<string> missingBodyGenMessage = new List<string>();
+
+            List<string> message = new List<string>();
+            List<string> messages = new List<string>();
+            HashSet<string> examinedConfigs = new HashSet<string>();
+
+            foreach (var assetPack in assetPacks)
+            {
+                if (!string.IsNullOrWhiteSpace(assetPack.AssociatedBodyGenConfigName))
+                {
+                    List<string> subMessage = new List<string>();
+                    BodyGenConfig bodyGenConfig = null;
+                    switch(assetPack.Gender)
+                    {
+                        case Gender.Male: bodyGenConfig = bodyGenConfigs.Male.Where(x => x.Label == assetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
+                        case Gender.Female: bodyGenConfig = bodyGenConfigs.Female.Where(x => x.Label == assetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
+                    }
+
+                    if (examinedConfigs.Contains(assetPack.AssociatedBodyGenConfigName)) { continue;}
+                    else
+                    {
+                        examinedConfigs.Add(assetPack.AssociatedBodyGenConfigName);
+                    }
+
+                    if (bodyGenConfig == null)
+                    {
+                        Logger.LogMessage("BodyGen Config " + assetPack.AssociatedBodyGenConfigName + " expected by " + assetPack.GroupName + " is not currently loaded.");
+                        valid = false;
+                    }
+                    else
+                    {
+                        foreach (var template in bodyGenConfig.Templates)
+                        {
+                            if (template.AllowRandom && !template.BodyShapeDescriptors.Any())
+                            {
+                                subMessage.Add(template.Label);
+                            }
+                        }
+                        if (subMessage.Any())
+                        {
+                            message.Add("The following active BodyGen morphs in " + assetPack.AssociatedBodyGenConfigName + " have not been annotated with any body shape descriptors:");
+                            message.AddRange(subMessage);
+                        }
+                    }
+                }
+            }
+
+            if (!valid)
+            {
+                return false;
+            }
+            else if (message.Any())
+            {
+                message.Add("Morphs that lack descriptors can be misassigned by the texture/body shape assigner. Do you want to continue patching?");
+                return ShowMorphDescriptorConfirmationBox(String.Join(Environment.NewLine, message));
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+        public static bool VerifyBodySlideAnnotations(Settings_OBody obodySettings)
+        {
+            List<string> bsMissingDescriptors = new List<string>();
+            GetMissingBodySlideAnnotations(obodySettings.BodySlidesMale, bsMissingDescriptors);
+            GetMissingBodySlideAnnotations(obodySettings.BodySlidesFemale, bsMissingDescriptors);
+
+            if (bsMissingDescriptors.Any())
+            {
+                bsMissingDescriptors.Insert(0, "The following active BodySlides have not been annotated with any body shape descriptors:");
+                bsMissingDescriptors.Add("Bodyslides that lack descriptors can be misassigned by the texture/body shape assigner. Do you want to continue patching?");
+                return ShowMorphDescriptorConfirmationBox(String.Join(Environment.NewLine, bsMissingDescriptors));
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+        public static void GetMissingBodySlideAnnotations(List<BodySlideSetting> bodySlides, List<string> bsMissingDescriptors)
+        {
+            foreach (var bs in bodySlides)
+            {
+                if (bs.AllowRandom && !bs.BodyShapeDescriptors.Any())
+                {
+                    bsMissingDescriptors.Add(bs.Label);
+                }
+            }
+        }
+
+        private static bool ShowMorphDescriptorConfirmationBox(string message)
+        {
+            var box = new CustomMaterialMessageBox()
+            {
+                TxtMessage = { Text = message, Foreground = Brushes.White },
+                TxtTitle = { Text = "Missing Descriptors", Foreground = Brushes.White },
+                BtnOk = { Content = "Yes" },
+                BtnCancel = { Content = "No" },
+                MainContentControl = { Background = Brushes.Black },
+                TitleBackgroundPanel = { Background = Brushes.Black },
+                BorderBrush = Brushes.Silver
+            };
+            box.Show();
+
+            return box.Result == System.Windows.MessageBoxResult.OK;
         }
     }
 }

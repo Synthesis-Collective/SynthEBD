@@ -90,7 +90,7 @@ namespace SynthEBD
             VM_BodyGenConfig viewModel = new VM_BodyGenConfig(generalSettingsVM);
             viewModel.Label = model.Label;
             viewModel.Gender = model.Gender;
-            
+
             viewModel.GroupUI.TemplateGroups = new ObservableCollection<VM_CollectionMemberString>();
             foreach (string group in model.TemplateGroups)
             {
@@ -143,9 +143,4 @@ namespace SynthEBD
             return model;
         }
     }
-
-    
-    
-
-    
 }

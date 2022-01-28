@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ReactiveUI;
 
 namespace SynthEBD
 {
@@ -12,7 +13,6 @@ namespace SynthEBD
     {
         public VM_BodyShapeDescriptor(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
         {
-            this.Category = "";
             this.Value = "";
             this.Signature = "";
             this.ParentShell = parentShell;
@@ -23,7 +23,6 @@ namespace SynthEBD
                 execute: _ => this.ParentShell.Descriptors.Remove(this)
                 );
         }
-        public string Category { get; set; }
         public string Value { get; set; }
         public string Signature { get; set; }
         public VM_BodyShapeDescriptorRules AssociatedRules { get; set; }
@@ -37,7 +36,6 @@ namespace SynthEBD
         public static VM_BodyShapeDescriptor GetViewModelFromModel(BodyShapeDescriptor model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, IHasDescriptorRules parentDescriptorConfig)
         {
             VM_BodyShapeDescriptor viewModel = new VM_BodyShapeDescriptor(new VM_BodyShapeDescriptorShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), raceGroupingVMs, parentConfig), raceGroupingVMs, parentConfig);
-            viewModel.Category = model.Category;
             viewModel.Value = model.Value;
             viewModel.Signature = model.Category + ": " + model.Value;
 
@@ -52,7 +50,7 @@ namespace SynthEBD
 
         public static BodyShapeDescriptor DumpViewModeltoModel(VM_BodyShapeDescriptor viewModel, HashSet<BodyShapeDescriptorRules> descriptorRules)
         {
-            BodyShapeDescriptor model = new BodyShapeDescriptor() { Category = viewModel.Category, Value = viewModel.Value, Signature = viewModel.Signature };
+            BodyShapeDescriptor model = new BodyShapeDescriptor() { Category = viewModel.ParentShell.Category, Value = viewModel.Value, Signature = viewModel.Signature };
             if (!descriptorRules.Where(x => x.DescriptorSignature == model.Signature).Any())
             {
                 descriptorRules.Add(VM_BodyShapeDescriptorRules.DumpViewModelToModel(viewModel.AssociatedRules));

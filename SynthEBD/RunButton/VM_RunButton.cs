@@ -23,8 +23,8 @@ namespace SynthEBD
                 execute: _ =>
                 {
                     ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
-                    if (!PreRunValidation()) { return; }
                     ParentWindow.DumpViewModelsToModels();
+                    if (!PreRunValidation()) { return; }
                     Patcher.RunPatcher(
                         ParentWindow.AssetPacks.Where(x => PatcherSettings.TexMesh.SelectedAssetPacks.Contains(x.GroupName)).ToList(), ParentWindow.BodyGenConfigs, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
                         ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.RecordTemplateLinkCache, ParentWindow.RecordTemplatePlugins, ParentWindow.StatusBarVM);
@@ -39,8 +39,8 @@ namespace SynthEBD
                 execute: async _ =>
                 {
                     ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
+                    ParentWindow.DumpViewModelsToModels();
                     if (!PreRunValidation()) { return; }
-                    ParentWindow.SyncModelsToViewModels();
                     await Task.Run(() => Patcher.RunPatcher(
                         ParentWindow.AssetPacks.Where(x => PatcherSettings.TexMesh.SelectedAssetPacks.Contains(x.GroupName)).ToList(), ParentWindow.BodyGenConfigs, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
                         ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.RecordTemplateLinkCache, ParentWindow.RecordTemplatePlugins, ParentWindow.StatusBarVM));
@@ -83,21 +83,36 @@ namespace SynthEBD
                     valid = false;
                 }
 
-                if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide && PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.OBody)
+                if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
                 {
-                    if (!MiscValidation.VerifyOBodyInstalled())
+                    if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.OBody)
                     {
-                        valid = false;
+                        if (!MiscValidation.VerifyOBodyInstalled())
+                        {
+                            valid = false;
+                        }
                     }
-                }
+                    else if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.AutoBody)
+                    {
+                        if (!MiscValidation.VerifyAutoBodyInstalled())
+                        {
+                            valid = false;
+                        }
+                    }
 
-                else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide && PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.AutoBody)
-                {
-                    if (!MiscValidation.VerifyAutoBodyInstalled())
+                    if (!MiscValidation.VerifyBodySlideAnnotations(PatcherSettings.OBody))
                     {
                         valid = false;
                     }
                 }
+                else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
+                {
+                    if (!MiscValidation.VerifyBodyGenAnnotations(ParentWindow.AssetPacks, ParentWindow.BodyGenConfigs))
+                    {
+                        valid = false;
+                    }
+                }
+                
             }
 
             if (!valid)
