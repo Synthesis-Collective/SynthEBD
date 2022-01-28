@@ -113,8 +113,7 @@ namespace SynthEBD
         public void RefreshSourceColor()
         {
             var searchStr = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, this.Source);
-            //if (File.Exists(searchStr))
-            if (LongPathHandler.PathExists(searchStr))
+            if (LongPathHandler.PathExists(searchStr) || BSAHandler.ReferencedPathExists(this.Source, out _, out _))
             {
                 this.SourceBorderColor = new SolidColorBrush(Colors.LightGreen);
             }

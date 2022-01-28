@@ -289,9 +289,14 @@ namespace SynthEBD
             foreach (var path in subgroup.paths)
             {
                 var fullPath = System.IO.Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, path.Source);
-                if (!System.IO.File.Exists(fullPath))
+                if (!System.IO.File.Exists(fullPath) && !BSAHandler.ReferencedPathExists(path.Source, out bool archiveExists, out string modName))
                 {
-                    subErrors.Add("No file exists at " + fullPath);
+                    string pathError = "No file exists at " + fullPath;
+                    if (archiveExists)
+                    {
+                        pathError += " or any BSA archives corresponding to " + modName;
+                    }
+                    subErrors.Add(pathError);
                     isValid = false;
                 }
             }
@@ -576,6 +581,18 @@ namespace SynthEBD
                     {
                         newSource = newSource.Remove(0, 1);
                     }
+                    if (pathPair[0].StartsWith("Skyrim.esm", StringComparison.OrdinalIgnoreCase) && (pathPair[0].EndsWith(".dds", StringComparison.OrdinalIgnoreCase) || pathPair[0].EndsWith(".nif", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        if (pathPair[0].EndsWith(".dds", StringComparison.OrdinalIgnoreCase))
+                        {
+                            newSource = newSource.Replace("Skyrim.esm", "Skyrim.esm\\Textures", StringComparison.OrdinalIgnoreCase);
+                        }
+                        else if (pathPair[0].EndsWith(".nif", StringComparison.OrdinalIgnoreCase))
+                        {
+                            newSource = newSource.Replace("Skyrim.esm", "Skyrim.esm\\Meshes", StringComparison.OrdinalIgnoreCase);
+                        }
+                    }
+
                     string newDest = "";
                     if (zEBDTexturePathConversionDict.ContainsKey(pathPair[1].ToLower()))
                     {
