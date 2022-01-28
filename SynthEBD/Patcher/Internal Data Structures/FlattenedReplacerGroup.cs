@@ -10,19 +10,19 @@ namespace SynthEBD
     {
         public FlattenedReplacerGroup(AssetReplacerGroup source)
         {
-            this.GroupName = source.Label;
+            this.Name = source.Label;
             this.Subgroups = new List<List<FlattenedSubgroup>>();
             this.Source = new AssetPack();
         }
 
         public FlattenedReplacerGroup(FlattenedReplacerGroup source)
         {
-            this.GroupName = source.GroupName;
+            this.Name = source.Name;
             this.Subgroups = new List<List<FlattenedSubgroup>>();
             this.Source = source.Source;
         }
 
-        public string GroupName { get; set; }
+        public string Name { get; set; }
         public List<List<FlattenedSubgroup>> Subgroups { get; set; }
         public AssetPack Source { get; set; }
 

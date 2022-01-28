@@ -23,11 +23,12 @@ namespace SynthEBD
                 execute: _ =>
                 {
                     ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
+                    if (!PreRunValidation()) { return; }
                     ParentWindow.DumpViewModelsToModels();
                     Patcher.RunPatcher(
                         ParentWindow.AssetPacks.Where(x => PatcherSettings.TexMesh.SelectedAssetPacks.Contains(x.GroupName)).ToList(), ParentWindow.BodyGenConfigs, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
                         ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.RecordTemplateLinkCache, ParentWindow.RecordTemplatePlugins, ParentWindow.StatusBarVM);
-                    VM_ConsistencyUI.GetViewModelsFromModels(ParentWindow.Consistency, ParentWindow.CUIVM.Assignments); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
+                    VM_ConsistencyUI.GetViewModelsFromModels(ParentWindow.Consistency, ParentWindow.CUIVM.Assignments, ParentWindow.TMVM.AssetPacks); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
                 }
                 );
 
@@ -38,6 +39,7 @@ namespace SynthEBD
                 execute: async _ =>
                 {
                     ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
+                    if (!PreRunValidation()) { return; }
                     ParentWindow.SyncModelsToViewModels();
                     await Task.Run(() => Patcher.RunPatcher(
                         ParentWindow.AssetPacks.Where(x => PatcherSettings.TexMesh.SelectedAssetPacks.Contains(x.GroupName)).ToList(), ParentWindow.BodyGenConfigs, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
@@ -54,5 +56,56 @@ namespace SynthEBD
         public SynthEBD.RelayCommand ClickRun { get; }
 
         public event PropertyChangedEventHandler PropertyChanged;
+
+        public bool PreRunValidation()
+        {
+            bool valid = true;
+
+            if (PatcherSettings.General.bChangeMeshesOrTextures)
+            {
+                if (!MiscValidation.VerifyEBDInstalled())
+                {
+                    valid = false;
+                }
+
+                if (!ParentWindow.TMVM.ValidateAllConfigs(ParentWindow.BodyGenConfigs, out var configErrors)) // check config files for errors
+                {
+                    Logger.LogMessage(configErrors);
+                    valid = false;
+                }
+
+            }
+
+            if (PatcherSettings.General.BodySelectionMode != BodyShapeSelectionMode.None)
+            {
+                if (!MiscValidation.VerifyRaceMenuInstalled())
+                {
+                    valid = false;
+                }
+
+                if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide && PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.OBody)
+                {
+                    if (!MiscValidation.VerifyOBodyInstalled())
+                    {
+                        valid = false;
+                    }
+                }
+
+                else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide && PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.AutoBody)
+                {
+                    if (!MiscValidation.VerifyAutoBodyInstalled())
+                    {
+                        valid = false;
+                    }
+                }
+            }
+
+            if (!valid)
+            {
+                Logger.LogErrorWithStatusUpdate("Could not run the patcher. Please correct the errors above.", ErrorType.Error);
+            }
+
+            return valid;
+        }
     }
 }

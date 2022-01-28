@@ -34,9 +34,11 @@ namespace SynthEBD
         {
             public LinkedAssetReplacerAssignment()
             {
+                GroupName = "";
                 ReplacerName = "";
                 AssignedReplacerCombination = null;
             }
+            public string GroupName { get; set; }
             public string ReplacerName { get; set; }
             public SubgroupCombination AssignedReplacerCombination { get; set; }
         }

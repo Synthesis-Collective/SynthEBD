@@ -184,6 +184,10 @@ namespace SynthEBD
                 npcCounter++;
 
                 var currentNPCInfo = new NPCInfo(npc, linkedNPCGroups, generatedLinkGroups, specificNPCAssignments, consistency);
+                if (!currentNPCInfo.IsPatchable)
+                {
+                    continue;
+                }
 
                 assetsAssigned = false;
                 bodyShapeAssigned = false;

@@ -36,11 +36,11 @@ namespace SynthEBD
         {
             public AssetReplacerAssignment()
             {
-                GroupName = "";
+                AssetPackName = "";
                 ReplacerName = "";
                 SubgroupIDs = new List<string>();
             }
-            public string GroupName { get; set; }
+            public string AssetPackName { get; set; }
             public string ReplacerName { get; set; }
             public List<string> SubgroupIDs { get; set; }
         }

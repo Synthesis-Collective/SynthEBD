@@ -67,7 +67,7 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static VM_ConsistencyAssignment GetViewModelFromModel(NPCAssignment model)
+        public static VM_ConsistencyAssignment GetViewModelFromModel(NPCAssignment model, ObservableCollection<VM_AssetPack> AssetPackVMs)
         {
             VM_ConsistencyAssignment viewModel = new VM_ConsistencyAssignment();
             viewModel.AssetPackName = model.AssetPackName;
@@ -90,7 +90,11 @@ namespace SynthEBD
             }
             foreach(var replacer in model.AssetReplacerAssignments)
             {
-                viewModel.AssetReplacements.Add(VM_AssetReplacementAssignment.GetViewModelFromModel(replacer, null, viewModel.AssetReplacements));
+                var parentAssetPack = AssetPackVMs.Where(x => x.groupName == replacer.AssetPackName).FirstOrDefault();
+                if (parentAssetPack != null)
+                {
+                    viewModel.AssetReplacements.Add(VM_AssetReplacementAssignment.GetViewModelFromModel(replacer, parentAssetPack, viewModel.AssetReplacements));
+                }
             }
             viewModel.BodyGenMorphNames = new ObservableCollection<VM_CollectionMemberString>();
             if (model.BodyGenMorphNames != null)

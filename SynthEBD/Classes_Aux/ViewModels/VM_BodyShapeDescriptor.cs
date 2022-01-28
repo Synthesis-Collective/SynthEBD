@@ -39,7 +39,7 @@ namespace SynthEBD
             VM_BodyShapeDescriptor viewModel = new VM_BodyShapeDescriptor(new VM_BodyShapeDescriptorShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), raceGroupingVMs, parentConfig), raceGroupingVMs, parentConfig);
             viewModel.Category = model.Category;
             viewModel.Value = model.Value;
-            viewModel.Signature = model.Signature;
+            viewModel.Signature = model.Category + ": " + model.Value;
 
             var descriptorRules = parentDescriptorConfig.DescriptorRules.Where(x => x.DescriptorSignature == viewModel.Signature).FirstOrDefault();
             if (descriptorRules != null)

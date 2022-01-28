@@ -91,10 +91,6 @@ namespace SynthEBD
             // load heights
             PatcherSettings.Height = SettingsIO_Height.LoadHeightSettings();
 
-            // Load Consistency
-            Consistency = SettingsIO_Misc.LoadConsistency();
-            VM_ConsistencyUI.GetViewModelsFromModels(Consistency, CUIVM.Assignments);
-
             // load BlockList
             BlockList = SettingsIO_BlockList.LoadBlockList();
             VM_BlockListUI.GetViewModelFromModel(BlockList, BUIVM);
@@ -114,6 +110,10 @@ namespace SynthEBD
             // load specific assignments (must load after plugin view models)
             SpecificNPCAssignments = SettingsIO_SpecificNPCAssignments.LoadAssignments();
             VM_SpecificNPCAssignmentsUI.GetViewModelFromModels(SAUIVM, SpecificNPCAssignments, OBVM, SGVM);
+
+            // Load Consistency (must load after plugin view models)
+            Consistency = SettingsIO_Misc.LoadConsistency();
+            VM_ConsistencyUI.GetViewModelsFromModels(Consistency, CUIVM.Assignments, TMVM.AssetPacks);
 
             // Start on the settings VM
             DisplayedViewModel = SGVM;

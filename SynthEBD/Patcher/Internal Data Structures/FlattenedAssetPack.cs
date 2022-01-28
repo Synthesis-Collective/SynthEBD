@@ -20,6 +20,7 @@ namespace SynthEBD
             this.Source = source;
             this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
             this.Type = type;
+            this.ReplacerName = "";
         }
 
         public FlattenedAssetPack(string groupName, Gender gender, FormKey defaultRecordTemplate, HashSet<AdditionalRecordTemplate> additionalRecordTemplateAssignments, string associatedBodyGenConfigName, AssetPack source, AssetPackType type)
@@ -33,6 +34,7 @@ namespace SynthEBD
             this.Source = source;
             this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
             this.Type = type;
+            this.ReplacerName = "";
         }
 
         public FlattenedAssetPack(AssetPackType type)
@@ -46,6 +48,7 @@ namespace SynthEBD
             this.Source = new AssetPack();
             this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
             this.Type = type;
+            this.ReplacerName = "";
         }
 
         public string GroupName { get; set; }
@@ -57,6 +60,7 @@ namespace SynthEBD
         public AssetPack Source { get; set; }
         public List<FlattenedReplacerGroup> AssetReplacerGroups { get; set; }
         public AssetPackType Type { get; set; }
+        public string ReplacerName { get; set; } // only used when Type == ReplacerVirtual
 
         public enum AssetPackType
         {
@@ -106,10 +110,11 @@ namespace SynthEBD
             return copy;
         }
 
-        public static FlattenedAssetPack CreateVirtualFromReplacerGroup(FlattenedReplacerGroup source)
+        public static FlattenedAssetPack CreateVirtualFromReplacerGroup(FlattenedReplacerGroup source, string sourceAssetPackName)
         {
             FlattenedAssetPack virtualFAP = new FlattenedAssetPack(AssetPackType.ReplacerVirtual);
-            virtualFAP.GroupName = source.GroupName; // this is the name of the replacer group, not the asset pack
+            virtualFAP.GroupName = source.Source.GroupName;
+            virtualFAP.ReplacerName = source.Name;
             foreach (var subgroupsAtPos in source.Subgroups)
             {
                 virtualFAP.Subgroups.Add(subgroupsAtPos);

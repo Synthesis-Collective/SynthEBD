@@ -42,18 +42,23 @@ namespace SynthEBD
                    {
                        assignment.AssetPackName = "";
                        assignment.SubgroupIDs.Clear();
+                       assignment.AssetReplacements.Clear();
+                       assignment.MixInAssignments.Clear();
                    }
+                   Logger.CallTimedNotifyStatusUpdateAsync("Cleared asset consistency", ErrorType.Warning, 2);
                }
                );
 
-            DeleteAllBodyGen = new SynthEBD.RelayCommand(
+            DeleteAllBodyShape = new SynthEBD.RelayCommand(
                canExecute: _ => true,
                execute: x =>
                {
                    foreach (var assignment in Assignments)
                    {
                        assignment.BodyGenMorphNames.Clear();
+                       assignment.BodySlidePreset = "";
                    }
+                   Logger.CallTimedNotifyStatusUpdateAsync("Cleared body shape consistency", ErrorType.Warning, 2);
                }
                );
 
@@ -65,6 +70,7 @@ namespace SynthEBD
                    {
                        assignment.Height = "";
                    }
+                   Logger.CallTimedNotifyStatusUpdateAsync("Cleared height consistency", ErrorType.Warning, 2);
                }
                );
 
@@ -74,10 +80,10 @@ namespace SynthEBD
                {
                    if (MessageBox.Show("Are you sure you want to completely clear the consistency file?", "Confirmation", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
                    {
-
                        this.CurrentlyDisplayedAssignment = null;
                        this.Assignments.Clear();
                    }
+                   Logger.CallTimedNotifyStatusUpdateAsync("Cleared all consistency", ErrorType.Warning, 2);
                }
                );
         }
@@ -93,7 +99,7 @@ namespace SynthEBD
         public RelayCommand DeleteCurrentNPC { get; set; }
 
         public RelayCommand DeleteAllAssets { get; set; }
-        public RelayCommand DeleteAllBodyGen { get; set; }
+        public RelayCommand DeleteAllBodyShape { get; set; }
         public RelayCommand DeleteAllHeight { get; set; }
         public RelayCommand DeleteAllNPCs { get; set; }
 
@@ -102,13 +108,13 @@ namespace SynthEBD
             this.CurrentlyDisplayedAssignment = this.Assignments.Where(x => x.NPCFormKey.ToString() == SelectedNPCFormKey.ToString()).FirstOrDefault();
         }
 
-        public static void GetViewModelsFromModels(Dictionary<string, NPCAssignment> models, ObservableCollection<VM_ConsistencyAssignment> viewModels)
+        public static void GetViewModelsFromModels(Dictionary<string, NPCAssignment> models, ObservableCollection<VM_ConsistencyAssignment> viewModels, ObservableCollection<VM_AssetPack> AssetPackVMs)
         {
             viewModels.Clear();
             foreach (var model in models)
             {
                 if (model.Value == null) { continue; }
-                viewModels.Add(VM_ConsistencyAssignment.GetViewModelFromModel(model.Value));
+                viewModels.Add(VM_ConsistencyAssignment.GetViewModelFromModel(model.Value, AssetPackVMs));
             }
         }
 

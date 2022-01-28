@@ -21,6 +21,12 @@ namespace SynthEBD
             BodyShapeRace = AliasHandler.GetAliasBodyGen(npc.Race.FormKey);
             HeightRace = AliasHandler.GetAliasHeight(npc.Race.FormKey);
 
+            IsPatchable = PatcherSettings.General.patchableRaces.Contains(AssetsRace) || PatcherSettings.General.patchableRaces.Contains(BodyShapeRace) || PatcherSettings.General.patchableRaces.Contains(HeightRace);
+            if (!IsPatchable)
+            {
+                return;
+            }
+
             AssociatedLinkGroup = SearchLinkedInfoFromList(npc.FormKey);
             if (AssociatedLinkGroup == null)
             {
@@ -69,6 +75,7 @@ namespace SynthEBD
         public FormKey AssetsRace { get; set; }
         public FormKey BodyShapeRace { get; set; }
         public FormKey HeightRace { get; set; }
+        public bool IsPatchable { get; set; }
         public LinkedNPCGroupInfo AssociatedLinkGroup { get; set; }
         public LinkGroupMemberType LinkGroupMember { get; set; }
         public bool IsValidLinkedUnique { get; set; }

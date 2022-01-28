@@ -22,7 +22,7 @@
 
         <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
             <Button VerticalAlignment="Center" Margin="0 0 10 0" HorizontalAlignment="Right" Command="{Binding DeleteAllAssets}" Foreground="Firebrick">Clear Asset Assignments</Button>
-            <Button VerticalAlignment="Center" Margin="0 0 10 0" HorizontalAlignment="Right" Command="{Binding DeleteAllBodyGen}" Foreground="Firebrick">Clear BodyGen Assignments</Button>
+            <Button VerticalAlignment="Center" Margin="0 0 10 0" HorizontalAlignment="Right" Command="{Binding DeleteAllBodyShape}" Foreground="Firebrick">Clear Body Shape Assignments</Button>
             <Button VerticalAlignment="Center" Margin="0 0 10 0" HorizontalAlignment="Right" Command="{Binding DeleteAllHeight}" Foreground="Firebrick">Clear Height Assignments</Button>
             <Button VerticalAlignment="Center" Margin="0 0 0 0" HorizontalAlignment="Right" Command="{Binding DeleteAllNPCs}" Foreground="Firebrick">Clear Consistency</Button>
         </StackPanel>

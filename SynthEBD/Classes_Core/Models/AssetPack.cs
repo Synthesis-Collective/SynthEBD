@@ -268,7 +268,7 @@ namespace SynthEBD
 
             else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
             {
-                foreach (var descriptor in subgroup.allowedBodyGenDescriptors)
+                foreach (var descriptor in subgroup.allowedBodySlideDescriptors)
                 {
                     if (!descriptor.CollectionContainsThisDescriptor(PatcherSettings.OBody.TemplateDescriptors))
                     {
@@ -276,7 +276,7 @@ namespace SynthEBD
                         isValid = false;
                     }
                 }
-                foreach (var descriptor in subgroup.disallowedBodyGenDescriptors)
+                foreach (var descriptor in subgroup.disallowedBodySlideDescriptors)
                 {
                     if (!descriptor.CollectionContainsThisDescriptor(PatcherSettings.OBody.TemplateDescriptors))
                     {

@@ -265,7 +265,7 @@ namespace SynthEBD
                         }
                         break; 
                     case AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual: 
-                        var forcedReplacerGroup = npcInfo.SpecificNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().GroupName).FirstOrDefault(); // Replacers are assigned from a pre-chosen asset pack so there must be exactly one in the set
+                        var forcedReplacerGroup = npcInfo.SpecificNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().ReplacerName && x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault(); // Replacers are assigned from a pre-chosen asset pack so there must be exactly one in the set
                         if (forcedReplacerGroup != null)
                         {
                             forcedAssetPack = availableAssetPacks.First().ShallowCopy();
@@ -376,7 +376,7 @@ namespace SynthEBD
                         }
                         break; 
                     case AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual:
-                        consistencyReplacer = npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().GroupName).FirstOrDefault();
+                        consistencyReplacer = npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().ReplacerName && x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
                         if (consistencyReplacer != null) { consistencyAssetPackName = consistencyReplacer.ReplacerName; }
                         break;
                 }
@@ -714,7 +714,7 @@ namespace SynthEBD
 
                 if (assignReplacer)
                 {
-                    var virtualFlattenedAssetPack = FlattenedAssetPack.CreateVirtualFromReplacerGroup(replacerGroup);
+                    var virtualFlattenedAssetPack = FlattenedAssetPack.CreateVirtualFromReplacerGroup(replacerGroup, chosenAssetPack.GroupName);
                     var assignedCombination = AssetAndBodyShapeSelector.GenerateCombinationWithBodyShape(new HashSet<FlattenedAssetPack>() { virtualFlattenedAssetPack }, null, null, null, npcInfo, true, AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual, currentAssignments);
 
                     if (assignedCombination != null)
@@ -836,23 +836,23 @@ namespace SynthEBD
         {
             if (PatcherSettings.General.bEnableConsistency)
             {
-                var existingAssignment = npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.GroupName).FirstOrDefault();
+                var existingAssignment = npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.Name).FirstOrDefault();
                 if (existingAssignment != null) { existingAssignment.SubgroupIDs = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList(); }
-                else { npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Add(new NPCAssignment.AssetReplacerAssignment() { ReplacerName = replacerGroup.GroupName, SubgroupIDs = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList() }); }
+                else { npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Add(new NPCAssignment.AssetReplacerAssignment() { AssetPackName = replacerGroup.Source.GroupName, ReplacerName = replacerGroup.Name, SubgroupIDs = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList() }); }
             }
             if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
             {
-                var existingAssignment = npcInfo.AssociatedLinkGroup.ReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.GroupName).FirstOrDefault();
+                var existingAssignment = npcInfo.AssociatedLinkGroup.ReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.Name).FirstOrDefault();
                 if (existingAssignment != null) { existingAssignment.AssignedReplacerCombination = assignedCombination; }
-                else { npcInfo.AssociatedLinkGroup.ReplacerAssignments.Add(new LinkedNPCGroupInfo.LinkedAssetReplacerAssignment() { ReplacerName = replacerGroup.GroupName, AssignedReplacerCombination = assignedCombination }); }
+                else { npcInfo.AssociatedLinkGroup.ReplacerAssignments.Add(new LinkedNPCGroupInfo.LinkedAssetReplacerAssignment() { GroupName = replacerGroup.Source.GroupName, ReplacerName = replacerGroup.Name, AssignedReplacerCombination = assignedCombination }); }
             }
 
             if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique)
             {
                 List<UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment> linkedAssetReplacerAssignments = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.ReplacerAssets);
-                var existingAssignment = linkedAssetReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.GroupName).FirstOrDefault();
+                var existingAssignment = linkedAssetReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.Name).FirstOrDefault();
                 if (existingAssignment != null) { existingAssignment.AssignedReplacerCombination = assignedCombination; }
-                else { linkedAssetReplacerAssignments.Add(new UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment() { ReplacerName = replacerGroup.GroupName, AssignedReplacerCombination = assignedCombination }); }
+                else { linkedAssetReplacerAssignments.Add(new UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment() { GroupName = replacerGroup.Source.GroupName, ReplacerName = replacerGroup.Name, AssignedReplacerCombination = assignedCombination }); }
             }
         }
     }
