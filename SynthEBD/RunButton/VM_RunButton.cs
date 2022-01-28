@@ -104,6 +104,11 @@ namespace SynthEBD
                     {
                         valid = false;
                     }
+
+                    if (!MiscValidation.VerifyGeneratedTriFilesForOBody(PatcherSettings.OBody))
+                    {
+                        valid = false;
+                    }
                 }
                 else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
                 {
@@ -111,8 +116,12 @@ namespace SynthEBD
                     {
                         valid = false;
                     }
+
+                    if (!MiscValidation.VerifyGeneratedTriFilesForBodyGen(ParentWindow.AssetPacks, ParentWindow.BodyGenConfigs))
+                    {
+                        valid = false;
+                    }
                 }
-                
             }
 
             if (!valid)

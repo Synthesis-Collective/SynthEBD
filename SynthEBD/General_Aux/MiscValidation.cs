@@ -14,7 +14,7 @@ namespace SynthEBD
         public static bool VerifyEBDInstalled()
         {
             bool verified = true;
-            
+
             string helperScriptPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "Scripts", "EBDHelperScript.pex");
             if (!File.Exists(helperScriptPath))
             {
@@ -130,13 +130,13 @@ namespace SynthEBD
                 {
                     List<string> subMessage = new List<string>();
                     BodyGenConfig bodyGenConfig = null;
-                    switch(assetPack.Gender)
+                    switch (assetPack.Gender)
                     {
                         case Gender.Male: bodyGenConfig = bodyGenConfigs.Male.Where(x => x.Label == assetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
                         case Gender.Female: bodyGenConfig = bodyGenConfigs.Female.Where(x => x.Label == assetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
                     }
 
-                    if (examinedConfigs.Contains(assetPack.AssociatedBodyGenConfigName)) { continue;}
+                    if (examinedConfigs.Contains(assetPack.AssociatedBodyGenConfigName)) { continue; }
                     else
                     {
                         examinedConfigs.Add(assetPack.AssociatedBodyGenConfigName);
@@ -224,6 +224,97 @@ namespace SynthEBD
             box.Show();
 
             return box.Result == System.Windows.MessageBoxResult.OK;
+        }
+
+        public static bool VerifyGeneratedTriFilesForOBody(Settings_OBody oBodySettings)
+        {
+            bool valid = true;
+            if (oBodySettings.BodySlidesMale.Where(x => x.AllowRandom).Any())
+            {
+                string triPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
+                if (!File.Exists(triPath))
+                {
+                    valid = false;
+                    Logger.LogMessage("Male BodySlides were detected but no malebody.tri was found at " + triPath);
+                }
+            }
+
+            if (oBodySettings.BodySlidesFemale.Where(x => x.AllowRandom).Any())
+            {
+                string triPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
+                if (!File.Exists(triPath))
+                {
+                    valid = false;
+                    Logger.LogMessage("Female BodySlides were detected but no femalebody.tri was found at " + triPath);
+                }
+            }
+
+            if (!valid)
+            {
+                Logger.LogMessage("Please make sure to check the `Build Morphs` box in BodySlide when generating your BodySlide output");
+            }
+
+            return valid;
+        }
+
+        public static bool VerifyGeneratedTriFilesForBodyGen(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs)
+        {
+            bool valid = true;
+            BodyGenHasActiveGenderedConfigs(assetPacks, bodyGenConfigs, out bool hasMaleConfigs, out bool hasFemaleConfigs);
+
+            if (hasMaleConfigs)
+            {
+                string triPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
+                if (!File.Exists(triPath))
+                {
+                    valid = false;
+                    Logger.LogMessage("Male BodyGen configs were detected but no malebody.tri was found at " + triPath);
+                }
+            }
+            if (hasFemaleConfigs)
+            {
+                string triPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
+                if (!File.Exists(triPath))
+                {
+                    valid = false;
+                    Logger.LogMessage("Female BodyGen configs were detected but no femalebody.tri was found at " + triPath);
+                }
+            }
+
+            if (!valid)
+            {
+                Logger.LogMessage("Please make sure to check the `Build Morphs` box in BodySlide when generating your zeroed BodySlide output");
+            }
+
+            return valid;
+        }
+
+        private static void BodyGenHasActiveGenderedConfigs(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, out bool hasMaleConfigs, out bool hasFemaleConfigs)
+        {
+            hasMaleConfigs = false;
+            hasFemaleConfigs = false;
+
+            foreach (var assetPack in assetPacks)
+            {
+                if (!string.IsNullOrWhiteSpace(assetPack.AssociatedBodyGenConfigName))
+                {
+                    List<string> subMessage = new List<string>();
+                    BodyGenConfig bodyGenConfig = null;
+                    switch (assetPack.Gender)
+                    {
+                        case Gender.Male: bodyGenConfig = bodyGenConfigs.Male.Where(x => x.Label == assetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
+                        case Gender.Female: bodyGenConfig = bodyGenConfigs.Female.Where(x => x.Label == assetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
+                    }
+                    if (bodyGenConfig != null)
+                    {
+                        switch (bodyGenConfig.Gender)
+                        {
+                            case Gender.Male: hasMaleConfigs = true; break;
+                            case Gender.Female : hasFemaleConfigs = true; break;
+                        }
+                    }
+                }
+            }
         }
     }
 }
