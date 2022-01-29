@@ -15,6 +15,22 @@ namespace SynthEBD
             MaleBodySlideGroups = new ObservableCollection<VM_CollectionMemberString>();
             FemaleBodySlideGroups = new ObservableCollection<VM_CollectionMemberString>();
 
+            SetRaceMenuINI = new SynthEBD.RelayCommand(
+               canExecute: _ => true,
+               execute: _ =>
+               {
+                   if (RaceMenuIniHandler.SetRaceMenuIniForBodySlide())
+                   {
+                       Logger.CallTimedNotifyStatusUpdateAsync("RaceMenu Ini set successfully", ErrorType.Warning, 2); // Warning yellow font is easier to see than green
+                   }
+                   else
+                   {
+                       Logger.LogErrorWithStatusUpdate("Error encountered trying to set RaceMenu's ini.", ErrorType.Error);
+                       Logger.SwitchViewToLogDisplay();
+                   }
+               }
+               );
+
             AddMaleSliderGroup = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => MaleBodySlideGroups.Add(new VM_CollectionMemberString("", MaleBodySlideGroups))
@@ -29,6 +45,7 @@ namespace SynthEBD
         public ObservableCollection<VM_CollectionMemberString> MaleBodySlideGroups { get; set; }
         public ObservableCollection<VM_CollectionMemberString> FemaleBodySlideGroups { get; set; }
 
+        public RelayCommand SetRaceMenuINI { get; }
         public RelayCommand AddMaleSliderGroup { get; set; }
         public RelayCommand AddFemaleSliderGroup { get; set; }
 

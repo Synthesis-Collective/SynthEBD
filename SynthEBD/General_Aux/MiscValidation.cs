@@ -41,17 +41,19 @@ namespace SynthEBD
         {
             bool verified = true;
 
-            string dllPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SKSE", "Plugins", "skee64.dll");
-            if (!File.Exists(dllPath))
+            string dllPath64 = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SKSE", "Plugins", "skee64.dll");
+            string dllPathVR = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SKSE", "Plugins", "skeevr.dll");
+            if (!File.Exists(dllPath64) && !File.Exists(dllPathVR))
             {
-                Logger.LogMessage("Could not find skee64.dll from RaceMenu at " + dllPath);
+                Logger.LogMessage("Could not find skee64.dll from RaceMenu at " + Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SKSE", "Plugins"));
                 verified = false;
             }
 
-            string iniPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SKSE", "Plugins", "skee64.ini");
-            if (!File.Exists(iniPath))
+            string iniPath64 = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SKSE", "Plugins", "skee64.ini");
+            string iniPathVR = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SKSE", "Plugins", "skeevr.ini");
+            if (!File.Exists(iniPath64) && !File.Exists(iniPathVR))
             {
-                Logger.LogMessage("Could not find skee64.dll from RaceMenu at " + iniPath);
+                Logger.LogMessage("Could not find skee64.ini from RaceMenu at " + Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SKSE", "Plugins"));
                 verified = false;
             }
 
@@ -315,6 +317,117 @@ namespace SynthEBD
                     }
                 }
             }
+        }
+
+        public static bool VerifyRaceMenuIniForBodyGen()
+        {
+            bool valid = true;
+
+            var iniContents = RaceMenuIniHandler.GetRaceMenuIniContents(out valid, out string iniFileName);
+
+            string message = "";
+
+            bool morphEnabled = RaceMenuIniHandler.GetBodyMorphEnabled(iniContents, out bool morphParsed, out string morphLine);
+            if (!morphParsed)
+            {
+                valid = false;
+                message = "Could not parse bEnableBodyMorph in " + iniFileName;
+                if (morphLine.Any())
+                {
+                    message += "( in line " + morphLine + ")";
+                }
+                Logger.LogMessage(message);
+            }
+            else if (!morphEnabled)
+            {
+                valid = false;
+                Logger.LogMessage("bEableBodyGen must be enabled in " + iniFileName + " for BodyGen to work. Please fix this from the BodyGen menu.");
+            }
+
+            bool bodygenEnabled = RaceMenuIniHandler.GetBodyGenEnabled(iniContents, out bool bodyGenParsed, out string genLine);
+            if (!bodyGenParsed)
+            {
+                valid = false;
+                message = "Could not parse bEnableBodyGen in " + iniFileName;
+                if (morphLine.Any())
+                {
+                    message += "( in line " + genLine + ")";
+                }
+                Logger.LogMessage(message);
+            }
+            else if (!bodygenEnabled)
+            {
+                valid = false;
+                Logger.LogMessage("bEnableBodyGen must be enabled in " + iniFileName + " for BodyGen to work. Please fix this from the BodyGen menu.");
+            }
+
+            int scaleMode = RaceMenuIniHandler.GetScaleMode(iniContents, out bool scaleModeParsed, out string scaleLine);
+            if (!scaleModeParsed)
+            {
+                valid = false;
+                message = "Could not parse iScaleMode in " + iniFileName;
+                if (morphLine.Any())
+                {
+                    message += "( in line " + scaleLine + ")";
+                }
+                Logger.LogMessage(message);
+            }
+            else if (scaleMode == 0)
+            {
+                valid = false;
+                Logger.LogMessage("iScaleMode must not be 0 in " + iniFileName + " for BodyGen to work. Please fix this from the BodyGen menu.");
+            }
+            else if (scaleMode == 2)
+            {
+                Logger.LogMessage("Warning: iScaleMode is set to 2 in " + iniFileName + ". This can cause NPC weapons to become supersized when the game is loaded. It is recommended to set this to 1 or 3.");
+            }
+
+            return valid;
+        }
+
+        public static bool VerifyRaceMenuIniForBodySlide()
+        {
+            bool valid = true;
+
+            var iniContents = RaceMenuIniHandler.GetRaceMenuIniContents(out valid, out string iniFileName);
+
+            string message = "";
+
+            bool morphEnabled = RaceMenuIniHandler.GetBodyMorphEnabled(iniContents, out bool morphParsed, out string morphLine);
+            if (!morphParsed)
+            {
+                valid = false;
+                message = "Could not parse bEnableBodyMorph in " + iniFileName;
+                if (morphLine.Any())
+                {
+                    message += "( in line " + morphLine + ")";
+                }
+                Logger.LogMessage(message);
+            }
+            else if (!morphEnabled)
+            {
+                valid = false;
+                Logger.LogMessage("bEableBodyGen must be enabled in " + iniFileName + " for BodyGen to work. Please fix this from the BodyGen Integration menu.");
+            }
+
+            bool bodygenEnabled = RaceMenuIniHandler.GetBodyGenEnabled(iniContents, out bool bodyGenParsed, out string genLine);
+            if (!bodyGenParsed)
+            {
+                valid = false;
+                message = "Could not parse bEnableBodyGen in " + iniFileName;
+                if (morphLine.Any())
+                {
+                    message += "( in line " + genLine + ")";
+                }
+                Logger.LogMessage(message);
+            }
+            else if (bodygenEnabled)
+            {
+                valid = false;
+                Logger.LogMessage("bEnableBodyGen must be disabled in " + iniFileName + " for OBody/AutoBody to work. Please fix this from the OBody Settings menu.");
+            }
+
+            return valid;
         }
     }
 }

@@ -24,6 +24,7 @@ namespace SynthEBD
             this.TemplateMorphUI = new VM_BodyGenTemplateMenu(this, generalSettingsVM.RaceGroupings);
             this.DisplayedUI = this.TemplateMorphUI;
             this.AttributeGroupMenu = new VM_AttributeGroupMenu();
+            this.MiscMenu = new VM_BodyGenMiscMenu();
 
             ClickTemplateMenu = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -45,6 +46,10 @@ namespace SynthEBD
             ClickAttributeGroupsMenu = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => this.DisplayedUI = this.AttributeGroupMenu
+                );
+            ClickMiscMenu = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.DisplayedUI = this.MiscMenu
                 );
 
             ImportAttributeGroups = new SynthEBD.RelayCommand(
@@ -70,6 +75,7 @@ namespace SynthEBD
         public VM_BodyGenTemplateMenu TemplateMorphUI { get; set; }
 
         public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
+        public VM_BodyGenMiscMenu MiscMenu { get; set; }
 
         public string SourcePath { get; set; }
 
@@ -78,6 +84,7 @@ namespace SynthEBD
         public ICommand ClickDescriptorMenu { get; }
         public ICommand ClickGroupsMenu { get; }
         public ICommand ClickAttributeGroupsMenu { get; }
+        public ICommand ClickMiscMenu { get; }
         public RelayCommand ImportAttributeGroups { get; }
 
         public string Label { get; set; }

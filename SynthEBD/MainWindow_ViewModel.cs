@@ -119,6 +119,7 @@ namespace SynthEBD
             DisplayedViewModel = SGVM;
             NavViewModel = NavPanel;
             Logger.Instance.RunButton = RunButton;
+            Logger.Instance.MainVM = this;
 
             Application.Current.MainWindow.Closing += new CancelEventHandler(MainWindow_Closing);
         }

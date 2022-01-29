@@ -19,6 +19,7 @@ namespace SynthEBD
         public event PropertyChangedEventHandler PropertyChanged;
 
         public VM_RunButton RunButton { get; set; }
+        public MainWindow_ViewModel MainVM { get; set; }
         public string StatusString { get; set; }
         public string BackupStatusString { get; set; }
         public string LogString { get; set; }
@@ -360,9 +361,11 @@ namespace SynthEBD
         {
             Task.Run(() => TimedNotifyStatusUpdateAsync(error, type, durationSec));
         }
-        /*
-        public async Task CallTimedNotifyStatusUpdateAsync(string error, ErrorType type, int durationSec)
-  => await TimedNotifyStatusUpdateAsync(error, type, durationSec);*/
+
+        public static void CallTimedNotifyStatusUpdateAsync(string error, int durationSec)
+        {
+            Task.Run(() => TimedNotifyStatusUpdateAsync(error, durationSec));
+        }
 
         private static async Task TimedNotifyStatusUpdateAsync(string error, ErrorType type, int durationSec)
         {
@@ -373,6 +376,18 @@ namespace SynthEBD
             await Task.Delay(durationSec * 1000);
 
             ClearStatusError();
+        }
+
+        private static async Task TimedNotifyStatusUpdateAsync(string message, int durationSec)
+        {
+            ArchiveStatus();
+            UpdateStatus(message, false);
+
+            // Await the Task to allow the UI thread to render the view
+            // in order to show the changes     
+            await Task.Delay(durationSec * 1000);
+
+            DeArchiveStatus();
         }
 
         public static void ClearStatusError()
@@ -415,6 +430,11 @@ namespace SynthEBD
         public static string GetNPCLogReportingString(INpcGetter npc)
         {
             return npc.Name?.String + " (" + npc.EditorID + ") " + npc.FormKey.ToString().Replace(':', '-');
+        }
+
+        public static void SwitchViewToLogDisplay()
+        {
+            Instance.MainVM.DisplayedViewModel = Instance.MainVM.LogDisplayVM;
         }
     }
 

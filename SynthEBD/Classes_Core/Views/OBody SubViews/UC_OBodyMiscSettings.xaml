@@ -17,11 +17,14 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0">Male Bodyslide Groups</TextBlock>
-        <Button Grid.Row="0"  Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddMaleSliderGroup}" Foreground="LightGreen">Add New</Button>
-        <ItemsControl Grid.Row="0"  Grid.Column="2" ItemsSource="{Binding MaleBodySlideGroups, UpdateSourceTrigger=PropertyChanged}">
+        <Button Command="{Binding SetRaceMenuINI}" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="0 0 0 10" Foreground="LightGreen" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3">Set RaceMenu INI to enable OBody/AutoBody</Button>
+
+        <TextBlock Grid.Row="1" Grid.Column="0">Male Bodyslide Groups</TextBlock>
+        <Button Grid.Row="1"  Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddMaleSliderGroup}" Foreground="LightGreen">Add New</Button>
+        <ItemsControl Grid.Row="1"  Grid.Column="2" ItemsSource="{Binding MaleBodySlideGroups, UpdateSourceTrigger=PropertyChanged}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_CollectionMemberString}">
                     <StackPanel Orientation="Horizontal">
@@ -32,9 +35,9 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBlock Margin="0 10 0 0"  Grid.Row="1" Grid.Column="0" VerticalAlignment="Top">Female Bodyslide Groups</TextBlock>
-        <Button Margin="5 10 0 0" Grid.Row="1"  Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddFemaleSliderGroup}" Foreground="LightGreen">Add New</Button>
-        <ItemsControl  Margin="0 10 0 0" Grid.Row="1"  Grid.Column="2" ItemsSource="{Binding FemaleBodySlideGroups, UpdateSourceTrigger=PropertyChanged}">
+        <TextBlock Margin="0 10 0 0"  Grid.Row="2" Grid.Column="0" VerticalAlignment="Top">Female Bodyslide Groups</TextBlock>
+        <Button Margin="5 10 0 0" Grid.Row="2"  Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddFemaleSliderGroup}" Foreground="LightGreen">Add New</Button>
+        <ItemsControl  Margin="0 10 0 0" Grid.Row="2"  Grid.Column="2" ItemsSource="{Binding FemaleBodySlideGroups, UpdateSourceTrigger=PropertyChanged}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_CollectionMemberString}">
                     <StackPanel Orientation="Horizontal">

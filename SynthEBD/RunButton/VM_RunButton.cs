@@ -82,6 +82,14 @@ namespace SynthEBD
                 {
                     valid = false;
                 }
+                else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !MiscValidation.VerifyRaceMenuIniForBodyGen())
+                {
+                    valid = false;
+                }
+                else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !MiscValidation.VerifyRaceMenuIniForBodySlide())
+                {
+                    valid = false;
+                }
 
                 if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
                 {
