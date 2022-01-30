@@ -38,7 +38,7 @@ namespace SynthEBD
                 modName = modKeyStr;
             }
 
-            if (!GameEnvironmentProvider.MyEnvironment.LoadOrder.ListedOrder.Select(x => x.ModKey.ToString()).Contains(modKeyStr))
+            if (!PatcherEnvironmentProvider.Environment.LoadOrder.ListedOrder.Select(x => x.ModKey.ToString()).Contains(modKeyStr))
             {
                 return false;
             }
@@ -74,7 +74,7 @@ namespace SynthEBD
             }
             else
             {
-                foreach (var bsaFile in Archive.GetApplicableArchivePaths(GameRelease.SkyrimSE, GameEnvironmentProvider.MyEnvironment.DataFolderPath, modKey))
+                foreach (var bsaFile in Archive.GetApplicableArchivePaths(GameRelease.SkyrimSE, PatcherEnvironmentProvider.Environment.DataFolderPath, modKey))
                 {
                     try
                     {

@@ -43,7 +43,7 @@ namespace SynthEBD
             this.SubscribedBodyGenSettings = bodyGenSettings;
             this.AvailableMorphs = new ObservableCollection<VM_BodyGenTemplate>(); // filtered by gender
 
-            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
 
             this.PropertyChanged += TriggerGenderUpdate;
@@ -155,7 +155,7 @@ namespace SynthEBD
 
             var npcFormLink = new FormLink<INpcGetter>(viewModel.NPCFormKey);
 
-            if (!npcFormLink.TryResolve(GameEnvironmentProvider.MyEnvironment.LinkCache, out var npcRecord))
+            if (!npcFormLink.TryResolve(PatcherEnvironmentProvider.Environment.LinkCache, out var npcRecord))
             {
                 // Warn User
                 return null;
@@ -490,7 +490,7 @@ namespace SynthEBD
         {
             var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
 
-            if (npcFormLink.TryResolve(GameEnvironmentProvider.MyEnvironment.LinkCache, out var npcRecord))
+            if (npcFormLink.TryResolve(PatcherEnvironmentProvider.Environment.LinkCache, out var npcRecord))
             {
                 if (npcRecord.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Female))
                 {

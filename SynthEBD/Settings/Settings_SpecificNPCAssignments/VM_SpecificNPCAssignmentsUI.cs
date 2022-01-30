@@ -86,7 +86,7 @@ namespace SynthEBD
                     var zSpecificNPCAssignments = JSONhandler<HashSet<zEBDSpecificNPCAssignment>>.loadJSONFile(filename);
                     var newModels = zEBDSpecificNPCAssignment.ToSynthEBDNPCAssignments(zSpecificNPCAssignments);
 
-                    var env = GameEnvironmentProvider.MyEnvironment;
+                    var env = PatcherEnvironmentProvider.Environment;
 
                     foreach (var model in newModels)
                     {

@@ -17,7 +17,7 @@ namespace SynthEBD
 {
     public class MainWindow_ViewModel : INotifyPropertyChanged
     {
-        public GameEnvironmentProvider GameEnvironmentProvider { get; }
+        //public GameEnvironmentProvider GameEnvironmentProvider { get; }
         public VM_Settings_General SGVM { get; }
         public VM_SettingsTexMesh TMVM { get; }
         public VM_SettingsBodyGen BGVM { get; }
@@ -50,11 +50,6 @@ namespace SynthEBD
 
         public MainWindow_ViewModel()
         {
-            var gameRelease = SkyrimRelease.SkyrimSE;
-            var env = GameEnvironment.Typical.Skyrim(gameRelease, LinkCachePreferences.OnlyIdentifiers());
-            var LinkCache = env.LinkCache;
-            var LoadOrder = env.LoadOrder;
-
             SGVM = new VM_Settings_General(this);
             BGVM = new VM_SettingsBodyGen(SGVM);
             OBVM = new VM_SettingsOBody(SGVM.RaceGroupings, SGVM);
@@ -76,7 +71,7 @@ namespace SynthEBD
             PatcherSettings.Paths = new Paths();
 
             // Initialize patchable races from general settings (required by some UI elements)
-            Patcher.MainLinkCache = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            Patcher.MainLinkCache = PatcherEnvironmentProvider.Environment.LinkCache;
             Patcher.ResolvePatchableRaces();
 
             LoadInitialSettingsViewModels();

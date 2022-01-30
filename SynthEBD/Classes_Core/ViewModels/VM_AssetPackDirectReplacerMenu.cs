@@ -63,7 +63,7 @@ namespace SynthEBD
             this.Subgroups = new ObservableCollection<VM_Subgroup>();
             this.ParentMenu = parent;
 
-            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.NPCType = typeof(INpcGetter).AsEnumerable();
 
             Remove = new SynthEBD.RelayCommand(

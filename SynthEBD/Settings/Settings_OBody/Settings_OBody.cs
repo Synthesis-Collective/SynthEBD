@@ -40,7 +40,7 @@ namespace SynthEBD
 
             CurrentlyExistingBodySlides.Clear();
             List<BodySlideSetting> currentBodySlides = new List<BodySlideSetting>();
-            string loadFolder = System.IO.Path.Join(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "CalienteTools\\BodySlide\\SliderPresets");
+            string loadFolder = System.IO.Path.Join(PatcherEnvironmentProvider.Environment.DataFolderPath, "CalienteTools\\BodySlide\\SliderPresets");
             if (System.IO.Directory.Exists(loadFolder))
             {
                 var xmlFilePaths = System.IO.Directory.GetFiles(loadFolder, "*.xml");

@@ -35,7 +35,7 @@ namespace SynthEBD
 
             this.Caption_BodyShapeDescriptors = "";
 
-            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
 
             this.ParentConfig = parentConfig;

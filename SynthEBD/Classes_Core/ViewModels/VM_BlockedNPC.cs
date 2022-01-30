@@ -22,7 +22,7 @@ namespace SynthEBD
             this.Height = false;
             this.BodyShape = false;
 
-            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
         }
         // Caption

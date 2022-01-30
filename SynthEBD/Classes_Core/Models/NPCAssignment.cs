@@ -84,7 +84,7 @@ namespace SynthEBD
         public static HashSet<NPCAssignment> ToSynthEBDNPCAssignments(HashSet<zEBDSpecificNPCAssignment> inputSet)
         {
             var outputSet = new HashSet<NPCAssignment>();
-            var env = GameEnvironmentProvider.MyEnvironment;
+            var env = PatcherEnvironmentProvider.Environment;
 
             foreach (var z in inputSet)
             {

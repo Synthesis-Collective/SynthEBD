@@ -202,7 +202,7 @@ namespace SynthEBD
                         parentVM.ParentCollection.Remove(parentVM);
                     }
                 }) ;
-            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.AllowedFormKeyTypes = typeof(IVoiceTypeGetter).AsEnumerable();
 
             this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
@@ -234,7 +234,7 @@ namespace SynthEBD
             this.ClassFormKeys = new ObservableCollection<FormKey>();
             this.ParentVM = parentVM;
 
-            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.AllowedFormKeyTypes = typeof(IClassGetter).AsEnumerable();
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
 
@@ -286,7 +286,7 @@ namespace SynthEBD
 
             this.Comparators = new ObservableCollection<string>();
 
-            this.LinkCache = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.LinkCache = PatcherEnvironmentProvider.Environment.LinkCache;
 
             ParentVM = parentVM;
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
@@ -401,7 +401,7 @@ namespace SynthEBD
             }
             else
             {
-                if (!GameEnvironmentProvider.MyEnvironment.LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC))
+                if (!PatcherEnvironmentProvider.Environment.LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC))
                 {
                     EvalResult = "Error: can't resolve reference NPC.";
                     this.StatusFontColor = new SolidColorBrush(Colors.Red);
@@ -469,7 +469,7 @@ namespace SynthEBD
             this.RankMax = 100;
             this.ParentVM = parentVM;
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
-            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.AllowedFormKeyTypes = typeof(IFactionGetter).AsEnumerable();
 
             this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
@@ -503,7 +503,7 @@ namespace SynthEBD
             this.FaceTextureFormKeys = new ObservableCollection<FormKey>();
             this.ParentVM = parentVM;
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
-            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.AllowedFormKeyTypes = typeof(ITextureSetGetter).AsEnumerable();
 
             this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
@@ -534,7 +534,7 @@ namespace SynthEBD
             this.RaceFormKeys = new ObservableCollection<FormKey>();
             this.ParentVM = parentVM;
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
-            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.AllowedFormKeyTypes = typeof(IRaceGetter).AsEnumerable();
 
             this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
@@ -565,7 +565,7 @@ namespace SynthEBD
             this.NPCFormKeys = new ObservableCollection<FormKey>();
             this.ParentVM = parentVM;
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
-            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.AllowedFormKeyTypes = typeof(INpcGetter).AsEnumerable();
 
             this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();

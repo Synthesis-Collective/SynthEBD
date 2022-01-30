@@ -29,7 +29,7 @@ namespace SynthEBD
             this.ProbabilityWeighting = 1;
             this.WeightRange = new NPCWeightRange();
 
-            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
 
             ParentConfig = parentConfig;

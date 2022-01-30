@@ -21,7 +21,7 @@ namespace SynthEBD
                {
                    if (RaceMenuIniHandler.SetRaceMenuIniForBodySlide())
                    {
-                       Logger.CallTimedNotifyStatusUpdateAsync("RaceMenu Ini set successfully", ErrorType.Warning, 2); // Warning yellow font is easier to see than green
+                       Logger.CallTimedLogErrorWithStatusUpdateAsync("RaceMenu Ini set successfully", ErrorType.Warning, 2); // Warning yellow font is easier to see than green
                    }
                    else
                    {

@@ -15,14 +15,14 @@ namespace SynthEBD
         {
             bool verified = true;
 
-            string helperScriptPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "Scripts", "EBDHelperScript.pex");
+            string helperScriptPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "Scripts", "EBDHelperScript.pex");
             if (!File.Exists(helperScriptPath))
             {
                 Logger.LogMessage("Could not find EBDHelperScript.pex from EveryBody's Different Redone SSE at " + helperScriptPath);
                 verified = false;
             }
 
-            string globalScriptPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "Scripts", "EBDGlobalFuncs.pex");
+            string globalScriptPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "Scripts", "EBDGlobalFuncs.pex");
             if (!File.Exists(globalScriptPath))
             {
                 Logger.LogMessage("Could not find EBDGlobalFuncs.pex from EveryBody's Different Redone SSE at " + globalScriptPath);
@@ -41,19 +41,19 @@ namespace SynthEBD
         {
             bool verified = true;
 
-            string dllPath64 = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SKSE", "Plugins", "skee64.dll");
-            string dllPathVR = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SKSE", "Plugins", "skeevr.dll");
+            string dllPath64 = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins", "skee64.dll");
+            string dllPathVR = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins", "skeevr.dll");
             if (!File.Exists(dllPath64) && !File.Exists(dllPathVR))
             {
-                Logger.LogMessage("Could not find skee64.dll from RaceMenu at " + Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SKSE", "Plugins"));
+                Logger.LogMessage("Could not find skee64.dll from RaceMenu at " + Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins"));
                 verified = false;
             }
 
-            string iniPath64 = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SKSE", "Plugins", "skee64.ini");
-            string iniPathVR = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SKSE", "Plugins", "skeevr.ini");
+            string iniPath64 = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins", "skee64.ini");
+            string iniPathVR = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins", "skeevr.ini");
             if (!File.Exists(iniPath64) && !File.Exists(iniPathVR))
             {
-                Logger.LogMessage("Could not find skee64.ini from RaceMenu at " + Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SKSE", "Plugins"));
+                Logger.LogMessage("Could not find skee64.ini from RaceMenu at " + Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins"));
                 verified = false;
             }
 
@@ -69,14 +69,14 @@ namespace SynthEBD
         {
             bool verified = true;
 
-            string scriptPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "Scripts", "OBodyNative.pex");
+            string scriptPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "Scripts", "OBodyNative.pex");
             if (!File.Exists(scriptPath))
             {
                 Logger.LogMessage("Could not find OBodyNative.pex from OBody at " + scriptPath);
                 verified = false;
             }
 
-            string dllPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SKSE", "Plugins", "OBody.dll");
+            string dllPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins", "OBody.dll");
             if (!File.Exists(dllPath))
             {
                 Logger.LogMessage("Could not find OBody.dll from OBody at " + dllPath);
@@ -95,14 +95,14 @@ namespace SynthEBD
         {
             bool verified = true;
 
-            string scriptPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "Scripts", "autoBodyUtils.pex");
+            string scriptPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "Scripts", "autoBodyUtils.pex");
             if (!File.Exists(scriptPath))
             {
                 Logger.LogMessage("Could not find autoBodyUtils.pex from AutoBody at " + scriptPath);
                 verified = false;
             }
 
-            string dllPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SKSE", "Plugins", "autoBodyAE.dll");
+            string dllPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins", "autoBodyAE.dll");
             if (!File.Exists(dllPath))
             {
                 Logger.LogMessage("Could not find autoBodyAE.dll from AutoBody at " + dllPath);
@@ -233,7 +233,7 @@ namespace SynthEBD
             bool valid = true;
             if (oBodySettings.BodySlidesMale.Where(x => x.AllowRandom).Any())
             {
-                string triPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
+                string triPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
                 if (!File.Exists(triPath))
                 {
                     valid = false;
@@ -243,7 +243,7 @@ namespace SynthEBD
 
             if (oBodySettings.BodySlidesFemale.Where(x => x.AllowRandom).Any())
             {
-                string triPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
+                string triPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
                 if (!File.Exists(triPath))
                 {
                     valid = false;
@@ -266,7 +266,7 @@ namespace SynthEBD
 
             if (hasMaleConfigs)
             {
-                string triPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
+                string triPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
                 if (!File.Exists(triPath))
                 {
                     valid = false;
@@ -275,7 +275,7 @@ namespace SynthEBD
             }
             if (hasFemaleConfigs)
             {
-                string triPath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
+                string triPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
                 if (!File.Exists(triPath))
                 {
                     valid = false;

@@ -45,7 +45,7 @@ namespace SynthEBD
             AttributeGroupMenu = new VM_AttributeGroupMenu();
             OverwritePluginAttGroups = true;
 
-            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
             this.NPCPickerFormKeys = typeof(INpcGetter).AsEnumerable();
 
@@ -53,12 +53,12 @@ namespace SynthEBD
 
             AddRaceAlias = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.raceAliases.Add(new VM_raceAlias(new RaceAlias(), GameEnvironmentProvider.MyEnvironment, this))
+                execute: _ => this.raceAliases.Add(new VM_raceAlias(new RaceAlias(), PatcherEnvironmentProvider.Environment, this))
                 );
 
             AddRaceGrouping = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.RaceGroupings.Add(new VM_RaceGrouping(new RaceGrouping(), GameEnvironmentProvider.MyEnvironment, this))
+                execute: _ => this.RaceGroupings.Add(new VM_RaceGrouping(new RaceGrouping(), PatcherEnvironmentProvider.Environment, this))
                 );
 
             AddLinkedNPCNameExclusion = new SynthEBD.RelayCommand(
@@ -80,7 +80,7 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    if (IO_Aux.SelectFolder(GameEnvironmentProvider.MyEnvironment.DataFolderPath, out var tmpFolder))
+                    if (IO_Aux.SelectFolder(PatcherEnvironmentProvider.Environment.DataFolderPath, out var tmpFolder))
                     {
                         OutputDataFolder = tmpFolder;
                     }
@@ -90,12 +90,14 @@ namespace SynthEBD
             this.WhenAnyValue(x => x.bLoadSettingsFromDataFolder).Skip(1).Subscribe(x =>
             {
                 PatcherSettings.Paths = new Paths();
-                Patcher.MainLinkCache = GameEnvironmentProvider.MyEnvironment.LinkCache;
+                Patcher.MainLinkCache = PatcherEnvironmentProvider.Environment.LinkCache;
                 Patcher.ResolvePatchableRaces();
                 MainWindowVM.LoadInitialSettingsViewModels();
                 MainWindowVM.LoadPluginViewModels();
                 MainWindowVM.LoadFinalSettingsViewModels();
             });
+
+            this.WhenAnyValue(x => x.patchFileName).Subscribe(x => PatcherEnvironmentProvider.Environment.Refresh(patchFileName, false));
         }
 
         public MainWindow_ViewModel MainWindowVM { get; set; }
@@ -157,8 +159,8 @@ namespace SynthEBD
             viewModel.verboseModeNPClist = new ObservableCollection<FormKey>(model.verboseModeNPClist);
             viewModel.bLoadSettingsFromDataFolder = model.bLoadSettingsFromDataFolder;
             viewModel.patchableRaces = new ObservableCollection<FormKey>(model.patchableRaces);
-            viewModel.raceAliases = VM_raceAlias.GetViewModelsFromModels(model.raceAliases, GameEnvironmentProvider.MyEnvironment, viewModel);
-            viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, GameEnvironmentProvider.MyEnvironment, viewModel);
+            viewModel.raceAliases = VM_raceAlias.GetViewModelsFromModels(model.raceAliases, PatcherEnvironmentProvider.Environment, viewModel);
+            viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, PatcherEnvironmentProvider.Environment, viewModel);
             VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu);
             viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;
         }

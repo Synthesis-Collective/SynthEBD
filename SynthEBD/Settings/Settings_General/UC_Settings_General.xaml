@@ -43,7 +43,7 @@
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Column="0" Grid.Row="0" ToolTip="Name of output file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Output Name</TextBlock>
-            <TextBox Grid.Column="2" Grid.Row="0" Width="150" HorizontalAlignment="Left" Text="{Binding Path=patchFileName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+            <TextBox Grid.Column="2" Grid.Row="0" Width="150" HorizontalAlignment="Left" Text="{Binding Path=patchFileName, UpdateSourceTrigger=LostFocus}"></TextBox>
 
             <TextBlock Grid.Column="0" Grid.Row="1" ToolTip="">Output Data Folder</TextBlock>
             <StackPanel Grid.Column="2" Grid.Row="1" Orientation="Horizontal">

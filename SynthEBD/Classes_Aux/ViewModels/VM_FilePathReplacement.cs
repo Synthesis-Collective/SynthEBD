@@ -44,7 +44,7 @@ namespace SynthEBD
                     System.Windows.Forms.OpenFileDialog dialog = LongPathHandler.CreateLongPathOpenFileDialog();
                     if (Source != "")
                     {
-                        var initDir = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, Path.GetDirectoryName(Source));
+                        var initDir = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, Path.GetDirectoryName(Source));
                         if (Directory.Exists(initDir))
                         {
                             dialog.InitialDirectory = initDir;
@@ -54,9 +54,9 @@ namespace SynthEBD
                     if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                     {
                         // try to figure out the root directory
-                        if (dialog.FileName.Contains(GameEnvironmentProvider.MyEnvironment.DataFolderPath))
+                        if (dialog.FileName.Contains(PatcherEnvironmentProvider.Environment.DataFolderPath))
                         {
-                            Source = dialog.FileName.Replace(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "").TrimStart(Path.DirectorySeparatorChar);
+                            Source = dialog.FileName.Replace(PatcherEnvironmentProvider.Environment.DataFolderPath, "").TrimStart(Path.DirectorySeparatorChar);
                         }
                         else if (TrimKnownPrefix(dialog.FileName, out var sourceTrimmed))
                         {
@@ -112,7 +112,7 @@ namespace SynthEBD
 
         public void RefreshSourceColor()
         {
-            var searchStr = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, this.Source);
+            var searchStr = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, this.Source);
             if (LongPathHandler.PathExists(searchStr) || BSAHandler.ReferencedPathExists(this.Source, out _, out _))
             {
                 this.SourceBorderColor = new SolidColorBrush(Colors.LightGreen);

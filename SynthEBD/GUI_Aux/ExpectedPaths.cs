@@ -62,7 +62,7 @@ namespace SynthEBD
                     RelativePath = SynthEBDexeDirPath;
                     break;
                 case true:
-                    RelativePath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SynthEBD");
+                    RelativePath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SynthEBD");
                     break;
             }
 

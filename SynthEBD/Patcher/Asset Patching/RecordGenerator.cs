@@ -398,14 +398,14 @@ namespace SynthEBD
         {
             foreach (var newRecord in records)
             {
-                if (Patcher.EdidCounts.ContainsKey(newRecord.EditorID))
+                if (EdidCounts.ContainsKey(newRecord.EditorID))
                 {
-                    Patcher.EdidCounts[newRecord.EditorID]++;
-                    newRecord.EditorID += Patcher.EdidCounts[newRecord.EditorID].ToString("D4"); // pad with leading zeroes https://stackoverflow.com/questions/4325267/c-sharp-convert-int-to-string-with-padding-zeros
+                    EdidCounts[newRecord.EditorID]++;
+                    newRecord.EditorID += EdidCounts[newRecord.EditorID].ToString("D4"); // pad with leading zeroes https://stackoverflow.com/questions/4325267/c-sharp-convert-int-to-string-with-padding-zeros
                 }
                 else
                 {
-                    Patcher.EdidCounts.Add(newRecord.EditorID, 1);
+                    EdidCounts.Add(newRecord.EditorID, 1);
                     newRecord.EditorID += 1.ToString("D4");
                 }
             }
@@ -423,6 +423,17 @@ namespace SynthEBD
             }
             return string.Join(", ", templateNames);
         }
+
+        public static void Reinitialize()
+        {
+            ModifiedRecordCounts = new Dictionary<string, int>();
+            ModifiedRecords = new Dictionary<HashSet<string>, Dictionary<string, IMajorRecord>>(HashSet<string>.CreateSetComparer());
+            GeneratedObjectsByPathAndTemplate = GeneratedObjectsByPathAndTemplate = new Dictionary<HashSet<string>, Dictionary<string, Dictionary<HashSet<string>, ObjectAtIndex>>>(HashSet<string>.CreateSetComparer());
+            GeneratedRecordsByTempateNPC = GeneratedRecordsByTempateNPC = new Dictionary<HashSet<string>, Dictionary<string, IMajorRecord>>(HashSet<string>.CreateSetComparer());
+            EdidCounts = new Dictionary<string, int>();
+        }
+
+        public static Dictionary<string, int> EdidCounts = new Dictionary<string, int>(); // tracks the number of times a given record template was assigned so that a newly copied record can have its editor ID incremented
 
         private static Dictionary<string, int> ModifiedRecordCounts = new Dictionary<string, int>(); // for modified Editor IDs only
 

@@ -18,7 +18,7 @@ namespace SynthEBD
                 PatcherSettings.General = JSONhandler<Settings_General>.loadJSONFile(Paths.GeneralSettingsPath);
                 if(PatcherSettings.General != null && string.IsNullOrWhiteSpace(PatcherSettings.General.OutputDataFolder))
                 {
-                    PatcherSettings.General.OutputDataFolder = GameEnvironmentProvider.MyEnvironment.DataFolderPath;
+                    PatcherSettings.General.OutputDataFolder = PatcherEnvironmentProvider.Environment.DataFolderPath;
                 }
             }
             else

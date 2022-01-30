@@ -23,7 +23,7 @@ namespace SynthEBD
         {
             ModKey.TryFromName(PatcherSettings.General.patchFileName, ModType.Plugin, out var patchModKey);
             var outputMod = new SkyrimMod(patchModKey, SkyrimRelease.SkyrimSE);
-            MainLinkCache = GameEnvironmentProvider.MyEnvironment.LoadOrder.ToMutableLinkCache(outputMod);
+            MainLinkCache = PatcherEnvironmentProvider.Environment.LoadOrder.ToMutableLinkCache(outputMod);
             ResolvePatchableRaces();
             //InitializeIgnoredArmorAddons();
             UpdateRecordTemplateAdditonalRaces(assetPacks, recordTemplateLinkCache, recordTemplatePlugins);
@@ -40,7 +40,7 @@ namespace SynthEBD
             HashSet<LinkedNPCGroupInfo> generatedLinkGroups = new HashSet<LinkedNPCGroupInfo>();
             CategorizedFlattenedAssetPacks availableAssetPacks = null;
 
-            var allNPCs = GameEnvironmentProvider.MyEnvironment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
+            var allNPCs = PatcherEnvironmentProvider.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
             HashSet<INpcGetter> skippedLinkedNPCs = new HashSet<INpcGetter>();
 
             Keyword EBDFaceKW = null;
@@ -60,6 +60,8 @@ namespace SynthEBD
 
                 EBDCoreRecords.CreateCoreRecords(outputMod, out EBDFaceKW, out EBDScriptKW, out EBDHelperSpell);
                 EBDCoreRecords.ApplyHelperSpell(outputMod, EBDHelperSpell);
+
+                RecordGenerator.Reinitialize();
             }
 
             // Several operations are performed that mutate the input settings. For Asset Packs this does not affect saved settings because the operations are performed on the derived FlattenedAssetPacks, but for BodyGen configs and OBody settings these are made directly to the settings files. Therefore, create a deep copy of the configs and operate on those to avoid altering the user's saved settings upon exiting the program
@@ -73,6 +75,7 @@ namespace SynthEBD
                 BodyGenPreprocessing.CompileBodyGenRaces(copiedBodyGenConfigs); // descriptor rules compiled here as well
                 BodyGenPreprocessing.FlattenGroupAttributes(copiedBodyGenConfigs);
                 BodyGenPreprocessing.ImplementDescriptorRules(copiedBodyGenConfigs);
+                BodyGenTracker = new BodyGenAssignmentTracker();
             }
             else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
             {
@@ -89,6 +92,8 @@ namespace SynthEBD
                 OBodyWriter.CreateSynthEBDDomain();
                 OBodyWriter.CreateBodySlideLoaderQuest(outputMod, bodyslidesLoaded);
                 bodySlideAssignmentSpell = OBodyWriter.CreateOBodyAssignmentSpell(outputMod, bodyslidesLoaded);
+
+                BodySlideTracker = new Dictionary<FormKey, string>();
             }
 
             if (PatcherSettings.General.bChangeHeight)
@@ -117,10 +122,6 @@ namespace SynthEBD
             Logger.LogMessage("Finished patching in " + Logger.GetEllapsedTime());
             Logger.UpdateStatus("Finished Patching in " + Logger.GetEllapsedTime(), false);
 
-            string patchOutputPath = System.IO.Path.Combine(PatcherSettings.General.OutputDataFolder, PatcherSettings.General.patchFileName + ".esp");
-            GameEnvironmentProvider.MyEnvironment.Dispose();
-            PatcherIO.WritePatch(patchOutputPath, outputMod);
-
             if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
             {
                 BodyGenWriter.WriteBodyGenOutputs(copiedBodyGenConfigs);
@@ -131,14 +132,17 @@ namespace SynthEBD
                 OBodyWriter.WriteAssignmentDictionary();
             }
 
+            PatcherEnvironmentProvider.Environment.SuspendEnvironment(); // allow access to SynthEBD.esp if it is active in the load order
+            string patchOutputPath = System.IO.Path.Combine(PatcherSettings.General.OutputDataFolder, PatcherSettings.General.patchFileName + ".esp");
+            PatcherIO.WritePatch(patchOutputPath, outputMod);
+            PatcherEnvironmentProvider.Environment.ResumeEnvironment();
+
             statusBar.IsPatching = false;
         }
 
         public static ILinkCache<ISkyrimMod, ISkyrimModGetter> MainLinkCache;
 
         public static HashSet<IFormLinkGetter<IRaceGetter>> PatchableRaces;
-
-        //public static HashSet<IFormLinkGetter<IArmorAddonGetter>> IgnoredArmorAddons;
 
         public static Dictionary<string, Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>> UniqueAssignmentsByName = new Dictionary<string, Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>>();
 
@@ -473,7 +477,6 @@ namespace SynthEBD
 
         public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker(); // tracks unique selected morphs so that only assigned morphs are written to the generated templates.ini
         public static Dictionary<FormKey, string> BodySlideTracker = new Dictionary<FormKey, string>(); // tracks which NPCs get which bodyslide presets
-        public static Dictionary<string, int> EdidCounts = new Dictionary<string, int>(); // tracks the number of times a given record template was assigned so that a newly copied record can have its editor ID incremented
 
         public class BodyGenAssignmentTracker
         {

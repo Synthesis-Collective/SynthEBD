@@ -19,7 +19,7 @@ namespace SynthEBD
         {
             this.GroupName = "";
             this.NPCFormKeys = new ObservableCollection<FormKey>();
-            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
 
             this.PrimaryCandidates = new HashSet<string>();
@@ -66,11 +66,11 @@ namespace SynthEBD
                 VM_LinkedNPCGroup vm = new VM_LinkedNPCGroup();
                 vm.GroupName = m.GroupName;
                 vm.NPCFormKeys = new ObservableCollection<FormKey>(m.NPCFormKeys);
-                if ((m.Primary == null || m.Primary.IsNull) && GameEnvironmentProvider.MyEnvironment.LinkCache.TryResolve<INpcGetter>(m.NPCFormKeys.FirstOrDefault(), out var primaryNPC))
+                if ((m.Primary == null || m.Primary.IsNull) && PatcherEnvironmentProvider.Environment.LinkCache.TryResolve<INpcGetter>(m.NPCFormKeys.FirstOrDefault(), out var primaryNPC))
                 {
                     vm.Primary = Logger.GetNPCLogNameString(primaryNPC);
                 }
-                else if (GameEnvironmentProvider.MyEnvironment.LinkCache.TryResolve<INpcGetter>(m.Primary, out var assignedPrimary))
+                else if (PatcherEnvironmentProvider.Environment.LinkCache.TryResolve<INpcGetter>(m.Primary, out var assignedPrimary))
                 {
                     vm.Primary = Logger.GetNPCLogNameString(assignedPrimary);
                 }

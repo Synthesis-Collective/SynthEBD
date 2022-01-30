@@ -16,7 +16,7 @@ namespace SynthEBD
             this.BodySelectionMode = BodyShapeSelectionMode.None;
             this.BSSelectionMode = BodySlideSelectionMode.OBody;
             this.bChangeHeight = false;
-            this.OutputDataFolder = GameEnvironmentProvider.MyEnvironment.DataFolderPath;
+            this.OutputDataFolder = PatcherEnvironmentProvider.Environment.DataFolderPath;
             this.bEnableConsistency = true;
             this.ExcludePlayerCharacter = true;
             this.ExcludePresets = true;

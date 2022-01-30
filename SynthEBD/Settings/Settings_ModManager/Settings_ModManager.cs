@@ -11,7 +11,7 @@ namespace SynthEBD
         public Settings_ModManager()
         {
             ModManagerType = ModManager.None;
-            DefaultInstallationFolder = GameEnvironmentProvider.MyEnvironment.DataFolderPath;
+            DefaultInstallationFolder = PatcherEnvironmentProvider.Environment.DataFolderPath;
             CurrentInstallationFolder = DefaultInstallationFolder;
             MO2Settings = new MO2();
             VortexSettings = new Vortex();

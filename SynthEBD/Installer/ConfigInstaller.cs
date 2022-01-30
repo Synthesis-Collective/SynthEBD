@@ -426,7 +426,7 @@ namespace SynthEBD
 
             if (PatcherSettings.ModManagerIntegration.ModManagerType == ModManager.None)
             {
-                return Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, extensionFolder, modFolder, extractedPath);
+                return Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, extensionFolder, modFolder, extractedPath);
             }
             else
             {

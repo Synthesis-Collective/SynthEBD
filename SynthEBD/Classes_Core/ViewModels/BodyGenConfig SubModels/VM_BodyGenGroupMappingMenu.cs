@@ -57,7 +57,7 @@ namespace SynthEBD
                 execute: x =>  this.Combinations.Remove((VM_BodyGenCombination)x)
                 );
 
-            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
         }
         public string Label { get; set; }

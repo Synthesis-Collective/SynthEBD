@@ -21,7 +21,7 @@ namespace SynthEBD
 
                 if (modManagerSettings != null && string.IsNullOrWhiteSpace(modManagerSettings.CurrentInstallationFolder))
                 {
-                    modManagerSettings.CurrentInstallationFolder = GameEnvironmentProvider.MyEnvironment.DataFolderPath;
+                    modManagerSettings.CurrentInstallationFolder = PatcherEnvironmentProvider.Environment.DataFolderPath;
                 }
             }
 

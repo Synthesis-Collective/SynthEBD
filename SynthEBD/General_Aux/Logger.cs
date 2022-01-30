@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Xml.Linq;
@@ -347,6 +346,7 @@ namespace SynthEBD
 
         public static void TimedNotifyStatusUpdate(string error, ErrorType type, int durationSec)
         {
+            ArchiveStatus();
             LogErrorWithStatusUpdate(error, type);
 
             var t = Task.Factory.StartNew(() =>
@@ -354,12 +354,12 @@ namespace SynthEBD
                 Task.Delay(durationSec * 1000).Wait();
             });
             t.Wait();
-            ClearStatusError();
+            DeArchiveStatus();
         }
 
-        public static void CallTimedNotifyStatusUpdateAsync(string error, ErrorType type, int durationSec)
+        public static void CallTimedLogErrorWithStatusUpdateAsync(string error, ErrorType type, int durationSec)
         {
-            Task.Run(() => TimedNotifyStatusUpdateAsync(error, type, durationSec));
+            Task.Run(() => TimedLogErrorWithStatusUpdateAsync(error, type, durationSec));
         }
 
         public static void CallTimedNotifyStatusUpdateAsync(string error, int durationSec)
@@ -367,15 +367,16 @@ namespace SynthEBD
             Task.Run(() => TimedNotifyStatusUpdateAsync(error, durationSec));
         }
 
-        private static async Task TimedNotifyStatusUpdateAsync(string error, ErrorType type, int durationSec)
+        private static async Task TimedLogErrorWithStatusUpdateAsync(string error, ErrorType type, int durationSec)
         {
+            ArchiveStatus();
             LogErrorWithStatusUpdate(error, type);
 
             // Await the Task to allow the UI thread to render the view
             // in order to show the changes     
             await Task.Delay(durationSec * 1000);
 
-            ClearStatusError();
+            DeArchiveStatus();
         }
 
         private static async Task TimedNotifyStatusUpdateAsync(string message, int durationSec)

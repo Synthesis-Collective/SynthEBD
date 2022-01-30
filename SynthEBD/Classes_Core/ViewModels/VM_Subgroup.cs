@@ -51,7 +51,7 @@ namespace SynthEBD
             this.Subgroups = new ObservableCollection<VM_Subgroup>();
 
             //UI-related
-            this.LinkCache = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.LinkCache = PatcherEnvironmentProvider.Environment.LinkCache;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
             this.RequiredSubgroupIDs = new HashSet<string>();
             this.ExcludedSubgroupIDs = new HashSet<string>();

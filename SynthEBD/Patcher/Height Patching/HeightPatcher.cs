@@ -133,7 +133,7 @@ namespace SynthEBD
             HeightAssignment heightRacialSetting = null;
             RaceAlias raceAlias = null;
 
-            foreach (var race in GameEnvironmentProvider.MyEnvironment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
+            foreach (var race in PatcherEnvironmentProvider.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
             {
                 patchedRace = null;
                 raceAlias = PatcherSettings.General.raceAliases.Where(x => x.race == race.FormKey && x.bApplyToHeight).FirstOrDefault();

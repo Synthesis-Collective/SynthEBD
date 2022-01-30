@@ -119,7 +119,7 @@ namespace SynthEBD
 
         public static void ApplyHelperSpell(SkyrimMod outputMod, Spell EBDHelperSpell)
         {
-            foreach (var raceGetter in GameEnvironmentProvider.MyEnvironment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
+            foreach (var raceGetter in PatcherEnvironmentProvider.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
             {
                 if (PatcherSettings.General.patchableRaces.Contains(raceGetter.FormKey))
                 {

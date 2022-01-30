@@ -20,7 +20,7 @@ namespace SynthEBD
             this.TemplateNPC = new FormKey();
             this.RecordTemplateLinkCache = recordTemplateLinkCache;
             this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
-            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.RacePickerTypes = typeof(IRaceGetter).AsEnumerable();
             this.ParentCollection = parentCollection;
 

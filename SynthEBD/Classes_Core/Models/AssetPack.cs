@@ -288,7 +288,7 @@ namespace SynthEBD
 
             foreach (var path in subgroup.paths)
             {
-                var fullPath = System.IO.Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, path.Source);
+                var fullPath = System.IO.Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, path.Source);
                 if (!System.IO.File.Exists(fullPath) && !BSAHandler.ReferencedPathExists(path.Source, out bool archiveExists, out string modName))
                 {
                     string pathError = "No file exists at " + fullPath;

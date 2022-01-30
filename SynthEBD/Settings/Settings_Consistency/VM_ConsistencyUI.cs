@@ -19,7 +19,7 @@ namespace SynthEBD
         {
             this.Assignments = new ObservableCollection<VM_ConsistencyAssignment>();
             this.CurrentlyDisplayedAssignment = null;
-            this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
+            this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.AllowedFormKeyTypes = typeof(INpcGetter).AsEnumerable();
             this.SelectedNPCFormKey = new FormKey();
 
@@ -45,7 +45,7 @@ namespace SynthEBD
                        assignment.AssetReplacements.Clear();
                        assignment.MixInAssignments.Clear();
                    }
-                   Logger.CallTimedNotifyStatusUpdateAsync("Cleared asset consistency", ErrorType.Warning, 2);
+                   Logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared asset consistency", ErrorType.Warning, 2);
                }
                );
 
@@ -58,7 +58,7 @@ namespace SynthEBD
                        assignment.BodyGenMorphNames.Clear();
                        assignment.BodySlidePreset = "";
                    }
-                   Logger.CallTimedNotifyStatusUpdateAsync("Cleared body shape consistency", ErrorType.Warning, 2);
+                   Logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared body shape consistency", ErrorType.Warning, 2);
                }
                );
 
@@ -70,7 +70,7 @@ namespace SynthEBD
                    {
                        assignment.Height = "";
                    }
-                   Logger.CallTimedNotifyStatusUpdateAsync("Cleared height consistency", ErrorType.Warning, 2);
+                   Logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared height consistency", ErrorType.Warning, 2);
                }
                );
 
@@ -83,7 +83,7 @@ namespace SynthEBD
                        this.CurrentlyDisplayedAssignment = null;
                        this.Assignments.Clear();
                    }
-                   Logger.CallTimedNotifyStatusUpdateAsync("Cleared all consistency", ErrorType.Warning, 2);
+                   Logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared all consistency", ErrorType.Warning, 2);
                }
                );
         }

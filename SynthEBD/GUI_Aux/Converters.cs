@@ -15,7 +15,7 @@ namespace SynthEBD
     {
         public static FormKey RaceEDID2FormKey(string EDID)
         {
-            var env = GameEnvironmentProvider.MyEnvironment;
+            var env = PatcherEnvironmentProvider.Environment;
 
             foreach (var plugin in env.LoadOrder.ListedOrder)
             {
@@ -38,7 +38,7 @@ namespace SynthEBD
         {
             var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
 
-            if (npcFormLink.TryResolve(GameEnvironmentProvider.MyEnvironment.LinkCache, out var npcRecord))
+            if (npcFormLink.TryResolve(PatcherEnvironmentProvider.Environment.LinkCache, out var npcRecord))
             {
                 string subName = "";
                 if (npcRecord.Name != null && !string.IsNullOrEmpty(npcRecord.Name.ToString()))
@@ -60,7 +60,7 @@ namespace SynthEBD
         {
             HashSet<NPCAttribute> h = new HashSet<NPCAttribute>();
 
-            var env = GameEnvironmentProvider.MyEnvironment;
+            var env = PatcherEnvironmentProvider.Environment;
 
             //temporary storage lists for grouping attributes of same type
             HashSet<FormKey> classAttributes = new HashSet<FormKey>();
