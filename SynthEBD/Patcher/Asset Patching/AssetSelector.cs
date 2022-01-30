@@ -258,10 +258,11 @@ namespace SynthEBD
                         }
                         break;
                     case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn: 
-                        if (npcInfo.SpecificNPCAssignment.MixInAssignments.ContainsKey(availableAssetPacks.First().GroupName))
+                        var forcedMixIn = npcInfo.SpecificNPCAssignment.MixInAssignments.Where(x => x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
+                        if (forcedMixIn != null)
                         {
                             forcedAssetPack = availableAssetPacks.First().ShallowCopy();
-                            forcedAssignments = GetForcedSubgroupsAtIndex(forcedAssetPack, npcInfo.SpecificNPCAssignment.MixInAssignments[availableAssetPacks.First().GroupName], npcInfo);
+                            forcedAssignments = GetForcedSubgroupsAtIndex(forcedAssetPack, forcedMixIn.SubgroupIDs, npcInfo);
                         }
                         break; 
                     case AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual: 
@@ -370,7 +371,8 @@ namespace SynthEBD
                 {
                     case AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary: consistencyAssetPackName = npcInfo.ConsistencyNPCAssignment.AssetPackName; break;
                     case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn:
-                        if (npcInfo.ConsistencyNPCAssignment.MixInAssignments.ContainsKey(availableAssetPacks.First().GroupName))
+                        var consistencyMixIn = npcInfo.ConsistencyNPCAssignment.MixInAssignments.Where(x => x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
+                        if (consistencyMixIn != null)
                         {
                             consistencyAssetPackName = availableAssetPacks.First().GroupName;
                         }
@@ -405,7 +407,10 @@ namespace SynthEBD
                             switch (mode)
                             {
                                 case AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary: consistencySubgroupIDs = npcInfo.ConsistencyNPCAssignment.SubgroupIDs; break;
-                                case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn: consistencySubgroupIDs = npcInfo.ConsistencyNPCAssignment.MixInAssignments[consistencyAssetPackName]; break;
+                                case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn:
+                                    var consistencyMixIn = npcInfo.ConsistencyNPCAssignment.MixInAssignments.Where(x => x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
+                                    if (consistencyMixIn != null) { consistencySubgroupIDs = consistencyMixIn.SubgroupIDs; }
+                                    break;
                                 case AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual: consistencySubgroupIDs = consistencyReplacer.SubgroupIDs; break;
                             }
 
@@ -638,13 +643,16 @@ namespace SynthEBD
                     }
                     break;
 
-                case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn: 
-                    if (specificAssignment.MixInAssignments.ContainsKey(selectedCombination.AssetPackName))
+                case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn:
+                    var forcedMixIn = specificAssignment.MixInAssignments.Where(x => x.AssetPackName == selectedCombination.AssetPackName).FirstOrDefault();
+                    if (forcedMixIn != null)
                     {
-                        if (specificAssignment.MixInAssignments[selectedCombination.AssetPackName].Count != selectedCombination.ContainedSubgroups.Count) { return false; }
-                        for (int i = 0; i < specificAssignment.MixInAssignments[selectedCombination.AssetPackName].Count; i++)
+                        foreach (var id in forcedMixIn.SubgroupIDs)
                         {
-                            if (specificAssignment.MixInAssignments[selectedCombination.AssetPackName][i] != selectedCombination.ContainedSubgroups[i].Id) { return false; }
+                            if (!selectedCombination.ContainedSubgroups.Select(x => x.Id).Any())
+                            {
+                                return false;
+                            }
                         }
                     }
                     break;
@@ -798,13 +806,17 @@ namespace SynthEBD
         {
             if (PatcherSettings.General.bEnableConsistency)
             {
-                if (npcInfo.ConsistencyNPCAssignment.MixInAssignments.ContainsKey(mixInName))
+                var consistencyMixIn = npcInfo.ConsistencyNPCAssignment.MixInAssignments.Where(x => x.AssetPackName == mixInName).FirstOrDefault();
+                if (consistencyMixIn == null)
                 {
-                    npcInfo.ConsistencyNPCAssignment.MixInAssignments[mixInName] = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList();
+                    var mixInAssignment = new NPCAssignment();
+                    mixInAssignment.AssetPackName = mixInName;
+                    mixInAssignment.SubgroupIDs = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList();
                 }
                 else
                 {
-                    npcInfo.ConsistencyNPCAssignment.MixInAssignments.Add(mixInName, assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList());
+                    consistencyMixIn.AssetPackName = mixInName;
+                    consistencyMixIn.SubgroupIDs = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList();
                 }
             }
             if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary && assignedCombination != null)

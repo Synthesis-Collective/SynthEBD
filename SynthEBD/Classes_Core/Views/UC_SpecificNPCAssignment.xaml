@@ -39,11 +39,12 @@
 
         <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Forced Asset Pack</TextBlock>
         <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Path=AvailableAssetPacks}" DisplayMemberPath="groupName" SelectedValue="{Binding ForcedAssetPack, Mode=TwoWay}" />
+        <Button Grid.Row="1" Grid.Column="2" Width="75" Height="20" Margin="5 0 0 0" VerticalAlignment="Center" HorizontalAlignment="Left" HorizontalContentAlignment="Left"  Command="{Binding DeleteForcedAssetPack}" Foreground="Firebrick">X</Button>
 
         <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Forced Subgroups</TextBlock>
         
         <TextBlock Grid.Row="2" Grid.Column="1" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center">Available</TextBlock>
-        <TreeView Grid.Row="3" Grid.Column="1" Name="TVsubgroups"  ItemsSource ="{Binding AvailableSubgroups}" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="None" BorderThickness="1" BorderBrush="#5844b4">
+        <TreeView Grid.Row="3" Grid.Column="1" Name="TVsubgroups"  ItemsSource ="{Binding AvailableSubgroups}" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton" BorderThickness="1" BorderBrush="#5844b4">
             <TreeView.Resources>
                 <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
                     <TextBlock Text="{Binding Path=Name}" />
@@ -52,7 +53,7 @@
         </TreeView>
 
         <TextBlock Grid.Row="2" Grid.Column="3" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center">Selected</TextBlock>
-        <ListBox Grid.Row="3" Grid.Column="3" ItemsSource="{Binding ForcedSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4">
+        <ListBox Grid.Row="3" Grid.Column="3" ItemsSource="{Binding ForcedSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal">
@@ -136,7 +137,7 @@
                                                     </MultiBinding>
                                                 </TextBlock.Text>
                                             </TextBlock>
-                                            <Button Width="75" Height="20" Margin="15 0 0 0" VerticalAlignment="Center" HorizontalAlignment="Left" HorizontalContentAlignment="Left"  Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.DeleteForcedSubgroup}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
+                                            <Button Width="75" Height="20" Margin="15 0 0 0" VerticalAlignment="Center" HorizontalAlignment="Left" HorizontalContentAlignment="Left"  Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.DeleteForcedMixInSubgroup}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
                                         </StackPanel>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>

@@ -80,6 +80,14 @@ namespace SynthEBD
 
             SubscribedGeneralSettings = generalSettingsVM;
 
+            DeleteForcedAssetPack = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x =>
+                {
+                    this.ForcedSubgroups.Clear();
+                    this.ForcedAssetPack = new VM_AssetPack(assetPacks, bodyGenSettings, oBodySettings.DescriptorUI, generalSettingsVM, null, null);
+                }
+                );
             DeleteForcedSubgroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => this.ForcedSubgroups.Remove((VM_Subgroup)x)
@@ -98,6 +106,21 @@ namespace SynthEBD
             AddForcedReplacer = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => this.ForcedAssetReplacements.Add(new VM_AssetReplacementAssignment(ForcedAssetPack, ForcedAssetReplacements))
+                );
+
+            DeleteForcedMixInSubgroup = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x =>
+                {
+                    var toDelete = (VM_Subgroup)x;
+                    foreach (var mixin in ForcedMixIns)
+                    {
+                        if (mixin.ForcedSubgroups.Contains(toDelete))
+                        {
+                            mixin.ForcedSubgroups.Remove(toDelete);
+                        }
+                    }
+                }
                 );
         }
 
@@ -133,12 +156,13 @@ namespace SynthEBD
 
         public ILinkCache lk { get; set; }
         public IEnumerable<Type> NPCFormKeyTypes { get; set; }
-
+        public RelayCommand DeleteForcedAssetPack { get; set; }
         public RelayCommand DeleteForcedSubgroup { get; set; }
-
         public RelayCommand DeleteForcedMorph { get; set; }
         public RelayCommand AddForcedMixIn { get; set; }
         public RelayCommand AddForcedReplacer { get; set; }
+
+        public RelayCommand DeleteForcedMixInSubgroup { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -172,7 +196,7 @@ namespace SynthEBD
 
             foreach (var forcedMixIn in model.MixInAssignments)
             {
-                viewModel.ForcedMixIns.Add(new VM_MixInSpecificAssignment(viewModel, assetPacks, BGVM, oBodySettings, generalSettingsVM, viewModel.ForcedMixIns));
+                viewModel.ForcedMixIns.Add(VM_MixInSpecificAssignment.GetViewModelFromModel(forcedMixIn, viewModel, assetPacks, BGVM, oBodySettings, generalSettingsVM, viewModel.ForcedMixIns));
             }
 
             if (model.Height != null)
@@ -268,17 +292,63 @@ namespace SynthEBD
             return assetPackFound;
         }
 
+        private static bool LinkAssetPackToForcedAssignment(NPCAssignment.MixInAssignment model, IHasForcedAssets viewModel, string assetPackName, ObservableCollection<VM_AssetPack> assetPacks)
+        {
+            bool assetPackFound = false;
+            foreach (var ap in assetPacks)
+            {
+                if (ap.groupName == assetPackName)
+                {
+                    viewModel.ForcedAssetPack = ap;
+                    assetPackFound = true;
+
+                    foreach (var id in model.SubgroupIDs)
+                    {
+                        var foundSubgroup = GetSubgroupByID(ap.subgroups, id);
+                        if (foundSubgroup != null)
+                        {
+                            viewModel.ForcedSubgroups.Add(foundSubgroup);
+                            continue;
+                        }
+                        else
+                        {
+                            // Warn User
+                        }
+                    }
+                }
+            }
+
+            if (!assetPackFound)
+            {
+                // Warn User
+            }
+
+            return assetPackFound;
+        }
+
         public static NPCAssignment DumpViewModelToModel(VM_SpecificNPCAssignment viewModel)
         {
             NPCAssignment model = new NPCAssignment();
             model.DispName = viewModel.DispName;
-            model.AssetPackName = viewModel.ForcedAssetPack.groupName;
-            model.SubgroupIDs = viewModel.ForcedSubgroups.Select(subgroup => subgroup.ID).ToList();
 
-            model.AssetReplacerAssignments.Clear();
-            foreach (var replacer in viewModel.ForcedAssetReplacements)
+            if (viewModel.ForcedAssetPack != null)
             {
-                model.AssetReplacerAssignments.Add(VM_AssetReplacementAssignment.DumpViewModelToModel(replacer));
+                model.AssetPackName = viewModel.ForcedAssetPack.groupName;
+                model.SubgroupIDs = viewModel.ForcedSubgroups.Select(subgroup => subgroup.ID).ToList();
+
+                model.AssetReplacerAssignments.Clear();
+                foreach (var replacer in viewModel.ForcedAssetReplacements)
+                {
+                    model.AssetReplacerAssignments.Add(VM_AssetReplacementAssignment.DumpViewModelToModel(replacer));
+                }
+            }
+
+            foreach (var mixin in viewModel.ForcedMixIns)
+            {
+                if (!model.MixInAssignments.Select(x => x.AssetPackName).Contains(mixin.ForcedAssetPack.groupName))
+                {
+                    model.MixInAssignments.Add(VM_MixInSpecificAssignment.DumpViewModelToModel(mixin));
+                }
             }
 
             if (viewModel.ForcedHeight == "")
@@ -332,30 +402,17 @@ namespace SynthEBD
 
         public static void UpdateAvailableAssetPacks(VM_SpecificNPCAssignment assignment)
         {
-            for (int i = 0; i < assignment.AvailableAssetPacks.Count; i++)
-            {
-                var ap = assignment.AvailableAssetPacks[i];
-                if (assignment.ForcedAssetPack != ap)
-                {
-                    assignment.AvailableAssetPacks.Remove(ap);
-                }
-            }
-
+            assignment.AvailableAssetPacks.Clear();
             assignment.AvailableMixInAssetPacks.Clear();
-
-            assignment.AvailableAssetPacks.Insert(0, null);
-            //assignment.AvailableAssetPacks.Insert(0, new VM_AssetPack(new ObservableCollection<VM_AssetPack>(), new VM_SettingsBodyGen(new VM_Settings_General()), new VM_BodyShapeDescriptorCreationMenu(raceGroupingVMs, new VM_BodyGenConfig(), new VM_Settings_General(), null, null) { groupName = "" }); // blank entry
             foreach (var assetPack in assignment.SubscribedAssetPacks)
             {
-                if (assignment.ForcedAssetPack == assetPack) { continue;}
-
                 if (assetPack.gender == assignment.Gender)
                 {
                     if (assetPack.ConfigType == AssetPackType.Primary)
                     {
                         assignment.AvailableAssetPacks.Add(assetPack);
                     }
-                    else if (assetPack.ConfigType == AssetPackType.MixIn && !assignment.ForcedMixIns.Where(x => x.ForcedAssetPack != null && x.ForcedAssetPack.groupName != assetPack.groupName).Any())
+                    else if (assetPack.ConfigType == AssetPackType.MixIn)
                     {
                         assignment.AvailableMixInAssetPacks.Add(assetPack);
                     }
@@ -372,7 +429,7 @@ namespace SynthEBD
                 bool topLevelTaken = false;
                 foreach (var forcedSubgroup in assignment.ForcedSubgroups)
                 {
-                    if (topLevelSubgroup == forcedSubgroup || ContainsSubgroupID(topLevelSubgroup.Subgroups, forcedSubgroup.ID))
+                    if (topLevelSubgroup.ID == forcedSubgroup.ID || ContainsSubgroupID(topLevelSubgroup.Subgroups, forcedSubgroup.ID))
                     {
                         topLevelTaken = true;
                         break;
@@ -565,6 +622,26 @@ namespace SynthEBD
             public void TriggerAvailableSubgroupsUpdate(object sender, NotifyCollectionChangedEventArgs e)
             {
                 UpdateAvailableSubgroups(this);
+            }
+
+            public static VM_MixInSpecificAssignment GetViewModelFromModel(NPCAssignment.MixInAssignment model, VM_SpecificNPCAssignment parent, ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen bodyGenSettings, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, ObservableCollection<VM_MixInSpecificAssignment> parentCollection)
+            {
+                var viewModel = new VM_MixInSpecificAssignment(parent, assetPacks, bodyGenSettings, oBodySettings, generalSettingsVM, parentCollection);
+                LinkAssetPackToForcedAssignment(model, viewModel, model.AssetPackName, assetPacks);
+                return viewModel;
+            }
+            public static NPCAssignment.MixInAssignment DumpViewModelToModel(VM_MixInSpecificAssignment viewModel)
+            {
+                NPCAssignment.MixInAssignment model = new NPCAssignment.MixInAssignment();
+                model.AssetPackName = viewModel.ForcedAssetPack.groupName;
+                model.SubgroupIDs = viewModel.ForcedSubgroups.Select(subgroup => subgroup.ID).ToList();
+
+                model.AssetReplacerAssignments.Clear();
+                foreach (var replacer in viewModel.ForcedAssetReplacements)
+                {
+                    model.AssetReplacerAssignments.Add(VM_AssetReplacementAssignment.DumpViewModelToModel(replacer));
+                }
+                return model;
             }
         }
     }

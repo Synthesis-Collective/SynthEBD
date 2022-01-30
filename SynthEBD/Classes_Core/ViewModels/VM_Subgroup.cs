@@ -16,7 +16,7 @@ using ReactiveUI;
 
 namespace SynthEBD
 {
-    public class VM_Subgroup : INotifyPropertyChanged
+    public class VM_Subgroup : INotifyPropertyChanged, ICloneable
     {
         public VM_Subgroup(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_Subgroup> parentCollection, VM_AssetPack parentAssetPack, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, bool setExplicitReferenceNPC)
         {
@@ -276,6 +276,11 @@ namespace SynthEBD
             }
 
             return model;
+        }
+
+        public object Clone()
+        {
+            return this.MemberwiseClone();
         }
     }
 }

@@ -19,7 +19,7 @@ namespace SynthEBD
             this.BodyGenMorphNames = null;
             this.BodySlidePreset = "";
             this.AssetReplacerAssignments = new List<AssetReplacerAssignment>();
-            this.MixInAssignments = new Dictionary<string, List<string>>();
+            this.MixInAssignments = new List<MixInAssignment>();
         }
 
         public string DispName { get; set; }
@@ -30,7 +30,7 @@ namespace SynthEBD
         public List<string> BodyGenMorphNames { get; set; } // order matters
         public string BodySlidePreset { get; set; }
         public List<AssetReplacerAssignment> AssetReplacerAssignments { get; set; }
-        public Dictionary<string, List<string>> MixInAssignments { get; set;}
+        public List<MixInAssignment> MixInAssignments { get; set;}
 
         public class AssetReplacerAssignment
         {
@@ -43,6 +43,19 @@ namespace SynthEBD
             public string AssetPackName { get; set; }
             public string ReplacerName { get; set; }
             public List<string> SubgroupIDs { get; set; }
+        }
+
+        public class MixInAssignment
+        {
+            public MixInAssignment()
+            {
+                AssetPackName = "";
+                SubgroupIDs = new List<string>();
+                AssetReplacerAssignments = new List<AssetReplacerAssignment>();
+            }
+            public string AssetPackName { get; set; }
+            public List<string> SubgroupIDs { get; set; }
+            public List<AssetReplacerAssignment> AssetReplacerAssignments { get; set; }
         }
     }
 

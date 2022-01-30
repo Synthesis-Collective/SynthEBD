@@ -81,8 +81,8 @@ namespace SynthEBD
             }
             foreach (var mixIn in model.MixInAssignments)
             {
-                var mixInVM = new VM_MixInConsistencyAssignment(viewModel.MixInAssignments) { AssetPackName = mixIn.Key};
-                foreach (var id in mixIn.Value)
+                var mixInVM = new VM_MixInConsistencyAssignment(viewModel.MixInAssignments) { AssetPackName = mixIn.AssetPackName};
+                foreach (var id in mixIn.SubgroupIDs)
                 {
                     mixInVM.SubgroupIDs.Add(new VM_CollectionMemberString(id, mixInVM.SubgroupIDs));
                 }
@@ -128,7 +128,7 @@ namespace SynthEBD
             model.MixInAssignments.Clear();
             foreach (var mixInVM in viewModel.MixInAssignments)
             {
-                model.MixInAssignments.Add(mixInVM.AssetPackName, mixInVM.SubgroupIDs.Select(x => x.Content).ToList());
+                model.MixInAssignments.Add(new NPCAssignment.MixInAssignment() { AssetPackName = mixInVM.AssetPackName, SubgroupIDs = mixInVM.SubgroupIDs.Select(x => x.Content).ToList() });
             }
             model.AssetReplacerAssignments.Clear();
             foreach (var replacer in viewModel.AssetReplacements)

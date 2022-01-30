@@ -123,7 +123,7 @@
         </StackPanel>
 
         <TextBlock Grid.Row="15" Grid.Column="0" Margin="0 0 15 0">Required Subgroups</TextBlock>
-        <ListBox Grid.Row="15" Grid.Column="1" ItemsSource="{Binding RequiredSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.SelectDroppedItems="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4">
+        <ListBox Grid.Row="15" Grid.Column="1" ItemsSource="{Binding RequiredSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal">
