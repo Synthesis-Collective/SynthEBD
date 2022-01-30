@@ -237,7 +237,7 @@ namespace SynthEBD
                 blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(blockList, npc.FormKey);
                 blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey);
 
-                if (blockListNPCEntry.Assets || blockListPluginEntry.Assets) { blockAssets = true; }
+                if (blockListNPCEntry.Assets || blockListPluginEntry.Assets || AssetSelector.BlockAssetDistributionByExistingAssets(currentNPCInfo)) { blockAssets = true; }
                 else { blockAssets = false; }
 
                 if (blockListNPCEntry.BodyShape || blockListPluginEntry.BodyShape) { blockBodyShape = true; }

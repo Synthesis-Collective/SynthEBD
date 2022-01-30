@@ -25,6 +25,9 @@ namespace SynthEBD
                     foreach (var path in subgroup.Paths)
                     {
                         var parsed = new FilePathReplacementParsed(path, npcInfo, combination.AssetPack, recordTemplateLinkCache);
+                        
+                        if (!PatcherSettings.TexMesh.bChangeNPCTextures && path.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase)) { continue; }
+                        if (!PatcherSettings.TexMesh.bChangeNPCMeshes && path.Source.EndsWith(".nif", StringComparison.OrdinalIgnoreCase)) { continue; }
 
                         if (doNotHardCode)
                         {

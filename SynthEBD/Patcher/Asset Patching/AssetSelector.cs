@@ -247,25 +247,25 @@ namespace SynthEBD
             {
                 // check to make sure forced asset pack exists
 
-                switch(mode)
+                switch (mode)
                 {
                     case AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary:
-                        forcedAssetPack = preFilteredPacks.Where(x => x.GroupName == npcInfo.SpecificNPCAssignment.AssetPackName).FirstOrDefault(); 
+                        forcedAssetPack = preFilteredPacks.Where(x => x.GroupName == npcInfo.SpecificNPCAssignment.AssetPackName).FirstOrDefault();
                         if (forcedAssetPack != null)
                         {
                             forcedAssetPack = forcedAssetPack.ShallowCopy(); // don't forget to shallow copy or subsequent NPCs will get pruned asset packs
                             forcedAssignments = GetForcedSubgroupsAtIndex(forcedAssetPack, npcInfo.SpecificNPCAssignment.SubgroupIDs, npcInfo);
                         }
                         break;
-                    case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn: 
+                    case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn:
                         var forcedMixIn = npcInfo.SpecificNPCAssignment.MixInAssignments.Where(x => x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
                         if (forcedMixIn != null)
                         {
                             forcedAssetPack = availableAssetPacks.First().ShallowCopy();
                             forcedAssignments = GetForcedSubgroupsAtIndex(forcedAssetPack, forcedMixIn.SubgroupIDs, npcInfo);
                         }
-                        break; 
-                    case AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual: 
+                        break;
+                    case AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual:
                         var forcedReplacerGroup = npcInfo.SpecificNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().ReplacerName && x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault(); // Replacers are assigned from a pre-chosen asset pack so there must be exactly one in the set
                         if (forcedReplacerGroup != null)
                         {
@@ -274,8 +274,8 @@ namespace SynthEBD
                         }
                         break;
                 }
-                
-                if (forcedAssignments != null )
+
+                if (forcedAssignments != null)
                 {
                     //Prune forced asset pack to only include forced subgroups at their respective indices
                     forcedAssignments = GetForcedSubgroupsAtIndex(forcedAssetPack, npcInfo.SpecificNPCAssignment.SubgroupIDs, npcInfo);
@@ -345,7 +345,7 @@ namespace SynthEBD
                             {
                                 if (candidatePack.Subgroups[i][j].ForceIfMatchCount < candidatePack.Subgroups[i][0].ForceIfMatchCount)
                                 {
-                                    Logger.LogReport("Subgroup: " + ap.Subgroups[i][j].Id + "(" + ap.Subgroups[i][j].Name + ") was removed because another subgroup in position " + (i+1).ToString() + " had more matched ForceIf attributes.", false, npcInfo);
+                                    Logger.LogReport("Subgroup: " + ap.Subgroups[i][j].Id + "(" + ap.Subgroups[i][j].Name + ") was removed because another subgroup in position " + (i + 1).ToString() + " had more matched ForceIf attributes.", false, npcInfo);
                                     candidatePack.Subgroups[i].RemoveAt(j);
                                     j--;
                                 }
@@ -376,7 +376,7 @@ namespace SynthEBD
                         {
                             consistencyAssetPackName = availableAssetPacks.First().GroupName;
                         }
-                        break; 
+                        break;
                     case AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual:
                         consistencyReplacer = npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().ReplacerName && x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
                         if (consistencyReplacer != null) { consistencyAssetPackName = consistencyReplacer.ReplacerName; }
@@ -544,7 +544,7 @@ namespace SynthEBD
 
             if (mode != AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary)
             {
-                switch(PatcherSettings.General.BodySelectionMode)
+                switch (PatcherSettings.General.BodySelectionMode)
                 {
                     case BodyShapeSelectionMode.BodyGen:
                         if (currentAssignments != null && currentAssignments.AssignedBodyGenMorphs != null)
@@ -867,5 +867,20 @@ namespace SynthEBD
                 else { linkedAssetReplacerAssignments.Add(new UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment() { GroupName = replacerGroup.Source.GroupName, ReplacerName = replacerGroup.Name, AssignedReplacerCombination = assignedCombination }); }
             }
         }
+
+        public static bool BlockAssetDistributionByExistingAssets(NPCInfo npcInfo)
+        {
+            if (!PatcherSettings.TexMesh.bApplyToNPCsWithCustomFaces && npcInfo.NPC.HeadTexture != null && !npcInfo.NPC.HeadTexture.IsNull && !BaseGamePlugins.Contains(npcInfo.NPC.HeadTexture.FormKey.ModKey.FileName.String))
+            {
+                return true;
+            }
+            if (!PatcherSettings.TexMesh.bApplyToNPCsWithCustomSkins && npcInfo.NPC.WornArmor != null && !npcInfo.NPC.WornArmor.IsNull && !BaseGamePlugins.Contains(npcInfo.NPC.WornArmor.FormKey.ModKey.FileName.String))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public static string[] BaseGamePlugins = new string[] { "Skyrim.esm", "Update.esm", "Dawnguard.esm", "HearthFires.esm", "Dragonborn.esm" };
     }
 }

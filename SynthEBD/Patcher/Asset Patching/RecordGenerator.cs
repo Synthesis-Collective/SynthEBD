@@ -25,6 +25,8 @@ namespace SynthEBD
             List<FilePathReplacementParsed> nonHardcodedPaths = new List<FilePathReplacementParsed>();
 
             HardcodedRecordGenerator.CategorizePaths(combinations, npcInfo, recordTemplateLinkCache, wnamPaths, headtexPaths, nonHardcodedPaths, out int longestPath, true); // categorize everything as generic for now.
+            
+            if (!nonHardcodedPaths.Any() && !wnamPaths.Any() && !headtexPaths.Any()) { return; } // avoid making ITM if user blocks all assets of the type assigned (see AssetSelector.BlockAssetDistributionByExistingAssets())
 
             var currentNPC = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
             objectCaches.Add(npcInfo.NPC.FormKey, new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", currentNPC } });
