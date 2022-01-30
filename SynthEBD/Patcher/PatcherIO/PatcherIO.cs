@@ -10,16 +10,30 @@ namespace SynthEBD
 {
     class PatcherIO
     {
-        public static FileInfo CreateDirectoryIfNeeded(string path)
+        public enum PathType
         {
-            FileInfo file = new System.IO.FileInfo(path);
-            file.Directory.Create(); // If the directory already exists, this method does nothing.
-            return file;
+            File,
+            Directory
+        }
+        public static dynamic CreateDirectoryIfNeeded(string path, PathType type)
+        {
+            if (type == PathType.File)
+            {
+                FileInfo file = new FileInfo(path);
+                file.Directory.Create(); // If the directory already exists, this method does nothing.
+                return file;
+            }
+            else
+            {
+                DirectoryInfo directory = new DirectoryInfo(path);
+                directory.Create();
+                return directory;
+            }
         }
 
         public static async Task WriteTextFile(string path, string contents)
         {
-            var file = CreateDirectoryIfNeeded(path);
+            var file = CreateDirectoryIfNeeded(path, PathType.File);
 
             try
             {
@@ -38,9 +52,9 @@ namespace SynthEBD
         {
             try
             {
-                if (System.IO.File.Exists(patchOutputPath))
+                if (File.Exists(patchOutputPath))
                 {
-                    System.IO.File.Delete(patchOutputPath);
+                    File.Delete(patchOutputPath);
                 }
                 outputMod.WriteToBinary(patchOutputPath);
                 Logger.LogMessage("Wrote output file at " + patchOutputPath + ".");

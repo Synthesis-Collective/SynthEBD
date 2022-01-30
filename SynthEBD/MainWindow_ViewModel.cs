@@ -18,7 +18,7 @@ namespace SynthEBD
     public class MainWindow_ViewModel : INotifyPropertyChanged
     {
         public GameEnvironmentProvider GameEnvironmentProvider { get; }
-        public VM_Settings_General SGVM { get; } = new();
+        public VM_Settings_General SGVM { get; }
         public VM_SettingsTexMesh TMVM { get; }
         public VM_SettingsBodyGen BGVM { get; }
         public VM_SettingsOBody OBVM { get; }
@@ -39,9 +39,9 @@ namespace SynthEBD
         public List<AssetPack> AssetPacks { get; set; }
         public List<HeightConfig> HeightConfigs { get; set; }
         public BodyGenConfigs BodyGenConfigs { get; set; }
-        public Dictionary<string, NPCAssignment> Consistency { get; }
-        public HashSet<NPCAssignment> SpecificNPCAssignments { get; }
-        public BlockList BlockList { get; }
+        public Dictionary<string, NPCAssignment> Consistency { get; set; }
+        public HashSet<NPCAssignment> SpecificNPCAssignments { get; set; }
+        public BlockList BlockList { get; set; }
         public HashSet<string> LinkedNPCNameExclusions { get; set; }
         public HashSet<LinkedNPCGroup> LinkedNPCGroups { get; set; }
 
@@ -55,6 +55,7 @@ namespace SynthEBD
             var LinkCache = env.LinkCache;
             var LoadOrder = env.LoadOrder;
 
+            SGVM = new VM_Settings_General(this);
             BGVM = new VM_SettingsBodyGen(SGVM);
             OBVM = new VM_SettingsOBody(SGVM.RaceGroupings, SGVM);
             TMVM = new VM_SettingsTexMesh(this);
@@ -78,6 +79,27 @@ namespace SynthEBD
             Patcher.MainLinkCache = GameEnvironmentProvider.MyEnvironment.LinkCache;
             Patcher.ResolvePatchableRaces();
 
+            LoadInitialSettingsViewModels();
+            LoadPluginViewModels();
+            LoadFinalSettingsViewModels();
+
+            // Start on the settings VM
+            DisplayedViewModel = SGVM;
+            NavViewModel = NavPanel;
+            Logger.Instance.RunButton = RunButton;
+            Logger.Instance.MainVM = this;
+
+            Application.Current.MainWindow.Closing += new CancelEventHandler(MainWindow_Closing);
+        }
+
+        public void SaveAndRefreshPlugins()
+        {
+            SavePluginViewModels();
+            LoadPluginViewModels();
+        }
+
+        public void LoadInitialSettingsViewModels() // view models that should be loaded before plugin VMs
+        {
             // Load texture and mesh settings
             PatcherSettings.TexMesh = SettingsIO_AssetPack.LoadTexMeshSettings();
             VM_SettingsTexMesh.GetViewModelFromModel(TMVM, PatcherSettings.TexMesh);
@@ -104,30 +126,6 @@ namespace SynthEBD
             SGVM.LinkedNameExclusions = VM_CollectionMemberString.InitializeCollectionFromHashSet(LinkedNPCNameExclusions);
             LinkedNPCGroups = SettingsIO_Misc.LoadLinkedNPCGroups();
             SGVM.LinkedNPCGroups = VM_LinkedNPCGroup.GetViewModelsFromModels(LinkedNPCGroups);
-
-            LoadPluginViewModels();
-
-            // load specific assignments (must load after plugin view models)
-            SpecificNPCAssignments = SettingsIO_SpecificNPCAssignments.LoadAssignments();
-            VM_SpecificNPCAssignmentsUI.GetViewModelFromModels(SAUIVM, SpecificNPCAssignments, OBVM, SGVM);
-
-            // Load Consistency (must load after plugin view models)
-            Consistency = SettingsIO_Misc.LoadConsistency();
-            VM_ConsistencyUI.GetViewModelsFromModels(Consistency, CUIVM.Assignments, TMVM.AssetPacks);
-
-            // Start on the settings VM
-            DisplayedViewModel = SGVM;
-            NavViewModel = NavPanel;
-            Logger.Instance.RunButton = RunButton;
-            Logger.Instance.MainVM = this;
-
-            Application.Current.MainWindow.Closing += new CancelEventHandler(MainWindow_Closing);
-        }
-
-        public void SaveAndRefreshPlugins()
-        {
-            SavePluginViewModels();
-            LoadPluginViewModels();
         }
 
         public void LoadPluginViewModels()
@@ -151,6 +149,17 @@ namespace SynthEBD
             VM_SettingsHeight.GetViewModelFromModel(HVM, PatcherSettings.Height); /// must do after populating configs
         }
 
+        public void LoadFinalSettingsViewModels() // view models that should be loaded after plugin VMs because they depend on the loaded plugins
+        {
+            // load specific assignments (must load after plugin view models)
+            SpecificNPCAssignments = SettingsIO_SpecificNPCAssignments.LoadAssignments();
+            VM_SpecificNPCAssignmentsUI.GetViewModelFromModels(SAUIVM, SpecificNPCAssignments, OBVM, SGVM);
+
+            // Load Consistency (must load after plugin view models)
+            Consistency = SettingsIO_Misc.LoadConsistency();
+            VM_ConsistencyUI.GetViewModelsFromModels(Consistency, CUIVM.Assignments, TMVM.AssetPacks);
+        }
+
         public void SavePluginViewModels()
         {
             VM_AssetPack.DumpViewModelsToModels(TMVM.AssetPacks, AssetPacks);
@@ -168,6 +177,7 @@ namespace SynthEBD
             VM_SettingsBodyGen.DumpViewModelToModel(BGVM, PatcherSettings.BodyGen, BodyGenConfigs);
             VM_SettingsOBody.DumpViewModelToModel(PatcherSettings.OBody, OBVM);
             VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(SAUIVM, SpecificNPCAssignments);
+            VM_BlockListUI.DumpViewModelToModel(BUIVM, BlockList);
             VM_ConsistencyUI.DumpViewModelsToModels(CUIVM.Assignments, Consistency);
             VM_LinkedNPCGroup.DumpViewModelsToModels(LinkedNPCGroups, SGVM.LinkedNPCGroups);
             VM_SettingsModManager.DumpViewModelToModel(PatcherSettings.ModManagerIntegration, MMVM);
@@ -194,6 +204,7 @@ namespace SynthEBD
             SettingsIO_Misc.SaveConsistency(Consistency);
 
             JSONhandler<HashSet<NPCAssignment>>.SaveJSONFile(SpecificNPCAssignments, PatcherSettings.Paths.SpecificNPCAssignmentsPath);
+            JSONhandler<BlockList>.SaveJSONFile(BlockList, PatcherSettings.Paths.BlockListPath);
 
             SettingsIO_Misc.SaveLinkedNPCGroups(LinkedNPCGroups);
 

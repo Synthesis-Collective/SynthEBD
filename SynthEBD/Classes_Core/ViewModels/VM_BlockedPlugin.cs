@@ -18,7 +18,7 @@ namespace SynthEBD
             this.ModKey = new ModKey();
             this.Assets = true;
             this.Height = false;
-            this.BodyGen = false;
+            this.BodyShape = false;
 
             this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
         }
@@ -28,7 +28,7 @@ namespace SynthEBD
         public ModKey ModKey { get; set; }
         public bool Assets { get; set; }
         public bool Height { get; set; }
-        public bool BodyGen { get; set; }
+        public bool BodyShape { get; set; }
 
         public ILinkCache lk { get; set; }
         public event PropertyChangedEventHandler PropertyChanged;
@@ -48,8 +48,18 @@ namespace SynthEBD
             viewModel.ModKey = model.ModKey;
             viewModel.Assets = model.Assets;
             viewModel.Height = model.Height;
-            viewModel.BodyGen = model.BodyGen;
+            viewModel.BodyShape = model.BodyShape;
             return viewModel;
+        }
+
+        public static BlockedPlugin DumpViewModelToModel(VM_BlockedPlugin viewModel)
+        {
+            BlockedPlugin model = new BlockedPlugin();
+            model.ModKey = viewModel.ModKey;
+            model.Assets = viewModel.Assets;
+            model.Height = viewModel.Height;
+            model.BodyShape = viewModel.BodyShape; 
+            return model;
         }
     }
 }

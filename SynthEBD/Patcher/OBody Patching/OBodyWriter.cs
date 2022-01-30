@@ -167,7 +167,7 @@ namespace SynthEBD
 
             try
             {
-                PatcherIO.CreateDirectoryIfNeeded(destPath);
+                PatcherIO.CreateDirectoryIfNeeded(destPath, PatcherIO.PathType.File);
                 File.WriteAllText(destPath, outputStr);
             }
             catch
@@ -186,7 +186,7 @@ namespace SynthEBD
 
             try
             {
-                PatcherIO.CreateDirectoryIfNeeded(destPath);
+                PatcherIO.CreateDirectoryIfNeeded(destPath, PatcherIO.PathType.File);
                 File.Copy(sourcePath, destPath, true);
             }
             catch

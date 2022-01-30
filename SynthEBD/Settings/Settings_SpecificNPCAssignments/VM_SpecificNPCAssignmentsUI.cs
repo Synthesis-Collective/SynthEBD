@@ -48,18 +48,19 @@ namespace SynthEBD
 
         public static void GetViewModelFromModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<NPCAssignment> models, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM)
         {
+            viewModel.Assignments.Clear();
             foreach (var assignment in models)
             {
                 viewModel.Assignments.Add(VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, viewModel.TexMeshSettings.AssetPacks, viewModel.BodyGenSettings, oBodySettings, generalSettingsVM));
             }
         }
 
-        public static void DumpViewModelToModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<NPCAssignment> assignments)
+        public static void DumpViewModelToModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<NPCAssignment> models)
         {
-            assignments.Clear();
+            models.Clear();
             foreach (var vm in viewModel.Assignments)
             {
-                assignments.Add(VM_SpecificNPCAssignment.DumpViewModelToModel(vm));
+                models.Add(VM_SpecificNPCAssignment.DumpViewModelToModel(vm));
             }
         }
 

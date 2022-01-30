@@ -26,13 +26,13 @@ namespace SynthEBD
             this.FormKey = new FormKey();
             this.Assets = true;
             this.Height = false;
-            this.BodyGen = false;
+            this.BodyShape = false;
         }
 
         public FormKey FormKey { get; set; }
         public bool Assets { get; set; }
         public bool Height { get; set; }
-        public bool BodyGen { get; set; }
+        public bool BodyShape { get; set; }
     }
 
     public class BlockedPlugin
@@ -42,13 +42,13 @@ namespace SynthEBD
             this.ModKey = new ModKey();
             this.Assets = true;
             this.Height = false;
-            this.BodyGen = false;
+            this.BodyShape = false;
         }
 
         public ModKey ModKey { get; set; }
         public bool Assets { get; set; }
         public bool Height { get; set; }
-        public bool BodyGen { get; set; }
+        public bool BodyShape { get; set; }
     }
 
     public class zEBDBlockList
@@ -71,7 +71,7 @@ namespace SynthEBD
                 blockedNPC.FormKey = Converters.zEBDSignatureToFormKey(npc.rootPlugin, npc.formID, env);
                 blockedNPC.Assets = npc.bBlockAssets;
                 blockedNPC.Height = npc.bBlockHeight;
-                blockedNPC.BodyGen = npc.bBlockBodyGen;
+                blockedNPC.BodyShape = npc.bBlockBodyGen;
                 sList.NPCs.Add(blockedNPC);
             }
 
@@ -81,7 +81,7 @@ namespace SynthEBD
                 blockedPlugin.ModKey = ModKey.FromNameAndExtension(plugin.name);
                 blockedPlugin.Assets = plugin.bBlockAssets;
                 blockedPlugin.Height = plugin.bBlockHeight;
-                blockedPlugin.BodyGen = plugin.bBlockBodyGen;
+                blockedPlugin.BodyShape = plugin.bBlockBodyGen;
                 sList.Plugins.Add(blockedPlugin);
             }
 

@@ -137,7 +137,7 @@ namespace SynthEBD
         {
             for (int i = 0; i < heightConfigs.Count; i++)
             {
-                if (heightConfigs[i].FilePath != "")
+                if (!string.IsNullOrWhiteSpace(heightConfigs[i].FilePath) && heightConfigs[i].FilePath.StartsWith(PatcherSettings.Paths.HeightConfigDirPath, StringComparison.InvariantCultureIgnoreCase))
                 {
                     JSONhandler<HeightConfig>.SaveJSONFile(heightConfigs[i], heightConfigs[i].FilePath);
                 }
@@ -146,6 +146,7 @@ namespace SynthEBD
                     string newPath = "";
                     if (IO_Aux.IsValidFilename(heightConfigs[i].Label))
                     {
+                        PatcherIO.CreateDirectoryIfNeeded(PatcherSettings.Paths.HeightConfigDirPath, PatcherIO.PathType.Directory);
                         if (Directory.Exists(PatcherSettings.Paths.HeightConfigDirPath))
                         {
                             newPath = Path.Combine(PatcherSettings.Paths.HeightConfigDirPath, heightConfigs[i].Label + ".json");

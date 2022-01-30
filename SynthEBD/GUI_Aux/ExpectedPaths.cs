@@ -62,7 +62,7 @@ namespace SynthEBD
                     RelativePath = SynthEBDexeDirPath;
                     break;
                 case true:
-                    RelativePath = GameEnvironmentProvider.MyEnvironment.DataFolderPath;
+                    RelativePath = Path.Combine(GameEnvironmentProvider.MyEnvironment.DataFolderPath, "SynthEBD");
                     break;
             }
 
@@ -105,7 +105,6 @@ namespace SynthEBD
         public string ConsistencyPath { get; set; }
         public string SpecificNPCAssignmentsPath { get; set; }
         public string BlockListPath { get; set; }
-
         public string LinkedNPCNameExclusionsPath { get; set; }
         public string LinkedNPCsPath { get; set; }
         public string TrimPathsPath { get; set; }
@@ -115,7 +114,7 @@ namespace SynthEBD
 
         public string GetFallBackPath(string path)
         {
-            var suffix = path.Remove(0, RelativePath.Length);
+            var suffix = path.Remove(0, RelativePath.Length).Trim(Path.PathSeparator);
             return Path.Join(SynthEBDexeDirPath, suffix);
         }
     }

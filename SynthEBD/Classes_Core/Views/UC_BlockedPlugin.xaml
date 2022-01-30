@@ -26,7 +26,7 @@
         <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding Path=Assets, Mode=TwoWay}"></CheckBox>
         <TextBlock Grid.Row="2" Grid.Column="0"  HorizontalAlignment="Center">Block Height</TextBlock>
         <CheckBox Grid.Row="2" Grid.Column="1"  IsChecked="{Binding Path=Height, Mode=TwoWay}"></CheckBox>
-        <TextBlock Grid.Row="3" Grid.Column="0"  HorizontalAlignment="Center">Block BodyGen</TextBlock>
-        <CheckBox Grid.Row="3" Grid.Column="1"  IsChecked="{Binding Path=BodyGen, Mode=TwoWay}"></CheckBox>
+        <TextBlock Grid.Row="3" Grid.Column="0"  HorizontalAlignment="Center">Block Body Shape</TextBlock>
+        <CheckBox Grid.Row="3" Grid.Column="1"  IsChecked="{Binding Path=BodyShape, Mode=TwoWay}"></CheckBox>
     </Grid>
 </UserControl>

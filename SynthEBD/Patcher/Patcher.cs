@@ -236,7 +236,7 @@ namespace SynthEBD
                 if (blockListNPCEntry.Assets || blockListPluginEntry.Assets) { blockAssets = true; }
                 else { blockAssets = false; }
 
-                if (blockListNPCEntry.BodyGen || blockListPluginEntry.BodyGen) { blockBodyShape = true; }
+                if (blockListNPCEntry.BodyShape || blockListPluginEntry.BodyShape) { blockBodyShape = true; }
                 else { blockBodyShape = false; }
 
                 if (blockListNPCEntry.Height || blockListPluginEntry.Height) { blockHeight = true; }

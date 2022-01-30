@@ -167,6 +167,7 @@ namespace SynthEBD
 
         public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(ObservableCollection<VM_AssetPack> viewModels, List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)
         {
+            viewModels.Clear();
             for (int i = 0; i < assetPacks.Count; i++)
             {
                 var viewModel = GetViewModelFromModel(assetPacks[i], generalSettingsVM, viewModels, bodygenSettingsVM, OBodyDescriptorMenu, recordTemplateLinkCache, mainVM);

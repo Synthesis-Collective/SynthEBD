@@ -20,7 +20,7 @@ namespace SynthEBD
             this.FormKey = new FormKey();
             this.Assets = true;
             this.Height = false;
-            this.BodyGen = false;
+            this.BodyShape = false;
 
             this.lk = GameEnvironmentProvider.MyEnvironment.LinkCache;
             this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
@@ -30,7 +30,7 @@ namespace SynthEBD
         public FormKey FormKey { get; set; }
         public bool Assets { get; set; }
         public bool Height { get; set; }
-        public bool BodyGen { get; set; }
+        public bool BodyShape { get; set; }
 
         public ILinkCache lk { get; set; }
         public IEnumerable<Type> NPCFormKeyTypes { get; set; }
@@ -52,8 +52,18 @@ namespace SynthEBD
             viewModel.FormKey = model.FormKey;
             viewModel.Assets = model.Assets;
             viewModel.Height = model.Height;
-            viewModel.BodyGen = model.BodyGen;
+            viewModel.BodyShape = model.BodyShape;
             return viewModel;
+        }
+
+        public static BlockedNPC DumpViewModelToModel(VM_BlockedNPC viewModel)
+        {
+            BlockedNPC model = new BlockedNPC();
+            model.FormKey = viewModel.FormKey;
+            model.Assets = viewModel.Assets;
+            model.Height = viewModel.Height;
+            model.BodyShape = viewModel.BodyShape;
+            return model;
         }
     }
 }

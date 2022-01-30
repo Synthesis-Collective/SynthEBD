@@ -37,9 +37,13 @@ namespace SynthEBD
         {
             BodyGenConfigs loadedPacks = new BodyGenConfigs();
 
-            if (!filePaths.Any())
+            if (!filePaths.Any() && Directory.Exists(PatcherSettings.Paths.BodyGenConfigDirPath))
             {
                 filePaths = Directory.GetFiles(PatcherSettings.Paths.BodyGenConfigDirPath, "*.json");
+            }
+            else if (!filePaths.Any() && Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath)))
+            {
+                filePaths = Directory.GetFiles(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath), "*.json");
             }
 
             foreach (string s in filePaths)
@@ -125,7 +129,7 @@ namespace SynthEBD
         {
             foreach (var bgConfig in bodyGenConfigs)
             {
-                if (bgConfig.FilePath != null && bgConfig.FilePath != "")
+                if (!string.IsNullOrWhiteSpace(bgConfig.FilePath) && bgConfig.FilePath.StartsWith(PatcherSettings.Paths.BodyGenConfigDirPath, StringComparison.InvariantCultureIgnoreCase))
                 {
                     JSONhandler<BodyGenConfig>.SaveJSONFile(bgConfig, bgConfig.FilePath);
                 }
@@ -134,6 +138,7 @@ namespace SynthEBD
                     string newPath = "";
                     if (IO_Aux.IsValidFilename(bgConfig.Label))
                     {
+                        PatcherIO.CreateDirectoryIfNeeded(PatcherSettings.Paths.BodyGenConfigDirPath, PatcherIO.PathType.Directory);
                         if (Directory.Exists(PatcherSettings.Paths.BodyGenConfigDirPath))
                         {
                             newPath = Path.Combine(PatcherSettings.Paths.BodyGenConfigDirPath, bgConfig.Label + ".json");

@@ -209,13 +209,13 @@ namespace SynthEBD
 
                 if (assetPathMapping.ContainsKey(assetPath))
                 {
-                    PatcherIO.CreateDirectoryIfNeeded(assetPathMapping[assetPath]);
+                    PatcherIO.CreateDirectoryIfNeeded(assetPathMapping[assetPath], PatcherIO.PathType.File);
                     File.Move(fullPath, assetPathMapping[assetPath]);
                 }
                 else
                 {
                     string destination = GenerateInstalledPath(extractedPath, manifest);
-                    PatcherIO.CreateDirectoryIfNeeded(destination);
+                    PatcherIO.CreateDirectoryIfNeeded(destination, PatcherIO.PathType.File);
                     File.Move(fullPath, destination);
                 }
             }

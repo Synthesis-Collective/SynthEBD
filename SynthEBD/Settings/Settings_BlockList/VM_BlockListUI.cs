@@ -58,14 +58,30 @@ namespace SynthEBD
 
         public static void GetViewModelFromModel(BlockList model, VM_BlockListUI viewModel)
         {
+            viewModel.BlockedNPCs.Clear();
             foreach (var blockedNPC in model.NPCs)
             {
                 viewModel.BlockedNPCs.Add(VM_BlockedNPC.GetViewModelFromModel(blockedNPC));
             }
 
+            viewModel.BlockedPlugins.Clear();
             foreach (var blockedPlugin in model.Plugins)
             {
                 viewModel.BlockedPlugins.Add(VM_BlockedPlugin.GetViewModelFromModel(blockedPlugin));
+            }
+        }
+
+        public static void DumpViewModelToModel(VM_BlockListUI viewModel, BlockList model)
+        {
+            model.NPCs.Clear();
+            foreach (var npc in viewModel.BlockedNPCs)
+            {
+                model.NPCs.Add(VM_BlockedNPC.DumpViewModelToModel(npc));
+            }
+            model.Plugins.Clear();
+            foreach (var plugin in viewModel.BlockedPlugins)
+            {
+                model.Plugins.Add(VM_BlockedPlugin.DumpViewModelToModel(plugin));
             }
         }
 

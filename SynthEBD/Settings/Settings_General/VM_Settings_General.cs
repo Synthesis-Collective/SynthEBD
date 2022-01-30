@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Reactive.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Mutagen.Bethesda.Environments;
@@ -10,6 +11,7 @@ using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
+using ReactiveUI;
 
 namespace SynthEBD
 {
@@ -17,8 +19,9 @@ namespace SynthEBD
     {
         public event PropertyChangedEventHandler PropertyChanged;
         
-        public VM_Settings_General()
+        public VM_Settings_General(MainWindow_ViewModel mainVM)
         {
+            MainWindowVM = mainVM;
             this.bShowToolTips = true;
             this.bChangeMeshesOrTextures = true;
             this.BodySelectionMode = BodyShapeSelectionMode.None;
@@ -83,8 +86,19 @@ namespace SynthEBD
                     }
                 }
                 );
+
+            this.WhenAnyValue(x => x.bLoadSettingsFromDataFolder).Skip(1).Subscribe(x =>
+            {
+                PatcherSettings.Paths = new Paths();
+                Patcher.MainLinkCache = GameEnvironmentProvider.MyEnvironment.LinkCache;
+                Patcher.ResolvePatchableRaces();
+                MainWindowVM.LoadInitialSettingsViewModels();
+                MainWindowVM.LoadPluginViewModels();
+                MainWindowVM.LoadFinalSettingsViewModels();
+            });
         }
 
+        public MainWindow_ViewModel MainWindowVM { get; set; }
         public bool bShowToolTips { get;  set;}
         public bool bChangeMeshesOrTextures { get; set;  }
 

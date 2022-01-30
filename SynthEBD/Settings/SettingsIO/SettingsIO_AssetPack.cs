@@ -91,7 +91,7 @@ namespace SynthEBD
 
             string[] filePaths;
 
-            if (Directory.Exists(PatcherSettings.Paths.AssetPackDirPath))
+            if (Directory.Exists(PatcherSettings.Paths.RecordTemplatesDirPath))
             {
                 filePaths = Directory.GetFiles(PatcherSettings.Paths.RecordTemplatesDirPath, "*.esp");
             }
@@ -152,6 +152,7 @@ namespace SynthEBD
                 string newPath = "";
                 if (IO_Aux.IsValidFilename(assetPack.GroupName))
                 {
+                    PatcherIO.CreateDirectoryIfNeeded(PatcherSettings.Paths.AssetPackDirPath, PatcherIO.PathType.Directory);
                     if (Directory.Exists(PatcherSettings.Paths.AssetPackDirPath))
                     {
                         newPath = Path.Combine(PatcherSettings.Paths.AssetPackDirPath, assetPack.GroupName + ".json");

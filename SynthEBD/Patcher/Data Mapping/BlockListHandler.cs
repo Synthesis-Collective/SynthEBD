@@ -19,7 +19,7 @@ namespace SynthEBD
             {
                 output = new BlockedNPC();
                 output.Assets = false;
-                output.BodyGen = false;
+                output.BodyShape = false;
                 output.Height = false;
             }
 
@@ -33,7 +33,7 @@ namespace SynthEBD
 
             var output = new BlockedPlugin();
             output.Assets = false;
-            output.BodyGen = false;
+            output.BodyShape = false;
             output.Height = false;
 
             foreach (var modKey in contexts.Select(x => x.ModKey))
@@ -45,9 +45,9 @@ namespace SynthEBD
                     {
                         output.Assets = true;
                     }
-                    if (blockedPlugin.BodyGen)
+                    if (blockedPlugin.BodyShape)
                     {
-                        output.BodyGen = true;
+                        output.BodyShape = true;
                     }
                     if (blockedPlugin.Height)
                     {
