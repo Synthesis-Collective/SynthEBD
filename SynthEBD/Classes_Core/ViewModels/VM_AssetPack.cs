@@ -60,13 +60,6 @@ namespace SynthEBD
 
             RecordTemplateLinkCache = recordTemplateLinkCache;
 
-            /*
-            switch (this.gender)
-            {
-                case Gender.female: this.TrackedBodyGenConfig = this.CurrentBodyGenSettings.CurrentFemaleConfig; break;
-                case Gender.male: this.TrackedBodyGenConfig = this.CurrentBodyGenSettings.CurrentMaleConfig; break;
-            }*/
-
             RemoveAssetPackConfigFile = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => { FileDialogs.ConfirmFileDeletion(this.SourcePath, "Asset Pack Config File"); this.ParentCollection.Remove(this); }
@@ -111,6 +104,14 @@ namespace SynthEBD
                     }
                 }
                 );
+
+            SaveButton = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => {
+                    SettingsIO_AssetPack.SaveAssetPack(DumpViewModelToModel(this));
+                    Logger.CallTimedNotifyStatusUpdateAsync(groupName + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                }
+                );
         }
 
         public string groupName { get; set; }
@@ -149,6 +150,7 @@ namespace SynthEBD
         public RelayCommand ImportAttributeGroups { get; }
 
         public RelayCommand ValidateButton { get; }
+        public RelayCommand SaveButton { get; }
 
         public BodyShapeSelectionMode BodyShapeMode { get; set; }
 
@@ -160,7 +162,7 @@ namespace SynthEBD
 
         public bool Validate(BodyGenConfigs bodyGenConfigs, out List<string> errors)
         {
-            var model = DumpViewModelToViewModel(this);
+            var model = DumpViewModelToModel(this);
             errors = new List<string>();
             return model.Validate(errors, bodyGenConfigs);
         }
@@ -244,11 +246,11 @@ namespace SynthEBD
 
             foreach (var vm in viewModels)
             {
-                models.Add(DumpViewModelToViewModel(vm));
+                models.Add(DumpViewModelToModel(vm));
             }
         }
 
-        public static AssetPack DumpViewModelToViewModel(VM_AssetPack viewModel)
+        public static AssetPack DumpViewModelToModel(VM_AssetPack viewModel)
         {
             AssetPack model = new AssetPack();
             model.GroupName = viewModel.groupName;

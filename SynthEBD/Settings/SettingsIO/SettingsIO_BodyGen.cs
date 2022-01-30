@@ -129,54 +129,59 @@ namespace SynthEBD
         {
             foreach (var bgConfig in bodyGenConfigs)
             {
-                if (!string.IsNullOrWhiteSpace(bgConfig.FilePath) && bgConfig.FilePath.StartsWith(PatcherSettings.Paths.BodyGenConfigDirPath, StringComparison.InvariantCultureIgnoreCase))
-                {
-                    JSONhandler<BodyGenConfig>.SaveJSONFile(bgConfig, bgConfig.FilePath);
-                }
-                else
-                {
-                    string newPath = "";
-                    if (IO_Aux.IsValidFilename(bgConfig.Label))
-                    {
-                        PatcherIO.CreateDirectoryIfNeeded(PatcherSettings.Paths.BodyGenConfigDirPath, PatcherIO.PathType.Directory);
-                        if (Directory.Exists(PatcherSettings.Paths.BodyGenConfigDirPath))
-                        {
-                            newPath = Path.Combine(PatcherSettings.Paths.BodyGenConfigDirPath, bgConfig.Label + ".json");
-                        }
-                        else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath)))
-                        {
-                            newPath = Path.Combine(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath), bgConfig.Label + ".json");
-                        }
+                SaveBodyGenConfig(bgConfig);
+            }
+        }
 
-                        JSONhandler<BodyGenConfig>.SaveJSONFile(bgConfig, newPath);
+        public static void SaveBodyGenConfig(BodyGenConfig bgConfig)
+        {
+            if (!string.IsNullOrWhiteSpace(bgConfig.FilePath) && bgConfig.FilePath.StartsWith(PatcherSettings.Paths.BodyGenConfigDirPath, StringComparison.InvariantCultureIgnoreCase))
+            {
+                JSONhandler<BodyGenConfig>.SaveJSONFile(bgConfig, bgConfig.FilePath);
+            }
+            else
+            {
+                string newPath = "";
+                if (IO_Aux.IsValidFilename(bgConfig.Label))
+                {
+                    PatcherIO.CreateDirectoryIfNeeded(PatcherSettings.Paths.BodyGenConfigDirPath, PatcherIO.PathType.Directory);
+                    if (Directory.Exists(PatcherSettings.Paths.BodyGenConfigDirPath))
+                    {
+                        newPath = Path.Combine(PatcherSettings.Paths.BodyGenConfigDirPath, bgConfig.Label + ".json");
+                    }
+                    else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath)))
+                    {
+                        newPath = Path.Combine(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath), bgConfig.Label + ".json");
                     }
 
-                    else
+                    JSONhandler<BodyGenConfig>.SaveJSONFile(bgConfig, newPath);
+                }
+
+                else
+                {
+                    // Configure save file dialog box
+                    var dialog = new Microsoft.Win32.SaveFileDialog();
+                    dialog.DefaultExt = ".json"; // Default file extension
+                    dialog.Filter = "JSON files (.json|*.json"; // Filter files by extension
+
+                    if (Directory.Exists(PatcherSettings.Paths.BodyGenConfigDirPath))
                     {
-                        // Configure save file dialog box
-                        var dialog = new Microsoft.Win32.SaveFileDialog();
-                        dialog.DefaultExt = ".json"; // Default file extension
-                        dialog.Filter = "JSON files (.json|*.json"; // Filter files by extension
+                        dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.BodyGenConfigDirPath);
+                    }
+                    else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath)))
+                    {
+                        dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath));
+                    }
 
-                        if (Directory.Exists(PatcherSettings.Paths.BodyGenConfigDirPath))
-                        {
-                            dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.BodyGenConfigDirPath);
-                        }
-                        else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath)))
-                        {
-                            dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath));
-                        }
+                    dialog.RestoreDirectory = true;
 
-                        dialog.RestoreDirectory = true;
+                    // Show open file dialog box
+                    bool? result = dialog.ShowDialog();
 
-                        // Show open file dialog box
-                        bool? result = dialog.ShowDialog();
-
-                        // Process open file dialog box results
-                        if (result == true)
-                        {
-                            JSONhandler<BodyGenConfig>.SaveJSONFile(bgConfig, dialog.FileName);
-                        }
+                    // Process open file dialog box results
+                    if (result == true)
+                    {
+                        JSONhandler<BodyGenConfig>.SaveJSONFile(bgConfig, dialog.FileName);
                     }
                 }
             }

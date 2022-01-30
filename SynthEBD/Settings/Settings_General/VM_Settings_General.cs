@@ -89,12 +89,14 @@ namespace SynthEBD
 
             this.WhenAnyValue(x => x.bLoadSettingsFromDataFolder).Skip(1).Subscribe(x =>
             {
+                System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;
+                PatcherSettings.General.bLoadSettingsFromDataFolder = bLoadSettingsFromDataFolder;
                 PatcherSettings.Paths = new Paths();
-                Patcher.MainLinkCache = PatcherEnvironmentProvider.Environment.LinkCache;
                 Patcher.ResolvePatchableRaces();
                 MainWindowVM.LoadInitialSettingsViewModels();
                 MainWindowVM.LoadPluginViewModels();
                 MainWindowVM.LoadFinalSettingsViewModels();
+                System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.Default;
             });
 
             this.WhenAnyValue(x => x.patchFileName).Subscribe(x => PatcherEnvironmentProvider.Environment.Refresh(patchFileName, false));

@@ -40,6 +40,16 @@ namespace SynthEBD
                 execute: _ => ImportFromZEBD()
                 );
 
+            Save = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    var tmpModel = new BlockList ();
+                    DumpViewModelToModel(this, tmpModel);
+                    SettingsIO_BlockList.SaveBlockList(tmpModel);
+                    Logger.CallTimedNotifyStatusUpdateAsync("BlockList Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                }
+                );
         }
 
         public ObservableCollection<VM_BlockedNPC> BlockedNPCs { get; set; }
@@ -53,6 +63,7 @@ namespace SynthEBD
         public RelayCommand AddBlockedPlugin { get; set; }
         public RelayCommand RemoveBlockedPlugin { get; set; }
         public RelayCommand ImportFromZEBDcommand { get; set; }
+        public RelayCommand Save { get; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 

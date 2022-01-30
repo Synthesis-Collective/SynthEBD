@@ -135,56 +135,61 @@ namespace SynthEBD
 
         public static void SaveHeightConfigs(List<HeightConfig> heightConfigs)
         {
-            for (int i = 0; i < heightConfigs.Count; i++)
+            foreach (var heightConfig in heightConfigs)
             {
-                if (!string.IsNullOrWhiteSpace(heightConfigs[i].FilePath) && heightConfigs[i].FilePath.StartsWith(PatcherSettings.Paths.HeightConfigDirPath, StringComparison.InvariantCultureIgnoreCase))
-                {
-                    JSONhandler<HeightConfig>.SaveJSONFile(heightConfigs[i], heightConfigs[i].FilePath);
-                }
-                else
-                {
-                    string newPath = "";
-                    if (IO_Aux.IsValidFilename(heightConfigs[i].Label))
-                    {
-                        PatcherIO.CreateDirectoryIfNeeded(PatcherSettings.Paths.HeightConfigDirPath, PatcherIO.PathType.Directory);
-                        if (Directory.Exists(PatcherSettings.Paths.HeightConfigDirPath))
-                        {
-                            newPath = Path.Combine(PatcherSettings.Paths.HeightConfigDirPath, heightConfigs[i].Label + ".json");
-                        }
-                        else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath)))
-                        {
-                            newPath = Path.Combine(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath), heightConfigs[i].Label + ".json");
-                        }
+                SaveHeightConfig(heightConfig);
+            }
+        }
 
-                        JSONhandler<HeightConfig>.SaveJSONFile(heightConfigs[i], newPath);
+        public static void SaveHeightConfig(HeightConfig heightConfig)
+        {
+            if (!string.IsNullOrWhiteSpace(heightConfig.FilePath) && heightConfig.FilePath.StartsWith(PatcherSettings.Paths.HeightConfigDirPath, StringComparison.InvariantCultureIgnoreCase))
+            {
+                JSONhandler<HeightConfig>.SaveJSONFile(heightConfig, heightConfig.FilePath);
+            }
+            else
+            {
+                string newPath = "";
+                if (IO_Aux.IsValidFilename(heightConfig.Label))
+                {
+                    PatcherIO.CreateDirectoryIfNeeded(PatcherSettings.Paths.HeightConfigDirPath, PatcherIO.PathType.Directory);
+                    if (Directory.Exists(PatcherSettings.Paths.HeightConfigDirPath))
+                    {
+                        newPath = Path.Combine(PatcherSettings.Paths.HeightConfigDirPath, heightConfig.Label + ".json");
+                    }
+                    else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath)))
+                    {
+                        newPath = Path.Combine(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath), heightConfig.Label + ".json");
                     }
 
-                    else
+                    JSONhandler<HeightConfig>.SaveJSONFile(heightConfig, newPath);
+                }
+
+                else
+                {
+                    // Configure save file dialog box
+                    var dialog = new Microsoft.Win32.SaveFileDialog();
+                    dialog.DefaultExt = ".json"; // Default file extension
+                    dialog.Filter = "JSON files (.json|*.json"; // Filter files by extension
+
+                    if (Directory.Exists(PatcherSettings.Paths.HeightConfigDirPath))
                     {
-                        // Configure save file dialog box
-                        var dialog = new Microsoft.Win32.SaveFileDialog();
-                        dialog.DefaultExt = ".json"; // Default file extension
-                        dialog.Filter = "JSON files (.json|*.json"; // Filter files by extension
+                        dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.HeightConfigDirPath);
+                    }
+                    else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath)))
+                    {
+                        dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath));
+                    }
 
-                        if (Directory.Exists(PatcherSettings.Paths.HeightConfigDirPath))
-                        {
-                            dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.HeightConfigDirPath);
-                        }
-                        else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath)))
-                        {
-                            dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath));
-                        }
+                    dialog.RestoreDirectory = true;
 
-                        dialog.RestoreDirectory = true;
+                    // Show open file dialog box
+                    bool? result = dialog.ShowDialog();
 
-                        // Show open file dialog box
-                        bool? result = dialog.ShowDialog();
-
-                        // Process open file dialog box results
-                        if (result == true)
-                        {
-                            JSONhandler<HeightConfig>.SaveJSONFile(heightConfigs[i], dialog.FileName);
-                        }
+                    // Process open file dialog box results
+                    if (result == true)
+                    {
+                        JSONhandler<HeightConfig>.SaveJSONFile(heightConfig, dialog.FileName);
                     }
                 }
             }

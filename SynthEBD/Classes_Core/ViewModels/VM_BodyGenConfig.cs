@@ -66,6 +66,15 @@ namespace SynthEBD
                     }
                 }
                 );
+
+            Save = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    SettingsIO_BodyGen.SaveBodyGenConfig(DumpViewModelToModel(this));
+                    Logger.CallTimedNotifyStatusUpdateAsync(Label + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                }
+                );
         }
 
         public object DisplayedUI { get; set; }
@@ -86,6 +95,7 @@ namespace SynthEBD
         public ICommand ClickAttributeGroupsMenu { get; }
         public ICommand ClickMiscMenu { get; }
         public RelayCommand ImportAttributeGroups { get; }
+        public RelayCommand Save { get; }
 
         public string Label { get; set; }
         public Gender Gender { get; set; }

@@ -144,6 +144,7 @@
 
                 <StackPanel Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
                     <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding ValidateButton}" Foreground="MediumPurple">Validate</Button>
+                    <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding SaveButton}" Foreground="MediumPurple">Save</Button>
                 </StackPanel>
             </Grid>
         </Expander>

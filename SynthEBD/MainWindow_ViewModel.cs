@@ -57,7 +57,7 @@ namespace SynthEBD
             SAUIVM = new VM_SpecificNPCAssignmentsUI(TMVM, BGVM, OBVM, SGVM);
             CUIVM = new VM_ConsistencyUI();
 
-            NavPanel = new SynthEBD.VM_NavPanel(this, SGVM, TMVM, BGVM, OBVM, HVM, SAUIVM, CUIVM, BUIVM, LogDisplayVM, MMVM);
+            NavPanel = new VM_NavPanel(this);
 
             StatusBarVM = new VM_StatusBar();
 
@@ -198,8 +198,8 @@ namespace SynthEBD
 
             SettingsIO_Misc.SaveConsistency(Consistency);
 
-            JSONhandler<HashSet<NPCAssignment>>.SaveJSONFile(SpecificNPCAssignments, PatcherSettings.Paths.SpecificNPCAssignmentsPath);
-            JSONhandler<BlockList>.SaveJSONFile(BlockList, PatcherSettings.Paths.BlockListPath);
+            SettingsIO_SpecificNPCAssignments.SaveAssignments(SpecificNPCAssignments);
+            SettingsIO_BlockList.SaveBlockList(BlockList);
 
             SettingsIO_Misc.SaveLinkedNPCGroups(LinkedNPCGroups);
 

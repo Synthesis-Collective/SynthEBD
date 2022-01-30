@@ -39,6 +39,15 @@ namespace SynthEBD
                     }
                 }
                 );
+
+            Save = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    SettingsIO_Height.SaveHeightConfig(DumpViewModelToModel(this));
+                    Logger.CallTimedNotifyStatusUpdateAsync(Label + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                }
+                );
         }
 
         public string Label { get; set; }
@@ -48,6 +57,7 @@ namespace SynthEBD
         public string SourcePath { get; set; }
         public RelayCommand AddHeightAssignment { get; }
         public RelayCommand SetAllDistModes { get; }
+        public RelayCommand Save { get; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -70,12 +80,17 @@ namespace SynthEBD
             models.Clear();
             foreach (var vm in viewModels)
             {
-                var m = new HeightConfig();
-                m.Label = vm.Label;
-                VM_HeightAssignment.DumpViewModelsToModels(m.HeightAssignments, vm.HeightAssignments);
-                m.FilePath = vm.SourcePath;
-                models.Add(m);
+                models.Add(DumpViewModelToModel(vm));
             }
+        }
+
+        public static HeightConfig DumpViewModelToModel(VM_HeightConfig viewModel)
+        {
+            var model = new HeightConfig();
+            model.Label = viewModel.Label;
+            VM_HeightAssignment.DumpViewModelsToModels(model.HeightAssignments, viewModel.HeightAssignments);
+            model.FilePath = viewModel.SourcePath;
+            return model;
         }
     }
     public class VM_HeightAssignment : INotifyPropertyChanged

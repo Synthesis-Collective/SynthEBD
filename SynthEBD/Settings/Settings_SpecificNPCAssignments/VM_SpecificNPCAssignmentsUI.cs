@@ -30,6 +30,17 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ => ImportFromZEBD(oBodySettings, generalSettingsVM)
                 );
+
+            Save = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    HashSet<NPCAssignment> modelsToSave = new HashSet<NPCAssignment>();
+                    DumpViewModelToModels(this, modelsToSave);
+                    SettingsIO_SpecificNPCAssignments.SaveAssignments(modelsToSave);
+                    Logger.CallTimedNotifyStatusUpdateAsync("Specific NPC Assignments Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                }
+                );
         }
 
         public ObservableCollection<VM_SpecificNPCAssignment> Assignments { get; set; }
@@ -43,6 +54,7 @@ namespace SynthEBD
         public RelayCommand RemoveAssignment { get; set; }
 
         public RelayCommand ImportFromZEBDcommand { get; set; }
+        public RelayCommand Save { get; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 

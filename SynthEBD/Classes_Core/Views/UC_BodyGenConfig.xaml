@@ -22,6 +22,7 @@
 
         <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Config Name</TextBlock>
         <TextBox Grid.Row="0" Grid.Column="1" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+        <Button Grid.Row="0" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding Save}" Foreground="MediumPurple">Save</Button>
 
         <TextBlock Grid.Row="1" Grid.Column="0">Config Gender</TextBlock>
         <ComboBox Grid.Row="1" Grid.Column="1" SelectedValue="{Binding Gender}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" IsSynchronizedWithCurrentItem="True"/>

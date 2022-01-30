@@ -21,48 +21,48 @@ namespace SynthEBD
         public ICommand ClickLog { get; }
         public ICommand ClickMM { get; }
 
-        public VM_NavPanel(MainWindow_ViewModel MWVM, VM_Settings_General SGVM, VM_SettingsTexMesh TMVM, VM_SettingsBodyGen BGVM, VM_SettingsOBody OBVM, VM_SettingsHeight HVM, VM_SpecificNPCAssignmentsUI SAUIVM, VM_ConsistencyUI CUIVM, VM_BlockListUI BUIVM, VM_LogDisplay LogVM, VM_SettingsModManager MMVM)
+        public VM_NavPanel(MainWindow_ViewModel mainWindowVM)
         {
             ClickSG = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => MWVM.DisplayedViewModel = SGVM
+                execute: _ => mainWindowVM.DisplayedViewModel = mainWindowVM.SGVM
                 );
 
             ClickTM = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => MWVM.DisplayedViewModel = TMVM
+                execute: _ => mainWindowVM.DisplayedViewModel = mainWindowVM.TMVM
                 ) ;
             ClickBG = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => MWVM.DisplayedViewModel = BGVM
+                execute: _ => mainWindowVM.DisplayedViewModel = mainWindowVM.BGVM
                 );
             ClickOB = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => MWVM.DisplayedViewModel = OBVM
+                execute: _ => mainWindowVM.DisplayedViewModel = mainWindowVM.OBVM
                 );
             ClickH = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => MWVM.DisplayedViewModel = HVM
+                execute: _ => mainWindowVM.DisplayedViewModel = mainWindowVM.HVM
                 );
             ClickSA = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => MWVM.DisplayedViewModel = SAUIVM
+                execute: _ => mainWindowVM.DisplayedViewModel = mainWindowVM.SAUIVM
                 );
             ClickC = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => MWVM.DisplayedViewModel = CUIVM
+                execute: _ => mainWindowVM.DisplayedViewModel = mainWindowVM.CUIVM
                 );
             ClickBL = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => MWVM.DisplayedViewModel = BUIVM
+                execute: _ => mainWindowVM.DisplayedViewModel = mainWindowVM.BUIVM
                 );
             ClickLog = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => MWVM.DisplayedViewModel = LogVM
+                execute: _ => mainWindowVM.DisplayedViewModel = mainWindowVM.LogDisplayVM
                 );
             ClickMM = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => MWVM.DisplayedViewModel = MMVM
+                execute: _ => mainWindowVM.DisplayedViewModel = mainWindowVM.MMVM
                 );
         }
 

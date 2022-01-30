@@ -20,6 +20,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
         
         <TextBlock Grid.Column="0" Grid.Row="0" HorizontalAlignment="Center">NPCs</TextBlock>
@@ -83,5 +84,6 @@
         </ContentPresenter>
 
         <Button Grid.Column="0" Grid.Row="6" Command="{Binding ImportFromZEBDcommand}" Foreground="BlueViolet">Import from zEBD</Button>
+        <Button Grid.Column="0" Grid.Row="7" Command="{Binding Save}" Foreground="BlueViolet">Save</Button>
     </Grid>
 </UserControl>

@@ -38,5 +38,17 @@ namespace SynthEBD
 
             return specificNPCAssignments;
         }
+
+        public static void SaveAssignments(HashSet<NPCAssignment> assignments)
+        {
+            try
+            {
+                JSONhandler<HashSet<NPCAssignment>>.SaveJSONFile(assignments, PatcherSettings.Paths.SpecificNPCAssignmentsPath);
+            }
+            catch
+            {
+                Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Block List to " + PatcherSettings.Paths.BlockListPath, ErrorType.Error, 5);
+            }
+        }
     }
 }

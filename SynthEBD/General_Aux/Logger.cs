@@ -297,6 +297,12 @@ namespace SynthEBD
             }
         }
 
+        public static void UpdateStatus(string message, SolidColorBrush newColor)
+        {
+            Instance.StatusString = message;
+            Instance.StatusColor = newColor;
+        }
+
         public static void UpdateStatusAsync(string message, bool triggerWarning)
         {
             Task.Run(() => _UpdateStatusAsync(message, triggerWarning));
@@ -362,9 +368,14 @@ namespace SynthEBD
             Task.Run(() => TimedLogErrorWithStatusUpdateAsync(error, type, durationSec));
         }
 
-        public static void CallTimedNotifyStatusUpdateAsync(string error, int durationSec)
+        public static void CallTimedNotifyStatusUpdateAsync(string message, int durationSec)
         {
-            Task.Run(() => TimedNotifyStatusUpdateAsync(error, durationSec));
+            Task.Run(() => TimedNotifyStatusUpdateAsync(message, durationSec));
+        }
+
+        public static void CallTimedNotifyStatusUpdateAsync(string message, int durationSec, SolidColorBrush textColor)
+        {
+            Task.Run(() => TimedNotifyStatusUpdateAsync(message, durationSec, textColor));
         }
 
         private static async Task TimedLogErrorWithStatusUpdateAsync(string error, ErrorType type, int durationSec)
@@ -383,6 +394,18 @@ namespace SynthEBD
         {
             ArchiveStatus();
             UpdateStatus(message, false);
+
+            // Await the Task to allow the UI thread to render the view
+            // in order to show the changes     
+            await Task.Delay(durationSec * 1000);
+
+            DeArchiveStatus();
+        }
+
+        private static async Task TimedNotifyStatusUpdateAsync(string message, int durationSec, SolidColorBrush textColor)
+        {
+            ArchiveStatus();
+            UpdateStatus(message, textColor);
 
             // Await the Task to allow the UI thread to render the view
             // in order to show the changes     

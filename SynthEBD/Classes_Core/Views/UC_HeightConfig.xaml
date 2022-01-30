@@ -13,6 +13,7 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
             <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="auto"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
@@ -22,6 +23,7 @@
 
         <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0">Configuration Name</TextBlock>
         <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+        <Button Grid.Row="0" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding Save}" Foreground="MediumPurple">Save</Button>
 
         <Button Grid.Row="1" Grid.Column="0"  VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AddHeightAssignment}" Foreground="LightGreen" Margin="0 15 0 0">Add Height Group</Button>
 
@@ -30,7 +32,7 @@
             <ComboBox ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DistMode}}}" SelectedValue="{Binding Path=GlobalDistMode, Mode=TwoWay}" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
         </StackPanel>
 
-        <ItemsControl Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" ItemsSource="{Binding HeightAssignments}" Margin="20">
+        <ItemsControl Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" ItemsSource="{Binding HeightAssignments}" Margin="20">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                     <WrapPanel />
