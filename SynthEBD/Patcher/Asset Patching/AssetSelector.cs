@@ -153,6 +153,7 @@ namespace SynthEBD
 
             iterationInfo.PreviouslyGeneratedCombinations.Add(generatedSignature);
             generatedCombination.AssetPack = iterationInfo.ChosenAssetPack;
+            generatedCombination.Signature = generatedSignature;
             Logger.LogReport("Successfully generated combination: " + generatedSignature, false, npcInfo);
             Logger.CloseReportSubsectionsToParentOf("CombinationGeneration", npcInfo);
             return generatedCombination;
@@ -729,7 +730,7 @@ namespace SynthEBD
                     {
                         assignedCombination.DestinationType = destinationType;
                         assignedCombination.ReplacerDestinationFormKey = destinationFK;
-                        assignedCombination.Signature = string.Join(".", assignedCombination.ContainedSubgroups.Select(x => x.Id));
+                        //assignedCombination.Signature = string.Join(".", assignedCombination.ContainedSubgroups.Select(x => x.Id));
                         combinations.Add(assignedCombination);
                         RecordAssetConsistencyAndLinkedNPCs(assignedCombination, npcInfo, replacerGroup);
                     }

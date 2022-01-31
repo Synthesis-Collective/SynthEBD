@@ -18,7 +18,7 @@ namespace SynthEBD
 {
     public class RecordGenerator
     {
-        public static void CombinationToRecords(List<SubgroupCombination> combinations, NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, SkyrimMod outputMod)
+        public static void CombinationToRecords(List<SubgroupCombination> combinations, NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, SkyrimMod outputMod, List<FilePathReplacementParsed> assignedPaths)
         {
             HashSet<FilePathReplacementParsed> wnamPaths = new HashSet<FilePathReplacementParsed>();
             HashSet<FilePathReplacementParsed> headtexPaths = new HashSet<FilePathReplacementParsed>();
@@ -35,7 +35,7 @@ namespace SynthEBD
 
             if (nonHardcodedPaths.Any())
             {
-                AssignGenericAssetPaths(npcInfo, nonHardcodedPaths, currentNPC, recordTemplateLinkCache, outputMod, longestPath, true, false, npcObjectMap, objectCaches);
+                AssignGenericAssetPaths(npcInfo, nonHardcodedPaths, currentNPC, recordTemplateLinkCache, outputMod, longestPath, true, false, npcObjectMap, objectCaches, assignedPaths);
             }
         }
 
@@ -45,7 +45,8 @@ namespace SynthEBD
             public IMajorRecord SubRecord { get; set; }
         }
 
-        public static void AssignGenericAssetPaths(NPCInfo npcInfo, List<FilePathReplacementParsed> nonHardcodedPaths, Npc rootNPC, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SkyrimMod outputMod, int longestPath, bool assignFromTemplate, bool suppressMissingPathErrors, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches)
+        // assignedPaths is for logging purposes only
+        public static void AssignGenericAssetPaths(NPCInfo npcInfo, List<FilePathReplacementParsed> nonHardcodedPaths, Npc rootNPC, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SkyrimMod outputMod, int longestPath, bool assignFromTemplate, bool suppressMissingPathErrors, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, List<FilePathReplacementParsed> assignedPaths)
         { 
             HashSet<TemplateSignatureRecordPair> templateSubRecords = new HashSet<TemplateSignatureRecordPair>();
 
@@ -93,6 +94,7 @@ namespace SynthEBD
                         {
                             RecordPathParser.SetSubObject(rootObj, currentSubPath, assetAssignment.Source);
                             currentObj = assetAssignment.Source;
+                            assignedPaths.Add(assetAssignment);
                         }
                         skipObjectMapAssignment = true;
                     }
@@ -116,6 +118,7 @@ namespace SynthEBD
                                 {
                                     AddGeneratedObjectToDictionary(pathSignature, group.Key, generatedSubRecord.TemplateSignature, currentObj, currentObjInfo.IndexInParentArray);
                                     templateSubRecords.Remove(generatedSubRecord);
+                                    LogRecordAlongPaths(group, currentObj);
                                 }
                             }
                             else if(!TraverseRecordFromNpc(currentObj, currentObjInfo, pathSignature, group, rootObj, currentSubPath, npcInfo, nonHardcodedPaths, outputMod, out currentObj))
@@ -151,6 +154,7 @@ namespace SynthEBD
                             if (RecordPathParser.ObjectHasFormKey(currentObj, out FormKey? _))
                             {
                                 SetViaFormKeyReplacement(currentObj, rootObj, currentSubPath, indexIfInArray, outputMod);
+                                LogRecordAlongPaths(group, currentObj);
                             }
                             else
                             {
@@ -224,6 +228,7 @@ namespace SynthEBD
             SetViaFormKeyReplacement(copiedRecord, rootObj, currentSubPath, currentObjInfo.IndexInParentArray, outputMod);
             AddModifiedRecordToDictionary(pathSignature, currentObjInfo.RecordFormKey, copiedRecord);
             outputObj = copiedRecord;
+            LogRecordAlongPaths(group, copiedRecord);
             return true;
         }
 
@@ -252,7 +257,7 @@ namespace SynthEBD
             SetViaFormKeyReplacement(newRecord, rootObj, currentSubPath, recordObjectInfo.IndexInParentArray, outputMod);
 
             currentObj = newRecord;
-
+            LogRecordAlongPaths(group, newRecord);
             return true;
         }
 
@@ -539,6 +544,15 @@ namespace SynthEBD
             if (!GeneratedObjectsByPathAndTemplate[pathSignature][pathRelativeToNPC].ContainsKey(templateSignatureStr))
             {
                 GeneratedObjectsByPathAndTemplate[pathSignature][pathRelativeToNPC].Add(templateSignatureStr, storedObjectAndIndex);
+            }
+        }
+
+        public static void LogRecordAlongPaths(IGrouping<string, FilePathReplacementParsed> group, IMajorRecord record)
+        {
+            var recordEntry = new GeneratedRecordInfo() { FormKey = record.FormKey.ToString(), EditorID = record.EditorID };
+            foreach (var entry in group)
+            {
+                entry.TraversedRecords.Add(recordEntry);
             }
         }
     }

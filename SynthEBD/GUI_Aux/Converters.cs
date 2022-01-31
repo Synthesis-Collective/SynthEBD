@@ -369,5 +369,36 @@ namespace SynthEBD
                 }
             }
         }
+
+        public static bool FormKeyStringToFormIDString(string formKeyString, out string formIDstr)
+        {
+            formIDstr = string.Empty;
+            var split = formKeyString.Split(':');
+            if (split.Length != 2) { return false; }
+
+            if (split[1] == PatcherSettings.General.patchFileName + ".esp")
+            {
+                formIDstr = PatcherEnvironmentProvider.Environment.LoadOrder.ListedOrder.Count().ToString("X"); // format FormID assuming the generated patch will be last in the load order
+            }
+            else
+            {
+                for (int i = 0; i < PatcherEnvironmentProvider.Environment.LoadOrder.ListedOrder.Count(); i++)
+                {
+                    var currentListing = PatcherEnvironmentProvider.Environment.LoadOrder.ListedOrder.ElementAt(i);
+                    if (currentListing.ModKey.FileName == split[1])
+                    {
+                        formIDstr = i.ToString("X"); // https://www.delftstack.com/howto/csharp/integer-to-hexadecimal-in-csharp/
+                        break;
+                    }
+                }
+            }
+            if (!formIDstr.Any())
+            {
+                return false;
+            }
+
+            formIDstr += split[0];
+            return true;
+        }
     }
 }

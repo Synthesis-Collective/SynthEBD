@@ -24,7 +24,7 @@ namespace SynthEBD
                 {
                     foreach (var path in subgroup.Paths)
                     {
-                        var parsed = new FilePathReplacementParsed(path, npcInfo, combination.AssetPack, recordTemplateLinkCache);
+                        var parsed = new FilePathReplacementParsed(path, npcInfo, combination.AssetPack, recordTemplateLinkCache, combination);
                         
                         if (!PatcherSettings.TexMesh.bChangeNPCTextures && path.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase)) { continue; }
                         if (!PatcherSettings.TexMesh.bChangeNPCMeshes && path.Source.EndsWith(".nif", StringComparison.OrdinalIgnoreCase)) { continue; }
@@ -156,7 +156,7 @@ namespace SynthEBD
 
                 if (additionalGenericPaths.Any())
                 {
-                    RecordGenerator.AssignGenericAssetPaths(npcInfo, additionalGenericPaths, patchedNPC, templateLinkCache, outputMod, GetLongestPath(additionalGenericPaths), true, false, npcObjectMap, objectCaches);
+                    RecordGenerator.AssignGenericAssetPaths(npcInfo, additionalGenericPaths, patchedNPC, templateLinkCache, outputMod, GetLongestPath(additionalGenericPaths), true, false, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>());
                 }
             }
 
@@ -287,7 +287,7 @@ namespace SynthEBD
                 }
                 if (genericArmorAddonPaths.Any())
                 {
-                    RecordGenerator.AssignGenericAssetPaths(npcInfo, genericArmorAddonPaths, patchedNPC, templateLinkCache, outputMod, GetLongestPath(genericArmorAddonPaths), true, false, npcObjectMap, objectCaches);
+                    RecordGenerator.AssignGenericAssetPaths(npcInfo, genericArmorAddonPaths, patchedNPC, templateLinkCache, outputMod, GetLongestPath(genericArmorAddonPaths), true, false, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>());
                 }
             }
             else // if record is one that has previously been generated, update any SynthEBD-generated armature to ensure that the current NPC's race is present within the Additional Races collection.
@@ -385,7 +385,7 @@ namespace SynthEBD
 
             if (additionalGenericPaths.Any())
             {
-                RecordGenerator.AssignGenericAssetPaths(npcInfo, additionalGenericPaths, targetNPC, templateLinkCache, outputMod, GetLongestPath(additionalGenericPaths), true, false, npcObjectMap, objectCaches);
+                RecordGenerator.AssignGenericAssetPaths(npcInfo, additionalGenericPaths, targetNPC, templateLinkCache, outputMod, GetLongestPath(additionalGenericPaths), true, false, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>());
             }
 
             return newArmorAddon;
@@ -595,7 +595,7 @@ namespace SynthEBD
                 {
                     foreach (var path in subgroup.Paths)
                     {
-                        var parsed = new FilePathReplacementParsed(path, npcInfo, combination.AssetPack, recordTemplateLinkCache);
+                        var parsed = new FilePathReplacementParsed(path, npcInfo, combination.AssetPack, recordTemplateLinkCache, combination);
 
                         nonHardcodedPaths.Add(parsed);
                         if (parsed.Destination.Length > longestPath)
@@ -607,7 +607,7 @@ namespace SynthEBD
                 if (nonHardcodedPaths.Any())
                 {
                     var currentNPC = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
-                    RecordGenerator.AssignGenericAssetPaths(npcInfo, nonHardcodedPaths, currentNPC, null, outputMod, longestPath, false, true, npcObjectMap, objectCaches);
+                    RecordGenerator.AssignGenericAssetPaths(npcInfo, nonHardcodedPaths, currentNPC, null, outputMod, longestPath, false, true, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>());
                 }
             }
             else if (combination.DestinationType != SubgroupCombination.DestinationSpecifier.Main)

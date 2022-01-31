@@ -62,6 +62,7 @@ namespace SynthEBD
                 EBDCoreRecords.ApplyHelperSpell(outputMod, EBDHelperSpell);
 
                 RecordGenerator.Reinitialize();
+                CombinationLog.Reinitialize();
             }
 
             // Several operations are performed that mutate the input settings. For Asset Packs this does not affect saved settings because the operations are performed on the derived FlattenedAssetPacks, but for BodyGen configs and OBody settings these are made directly to the settings files. Therefore, create a deep copy of the configs and operate on those to avoid altering the user's saved settings upon exiting the program
@@ -121,6 +122,11 @@ namespace SynthEBD
             Logger.StopTimer();
             Logger.LogMessage("Finished patching in " + Logger.GetEllapsedTime());
             Logger.UpdateStatus("Finished Patching in " + Logger.GetEllapsedTime(), false);
+
+            if (PatcherSettings.General.bChangeMeshesOrTextures)
+            {
+                CombinationLog.WriteToFile();
+            }
 
             if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
             {
@@ -379,7 +385,9 @@ namespace SynthEBD
                     #region Generate Records
                     var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
                     var npcObjectMap = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", npcRecord} };
-                    RecordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, recordTemplateLinkCache, npcObjectMap, objectCaches, outputMod);
+                    var assignedPaths = new List<FilePathReplacementParsed>(); // for logging only
+                    RecordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, recordTemplateLinkCache, npcObjectMap, objectCaches, outputMod, assignedPaths);
+                    CombinationLog.LogAssignment(currentNPCInfo, assignedCombinations, assignedPaths);
                     if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
                     npcRecord.Keywords.Add(EBDFaceKW);
                     npcRecord.Keywords.Add(EBDScriptKW);
