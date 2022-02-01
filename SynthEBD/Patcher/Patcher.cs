@@ -394,6 +394,11 @@ namespace SynthEBD
                     #endregion
                 }
 
+                if (PatcherSettings.TexMesh.bForceVanillaBodyMeshPath)
+                {
+                    AssetSelector.SetVanillaBodyPath(currentNPCInfo, outputMod);
+                }
+
                 #region Height assignment
                 if (PatcherSettings.General.bChangeHeight && !blockHeight && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.HeightRace))
                 {

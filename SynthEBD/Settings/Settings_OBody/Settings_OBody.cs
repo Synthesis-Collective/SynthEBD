@@ -21,6 +21,7 @@ namespace SynthEBD
             this.MaleSliderGroups = new HashSet<string>();
             this.FemaleSliderGroups = new HashSet<string>();
             this.DescriptorRules = new HashSet<BodyShapeDescriptorRules>();
+            this.UseVerboseScripts = false;
         }
         public List<BodySlideSetting> BodySlidesMale { get; set; }
         public List<BodySlideSetting> BodySlidesFemale { get; set; }
@@ -29,6 +30,7 @@ namespace SynthEBD
         public HashSet<string> MaleSliderGroups { get; set; }
         public HashSet<string> FemaleSliderGroups { get; set; }
         public HashSet<BodyShapeDescriptorRules> DescriptorRules { get; set; }
+        public bool UseVerboseScripts { get; set; }
         
         [JsonIgnore]
         public HashSet<string> CurrentlyExistingBodySlides { get; set; }

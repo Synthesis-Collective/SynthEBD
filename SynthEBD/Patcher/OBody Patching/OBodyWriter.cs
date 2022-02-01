@@ -124,12 +124,21 @@ namespace SynthEBD
             var destPath = "";
             switch(PatcherSettings.General.BSSelectionMode)
             {
-                case BodySlideSelectionMode.OBody: 
-                    sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScript", "OBody", "SynthEBDBodySlideScriptOBody.pex");
+                case BodySlideSelectionMode.OBody:
+                    switch(PatcherSettings.OBody.UseVerboseScripts)
+                    {
+                        case false: sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScript", "OBody", "SynthEBDBodySlideScriptOBody.pex"); break;
+                        case true: sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScript - Verbose Versions", "OBody", "SynthEBDBodySlideScriptOBody.pex"); break;
+                    }
+                    
                     destPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Scripts", "SynthEBDBodySlideScriptOBody.pex");
                     break;
-                case BodySlideSelectionMode.AutoBody: 
-                    sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScript", "AutoBody", "SynthEBDBodySlideScriptAutoBody.pex");
+                case BodySlideSelectionMode.AutoBody:
+                    switch (PatcherSettings.OBody.UseVerboseScripts)
+                    {
+                        case false: sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScript", "AutoBody", "SynthEBDBodySlideScriptAutoBody.pex"); break;
+                        case true: sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScript - Verbose Versions", "AutoBody", "SynthEBDBodySlideScriptAutoBody.pex"); break;
+                    }
                     destPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Scripts", "SynthEBDBodySlideScriptAutoBody.pex");
                     break;
             }

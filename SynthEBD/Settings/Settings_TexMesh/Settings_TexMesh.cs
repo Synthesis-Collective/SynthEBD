@@ -15,7 +15,7 @@ namespace SynthEBD
             this.bChangeNPCMeshes = true;
             this.bApplyToNPCsWithCustomSkins = true;
             this.bApplyToNPCsWithCustomFaces = true;
-            this.bForwardArmatureFromExistingWNAMs = true;
+            this.bForceVanillaBodyMeshPath = false;
             this.bDisplayPopupAlerts = true;
             this.bGenerateAssignmentLog = true;
             this.SelectedAssetPacks = new HashSet<string>();
@@ -26,7 +26,7 @@ namespace SynthEBD
         public bool bChangeNPCMeshes { get; set; }
         public bool bApplyToNPCsWithCustomSkins { get; set; }
         public bool bApplyToNPCsWithCustomFaces { get; set; }
-        public bool bForwardArmatureFromExistingWNAMs { get; set; }
+        public bool bForceVanillaBodyMeshPath { get; set; }
         public bool bDisplayPopupAlerts { get; set; }
         public bool bGenerateAssignmentLog { get; set; }
 

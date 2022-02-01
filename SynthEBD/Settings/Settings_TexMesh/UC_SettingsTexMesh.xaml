@@ -38,11 +38,8 @@
             <TextBlock Grid.Column="0" Grid.Row="3">Patch NPCs with custom faces</TextBlock>
             <CheckBox Grid.Column="1" Grid.Row="3" IsChecked="{Binding Path=bApplyToNPCsWithCustomFaces, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="4">Forward armature from existing WNAM if available</TextBlock>
-            <CheckBox Grid.Column="1" Grid.Row="4" IsChecked="{Binding Path=bForwardArmatureFromExistingWNAMs, Mode=TwoWay}"></CheckBox>
-<!--
-            <TextBlock Grid.Column="0" Grid.Row="5">Display popup alerts from config files</TextBlock>
-            <CheckBox Grid.Column="1" Grid.Row="5" IsChecked="{Binding Path=bDisplayPopupAlerts, Mode=TwoWay}"></CheckBox> -->
+            <TextBlock Grid.Column="0" Grid.Row="4">Force vanilla body mesh paths</TextBlock>
+            <CheckBox Grid.Column="1" Grid.Row="4" IsChecked="{Binding Path=bForceVanillaBodyMeshPath, Mode=TwoWay}"></CheckBox>
 
             <TextBlock Grid.Column="0" Grid.Row="6">Generate permutation assignment log</TextBlock>
             <CheckBox Grid.Column="1" Grid.Row="6" IsChecked="{Binding Path=bGenerateAssignmentLog, Mode=TwoWay}"></CheckBox>

@@ -14,6 +14,7 @@ namespace SynthEBD
         {
             MaleBodySlideGroups = new ObservableCollection<VM_CollectionMemberString>();
             FemaleBodySlideGroups = new ObservableCollection<VM_CollectionMemberString>();
+            UseVerboseScripts = false;
 
             SetRaceMenuINI = new SynthEBD.RelayCommand(
                canExecute: _ => true,
@@ -44,6 +45,7 @@ namespace SynthEBD
 
         public ObservableCollection<VM_CollectionMemberString> MaleBodySlideGroups { get; set; }
         public ObservableCollection<VM_CollectionMemberString> FemaleBodySlideGroups { get; set; }
+        public bool UseVerboseScripts { get; set; }
 
         public RelayCommand SetRaceMenuINI { get; }
         public RelayCommand AddMaleSliderGroup { get; set; }
@@ -64,6 +66,7 @@ namespace SynthEBD
             {
                 viewModel.FemaleBodySlideGroups.Add(new VM_CollectionMemberString(g, viewModel.FemaleBodySlideGroups));
             }
+            viewModel.UseVerboseScripts = model.UseVerboseScripts;
             return viewModel;
         }
 
@@ -71,6 +74,7 @@ namespace SynthEBD
         {
             model.MaleSliderGroups = viewModel.MaleBodySlideGroups.Select(x => x.Content).ToHashSet();
             model.FemaleSliderGroups = viewModel.FemaleBodySlideGroups.Select(x => x.Content).ToHashSet();
+            model.UseVerboseScripts = viewModel.UseVerboseScripts;
         }
     }
 }

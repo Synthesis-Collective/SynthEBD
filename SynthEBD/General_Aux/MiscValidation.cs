@@ -185,8 +185,8 @@ namespace SynthEBD
         public static bool VerifyBodySlideAnnotations(Settings_OBody obodySettings)
         {
             List<string> bsMissingDescriptors = new List<string>();
-            GetMissingBodySlideAnnotations(obodySettings.BodySlidesMale, bsMissingDescriptors);
-            GetMissingBodySlideAnnotations(obodySettings.BodySlidesFemale, bsMissingDescriptors);
+            GetMissingBodySlideAnnotations(obodySettings.BodySlidesMale, obodySettings.CurrentlyExistingBodySlides, bsMissingDescriptors);
+            GetMissingBodySlideAnnotations(obodySettings.BodySlidesFemale, obodySettings.CurrentlyExistingBodySlides, bsMissingDescriptors);
 
             if (bsMissingDescriptors.Any())
             {
@@ -200,10 +200,11 @@ namespace SynthEBD
             }
         }
 
-        public static void GetMissingBodySlideAnnotations(List<BodySlideSetting> bodySlides, List<string> bsMissingDescriptors)
+        public static void GetMissingBodySlideAnnotations(List<BodySlideSetting> bodySlidesInSettings, HashSet<string> bodySlideNamesInDataFolder, List<string> bsMissingDescriptors)
         {
-            foreach (var bs in bodySlides)
+            foreach (var bs in bodySlidesInSettings)
             {
+                if (!bodySlideNamesInDataFolder.Contains(bs.Label)) { continue; } // don't validate bodyslides that aren't currently loaded because they won't be distributed anyway
                 if (bs.AllowRandom && !bs.BodyShapeDescriptors.Any())
                 {
                     bsMissingDescriptors.Add(bs.Label);
@@ -231,7 +232,7 @@ namespace SynthEBD
         public static bool VerifyGeneratedTriFilesForOBody(Settings_OBody oBodySettings)
         {
             bool valid = true;
-            if (oBodySettings.BodySlidesMale.Where(x => x.AllowRandom).Any())
+            if (oBodySettings.BodySlidesMale.Where(x => x.AllowRandom && oBodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).Any())
             {
                 string triPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
                 if (!File.Exists(triPath))
@@ -241,7 +242,7 @@ namespace SynthEBD
                 }
             }
 
-            if (oBodySettings.BodySlidesFemale.Where(x => x.AllowRandom).Any())
+            if (oBodySettings.BodySlidesFemale.Where(x => x.AllowRandom && oBodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).Any())
             {
                 string triPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
                 if (!File.Exists(triPath))

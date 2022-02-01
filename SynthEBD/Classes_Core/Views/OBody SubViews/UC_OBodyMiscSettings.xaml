@@ -18,6 +18,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <Button Command="{Binding SetRaceMenuINI}" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="0 0 0 10" Foreground="LightGreen" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3">Set RaceMenu INI to enable OBody/AutoBody</Button>
@@ -47,5 +48,8 @@
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
+
+        <TextBlock Grid.Row="3" Grid.Column="0" ToolTip="Display in-game notification when assigning a Bodyslide" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Use Verbose Scripts</TextBlock>
+        <CheckBox Grid.Row="3" Grid.Column="1" IsChecked="{Binding UseVerboseScripts}"></CheckBox>
     </Grid>
 </UserControl>

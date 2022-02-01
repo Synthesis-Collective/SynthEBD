@@ -14,6 +14,10 @@
     <None Remove="Resources\BodySlideQuest\SynthEBD.seq" />
     <None Remove="Resources\BodySlideQuest\SynthEBDBodySlideLoaderPAScript.pex" />
     <None Remove="Resources\BodySlideQuest\SynthEBDBodySlideLoaderQuestScript.pex" />
+    <None Remove="Resources\BodySlideScript - Verbose Versions\AutoBody\source\SynthEBDBodySlideScriptAutoBody.psc" />
+    <None Remove="Resources\BodySlideScript - Verbose Versions\AutoBody\SynthEBDBodySlideScriptAutoBody.pex" />
+    <None Remove="Resources\BodySlideScript - Verbose Versions\OBody\source\SynthEBDBodySlideScriptOBody.psc" />
+    <None Remove="Resources\BodySlideScript - Verbose Versions\OBody\SynthEBDBodySlideScriptOBody.pex" />
     <None Remove="Resources\BodySlideScript\AutoBody\source\SynthEBDBodySlideScriptAutoBody.psc" />
     <None Remove="Resources\BodySlideScript\AutoBody\SynthEBDBodySlideScriptAutoBody.pex" />
     <None Remove="Resources\BodySlideScript\OBody\source\SynthEBDBodySlideScriptOBody.psc" />
@@ -39,6 +43,18 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Resources\BodySlideQuest\SynthEBDBodySlideLoaderQuestScript.pex">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\BodySlideScript - Verbose Versions\AutoBody\source\SynthEBDBodySlideScriptAutoBody.psc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\BodySlideScript - Verbose Versions\AutoBody\SynthEBDBodySlideScriptAutoBody.pex">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\BodySlideScript - Verbose Versions\OBody\source\SynthEBDBodySlideScriptOBody.psc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\BodySlideScript - Verbose Versions\OBody\SynthEBDBodySlideScriptOBody.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Resources\BodySlideScript\AutoBody\source\SynthEBDBodySlideScriptAutoBody.psc">

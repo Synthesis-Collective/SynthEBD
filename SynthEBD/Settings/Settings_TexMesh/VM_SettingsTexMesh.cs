@@ -19,7 +19,7 @@ namespace SynthEBD
             this.bChangeNPCMeshes = true;
             this.bApplyToNPCsWithCustomSkins = true;
             this.bApplyToNPCsWithCustomFaces = true;
-            this.bForwardArmatureFromExistingWNAMs = true;
+            this.bForceVanillaBodyMeshPath = false;
             this.bDisplayPopupAlerts = true;
             this.bGenerateAssignmentLog = true;
             this.TrimPaths = new ObservableCollection<TrimPath>();
@@ -91,7 +91,7 @@ namespace SynthEBD
         public bool bChangeNPCMeshes { get; set; }
         public bool bApplyToNPCsWithCustomSkins { get; set; }
         public bool bApplyToNPCsWithCustomFaces { get; set; }
-        public bool bForwardArmatureFromExistingWNAMs { get; set; }
+        public bool bForceVanillaBodyMeshPath { get; set; }
         public bool bDisplayPopupAlerts { get; set; }
         public bool bGenerateAssignmentLog { get; set; }
 
@@ -130,7 +130,7 @@ namespace SynthEBD
             viewModel.bChangeNPCMeshes = model.bChangeNPCMeshes;
             viewModel.bApplyToNPCsWithCustomSkins = model.bApplyToNPCsWithCustomSkins;
             viewModel.bApplyToNPCsWithCustomFaces = model.bApplyToNPCsWithCustomFaces;
-            viewModel.bForwardArmatureFromExistingWNAMs = model.bForwardArmatureFromExistingWNAMs;
+            viewModel.bForceVanillaBodyMeshPath = model.bForceVanillaBodyMeshPath;
             viewModel.bDisplayPopupAlerts = model.bDisplayPopupAlerts;
             viewModel.bGenerateAssignmentLog = model.bGenerateAssignmentLog;
             viewModel.TrimPaths = new ObservableCollection<TrimPath>(model.TrimPaths);
@@ -142,7 +142,7 @@ namespace SynthEBD
             model.bChangeNPCMeshes = viewModel.bChangeNPCMeshes;
             model.bApplyToNPCsWithCustomSkins = viewModel.bApplyToNPCsWithCustomSkins;
             model.bApplyToNPCsWithCustomFaces = viewModel.bApplyToNPCsWithCustomFaces;
-            model.bForwardArmatureFromExistingWNAMs = viewModel.bForwardArmatureFromExistingWNAMs;
+            model.bForceVanillaBodyMeshPath = viewModel.bForceVanillaBodyMeshPath;
             model.bDisplayPopupAlerts = viewModel.bDisplayPopupAlerts;
             model.bGenerateAssignmentLog = viewModel.bGenerateAssignmentLog;
             model.SelectedAssetPacks = viewModel.AssetPacks.Where(x => x.IsSelected).Select(x => x.groupName).ToHashSet();

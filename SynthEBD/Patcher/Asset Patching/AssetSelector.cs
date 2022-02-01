@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Mutagen.Bethesda;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 
@@ -883,5 +884,40 @@ namespace SynthEBD
         }
 
         public static string[] BaseGamePlugins = new string[] { "Skyrim.esm", "Update.esm", "Dawnguard.esm", "HearthFires.esm", "Dragonborn.esm" };
+
+        public static void SetVanillaBodyPath(NPCInfo npcInfo, SkyrimMod outputMod)
+        {
+            if (npcInfo.NPC.WornArmor != null && !npcInfo.NPC.WornArmor.IsNull && PatcherEnvironmentProvider.Environment.LinkCache.TryResolve<IArmorGetter>(npcInfo.NPC.WornArmor.FormKey, out var skin))
+            {
+                foreach (var armaGetter in skin.Armature)
+                { 
+                    if (PatcherEnvironmentProvider.Environment.LinkCache.TryResolve<IArmorAddonGetter>(armaGetter.FormKey, out var armature) && armature.BodyTemplate != null && armature.WorldModel != null && armature.BodyTemplate.FirstPersonFlags.HasFlag(BipedObjectFlag.Body) && Patcher.PatchableRaces.Contains(armature.Race))
+                    {
+                        string vanillaPath;
+                        switch(npcInfo.Gender)
+                        {
+                            case Gender.Male: 
+                                vanillaPath = "Actors\\Character\\Character Assets\\MaleBody_1.NIF";
+                                if (armature.WorldModel.Male != null && armature.WorldModel.Male.File != null && !armature.WorldModel.Male.File.Equals(vanillaPath, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    var moddedArmature = outputMod.ArmorAddons.GetOrAddAsOverride(armature);
+                                    moddedArmature.WorldModel.Male.File = vanillaPath;
+                                    return;
+                                }
+                                break;
+                            case Gender.Female: 
+                                vanillaPath = "Actors\\Character\\Character Assets\\FemaleBody_1.nif";
+                                if (armature.WorldModel.Female != null && armature.WorldModel.Female.File != null && !armature.WorldModel.Female.File.Equals(vanillaPath, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    var moddedArmature = outputMod.ArmorAddons.GetOrAddAsOverride(armature);
+                                    moddedArmature.WorldModel.Female.File = vanillaPath;
+                                    return;
+                                }
+                                break;
+                        }
+                    }
+                }
+            }
+        }
     }
 }
