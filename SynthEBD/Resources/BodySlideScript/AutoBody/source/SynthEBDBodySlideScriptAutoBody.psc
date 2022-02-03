@@ -11,13 +11,34 @@ Event OnEffectStart(Actor akTarget, Actor akCaster)
 	endwhile
 	
 	If (!JFormDB_hasPath(akCaster, ".SynthEBD.Assigned") || JFormDB_getInt(akCaster, ".SynthEBD.Assigned") == 0)
-		string assignment = JFormDB_getStr(akCaster.GetActorBase(), ".SynthEBD.BodySlide")
+		form akBase = akCaster.GetLeveledActorBase().GetTemplate()
+		string actorName = ""
+		bool lockAssignment = false
+		if akBase == None
+			akBase = akCaster.GetActorBase().GetTemplate()
+			actorName = akCaster.GetActorBase().GetName()
+			if akBase == None
+				akBase = akCaster.GetActorBase()
+				lockAssignment = true
+			endif
+		else
+			actorName = akCaster.GetLeveledActorBase().GetName()
+		endif
+		
+		string assignment = JFormDB_getStr(akBase, ".SynthEBD.BodySlide")
+		if actorName == ""
+			actorName = "Unnamed"
+		endif
 		if assignment != ""
 			autoBodyUtils.ApplyPresetByName(akCaster, assignment)
-			JFormDB_setInt(akCaster, ".SynthEBD.Assigned", 1)
-			;debug.Trace("Assigned bodyslide preset: " + assignment + " to NPC: " + akCaster.GetActorBase().GetName())
+			;debug.Notification("Assigned bodyslide preset: " + assignment + " to NPC: " + actorName)
+			;debug.Trace("Assigned bodyslide preset: " + assignment + " to NPC: " + actorName + " (" + akBase + ")")
+			if lockAssignment
+				JFormDB_setInt(akCaster, ".SynthEBD.Assigned", 1)
+			endif
 		else 
-			debug.Trace("No assignment recorded for NPC: " + akCaster.GetActorBase().GetName())
+			;debug.Notification("No assignment recorded for NPC: " + actorName)
+			;debug.Trace("No assignment recorded for NPC: " + actorName + " (" + akBase + ")")
 		endif
     EndIf
 EndEvent

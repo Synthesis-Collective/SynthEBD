@@ -209,14 +209,20 @@ namespace SynthEBD
 
                 if (assetPathMapping.ContainsKey(assetPath))
                 {
-                    PatcherIO.CreateDirectoryIfNeeded(assetPathMapping[assetPath], PatcherIO.PathType.File);
-                    File.Move(fullPath, assetPathMapping[assetPath]);
+                    if (!File.Exists(assetPathMapping[assetPath]))
+                    {
+                        PatcherIO.CreateDirectoryIfNeeded(assetPathMapping[assetPath], PatcherIO.PathType.File);
+                        File.Move(fullPath, assetPathMapping[assetPath]);
+                    }
                 }
                 else
                 {
                     string destination = GenerateInstalledPath(extractedPath, manifest);
-                    PatcherIO.CreateDirectoryIfNeeded(destination, PatcherIO.PathType.File);
-                    File.Move(fullPath, destination);
+                    if (!File.Exists(destination))
+                    {
+                        PatcherIO.CreateDirectoryIfNeeded(destination, PatcherIO.PathType.File);
+                        File.Move(fullPath, destination);
+                    }
                 }
             }
 
@@ -286,7 +292,7 @@ namespace SynthEBD
                 var zArchive = SevenZipArchive.Open(archiveInfo, new ReaderOptions());
                 using (var reader = zArchive.ExtractAllEntries())
                 {
-                    var options = new ExtractionOptions();
+                    var options = new ExtractionOptions() { Overwrite = true };
                     options.ExtractFullPath = true;
                     reader.WriteAllToDirectory(destinationPath, options);
                 }
@@ -298,7 +304,7 @@ namespace SynthEBD
                 var rArchive = RarArchive.Open(archiveInfo, new ReaderOptions());
                 using (var reader = rArchive.ExtractAllEntries())
                 {
-                    var options = new ExtractionOptions();
+                    var options = new ExtractionOptions() { Overwrite = true };
                     options.ExtractFullPath = true;
                     reader.WriteAllToDirectory(destinationPath, options);
                 }
@@ -310,7 +316,7 @@ namespace SynthEBD
                 var ziArchive = ZipArchive.Open(archiveInfo, new ReaderOptions());
                 using (var reader = ziArchive.ExtractAllEntries())
                 {
-                    var options = new ExtractionOptions();
+                    var options = new ExtractionOptions() { Overwrite = true };
                     options.ExtractFullPath = true;
                     reader.WriteAllToDirectory(destinationPath, options);
                 }

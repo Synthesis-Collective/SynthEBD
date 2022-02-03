@@ -146,14 +146,19 @@ namespace SynthEBD
             TryCopyResourceFile(sourcePath, destPath);
         }
 
-        public static void ApplyBodySlideSpell(INpcGetter npcGetter, Spell bodySlideSpell, SkyrimMod outputMod)
+        public static void WriteBodySlideSPIDIni(Spell bodySlideSpell, Settings_OBody obodySettings, SkyrimMod outputMod)
         {
-            var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
-            if (npc.ActorEffect == null)
-            {
-                npc.ActorEffect = new Noggog.ExtendedList<Mutagen.Bethesda.Plugins.IFormLinkGetter<ISpellRecordGetter>>(); 
-            }
-            npc.ActorEffect.Add(bodySlideSpell);
+            string str = "Spell = " + bodySlideSpell.FormKey.ToString().Replace(":", " - ") + " | ActorTypeNPC | NONE | NONE | "; // original format - SPID auto-updates but this is compatible with old SPID versions
+
+            bool hasMaleBodySlides = obodySettings.BodySlidesMale.Where(x => obodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).Any();
+            bool hasFemaleBodySlides = obodySettings.BodySlidesFemale.Where(x => obodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).Any();
+
+            if (!hasMaleBodySlides && !hasFemaleBodySlides) { return; }
+            else if (hasMaleBodySlides && !hasFemaleBodySlides) { str += "M"; }
+            else if (!hasMaleBodySlides && hasFemaleBodySlides) { str += "F"; }
+
+            string outputPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini");
+            Task.Run(() => PatcherIO.WriteTextFile(outputPath, str));
         }
 
         public static void WriteAssignmentDictionary()

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Mutagen.Bethesda.Skyrim;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -47,6 +48,18 @@ namespace SynthEBD
             foreach (var rule in oBodySettings.DescriptorRules)
             {
                 rule.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(rule.AllowedRaceGroupings, PatcherSettings.General.RaceGroupings, rule.AllowedRaces);
+            }
+        }
+
+        public static bool NPCIsEligibleForBodySlide(INpcGetter npc)
+        {
+            if (npc.Configuration.TemplateFlags.HasFlag(NpcConfiguration.TemplateFlag.Traits) && npc.Template != null && !npc.Template.FormKey.IsNull)
+            {
+                return false;
+            }
+            else
+            {
+                return true;
             }
         }
     }

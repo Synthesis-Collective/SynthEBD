@@ -117,6 +117,18 @@ namespace SynthEBD
             return verified;
         }
 
+        public static bool VerifySPIDInstalled()
+        {
+            string dllPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins", "po3_SpellPerkItemDistributor.dll");
+            if (!File.Exists(dllPath))
+            {
+                Logger.LogMessage("Could not find po3_SpellPerkItemDistributor.dll from Spell Perk Item Distributor at " + dllPath);
+                Logger.LogMessage("Please make sure Spell Perk Item Distributor is enabled.");
+                return false;
+            }
+            return true;
+        }
+
         public static bool VerifyBodyGenAnnotations(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs)
         {
             bool valid = true;

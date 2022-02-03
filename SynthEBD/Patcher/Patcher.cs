@@ -93,6 +93,7 @@ namespace SynthEBD
                 OBodyWriter.CreateSynthEBDDomain();
                 OBodyWriter.CreateBodySlideLoaderQuest(outputMod, bodyslidesLoaded);
                 bodySlideAssignmentSpell = OBodyWriter.CreateOBodyAssignmentSpell(outputMod, bodyslidesLoaded);
+                OBodyWriter.WriteBodySlideSPIDIni(bodySlideAssignmentSpell, copiedOBodySettings, outputMod);
 
                 BodySlideTracker = new Dictionary<FormKey, string>();
             }
@@ -246,7 +247,7 @@ namespace SynthEBD
                 if (blockListNPCEntry.Assets || blockListPluginEntry.Assets || AssetSelector.BlockAssetDistributionByExistingAssets(currentNPCInfo)) { blockAssets = true; }
                 else { blockAssets = false; }
 
-                if (blockListNPCEntry.BodyShape || blockListPluginEntry.BodyShape) { blockBodyShape = true; }
+                if (blockListNPCEntry.BodyShape || blockListPluginEntry.BodyShape || !OBodyPreprocessing.NPCIsEligibleForBodySlide(npc)) { blockBodyShape = true; }
                 else { blockBodyShape = false; }
 
                 if (blockListNPCEntry.Height || blockListPluginEntry.Height) { blockHeight = true; }
@@ -299,7 +300,6 @@ namespace SynthEBD
 
                             case BodyShapeSelectionMode.BodySlide:
                                 BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedPrimaryComboAndBodyShape.AssignedOBodyPreset.Label);
-                                OBodyWriter.ApplyBodySlideSpell(npc, bodySlideAssignmentSpell, outputMod);
                                 OBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedOBodyPreset, currentNPCInfo);
                                 break;
                         }
@@ -337,7 +337,6 @@ namespace SynthEBD
                             if (success)
                             {
                                 BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedPreset.Label);
-                                OBodyWriter.ApplyBodySlideSpell(npc, bodySlideAssignmentSpell, outputMod);
                                 OBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedPreset, currentNPCInfo);
                                 assignedPrimaryComboAndBodyShape.AssignedOBodyPreset = assignedPreset;
                             }

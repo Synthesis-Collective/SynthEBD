@@ -348,7 +348,7 @@ namespace SynthEBD
                 if (firstValidCombinationShapePairInitialized)
                 {
                     Logger.LogMessage("Could not assign an asset combination to " + npcInfo.LogIDstring + " that is compatible with its consistency Body Shape. A valid combination was assigned, but Body Shape assignment will be re-randomized.");
-                    Logger.LogReport("Could not assign an asset combination to " + npcInfo.LogIDstring + " that is compatible with its consistency Body Shape (" + String.Join(", ", npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames) + "). A valid combination was assigned, but Body Shape assignment will be re-randomized.", true, npcInfo);
+                    Logger.LogReport("Could not assign an asset combination to " + npcInfo.LogIDstring + " that is compatible with its consistency Body Shape. A valid combination was assigned, but Body Shape assignment will be re-randomized.", true, npcInfo);
 
                     assignedCombination = firstValidCombinationShapePair.Item1;
                     switch (PatcherSettings.General.BodySelectionMode)

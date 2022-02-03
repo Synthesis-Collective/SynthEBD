@@ -119,6 +119,11 @@ namespace SynthEBD
                     {
                         valid = false;
                     }
+
+                    if (!MiscValidation.VerifySPIDInstalled())
+                    {
+                        valid = false;
+                    }
                 }
                 else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
                 {
