@@ -18,13 +18,11 @@ namespace SynthEBD
 
             if (File.Exists(PatcherSettings.Paths.TexMeshSettingsPath))
             {
-                string text = File.ReadAllText(PatcherSettings.Paths.TexMeshSettingsPath);
-                texMeshSettings = JsonConvert.DeserializeObject<Settings_TexMesh>(text);
+                texMeshSettings = JSONhandler<Settings_TexMesh>.LoadJSONFile(PatcherSettings.Paths.TexMeshSettingsPath);
             }
             else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.TexMeshSettingsPath)))
             {
-                string text = File.ReadAllText(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.TexMeshSettingsPath));
-                texMeshSettings = JsonConvert.DeserializeObject<Settings_TexMesh>(text);
+                texMeshSettings = JSONhandler<Settings_TexMesh>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.TexMeshSettingsPath));
             }
 
             texMeshSettings.TrimPaths = SettingsIO_Misc.LoadTrimPaths();
@@ -66,13 +64,13 @@ namespace SynthEBD
 
             try // first try deserializing to SynthEBD asset pack
             {
-                synthEBDconfig = JSONhandler<AssetPack>.loadJSONFile(path);
+                synthEBDconfig = JSONhandler<AssetPack>.LoadJSONFile(path);
             }
             catch
             {
                 try
                 {
-                    var zEBDconfig = JSONhandler<ZEBDAssetPack>.loadJSONFile(path);
+                    var zEBDconfig = JSONhandler<ZEBDAssetPack>.LoadJSONFile(path);
                     synthEBDconfig = ZEBDAssetPack.ToSynthEBDAssetPack(zEBDconfig, raceGroupings, recordTemplatePlugins, availableBodyGenConfigs);
                 }
                 catch

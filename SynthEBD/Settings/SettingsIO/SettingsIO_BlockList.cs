@@ -17,13 +17,13 @@ namespace SynthEBD
             {
                 try
                 {
-                    loadedList = JSONhandler<BlockList>.loadJSONFile(PatcherSettings.Paths.BlockListPath);
+                    loadedList = JSONhandler<BlockList>.LoadJSONFile(PatcherSettings.Paths.BlockListPath);
                 }
                 catch
                 {
                     try
                     {
-                        var loadedZList = JSONhandler<zEBDBlockList>.loadJSONFile(PatcherSettings.Paths.BlockListPath);
+                        var loadedZList = JSONhandler<zEBDBlockList>.LoadJSONFile(PatcherSettings.Paths.BlockListPath);
                         loadedList = zEBDBlockList.ToSynthEBD(loadedZList);
                     }
                     catch
@@ -37,13 +37,13 @@ namespace SynthEBD
             {
                 try
                 {
-                    loadedList = JSONhandler<BlockList>.loadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BlockListPath));
+                    loadedList = JSONhandler<BlockList>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BlockListPath));
                 }
                 catch
                 {
                     try
                     {
-                        var loadedZList = JSONhandler<zEBDBlockList>.loadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BlockListPath));
+                        var loadedZList = JSONhandler<zEBDBlockList>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BlockListPath));
                         loadedList = zEBDBlockList.ToSynthEBD(loadedZList);
                     }
                     catch

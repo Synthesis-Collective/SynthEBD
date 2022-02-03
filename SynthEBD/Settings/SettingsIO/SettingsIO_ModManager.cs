@@ -16,9 +16,7 @@ namespace SynthEBD
 
             if (File.Exists(PatcherSettings.Paths.ModManagerSettingsPath))
             {
-                string text = File.ReadAllText(PatcherSettings.Paths.ModManagerSettingsPath);
-                modManagerSettings = JsonConvert.DeserializeObject<Settings_ModManager>(text);
-
+                modManagerSettings = JSONhandler<Settings_ModManager>.LoadJSONFile(PatcherSettings.Paths.ModManagerSettingsPath);
                 if (modManagerSettings != null && string.IsNullOrWhiteSpace(modManagerSettings.CurrentInstallationFolder))
                 {
                     modManagerSettings.CurrentInstallationFolder = PatcherEnvironmentProvider.Environment.DataFolderPath;

@@ -16,16 +16,61 @@ namespace SynthEBD
 
             if (File.Exists(PatcherSettings.Paths.OBodySettingsPath))
             {
-                string text = File.ReadAllText(PatcherSettings.Paths.OBodySettingsPath);
-                oBodySettings = JsonConvert.DeserializeObject<Settings_OBody>(text);
+                oBodySettings = JSONhandler<Settings_OBody>.LoadJSONFile(PatcherSettings.Paths.OBodySettingsPath);
             }
             else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.OBodySettingsPath)))
             {
-                string text = File.ReadAllText(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.OBodySettingsPath));
-                oBodySettings = JsonConvert.DeserializeObject<Settings_OBody>(text);
+                oBodySettings = JSONhandler<Settings_OBody>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.OBodySettingsPath));
             }
 
             return oBodySettings;
+        }
+
+        public static Dictionary<string, HashSet<string>> LoadDefaultBodySlideAnnotation()
+        {
+            Dictionary<string, HashSet<string>> output = new Dictionary<string, HashSet<string>>();
+
+            string annotationDir = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "Default BodySlide Annotations");
+
+            if (Directory.Exists(annotationDir))
+            {
+                var filePaths = Directory.GetFiles(annotationDir, "*.csv").OrderBy(f => f); // sort alphabetical https://stackoverflow.com/questions/6294275/sorting-the-result-of-directory-getfiles-in-c-sharp
+
+                foreach (string path in filePaths)
+                {
+                    string[] lines = System.IO.File.ReadAllLines(path);
+                    foreach (string line in lines)
+                    {
+                        string[] columns = line.Split(',');
+                        
+                        if (columns.Length > 1)
+                        {
+                            string configName = columns[0].Trim();
+                            HashSet<string> descriptors = new HashSet<string>();
+
+                            for (int i = 1; i < columns.Length; i++ )
+                            {
+                                string descriptor = columns[i].Trim();
+                                if (descriptor.Any())
+                                {
+                                    descriptors.Add(columns[i].Trim());
+                                }
+                            }
+
+                            if (output.ContainsKey(configName))
+                            {
+                                output[configName] = descriptors;
+                            }
+                            else
+                            {
+                                output.Add(configName, descriptors);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return output;
         }
     }
 }

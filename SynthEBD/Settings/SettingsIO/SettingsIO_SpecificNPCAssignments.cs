@@ -17,7 +17,7 @@ namespace SynthEBD
             {
                 try
                 {
-                    specificNPCAssignments = JSONhandler<HashSet<NPCAssignment>>.loadJSONFile(PatcherSettings.Paths.SpecificNPCAssignmentsPath);
+                    specificNPCAssignments = JSONhandler<HashSet<NPCAssignment>>.LoadJSONFile(PatcherSettings.Paths.SpecificNPCAssignmentsPath);
                 }
                 catch
                 {
@@ -28,7 +28,7 @@ namespace SynthEBD
             {
                 try
                 {
-                    specificNPCAssignments = JSONhandler<HashSet<NPCAssignment>>.loadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.SpecificNPCAssignmentsPath));
+                    specificNPCAssignments = JSONhandler<HashSet<NPCAssignment>>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.SpecificNPCAssignmentsPath));
                 }
                 catch
                 {

@@ -15,7 +15,7 @@ namespace SynthEBD
         {
             if (File.Exists(Paths.GeneralSettingsPath))
             {
-                PatcherSettings.General = JSONhandler<Settings_General>.loadJSONFile(Paths.GeneralSettingsPath);
+                PatcherSettings.General = JSONhandler<Settings_General>.LoadJSONFile(Paths.GeneralSettingsPath);
                 if(PatcherSettings.General != null && string.IsNullOrWhiteSpace(PatcherSettings.General.OutputDataFolder))
                 {
                     PatcherSettings.General.OutputDataFolder = PatcherEnvironmentProvider.Environment.DataFolderPath;

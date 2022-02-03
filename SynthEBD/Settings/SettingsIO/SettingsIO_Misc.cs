@@ -16,12 +16,12 @@ namespace SynthEBD
 
             if (File.Exists(PatcherSettings.Paths.LinkedNPCNameExclusionsPath))
             {
-                exclusions = JSONhandler<HashSet<string>>.loadJSONFile(PatcherSettings.Paths.LinkedNPCNameExclusionsPath);
+                exclusions = JSONhandler<HashSet<string>>.LoadJSONFile(PatcherSettings.Paths.LinkedNPCNameExclusionsPath);
             }
             else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.LinkedNPCNameExclusionsPath)))
             {
                 // Warn User
-                exclusions = JSONhandler<HashSet<string>>.loadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.LinkedNPCNameExclusionsPath));
+                exclusions = JSONhandler<HashSet<string>>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.LinkedNPCNameExclusionsPath));
             }
             else
             {
@@ -49,12 +49,12 @@ namespace SynthEBD
 
             if (File.Exists(PatcherSettings.Paths.LinkedNPCsPath))
             {
-                linkedNPCGroups = JSONhandler<HashSet<LinkedNPCGroup>>.loadJSONFile(PatcherSettings.Paths.LinkedNPCsPath);
+                linkedNPCGroups = JSONhandler<HashSet<LinkedNPCGroup>>.LoadJSONFile(PatcherSettings.Paths.LinkedNPCsPath);
             }
             else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.LinkedNPCsPath)))
             {
                 // Warn User
-                linkedNPCGroups = JSONhandler<HashSet<LinkedNPCGroup>>.loadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.LinkedNPCsPath));
+                linkedNPCGroups = JSONhandler<HashSet<LinkedNPCGroup>>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.LinkedNPCsPath));
             }
             else
             {
@@ -82,12 +82,12 @@ namespace SynthEBD
 
             if (File.Exists(PatcherSettings.Paths.TrimPathsPath))
             {
-                trimPaths = JSONhandler<HashSet<TrimPath>>.loadJSONFile(PatcherSettings.Paths.TrimPathsPath);
+                trimPaths = JSONhandler<HashSet<TrimPath>>.LoadJSONFile(PatcherSettings.Paths.TrimPathsPath);
             }
             else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.TrimPathsPath)))
             {
                 // Warn User
-                trimPaths = JSONhandler<HashSet<TrimPath>>.loadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.TrimPathsPath));
+                trimPaths = JSONhandler<HashSet<TrimPath>>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.TrimPathsPath));
             }
             else
             {
@@ -114,11 +114,11 @@ namespace SynthEBD
             var loaded = new Dictionary<string, NPCAssignment>();
             if (File.Exists(PatcherSettings.Paths.ConsistencyPath))
             {
-                loaded = JSONhandler<Dictionary<string, NPCAssignment>>.loadJSONFile(PatcherSettings.Paths.ConsistencyPath);
+                loaded = JSONhandler<Dictionary<string, NPCAssignment>>.LoadJSONFile(PatcherSettings.Paths.ConsistencyPath);
             }
             else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.ConsistencyPath)))
             {
-                loaded = JSONhandler<Dictionary<string, NPCAssignment>>.loadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.ConsistencyPath));
+                loaded = JSONhandler<Dictionary<string, NPCAssignment>>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.ConsistencyPath));
             }
             // note: No need to alert user if consistency can't be loaded - it won't be available on first run
             return loaded;

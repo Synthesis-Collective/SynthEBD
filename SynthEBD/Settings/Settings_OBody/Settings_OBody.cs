@@ -15,7 +15,18 @@ namespace SynthEBD
         {
             this.BodySlidesMale = new List<BodySlideSetting>();
             this.BodySlidesFemale = new List<BodySlideSetting>();
-            this.TemplateDescriptors = new HashSet<BodyShapeDescriptor>();
+            this.TemplateDescriptors = new HashSet<BodyShapeDescriptor>()
+            {
+                new BodyShapeDescriptor(){Category = "Build", Value = "Slight", Signature = "Build: Slight"},
+                new BodyShapeDescriptor(){Category = "Build", Value = "Medium", Signature = "Build: Medium"},
+                new BodyShapeDescriptor(){Category = "Build", Value = "Curvy", Signature = "Build: Curvy"},
+                new BodyShapeDescriptor(){Category = "Build", Value = "Chubby", Signature = "Build: Chubby"},
+                new BodyShapeDescriptor(){Category = "Build", Value = "Exaggerated", Signature = "Build: Exaggerated"},
+                new BodyShapeDescriptor(){Category = "Build", Value = "Powerful", Signature = "Build: Powerful"},
+                new BodyShapeDescriptor(){Category = "Chest", Value = "Busty", Signature = "Build: Busty"},
+                new BodyShapeDescriptor(){Category = "Chest", Value = "Medium", Signature = "Build: Medium"},
+                new BodyShapeDescriptor(){Category = "Chest", Value = "Petite", Signature = "Build: Petite"},
+            };
             this.AttributeGroups = new HashSet<AttributeGroup>();
             this.CurrentlyExistingBodySlides = new HashSet<string>();
             this.MaleSliderGroups = new HashSet<string>();
@@ -35,10 +46,12 @@ namespace SynthEBD
         [JsonIgnore]
         public HashSet<string> CurrentlyExistingBodySlides { get; set; }
 
-        public void ImportBodySlides()
+        public void ImportBodySlides(HashSet<BodyShapeDescriptor> templateDescriptors)
         {
             if (!MaleSliderGroups.Any()) { MaleSliderGroups = new HashSet<string>() { "HIMBO" }; }
             if (!FemaleSliderGroups.Any()) { FemaleSliderGroups = new HashSet<string>() { "CBBE", "3BBB", "3BA", "UNP", "Unified UNP", "BHUNP 3BBB" }; }
+
+            var defaultAnnotationDict = SettingsIO_OBody.LoadDefaultBodySlideAnnotation();
 
             CurrentlyExistingBodySlides.Clear();
             List<BodySlideSetting> currentBodySlides = new List<BodySlideSetting>();
@@ -104,6 +117,18 @@ namespace SynthEBD
                         {
                             newPreset.AllowRandom = false;
                             newPreset.HideInMenu = true;
+                        }
+
+                        if (defaultAnnotationDict.ContainsKey(presetName))
+                        {
+                            foreach (var annotation in defaultAnnotationDict[presetName])
+                            {
+                                var descriptor = templateDescriptors.Where(x => x.Signature.Equals(annotation, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+                                if (descriptor != null)
+                                {
+                                    newPreset.BodyShapeDescriptors.Add(descriptor);
+                                }
+                            }
                         }
 
                         currentBodySlides.Add(newPreset);

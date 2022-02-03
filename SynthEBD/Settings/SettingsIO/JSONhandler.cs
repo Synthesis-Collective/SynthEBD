@@ -29,7 +29,7 @@ namespace SynthEBD
             return JsonConvert.DeserializeObject<T>(jsonInputStr, GetSynthEBDJSONSettings());
         }
 
-        public static T loadJSONFile(string loadLoc)
+        public static T LoadJSONFile(string loadLoc)
         {
             return Deserialize(File.ReadAllText(loadLoc));
         }

@@ -103,7 +103,7 @@ namespace SynthEBD
 
             // load OBody settings before asset packs - asset packs depend on BodyGen but not vice versa
             PatcherSettings.OBody = SettingsIO_OBody.LoadOBodySettings();
-            PatcherSettings.OBody.ImportBodySlides();
+            PatcherSettings.OBody.ImportBodySlides(PatcherSettings.OBody.TemplateDescriptors);
 
             // load heights
             PatcherSettings.Height = SettingsIO_Height.LoadHeightSettings();

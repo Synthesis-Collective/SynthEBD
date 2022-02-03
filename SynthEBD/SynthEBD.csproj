@@ -22,6 +22,11 @@
     <None Remove="Resources\BodySlideScript\AutoBody\SynthEBDBodySlideScriptAutoBody.pex" />
     <None Remove="Resources\BodySlideScript\OBody\source\SynthEBDBodySlideScriptOBody.psc" />
     <None Remove="Resources\BodySlideScript\OBody\SynthEBDBodySlideScriptOBody.pex" />
+    <None Remove="Resources\Default BodySlide Annotations\BHUNP 3BBB.csv" />
+    <None Remove="Resources\Default BodySlide Annotations\BHUNP Unified UNP.csv" />
+    <None Remove="Resources\Default BodySlide Annotations\CBBE.csv" />
+    <None Remove="Resources\Default BodySlide Annotations\HIMBO.csv" />
+    <None Remove="Resources\Default BodySlide Annotations\UNP.csv" />
     <None Remove="Resources\JContainers Domain\PSM_SynthEBD.pex" />
     <None Remove="Resources\JContainers Domain\Source\PSM_SynthEBD.psc" />
   </ItemGroup>
@@ -67,6 +72,21 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Resources\BodySlideScript\OBody\SynthEBDBodySlideScriptOBody.pex">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Default BodySlide Annotations\BHUNP 3BBB.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Default BodySlide Annotations\BHUNP Unified UNP.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Default BodySlide Annotations\CBBE.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Default BodySlide Annotations\HIMBO.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Default BodySlide Annotations\UNP.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Resources\JContainers Domain\PSM_SynthEBD.pex">

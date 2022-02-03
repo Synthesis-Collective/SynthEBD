@@ -16,13 +16,11 @@ namespace SynthEBD
 
             if (File.Exists(PatcherSettings.Paths.BodyGenSettingsPath))
             {
-                string text = File.ReadAllText(PatcherSettings.Paths.BodyGenSettingsPath);
-                bodygenSettings = JsonConvert.DeserializeObject<Settings_BodyGen>(text);
+                bodygenSettings = JSONhandler<Settings_BodyGen>.LoadJSONFile(PatcherSettings.Paths.BodyGenSettingsPath);
             }
             else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenSettingsPath)))
             {
-                string text = File.ReadAllText(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenSettingsPath));
-                bodygenSettings = JsonConvert.DeserializeObject<Settings_BodyGen>(text);
+                bodygenSettings = JSONhandler<Settings_BodyGen>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenSettingsPath));
             }
 
             return bodygenSettings;
@@ -52,7 +50,7 @@ namespace SynthEBD
 
                 try // first try deserializing to SynthEBD asset pack
                 {
-                    synthEBDconfig = JSONhandler<BodyGenConfig>.loadJSONFile(s);
+                    synthEBDconfig = JSONhandler<BodyGenConfig>.LoadJSONFile(s);
                     synthEBDconfig.FilePath = s;
                     switch(synthEBDconfig.Gender)
                     {

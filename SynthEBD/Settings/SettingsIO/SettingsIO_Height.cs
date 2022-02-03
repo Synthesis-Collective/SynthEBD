@@ -16,13 +16,11 @@ namespace SynthEBD
 
             if (File.Exists(PatcherSettings.Paths.HeightSettingsPath))
             {
-                string text = File.ReadAllText(PatcherSettings.Paths.HeightSettingsPath);
-                heightSettings = JsonConvert.DeserializeObject<Settings_Height>(text);
+                heightSettings = JSONhandler<Settings_Height>.LoadJSONFile(PatcherSettings.Paths.HeightSettingsPath);
             }
             else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightSettingsPath)))
             {
-                string text = File.ReadAllText(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightSettingsPath));
-                heightSettings = JsonConvert.DeserializeObject<Settings_Height>(text);
+                heightSettings = JSONhandler<Settings_Height>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightSettingsPath));
             }
 
             return heightSettings;
@@ -58,7 +56,7 @@ namespace SynthEBD
                 {
                     try
                     {
-                        var zEBDformatted = JSONhandler<HashSet<HeightAssignment.zEBDHeightAssignment>>.loadJSONFile(s);
+                        var zEBDformatted = JSONhandler<HashSet<HeightAssignment.zEBDHeightAssignment>>.LoadJSONFile(s);
                         HeightConfig fromZformat = new HeightConfig();
                         fromZformat.Label = Path.GetFileNameWithoutExtension(s);
 
@@ -119,7 +117,7 @@ namespace SynthEBD
                 {
                     try
                     {
-                        var hc = JSONhandler<HeightConfig>.loadJSONFile(s);
+                        var hc = JSONhandler<HeightConfig>.LoadJSONFile(s);
                         hc.FilePath = s;
                         loaded.Add(hc);
                     }
