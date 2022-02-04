@@ -25,7 +25,7 @@ namespace SynthEBD
             List<FilePathReplacementParsed> nonHardcodedPaths = new List<FilePathReplacementParsed>();
 
             HardcodedRecordGenerator.CategorizePaths(combinations, npcInfo, recordTemplateLinkCache, wnamPaths, headtexPaths, nonHardcodedPaths, out int longestPath, true); // categorize everything as generic for now.
-            
+
             if (!nonHardcodedPaths.Any() && !wnamPaths.Any() && !headtexPaths.Any()) { return; } // avoid making ITM if user blocks all assets of the type assigned (see AssetSelector.BlockAssetDistributionByExistingAssets())
 
             var currentNPC = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
@@ -47,7 +47,7 @@ namespace SynthEBD
 
         // assignedPaths is for logging purposes only
         public static void AssignGenericAssetPaths(NPCInfo npcInfo, List<FilePathReplacementParsed> nonHardcodedPaths, Npc rootNPC, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SkyrimMod outputMod, int longestPath, bool assignFromTemplate, bool suppressMissingPathErrors, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, List<FilePathReplacementParsed> assignedPaths)
-        { 
+        {
             HashSet<TemplateSignatureRecordPair> templateSubRecords = new HashSet<TemplateSignatureRecordPair>();
 
             dynamic currentObj = null;
@@ -57,7 +57,7 @@ namespace SynthEBD
                 #region Remove paths that were already assigned
                 for (int j = 0; j < nonHardcodedPaths.Count; j++)
                 {
-                    if (i == nonHardcodedPaths[j].Destination.Length) 
+                    if (i == nonHardcodedPaths[j].Destination.Length)
                     {
                         nonHardcodedPaths.RemoveAt(j);
                         j--;
@@ -106,7 +106,7 @@ namespace SynthEBD
                     }
                     #endregion
                     #region Traverse if NPC Setter record already has object at the current subpath but it has not yet been added to NPC object linkage map
-                    else if (RecordPathParser.GetObjectAtPath(rootNPC, group.Key, npcObjectMap, Patcher.MainLinkCache, suppressMissingPathErrors, Logger.GetNPCLogNameString(npcInfo.NPC) + "(Generated Override)", out currentObj, out currentObjInfo) && !currentObjInfo.IsNullFormLink) // if the current object is a sub-object of a template-derived record, it will not yet have been added to npcObjectMap in a previous iteration (note that it is added during this GetObjectAtPath() call so no need to add it again)
+                    else if (RecordPathParser.GetObjectAtPath(rootNPC, group.Key, npcObjectMap, Patcher.MainLinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC) + " (Generated Override)", out currentObj, out currentObjInfo) && !currentObjInfo.IsNullFormLink) // if the current object is a sub-object of a template-derived record, it will not yet have been added to npcObjectMap in a previous iteration (note that it is added during this GetObjectAtPath() call so no need to add it again)
                     {
                         npcSetterHasObject = true;
                         if (currentObjInfo.HasFormKey) // else does not need handling - if the NPC setter already has a given non-record object along the path, no further action is needed at this path segment.
@@ -121,7 +121,7 @@ namespace SynthEBD
                                     LogRecordAlongPaths(group, currentObj);
                                 }
                             }
-                            else if(!TraverseRecordFromNpc(currentObj, currentObjInfo, pathSignature, group, rootObj, currentSubPath, npcInfo, nonHardcodedPaths, outputMod, out currentObj))
+                            else if (!TraverseRecordFromNpc(currentObj, currentObjInfo, pathSignature, group, rootObj, currentSubPath, npcInfo, nonHardcodedPaths, outputMod, out currentObj))
                             {
                                 continue;
                             }
@@ -129,7 +129,7 @@ namespace SynthEBD
                     }
                     #endregion
                     #region Get object and traverse if the corresponding NPC Getter has an object at the curent subpath
-                    else if (RecordPathParser.GetObjectAtPath(npcInfo.NPC, group.Key, objectCaches[npcInfo.NPC.FormKey], Patcher.MainLinkCache, suppressMissingPathErrors, Logger.GetNPCLogNameString(npcInfo.NPC), out currentObj, out currentObjInfo) && !currentObjInfo.IsNullFormLink)
+                    else if (RecordPathParser.GetObjectAtPath(npcInfo.NPC, group.Key, objectCaches[npcInfo.NPC.FormKey], Patcher.MainLinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out currentObj, out currentObjInfo) && !currentObjInfo.IsNullFormLink)
                     {
                         if (currentObjInfo.HasFormKey)  // if the current object is a record, resolve it
                         {
@@ -153,7 +153,7 @@ namespace SynthEBD
                         {
                             if (RecordPathParser.ObjectHasFormKey(currentObj, out FormKey? _))
                             {
-                                SetViaFormKeyReplacement(currentObj, rootObj, currentSubPath, indexIfInArray, outputMod);
+                                SetViaFormKeyReplacement(currentObj, rootObj, currentSubPath);
                                 LogRecordAlongPaths(group, currentObj);
                             }
                             else
@@ -184,14 +184,14 @@ namespace SynthEBD
                     #endregion
                     else
                     {
-                        
+
                         Logger.LogError("Error: neither NPC " + npcInfo.LogIDstring + " nor the record templates " + GetTemplateName(group) + " contained a record at " + group.Key + ". Cannot assign this record.");
                         RemovePathsFromList(nonHardcodedPaths, group);
                     }
 
                     if (!skipObjectMapAssignment)
                     {
-                        switch(npcSetterHasObject)
+                        switch (npcSetterHasObject)
                         {
                             case false: npcObjectMap.Add(group.Key, currentObj); break;
                             case true: npcObjectMap[group.Key] = currentObj; break;
@@ -225,7 +225,7 @@ namespace SynthEBD
                 return false;
             }
 
-            SetViaFormKeyReplacement(copiedRecord, rootObj, currentSubPath, currentObjInfo.IndexInParentArray, outputMod);
+            SetViaFormKeyReplacement(copiedRecord, rootObj, currentSubPath);
             AddModifiedRecordToDictionary(pathSignature, currentObjInfo.RecordFormKey, copiedRecord);
             outputObj = copiedRecord;
             LogRecordAlongPaths(group, copiedRecord);
@@ -254,7 +254,7 @@ namespace SynthEBD
 
             IncrementEditorID(copiedRecords);
 
-            SetViaFormKeyReplacement(newRecord, rootObj, currentSubPath, recordObjectInfo.IndexInParentArray, outputMod);
+            SetViaFormKeyReplacement(newRecord, rootObj, currentSubPath);
 
             currentObj = newRecord;
             LogRecordAlongPaths(group, newRecord);
@@ -280,7 +280,7 @@ namespace SynthEBD
             outputObjInfo = null;
             return false;
         }
-        
+
         public static dynamic CopyGenericObject(dynamic input) // expand later to make more performant
         {
             var copy = DeepCopyByExpressionTrees.DeepCopyByExpressionTree(input);
@@ -294,16 +294,29 @@ namespace SynthEBD
             }
         }
 
-        private static void SetViaFormKeyReplacement(IMajorRecord record, dynamic root, string currentSubPath, int? arrayIndex, SkyrimMod outputMod)
+        public static void SetViaFormKeyReplacement(IMajorRecord record, dynamic root, string currentSubPath)
         {
             if (RecordPathParser.PathIsArray(currentSubPath))
             {
-                SetRecordInArray(root, arrayIndex.Value, record);
+                if (RecordPathParser.GetObjectAtPath(root, currentSubPath, new Dictionary<string, dynamic>(), Patcher.MainLinkCache, true, "", out dynamic _, out ObjectInfo arrayObjInfo))
+                {
+                    SetRecordInArray(root, arrayObjInfo.IndexInParentArray.Value, record);
+                }
+                else
+                {
+                    AddToFormLinkList(root, record);
+                }
             }
             else if (RecordPathParser.GetSubObject(root, currentSubPath, out dynamic formLinkToSet))
             {
                 formLinkToSet.SetTo(record.FormKey);
             }
+        }
+
+        public static void AddToFormLinkList<TMajor>(IList<IFormLinkGetter<TMajor>> list, IMajorRecord record)
+            where TMajor : class, IMajorRecordGetter
+        {
+            list.Add(record.AsLink<TMajor>());
         }
 
         public static string BuildPath(List<string> splitPath)
@@ -373,7 +386,7 @@ namespace SynthEBD
                 objectCaches[npcGetter.FormKey].Add("", npcGetter);
             }
 
-            if(!objectCaches[npcGetter.FormKey].ContainsKey(path))
+            if (!objectCaches[npcGetter.FormKey].ContainsKey(path))
             {
                 objectCaches[npcGetter.FormKey].Add(path, toCache);
             }
