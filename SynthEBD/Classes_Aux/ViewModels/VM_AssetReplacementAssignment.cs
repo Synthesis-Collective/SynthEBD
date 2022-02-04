@@ -69,7 +69,7 @@ namespace SynthEBD
         public static NPCAssignment.AssetReplacerAssignment DumpViewModelToModel(VM_AssetReplacementAssignment viewModel)
         {
             NPCAssignment.AssetReplacerAssignment model = new NPCAssignment.AssetReplacerAssignment();
-            model.AssetPackName = viewModel.ParentAssetPack.groupName;
+            model.AssetPackName = viewModel.ParentAssetPack.GroupName;
             model.ReplacerName = viewModel.ReplacerName;
             model.SubgroupIDs = viewModel.SubgroupIDs.Select(x => x.Content).ToList();
             return model;

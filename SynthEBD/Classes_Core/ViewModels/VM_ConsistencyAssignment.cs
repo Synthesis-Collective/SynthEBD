@@ -90,7 +90,7 @@ namespace SynthEBD
             }
             foreach(var replacer in model.AssetReplacerAssignments)
             {
-                var parentAssetPack = AssetPackVMs.Where(x => x.groupName == replacer.AssetPackName).FirstOrDefault();
+                var parentAssetPack = AssetPackVMs.Where(x => x.GroupName == replacer.AssetPackName).FirstOrDefault();
                 if (parentAssetPack != null)
                 {
                     viewModel.AssetReplacements.Add(VM_AssetReplacementAssignment.GetViewModelFromModel(replacer, parentAssetPack, viewModel.AssetReplacements));

@@ -20,12 +20,12 @@ namespace SynthEBD
     {
         public VM_AssetPack(ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, VM_Settings_General generalSettingsVM, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)
         {
-            this.groupName = "";
+            this.GroupName = "";
             this.ShortName = "";
-            this.gender = Gender.Male;
-            this.displayAlerts = true;
-            this.userAlert = "";
-            this.subgroups = new ObservableCollection<VM_Subgroup>();
+            this.Gender = Gender.Male;
+            this.DisplayAlerts = true;
+            this.UserAlert = "";
+            this.Subgroups = new ObservableCollection<VM_Subgroup>();
 
             this.RaceGroupingList = new ObservableCollection<VM_RaceGrouping>();
 
@@ -36,7 +36,7 @@ namespace SynthEBD
             this.SourcePath = "";
 
             this.CurrentBodyGenSettings = bodygenSettingsVM;
-            switch (this.gender)
+            switch (this.Gender)
             {
                 case Gender.Female: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.FemaleConfigs; break;
                 case Gender.Male: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.MaleConfigs; break;
@@ -49,7 +49,7 @@ namespace SynthEBD
             this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
 
             this.AdditionalRecordTemplateAssignments = new ObservableCollection<VM_AdditionalRecordTemplate>();
-            this.RecordTemplateAdditionalRacesPaths = new ObservableCollection<VM_CollectionMemberString>();
+            this.DefaultRecordTemplateAdditionalRacesPaths = new ObservableCollection<VM_CollectionMemberString>();
 
             this.AttributeGroupMenu = new VM_AttributeGroupMenu();
 
@@ -72,7 +72,7 @@ namespace SynthEBD
 
             AddRecordTemplateAdditionalRacesPath = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => { this.RecordTemplateAdditionalRacesPaths.Add(new VM_CollectionMemberString("", this.RecordTemplateAdditionalRacesPaths)); }
+                execute: _ => { this.DefaultRecordTemplateAdditionalRacesPaths.Add(new VM_CollectionMemberString("", this.DefaultRecordTemplateAdditionalRacesPaths)); }
                 );
 
             ImportAttributeGroups = new SynthEBD.RelayCommand(
@@ -109,24 +109,24 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ => {
                     SettingsIO_AssetPack.SaveAssetPack(DumpViewModelToModel(this));
-                    Logger.CallTimedNotifyStatusUpdateAsync(groupName + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                    Logger.CallTimedNotifyStatusUpdateAsync(GroupName + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
                 }
                 );
         }
 
-        public string groupName { get; set; }
+        public string GroupName { get; set; }
         public string ShortName { get; set; }
         public AssetPackType ConfigType { get; set; }
-        public Gender gender { get; set; }
-        public bool displayAlerts { get; set; }
-        public string userAlert { get; set; }
-        public ObservableCollection<VM_Subgroup> subgroups { get; set; }
+        public Gender Gender { get; set; }
+        public bool DisplayAlerts { get; set; }
+        public string UserAlert { get; set; }
+        public ObservableCollection<VM_Subgroup> Subgroups { get; set; }
         public ObservableCollection<VM_RaceGrouping> RaceGroupingList { get; set; }
 
         public VM_BodyGenConfig TrackedBodyGenConfig { get; set; }
         public ObservableCollection<VM_BodyGenConfig> AvailableBodyGenConfigs { get; set; }
         public VM_SettingsBodyGen CurrentBodyGenSettings { get; set; }
-        public ObservableCollection<VM_CollectionMemberString> RecordTemplateAdditionalRacesPaths { get; set; }
+        public ObservableCollection<VM_CollectionMemberString> DefaultRecordTemplateAdditionalRacesPaths { get; set; }
         public bool IsSelected { get; set; }
 
         public string SourcePath { get; set; }
@@ -181,18 +181,18 @@ namespace SynthEBD
         public static VM_AssetPack GetViewModelFromModel(AssetPack model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)
         {
             var viewModel = new VM_AssetPack(parentCollection, bodygenSettingsVM, OBodyDescriptorMenu, generalSettingsVM, recordTemplateLinkCache, mainVM);
-            viewModel.groupName = model.GroupName;
+            viewModel.GroupName = model.GroupName;
             viewModel.ShortName = model.ShortName;
             viewModel.ConfigType = model.ConfigType;
-            viewModel.gender = model.Gender;
-            viewModel.displayAlerts = model.DisplayAlerts;
-            viewModel.userAlert = model.UserAlert;
+            viewModel.Gender = model.Gender;
+            viewModel.DisplayAlerts = model.DisplayAlerts;
+            viewModel.UserAlert = model.UserAlert;
 
             viewModel.RaceGroupingList = new ObservableCollection<VM_RaceGrouping>(generalSettingsVM.RaceGroupings);
 
             if (model.AssociatedBodyGenConfigName != "")
             {
-                switch(viewModel.gender)
+                switch(viewModel.Gender)
                 {
                     case Gender.Female:
                         viewModel.TrackedBodyGenConfig = bodygenSettingsVM.FemaleConfigs.Where(x => x.Label == model.AssociatedBodyGenConfigName).FirstOrDefault();
@@ -217,21 +217,22 @@ namespace SynthEBD
                 var assignmentVM = new VM_AdditionalRecordTemplate(recordTemplateLinkCache, viewModel.AdditionalRecordTemplateAssignments);
                 assignmentVM.RaceFormKeys = new ObservableCollection<FormKey>(additionalTemplateAssignment.Races);
                 assignmentVM.TemplateNPC = additionalTemplateAssignment.TemplateNPC;
+                assignmentVM.AdditionalRacesPaths = VM_CollectionMemberString.InitializeCollectionFromHashSet(additionalTemplateAssignment.AdditionalRacesPaths);
                 viewModel.AdditionalRecordTemplateAssignments.Add(assignmentVM);
             }
 
-            foreach (var path in model.RecordTemplateAdditionalRacesPaths)
+            foreach (var path in model.DefaultRecordTemplateAdditionalRacesPaths)
             {
-                viewModel.RecordTemplateAdditionalRacesPaths.Add(new VM_CollectionMemberString(path, viewModel.RecordTemplateAdditionalRacesPaths));
+                viewModel.DefaultRecordTemplateAdditionalRacesPaths.Add(new VM_CollectionMemberString(path, viewModel.DefaultRecordTemplateAdditionalRacesPaths));
             }
 
             foreach (var sg in model.Subgroups)
             {
-                viewModel.subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM, viewModel.subgroups, viewModel, OBodyDescriptorMenu, false));
+                viewModel.Subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM, viewModel.Subgroups, viewModel, OBodyDescriptorMenu, false));
             }
 
             // go back through now that all subgroups have corresponding view models, and link the required and excluded subgroups
-            ObservableCollection<VM_Subgroup> flattenedSubgroupList = FlattenSubgroupVMs(viewModel.subgroups, new ObservableCollection<VM_Subgroup>());
+            ObservableCollection<VM_Subgroup> flattenedSubgroupList = FlattenSubgroupVMs(viewModel.Subgroups, new ObservableCollection<VM_Subgroup>());
             LinkRequiredSubgroups(flattenedSubgroupList);
             LinkExcludedSubgroups(flattenedSubgroupList);
 
@@ -253,12 +254,12 @@ namespace SynthEBD
         public static AssetPack DumpViewModelToModel(VM_AssetPack viewModel)
         {
             AssetPack model = new AssetPack();
-            model.GroupName = viewModel.groupName;
+            model.GroupName = viewModel.GroupName;
             model.ShortName = viewModel.ShortName;
             model.ConfigType = viewModel.ConfigType;
-            model.Gender = viewModel.gender;
-            model.DisplayAlerts = viewModel.displayAlerts;
-            model.UserAlert = viewModel.userAlert;
+            model.Gender = viewModel.Gender;
+            model.DisplayAlerts = viewModel.DisplayAlerts;
+            model.UserAlert = viewModel.UserAlert;
 
             if (viewModel.TrackedBodyGenConfig != null)
             {
@@ -267,11 +268,11 @@ namespace SynthEBD
 
             model.DefaultRecordTemplate = viewModel.DefaultTemplateFK;
             model.AdditionalRecordTemplateAssignments = viewModel.AdditionalRecordTemplateAssignments.Select(x => VM_AdditionalRecordTemplate.DumpViewModelToModel(x)).ToHashSet();
-            model.RecordTemplateAdditionalRacesPaths = viewModel.RecordTemplateAdditionalRacesPaths.Select(x => x.Content).ToHashSet();
+            model.DefaultRecordTemplateAdditionalRacesPaths = viewModel.DefaultRecordTemplateAdditionalRacesPaths.Select(x => x.Content).ToHashSet();
 
             VM_AttributeGroupMenu.DumpViewModelToModels(viewModel.AttributeGroupMenu, model.AttributeGroups);
 
-            foreach (var svm in viewModel.subgroups)
+            foreach (var svm in viewModel.Subgroups)
             {
                 model.Subgroups.Add(VM_Subgroup.DumpViewModelToModel(svm));
             }
@@ -357,7 +358,7 @@ namespace SynthEBD
 
         public void RefreshTrackedBodyGenConfig(object sender, PropertyChangedEventArgs e)
         {
-            switch (this.gender)
+            switch (this.Gender)
             {
                 case Gender.Female: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.FemaleConfigs; break;
                 case Gender.Male: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.MaleConfigs; break;

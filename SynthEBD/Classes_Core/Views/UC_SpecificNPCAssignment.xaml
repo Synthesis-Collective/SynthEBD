@@ -38,7 +38,7 @@
         <plugins:FormKeyPicker Grid.Row="0" Grid.Column="1" FormKey="{Binding NPCFormKey}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
 
         <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Forced Asset Pack</TextBlock>
-        <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Path=AvailableAssetPacks}" DisplayMemberPath="groupName" SelectedValue="{Binding ForcedAssetPack, Mode=TwoWay}" />
+        <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Path=AvailableAssetPacks}" DisplayMemberPath="GroupName" SelectedValue="{Binding ForcedAssetPack, Mode=TwoWay}" />
         <Button Grid.Row="1" Grid.Column="2" Width="75" Height="20" Margin="5 0 0 0" VerticalAlignment="Center" HorizontalAlignment="Left" HorizontalContentAlignment="Left"  Command="{Binding DeleteForcedAssetPack}" Foreground="Firebrick">X</Button>
 
         <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Forced Subgroups</TextBlock>
@@ -111,7 +111,7 @@
                                 <RowDefinition Height="auto"/>
                             </Grid.RowDefinitions>
 
-                            <ComboBox Grid.Row="0" Grid.Column="0"  ItemsSource="{Binding Path=AvailableMixInAssetPacks}" DisplayMemberPath="groupName" SelectedValue="{Binding ForcedAssetPack, Mode=TwoWay}" />
+                            <ComboBox Grid.Row="0" Grid.Column="0"  ItemsSource="{Binding Path=AvailableMixInAssetPacks}" DisplayMemberPath="GroupName" SelectedValue="{Binding ForcedAssetPack, Mode=TwoWay}" />
                             <Button Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}" Foreground="Firebrick">X</Button>
 
                             <!--Subgroup List -->

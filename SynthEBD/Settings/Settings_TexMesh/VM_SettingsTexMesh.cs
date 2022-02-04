@@ -145,7 +145,7 @@ namespace SynthEBD
             model.bForceVanillaBodyMeshPath = viewModel.bForceVanillaBodyMeshPath;
             model.bDisplayPopupAlerts = viewModel.bDisplayPopupAlerts;
             model.bGenerateAssignmentLog = viewModel.bGenerateAssignmentLog;
-            model.SelectedAssetPacks = viewModel.AssetPacks.Where(x => x.IsSelected).Select(x => x.groupName).ToHashSet();
+            model.SelectedAssetPacks = viewModel.AssetPacks.Where(x => x.IsSelected).Select(x => x.GroupName).ToHashSet();
         }
 
     }

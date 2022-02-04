@@ -23,7 +23,7 @@ namespace SynthEBD
             this.DefaultRecordTemplate = new FormKey();
             this.AdditionalRecordTemplateAssignments = new HashSet<AdditionalRecordTemplate>();
             this.AssociatedBodyGenConfigName = "";
-            this.RecordTemplateAdditionalRacesPaths = new HashSet<string>();
+            this.DefaultRecordTemplateAdditionalRacesPaths = new HashSet<string>();
             this.AttributeGroups = new HashSet<AttributeGroup>();
             this.ReplacerGroups = new List<AssetReplacerGroup>();
         }
@@ -39,7 +39,7 @@ namespace SynthEBD
         public HashSet<AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
         public string AssociatedBodyGenConfigName { get; set; }
         public List<AssetReplacerGroup> ReplacerGroups { get; set; }
-        public HashSet<string> RecordTemplateAdditionalRacesPaths { get; set; }
+        public HashSet<string> DefaultRecordTemplateAdditionalRacesPaths { get; set; }
         public HashSet<AttributeGroup> AttributeGroups { get; set; }
         [Newtonsoft.Json.JsonIgnore]
         public string FilePath { get; set; }
@@ -715,14 +715,30 @@ namespace SynthEBD
                     {
                         case Gender.Female:
                             s.DefaultRecordTemplate = GetNPCByEDID(plugin, "DefaultFemale");
-                            s.AdditionalRecordTemplateAssignments.Add(new AdditionalRecordTemplate { TemplateNPC = GetNPCByEDID(plugin, "KhajiitFemale"), Races = new HashSet<FormKey> { KhajiitRaceFK, KhajiitRaceVampireFK } });
-                            s.AdditionalRecordTemplateAssignments.Add(new AdditionalRecordTemplate { TemplateNPC = GetNPCByEDID(plugin, "ArgonianFemale"), Races = new HashSet<FormKey> { ArgonianRaceFK, ArgonianRaceVampireFK } });
+                            s.AdditionalRecordTemplateAssignments.Add(new AdditionalRecordTemplate { 
+                                TemplateNPC = GetNPCByEDID(plugin, "KhajiitFemale"), 
+                                Races = new HashSet<FormKey> { KhajiitRaceFK, KhajiitRaceVampireFK },
+                                AdditionalRacesPaths = AdditionalRacesPathsBeastRaces
+                            });
+                            s.AdditionalRecordTemplateAssignments.Add(new AdditionalRecordTemplate { 
+                                TemplateNPC = GetNPCByEDID(plugin, "ArgonianFemale"), 
+                                Races = new HashSet<FormKey> { ArgonianRaceFK, ArgonianRaceVampireFK },
+                                AdditionalRacesPaths = AdditionalRacesPathsBeastRaces
+                            });
                             break;
 
                         case Gender.Male:
                             s.DefaultRecordTemplate = GetNPCByEDID(plugin, "DefaultMale");
-                            s.AdditionalRecordTemplateAssignments.Add(new AdditionalRecordTemplate { TemplateNPC = GetNPCByEDID(plugin, "KhajiitMale"), Races = new HashSet<FormKey> { KhajiitRaceFK, KhajiitRaceVampireFK } });
-                            s.AdditionalRecordTemplateAssignments.Add(new AdditionalRecordTemplate { TemplateNPC = GetNPCByEDID(plugin, "ArgonianMale"), Races = new HashSet<FormKey> { ArgonianRaceFK, ArgonianRaceVampireFK } });
+                            s.AdditionalRecordTemplateAssignments.Add(new AdditionalRecordTemplate { 
+                                TemplateNPC = GetNPCByEDID(plugin, "KhajiitMale"), 
+                                Races = new HashSet<FormKey> { KhajiitRaceFK, KhajiitRaceVampireFK },
+                                AdditionalRacesPaths = AdditionalRacesPathsBeastRaces
+                            });
+                            s.AdditionalRecordTemplateAssignments.Add(new AdditionalRecordTemplate { 
+                                TemplateNPC = GetNPCByEDID(plugin, "ArgonianMale"), 
+                                Races = new HashSet<FormKey> { ArgonianRaceFK, ArgonianRaceVampireFK },
+                                AdditionalRacesPaths = AdditionalRacesPathsBeastRaces
+                            });
                             break;
                     }
 
@@ -730,12 +746,11 @@ namespace SynthEBD
             }
 
             // add new AdditionalRacesPaths - zEBD accomplished this in a way that is impractical w/ Mutagen due to strong typing
-            s.RecordTemplateAdditionalRacesPaths = new HashSet<string>()
+            s.DefaultRecordTemplateAdditionalRacesPaths = new HashSet<string>()
             {
                 "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && PatchableRaces.Contains(Race)].AdditionalRaces",
                 "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && PatchableRaces.Contains(Race)].AdditionalRaces",
                 "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && PatchableRaces.Contains(Race)].AdditionalRaces",
-                "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && PatchableRaces.Contains(Race)].AdditionalRaces"
             };
 
             bool hasBodyGen = false;
@@ -767,6 +782,13 @@ namespace SynthEBD
 
             return s;
         }
+
+        private static HashSet<string> AdditionalRacesPathsBeastRaces = new HashSet<string>(){
+                "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && PatchableRaces.Contains(Race)].AdditionalRaces",
+                "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && PatchableRaces.Contains(Race)].AdditionalRaces",
+                "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && PatchableRaces.Contains(Race)].AdditionalRaces",
+                "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && PatchableRaces.Contains(Race)].AdditionalRaces"
+            };
 
         private static FormKey GetNPCByEDID(SkyrimMod plugin, string edid)
         {

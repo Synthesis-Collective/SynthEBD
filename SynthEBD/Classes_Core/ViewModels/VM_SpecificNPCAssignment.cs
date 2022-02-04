@@ -240,7 +240,7 @@ namespace SynthEBD
 
             foreach (var replacer in model.AssetReplacerAssignments)
             {
-                var parentAssetPack = assetPacks.Where(x => x.groupName == replacer.AssetPackName).FirstOrDefault();
+                var parentAssetPack = assetPacks.Where(x => x.GroupName == replacer.AssetPackName).FirstOrDefault();
                 if (parentAssetPack != null)
                 {
                     viewModel.ForcedAssetReplacements.Add(VM_AssetReplacementAssignment.GetViewModelFromModel(replacer, parentAssetPack, viewModel.ForcedAssetReplacements));
@@ -263,14 +263,14 @@ namespace SynthEBD
             bool assetPackFound = false;
             foreach (var ap in assetPacks)
             {
-                if (ap.groupName == assetPackName)
+                if (ap.GroupName == assetPackName)
                 {
                     viewModel.ForcedAssetPack = ap;
                     assetPackFound = true;
 
                     foreach (var id in model.SubgroupIDs)
                     {
-                        var foundSubgroup = GetSubgroupByID(ap.subgroups, id);
+                        var foundSubgroup = GetSubgroupByID(ap.Subgroups, id);
                         if (foundSubgroup != null)
                         {
                             viewModel.ForcedSubgroups.Add(foundSubgroup);
@@ -297,14 +297,14 @@ namespace SynthEBD
             bool assetPackFound = false;
             foreach (var ap in assetPacks)
             {
-                if (ap.groupName == assetPackName)
+                if (ap.GroupName == assetPackName)
                 {
                     viewModel.ForcedAssetPack = ap;
                     assetPackFound = true;
 
                     foreach (var id in model.SubgroupIDs)
                     {
-                        var foundSubgroup = GetSubgroupByID(ap.subgroups, id);
+                        var foundSubgroup = GetSubgroupByID(ap.Subgroups, id);
                         if (foundSubgroup != null)
                         {
                             viewModel.ForcedSubgroups.Add(foundSubgroup);
@@ -333,7 +333,7 @@ namespace SynthEBD
 
             if (viewModel.ForcedAssetPack != null)
             {
-                model.AssetPackName = viewModel.ForcedAssetPack.groupName;
+                model.AssetPackName = viewModel.ForcedAssetPack.GroupName;
                 model.SubgroupIDs = viewModel.ForcedSubgroups.Select(subgroup => subgroup.ID).ToList();
 
                 model.AssetReplacerAssignments.Clear();
@@ -345,7 +345,7 @@ namespace SynthEBD
 
             foreach (var mixin in viewModel.ForcedMixIns)
             {
-                if (!model.MixInAssignments.Select(x => x.AssetPackName).Contains(mixin.ForcedAssetPack.groupName))
+                if (!model.MixInAssignments.Select(x => x.AssetPackName).Contains(mixin.ForcedAssetPack.GroupName))
                 {
                     model.MixInAssignments.Add(VM_MixInSpecificAssignment.DumpViewModelToModel(mixin));
                 }
@@ -406,7 +406,7 @@ namespace SynthEBD
             assignment.AvailableMixInAssetPacks.Clear();
             foreach (var assetPack in assignment.SubscribedAssetPacks)
             {
-                if (assetPack.gender == assignment.Gender)
+                if (assetPack.Gender == assignment.Gender)
                 {
                     if (assetPack.ConfigType == AssetPackType.Primary)
                     {
@@ -424,7 +424,7 @@ namespace SynthEBD
         {
             assignment.AvailableSubgroups.Clear();
             if (assignment.ForcedAssetPack == null) { return; }
-            foreach (var topLevelSubgroup in assignment.ForcedAssetPack.subgroups)
+            foreach (var topLevelSubgroup in assignment.ForcedAssetPack.Subgroups)
             {
                 bool topLevelTaken = false;
                 foreach (var forcedSubgroup in assignment.ForcedSubgroups)
@@ -633,7 +633,7 @@ namespace SynthEBD
             public static NPCAssignment.MixInAssignment DumpViewModelToModel(VM_MixInSpecificAssignment viewModel)
             {
                 NPCAssignment.MixInAssignment model = new NPCAssignment.MixInAssignment();
-                model.AssetPackName = viewModel.ForcedAssetPack.groupName;
+                model.AssetPackName = viewModel.ForcedAssetPack.GroupName;
                 model.SubgroupIDs = viewModel.ForcedSubgroups.Select(subgroup => subgroup.ID).ToList();
 
                 model.AssetReplacerAssignments.Clear();

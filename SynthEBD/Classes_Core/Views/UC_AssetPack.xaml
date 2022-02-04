@@ -23,7 +23,7 @@
         </Grid.RowDefinitions>
 
         <CheckBox Grid.Column="0" Grid.Row="0" VerticalAlignment="Center" IsChecked="{Binding Path=IsSelected, Mode=TwoWay}"></CheckBox>
-        <Expander Grid.Column="1" Grid.Row="0" Grid.RowSpan="2" Header="{Binding Path=groupName}" ExpandDirection="Down">
+        <Expander Grid.Column="1" Grid.Row="0" Grid.RowSpan="2" Header="{Binding Path=GroupName}" ExpandDirection="Down">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="auto"/>
@@ -44,13 +44,13 @@
                     <RowDefinition Height="auto"/>
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Name</TextBlock>
-                <TextBox Grid.Row="0" Grid.Column="1" Name="TextBoxName" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=groupName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+                <TextBox Grid.Row="0" Grid.Column="1" Name="TextBoxName" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=GroupName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
                 <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Prefix</TextBlock>
                 <TextBox Grid.Row="1" Grid.Column="1" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=ShortName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
                 <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Gender</TextBlock>
-                <ComboBox Grid.Row="2" Grid.Column="1" Name="GenderComboBox" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" SelectedValue="{Binding Path=gender, Mode=TwoWay}" />
+                <ComboBox Grid.Row="2" Grid.Column="1" Name="GenderComboBox" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" SelectedValue="{Binding Path=Gender, Mode=TwoWay}" />
 
                 <!--
                 <TextBlock Grid.Row="3" Grid.Column="0">Display alerts from this config file</TextBlock>
@@ -63,7 +63,7 @@
                 <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AssetPackType}}}" SelectedValue="{Binding Path=ConfigType, Mode=TwoWay}" />
                 
                 <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Subgroups</TextBlock>
-                <TreeView Grid.Row="6" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding subgroups}" Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton">
+                <TreeView Grid.Row="6" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding Subgroups}" Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton">
                     <TreeView.Resources>
                         <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
                             <TextBlock PreviewMouseLeftButtonDown="HandleSelectPreviewMouseDown" MouseLeftButtonUp="HandleSelectPreviewMouseUp">
@@ -109,19 +109,12 @@
                         <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Default Template</TextBlock>
                         <plugins:FormKeyPicker Grid.Row="0"  Grid.Column="1" FormKey="{Binding DefaultTemplateFK}" LinkCache="{Binding RecordTemplateLinkCache}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top">Additional Templates</TextBlock>
-                        <ItemsControl Grid.Row="1" Grid.Column="1" ItemsSource="{Binding AdditionalRecordTemplateAssignments}" BorderThickness="1" BorderBrush="#5844b4">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate DataType="{x:Type local:VM_AdditionalRecordTemplate}">
-                                    <local:UC_AdditionalRecordTemplate Background="Black" Margin="0 0 0 10"/>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-
-                        <Button Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding AddAdditionalRecordTemplateAssignment}" Foreground="LightGreen">Add New</Button>
-
-                        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top">Additional Races Paths</TextBlock>
-                        <ItemsControl Grid.Row="3" Grid.Column="1" ItemsSource="{Binding RecordTemplateAdditionalRacesPaths}" BorderThickness="1" BorderBrush="#5844b4">
+                        <StackPanel Grid.Row="1" Grid.Column="0">
+                            <TextBlock  Margin="0 0 15 0" VerticalAlignment="Top">Additional Races Paths</TextBlock>
+                            <Button  Command="{Binding AddRecordTemplateAdditionalRacesPath}" Foreground="LightGreen">Add New</Button>
+                        </StackPanel>
+                        
+                        <ItemsControl Grid.Row="1" Grid.Column="1" ItemsSource="{Binding DefaultRecordTemplateAdditionalRacesPaths}" BorderThickness="1" BorderBrush="#5844b4">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="{x:Type local:VM_CollectionMemberString}">
                                     <StackPanel Orientation="Horizontal">
@@ -131,7 +124,19 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <Button Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding AddRecordTemplateAdditionalRacesPath}" Foreground="LightGreen">Add New</Button>
+
+
+                        <StackPanel Grid.Row="3" Grid.Column="0">
+                            <TextBlock Margin="0 0 15 0" VerticalAlignment="Top">Additional Templates</TextBlock>
+                            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding AddAdditionalRecordTemplateAssignment}" Foreground="LightGreen">Add New</Button>
+                        </StackPanel>
+                        <ItemsControl Grid.Row="3" Grid.Column="1" ItemsSource="{Binding AdditionalRecordTemplateAssignments}" BorderThickness="1" BorderBrush="#5844b4">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type local:VM_AdditionalRecordTemplate}">
+                                    <local:UC_AdditionalRecordTemplate Background="Black" Margin="0 0 0 10"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </Grid>
                 </Expander>
 

@@ -17,14 +17,30 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
+        <Button Grid.Row="0" Grid.Column="0" VerticalAlignment="Top" VerticalContentAlignment="Bottom" HorizontalContentAlignment="Left" Command="{Binding DeleteCommand}" Foreground="FireBrick">X</Button>
         <TextBlock Grid.Row="0" Grid.Column="0"  HorizontalAlignment="Center">Races</TextBlock>
         <plugins:FormKeyMultiPicker Grid.Row="1" Grid.Column="0" MaxHeight="500" FormKeys="{Binding RaceFormKeys}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerTypes}"  />
 
         <TextBlock Grid.Row="0" Grid.Column="2"  HorizontalAlignment="Center">Template NPC</TextBlock>
         <plugins:FormKeyPicker Grid.Row="1" Grid.Column="2" FormKey="{Binding TemplateNPC}" LinkCache="{Binding RecordTemplateLinkCache}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
 
-        <Button Grid.Row="1" Grid.Column="2" VerticalAlignment="Bottom" VerticalContentAlignment="Bottom" HorizontalContentAlignment="Center" Command="{Binding DeleteCommand}" Foreground="FireBrick">Remove Record Template</Button>
+        <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="0">
+            <TextBlock  Margin="0 0 15 0" VerticalAlignment="Top">Additional Races Paths</TextBlock>
+            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding AddAdditionalRacesPath}" Foreground="LightGreen">Add New</Button>
+        </StackPanel>
+        <ItemsControl Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" ItemsSource="{Binding AdditionalRacesPaths}" BorderThickness="1" BorderBrush="DarkViolet">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type local:VM_CollectionMemberString}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox Text="{Binding Content}" MinWidth="100"></TextBox>
+                        <Button Command="{Binding DeleteCommand}" Foreground="FireBrick">X</Button>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
     </Grid>
 </UserControl>

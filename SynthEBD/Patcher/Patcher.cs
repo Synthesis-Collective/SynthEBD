@@ -25,8 +25,6 @@ namespace SynthEBD
             var outputMod = new SkyrimMod(patchModKey, SkyrimRelease.SkyrimSE);
             MainLinkCache = PatcherEnvironmentProvider.Environment.LoadOrder.ToMutableLinkCache(outputMod);
             ResolvePatchableRaces();
-            //InitializeIgnoredArmorAddons();
-            UpdateRecordTemplateAdditonalRaces(assetPacks, recordTemplateLinkCache, recordTemplatePlugins);
             BodyGenTracker = new BodyGenAssignmentTracker();
             UniqueAssignmentsByName.Clear();
             UniqueNPCData.UniqueNameExclusions = linkedNPCNameExclusions;
@@ -53,6 +51,7 @@ namespace SynthEBD
 
             if (PatcherSettings.General.bChangeMeshesOrTextures)
             {
+                UpdateRecordTemplateAdditonalRaces(assetPacks, recordTemplateLinkCache, recordTemplatePlugins);
                 HashSet<FlattenedAssetPack> flattenedAssetPacks = new HashSet<FlattenedAssetPack>();
                 flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x, PatcherSettings.General.RaceGroupings)).ToHashSet();
                 PathTrimmer.TrimFlattenedAssetPacks(flattenedAssetPacks, PatcherSettings.TexMesh.TrimPaths);
@@ -412,64 +411,68 @@ namespace SynthEBD
         private static void UpdateRecordTemplateAdditonalRaces(List<AssetPack> assetPacks, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins)
         {
             Dictionary<string, HashSet<string>> patchedTemplates = new Dictionary<string, HashSet<string>>();
+
             foreach (var assetPack in assetPacks)
             {
-                HashSet<FormKey> templatesToPatch = new HashSet<FormKey>() { assetPack.DefaultRecordTemplate};
-                foreach (var additionalTemplate in assetPack.AdditionalRecordTemplateAssignments)
+                var exclusions = assetPack.AdditionalRecordTemplateAssignments.SelectMany(x => x.Races).ToHashSet(); // don't include races that get their own record template in the default template's patching
+                var racesToAdd = PatcherSettings.General.patchableRaces.Where(x => !FormKeyHashSetComparer.Contains(exclusions, x)).ToHashSet();
+                SetRecordTemplateAdditionalRaces(assetPack.DefaultRecordTemplateAdditionalRacesPaths, assetPack.DefaultRecordTemplate, racesToAdd, patchedTemplates, recordTemplateLinkCache, recordTemplatePlugins);
+
+                foreach (var additionalTemplateEntry in assetPack.AdditionalRecordTemplateAssignments)
                 {
-                    templatesToPatch.Add(additionalTemplate.TemplateNPC);
+                    SetRecordTemplateAdditionalRaces(additionalTemplateEntry.AdditionalRacesPaths, additionalTemplateEntry.TemplateNPC, additionalTemplateEntry.Races, patchedTemplates, recordTemplateLinkCache, recordTemplatePlugins);
+                }
+            }
+        }
+
+        private static void SetRecordTemplateAdditionalRaces(HashSet<string> additionalRacesPaths, FormKey templateFK, HashSet<FormKey> racesToAdd, Dictionary<string, HashSet<string>> alreadyPatchedTemplates, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins)
+        {
+            foreach (var path in additionalRacesPaths)
+            {
+                if (alreadyPatchedTemplates.ContainsKey(templateFK.ToString()) && alreadyPatchedTemplates[templateFK.ToString()].Contains(path))
+                {
+                    continue;
                 }
 
-                foreach (var path in assetPack.RecordTemplateAdditionalRacesPaths)
+                var templateMod = recordTemplatePlugins.Where(x => x.ModKey.ToString() == templateFK.ModKey.ToString()).FirstOrDefault();
+                if (templateMod == null)
                 {
-                    foreach (FormKey templateFK in templatesToPatch)
+                    Logger.LogError("Could not find record template plugin " + templateFK.ToString());
+                }
+
+                if (recordTemplateLinkCache.TryResolve<INpcGetter>(templateFK, out var template))
+                {
+                    try
                     {
-                        if (patchedTemplates.ContainsKey(templateFK.ToString()) && patchedTemplates[templateFK.ToString()].Contains(path))
+                        if (!RecordPathParser.GetNearestParentGetter(template, path, recordTemplateLinkCache, false, Logger.GetNPCLogNameString(template), out IMajorRecordGetter parentRecordGetter, out string relativePath))
                         {
                             continue;
                         }
 
-                        var templateMod = recordTemplatePlugins.Where(x => x.ModKey.ToString() == templateFK.ModKey.ToString()).FirstOrDefault();
-                        if (templateMod == null)
+                        var parentRecord = RecordGenerator.GetOrAddGenericRecordAsOverride(parentRecordGetter, templateMod);
+
+                        if (RecordPathParser.GetObjectAtPath(parentRecord, relativePath, new Dictionary<string, dynamic>(), recordTemplateLinkCache, false, Logger.GetNPCLogNameString(template), out dynamic additionalRaces))
                         {
-                            Logger.LogError("Could not find record template plugin " + templateFK.ToString());
-                        }
-
-                        if (recordTemplateLinkCache.TryResolve<INpcGetter>(templateFK, out var template))
-                        {
-                            try
+                            foreach (var race in racesToAdd)
                             {
-                                if (!RecordPathParser.GetNearestParentGetter(template, path, recordTemplateLinkCache, false, Logger.GetNPCLogNameString(template), out IMajorRecordGetter parentRecordGetter, out string relativePath))
-                                {
-                                    continue;
-                                }
-
-                                var parentRecord = RecordGenerator.GetOrAddGenericRecordAsOverride(parentRecordGetter, templateMod);
-
-                                if (RecordPathParser.GetObjectAtPath(parentRecord, relativePath, new Dictionary<string, dynamic>(), recordTemplateLinkCache, false, Logger.GetNPCLogNameString(template), out dynamic additionalRaces))
-                                {
-                                    foreach (var race in PatcherSettings.General.patchableRaces)
-                                    {
-                                        additionalRaces.Add(race.AsLink<IRaceGetter>());
-                                    }
-                                }
-                                if (!patchedTemplates.ContainsKey(templateFK.ToString()))
-                                {
-                                    patchedTemplates.Add(templateFK.ToString(), new HashSet<string>());
-                                }
-                                patchedTemplates[templateFK.ToString()].Add(path);
-                            }
-                            catch
-                            {
-                                Logger.LogError("Could not patch additional races expected at " + path + " in template NPC " + Logger.GetNPCLogNameString(template));
-                                continue;
+                                additionalRaces.Add(race.AsLink<IRaceGetter>());
                             }
                         }
-                        else
+                        if (!alreadyPatchedTemplates.ContainsKey(templateFK.ToString()))
                         {
-                            Logger.LogError("Could not resolve template NPC " + templateFK.ToString());
+                            alreadyPatchedTemplates.Add(templateFK.ToString(), new HashSet<string>());
                         }
+                        alreadyPatchedTemplates[templateFK.ToString()].Add(path);
                     }
+                    catch
+                    {
+                        Logger.LogError("Could not patch additional races expected at " + path + " in template NPC " + Logger.GetNPCLogNameString(template));
+                        continue;
+                    }
+                }
+                else
+                {
+                    Logger.LogError("Could not resolve template NPC " + templateFK.ToString());
                 }
             }
         }
