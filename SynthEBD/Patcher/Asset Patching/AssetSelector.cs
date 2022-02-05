@@ -811,9 +811,10 @@ namespace SynthEBD
                 var consistencyMixIn = npcInfo.ConsistencyNPCAssignment.MixInAssignments.Where(x => x.AssetPackName == mixInName).FirstOrDefault();
                 if (consistencyMixIn == null)
                 {
-                    var mixInAssignment = new NPCAssignment();
+                    var mixInAssignment = new NPCAssignment.MixInAssignment();
                     mixInAssignment.AssetPackName = mixInName;
                     mixInAssignment.SubgroupIDs = assignedCombination.ContainedSubgroups.Select(x => x.Id).ToList();
+                    npcInfo.ConsistencyNPCAssignment.MixInAssignments.Add(mixInAssignment);
                 }
                 else
                 {
