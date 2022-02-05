@@ -12,33 +12,33 @@ namespace SynthEBD
     {
         public FlattenedSubgroup(AssetPack.Subgroup template, List<RaceGrouping> raceGroupingList, List<Subgroup> subgroupHierarchy, FlattenedAssetPack parent)
         {
-            this.Id = template.id;
-            this.Name = template.name;
-            this.DistributionEnabled = template.distributionEnabled;
-            this.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(template.allowedRaceGroupings, raceGroupingList, template.allowedRaces);
+            this.Id = template.ID;
+            this.Name = template.Name;
+            this.DistributionEnabled = template.DistributionEnabled;
+            this.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(template.AllowedRaceGroupings, raceGroupingList, template.AllowedRaces);
             if (this.AllowedRaces.Count == 0) { this.AllowedRacesIsEmpty = true; }
             else { this.AllowedRacesIsEmpty = false; }
-            this.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(template.disallowedRaceGroupings, raceGroupingList, template.disallowedRaces);
+            this.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(template.DisallowedRaceGroupings, raceGroupingList, template.DisallowedRaces);
             this.AllowedRaces = AllowedDisallowedCombiners.TrimDisallowedRacesFromAllowed(this.AllowedRaces, this.DisallowedRaces);
-            this.AllowedAttributes = new HashSet<NPCAttribute>(template.allowedAttributes);
-            this.DisallowedAttributes = new HashSet<NPCAttribute>(template.disallowedAttributes);
+            this.AllowedAttributes = new HashSet<NPCAttribute>(template.AllowedAttributes);
+            this.DisallowedAttributes = new HashSet<NPCAttribute>(template.DisallowedAttributes);
 
             // replace Grouped attributes (if any) with their corresponding group members
             this.AllowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(this.AllowedAttributes, parent.Source.AttributeGroups);
             this.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(this.DisallowedAttributes, parent.Source.AttributeGroups);
 
-            this.AllowUnique = template.bAllowUnique;
-            this.AllowNonUnique = template.bAllowNonUnique;
-            this.RequiredSubgroupIDs = DictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.requiredSubgroups, subgroupHierarchy);
-            this.ExcludedSubgroupIDs = DictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.excludedSubgroups, subgroupHierarchy);
-            this.AddKeywords = new HashSet<string>(template.addKeywords);
+            this.AllowUnique = template.AllowUnique;
+            this.AllowNonUnique = template.AllowNonUnique;
+            this.RequiredSubgroupIDs = DictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.RequiredSubgroups, subgroupHierarchy);
+            this.ExcludedSubgroupIDs = DictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.ExcludedSubgroups, subgroupHierarchy);
+            this.AddKeywords = new HashSet<string>(template.AddKeywords);
             this.ProbabilityWeighting = template.ProbabilityWeighting;
-            this.Paths = new HashSet<FilePathReplacement>(template.paths);
-            this.AllowedBodyGenDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.allowedBodyGenDescriptors);
-            this.DisallowedBodyGenDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.disallowedBodyGenDescriptors);
-            this.AllowedBodySlideDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.allowedBodySlideDescriptors);
-            this.DisallowedBodySlideDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.allowedBodySlideDescriptors);
-            this.WeightRange = new NPCWeightRange { Lower = template.weightRange.Lower, Upper = template.weightRange.Upper };
+            this.Paths = new HashSet<FilePathReplacement>(template.Paths);
+            this.AllowedBodyGenDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.AllowedBodyGenDescriptors);
+            this.DisallowedBodyGenDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.DisallowedBodyGenDescriptors);
+            this.AllowedBodySlideDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.AllowedBodySlideDescriptors);
+            this.DisallowedBodySlideDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.AllowedBodySlideDescriptors);
+            this.WeightRange = new NPCWeightRange { Lower = template.WeightRange.Lower, Upper = template.WeightRange.Upper };
             this.ContainedSubgroupIDs = new List<string> { this.Id };
             this.ContainedSubgroupNames = new List<string> { this.Name };
             this.ParentAssetPack = parent;
@@ -74,7 +74,7 @@ namespace SynthEBD
 
         public static void FlattenSubgroups(Subgroup toFlatten, FlattenedSubgroup parent, List<FlattenedSubgroup> bottomLevelSubgroups, List<RaceGrouping> raceGroupingList, string parentAssetPackName, int topLevelIndex, List<Subgroup> subgroupHierarchy, FlattenedAssetPack parentAssetPack)
         {
-            if (toFlatten.enabled == false) { return; }
+            if (toFlatten.Enabled == false) { return; }
 
             FlattenedSubgroup flattened = new FlattenedSubgroup(toFlatten, raceGroupingList, subgroupHierarchy, parentAssetPack);
             flattened.TopLevelSubgroupIndex = topLevelIndex;

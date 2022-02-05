@@ -332,7 +332,7 @@ namespace SynthEBD
                         }
                         else
                         {
-                            Logger.LogReport("Asset Pack " + ap.GroupName + " is invalid for NPC " + npcInfo.LogIDstring + " because no subgroups within " + ap.Source.Subgroups[i].id + " (" + ap.Source.Subgroups[i].name + ") are compatible with this NPC.", false, npcInfo);
+                            Logger.LogReport("Asset Pack " + ap.GroupName + " is invalid for NPC " + npcInfo.LogIDstring + " because no subgroups within " + ap.Source.Subgroups[i].ID + " (" + ap.Source.Subgroups[i].Name + ") are compatible with this NPC.", false, npcInfo);
                             isValid = false;
                             break;
                         }

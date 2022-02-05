@@ -55,6 +55,8 @@ namespace SynthEBD
 
             this.ReplacersMenu = new VM_AssetPackDirectReplacerMenu(this, OBodyDescriptorMenu);
 
+            this.DistributionRules = new VM_ConfigDistributionRules(generalSettingsVM.RaceGroupings, this, OBodyDescriptorMenu);
+
             this.BodyShapeMode = generalSettingsVM.BodySelectionMode;
             generalSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
 
@@ -140,6 +142,7 @@ namespace SynthEBD
 
         public ObservableCollection<VM_AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
         public VM_AssetPackDirectReplacerMenu ReplacersMenu { get; set; }
+        public VM_ConfigDistributionRules DistributionRules { get; set; }
 
         public ObservableCollection<VM_AssetPack> ParentCollection { get; set; }
 
@@ -236,6 +239,8 @@ namespace SynthEBD
             LinkRequiredSubgroups(flattenedSubgroupList);
             LinkExcludedSubgroups(flattenedSubgroupList);
 
+            viewModel.DistributionRules = VM_ConfigDistributionRules.GetViewModelFromModel(model.DistributionRules, generalSettingsVM.RaceGroupings, viewModel, OBodyDescriptorMenu);
+
             viewModel.SourcePath = model.FilePath;
 
             return viewModel;
@@ -279,11 +284,12 @@ namespace SynthEBD
 
             model.ReplacerGroups = VM_AssetPackDirectReplacerMenu.DumpViewModelToModels(viewModel.ReplacersMenu);
 
+            model.DistributionRules = VM_ConfigDistributionRules.DumpViewModelToModel(viewModel.DistributionRules);
+
             model.FilePath = viewModel.SourcePath;
 
             return model;
         }
-
 
         public static ObservableCollection<VM_Subgroup> FlattenSubgroupVMs(ObservableCollection<VM_Subgroup> currentLevelSGs, ObservableCollection<VM_Subgroup> flattened)
         {

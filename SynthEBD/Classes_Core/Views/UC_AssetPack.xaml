@@ -52,18 +52,11 @@
                 <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Gender</TextBlock>
                 <ComboBox Grid.Row="2" Grid.Column="1" Name="GenderComboBox" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" SelectedValue="{Binding Path=Gender, Mode=TwoWay}" />
 
-                <!--
-                <TextBlock Grid.Row="3" Grid.Column="0">Display alerts from this config file</TextBlock>
-                <CheckBox Grid.Row="3" Grid.Column="1" IsChecked="{Binding Path=displayAlerts, Mode=TwoWay}"></CheckBox>
-
-                <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Alert to show</TextBlock>
-                <TextBox Grid.Row="4" Grid.Column="1" Name="TextBoxUserAlert" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=userAlert, UpdateSourceTrigger=PropertyChanged}"></TextBox>
-                -->
                 <TextBlock Grid.Row="3" Grid.Column="0">Type</TextBlock>
                 <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AssetPackType}}}" SelectedValue="{Binding Path=ConfigType, Mode=TwoWay}" />
                 
-                <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Subgroups</TextBlock>
-                <TreeView Grid.Row="6" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding Subgroups}" Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton">
+                <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Subgroups</TextBlock>
+                <TreeView Grid.Row="5" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding Subgroups}" Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton">
                     <TreeView.Resources>
                         <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
                             <StackPanel Orientation="Horizontal">
@@ -81,7 +74,7 @@
                     </TreeView.Resources>
                 </TreeView>
 
-                <ContentPresenter Grid.Row="6" Grid.Column="1"  Content="{Binding ElementName=TVsubgroups, Path=SelectedItem}">
+                <ContentPresenter Grid.Row="5" Grid.Column="1"  Content="{Binding ElementName=TVsubgroups, Path=SelectedItem}">
                     <ContentPresenter.Resources>
                         <DataTemplate DataType="{x:Type local:VM_Subgroup}">
                             <local:UC_Subgroup Background="Black" Margin="0 0 0 10"/>
@@ -89,8 +82,12 @@
                     </ContentPresenter.Resources>
                 </ContentPresenter>
 
-                <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Associated BodyGen Configuration</TextBlock>
-                <ComboBox Grid.Row="7" Grid.Column="1" ItemsSource="{Binding AvailableBodyGenConfigs}" DisplayMemberPath="Label" SelectedValue="{Binding TrackedBodyGenConfig}"></ComboBox>
+                <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Associated BodyGen Configuration</TextBlock>
+                <ComboBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding AvailableBodyGenConfigs}" DisplayMemberPath="Label" SelectedValue="{Binding TrackedBodyGenConfig}"></ComboBox>
+
+                <Expander Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Header="Distribution Rules" Margin="0 10 0 0">
+                    <local:UC_ConfigDistributionRules DataContext="{Binding DistributionRules}"/>
+                </Expander>
 
                 <Expander Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" Header="Direct Replacers" Margin="0 10 0 0">
                     <local:UC_AssetPackDirectReplacerMenu DataContext="{Binding ReplacersMenu}"/>

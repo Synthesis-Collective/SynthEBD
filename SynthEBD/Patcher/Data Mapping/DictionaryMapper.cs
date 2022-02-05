@@ -144,7 +144,7 @@ namespace SynthEBD
 
         private static bool currentSubgroupContainsID(string subgroupID, AssetPack.Subgroup currentSubgroup)
         {
-            if (currentSubgroup.id == subgroupID) { return true; }
+            if (currentSubgroup.ID == subgroupID) { return true; }
             foreach (var sg in currentSubgroup.Subgroups)
             {
                 if (currentSubgroupContainsID(subgroupID, sg)) { return true; }

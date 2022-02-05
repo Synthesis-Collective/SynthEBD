@@ -54,6 +54,25 @@ namespace SynthEBD
             return header;
         }
 
+        public static VM_RaceGroupingCheckboxList GetRaceGroupingsByLabel(HashSet<string> groupingStrings, ObservableCollection<VM_RaceGrouping> allRaceGroupings)
+        {
+            VM_RaceGroupingCheckboxList checkBoxList = new VM_RaceGroupingCheckboxList(allRaceGroupings);
+
+            foreach (var raceGroupingSelection in checkBoxList.RaceGroupingSelections) // loop through all available RaceGroupings
+            {
+                foreach (string s in groupingStrings) // loop through all of the RaceGrouping labels stored in the models
+                {
+                    if (raceGroupingSelection.Label == s)
+                    {
+                        raceGroupingSelection.IsSelected = true;
+                        break;
+                    }
+                }
+            }
+
+            return checkBoxList;
+        }
+
         public class RaceGroupingSelection : INotifyPropertyChanged
         {
             public RaceGroupingSelection(VM_RaceGrouping raceGroupingVM, VM_RaceGroupingCheckboxList parent)

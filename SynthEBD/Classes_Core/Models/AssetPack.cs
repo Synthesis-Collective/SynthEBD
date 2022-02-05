@@ -41,6 +41,7 @@ namespace SynthEBD
         public List<AssetReplacerGroup> ReplacerGroups { get; set; }
         public HashSet<string> DefaultRecordTemplateAdditionalRacesPaths { get; set; }
         public HashSet<AttributeGroup> AttributeGroups { get; set; }
+        public ConfigDistributionRules DistributionRules { get; set; }
         [Newtonsoft.Json.JsonIgnore]
         public string FilePath { get; set; }
 
@@ -106,59 +107,97 @@ namespace SynthEBD
             return isValidated;
         }
 
+        public class ConfigDistributionRules : IProbabilityWeighted
+        {
+            public ConfigDistributionRules()
+            {
+                this.AllowedRaces = new HashSet<FormKey>();
+                this.AllowedRaceGroupings = new HashSet<string>();
+                this.DisallowedRaces = new HashSet<FormKey>();
+                this.DisallowedRaceGroupings = new HashSet<string>();
+                this.AllowedAttributes = new HashSet<NPCAttribute>();
+                this.DisallowedAttributes = new HashSet<NPCAttribute>();
+                this.AllowUnique = true;
+                this.AllowNonUnique = true;
+                this.AddKeywords = new HashSet<string>();
+                this.ProbabilityWeighting = 1;
+                this.AllowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>();
+                this.DisallowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>();
+                this.AllowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>();
+                this.DisallowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>();
+                this.WeightRange = new NPCWeightRange();
+            }
+
+            public HashSet<FormKey> AllowedRaces { get; set; }
+            public HashSet<string> AllowedRaceGroupings { get; set; }
+            public HashSet<FormKey> DisallowedRaces { get; set; }
+            public HashSet<string> DisallowedRaceGroupings { get; set; }
+            public HashSet<NPCAttribute> AllowedAttributes { get; set; }
+            public HashSet<NPCAttribute> DisallowedAttributes { get; set; }
+            public bool AllowUnique { get; set; }
+            public bool AllowNonUnique { get; set; }
+            public HashSet<string> AddKeywords { get; set; }
+            public int ProbabilityWeighting { get; set; }
+            public HashSet<BodyShapeDescriptor> AllowedBodyGenDescriptors { get; set; }
+            public HashSet<BodyShapeDescriptor> DisallowedBodyGenDescriptors { get; set; }
+            public HashSet<BodyShapeDescriptor> AllowedBodySlideDescriptors { get; set; }
+            public HashSet<BodyShapeDescriptor> DisallowedBodySlideDescriptors { get; set; }
+            public NPCWeightRange WeightRange { get; set; }
+        }
+
         public class Subgroup : IProbabilityWeighted, IModelHasSubgroups
         {
             public Subgroup()
             {
-                this.id = "";
-                this.name = "";
-                this.enabled = true;
-                this.distributionEnabled = true;
-                this.allowedRaces = new HashSet<FormKey>();
-                this.allowedRaceGroupings = new HashSet<string>();
-                this.disallowedRaces = new HashSet<FormKey>();
-                this.disallowedRaceGroupings = new HashSet<string>();
-                this.allowedAttributes = new HashSet<NPCAttribute>();
-                this.disallowedAttributes = new HashSet<NPCAttribute>();
-                this.bAllowUnique = true;
-                this.bAllowNonUnique = true;
-                this.requiredSubgroups = new HashSet<string>();
-                this.excludedSubgroups = new HashSet<string>();
-                this.addKeywords = new HashSet<string>();
+                this.ID = "";
+                this.Name = "";
+                this.Enabled = true;
+                this.DistributionEnabled = true;
+                this.AllowedRaces = new HashSet<FormKey>();
+                this.AllowedRaceGroupings = new HashSet<string>();
+                this.DisallowedRaces = new HashSet<FormKey>();
+                this.DisallowedRaceGroupings = new HashSet<string>();
+                this.AllowedAttributes = new HashSet<NPCAttribute>();
+                this.DisallowedAttributes = new HashSet<NPCAttribute>();
+                this.AllowUnique = true;
+                this.AllowNonUnique = true;
+                this.RequiredSubgroups = new HashSet<string>();
+                this.ExcludedSubgroups = new HashSet<string>();
+                this.AddKeywords = new HashSet<string>();
                 this.ProbabilityWeighting = 1;
-                this.paths = new HashSet<FilePathReplacement>();
-                this.allowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>();
-                this.disallowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>();
-                this.allowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>();
-                this.disallowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>();
-                this.weightRange = new NPCWeightRange();
+                this.Paths = new HashSet<FilePathReplacement>();
+                this.AllowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>();
+                this.DisallowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>();
+                this.AllowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>();
+                this.DisallowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>();
+                this.WeightRange = new NPCWeightRange();
                 this.Subgroups = new List<Subgroup>();
 
                 this.TopLevelSubgroupID = "";
             }
             
-            public string id { get; set; }
-            public string name { get; set; }
-            public bool enabled { get; set; }
-            public bool distributionEnabled { get; set; }
-            public HashSet<FormKey> allowedRaces { get; set; }
-            public HashSet<string> allowedRaceGroupings { get; set; }
-            public HashSet<FormKey> disallowedRaces { get; set; }
-            public HashSet<string> disallowedRaceGroupings { get; set; }
-            public HashSet<NPCAttribute> allowedAttributes { get; set; }
-            public HashSet<NPCAttribute> disallowedAttributes { get; set; } 
-            public bool bAllowUnique { get; set; }
-            public bool bAllowNonUnique { get; set; }
-            public HashSet<string> requiredSubgroups { get; set; }
-            public HashSet<string> excludedSubgroups { get; set; }
-            public HashSet<string> addKeywords { get; set; }
+            public string ID { get; set; }
+            public string Name { get; set; }
+            public bool Enabled { get; set; }
+            public bool DistributionEnabled { get; set; }
+            public HashSet<FormKey> AllowedRaces { get; set; }
+            public HashSet<string> AllowedRaceGroupings { get; set; }
+            public HashSet<FormKey> DisallowedRaces { get; set; }
+            public HashSet<string> DisallowedRaceGroupings { get; set; }
+            public HashSet<NPCAttribute> AllowedAttributes { get; set; }
+            public HashSet<NPCAttribute> DisallowedAttributes { get; set; } 
+            public bool AllowUnique { get; set; }
+            public bool AllowNonUnique { get; set; }
+            public HashSet<string> RequiredSubgroups { get; set; }
+            public HashSet<string> ExcludedSubgroups { get; set; }
+            public HashSet<string> AddKeywords { get; set; }
             public int ProbabilityWeighting { get; set; }
-            public HashSet<FilePathReplacement> paths { get; set; }
-            public HashSet<BodyShapeDescriptor> allowedBodyGenDescriptors { get; set; }
-            public HashSet<BodyShapeDescriptor> disallowedBodyGenDescriptors { get; set; }
-            public HashSet<BodyShapeDescriptor> allowedBodySlideDescriptors { get; set; }
-            public HashSet<BodyShapeDescriptor> disallowedBodySlideDescriptors { get; set; }
-            public NPCWeightRange weightRange { get; set; }
+            public HashSet<FilePathReplacement> Paths { get; set; }
+            public HashSet<BodyShapeDescriptor> AllowedBodyGenDescriptors { get; set; }
+            public HashSet<BodyShapeDescriptor> DisallowedBodyGenDescriptors { get; set; }
+            public HashSet<BodyShapeDescriptor> AllowedBodySlideDescriptors { get; set; }
+            public HashSet<BodyShapeDescriptor> DisallowedBodySlideDescriptors { get; set; }
+            public NPCWeightRange WeightRange { get; set; }
             public List<Subgroup> Subgroups { get; set; }
             public string TopLevelSubgroupID { get; set; }
         }
@@ -178,16 +217,16 @@ namespace SynthEBD
 
         private static bool ValidateSubgroup(Subgroup subgroup, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, int topLevelIndex)
         {
-            if (!subgroup.enabled) { return true; }
+            if (!subgroup.Enabled) { return true; }
 
             bool isValid = true;
             List<string> subErrors = new List<string>();
 
-            if (string.IsNullOrWhiteSpace(subgroup.id))
+            if (string.IsNullOrWhiteSpace(subgroup.ID))
             {
                 subErrors.Add("Subgroup does not have an ID");
             }
-            if (!ValidateID(subgroup.id))
+            if (!ValidateID(subgroup.ID))
             {
                 subErrors.Add("ID must be alphanumeric or .");
                 isValid = false;
@@ -198,7 +237,7 @@ namespace SynthEBD
                 isValid = false;
             }
             
-            if (string.IsNullOrWhiteSpace(subgroup.name))
+            if (string.IsNullOrWhiteSpace(subgroup.Name))
             {
                 subErrors.Add("Subgroup must have a name");
                 isValid = false;
@@ -218,11 +257,11 @@ namespace SynthEBD
                 }
             }
 
-            foreach (var id in subgroup.requiredSubgroups)
+            foreach (var id in subgroup.RequiredSubgroups)
             {
                 if (GetSubgroupByID(id, parent, out _, thisPosition) != null)
                 {
-                    subErrors.Add("Cannot use " + id + " as a required subgroup because it is in the same branch as " + subgroup.id);
+                    subErrors.Add("Cannot use " + id + " as a required subgroup because it is in the same branch as " + subgroup.ID);
                     isValid = false;
                 }
                 else if (GetSubgroupByID(id, parent, out _, otherPostitions) == null)
@@ -232,11 +271,11 @@ namespace SynthEBD
                 }
             }
 
-            foreach (var id in subgroup.excludedSubgroups)
+            foreach (var id in subgroup.ExcludedSubgroups)
             {
                 if (GetSubgroupByID(id, parent, out _, thisPosition) != null)
                 {
-                    subErrors.Add("Cannot use " + id + " as an excluded subgroup because it is in the same branch as " + subgroup.id);
+                    subErrors.Add("Cannot use " + id + " as an excluded subgroup because it is in the same branch as " + subgroup.ID);
                     isValid = false;
                 }
                 else if (GetSubgroupByID(id, parent, out _, otherPostitions) == null)
@@ -248,7 +287,7 @@ namespace SynthEBD
 
             if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen && bodyGenConfig != null)
             {
-                foreach (var descriptor in subgroup.allowedBodyGenDescriptors)
+                foreach (var descriptor in subgroup.AllowedBodyGenDescriptors)
                 {
                     if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors))
                     {
@@ -256,7 +295,7 @@ namespace SynthEBD
                         isValid=false;
                     }
                 }
-                foreach (var descriptor in subgroup.disallowedBodyGenDescriptors)
+                foreach (var descriptor in subgroup.DisallowedBodyGenDescriptors)
                 {
                     if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors))
                     {
@@ -268,7 +307,7 @@ namespace SynthEBD
 
             else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
             {
-                foreach (var descriptor in subgroup.allowedBodySlideDescriptors)
+                foreach (var descriptor in subgroup.AllowedBodySlideDescriptors)
                 {
                     if (!descriptor.CollectionContainsThisDescriptor(PatcherSettings.OBody.TemplateDescriptors))
                     {
@@ -276,7 +315,7 @@ namespace SynthEBD
                         isValid = false;
                     }
                 }
-                foreach (var descriptor in subgroup.disallowedBodySlideDescriptors)
+                foreach (var descriptor in subgroup.DisallowedBodySlideDescriptors)
                 {
                     if (!descriptor.CollectionContainsThisDescriptor(PatcherSettings.OBody.TemplateDescriptors))
                     {
@@ -286,7 +325,7 @@ namespace SynthEBD
                 }
             }
 
-            foreach (var path in subgroup.paths)
+            foreach (var path in subgroup.Paths)
             {
                 var fullPath = System.IO.Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, path.Source);
                 if (!System.IO.File.Exists(fullPath) && !BSAHandler.ReferencedPathExists(path.Source, out bool archiveExists, out string modName))
@@ -303,7 +342,7 @@ namespace SynthEBD
 
             if (!isValid)
             {
-                subErrors.Insert(0, "Subgroup " + subgroup.id + ":" + subgroup.name + " within branch " + (topLevelIndex + 1).ToString());
+                subErrors.Insert(0, "Subgroup " + subgroup.ID + ":" + subgroup.Name + " within branch " + (topLevelIndex + 1).ToString());
                 errors.AddRange(subErrors);
             }
 
@@ -370,13 +409,13 @@ namespace SynthEBD
         {
             foreach (var subgroup in model.Subgroups)
             {
-                if (!searched.Contains(subgroup.id))
+                if (!searched.Contains(subgroup.ID))
                 {
-                    searched.Add(subgroup.id);
+                    searched.Add(subgroup.ID);
                 }
                 else
                 {
-                    duplicates.Add(subgroup.id);
+                    duplicates.Add(subgroup.ID);
                 }
 
                 foreach (var subSubgroup in subgroup.Subgroups)
@@ -414,7 +453,7 @@ namespace SynthEBD
             for (int i = 0; i < model.Subgroups.Count; i++)
             {
                 var subgroup = model.Subgroups[i];
-                if (subgroup.id == id)
+                if (subgroup.ID == id)
                 {
                     matched.Add(subgroup);
                 }
@@ -559,21 +598,21 @@ namespace SynthEBD
             {
                 AssetPack.Subgroup s = new AssetPack.Subgroup();
 
-                s.id = g.id;
-                s.name = g.name;
-                s.enabled = g.enabled;
-                s.distributionEnabled = g.distributionEnabled;
-                s.allowedAttributes = Converters.StringArraysToAttributes(g.allowedAttributes);
-                s.disallowedAttributes = Converters.StringArraysToAttributes(g.disallowedAttributes);
-                Converters.zEBDForceIfAttributesToAllowed(s.allowedAttributes, Converters.StringArraysToAttributes(g.forceIfAttributes));
-                s.bAllowUnique = g.bAllowUnique;
-                s.bAllowNonUnique = g.bAllowNonUnique;
-                s.requiredSubgroups = new HashSet<string>(g.requiredSubgroups);
-                s.excludedSubgroups = new HashSet<string>(g.excludedSubgroups);
-                s.addKeywords = new HashSet<string>(g.addKeywords);
+                s.ID = g.id;
+                s.Name = g.name;
+                s.Enabled = g.enabled;
+                s.DistributionEnabled = g.distributionEnabled;
+                s.AllowedAttributes = Converters.StringArraysToAttributes(g.allowedAttributes);
+                s.DisallowedAttributes = Converters.StringArraysToAttributes(g.disallowedAttributes);
+                Converters.zEBDForceIfAttributesToAllowed(s.AllowedAttributes, Converters.StringArraysToAttributes(g.forceIfAttributes));
+                s.AllowUnique = g.bAllowUnique;
+                s.AllowNonUnique = g.bAllowNonUnique;
+                s.RequiredSubgroups = new HashSet<string>(g.requiredSubgroups);
+                s.ExcludedSubgroups = new HashSet<string>(g.excludedSubgroups);
+                s.AddKeywords = new HashSet<string>(g.addKeywords);
                 s.ProbabilityWeighting = g.probabilityWeighting;
 
-                s.paths = new HashSet<FilePathReplacement>();
+                s.Paths = new HashSet<FilePathReplacement>();
                 foreach (string[] pathPair in g.paths)
                 {
                     string newSource = pathPair[0];
@@ -602,10 +641,10 @@ namespace SynthEBD
                     {
                         conversionErrors.Add("Subgroup: " + g.id + ": The destination path " + pathPair[1] + " was not recognized as a default path, so it could not be converted to SynthEBD format. Please upgrade it manually.");
                     }
-                    s.paths.Add(new FilePathReplacement { Source = newSource, Destination = newDest });
+                    s.Paths.Add(new FilePathReplacement { Source = newSource, Destination = newDest });
                 }
 
-                s.weightRange = Converters.StringArrayToWeightRange(g.weightRange);
+                s.WeightRange = Converters.StringArrayToWeightRange(g.weightRange);
 
                 foreach (string id in g.allowedRaces)
                 {
@@ -615,7 +654,7 @@ namespace SynthEBD
                     {
                         if (group.Label == id)
                         {
-                            s.allowedRaceGroupings.Add(group.Label);
+                            s.AllowedRaceGroupings.Add(group.Label);
                             continueSearch = false;
                             break;
                         }
@@ -627,7 +666,7 @@ namespace SynthEBD
                         FormKey raceFormKey = Converters.RaceEDID2FormKey(id);
                         if (raceFormKey.IsNull == false)
                         {
-                            s.allowedRaces.Add(raceFormKey);
+                            s.AllowedRaces.Add(raceFormKey);
                         }
                     }
                 }
@@ -640,7 +679,7 @@ namespace SynthEBD
                     {
                         if (group.Label == id)
                         {
-                            s.disallowedRaceGroupings.Add(group.Label);
+                            s.DisallowedRaceGroupings.Add(group.Label);
                             continueSearch = false;
                             break;
                         }
@@ -652,23 +691,23 @@ namespace SynthEBD
                         FormKey raceFormKey = Converters.RaceEDID2FormKey(id);
                         if (raceFormKey.IsNull == false)
                         {
-                            s.disallowedRaces.Add(raceFormKey);
+                            s.DisallowedRaces.Add(raceFormKey);
                         }
                     }
                 }
 
                 foreach (string str in g.allowedBodyGenDescriptors)
                 {
-                    s.allowedBodyGenDescriptors.Add(Converters.StringToBodyShapeDescriptor(str));
+                    s.AllowedBodyGenDescriptors.Add(Converters.StringToBodyShapeDescriptor(str));
                 }
                 foreach (string str in g.disallowedBodyGenDescriptors)
                 {
-                    s.disallowedBodyGenDescriptors.Add(Converters.StringToBodyShapeDescriptor(str));
+                    s.DisallowedBodyGenDescriptors.Add(Converters.StringToBodyShapeDescriptor(str));
                 }
 
                 if (topLevelSubgroupID == "")
                 {
-                    s.TopLevelSubgroupID = s.id; // this is the top level subgroup
+                    s.TopLevelSubgroupID = s.ID; // this is the top level subgroup
                 }
                 else
                 {
