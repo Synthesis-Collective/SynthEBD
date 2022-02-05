@@ -66,13 +66,17 @@
                 <TreeView Grid.Row="6" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding Subgroups}" Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton">
                     <TreeView.Resources>
                         <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
-                            <TextBlock PreviewMouseLeftButtonDown="HandleSelectPreviewMouseDown" MouseLeftButtonUp="HandleSelectPreviewMouseUp">
-                                <TextBlock.Text>
-                                    <MultiBinding StringFormat="{}{0}"> <!--https://stackoverflow.com/questions/541896/concatenate-strings-instead-of-using-a-stack-of-textblocks-->
-                                        <Binding Path="Name"/>
-                                    </MultiBinding>
-                                </TextBlock.Text>
-                            </TextBlock>
+                            <StackPanel Orientation="Horizontal">
+                                <Button VerticalAlignment="Center" Command="{Binding AddSubgroup}" Foreground="Lightgreen">+</Button>
+                                <TextBlock Margin="5 0 5 0" PreviewMouseLeftButtonDown="HandleSelectPreviewMouseDown" MouseLeftButtonUp="HandleSelectPreviewMouseUp">
+                                    <TextBlock.Text>
+                                        <MultiBinding StringFormat="{}{0}"> <!--https://stackoverflow.com/questions/541896/concatenate-strings-instead-of-using-a-stack-of-textblocks-->
+                                            <Binding Path="Name"/>
+                                        </MultiBinding>
+                                    </TextBlock.Text>
+                                </TextBlock>
+                                <Button VerticalAlignment="Center" Command="{Binding DeleteMe}" Foreground="Firebrick">X</Button>
+                            </StackPanel>
                         </HierarchicalDataTemplate>
                     </TreeView.Resources>
                 </TreeView>
