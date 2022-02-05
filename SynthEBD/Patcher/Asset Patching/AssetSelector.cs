@@ -245,7 +245,7 @@ namespace SynthEBD
             Logger.OpenReportSubsection("DirectAssignments", npcInfo);
             //handle specific NPC assignments
             FlattenedAssetPack forcedAssetPack = null;
-            if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.AssetPackName != "")
+            if (npcInfo.SpecificNPCAssignment != null)
             {
                 // check to make sure forced asset pack exists
 
@@ -257,6 +257,10 @@ namespace SynthEBD
                         {
                             forcedAssetPack = forcedAssetPack.ShallowCopy(); // don't forget to shallow copy or subsequent NPCs will get pruned asset packs
                             forcedAssignments = GetForcedSubgroupsAtIndex(forcedAssetPack, npcInfo.SpecificNPCAssignment.SubgroupIDs, npcInfo);
+                        }
+                        else if (!string.IsNullOrWhiteSpace(npcInfo.SpecificNPCAssignment.AssetPackName))
+                        {
+                            Logger.LogMessage("Specific NPC Assignment for " + npcInfo.LogIDstring + " requests asset pack " + forcedAssetPack + " which does not exist. Choosing a random asset pack.");
                         }
                         break;
                     case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn:
@@ -290,10 +294,6 @@ namespace SynthEBD
                     }
 
                     preFilteredPacks = new HashSet<FlattenedAssetPack>() { forcedAssetPack };
-                }
-                else
-                {
-                    Logger.LogMessage("Specific NPC Assignment for " + npcInfo.LogIDstring + " requests asset pack " + forcedAssetPack + " which does not exist. Choosing a random asset pack.");
                 }
             }
 
