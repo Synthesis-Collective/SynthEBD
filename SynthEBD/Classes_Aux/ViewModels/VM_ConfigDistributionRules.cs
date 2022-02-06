@@ -71,7 +71,7 @@ namespace SynthEBD
         public bool AllowUnique { get; set; }
         public bool AllowNonUnique { get; set; }
         public ObservableCollection<VM_CollectionMemberString> AddKeywords { get; set; }
-        public int ProbabilityWeighting { get; set; }
+        public double ProbabilityWeighting { get; set; }
         public VM_BodyShapeDescriptorSelectionMenu AllowedBodyGenDescriptors { get; set; }
         public VM_BodyShapeDescriptorSelectionMenu DisallowedBodyGenDescriptors { get; set; }
         public VM_BodyShapeDescriptorSelectionMenu AllowedBodySlideDescriptors { get; set; }

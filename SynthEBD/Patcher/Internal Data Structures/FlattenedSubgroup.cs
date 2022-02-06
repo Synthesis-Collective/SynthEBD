@@ -57,7 +57,7 @@ namespace SynthEBD
         public Dictionary<int, HashSet<string>> RequiredSubgroupIDs { get; set; }
         public Dictionary<int, HashSet<string>> ExcludedSubgroupIDs { get; set; }
         public HashSet<string> AddKeywords { get; set; }
-        public int ProbabilityWeighting { get; set; }
+        public double ProbabilityWeighting { get; set; }
         public HashSet<FilePathReplacement> Paths { get; set; }
         public Dictionary<string, HashSet<string>> AllowedBodyGenDescriptors { get; set; }
         public Dictionary<string, HashSet<string>> DisallowedBodyGenDescriptors { get; set; }
@@ -85,9 +85,13 @@ namespace SynthEBD
                 if (parent.DistributionEnabled == false) { flattened.DistributionEnabled = false; }
                 if (parent.AllowUnique == false) { flattened.AllowUnique = false; }
                 if (parent.AllowNonUnique == false) { flattened.AllowNonUnique = false; }
-                flattened.ProbabilityWeighting *= parent.ProbabilityWeighting;
-                flattened.ContainedSubgroupIDs.InsertRange(0, parent.ContainedSubgroupIDs);
-                flattened.ContainedSubgroupNames.InsertRange(0, parent.ContainedSubgroupNames);
+
+                if (parent.Id != AssetPack.ConfigDistributionRules.SubgroupTitleString)
+                {
+                    flattened.ProbabilityWeighting *= parent.ProbabilityWeighting; // handled by calling function for the "fake" Distribution Rules subgroup
+                    flattened.ContainedSubgroupIDs.InsertRange(0, parent.ContainedSubgroupIDs);
+                    flattened.ContainedSubgroupNames.InsertRange(0, parent.ContainedSubgroupNames);
+                }
 
                 //handle DisallowedRaces first
                 flattened.DisallowedRaces.UnionWith(parent.DisallowedRaces);

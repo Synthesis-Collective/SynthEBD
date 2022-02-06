@@ -67,7 +67,7 @@ namespace SynthEBD
                     this.ProbabilityWeighting = 1;
                 }
                 public HashSet<string> Members { get; set; }
-                public int ProbabilityWeighting { get; set; }
+                public double ProbabilityWeighting { get; set; }
             }
         }
 
@@ -111,7 +111,7 @@ namespace SynthEBD
             public bool AllowUnique { get; set; }
             public bool AllowNonUnique { get; set; }
             public bool AllowRandom { get; set; }
-            public int ProbabilityWeighting { get; set; }
+            public double ProbabilityWeighting { get; set; }
             public HashSet<string> RequiredTemplates { get; set; }
             public NPCWeightRange WeightRange { get; set; }
 
@@ -168,7 +168,7 @@ namespace SynthEBD
                     this.probabilityWeighting = 1;
                 }
                 public HashSet<string> members { get; set; }
-                public int probabilityWeighting { get; set; }
+                public double probabilityWeighting { get; set; }
             }
         }
 
@@ -209,7 +209,7 @@ namespace SynthEBD
             public bool allowUnique { get; set; }
             public bool allowNonUnique { get; set; }
             public bool allowRandom { get; set; }
-            public int probabilityWeighting { get; set; }
+            public double probabilityWeighting { get; set; }
             public HashSet<string> requiredTemplates { get; set; }
             public string[] weightRange { get; set; }
         }

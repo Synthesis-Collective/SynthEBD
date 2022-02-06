@@ -125,7 +125,7 @@ namespace SynthEBD
             this.Members.CollectionChanged += CheckForEmptyCombination;
         }
         public ObservableCollection<string> Members { get; set; }
-        public int ProbabilityWeighting { get; set; }
+        public double ProbabilityWeighting { get; set; }
 
         public ObservableCollection<VM_CollectionMemberString> MonitoredGroups { get; set; }
 

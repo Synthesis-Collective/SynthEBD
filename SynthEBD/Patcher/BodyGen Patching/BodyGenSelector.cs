@@ -576,7 +576,7 @@ namespace SynthEBD
             }
 
             public int MaxMatchedForceIfAttributes { get; set; }
-            public int ProbabilityWeighting { get; set; }
+            public double ProbabilityWeighting { get; set; }
             public List<HashSet<BodyGenConfig.BodyGenTemplate>> Templates { get; set; }
             public bool InitializedSuccessfully { get; set; } // false if one or more of the template sublists contains no templates.
         }

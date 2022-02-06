@@ -124,7 +124,7 @@ namespace SynthEBD
         public ObservableCollection<VM_Subgroup> RequiredSubgroups { get; set; }
         public ObservableCollection<VM_Subgroup> ExcludedSubgroups { get; set; }
         public ObservableCollection<VM_CollectionMemberString> AddKeywords { get; set; }
-        public int ProbabilityWeighting { get; set; }
+        public double ProbabilityWeighting { get; set; }
         public VM_FilePathReplacementMenu PathsMenu { get; set; }
         public VM_BodyShapeDescriptorSelectionMenu AllowedBodyGenDescriptors { get; set; }
         public VM_BodyShapeDescriptorSelectionMenu DisallowedBodyGenDescriptors { get; set; }

@@ -174,7 +174,7 @@ namespace SynthEBD
         public bool AllowUnique { get; set; }
         public bool AllowNonUnique { get; set; }
         public bool AllowRandom { get; set; }
-        public int ProbabilityWeighting { get; set; }
+        public double ProbabilityWeighting { get; set; }
         public NPCWeightRange WeightRange { get; set; }
         public bool HideInMenu { get; set; }
 

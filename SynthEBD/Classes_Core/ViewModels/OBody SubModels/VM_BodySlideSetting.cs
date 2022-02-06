@@ -85,7 +85,7 @@ namespace SynthEBD
         public bool bAllowUnique { get; set; }
         public bool bAllowNonUnique { get; set; }
         public bool bAllowRandom { get; set; }
-        public int ProbabilityWeighting { get; set; }
+        public double ProbabilityWeighting { get; set; }
         public NPCWeightRange WeightRange { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;

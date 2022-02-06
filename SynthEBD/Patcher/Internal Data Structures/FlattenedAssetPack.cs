@@ -81,12 +81,17 @@ namespace SynthEBD
                 output = new FlattenedAssetPack(source, AssetPackType.Primary);
             }
 
+            var configRulesSubgroup = AssetPack.ConfigDistributionRules.CreateInheritanceParent(source.DistributionRules);
+            var inheritanceParent = new FlattenedSubgroup(configRulesSubgroup, raceGroupingList, new List<AssetPack.Subgroup>(), output);
+
             for (int i = 0; i < source.Subgroups.Count; i++)
             {
                 var flattenedSubgroups = new List<FlattenedSubgroup>();
-                FlattenedSubgroup.FlattenSubgroups(source.Subgroups[i], null, flattenedSubgroups, raceGroupingList, output.GroupName, i,  source.Subgroups, output);
+                FlattenedSubgroup.FlattenSubgroups(source.Subgroups[i], inheritanceParent, flattenedSubgroups, raceGroupingList, output.GroupName, i,  source.Subgroups, output);
                 output.Subgroups.Add(flattenedSubgroups);
             }
+
+            DistributeWeighting(source.DistributionRules.ProbabilityWeighting, output);
 
             for (int i = 0; i < source.ReplacerGroups.Count; i++)
             {
@@ -94,6 +99,22 @@ namespace SynthEBD
             }
 
             return output;
+        }
+
+        public static void DistributeWeighting(double weighting, FlattenedAssetPack ap)
+        {
+            if (!ap.Subgroups.Any()) { return; }
+            double extraWeighting = ((weighting - 1) / ap.Subgroups.Count()) + 1;
+            if (extraWeighting > 0)
+            {
+                foreach (var position in ap.Subgroups)
+                {
+                    foreach (var subgroup in position)
+                    {
+                        subgroup.ProbabilityWeighting *= extraWeighting;
+                    }
+                }
+            }
         }
 
         public FlattenedAssetPack ShallowCopy()

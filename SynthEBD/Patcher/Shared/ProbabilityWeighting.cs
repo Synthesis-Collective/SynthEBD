@@ -8,7 +8,7 @@ namespace SynthEBD
 {
     public interface IProbabilityWeighted
     {
-        int ProbabilityWeighting { get; set; }
+        double ProbabilityWeighting { get; set; }
     }
 
     public class ProbabilityWeighting
@@ -16,6 +16,21 @@ namespace SynthEBD
         public static IProbabilityWeighted SelectByProbability(IEnumerable<IProbabilityWeighted> inputs)
         {
             if (!inputs.Any()) { return null; }
+
+            double totalWeight = inputs.Sum(x => x.ProbabilityWeighting);
+            var randomCap = new Random().NextDouble() * totalWeight;
+
+            double currentWeight = 0;
+            foreach (var input in inputs)
+            {
+                currentWeight += input.ProbabilityWeighting;
+                if (currentWeight >= randomCap)
+                {
+                    return input;
+                }
+            }
+
+            // function should always return by this point. Leaving the original (used for ints) below as a fallback
 
             var inputList = inputs.ToList();
 

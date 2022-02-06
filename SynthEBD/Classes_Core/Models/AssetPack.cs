@@ -137,12 +137,36 @@ namespace SynthEBD
             public bool AllowUnique { get; set; }
             public bool AllowNonUnique { get; set; }
             public HashSet<string> AddKeywords { get; set; }
-            public int ProbabilityWeighting { get; set; }
+            public double ProbabilityWeighting { get; set; }
             public HashSet<BodyShapeDescriptor> AllowedBodyGenDescriptors { get; set; }
             public HashSet<BodyShapeDescriptor> DisallowedBodyGenDescriptors { get; set; }
             public HashSet<BodyShapeDescriptor> AllowedBodySlideDescriptors { get; set; }
             public HashSet<BodyShapeDescriptor> DisallowedBodySlideDescriptors { get; set; }
             public NPCWeightRange WeightRange { get; set; }
+
+            public static string SubgroupTitleString = "#Config Distribution Rules#";
+
+            public static Subgroup CreateInheritanceParent(ConfigDistributionRules rules)
+            {
+                Subgroup subgroup = new Subgroup();
+                subgroup.ID = SubgroupTitleString;
+                subgroup.AllowedRaces = new HashSet<FormKey>(rules.AllowedRaces);
+                subgroup.AllowedRaceGroupings = new HashSet<string>(rules.AllowedRaceGroupings);
+                subgroup.DisallowedRaces = new HashSet<FormKey>(rules.DisallowedRaces);
+                subgroup.DisallowedRaceGroupings = new HashSet<string>(rules.DisallowedRaceGroupings);
+                subgroup.AllowedAttributes = new HashSet<NPCAttribute>(rules.AllowedAttributes);
+                subgroup.DisallowedAttributes = new HashSet<NPCAttribute>(rules.DisallowedAttributes);
+                subgroup.AllowUnique = rules.AllowUnique;
+                subgroup.AllowNonUnique = rules.AllowNonUnique;
+                subgroup.AddKeywords = new HashSet<string>(rules.AddKeywords);
+                subgroup.ProbabilityWeighting = rules.ProbabilityWeighting;
+                subgroup.AllowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>(rules.AllowedBodyGenDescriptors);
+                subgroup.DisallowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>(rules.DisallowedBodyGenDescriptors);
+                subgroup.AllowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>(rules.AllowedBodySlideDescriptors);
+                subgroup.DisallowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>(rules.DisallowedBodySlideDescriptors);
+                subgroup.WeightRange = new NPCWeightRange() { Lower = rules.WeightRange.Lower, Upper = rules.WeightRange.Upper};
+                return subgroup;
+            }
         }
 
         public class Subgroup : IProbabilityWeighted, IModelHasSubgroups
@@ -191,7 +215,7 @@ namespace SynthEBD
             public HashSet<string> RequiredSubgroups { get; set; }
             public HashSet<string> ExcludedSubgroups { get; set; }
             public HashSet<string> AddKeywords { get; set; }
-            public int ProbabilityWeighting { get; set; }
+            public double ProbabilityWeighting { get; set; }
             public HashSet<FilePathReplacement> Paths { get; set; }
             public HashSet<BodyShapeDescriptor> AllowedBodyGenDescriptors { get; set; }
             public HashSet<BodyShapeDescriptor> DisallowedBodyGenDescriptors { get; set; }
@@ -585,7 +609,7 @@ namespace SynthEBD
             public List<string> requiredSubgroups { get; set; }
             public List<string> excludedSubgroups { get; set; }
             public List<string> addKeywords { get; set; }
-            public int probabilityWeighting { get; set; }
+            public double probabilityWeighting { get; set; }
             public List<string[]> paths { get; set; }
             public List<string> allowedBodyGenDescriptors { get; set; }
             public List<string> disallowedBodyGenDescriptors { get; set; }
