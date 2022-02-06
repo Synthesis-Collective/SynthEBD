@@ -86,7 +86,7 @@ namespace SynthEBD
                 if (parent.AllowUnique == false) { flattened.AllowUnique = false; }
                 if (parent.AllowNonUnique == false) { flattened.AllowNonUnique = false; }
 
-                if (parent.Id != AssetPack.ConfigDistributionRules.SubgroupTitleString)
+                if (parent.Id != AssetPack.ConfigDistributionRules.SubgroupIDString)
                 {
                     flattened.ProbabilityWeighting *= parent.ProbabilityWeighting; // handled by calling function for the "fake" Distribution Rules subgroup
                     flattened.ContainedSubgroupIDs.InsertRange(0, parent.ContainedSubgroupIDs);
@@ -95,7 +95,6 @@ namespace SynthEBD
 
                 //handle DisallowedRaces first
                 flattened.DisallowedRaces.UnionWith(parent.DisallowedRaces);
-
 
                 // if both flattened and parent AllowedRaces are empty, do nothing
                 // else if parent AllowedRaces is empty and flatted AllowedRaces is not empty, do nothing
@@ -128,6 +127,9 @@ namespace SynthEBD
                 // Weight Range
                 if (parent.WeightRange.Lower > flattened.WeightRange.Lower) { flattened.WeightRange.Lower = parent.WeightRange.Lower; }
                 if (parent.WeightRange.Upper < flattened.WeightRange.Upper) { flattened.WeightRange.Upper = parent.WeightRange.Upper; }
+
+                // Keywords
+                flattened.AddKeywords.UnionWith(parent.AddKeywords);
 
                 // Paths
                 flattened.Paths.UnionWith(parent.Paths);

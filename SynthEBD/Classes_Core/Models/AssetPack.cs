@@ -144,12 +144,14 @@ namespace SynthEBD
             public HashSet<BodyShapeDescriptor> DisallowedBodySlideDescriptors { get; set; }
             public NPCWeightRange WeightRange { get; set; }
 
-            public static string SubgroupTitleString = "#Config Distribution Rules#";
+            public static string SubgroupIDString = "#Config Distribution Rules#";
+            public static string SubgroupNameString = "Main Distribution Rules";
 
             public static Subgroup CreateInheritanceParent(ConfigDistributionRules rules)
             {
                 Subgroup subgroup = new Subgroup();
-                subgroup.ID = SubgroupTitleString;
+                subgroup.ID = SubgroupIDString;
+                subgroup.Name = SubgroupNameString;
                 subgroup.AllowedRaces = new HashSet<FormKey>(rules.AllowedRaces);
                 subgroup.AllowedRaceGroupings = new HashSet<string>(rules.AllowedRaceGroupings);
                 subgroup.DisallowedRaces = new HashSet<FormKey>(rules.DisallowedRaces);

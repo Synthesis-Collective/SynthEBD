@@ -568,5 +568,38 @@ namespace SynthEBD
                 entry.TraversedRecords.Add(recordEntry);
             }
         }
+
+        private static Dictionary<string, Keyword> GeneratedKeywords = new Dictionary<string, Keyword>();
+
+        public static void AddKeywordsToNPC(List<SubgroupCombination> assignedCombinations, Npc npc, SkyrimMod outputMod)
+        {
+            foreach (var combination in assignedCombinations)
+            {
+                foreach (var subgroup in combination.ContainedSubgroups)
+                {
+                    foreach (var keyword in subgroup.AddKeywords)
+                    {
+                        if (!string.IsNullOrWhiteSpace(keyword))
+                        {
+                            AddKeywordToNPC(npc, keyword, outputMod);
+                        }    
+                    }
+                }
+            }
+        }
+        private static void AddKeywordToNPC(Npc npc, string keyword, SkyrimMod outputMod)
+        {
+            if (GeneratedKeywords.ContainsKey(keyword))
+            {
+                npc.Keywords.Add(GeneratedKeywords[keyword]);
+            }
+            else
+            {
+                var kw = outputMod.Keywords.AddNew();
+                kw.EditorID = keyword;
+                npc.Keywords.Add(kw);
+                GeneratedKeywords.Add(keyword, kw);
+            }
+        }
     }
 }

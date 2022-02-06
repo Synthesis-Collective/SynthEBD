@@ -21,6 +21,7 @@ namespace SynthEBD
             this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
             this.Type = type;
             this.ReplacerName = "";
+            this.MatchedWholeConfigForceIfs = 0;
         }
 
         public FlattenedAssetPack(string groupName, Gender gender, FormKey defaultRecordTemplate, HashSet<AdditionalRecordTemplate> additionalRecordTemplateAssignments, string associatedBodyGenConfigName, AssetPack source, AssetPackType type)
@@ -35,6 +36,7 @@ namespace SynthEBD
             this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
             this.Type = type;
             this.ReplacerName = "";
+            this.MatchedWholeConfigForceIfs = 0;
         }
 
         public FlattenedAssetPack(AssetPackType type)
@@ -49,6 +51,7 @@ namespace SynthEBD
             this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
             this.Type = type;
             this.ReplacerName = "";
+            this.MatchedWholeConfigForceIfs = 0;
         }
 
         public string GroupName { get; set; }
@@ -61,6 +64,7 @@ namespace SynthEBD
         public List<FlattenedReplacerGroup> AssetReplacerGroups { get; set; }
         public AssetPackType Type { get; set; }
         public string ReplacerName { get; set; } // only used when Type == ReplacerVirtual
+        public int MatchedWholeConfigForceIfs { get; set; }
 
         public enum AssetPackType
         {
@@ -82,16 +86,17 @@ namespace SynthEBD
             }
 
             var configRulesSubgroup = AssetPack.ConfigDistributionRules.CreateInheritanceParent(source.DistributionRules);
-            var inheritanceParent = new FlattenedSubgroup(configRulesSubgroup, raceGroupingList, new List<AssetPack.Subgroup>(), output);
+            var flattenedRulesSubgroup = new FlattenedSubgroup(configRulesSubgroup, raceGroupingList, new List<AssetPack.Subgroup>(), output);
 
             for (int i = 0; i < source.Subgroups.Count; i++)
             {
                 var flattenedSubgroups = new List<FlattenedSubgroup>();
-                FlattenedSubgroup.FlattenSubgroups(source.Subgroups[i], inheritanceParent, flattenedSubgroups, raceGroupingList, output.GroupName, i,  source.Subgroups, output);
+                FlattenedSubgroup.FlattenSubgroups(source.Subgroups[i], null, flattenedSubgroups, raceGroupingList, output.GroupName, i,  source.Subgroups, output);
                 output.Subgroups.Add(flattenedSubgroups);
             }
 
             DistributeWeighting(source.DistributionRules.ProbabilityWeighting, output);
+            output.Subgroups.Add(new List<FlattenedSubgroup>() { flattenedRulesSubgroup }); // add "fake" rules subgroup into the subgroup list for evaluation by the rules processor
 
             for (int i = 0; i < source.ReplacerGroups.Count; i++)
             {

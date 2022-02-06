@@ -389,6 +389,7 @@ namespace SynthEBD
                     if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
                     npcRecord.Keywords.Add(EBDFaceKW);
                     npcRecord.Keywords.Add(EBDScriptKW);
+                    RecordGenerator.AddKeywordsToNPC(assignedCombinations, npcRecord, outputMod);
                     #endregion
                 }
 
