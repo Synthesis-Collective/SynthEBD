@@ -161,6 +161,7 @@ namespace SynthEBD
                                 RecordPathParser.SetSubObject(rootObj, currentSubPath, currentObj);
                             }
 
+                            assignedPaths.AddRange(group);
                             RemovePathsFromList(nonHardcodedPaths, group); // remove because everything downstream has already been assigned
                         }
                         else if (GetObjectFromAvailableTemplates(group.Key, group.ToArray(), objectCaches, recordTemplateLinkCache, suppressMissingPathErrors, out currentObj, out currentObjInfo))
@@ -184,7 +185,6 @@ namespace SynthEBD
                     #endregion
                     else
                     {
-
                         Logger.LogError("Error: neither NPC " + npcInfo.LogIDstring + " nor the record templates " + GetTemplateName(group) + " contained a record at " + group.Key + ". Cannot assign this record.");
                         RemovePathsFromList(nonHardcodedPaths, group);
                     }
@@ -562,7 +562,9 @@ namespace SynthEBD
 
         public static void LogRecordAlongPaths(IGrouping<string, FilePathReplacementParsed> group, IMajorRecord record)
         {
-            var recordEntry = new GeneratedRecordInfo() { FormKey = record.FormKey.ToString(), EditorID = record.EditorID };
+            HashSet<GeneratedRecordInfo> assignedRecords = new HashSet<GeneratedRecordInfo>();
+            var recordEntry = new GeneratedRecordInfo() { FormKey = record.FormKey.ToString(), EditorID = record.EditorID, SubRecords = record.ContainedFormLinks.Where(x => x.FormKey.ModKey == record.FormKey.ModKey).ToHashSet() };
+
             foreach (var entry in group)
             {
                 entry.TraversedRecords.Add(recordEntry);

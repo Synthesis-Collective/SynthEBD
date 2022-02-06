@@ -55,21 +55,50 @@ namespace SynthEBD
                 foreach (var combination in entry.Value.OrderBy(x => x.SubgroupIDs))
                 {
                     fileContents.Add("\tCombination: " + combination.SubgroupIDs);
-                    fileContents.Add("\tAssigned to NPCs:");
+                    fileContents.Add("\t\tAssigned to NPCs:");
                     foreach (var npcString in combination.NPCsAssignedTo)
                     {
-                        fileContents.Add("\t\t" + npcString);
+                        fileContents.Add("\t\t\t" + npcString);
                     }
-                    fileContents.Add("\tRecords Belonging to this combination");
+                    fileContents.Add("\t\tRecords Belonging to this combination");
+
+                    //resolve subrecords
+                    HashSet<GeneratedRecordInfo> resolvedSubRecords = new HashSet<GeneratedRecordInfo>(new GeneratedRecordInfo.CombinationRecordComparer());
+                    resolvedSubRecords.UnionWith(combination.AssignedRecords); // prevent duplicates
+
+                    foreach (var assignedRecord in combination.AssignedRecords)
+                    {
+                        ResolveSubRecords(assignedRecord, resolvedSubRecords);
+                    }
+                    combination.AssignedRecords.UnionWith(resolvedSubRecords);
+
                     foreach (var record in combination.AssignedRecords)
                     {
                         if (Converters.FormKeyStringToFormIDString(record.FormKey, out string formID))
                         {
-                            fileContents.Add("\t\t" + record.EditorID + "(" + formID + ")");
+                            fileContents.Add("\t\t\t" + record.EditorID + "(" + formID + ")");
                         }
                     }
                 }
                 fileContents.Add(Environment.NewLine);
+            }
+        }
+
+        public static void ResolveSubRecords(GeneratedRecordInfo recordInfo, HashSet<GeneratedRecordInfo> subRecords)
+        {
+            foreach (var containedFormLink in recordInfo.SubRecords)
+            {
+                if (Patcher.MainLinkCache.TryResolve(containedFormLink.FormKey, containedFormLink.Type, out var resolvedSubRecord))+
+                {
+                    var loggedSubRecord = new GeneratedRecordInfo() { EditorID = resolvedSubRecord.EditorID, FormKey = resolvedSubRecord.FormKey.ToString(), SubRecords = resolvedSubRecord.ContainedFormLinks.Where(x => x.FormKey.ModKey == resolvedSubRecord.FormKey.ModKey).ToHashSet() };
+                    
+                    if (!subRecords.Contains(loggedSubRecord))
+                    {
+                        subRecords.Add(loggedSubRecord);
+                    }
+
+                    ResolveSubRecords(loggedSubRecord, subRecords);
+                }
             }
         }
 
@@ -145,6 +174,7 @@ namespace SynthEBD
     {
         public string FormKey { get; set; }
         public string EditorID { get; set; }
+        public HashSet<IFormLinkGetter> SubRecords { get; set; }
 
         public class CombinationRecordComparer : IEqualityComparer<GeneratedRecordInfo>
         {
@@ -155,7 +185,7 @@ namespace SynthEBD
 
             public int GetHashCode([DisallowNull] GeneratedRecordInfo obj)
             {
-                return obj.GetHashCode();
+                return obj.FormKey.GetHashCode();
             }
         }
     }

@@ -753,7 +753,6 @@ namespace SynthEBD
                     {
                         assignedCombination.DestinationType = destinationType;
                         assignedCombination.ReplacerDestinationFormKey = destinationFK;
-                        //assignedCombination.Signature = string.Join(".", assignedCombination.ContainedSubgroups.Select(x => x.Id));
                         combinations.Add(assignedCombination);
                         RecordAssetConsistencyAndLinkedNPCs(assignedCombination, npcInfo, replacerGroup);
                     }
