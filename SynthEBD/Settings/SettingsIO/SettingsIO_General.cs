@@ -23,7 +23,7 @@ namespace SynthEBD
             }
             else
             {
-                Logger.LogErrorWithStatusUpdate("Cannot find General Settings file at " + Paths.GeneralSettingsPath, ErrorType.Warning);
+                Logger.TimedNotifyStatusUpdate("Could not find general settings file - creating new settings", ErrorType.Warning, 3);
                 PatcherSettings.General = new Settings_General();
             }
         }

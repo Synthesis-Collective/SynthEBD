@@ -114,6 +114,30 @@ namespace SynthEBD
                     Logger.CallTimedNotifyStatusUpdateAsync(GroupName + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
                 }
                 );
+
+            DiscardButton = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => {
+                    var reloaded = SettingsIO_AssetPack.LoadAssetPack(SourcePath, PatcherSettings.General.RaceGroupings, mainVM.RecordTemplatePlugins, mainVM.BodyGenConfigs);
+                    var reloadedVM = VM_AssetPack.GetViewModelFromModel(reloaded, generalSettingsVM, ParentCollection, bodygenSettingsVM, OBodyDescriptorMenu, RecordTemplateLinkCache, mainVM);
+                    this.IsSelected = reloadedVM.IsSelected;
+                    this.AttributeGroupMenu = reloadedVM.AttributeGroupMenu;
+                    this.AvailableBodyGenConfigs = reloadedVM.AvailableBodyGenConfigs;
+                    this.ConfigType = reloadedVM.ConfigType;
+                    this.CurrentBodyGenSettings = reloadedVM.CurrentBodyGenSettings;
+                    this.DefaultTemplateFK = reloadedVM.DefaultTemplateFK;
+                    this.DefaultRecordTemplateAdditionalRacesPaths = reloadedVM.DefaultRecordTemplateAdditionalRacesPaths;
+                    this.DistributionRules = reloadedVM.DistributionRules;
+                    this.Gender = reloadedVM.Gender;
+                    this.GroupName = reloadedVM.GroupName;
+                    this.ReplacersMenu = reloadedVM.ReplacersMenu;
+                    this.ShortName = reloadedVM.ShortName;
+                    this.SourcePath = reloadedVM.SourcePath;
+                    this.Subgroups = reloadedVM.Subgroups;
+                    this.TrackedBodyGenConfig = reloadedVM.TrackedBodyGenConfig;
+                    Logger.CallTimedNotifyStatusUpdateAsync("Discarded Changes", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                }
+                );
         }
 
         public string GroupName { get; set; }
@@ -154,7 +178,7 @@ namespace SynthEBD
 
         public RelayCommand ValidateButton { get; }
         public RelayCommand SaveButton { get; }
-
+        public RelayCommand DiscardButton { get; }
         public BodyShapeSelectionMode BodyShapeMode { get; set; }
 
         public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>() // referenced by xaml; don't trust VS reference count

@@ -1,0 +1,72 @@
+[
+  {
+    "GroupName": "Legate Rikke",
+    "NPCFormKeys": [
+      "0132A1:Skyrim.esm",
+      "0D0573:Skyrim.esm",
+      "0EA583:Skyrim.esm"
+    ],
+    "Primary": "0132A1:Skyrim.esm"
+  },
+  {
+    "GroupName": "Ulfric Stormcloak",
+    "NPCFormKeys": [
+      "01414D:Skyrim.esm",
+      "0D0575:Skyrim.esm",
+      "0EA581:Skyrim.esm"
+    ],
+    "Primary": "01414D:Skyrim.esm"
+  },
+  {
+    "GroupName": "Galmar Stone-Fist",
+    "NPCFormKeys": [
+      "014128:Skyrim.esm",
+      "0D0570:Skyrim.esm",
+      "0EA582:Skyrim.esm"
+    ],
+    "Primary": "014128:Skyrim.esm"
+  },
+  {
+    "GroupName": "General Tullius",
+    "NPCFormKeys": [
+      "01327E:Skyrim.esm",
+      "0D0577:Skyrim.esm"
+    ],
+    "Primary": "01327E:Skyrim.esm"
+  },
+  {
+    "GroupName": "Froki Whetted-Blade",
+    "NPCFormKeys": [
+      "0185F6:Skyrim.esm",
+      "0EA57E:Skyrim.esm"
+    ],
+    "Primary": "0185F6:Skyrim.esm"
+  },
+  {
+    "GroupName": "Svaknir",
+    "NPCFormKeys": [
+      "016C87:Skyrim.esm",
+      "0EA57A:Skyrim.esm"
+    ],
+    "Primary": "016C87:Skyrim.esm"
+  },
+  {
+    "GroupName": "Kodlak Whitemane",
+    "NPCFormKeys": [
+      "01A68E:Skyrim.esm",
+      "09700E:Skyrim.esm",
+      "0AD3A5:Skyrim.esm",
+      "0DCCC0:Skyrim.esm",
+      "01720B:Skyrim.esm"
+    ],
+    "Primary": "01A68E:Skyrim.esm"
+  },
+  {
+    "GroupName": "Eydis",
+    "NPCFormKeys": [
+      "013B77:Skyrim.esm",
+      "03B540:Dragonborn.esm"
+    ],
+    "Primary": "013B77:Skyrim.esm"
+  }
+]

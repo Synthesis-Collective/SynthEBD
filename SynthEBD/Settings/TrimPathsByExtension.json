@@ -1,0 +1,10 @@
+[
+  {
+    "Extension": "dds",
+    "PathToTrim": "textures"
+  },
+  {
+    "Extension": "nif",
+    "PathToTrim": "meshes"
+  }
+]

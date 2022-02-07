@@ -29,6 +29,9 @@
     <None Remove="Resources\Default BodySlide Annotations\UNP.csv" />
     <None Remove="Resources\JContainers Domain\PSM_SynthEBD.pex" />
     <None Remove="Resources\JContainers Domain\Source\PSM_SynthEBD.psc" />
+    <None Remove="Settings\LinkedNPCNameExclusions.json" />
+    <None Remove="Settings\LinkedNPCs.json" />
+    <None Remove="Settings\TrimPathsByExtension.json" />
   </ItemGroup>
 
   <ItemGroup>
@@ -93,6 +96,15 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Resources\JContainers Domain\Source\PSM_SynthEBD.psc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Settings\LinkedNPCNameExclusions.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Settings\LinkedNPCs.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Settings\TrimPathsByExtension.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

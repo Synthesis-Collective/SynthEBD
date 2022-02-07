@@ -121,7 +121,7 @@ namespace SynthEBD
         {
             foreach (var raceGetter in PatcherEnvironmentProvider.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
             {
-                if (PatcherSettings.General.patchableRaces.Contains(raceGetter.FormKey))
+                if (PatcherSettings.General.PatchableRaces.Contains(raceGetter.FormKey))
                 {
                     var patchableRace = outputMod.Races.GetOrAddAsOverride(raceGetter);
                     if (patchableRace.ActorEffect == null)

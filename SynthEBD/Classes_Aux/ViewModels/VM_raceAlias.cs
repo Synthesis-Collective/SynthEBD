@@ -17,8 +17,8 @@ namespace SynthEBD
     {
         public VM_raceAlias(RaceAlias alias, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env, VM_Settings_General parentVM)
         {
-            this.race = alias.race;
-            this.aliasRace = alias.aliasRace;
+            this.race = alias.Race;
+            this.aliasRace = alias.AliasRace;
             this.bMale = alias.bMale;
             this.bFemale = alias.bFemale;
             this.bApplyToAssets = alias.bApplyToAssets;
@@ -65,8 +65,8 @@ namespace SynthEBD
         public static RaceAlias DumpViewModelToModel(VM_raceAlias viewModel)
         {
             RaceAlias model = new RaceAlias();
-            model.race = viewModel.race;
-            model.aliasRace = viewModel.aliasRace;
+            model.Race = viewModel.race;
+            model.AliasRace = viewModel.aliasRace;
             model.bMale = viewModel.bMale;
             model.bFemale = viewModel.bFemale;
             model.bApplyToAssets = viewModel.bApplyToAssets;

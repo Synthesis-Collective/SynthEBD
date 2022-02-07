@@ -18,17 +18,18 @@ namespace SynthEBD
 {
     public class ConfigInstaller
     {
-        public static void InstallConfigFile()
+        public static List<string> InstallConfigFile()
         {
+            var installedConfigs = new List<string>();
             if (PatcherSettings.ModManagerIntegration.ModManagerType != ModManager.None && string.IsNullOrWhiteSpace(PatcherSettings.ModManagerIntegration.CurrentInstallationFolder))
             {
                 System.Windows.MessageBox.Show("You must set the location of your mod manager's Mods folder before installing a config file archive.");
-                return;
+                return installedConfigs;
             }
 
             if (!IO_Aux.SelectFile(PatcherSettings.Paths.AssetPackDirPath, "Archive Files (*.7z;*.zip;*.rar)|*.7z;*.zip;*.rar|" + "All files (*.*)|*.*", out string path))
             {
-                return;
+                return installedConfigs;
             }
 
             string tempFolderPath = Path.Combine(PatcherSettings.ModManagerIntegration.TempExtractionFolder, DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture));
@@ -38,7 +39,7 @@ namespace SynthEBD
             {
                 if (!ExtractArchive(path, tempFolderPath))
                 {
-                    return;
+                    return installedConfigs;
                 }
             }
             catch
@@ -59,17 +60,17 @@ namespace SynthEBD
                 if (manifest == null)
                 {
                     System.Windows.MessageBox.Show("Could not parse Manifest.json in " + tempFolderPath + ". Installation aborted.");
-                    return;
+                    return installedConfigs;
                 }
                 else if (!ValidateManifest(manifest))
                 {
-                    return;
+                    return installedConfigs;
                 }
             }
             catch
             {
                 System.Windows.MessageBox.Show("Could not parse Manifest.json in " + tempFolderPath + ". Installation aborted.");
-                return;
+                return installedConfigs;
             }
 
             var installerWindow = new Window_ConfigInstaller();
@@ -79,7 +80,7 @@ namespace SynthEBD
 
             if (installerVM.Cancelled)
             {
-                return;
+                return installedConfigs;
             }
 
             #region load potential required dependencies for validating asset pack
@@ -131,6 +132,8 @@ namespace SynthEBD
                     }
 
                     referencedFilePaths.UnionWith(GetAssetPackSourcePaths(validationAP.Subgroups, new HashSet<string>()));
+
+                    installedConfigs.Add(validationAP.GroupName);
 
                     /*
                     //test
@@ -271,6 +274,8 @@ namespace SynthEBD
             {
                 System.Windows.MessageBox.Show("Installation complete. You will need to restart your mod manager to rebuild the VFS in order for SynthEBD to see the newly installed asset files.");
             }
+
+            return installedConfigs;
         }
 
         public static bool ValidateManifest(Manifest manifest)

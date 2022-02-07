@@ -11,7 +11,7 @@ namespace SynthEBD
     {
         public static FormKey GetAliasTexMesh(FormKey npcRaceFormKey)
         {
-            var alias = PatcherSettings.General.raceAliases.Where(x => x.bApplyToAssets && x.race == npcRaceFormKey).Select(x => x.aliasRace).FirstOrDefault();
+            var alias = PatcherSettings.General.RaceAliases.Where(x => x.bApplyToAssets && x.Race == npcRaceFormKey).Select(x => x.AliasRace).FirstOrDefault();
 
             if (!alias.IsNull)
             {
@@ -25,7 +25,7 @@ namespace SynthEBD
 
         public static FormKey GetAliasBodyGen(FormKey npcRaceFormKey)
         {
-            var alias = PatcherSettings.General.raceAliases.Where(x => x.bApplyToBodyGen && x.race == npcRaceFormKey).Select(x => x.aliasRace).FirstOrDefault();
+            var alias = PatcherSettings.General.RaceAliases.Where(x => x.bApplyToBodyGen && x.Race == npcRaceFormKey).Select(x => x.AliasRace).FirstOrDefault();
 
             if (!alias.IsNull)
             {
@@ -39,7 +39,7 @@ namespace SynthEBD
 
         public static FormKey GetAliasHeight(FormKey npcRaceFormKey)
         {
-            var alias = PatcherSettings.General.raceAliases.Where(x => x.bApplyToHeight && x.race == npcRaceFormKey).Select(x => x.aliasRace).FirstOrDefault();
+            var alias = PatcherSettings.General.RaceAliases.Where(x => x.bApplyToHeight && x.Race == npcRaceFormKey).Select(x => x.AliasRace).FirstOrDefault();
 
             if (!alias.IsNull)
             {

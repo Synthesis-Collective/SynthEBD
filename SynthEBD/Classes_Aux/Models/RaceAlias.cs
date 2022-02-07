@@ -11,8 +11,8 @@ namespace SynthEBD
     {
         public RaceAlias()
         {
-            this.race = new FormKey();
-            this.aliasRace = new FormKey();
+            this.Race = new FormKey();
+            this.AliasRace = new FormKey();
             this.bMale = true;
             this.bFemale = true;
             this.bApplyToAssets = false;
@@ -20,8 +20,8 @@ namespace SynthEBD
             this.bApplyToHeight = false;
         }
 
-        public FormKey race { get; set; } 
-        public FormKey aliasRace { get; set; } 
+        public FormKey Race { get; set; } 
+        public FormKey AliasRace { get; set; } 
         public bool bMale { get; set; }
         public bool bFemale { get; set; }
 

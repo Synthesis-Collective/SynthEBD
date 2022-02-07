@@ -120,6 +120,28 @@ namespace SynthEBD
                 }
             }
 
+            foreach (var maleConfig in loadedPacks.Male)
+            {
+                foreach (var attributeGroup in PatcherSettings.General.AttributeGroups) // add any available attribute groups from the general patcher settings
+                {
+                    if (!maleConfig.AttributeGroups.Select(x => x.Label).Contains(attributeGroup.Label))
+                    {
+                        maleConfig.AttributeGroups.Add(new AttributeGroup() { Label = attributeGroup.Label, Attributes = new HashSet<NPCAttribute>(attributeGroup.Attributes) });
+                    }
+                }
+            }
+
+            foreach (var femaleConfig in loadedPacks.Male)
+            {
+                foreach (var attributeGroup in PatcherSettings.General.AttributeGroups) // add any available attribute groups from the general patcher settings
+                {
+                    if (!femaleConfig.AttributeGroups.Select(x => x.Label).Contains(attributeGroup.Label))
+                    {
+                        femaleConfig.AttributeGroups.Add(new AttributeGroup() { Label = attributeGroup.Label, Attributes = new HashSet<NPCAttribute>(attributeGroup.Attributes) });
+                    }
+                }
+            }
+
             return loadedPacks;
         }
 

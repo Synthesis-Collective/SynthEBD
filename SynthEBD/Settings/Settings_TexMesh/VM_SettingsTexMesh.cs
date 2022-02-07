@@ -60,14 +60,12 @@ namespace SynthEBD
                 execute: _ =>
                 {
                     ParentViewModel.MMVM.UpdatePatcherSettings(); // make sure mod manager integration is synced w/ latest settings
-                    ConfigInstaller.InstallConfigFile();
+                    var installedConfigs = ConfigInstaller.InstallConfigFile();
                     mainViewModel.SaveAndRefreshPlugins();
-                    /*
-                    var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, ParentViewModel.RecordTemplatePlugins, ParentViewModel.BodyGenConfigs);
-                    if (newAssetPack != null)
+                    foreach (var newConfig in mainViewModel.TMVM.AssetPacks.Where(x => installedConfigs.Contains(x.GroupName)))
                     {
-                        AssetPacks.Add(VM_AssetPack.GetViewModelFromModel(newAssetPack, ParentViewModel.SGVM, AssetPacks, ParentViewModel.BGVM, ParentViewModel.OBVM.DescriptorUI, ParentViewModel.RecordTemplateLinkCache));
-                    }*/
+                        newConfig.IsSelected = true;
+                    }
                 }
                 );
 
@@ -80,7 +78,9 @@ namespace SynthEBD
                         var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, ParentViewModel.RecordTemplatePlugins, ParentViewModel.BodyGenConfigs);
                         if (newAssetPack != null)
                         {
-                            AssetPacks.Add(VM_AssetPack.GetViewModelFromModel(newAssetPack, ParentViewModel.SGVM, AssetPacks, ParentViewModel.BGVM, ParentViewModel.OBVM.DescriptorUI, ParentViewModel.RecordTemplateLinkCache, ParentViewModel));
+                            var newAssetPackVM = VM_AssetPack.GetViewModelFromModel(newAssetPack, ParentViewModel.SGVM, AssetPacks, ParentViewModel.BGVM, ParentViewModel.OBVM.DescriptorUI, ParentViewModel.RecordTemplateLinkCache, ParentViewModel);
+                            newAssetPackVM.IsSelected = true;
+                            AssetPacks.Add(newAssetPackVM);
                         }
                     }
                 }

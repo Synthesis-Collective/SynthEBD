@@ -376,7 +376,7 @@ namespace SynthEBD
             var split = formKeyString.Split(':');
             if (split.Length != 2) { return false; }
 
-            if (split[1] == PatcherSettings.General.patchFileName + ".esp")
+            if (split[1] == PatcherSettings.General.PatchFileName + ".esp")
             {
                 formIDstr = PatcherEnvironmentProvider.Environment.LoadOrder.ListedOrder.Count().ToString("X"); // format FormID assuming the generated patch will be last in the load order
             }

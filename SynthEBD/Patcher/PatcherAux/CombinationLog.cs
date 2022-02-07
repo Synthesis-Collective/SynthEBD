@@ -88,7 +88,7 @@ namespace SynthEBD
         {
             foreach (var containedFormLink in recordInfo.SubRecords)
             {
-                if (Patcher.MainLinkCache.TryResolve(containedFormLink.FormKey, containedFormLink.Type, out var resolvedSubRecord))+
+                if (Patcher.MainLinkCache.TryResolve(containedFormLink.FormKey, containedFormLink.Type, out var resolvedSubRecord))
                 {
                     var loggedSubRecord = new GeneratedRecordInfo() { EditorID = resolvedSubRecord.EditorID, FormKey = resolvedSubRecord.FormKey.ToString(), SubRecords = resolvedSubRecord.ContainedFormLinks.Where(x => x.FormKey.ModKey == resolvedSubRecord.FormKey.ModKey).ToHashSet() };
                     

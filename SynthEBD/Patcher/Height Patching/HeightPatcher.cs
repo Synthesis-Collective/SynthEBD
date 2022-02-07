@@ -136,11 +136,11 @@ namespace SynthEBD
             foreach (var race in PatcherEnvironmentProvider.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
             {
                 patchedRace = null;
-                raceAlias = PatcherSettings.General.raceAliases.Where(x => x.race == race.FormKey && x.bApplyToHeight).FirstOrDefault();
+                raceAlias = PatcherSettings.General.RaceAliases.Where(x => x.Race == race.FormKey && x.bApplyToHeight).FirstOrDefault();
                
-                if (raceAlias != null && PatcherSettings.General.patchableRaces.Contains(raceAlias.aliasRace) && Patcher.MainLinkCache.TryResolve<IRaceGetter>(raceAlias.aliasRace, out var raceAliasGetter))
+                if (raceAlias != null && PatcherSettings.General.PatchableRaces.Contains(raceAlias.AliasRace) && Patcher.MainLinkCache.TryResolve<IRaceGetter>(raceAlias.AliasRace, out var raceAliasGetter))
                 {
-                    heightRacialSetting = heightConfig.HeightAssignments.Where(x => x.Races.Contains(raceAlias.aliasRace)).FirstOrDefault();
+                    heightRacialSetting = heightConfig.HeightAssignments.Where(x => x.Races.Contains(raceAlias.AliasRace)).FirstOrDefault();
 
                     if (heightRacialSetting.HeightMale == race.Height.Male && heightRacialSetting.HeightFemale == race.Height.Female)
                     {
@@ -152,7 +152,7 @@ namespace SynthEBD
                         patchedRace = outputMod.Races.GetOrAddAsOverride(raceAliasGetter);
                     }
                 }
-                else if (PatcherSettings.General.patchableRaces.Contains(race.FormKey))
+                else if (PatcherSettings.General.PatchableRaces.Contains(race.FormKey))
                 {
                     heightRacialSetting = heightConfig.HeightAssignments.Where(x => x.Races.Contains(race.FormKey)).FirstOrDefault();
                     

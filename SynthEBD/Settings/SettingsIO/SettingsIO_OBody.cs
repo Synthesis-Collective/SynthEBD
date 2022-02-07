@@ -23,6 +23,14 @@ namespace SynthEBD
                 oBodySettings = JSONhandler<Settings_OBody>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.OBodySettingsPath));
             }
 
+            foreach (var attributeGroup in PatcherSettings.General.AttributeGroups) // add any available attribute groups from the general patcher settings
+            {
+                if (!oBodySettings.AttributeGroups.Select(x => x.Label).Contains(attributeGroup.Label))
+                {
+                    oBodySettings.AttributeGroups.Add(new AttributeGroup() { Label = attributeGroup.Label, Attributes = new HashSet<NPCAttribute>(attributeGroup.Attributes) });
+                }
+            }
+
             return oBodySettings;
         }
 

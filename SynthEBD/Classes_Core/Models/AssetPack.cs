@@ -684,6 +684,12 @@ namespace SynthEBD
                             continueSearch = false;
                             break;
                         }
+                        else if (zEBDtoSynthEBDRaceGroupingNames.ContainsKey(id))
+                        {
+                            s.AllowedRaceGroupings.Add(zEBDtoSynthEBDRaceGroupingNames[id]);
+                            continueSearch = false;
+                            break;
+                        }
                     }
 
                     // if not, see if it is a race EditorID
@@ -706,6 +712,12 @@ namespace SynthEBD
                         if (group.Label == id)
                         {
                             s.DisallowedRaceGroupings.Add(group.Label);
+                            continueSearch = false;
+                            break;
+                        }
+                        else if (zEBDtoSynthEBDRaceGroupingNames.ContainsKey(id))
+                        {
+                            s.DisallowedRaceGroupings.Add(zEBDtoSynthEBDRaceGroupingNames[id]);
                             continueSearch = false;
                             break;
                         }
@@ -747,6 +759,23 @@ namespace SynthEBD
 
                 return s;
             }
+
+            public static Dictionary<string, string> zEBDtoSynthEBDRaceGroupingNames = new Dictionary<string, string>()
+            {
+                {"humanoid", "Humanoid" },
+                {"humanoidStandard", "Humanoid Playable" },
+                {"humanoid_NonVamp", "Humanoid Non-Vampire" },
+                {"humanoidVampire", "Humanoid Vampire" },
+                {"humanoidYoung", "Humanoid Young" },
+                {"humanoidYoungNonVampire", "Humanoid Young Non-Vampire" },
+                {"humanoidYoungVampire", "Humanoid Young Vampire" },
+                {"elven", "Elven" },
+                {"elvenNonVampire", "Elven Non-Vampire" },
+                {"elvenVampire", "Elven Vampire" },
+                {"elder", "Elder" },
+                {"khajiit", "Khajiit" },
+                {"argonian", "Argonian" }
+            };
         }
 
         public static AssetPack ToSynthEBDAssetPack(ZEBDAssetPack z, List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs)

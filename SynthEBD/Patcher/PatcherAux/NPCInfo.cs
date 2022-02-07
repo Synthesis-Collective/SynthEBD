@@ -21,7 +21,7 @@ namespace SynthEBD
             BodyShapeRace = AliasHandler.GetAliasBodyGen(npc.Race.FormKey);
             HeightRace = AliasHandler.GetAliasHeight(npc.Race.FormKey);
 
-            IsPatchable = PatcherSettings.General.patchableRaces.Contains(AssetsRace) || PatcherSettings.General.patchableRaces.Contains(BodyShapeRace) || PatcherSettings.General.patchableRaces.Contains(HeightRace);
+            IsPatchable = PatcherSettings.General.PatchableRaces.Contains(AssetsRace) || PatcherSettings.General.PatchableRaces.Contains(BodyShapeRace) || PatcherSettings.General.PatchableRaces.Contains(HeightRace);
             if (!IsPatchable)
             {
                 return;

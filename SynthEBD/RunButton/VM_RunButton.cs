@@ -22,7 +22,7 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    PatcherEnvironmentProvider.Environment.Refresh(PatcherSettings.General.patchFileName, true); // re-filter load order (in case of multiple runs in same session, to get rid of generated output plugin from link cache & load order)
+                    PatcherEnvironmentProvider.Environment.Refresh(PatcherSettings.General.PatchFileName, true); // re-filter load order (in case of multiple runs in same session, to get rid of generated output plugin from link cache & load order)
                     ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
                     ParentWindow.DumpViewModelsToModels();
                     if (!PreRunValidation()) { return; }
@@ -39,7 +39,7 @@ namespace SynthEBD
                 
                 execute: async _ =>
                 {
-                    PatcherEnvironmentProvider.Environment.Refresh(PatcherSettings.General.patchFileName, true); // re-filter load order (in case of multiple runs in same session, to get rid of generated output plugin from link cache & load order)
+                    PatcherEnvironmentProvider.Environment.Refresh(PatcherSettings.General.PatchFileName, true); // re-filter load order (in case of multiple runs in same session, to get rid of generated output plugin from link cache & load order)
                     ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
                     ParentWindow.DumpViewModelsToModels();
                     if (!PreRunValidation()) { return; }

@@ -21,7 +21,7 @@ namespace SynthEBD
         public static void RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins, VM_StatusBar statusBar)
         //public static async Task RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins, VM_StatusBar statusBar)
         {
-            ModKey.TryFromName(PatcherSettings.General.patchFileName, ModType.Plugin, out var patchModKey);
+            ModKey.TryFromName(PatcherSettings.General.PatchFileName, ModType.Plugin, out var patchModKey);
             var outputMod = new SkyrimMod(patchModKey, SkyrimRelease.SkyrimSE);
             MainLinkCache = PatcherEnvironmentProvider.Environment.LoadOrder.ToMutableLinkCache(outputMod);
             ResolvePatchableRaces();
@@ -139,7 +139,7 @@ namespace SynthEBD
             }
 
             PatcherEnvironmentProvider.Environment.SuspendEnvironment(); // allow access to SynthEBD.esp if it is active in the load order
-            string patchOutputPath = System.IO.Path.Combine(PatcherSettings.General.OutputDataFolder, PatcherSettings.General.patchFileName + ".esp");
+            string patchOutputPath = System.IO.Path.Combine(PatcherSettings.General.OutputDataFolder, PatcherSettings.General.PatchFileName + ".esp");
             PatcherIO.WritePatch(patchOutputPath, outputMod);
             PatcherEnvironmentProvider.Environment.ResumeEnvironment();
 
@@ -227,11 +227,11 @@ namespace SynthEBD
                 #endregion
 
                 #region Detailed logging
-                if (PatcherSettings.General.verboseModeNPClist.Contains(npc.FormKey) || PatcherSettings.General.bVerboseModeAssetsAll || PatcherSettings.General.bVerboseModeAssetsNoncompliant)
+                if (PatcherSettings.General.VerboseModeNPClist.Contains(npc.FormKey) || PatcherSettings.General.bVerboseModeAssetsAll || PatcherSettings.General.bVerboseModeAssetsNoncompliant)
                 {
                     Logger.TriggerNPCReporting(currentNPCInfo);
                 }
-                if (PatcherSettings.General.verboseModeNPClist.Contains(npc.FormKey) || PatcherSettings.General.bVerboseModeAssetsAll)
+                if (PatcherSettings.General.VerboseModeNPClist.Contains(npc.FormKey) || PatcherSettings.General.bVerboseModeAssetsAll)
                 {
                     Logger.TriggerNPCReportingSave(currentNPCInfo);
                 }
@@ -268,7 +268,7 @@ namespace SynthEBD
                 AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment assignedPrimaryComboAndBodyShape = new AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment();
 
                 #region Primary Assets (and optionally Body Shape) assignment
-                if (PatcherSettings.General.bChangeMeshesOrTextures && !blockAssets && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.AssetsRace))
+                if (PatcherSettings.General.bChangeMeshesOrTextures && !blockAssets && PatcherSettings.General.PatchableRaces.Contains(currentNPCInfo.AssetsRace))
                 {
                     switch (currentNPCInfo.Gender)
                     {
@@ -312,7 +312,7 @@ namespace SynthEBD
                     case BodyShapeSelectionMode.None: break;
 
                     case BodyShapeSelectionMode.BodyGen:
-                        if (!blockBodyShape && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && BodyGenSelector.BodyGenAvailableForGender(currentNPCInfo.Gender, bodyGenConfigs))
+                        if (!blockBodyShape && PatcherSettings.General.PatchableRaces.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && BodyGenSelector.BodyGenAvailableForGender(currentNPCInfo.Gender, bodyGenConfigs))
                         {
                             Logger.LogReport("Assigning a BodyGen morph independently of Asset Combination", false, currentNPCInfo);
                             var assignedMorphs = BodyGenSelector.SelectMorphs(currentNPCInfo, out bool success, bodyGenConfigs, null, out _);
@@ -329,7 +329,7 @@ namespace SynthEBD
                         }
                         break;
                     case BodyShapeSelectionMode.BodySlide:
-                        if (!blockBodyShape && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && OBodySelector.CurrentNPCHasAvailablePresets(currentNPCInfo, oBodySettings))
+                        if (!blockBodyShape && PatcherSettings.General.PatchableRaces.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && OBodySelector.CurrentNPCHasAvailablePresets(currentNPCInfo, oBodySettings))
                         {
                             Logger.LogReport("Assigning a BodySlide preset independently of Asset Combination", false, currentNPCInfo);
                             var assignedPreset = OBodySelector.SelectBodySlidePreset(currentNPCInfo, out bool success, oBodySettings, null, out _);
@@ -349,7 +349,7 @@ namespace SynthEBD
                 #endregion
 
                 // now that Body Shapes have been assigned, finish assigning mix-in combinations and asset replacers, and write them to the output file
-                if (PatcherSettings.General.bChangeMeshesOrTextures && !blockAssets && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.AssetsRace))
+                if (PatcherSettings.General.bChangeMeshesOrTextures && !blockAssets && PatcherSettings.General.PatchableRaces.Contains(currentNPCInfo.AssetsRace))
                 {
                     Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches = new Dictionary<FormKey, Dictionary<string, dynamic>>();
 
@@ -399,7 +399,7 @@ namespace SynthEBD
                 }
 
                 #region Height assignment
-                if (PatcherSettings.General.bChangeHeight && !blockHeight && PatcherSettings.General.patchableRaces.Contains(currentNPCInfo.HeightRace))
+                if (PatcherSettings.General.bChangeHeight && !blockHeight && PatcherSettings.General.PatchableRaces.Contains(currentNPCInfo.HeightRace))
                 {
                     HeightPatcher.AssignNPCHeight(currentNPCInfo, currentHeightConfig, outputMod);
                 }
@@ -416,7 +416,7 @@ namespace SynthEBD
             foreach (var assetPack in assetPacks)
             {
                 var exclusions = assetPack.AdditionalRecordTemplateAssignments.SelectMany(x => x.Races).ToHashSet(); // don't include races that get their own record template in the default template's patching
-                var racesToAdd = PatcherSettings.General.patchableRaces.Where(x => !FormKeyHashSetComparer.Contains(exclusions, x)).ToHashSet();
+                var racesToAdd = PatcherSettings.General.PatchableRaces.Where(x => !FormKeyHashSetComparer.Contains(exclusions, x)).ToHashSet();
                 SetRecordTemplateAdditionalRaces(assetPack.DefaultRecordTemplateAdditionalRacesPaths, assetPack.DefaultRecordTemplate, racesToAdd, patchedTemplates, recordTemplateLinkCache, recordTemplatePlugins);
 
                 foreach (var additionalTemplateEntry in assetPack.AdditionalRecordTemplateAssignments)
@@ -481,7 +481,7 @@ namespace SynthEBD
         public static void ResolvePatchableRaces()
         {
             PatchableRaces = new HashSet<IFormLinkGetter<IRaceGetter>>();
-            foreach (var raceFK in PatcherSettings.General.patchableRaces)
+            foreach (var raceFK in PatcherSettings.General.PatchableRaces)
             {
                 if (MainLinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
                 {

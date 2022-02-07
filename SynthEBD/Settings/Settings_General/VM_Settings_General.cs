@@ -155,13 +155,13 @@ namespace SynthEBD
             viewModel.ExcludePlayerCharacter = model.ExcludePlayerCharacter;
             viewModel.ExcludePresets = model.ExcludePresets;
             viewModel.bLinkNPCsWithSameName = model.bLinkNPCsWithSameName;
-            viewModel.patchFileName = model.patchFileName;
+            viewModel.patchFileName = model.PatchFileName;
             viewModel.bVerboseModeAssetsNoncompliant = model.bVerboseModeAssetsNoncompliant;
             viewModel.bVerboseModeAssetsAll = model.bVerboseModeAssetsAll;
-            viewModel.verboseModeNPClist = new ObservableCollection<FormKey>(model.verboseModeNPClist);
+            viewModel.verboseModeNPClist = new ObservableCollection<FormKey>(model.VerboseModeNPClist);
             viewModel.bLoadSettingsFromDataFolder = model.bLoadSettingsFromDataFolder;
-            viewModel.patchableRaces = new ObservableCollection<FormKey>(model.patchableRaces);
-            viewModel.raceAliases = VM_raceAlias.GetViewModelsFromModels(model.raceAliases, PatcherEnvironmentProvider.Environment, viewModel);
+            viewModel.patchableRaces = new ObservableCollection<FormKey>(model.PatchableRaces);
+            viewModel.raceAliases = VM_raceAlias.GetViewModelsFromModels(model.RaceAliases, PatcherEnvironmentProvider.Environment, viewModel);
             viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, PatcherEnvironmentProvider.Environment, viewModel);
             VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu);
             viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;
@@ -178,17 +178,17 @@ namespace SynthEBD
             model.ExcludePlayerCharacter = viewModel.ExcludePlayerCharacter;
             model.ExcludePresets = viewModel.ExcludePresets;
             model.bLinkNPCsWithSameName = viewModel.bLinkNPCsWithSameName;
-            model.patchFileName = viewModel.patchFileName;
+            model.PatchFileName = viewModel.patchFileName;
             model.bVerboseModeAssetsNoncompliant = viewModel.bVerboseModeAssetsNoncompliant;
             model.bVerboseModeAssetsAll = viewModel.bVerboseModeAssetsAll;
-            model.verboseModeNPClist = viewModel.verboseModeNPClist.ToList();
+            model.VerboseModeNPClist = viewModel.verboseModeNPClist.ToList();
             model.bLoadSettingsFromDataFolder = viewModel.bLoadSettingsFromDataFolder;
-            model.patchableRaces = viewModel.patchableRaces.ToList();
+            model.PatchableRaces = viewModel.patchableRaces.ToList();
 
-            model.raceAliases.Clear();
+            model.RaceAliases.Clear();
             foreach (var x in viewModel.raceAliases)
             {
-                model.raceAliases.Add(VM_raceAlias.DumpViewModelToModel(x));
+                model.RaceAliases.Add(VM_raceAlias.DumpViewModelToModel(x));
             }
 
             model.RaceGroupings.Clear();

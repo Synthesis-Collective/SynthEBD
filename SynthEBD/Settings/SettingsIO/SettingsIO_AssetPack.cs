@@ -79,6 +79,14 @@ namespace SynthEBD
                 }
             }
 
+            foreach (var attributeGroup in PatcherSettings.General.AttributeGroups) // add any available attribute groups from the general patcher settings
+            {
+                if (!synthEBDconfig.AttributeGroups.Select(x => x.Label).Contains(attributeGroup.Label))
+                {
+                    synthEBDconfig.AttributeGroups.Add(new AttributeGroup() { Label = attributeGroup.Label, Attributes = new HashSet<NPCAttribute>(attributeGroup.Attributes) });
+                }
+            }
+
             synthEBDconfig.FilePath = path;
             return synthEBDconfig;
         }

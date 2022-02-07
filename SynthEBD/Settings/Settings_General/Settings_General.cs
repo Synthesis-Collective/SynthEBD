@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.FormKeys.SkyrimSE;
 
 namespace SynthEBD
 {
@@ -21,15 +22,83 @@ namespace SynthEBD
             this.ExcludePlayerCharacter = true;
             this.ExcludePresets = true;
             this.bLinkNPCsWithSameName = true;
-            this.patchFileName = "SynthEBD";
+            this.PatchFileName = "SynthEBD";
             this.bVerboseModeAssetsNoncompliant = false;
             this.bVerboseModeAssetsAll = false;
-            this.verboseModeNPClist = new List<FormKey>();
+            this.VerboseModeNPClist = new List<FormKey>();
             this.bLoadSettingsFromDataFolder = false;
-            this.patchableRaces = new List<FormKey>();
-            this.raceAliases = new List<RaceAlias>();
-            this.RaceGroupings = new List<RaceGrouping>();
-            this.AttributeGroups = new HashSet<AttributeGroup>();
+            this.PatchableRaces = new List<FormKey>()
+            {
+                Skyrim.Race.NordRace.FormKey,
+                Skyrim.Race.BretonRace.FormKey,
+                Skyrim.Race.DarkElfRace.FormKey,
+                Skyrim.Race.HighElfRace.FormKey,
+                Skyrim.Race.ImperialRace.FormKey,
+                Skyrim.Race.OrcRace.FormKey,
+                Skyrim.Race.RedguardRace.FormKey,
+                Skyrim.Race.WoodElfRace.FormKey,
+                Skyrim.Race.ElderRace.FormKey,
+                Skyrim.Race.NordRaceVampire.FormKey,
+                Skyrim.Race.BretonRaceVampire.FormKey,
+                Skyrim.Race.DarkElfRaceVampire.FormKey,
+                Skyrim.Race.HighElfRaceVampire.FormKey,
+                Skyrim.Race.ImperialRaceVampire.FormKey,
+                Skyrim.Race.OrcRaceVampire.FormKey,
+                Skyrim.Race.RedguardRaceVampire.FormKey,
+                Skyrim.Race.WoodElfRaceVampire.FormKey,
+                Skyrim.Race.ElderRaceVampire.FormKey,
+                Skyrim.Race.NordRaceAstrid.FormKey,
+                Skyrim.Race.DA13AfflictedRace.FormKey,
+                Dawnguard.Race.SnowElfRace.FormKey,
+                Dawnguard.Race.DLC1NordRace.FormKey,
+                Skyrim.Race.KhajiitRace.FormKey,
+                Skyrim.Race.KhajiitRaceVampire.FormKey,
+                Skyrim.Race.ArgonianRace.FormKey,
+
+                Skyrim.Race.ArgonianRaceVampire.FormKey
+            };
+
+            this.RaceAliases = new List<RaceAlias>()
+            {
+                new RaceAlias()
+                {
+                    Race = Skyrim.Race.DA13AfflictedRace.FormKey,
+                    AliasRace = Skyrim.Race.BretonRace.FormKey,
+                    bMale = true,
+                    bFemale = true,
+                    bApplyToAssets = false,
+                    bApplyToBodyGen = true,
+                    bApplyToHeight = true
+                },
+            };
+            this.RaceGroupings = new List<RaceGrouping>()
+            {
+                DefaultRaceGroupings.Humanoid,
+                DefaultRaceGroupings.HumanoidPlayable,
+                DefaultRaceGroupings.HumanoidNonVampire,
+                DefaultRaceGroupings.HumanoidVampire,
+                DefaultRaceGroupings.HumanoidYoung,
+                DefaultRaceGroupings.HumanoidYoungNonVampire,
+                DefaultRaceGroupings.HumanoidYoungVampire,
+                DefaultRaceGroupings.Elven,
+                DefaultRaceGroupings.ElvenNonVampire,
+                DefaultRaceGroupings.ElvenVampire,
+                DefaultRaceGroupings.Elder,
+                DefaultRaceGroupings.Khajiit,
+                DefaultRaceGroupings.Argonian
+            };
+            this.AttributeGroups = new HashSet<AttributeGroup>()
+            {
+                DefaultAttributeGroups.CannotHaveDefinition,
+                DefaultAttributeGroups.MustHaveDefinition,
+                DefaultAttributeGroups.MustBeFit,
+                DefaultAttributeGroups.MustBeAthletic,
+                DefaultAttributeGroups.MustBeMuscular,
+                DefaultAttributeGroups.CannotHaveScars,
+                DefaultAttributeGroups.CanBeDirty,
+                DefaultAttributeGroups.MustBeDirty,
+                DefaultAttributeGroups.CanGetChubbyMorph
+            };
             this.OverwritePluginAttGroups = true;
         }
 
@@ -43,16 +112,16 @@ namespace SynthEBD
         public bool ExcludePlayerCharacter { get; set; }
         public bool ExcludePresets { get; set; }
         public bool bLinkNPCsWithSameName { get; set; }
-        public string patchFileName { get; set; }
+        public string PatchFileName { get; set; }
 
         public bool bVerboseModeAssetsNoncompliant { get; set; }
         public bool bVerboseModeAssetsAll { get; set; }
-        public List<FormKey> verboseModeNPClist { get; set; } // enable FormKey (multi?) picker for this
+        public List<FormKey> VerboseModeNPClist { get; set; } // enable FormKey (multi?) picker for this
         public bool bLoadSettingsFromDataFolder { get; set; }
 
-        public List<FormKey> patchableRaces { get; set; } // enable FormKey (multi?) picker for this
+        public List<FormKey> PatchableRaces { get; set; } // enable FormKey (multi?) picker for this
 
-        public List<RaceAlias> raceAliases { get; set; }
+        public List<RaceAlias> RaceAliases { get; set; }
 
         public List<RaceGrouping> RaceGroupings { get; set; }
         public HashSet<AttributeGroup> AttributeGroups { get; set; }

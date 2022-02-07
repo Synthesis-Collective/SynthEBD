@@ -58,7 +58,7 @@ namespace SynthEBD
             {
                 LoadOrder = (ILoadOrder<IModListing<ISkyrimModGetter>>)OriginState.LoadOrder.ListedOrder
                     .OnlyEnabledAndExisting()
-                    .RemoveModAndDependents(PatcherSettings.General.patchFileName + ".esp", false) // remove the output plugin and any plugins mastered to previous versions of it
+                    .RemoveModAndDependents(PatcherSettings.General.PatchFileName + ".esp", false) // remove the output plugin and any plugins mastered to previous versions of it
                     .ToLoadOrder();
             }
             else
@@ -93,7 +93,7 @@ namespace SynthEBD
             {
                 LoadOrder = (ILoadOrder<IModListing<ISkyrimModGetter>>)OriginState.LoadOrder.ListedOrder
                     .OnlyEnabledAndExisting()
-                    .RemoveModAndDependents(PatcherSettings.General.patchFileName + ".esp", verbose) // remove the output plugin and any plugins mastered to previous versions of it
+                    .RemoveModAndDependents(PatcherSettings.General.PatchFileName + ".esp", verbose) // remove the output plugin and any plugins mastered to previous versions of it
                     .ToLoadOrder();
             }
             else
