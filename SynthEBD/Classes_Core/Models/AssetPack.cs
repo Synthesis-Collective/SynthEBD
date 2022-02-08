@@ -144,7 +144,7 @@ namespace SynthEBD
             public HashSet<BodyShapeDescriptor> DisallowedBodySlideDescriptors { get; set; }
             public NPCWeightRange WeightRange { get; set; }
 
-            public static string SubgroupIDString = "#Config Distribution Rules#";
+            public static string SubgroupIDString = "ConfigDistributionRules";
             public static string SubgroupNameString = "Main Distribution Rules";
 
             public static Subgroup CreateInheritanceParent(ConfigDistributionRules rules)

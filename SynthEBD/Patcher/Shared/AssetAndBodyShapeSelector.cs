@@ -220,7 +220,7 @@ namespace SynthEBD
             Tuple<SubgroupCombination, object> firstValidCombinationShapePair = new Tuple<SubgroupCombination, object>(new SubgroupCombination(), new List<string>()); // object can be List<string> (BodyGen) or BodySlideSetting (OBody)
             bool firstValidCombinationShapePairInitialized = false;
 
-            Logger.OpenReportSubsection("CombinationGeneration", npcInfo);
+            Logger.OpenReportSubsection("CombinationAssignment", npcInfo);
             Logger.LogReport("Assigning an asset combination", false, npcInfo);
 
             // remove subgroups or entire asset packs whose distribution rules are incompatible with the current NPC

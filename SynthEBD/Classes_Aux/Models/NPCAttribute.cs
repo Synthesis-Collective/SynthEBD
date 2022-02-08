@@ -12,7 +12,7 @@ namespace SynthEBD
     {
         public NPCAttribute()
         {
-            this.SubAttributes = new HashSet<ITypedNPCAttribute>(); // Each NPCAttributeShell is treated with AND logic; i.e. the NPC must match ALL of the GroupedSubAttributes for the parent object to be assigned to the NPC.
+            this.SubAttributes = new HashSet<ITypedNPCAttribute>(); // Each ITypedNPCAttribute is treated with AND logic; i.e. the NPC must match ALL of the SubAttributes for the parent object to be assigned to the NPC.
         }
 
         public HashSet<ITypedNPCAttribute> SubAttributes { get; set; }
@@ -108,11 +108,11 @@ namespace SynthEBD
                         var clonedSubAttribute = CloneAsNew(subAttribute);
                         if (groupForceIf)
                         {
-                            subAttribute.ForceIf = true;
+                            clonedSubAttribute.ForceIf = true;
                         }
                         else
                         {
-                            subAttribute.ForceIf = false;
+                            clonedSubAttribute.ForceIf = false;
                         }
                         outputs.Add(clonedSubAttribute);
                     }

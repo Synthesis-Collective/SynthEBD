@@ -246,7 +246,7 @@ namespace SynthEBD
             FlattenedAssetPack forcedAssetPack = null;
             if (npcInfo.SpecificNPCAssignment != null)
             {
-                Logger.OpenReportSubsection("DirectAssignments", npcInfo);
+                Logger.OpenReportSubsection("SpecificAssignments", npcInfo);
                 // check to make sure forced asset pack exists
                 switch (mode)
                 {
@@ -354,7 +354,7 @@ namespace SynthEBD
                                 {
                                     if (candidatePack.Subgroups[i][j].ForceIfMatchCount < candidatePack.Subgroups[i][0].ForceIfMatchCount)
                                     {
-                                        Logger.LogReport("Subgroup: " + ap.Subgroups[i][j].Id + "(" + ap.Subgroups[i][j].Name + ") was removed because another subgroup in position " + (i + 1).ToString() + " had more matched ForceIf attributes.", false, npcInfo);
+                                        Logger.LogReport("Subgroup: " + candidatePack.Subgroups[i][j].Id + "(" + candidatePack.Subgroups[i][j].Name + ") was removed because another subgroup in position " + (i + 1).ToString() + " had more matched ForceIf attributes.", false, npcInfo);
                                         candidatePack.Subgroups[i].RemoveAt(j);
                                         j--;
                                     }
@@ -423,6 +423,7 @@ namespace SynthEBD
                             }
                             else
                             {
+                                Logger.LogReport("Selecting consistency Asset Pack (" + npcInfo.ConsistencyNPCAssignment.AssetPackName + ").", false, npcInfo);
                                 consistencyAssetPack = consistencyAssetPack.ShallowCopy(); // otherwise subsequent NPCs will get pruned packs as the consistency pack is modified in the current round of patching
 
                                 // check each subgroup against specific npc assignment
@@ -445,6 +446,7 @@ namespace SynthEBD
                                         if (forcedAssignments[i].Select(x => x.Id).Contains(consistencySubgroupIDs[i]))
                                         {
                                             consistencyAssetPack.Subgroups[i] = new List<FlattenedSubgroup>() { forcedAssignments[i].First(x => x.Id == consistencySubgroupIDs[i]) }; // guaranteed to have at least one subgroup or else the upstream if would fail, so use First instead of Where
+                                            Logger.LogReport("Consistency subgroup " + consistencySubgroupIDs[i] + " is compatible with the Specific NPC Assignment.", false, npcInfo);
                                         }
                                         else
                                         {
@@ -464,10 +466,10 @@ namespace SynthEBD
                                             Logger.LogReport("Consistency subgroup " + consistencySubgroup.Id + " (" + consistencySubgroup.Name + ") is no longer valid for this NPC. Choosing a different subgroup at this position", true, npcInfo);
                                             consistencyAssetPack.Subgroups[i].Remove(consistencySubgroup);
                                         }
-
                                         else
                                         {
                                             consistencyAssetPack.Subgroups[i] = new List<FlattenedSubgroup>() { consistencySubgroup };
+                                            Logger.LogReport("Using consistency subgroup " + consistencySubgroupIDs[i] + ".", true, npcInfo);
                                         }
                                     }
                                 }
