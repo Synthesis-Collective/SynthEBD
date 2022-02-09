@@ -22,6 +22,9 @@ namespace SynthEBD
             this.Type = type;
             this.ReplacerName = "";
             this.MatchedWholeConfigForceIfs = 0;
+
+            var configRulesSubgroup = AssetPack.ConfigDistributionRules.CreateInheritanceParent(source.DistributionRules);
+            this.DistributionRules = new FlattenedSubgroup(configRulesSubgroup, PatcherSettings.General.RaceGroupings, new List<AssetPack.Subgroup>(), this);
         }
 
         public FlattenedAssetPack(string groupName, Gender gender, FormKey defaultRecordTemplate, HashSet<AdditionalRecordTemplate> additionalRecordTemplateAssignments, string associatedBodyGenConfigName, AssetPack source, AssetPackType type)
@@ -37,6 +40,9 @@ namespace SynthEBD
             this.Type = type;
             this.ReplacerName = "";
             this.MatchedWholeConfigForceIfs = 0;
+
+            var configRulesSubgroup = AssetPack.ConfigDistributionRules.CreateInheritanceParent(source.DistributionRules);
+            this.DistributionRules = new FlattenedSubgroup(configRulesSubgroup, PatcherSettings.General.RaceGroupings, new List<AssetPack.Subgroup>(), this);
         }
 
         public FlattenedAssetPack(AssetPackType type)
@@ -52,6 +58,7 @@ namespace SynthEBD
             this.Type = type;
             this.ReplacerName = "";
             this.MatchedWholeConfigForceIfs = 0;
+            this.DistributionRules = new FlattenedSubgroup(new AssetPack.Subgroup(), PatcherSettings.General.RaceGroupings, new List<AssetPack.Subgroup>(), this);
         }
 
         public string GroupName { get; set; }
@@ -65,6 +72,7 @@ namespace SynthEBD
         public AssetPackType Type { get; set; }
         public string ReplacerName { get; set; } // only used when Type == ReplacerVirtual
         public int MatchedWholeConfigForceIfs { get; set; }
+        public FlattenedSubgroup DistributionRules { get; set; } // "virtual" subgroup
 
         public enum AssetPackType
         {
@@ -73,7 +81,7 @@ namespace SynthEBD
             ReplacerVirtual
         }
 
-        public static FlattenedAssetPack FlattenAssetPack(AssetPack source, List<RaceGrouping> raceGroupingList)
+        public static FlattenedAssetPack FlattenAssetPack(AssetPack source)
         {
             FlattenedAssetPack output = null;
             if (source.ConfigType == SynthEBD.AssetPackType.MixIn)
@@ -85,41 +93,20 @@ namespace SynthEBD
                 output = new FlattenedAssetPack(source, AssetPackType.Primary);
             }
 
-            var configRulesSubgroup = AssetPack.ConfigDistributionRules.CreateInheritanceParent(source.DistributionRules);
-            var flattenedRulesSubgroup = new FlattenedSubgroup(configRulesSubgroup, raceGroupingList, new List<AssetPack.Subgroup>(), output);
-
             for (int i = 0; i < source.Subgroups.Count; i++)
             {
                 var flattenedSubgroups = new List<FlattenedSubgroup>();
-                FlattenedSubgroup.FlattenSubgroups(source.Subgroups[i], null, flattenedSubgroups, raceGroupingList, output.GroupName, i,  source.Subgroups, output);
+                FlattenedSubgroup.FlattenSubgroups(source.Subgroups[i], null, flattenedSubgroups, PatcherSettings.General.RaceGroupings, output.GroupName, i,  source.Subgroups, output);
                 output.Subgroups.Add(flattenedSubgroups);
             }
 
-            DistributeWeighting(source.DistributionRules.ProbabilityWeighting, output);
-            output.Subgroups.Add(new List<FlattenedSubgroup>() { flattenedRulesSubgroup }); // add "fake" rules subgroup into the subgroup list for evaluation by the rules processor
 
             for (int i = 0; i < source.ReplacerGroups.Count; i++)
             {
-                output.AssetReplacerGroups.Add(FlattenedReplacerGroup.FlattenReplacerGroup(source.ReplacerGroups[i], raceGroupingList, output));
+                output.AssetReplacerGroups.Add(FlattenedReplacerGroup.FlattenReplacerGroup(source.ReplacerGroups[i], PatcherSettings.General.RaceGroupings, output));
             }
 
             return output;
-        }
-
-        public static void DistributeWeighting(double weighting, FlattenedAssetPack ap)
-        {
-            if (!ap.Subgroups.Any()) { return; }
-            double extraWeighting = ((weighting - 1) / ap.Subgroups.Count()) + 1;
-            if (extraWeighting > 0)
-            {
-                foreach (var position in ap.Subgroups)
-                {
-                    foreach (var subgroup in position)
-                    {
-                        subgroup.ProbabilityWeighting *= extraWeighting;
-                    }
-                }
-            }
         }
 
         public FlattenedAssetPack ShallowCopy()

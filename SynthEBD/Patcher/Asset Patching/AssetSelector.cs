@@ -237,12 +237,12 @@ namespace SynthEBD
         public static HashSet<FlattenedAssetPack> FilterValidConfigsForNPC(HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo, bool ignoreConsistency, out bool wasFilteredByConsistency, AssetAndBodyShapeSelector.AssetPackAssignmentMode mode, AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment currentAssignments)
         {
             Logger.OpenReportSubsection("ConfigFiltering", npcInfo);
-            HashSet<FlattenedAssetPack> preFilteredPacks = new HashSet<FlattenedAssetPack>(availableAssetPacks); // available asset packs filtered by Specific NPC Assignments and Consistency
+            HashSet<FlattenedAssetPack> assetPacksToBeFiltered = new HashSet<FlattenedAssetPack>(availableAssetPacks); // available asset packs filtered by Specific NPC Assignments and Consistency
             List<FlattenedAssetPack> filteredPacks = new List<FlattenedAssetPack>(); // available asset packs (further) filtered by current NPC's compliance with each subgroup's rule set
             wasFilteredByConsistency = false;
             List<List<FlattenedSubgroup>> forcedAssignments = null; // must be a nested list because if the user forces a non-bottom-level subgroup, then at a given index multiple options will be forced
 
-            //handle specific NPC assignments
+            #region handle specific NPC assignments
             FlattenedAssetPack forcedAssetPack = null;
             if (npcInfo.SpecificNPCAssignment != null)
             {
@@ -251,7 +251,7 @@ namespace SynthEBD
                 switch (mode)
                 {
                     case AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary:
-                        forcedAssetPack = preFilteredPacks.Where(x => x.GroupName == npcInfo.SpecificNPCAssignment.AssetPackName).FirstOrDefault();
+                        forcedAssetPack = assetPacksToBeFiltered.Where(x => x.GroupName == npcInfo.SpecificNPCAssignment.AssetPackName).FirstOrDefault();
                         if (forcedAssetPack != null)
                         {
                             forcedAssetPack = forcedAssetPack.ShallowCopy(); // don't forget to shallow copy or subsequent NPCs will get pruned asset packs
@@ -292,17 +292,57 @@ namespace SynthEBD
                         }
                     }
 
-                    preFilteredPacks = new HashSet<FlattenedAssetPack>() { forcedAssetPack };
+                    assetPacksToBeFiltered = new HashSet<FlattenedAssetPack>() { forcedAssetPack };
                 }
                 Logger.CloseReportSubsectionsTo("ConfigFiltering", npcInfo);
             }
+            #endregion
 
-            //handle non-predefined subgroups
+            // evaluate config distribution rules
             Logger.OpenReportSubsection("RulesEvaluation", npcInfo);
-            foreach (var ap in preFilteredPacks)
+
+            #region handle non-predefined asset packs
+            Logger.OpenReportSubsection("ConfigDistributionRules", npcInfo);
+            var filteredByMainConfigRules = new List<FlattenedAssetPack>();
+            foreach (var ap in assetPacksToBeFiltered)
             {
                 Logger.OpenReportSubsection("AssetPack", npcInfo);
-                Logger.LogReport("Filtering asset pack: " + ap.GroupName, false, npcInfo);
+                Logger.LogReport("Evaluating distribution rules for asset pack: " + ap.GroupName, false, npcInfo);
+                var candidatePack = ap.ShallowCopy();
+                if (!SubgroupValidForCurrentNPC(candidatePack.DistributionRules, npcInfo, mode, currentAssignments)) // check distribution rules for whole config
+                {
+                    Logger.LogReport("Asset Pack " + ap.GroupName + " is invalid due to its main distribution rules.", false, npcInfo);
+                }
+                else
+                {
+                    filteredByMainConfigRules.Add(candidatePack);
+                }
+                Logger.CloseReportSubsectionsTo("ConfigDistributionRules", npcInfo);
+            }
+
+            filteredByMainConfigRules = filteredByMainConfigRules.OrderByDescending(x => x.DistributionRules.ForceIfMatchCount).ToList(); // remove asset packs with less than the max ForceIf attributes
+            if (filteredByMainConfigRules.Count > 1 && filteredByMainConfigRules[0].DistributionRules.ForceIfMatchCount > 0)
+            {
+                for (int i = 1; i < filteredByMainConfigRules.Count; i++)
+                {
+                    if (filteredByMainConfigRules[i].DistributionRules.ForceIfMatchCount < filteredByMainConfigRules[0].DistributionRules.ForceIfMatchCount)
+                    {
+                        Logger.LogReport("Asset Pack " + filteredByMainConfigRules[i].GroupName + " was removed because another Asset Pack has more matched ForceIf attributes for this NPC", false, npcInfo);
+                        filteredByMainConfigRules.RemoveAt(i);
+                        i--;
+                    }
+                }
+            }
+            assetPacksToBeFiltered = filteredByMainConfigRules.ToHashSet();
+            Logger.CloseReportSubsectionsTo("RulesEvaluation", npcInfo);
+            #endregion
+
+            #region Check distribution rules for each subgroup
+            Logger.OpenReportSubsection("SubGroupDistributionRules", npcInfo);
+            foreach (var ap in assetPacksToBeFiltered)
+            {
+                Logger.OpenReportSubsection("AssetPack", npcInfo);
+                Logger.LogReport("Filtering subgroups within asset pack: " + ap.GroupName, false, npcInfo);
                 var candidatePack = ap.ShallowCopy();
                 bool isValid = true;
 
@@ -339,7 +379,7 @@ namespace SynthEBD
                     }
                     else
                     {
-                        
+
                         if (mode != AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual && i == candidatePack.Subgroups.Count - 1 && ap.Subgroups[i].Count > 0) // record forceIf count for whole config file from the "fake" distribution rules subgroup
                         {
                             ap.MatchedWholeConfigForceIfs = ap.Subgroups[i][0].ForceIfMatchCount;
@@ -367,9 +407,8 @@ namespace SynthEBD
                 {
                     filteredPacks.Add(candidatePack);
                 }
-                Logger.CloseReportSubsectionsTo("RulesEvaluation", npcInfo);
+                Logger.CloseReportSubsectionsTo("SubGroupDistributionRules", npcInfo);
             }
-            Logger.CloseReportSubsectionsTo("ConfigFiltering", npcInfo);
 
             if (filteredPacks.Any())
             {
@@ -383,104 +422,108 @@ namespace SynthEBD
                         i--;
                     }
                 }
+            }
+            #endregion
 
-                //handle consistency (must be last to ensure subordinance to ForceIf attribute count which is determined by evaluating all available subgroups)
-                if (!ignoreConsistency && npcInfo.ConsistencyNPCAssignment != null)
+            Logger.CloseReportSubsectionsTo("ConfigFiltering", npcInfo);
+
+            #region handle consistency 
+            if (!ignoreConsistency && npcInfo.ConsistencyNPCAssignment != null && filteredPacks.Any()) // (must be last to ensure subordinance to ForceIf attribute count which is determined by evaluating all available subgroups)
+            {
+                Logger.OpenReportSubsection("Consistency", npcInfo);
+                string consistencyAssetPackName = "";
+                NPCAssignment.AssetReplacerAssignment consistencyReplacer = null;
+                switch (mode)
                 {
-                    Logger.OpenReportSubsection("Consistency", npcInfo);
-                    string consistencyAssetPackName = "";
-                    NPCAssignment.AssetReplacerAssignment consistencyReplacer = null;
-                    switch (mode)
-                    {
-                        case AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary: consistencyAssetPackName = npcInfo.ConsistencyNPCAssignment.AssetPackName; break;
-                        case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn:
-                            var consistencyMixIn = npcInfo.ConsistencyNPCAssignment.MixInAssignments.Where(x => x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
-                            if (consistencyMixIn != null)
-                            {
-                                consistencyAssetPackName = availableAssetPacks.First().GroupName;
-                            }
-                            break;
-                        case AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual:
-                            consistencyReplacer = npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().ReplacerName && x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
-                            if (consistencyReplacer != null) { consistencyAssetPackName = consistencyReplacer.ReplacerName; }
-                            break;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(consistencyAssetPackName))
-                    {
-                        // check to make sure consistency asset pack is compatible with the specific NPC assignment
-                        if (forcedAssetPack != null && forcedAssetPack.GroupName != "" && forcedAssetPack.GroupName != consistencyAssetPackName)
+                    case AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary: consistencyAssetPackName = npcInfo.ConsistencyNPCAssignment.AssetPackName; break;
+                    case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn:
+                        var consistencyMixIn = npcInfo.ConsistencyNPCAssignment.MixInAssignments.Where(x => x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
+                        if (consistencyMixIn != null)
                         {
-                            Logger.LogReport("Asset Pack defined by forced asset pack (" + npcInfo.SpecificNPCAssignment.AssetPackName + ") supercedes consistency asset pack (" + npcInfo.ConsistencyNPCAssignment.AssetPackName + ")", false, npcInfo);
+                            consistencyAssetPackName = availableAssetPacks.First().GroupName;
+                        }
+                        break;
+                    case AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual:
+                        consistencyReplacer = npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().ReplacerName && x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
+                        if (consistencyReplacer != null) { consistencyAssetPackName = consistencyReplacer.ReplacerName; }
+                        break;
+                }
+
+                if (!string.IsNullOrWhiteSpace(consistencyAssetPackName))
+                {
+                    // check to make sure consistency asset pack is compatible with the specific NPC assignment
+                    if (forcedAssetPack != null && forcedAssetPack.GroupName != "" && forcedAssetPack.GroupName != consistencyAssetPackName)
+                    {
+                        Logger.LogReport("Asset Pack defined by forced asset pack (" + npcInfo.SpecificNPCAssignment.AssetPackName + ") supercedes consistency asset pack (" + npcInfo.ConsistencyNPCAssignment.AssetPackName + ")", false, npcInfo);
+                    }
+                    else
+                    {
+                        // check to make sure consistency asset pack exists
+                        var consistencyAssetPack = filteredPacks.FirstOrDefault(x => x.GroupName == consistencyAssetPackName);
+                        if (consistencyAssetPack == null)
+                        {
+                            Logger.LogReport("The asset pack specified in the consistency file (" + npcInfo.ConsistencyNPCAssignment.AssetPackName + ") is not available.", true, npcInfo);
                         }
                         else
                         {
-                            // check to make sure consistency asset pack exists
-                            var consistencyAssetPack = filteredPacks.FirstOrDefault(x => x.GroupName == consistencyAssetPackName);
-                            if (consistencyAssetPack == null)
+                            Logger.LogReport("Selecting consistency Asset Pack (" + npcInfo.ConsistencyNPCAssignment.AssetPackName + ").", false, npcInfo);
+                            consistencyAssetPack = consistencyAssetPack.ShallowCopy(); // otherwise subsequent NPCs will get pruned packs as the consistency pack is modified in the current round of patching
+
+                            // check each subgroup against specific npc assignment
+                            List<string> consistencySubgroupIDs = null;
+                            switch (mode)
                             {
-                                Logger.LogReport("The asset pack specified in the consistency file (" + npcInfo.ConsistencyNPCAssignment.AssetPackName + ") is not available.", true, npcInfo);
+                                case AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary: consistencySubgroupIDs = npcInfo.ConsistencyNPCAssignment.SubgroupIDs; break;
+                                case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn:
+                                    var consistencyMixIn = npcInfo.ConsistencyNPCAssignment.MixInAssignments.Where(x => x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
+                                    if (consistencyMixIn != null) { consistencySubgroupIDs = consistencyMixIn.SubgroupIDs; }
+                                    break;
+                                case AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual: consistencySubgroupIDs = consistencyReplacer.SubgroupIDs; break;
                             }
-                            else
+
+                            for (int i = 0; i < consistencySubgroupIDs.Count; i++)
                             {
-                                Logger.LogReport("Selecting consistency Asset Pack (" + npcInfo.ConsistencyNPCAssignment.AssetPackName + ").", false, npcInfo);
-                                consistencyAssetPack = consistencyAssetPack.ShallowCopy(); // otherwise subsequent NPCs will get pruned packs as the consistency pack is modified in the current round of patching
-
-                                // check each subgroup against specific npc assignment
-                                List<string> consistencySubgroupIDs = null;
-                                switch (mode)
+                                // make sure consistency subgroup doesn't conflict with user-forced subgroup if one exists
+                                if (forcedAssignments != null && forcedAssignments[i].Any())
                                 {
-                                    case AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary: consistencySubgroupIDs = npcInfo.ConsistencyNPCAssignment.SubgroupIDs; break;
-                                    case AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn:
-                                        var consistencyMixIn = npcInfo.ConsistencyNPCAssignment.MixInAssignments.Where(x => x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
-                                        if (consistencyMixIn != null) { consistencySubgroupIDs = consistencyMixIn.SubgroupIDs; }
-                                        break;
-                                    case AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual: consistencySubgroupIDs = consistencyReplacer.SubgroupIDs; break;
-                                }
-
-                                for (int i = 0; i < consistencySubgroupIDs.Count; i++)
-                                {
-                                    // make sure consistency subgroup doesn't conflict with user-forced subgroup if one exists
-                                    if (forcedAssignments != null && forcedAssignments[i].Any())
+                                    if (forcedAssignments[i].Select(x => x.Id).Contains(consistencySubgroupIDs[i]))
                                     {
-                                        if (forcedAssignments[i].Select(x => x.Id).Contains(consistencySubgroupIDs[i]))
-                                        {
-                                            consistencyAssetPack.Subgroups[i] = new List<FlattenedSubgroup>() { forcedAssignments[i].First(x => x.Id == consistencySubgroupIDs[i]) }; // guaranteed to have at least one subgroup or else the upstream if would fail, so use First instead of Where
-                                            Logger.LogReport("Consistency subgroup " + consistencySubgroupIDs[i] + " is compatible with the Specific NPC Assignment.", false, npcInfo);
-                                        }
-                                        else
-                                        {
-                                            Logger.LogReport("Consistency subgroup " + consistencySubgroupIDs[i] + " is incompatible with the Specific NPC Assignment at position " + i + ".", true, npcInfo);
-                                        }
+                                        consistencyAssetPack.Subgroups[i] = new List<FlattenedSubgroup>() { forcedAssignments[i].First(x => x.Id == consistencySubgroupIDs[i]) }; // guaranteed to have at least one subgroup or else the upstream if would fail, so use First instead of Where
+                                        Logger.LogReport("Consistency subgroup " + consistencySubgroupIDs[i] + " is compatible with the Specific NPC Assignment.", false, npcInfo);
                                     }
-                                    // if no user-forced subgroup exists, simply make sure that the consistency subgroup exists
                                     else
                                     {
-                                        FlattenedSubgroup consistencySubgroup = consistencyAssetPack.Subgroups[i].FirstOrDefault(x => x.Id == consistencySubgroupIDs[i]);
-                                        if (consistencySubgroup == null)
-                                        {
-                                            Logger.LogReport("The consistency subgroup " + consistencySubgroupIDs[i] + " was either filtered out or no longer exists within the config file. Choosing a different subgroup at this position.", true, npcInfo);
-                                        }
-                                        else if (!SubgroupValidForCurrentNPC(consistencySubgroup, npcInfo, mode, currentAssignments))
-                                        {
-                                            Logger.LogReport("Consistency subgroup " + consistencySubgroup.Id + " (" + consistencySubgroup.Name + ") is no longer valid for this NPC. Choosing a different subgroup at this position", true, npcInfo);
-                                            consistencyAssetPack.Subgroups[i].Remove(consistencySubgroup);
-                                        }
-                                        else
-                                        {
-                                            consistencyAssetPack.Subgroups[i] = new List<FlattenedSubgroup>() { consistencySubgroup };
-                                            Logger.LogReport("Using consistency subgroup " + consistencySubgroupIDs[i] + ".", true, npcInfo);
-                                        }
+                                        Logger.LogReport("Consistency subgroup " + consistencySubgroupIDs[i] + " is incompatible with the Specific NPC Assignment at position " + i + ".", true, npcInfo);
                                     }
                                 }
-                                filteredPacks = new List<FlattenedAssetPack>() { consistencyAssetPack };
-                                wasFilteredByConsistency = true;
+                                // if no user-forced subgroup exists, simply make sure that the consistency subgroup exists
+                                else
+                                {
+                                    FlattenedSubgroup consistencySubgroup = consistencyAssetPack.Subgroups[i].FirstOrDefault(x => x.Id == consistencySubgroupIDs[i]);
+                                    if (consistencySubgroup == null)
+                                    {
+                                        Logger.LogReport("The consistency subgroup " + consistencySubgroupIDs[i] + " was either filtered out or no longer exists within the config file. Choosing a different subgroup at this position.", true, npcInfo);
+                                    }
+                                    else if (!SubgroupValidForCurrentNPC(consistencySubgroup, npcInfo, mode, currentAssignments))
+                                    {
+                                        Logger.LogReport("Consistency subgroup " + consistencySubgroup.Id + " (" + consistencySubgroup.Name + ") is no longer valid for this NPC. Choosing a different subgroup at this position", true, npcInfo);
+                                        consistencyAssetPack.Subgroups[i].Remove(consistencySubgroup);
+                                    }
+                                    else
+                                    {
+                                        consistencyAssetPack.Subgroups[i] = new List<FlattenedSubgroup>() { consistencySubgroup };
+                                        Logger.LogReport("Using consistency subgroup " + consistencySubgroupIDs[i] + ".", true, npcInfo);
+                                    }
+                                }
                             }
+                            filteredPacks = new List<FlattenedAssetPack>() { consistencyAssetPack };
+                            wasFilteredByConsistency = true;
                         }
                     }
-                    Logger.CloseReportSubsectionsTo("ConfigFiltering", npcInfo);
                 }
+                Logger.CloseReportSubsectionsTo("ConfigFiltering", npcInfo);
             }
+            #endregion
 
             if (filteredPacks.Count == 0 && mode == AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary)
             {
