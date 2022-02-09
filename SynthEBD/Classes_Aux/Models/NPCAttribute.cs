@@ -5,6 +5,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+/*
+ * When adding a new type of ITypedNPCAttribute, don't forget to also include it in JSONhandler.AttributeConverter.ReadJson() so that it can be correctly deserialized
+ */
+
 namespace SynthEBD
 {
     // Each NPCAttribute within a HashSet<NPC> Attribute is treated with OR logic; i.e. if an NPC matches ANY of the NPCAttributes, the NPCAttribute's parent object can be assigned to the NPC
@@ -217,10 +221,12 @@ namespace SynthEBD
             this.FormKeys = new HashSet<FormKey>();
             this.Type = NPCAttributeType.VoiceType;
             this.ForceIf = false;
+            this.Weighting = 1;
         }
         public HashSet<FormKey> FormKeys { get; set; }
         public NPCAttributeType Type { get; set; }
         public bool ForceIf { get; set; }
+        public int Weighting { get; set; }
         public bool Equals(ITypedNPCAttribute other)
         {
             var otherTyped = (NPCAttributeVoiceType)other;
@@ -234,6 +240,7 @@ namespace SynthEBD
             output.ForceIf = input.ForceIf;
             output.Type = input.Type;
             output.FormKeys = input.FormKeys;
+            output.Weighting = input.Weighting;
             return output;
         }
     }
@@ -245,10 +252,13 @@ namespace SynthEBD
             this.FormKeys = new HashSet<FormKey>();
             this.Type = NPCAttributeType.Class;
             this.ForceIf = false;
+            this.Weighting = 1;
         }
         public HashSet<FormKey> FormKeys { get; set; }
         public NPCAttributeType Type { get; set; }
         public bool ForceIf { get; set; }
+        public int Weighting { get; set; }
+
         public bool Equals(ITypedNPCAttribute other)
         {
             var otherTyped = (NPCAttributeClass)other;
@@ -262,6 +272,7 @@ namespace SynthEBD
             output.ForceIf = input.ForceIf;
             output.Type = input.Type;
             output.FormKeys = input.FormKeys;
+            output.Weighting = input.Weighting;
             return output;
         }
     }
@@ -276,6 +287,7 @@ namespace SynthEBD
             this.ValueFKs = new HashSet<FormKey>();
             this.Type = NPCAttributeType.Custom;
             this.ForceIf = false;
+            this.Weighting = 1;
         }
 
         public string Path { get; set; }
@@ -285,7 +297,7 @@ namespace SynthEBD
         public string Comparator { get; set; }
         public NPCAttributeType Type { get; set; }
         public bool ForceIf { get; set; }
-
+        public int Weighting { get; set; }
         public FormKey ReferenceNPCFK { get; set; } // this is not used by the patcher but saving it avoids making the user reselect it in the UI
         public Type SelectedFormKeyType { get; set; } // this is not used by the patcher but saving it avoids making the user reselect it in the UI
 
@@ -324,6 +336,7 @@ namespace SynthEBD
             {
                 output.ValueStr = input.ValueStr;
             }
+            output.Weighting = input.Weighting;
             return output;
         }
     }
@@ -337,12 +350,14 @@ namespace SynthEBD
             this.RankMax = 100;
             this.Type = NPCAttributeType.Faction;
             this.ForceIf = false;
+            this.Weighting = 1;
         }
         public HashSet<FormKey> FormKeys { get; set; }
         public int RankMin { get; set; }
         public int RankMax { get; set; }
         public NPCAttributeType Type { get; set; }
         public bool ForceIf { get; set; }
+        public int Weighting { get; set; }
         public bool Equals(ITypedNPCAttribute other)
         {
             var otherTyped = (NPCAttributeFactions)other;
@@ -359,6 +374,7 @@ namespace SynthEBD
             output.FormKeys = input.FormKeys;
             output.RankMin = input.RankMin;
             output.RankMax = input.RankMax;
+            output.Weighting = input.Weighting;
             return output;
         }
     }
@@ -370,10 +386,12 @@ namespace SynthEBD
             this.FormKeys = new HashSet<FormKey>();
             this.Type = NPCAttributeType.FaceTexture;
             this.ForceIf = false;
+            this.Weighting = 1;
         }
         public HashSet<FormKey> FormKeys { get; set; }
         public NPCAttributeType Type { get; set; }
         public bool ForceIf { get; set; }
+        public int Weighting { get; set; }
         public bool Equals(ITypedNPCAttribute other)
         {
             var otherTyped = (NPCAttributeFaceTexture)other;
@@ -387,6 +405,7 @@ namespace SynthEBD
             output.ForceIf = input.ForceIf;
             output.Type = input.Type;
             output.FormKeys = input.FormKeys;
+            output.Weighting = input.Weighting;
             return output;
         }
     }
@@ -398,10 +417,12 @@ namespace SynthEBD
             this.FormKeys = new HashSet<FormKey>();
             this.Type = NPCAttributeType.Race;
             this.ForceIf = false;
+            this.Weighting = 1;
         }
         public HashSet<FormKey> FormKeys { get; set; }
         public NPCAttributeType Type { get; set; }
         public bool ForceIf { get; set; }
+        public int Weighting { get; set; }
         public bool Equals(ITypedNPCAttribute other)
         {
             var otherTyped = (NPCAttributeRace)other;
@@ -415,6 +436,7 @@ namespace SynthEBD
             output.ForceIf = input.ForceIf;
             output.Type = input.Type;
             output.FormKeys = input.FormKeys;
+            output.Weighting = input.Weighting;
             return output;
         }
     }
@@ -426,10 +448,12 @@ namespace SynthEBD
             this.FormKeys = new HashSet<FormKey>();
             this.Type = NPCAttributeType.NPC;
             this.ForceIf = false;
+            this.Weighting = 1;
         }
         public HashSet<FormKey> FormKeys { get; set; }
         public NPCAttributeType Type { get; set; }
         public bool ForceIf { get; set; }
+        public int Weighting { get; set; }
         public bool Equals(ITypedNPCAttribute other)
         {
             var otherTyped = (NPCAttributeNPC)other;
@@ -443,6 +467,7 @@ namespace SynthEBD
             output.ForceIf = input.ForceIf;
             output.Type = input.Type;
             output.FormKeys = input.FormKeys;
+            output.Weighting = input.Weighting;
             return output;
         }
     }
@@ -454,10 +479,12 @@ namespace SynthEBD
             this.SelectedLabels = new HashSet<string>();
             this.Type = NPCAttributeType.Group;
             this.ForceIf = false;
+            this.Weighting = 1;
         }
         public HashSet<string> SelectedLabels { get; set; }
         public NPCAttributeType Type { get; set; }
         public bool ForceIf { get; set; }
+        public int Weighting { get; set; }
         public bool Equals(ITypedNPCAttribute other)
         {
             if (this.Type == other.Type)
@@ -486,6 +513,7 @@ namespace SynthEBD
             output.ForceIf = input.ForceIf;
             output.Type = input.Type;
             output.SelectedLabels = input.SelectedLabels;
+            output.Weighting = input.Weighting;
             return output;
         }
     }
@@ -495,6 +523,7 @@ namespace SynthEBD
         NPCAttributeType Type { get; set; }
         bool Equals(ITypedNPCAttribute other);
         public bool ForceIf { get; set; }
+        public int Weighting { get; set; }
     }
 
     public class AttributeGroup

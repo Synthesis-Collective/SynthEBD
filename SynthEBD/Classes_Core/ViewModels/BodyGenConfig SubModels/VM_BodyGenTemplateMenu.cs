@@ -77,12 +77,12 @@ namespace SynthEBD
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.AllowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.AllowedAttributes, true, ParentConfig.AttributeGroupMenu.Groups))
+                execute: _ => this.AllowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.AllowedAttributes, true, null, ParentConfig.AttributeGroupMenu.Groups))
                 );
 
             AddDisallowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.DisallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.DisallowedAttributes, false, ParentConfig.AttributeGroupMenu.Groups))
+                execute: _ => this.DisallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.DisallowedAttributes, false, null, ParentConfig.AttributeGroupMenu.Groups))
                 );
 
             AddRequiredTemplate = new SynthEBD.RelayCommand(
@@ -159,8 +159,8 @@ namespace SynthEBD
                 else { grouping.IsSelected = false; }
             }
 
-            viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, viewModel.ParentConfig.AttributeGroupMenu.Groups, true);
-            viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, viewModel.ParentConfig.AttributeGroupMenu.Groups, false);
+            viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, viewModel.ParentConfig.AttributeGroupMenu.Groups, true, null);
+            viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, viewModel.ParentConfig.AttributeGroupMenu.Groups, false, null);
             foreach (var x in viewModel.DisallowedAttributes) { x.DisplayForceIfOption = false; }
             viewModel.bAllowUnique = model.AllowUnique;
             viewModel.bAllowNonUnique = model.AllowNonUnique;

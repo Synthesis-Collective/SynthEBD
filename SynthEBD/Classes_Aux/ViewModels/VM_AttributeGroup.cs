@@ -30,7 +30,7 @@ namespace SynthEBD
 
             AddAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => Attributes.Add(VM_NPCAttribute.CreateNewFromUI(Attributes, false, parent.Groups))
+                execute: _ => Attributes.Add(VM_NPCAttribute.CreateNewFromUI(Attributes, false, true, parent.Groups))
                 );
 
             Attributes.ToObservableChangeSet().TransformMany(x => x.GroupedSubAttributes).Transform(
@@ -83,7 +83,7 @@ namespace SynthEBD
         {
             VM_AttributeGroup vm = new VM_AttributeGroup(parentMenu);
             vm.Label = model.Label;
-            vm.Attributes = VM_NPCAttribute.GetViewModelsFromModels(model.Attributes, parentMenu.Groups, false);
+            vm.Attributes = VM_NPCAttribute.GetViewModelsFromModels(model.Attributes, parentMenu.Groups, false, true);
             vm.Attributes_Bak = new ObservableCollection<VM_NPCAttribute>(vm.Attributes);
             return vm;
         }

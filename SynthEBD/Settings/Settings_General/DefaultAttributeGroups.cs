@@ -226,7 +226,8 @@ namespace SynthEBD
                                 Dragonborn.Npc.DLC2EbonyWarrior.FormKey,
                                 Dragonborn.Npc.DLC2Frea.FormKey,
                                 Dragonborn.Npc.DLC2Miraak.FormKey
-                            }
+                            },
+                            Weighting = 2
                         }
                     }
                 }
@@ -270,7 +271,8 @@ namespace SynthEBD
                             FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                             {
                                 Skyrim.Npc.Nazeem.FormKey
-                            }
+                            },
+                            Weighting = 2
                         }
                     }
                 },

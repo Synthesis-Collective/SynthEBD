@@ -106,7 +106,7 @@ namespace SynthEBD
                             break;
                     }
                     if (subAttributeMatched == false) { break; }
-                    else if (subAttribute.ForceIf) { matchedForceIfAttributeCount++; }
+                    else if (subAttribute.ForceIf) { matchedForceIfAttributeCount += subAttribute.Weighting; }
                 }
                 if (!subAttributeMatched) // sub attributes are treated as AND, so as soon as one isn't matched return false
                 {
