@@ -473,7 +473,7 @@ namespace SynthEBD
                                         }
                                     }
                                 }
-                                preFilteredPacks = new HashSet<FlattenedAssetPack>() { consistencyAssetPack };
+                                filteredPacks = new List<FlattenedAssetPack>() { consistencyAssetPack };
                                 wasFilteredByConsistency = true;
                             }
                         }
