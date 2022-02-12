@@ -84,7 +84,7 @@ namespace SynthEBD
             {
                 LoadOrder = OriginState.LoadOrder;
             }
-            LinkCache = LoadOrder.ToMutableLinkCache();
+            // Note: Do not rebuild the linkcache from the new load order. Not necessary, and breaks FormKey picker UIs
         }
 
         public void Refresh(bool verbose)
@@ -100,14 +100,14 @@ namespace SynthEBD
             {
                 LoadOrder = OriginState.LoadOrder;
             }
-            LinkCache = LoadOrder.ToMutableLinkCache();
+            // Note: Do not rebuild the linkcache from the new load order. Not necessary, and breaks FormKey picker UIs
         }
 
         public void SuspendEnvironment()
         {
             if (OriginState != null)
             {
-                OriginState.Dispose();
+                OriginState.LoadOrder.Dispose(); // release outputMod.esp so that it can be written to even if it's in the load order
             }
         }
         public void ResumeEnvironment()
