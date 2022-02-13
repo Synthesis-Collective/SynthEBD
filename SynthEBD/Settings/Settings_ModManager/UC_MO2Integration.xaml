@@ -18,11 +18,11 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" MinWidth="125" Text="MO2 Executable Path" VerticalAlignment="Center"/>
+        <TextBlock Grid.Row="0" Grid.Column="0" MinWidth="125" Text="MO2 Executable Path" ToolTip="Full path of your MO2.exe" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" VerticalAlignment="Center"/>
         <Button Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding FindExecutable}" Foreground="Lightgreen" Margin="5 0 0 0">Search</Button>
         <TextBox Grid.Row="0" Grid.Column="2" Text="{Binding ExecutablePath}"/>
-        
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="Mod Folder Path" VerticalAlignment="Center"/>
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Mod Folder Path" ToolTip="Full path of your MO2 mods folder" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" VerticalAlignment="Center"/>
         <Button Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding FindModFolder}" Foreground="Lightgreen" Margin="5 0 0 0">Search</Button>
         <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding ModFolderPath}"/>
 

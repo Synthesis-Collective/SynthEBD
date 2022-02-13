@@ -19,7 +19,7 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Column="0" Grid.Row="0" HorizontalAlignment="Center">Replacer Group</TextBlock>
+        <TextBlock Grid.Column="0" Grid.Row="0" HorizontalAlignment="Center" ToolTip="Objects whose assets are to be replaced" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Replacer Group</TextBlock>
         <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddGroup}" Foreground="Lightgreen">Add New</Button>
         <ScrollViewer Grid.Column="0" Grid.Row="2">
             <StackPanel >

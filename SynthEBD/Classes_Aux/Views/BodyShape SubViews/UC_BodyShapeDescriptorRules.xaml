@@ -38,10 +38,10 @@
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Allowed Races</TextBlock>
+            <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="NPC must be of this race to receive Body Shapes within this group" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Races</TextBlock>
             <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="5" Grid.Column="2" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
-            <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Allowed Race Groupings</TextBlock>
+            <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="NPCs must be of this race grouping to receive Body Shapes within this group" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Race Groupings</TextBlock>
             <ContentPresenter Grid.Row="6" Grid.Column="2"  Content="{Binding AllowedRaceGroupings}">
                 <ContentPresenter.Resources>
                     <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
@@ -50,10 +50,10 @@
                 </ContentPresenter.Resources>
             </ContentPresenter>
 
-            <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Disallowed Races</TextBlock>
+            <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="NPC may not be of this race to receive Body Shapes within this group" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Races</TextBlock>
             <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="7" Grid.Column="2" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
-            <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Disallowed Race Groupings</TextBlock>
+            <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center"  ToolTip="NPC may not be of this race grouping to receive Body Shapes within this group" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Race Groupings</TextBlock>
             <ContentPresenter Grid.Row="8" Grid.Column="2"  Content="{Binding DisallowedRaceGroupings}">
                 <ContentPresenter.Resources>
                     <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">

@@ -21,9 +21,9 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Grid.Column="0">
-            <Button Margin="0, 5, 0, 0" Command="{Binding ClickBodySlidesMenu}">BodySlides</Button>
-            <Button Margin="0, 5, 0, 0" Command="{Binding ClickDescriptorsMenu}">Body Descriptors</Button>
-            <Button Margin="0, 5, 0, 0" Command="{Binding ClickAttributeGroupsMenu}">Attribute Groups</Button>
+            <Button Margin="0, 5, 0, 0" Command="{Binding ClickBodySlidesMenu}" ToolTip="Edit settings for individual BodySlides" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">BodySlides</Button>
+            <Button Margin="0, 5, 0, 0" Command="{Binding ClickDescriptorsMenu}" ToolTip="Edit available body shape descriptors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Body Descriptors</Button>
+            <Button Margin="0, 5, 0, 0" Command="{Binding ClickAttributeGroupsMenu}" ToolTip="Edit available attribute groups" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Attribute Groups</Button>
             <Button Margin="0, 5, 0, 0" Command="{Binding ClickMiscMenu}">Misc Settings</Button>
         </StackPanel>
 
@@ -33,11 +33,11 @@
                     <local:UC_BodySlideMenu/>
                 </DataTemplate>
                 <DataTemplate DataType="{x:Type local:VM_BodyShapeDescriptorCreationMenu}">
-                        <local:UC_BodyShapeDescriptorCreationMenu/>
+                    <local:UC_BodyShapeDescriptorCreationMenu ToolTip="Create and edit Body Shape Descriptors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
                 </DataTemplate>
                 <DataTemplate DataType="{x:Type local:VM_AttributeGroupMenu}">
                     <StackPanel>
-                        <local:UC_AttributeGroupMenu/>
+                        <local:UC_AttributeGroupMenu ToolTip="Create and edit Attribute Groups accessible to BodySlides and Descriptors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
                         <Button Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ImportAttributeGroups}" Foreground="Lightgreen">Import from General Settings</Button>
                     </StackPanel>
                 </DataTemplate>

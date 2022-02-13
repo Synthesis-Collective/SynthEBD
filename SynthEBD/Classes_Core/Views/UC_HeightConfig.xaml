@@ -58,26 +58,26 @@
                                 <RowDefinition Height="auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Grid.Column="0">Height Group</TextBlock>
+                            <TextBlock Grid.Row="0" Grid.Column="0" ToolTip="Name of this group of NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Height Group</TextBlock>
                             <TextBox Grid.Row="0" Grid.Column="1" MinWidth="150" TextAlignment="Left" Text="{Binding Path=Label, UpdateSourceTrigger=PropertyChanged}"/>
                             <Button  Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Command="{Binding DeleteCommand}" Foreground="Firebrick">X</Button>
 
-                            <TextBlock Grid.Row="1" Grid.Column="0">Races</TextBlock>
+                            <TextBlock Grid.Row="1" Grid.Column="0" ToolTip="Select the races to include in this height group" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Races</TextBlock>
                             <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding FormKeyPickerTypes}" Grid.Row="1" Grid.Column="1" />
 
-                            <TextBlock Grid.Row="2" Grid.Column="0">Distribution Mode</TextBlock>
+                            <TextBlock Grid.Row="2" Grid.Column="0" ToolTip="Distribute heights by equal probability or on a bell curve" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribution Mode</TextBlock>
                             <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DistMode}}}" SelectedValue="{Binding Path=DistributionMode, Mode=TwoWay}" />
 
-                            <TextBlock Grid.Row="3" Grid.Column="0">Base Male Height</TextBlock>
+                            <TextBlock Grid.Row="3" Grid.Column="0" ToolTip="Male racial height multiplier" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Base Male Height</TextBlock>
                             <TextBox Grid.Row="3" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=MaleHeightBase}"/>
 
-                            <TextBlock Grid.Row="4" Grid.Column="0">Male Height +/-</TextBlock>
+                            <TextBlock Grid.Row="4" Grid.Column="0" ToolTip="Male NPC height range (1 +/- this value)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Male Height +/-</TextBlock>
                             <TextBox Grid.Row="4" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=MaleHeightRange}"/>
 
-                            <TextBlock Grid.Row="5" Grid.Column="0">Base Female Height</TextBlock>
+                            <TextBlock Grid.Row="5" Grid.Column="0" ToolTip="Female racial height multiplier" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Base Female Height</TextBlock>
                             <TextBox Grid.Row="5" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=FemaleHeightBase}"/>
 
-                            <TextBlock Grid.Row="6" Grid.Column="0">Female Height +/-</TextBlock>
+                            <TextBlock Grid.Row="6" Grid.Column="0" ToolTip="Female NPC height range (1 +/- this value)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Female Height +/-</TextBlock>
                             <TextBox Grid.Row="6" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=FemaleHeightRange}"/>
                         </Grid>
                     </Border>

@@ -32,13 +32,13 @@
         <TextBlock Grid.Row="0" Grid.Column="0">Name</TextBlock>
         <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding DispName}" ></TextBlock>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 10 0 0">Asset Pack</TextBlock>
+        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 10 0 0" ToolTip="Primary Asset Config File assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Asset Pack</TextBlock>
         <StackPanel Grid.Row="1" Grid.Column="2" Margin="0 10 0 0" Orientation="Horizontal" Visibility="{Binding Path=AssetPackAssigned, Converter={StaticResource BoolToVis}}">
             <TextBlock Text="{Binding AssetPackName, UpdateSourceTrigger=PropertyChanged}" ></TextBlock>
             <Button VerticalAlignment="Center" Margin="5 0 0 0" Command="{Binding DeleteAssetPackCommand}" Foreground="Firebrick">X</Button>
         </StackPanel>
-        
-        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 10 0 0">Subgroups</TextBlock>
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 10 0 0" ToolTip="Subgroups from primary Asset Config File assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Subgroups</TextBlock>
         <ItemsControl Grid.Row="2" Grid.Column="2" Margin="0 10 0 0" ItemsSource="{Binding SubgroupIDs}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -56,7 +56,7 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 10 0 0">Mix-In Assignments</TextBlock>
+        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 10 0 0" ToolTip="Mix-In config files assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Mix-In Assignments</TextBlock>
         <ItemsControl Grid.Row="3" Grid.Column="2" Margin="0 10 0 0" ItemsSource="{Binding MixInAssignments}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -69,12 +69,12 @@
                     <Border BorderBrush="MediumPurple" BorderThickness="1">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{Binding AssetPackName}"/>
+                                <TextBlock Text="{Binding AssetPackName}" ToolTip="Name of Mix-In config file assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
                             <Button Margin="5 0 0 0" VerticalAlignment="Center" HorizontalAlignment="Right" Command="{Binding DeleteCommand}" Foreground="Firebrick">X</Button>
                         </StackPanel>
                         
                         <!--Subgroup List -->
-                        <TextBlock Text="Subgroups: "/>
+                        <TextBlock Text="Subgroups: " ToolTip="Subgroups from the Mix-In config file assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
                         <ItemsControl Margin="25 10 0 0" ItemsSource="{Binding SubgroupIDs}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -98,7 +98,7 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 10 0 0">Asset Replacers</TextBlock>
+        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 10 0 0" ToolTip="Asset replacers from the primary config file that were assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Asset Replacers</TextBlock>
         <ItemsControl Grid.Row="4" Grid.Column="2" Margin="0 10 0 0" ItemsSource="{Binding AssetReplacements}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -122,7 +122,7 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 10 0 0">BodyGen Morphs</TextBlock>
+        <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 10 0 0" ToolTip="BodyGen morphs assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">BodyGen Morphs</TextBlock>
         <ItemsControl Grid.Row="5" Grid.Column="2" Margin="0 10 0 0" ItemsSource="{Binding BodyGenMorphNames}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -140,13 +140,13 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 10 0 0">Bodyslide</TextBlock>
+        <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 10 0 0" ToolTip="BodySlide assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Bodyslide</TextBlock>
         <StackPanel Grid.Row="6" Grid.Column="2" Margin="0 10 0 0" Orientation="Horizontal" Visibility="{Binding Path=BodySlideAssigned, Converter={StaticResource BoolToVis}}">
             <TextBlock Text="{Binding BodySlidePreset, UpdateSourceTrigger=PropertyChanged}" ></TextBlock>
             <Button VerticalAlignment="Center" Margin="5 0 0 0" Command="{Binding DeleteBodySlideCommand}" Foreground="Firebrick">X</Button>
         </StackPanel>
-        
-        <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 10 0 0">Height</TextBlock>
+
+        <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 10 0 0" ToolTip="Height assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Height</TextBlock>
         <StackPanel Grid.Row="7" Grid.Column="2" Margin="0 10 0 0" Orientation="Horizontal" Visibility="{Binding Path=HeightAssigned, Converter={StaticResource BoolToVis}}">
             <TextBlock Text="{Binding Height, UpdateSourceTrigger=PropertyChanged}" ></TextBlock>
             <Button VerticalAlignment="Center" Margin="5 0 0 0" Command="{Binding DeleteHeightCommand}" Foreground="Firebrick">X</Button>

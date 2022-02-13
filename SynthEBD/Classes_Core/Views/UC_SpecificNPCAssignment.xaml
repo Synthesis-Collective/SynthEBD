@@ -34,14 +34,14 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0"  HorizontalAlignment="Center">NPC</TextBlock>
+        <TextBlock Grid.Row="0" Grid.Column="0"  HorizontalAlignment="Center" ToolTip="Select the subject of this Specific NPC Assignment" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">NPC</TextBlock>
         <plugins:FormKeyPicker Grid.Row="0" Grid.Column="1" FormKey="{Binding NPCFormKey}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Forced Asset Pack</TextBlock>
+        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Asset config file that must be assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Asset Pack</TextBlock>
         <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Path=AvailableAssetPacks}" DisplayMemberPath="GroupName" SelectedValue="{Binding ForcedAssetPack, Mode=TwoWay}" />
         <Button Grid.Row="1" Grid.Column="2" Width="75" Height="20" Margin="5 0 0 0" VerticalAlignment="Center" HorizontalAlignment="Left" HorizontalContentAlignment="Left"  Command="{Binding DeleteForcedAssetPack}" Foreground="Firebrick">X</Button>
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Forced Subgroups</TextBlock>
+        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Subgroups that must be assigned to this NPC (Drag and Drop)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Subgroups</TextBlock>
         
         <TextBlock Grid.Row="2" Grid.Column="1" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center">Available</TextBlock>
         <TreeView Grid.Row="3" Grid.Column="1" Name="TVsubgroups"  ItemsSource ="{Binding AvailableSubgroups}" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton" BorderThickness="1" BorderBrush="#5844b4">
@@ -72,7 +72,7 @@
         </ListBox>
 
         <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Horizontal">
-            <TextBlock>Forced Asset Replacers</TextBlock>
+            <TextBlock ToolTip="Asset replacers from the primary Config File that must be assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Asset Replacers</TextBlock>
             <Button VerticalAlignment="Center" Command="{Binding AddForcedReplacer}" Foreground="LightGreen">Add</Button>
         </StackPanel>
         <ListBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding ForcedAssetReplacements}" IsSynchronizedWithCurrentItem="True">
@@ -84,7 +84,7 @@
         </ListBox>
 
         <StackPanel Grid.Row="5" Grid.Column="0" Orientation="Horizontal">
-            <TextBlock>Forced MixIns</TextBlock>
+            <TextBlock ToolTip="Mix-In Asset Config Files that must be applied to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced MixIns</TextBlock>
             <Button HorizontalAlignment="Right" HorizontalContentAlignment="Right" VerticalAlignment="Top" Margin="47 0 0 0" Command="{Binding AddForcedMixIn}" Foreground="LightGreen">Add</Button>
         </StackPanel>
         <ItemsControl Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="4" Margin="0 10 0 0" ItemsSource="{Binding ForcedMixIns}">
@@ -115,7 +115,7 @@
                             <Button Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}" Foreground="Firebrick">X</Button>
 
                             <!--Subgroup List -->
-                            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center">Available</TextBlock>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" ToolTip="Select subgroups from the selected Mix-In config file that must be assigned to this NPC (Drag and Drop)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Available</TextBlock>
                             <TreeView Grid.Row="2" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding AvailableSubgroups}" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton" BorderThickness="1" BorderBrush="#5844b4">
                                 <TreeView.Resources>
                                     <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
@@ -144,7 +144,7 @@
                             </ListBox>
                             <!-- End Subgroup List-->
 
-                            <TextBlock Grid.Row="3" Grid.Column="0">MixIn Asset Replacers</TextBlock>
+                            <TextBlock Grid.Row="3" Grid.Column="0" ToolTip="Select asset replacers from this Mix-In config file that must be assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">MixIn Asset Replacers</TextBlock>
                             <Button Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Command="{Binding AddForcedReplacer}" Foreground="LightGreen">Add</Button>
                             
                             <ListBox Grid.Row="4" Grid.Column="2" ItemsSource="{Binding ForcedAssetReplacements}" IsSynchronizedWithCurrentItem="True">
@@ -160,13 +160,13 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBlock Grid.Row="6" Grid.Column="0">Forced Height</TextBlock>
+        <TextBlock Grid.Row="6" Grid.Column="0" ToolTip="Specify the height of the selected NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Height</TextBlock>
         <TextBox Grid.Row="6" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ForcedHeight}"/>
 
-        <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}">Forced Bodyslide</TextBlock>
+        <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}" ToolTip="BodySlide that must be applied to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Bodyslide</TextBlock>
         <ComboBox Grid.Row="7" Grid.Column="1" ItemsSource="{Binding Path=AvailableBodySlides}" DisplayMemberPath="Label" SelectedValuePath="Label" SelectedValue="{Binding ForcedBodySlide, Mode=TwoWay}" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}" />
 
-        <TextBlock Grid.Row="7" Grid.Column="0" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Forced Morphs</TextBlock>
+        <TextBlock Grid.Row="7" Grid.Column="0" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}" ToolTip="BodyGen Morphs that must be applied to this NPC (Drag and Drop)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Morphs</TextBlock>
 
         <TextBlock Grid.Row="7" Grid.Column="1" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Available</TextBlock>
 

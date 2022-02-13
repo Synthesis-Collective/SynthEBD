@@ -17,7 +17,7 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" MinWidth="125" Text="Mod Staging Folder" VerticalAlignment="Center"/>
+        <TextBlock Grid.Row="0" Grid.Column="0" MinWidth="125" Text="Mod Staging Folder" VerticalAlignment="Center" ToolTip="Full directory path of your Vortex Staging Folder" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
         <Button Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding FindStagingFolder}" Foreground="Lightgreen" Margin="5 0 0 0">Search</Button>
         <TextBox Grid.Row="0" Grid.Column="2" Text="{Binding StagingFolderPath}"/>
     </Grid>

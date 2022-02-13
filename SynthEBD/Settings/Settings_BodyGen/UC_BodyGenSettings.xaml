@@ -29,9 +29,9 @@
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Current Female Config</TextBlock>
+            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Edit/view a BodyGen config for female NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Current Female Config</TextBlock>
             <ComboBox Grid.Row="0" Grid.Column="1" MinWidth="150" Margin="0 0 25 0" ItemsSource="{Binding FemaleConfigs}" DisplayMemberPath="Label" SelectedValue="{Binding CurrentFemaleConfig}" ></ComboBox>
-            <TextBlock Grid.Row="0" Grid.Column="2" Margin="0 0 15 0" VerticalAlignment="Center">Current Male Config</TextBlock>
+            <TextBlock Grid.Row="0" Grid.Column="2" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Edit/view a BodyGen config for male NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Current Male Config</TextBlock>
             <ComboBox Grid.Row="0" Grid.Column="3" MinWidth="150" ItemsSource="{Binding MaleConfigs}" DisplayMemberPath="Label" SelectedValue="{Binding CurrentMaleConfig}"></ComboBox>
 
             <RadioButton Grid.Row="1" Grid.Column="1" IsChecked="{Binding DisplayedConfigIsFemale}"  Command="{Binding DisplayFemaleConfig}">Displayed</RadioButton>

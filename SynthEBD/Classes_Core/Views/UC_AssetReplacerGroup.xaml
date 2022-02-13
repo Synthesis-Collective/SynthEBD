@@ -21,7 +21,7 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Subgroups</TextBlock>
+        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Available replacer subgroups" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Subgroups</TextBlock>
         <TreeView Grid.Row="1" Grid.Column="0" Name="ReplacerTV"  ItemsSource ="{Binding Subgroups}" Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" MinWidth="75">
             <TreeView.Resources>
                 <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
@@ -38,8 +38,8 @@
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>
-        
-        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Reference NPC</TextBlock>
+
+        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Select an NPC who has the target for this replacer (for path verification only - this selection has no impact on patching)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Reference NPC</TextBlock>
         <plugins:FormKeyPicker MaxHeight="500" Grid.Row="3" Grid.Column="1" MinWidth="150" FormKey="{Binding TemplateNPCFK}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCType}"/>
     </Grid>
 </UserControl>

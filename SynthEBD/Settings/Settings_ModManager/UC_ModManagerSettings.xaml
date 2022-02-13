@@ -19,10 +19,10 @@
         </Grid.RowDefinitions>
 
 
-        <TextBlock Grid.Row="0" Grid.Column="0" MinWidth="125" Text="Mod Manager Type" VerticalAlignment="Center"/>
+        <TextBlock Grid.Row="0" Grid.Column="0" MinWidth="125" Text="Mod Manager Type" VerticalAlignment="Center" ToolTip="Which mod manager you are using" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
         <ComboBox Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" SelectedValue="{Binding ModManagerType}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ModManager}}}" IsSynchronizedWithCurrentItem="True"/>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="Temp Folder" VerticalAlignment="Center"/>
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Temp Folder" VerticalAlignment="Center" ToolTip="Temporary folder for SynthEBD to extract config files and assets from zipped archives" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
         <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1">
             <Button VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding SelectTempFolder}" Foreground="Lightgreen" Margin="5 0 5 0">Select</Button>
             <TextBox Text="{Binding TempFolder}"/>

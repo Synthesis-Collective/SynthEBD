@@ -22,7 +22,7 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <CheckBox Grid.Column="0" Grid.Row="0" VerticalAlignment="Center" IsChecked="{Binding Path=IsSelected, Mode=TwoWay}"></CheckBox>
+        <CheckBox Grid.Column="0" Grid.Row="0" VerticalAlignment="Center" IsChecked="{Binding Path=IsSelected, Mode=TwoWay}" ToolTip="Enable this asset config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
         <Expander Grid.Column="1" Grid.Row="0" Grid.RowSpan="2" Header="{Binding Path=GroupName}" ExpandDirection="Down">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -43,19 +43,19 @@
                     <RowDefinition Height="auto"/>
                     <RowDefinition Height="auto"/>
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Name</TextBlock>
+                <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Name of this config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Name</TextBlock>
                 <TextBox Grid.Row="0" Grid.Column="1" Name="TextBoxName" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=GroupName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Prefix</TextBlock>
+                <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Abbreviated name (used by installer and asset replacers)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Prefix</TextBlock>
                 <TextBox Grid.Row="1" Grid.Column="1" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=ShortName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
                 <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Gender</TextBlock>
-                <ComboBox Grid.Row="2" Grid.Column="1" Name="GenderComboBox" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" SelectedValue="{Binding Path=Gender, Mode=TwoWay}" />
+                <ComboBox Grid.Row="2" Grid.Column="1" Name="GenderComboBox" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" SelectedValue="{Binding Path=Gender, Mode=TwoWay}" ToolTip="Gender of NPCs to which this config file is to be applied" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
 
-                <TextBlock Grid.Row="3" Grid.Column="0">Type</TextBlock>
+                <TextBlock Grid.Row="3" Grid.Column="0" ToolTip="Select if this is a Primary or Mix-In config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Type</TextBlock>
                 <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AssetPackType}}}" SelectedValue="{Binding Path=ConfigType, Mode=TwoWay}" />
-                
-                <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Subgroups</TextBlock>
+
+                <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Assets and their associated distribution rules" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Subgroups</TextBlock>
                 <TreeView Grid.Row="5" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding Subgroups}" Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton">
                     <TreeView.Resources>
                         <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
@@ -82,18 +82,18 @@
                     </ContentPresenter.Resources>
                 </ContentPresenter>
 
-                <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Associated BodyGen Configuration</TextBlock>
+                <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="BodyGen Config File to be distributed along with these assets" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Associated BodyGen Configuration</TextBlock>
                 <ComboBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding AvailableBodyGenConfigs}" DisplayMemberPath="Label" SelectedValue="{Binding TrackedBodyGenConfig}"></ComboBox>
 
-                <Expander Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Header="Distribution Rules" Margin="0 10 0 0">
+                <Expander Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Header="Distribution Rules" Margin="0 10 0 0" ToolTip="Rules applying to distribution of any asset defined by this config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">
                     <local:UC_ConfigDistributionRules DataContext="{Binding DistributionRules}"/>
                 </Expander>
 
-                <Expander Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" Header="Direct Replacers" Margin="0 10 0 0">
+                <Expander Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" Header="Direct Replacers" Margin="0 10 0 0" ToolTip="Assets that are only to be assigned if an NPC already has them" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">
                     <local:UC_AssetPackDirectReplacerMenu DataContext="{Binding ReplacersMenu}"/>
                 </Expander>
 
-                <Expander Grid.Row="9" Grid.Column="0" Grid.ColumnSpan="2" Header="Record Templates" Margin="0 10 0 0">
+                <Expander Grid.Row="9" Grid.Column="0" Grid.ColumnSpan="2" Header="Record Templates" Margin="0 10 0 0" ToolTip="Template NPCs containing the records referenced by the Asset Paths in this conifg file." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="auto"/>
@@ -107,11 +107,11 @@
                             <RowDefinition Height="auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Default Template</TextBlock>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Default template NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Default Template</TextBlock>
                         <plugins:FormKeyPicker Grid.Row="0"  Grid.Column="1" FormKey="{Binding DefaultTemplateFK}" LinkCache="{Binding RecordTemplateLinkCache}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
 
                         <StackPanel Grid.Row="1" Grid.Column="0">
-                            <TextBlock  Margin="0 0 15 0" VerticalAlignment="Top">Additional Races Paths</TextBlock>
+                            <TextBlock  Margin="0 0 15 0" VerticalAlignment="Top" ToolTip="Paths within the default record template to which the races of patched NPCs must be added" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Additional Races Paths</TextBlock>
                             <Button  Command="{Binding AddRecordTemplateAdditionalRacesPath}" Foreground="LightGreen">Add New</Button>
                         </StackPanel>
                         
@@ -128,7 +128,7 @@
 
 
                         <StackPanel Grid.Row="3" Grid.Column="0">
-                            <TextBlock Margin="0 0 15 0" VerticalAlignment="Top">Additional Templates</TextBlock>
+                            <TextBlock Margin="0 0 15 0" VerticalAlignment="Top" ToolTip="Additional template NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Additional Templates</TextBlock>
                             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding AddAdditionalRecordTemplateAssignment}" Foreground="LightGreen">Add New</Button>
                         </StackPanel>
                         <ItemsControl Grid.Row="3" Grid.Column="1" ItemsSource="{Binding AdditionalRecordTemplateAssignments}" BorderThickness="1" BorderBrush="#5844b4">
@@ -143,15 +143,15 @@
 
                 <Expander Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="2" Header="Attribute Groups" ExpandDirection="Down" Margin="0 10 0 0">
                     <StackPanel>
-                        <local:UC_AttributeGroupMenu DataContext="{Binding AttributeGroupMenu}"/>
+                        <local:UC_AttributeGroupMenu DataContext="{Binding AttributeGroupMenu}" ToolTip="Attribute Groups accessible to this config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
                         <Button Command="{Binding ImportAttributeGroups}" Foreground="Lightgreen">Import from General Settings</Button>
                     </StackPanel>
                 </Expander>
 
                 <StackPanel Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
-                    <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding ValidateButton}" Foreground="MediumPurple">Validate</Button>
-                    <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding SaveButton}" Foreground="MediumPurple">Save</Button>
-                    <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding DiscardButton}" Foreground="MediumPurple">Discard Changes</Button>
+                    <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding ValidateButton}" Foreground="MediumPurple" ToolTip="Check this config file for errors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Validate</Button>
+                    <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding SaveButton}" Foreground="MediumPurple" ToolTip="Save changes to this config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Save</Button>
+                    <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding DiscardButton}" Foreground="MediumPurple" ToolTip="Discard changes to this config file and reload last saved version" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Discard Changes</Button>
                 </StackPanel>
             </Grid>
         </Expander>

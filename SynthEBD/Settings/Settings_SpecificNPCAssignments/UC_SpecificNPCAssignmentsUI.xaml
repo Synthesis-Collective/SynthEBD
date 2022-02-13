@@ -21,7 +21,7 @@
         </Grid.RowDefinitions>
         
         <TextBlock Grid.Column="0" Grid.Row="0" HorizontalAlignment="Center">NPC</TextBlock>
-        <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddAssignment}" Foreground="Lightgreen">Add New</Button>
+        <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddAssignment}" Foreground="Lightgreen" ToolTip="Add a new forced assignment for an NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Add New</Button>
         <ScrollViewer Grid.Column="0" Grid.Row="2">
             <StackPanel >
                 <ListBox SelectedValue="{Binding CurrentlyDisplayedAssignment}" ItemsSource="{Binding Assignments}" IsSynchronizedWithCurrentItem="True" >
@@ -34,7 +34,7 @@
                                 </Grid.ColumnDefinitions>
 
                                 <TextBlock Grid.Column="0" Text="{Binding DispName, UpdateSourceTrigger=PropertyChanged}" MinWidth="100" />
-                                <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveAssignment}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
+                                <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveAssignment}" CommandParameter="{Binding}" Foreground="Firebrick" ToolTip="Remove this assignment" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">X</Button>
                             </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
@@ -50,7 +50,7 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <Button Grid.Column="0" Grid.Row="3" Command="{Binding ImportFromZEBDcommand}" Foreground="BlueViolet">Import from zEBD</Button>
+        <Button Grid.Column="0" Grid.Row="3" Command="{Binding ImportFromZEBDcommand}" Foreground="BlueViolet" ToolTip="Import SpecificNPCAssignments.json from zEBD" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Import from zEBD</Button>
         <Button Grid.Column="0" Grid.Row="4" Command="{Binding Save}" Foreground="BlueViolet">Save</Button>
     </Grid>
 </UserControl>

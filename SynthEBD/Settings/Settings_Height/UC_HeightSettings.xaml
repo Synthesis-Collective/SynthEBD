@@ -22,20 +22,20 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Grid.Column="0">Change Individual NPC Heights</TextBlock>
+            <TextBlock Grid.Row="0" Grid.Column="0" ToolTip="Allow patcher to change the heights of individual NPCs in accordance with the settings below" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Change Individual NPC Heights</TextBlock>
             <CheckBox Grid.Row="0" Grid.Column="1" IsChecked="{Binding Path=bChangeNPCHeight, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="1" Grid.Column="0">Change Base Race Heights</TextBlock>
+            <TextBlock Grid.Row="1" Grid.Column="0" ToolTip="Allow patcher to change the base race heights (multipied with NPC height)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Change Base Race Heights</TextBlock>
             <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding Path=bChangeRaceHeight, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="2" Grid.Column="0">Overwrite Non-Default NPC Heights</TextBlock>
+            <TextBlock Grid.Row="2" Grid.Column="0" ToolTip="Allow patcher to change height of NPCs whose height is not 1" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Overwrite Non-Default NPC Heights</TextBlock>
             <CheckBox Grid.Row="2" Grid.Column="1" IsChecked="{Binding Path=bOverwriteNonDefaultNPCHeights, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="3" Grid.Column="0">Height Configuration</TextBlock>
+            <TextBlock Grid.Row="3" Grid.Column="0" ToolTip="Select your current active height configuration" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Height Configuration</TextBlock>
             <ComboBox Grid.Row="3" Grid.Column="1" MinWidth="150"  ItemsSource="{Binding AvailableHeightConfigs}" DisplayMemberPath="Label" SelectedItem="{Binding SelectedHeightConfig}" ></ComboBox>
-            
-            <Button Grid.Row="4" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddHeightConfig}" Foreground="LightGreen">Create New Height Configuration</Button>
-            <Button Grid.Row="4" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCurrentHeightConfig}" Foreground="Firebrick" Margin="25 0 0 0">Delete Current Configuration</Button>
+
+            <Button Grid.Row="4" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddHeightConfig}" Foreground="LightGreen" ToolTip="Create a new height configuration from scratch" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Create New Height Configuration</Button>
+            <Button Grid.Row="4" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCurrentHeightConfig}" Foreground="Firebrick" Margin="25 0 0 0" ToolTip="Delete the current height configuration" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Delete Current Configuration</Button>
 
             <ContentPresenter Content="{Binding SelectedHeightConfig}" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Margin="0 25 0 0">
                 <ContentPresenter.Resources>

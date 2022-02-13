@@ -24,7 +24,7 @@
         <TextBox Grid.Row="0" Grid.Column="1" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
         <Button Grid.Row="0" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding Save}" Foreground="MediumPurple">Save</Button>
 
-        <TextBlock Grid.Row="1" Grid.Column="0">Config Gender</TextBlock>
+        <TextBlock Grid.Row="1" Grid.Column="0" ToolTip="Gender of NPCs to which this config is to be applied" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Config Gender</TextBlock>
         <ComboBox Grid.Row="1" Grid.Column="1" SelectedValue="{Binding Gender}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" IsSynchronizedWithCurrentItem="True"/>
 
         <StackPanel Grid.Row="2" Grid.Column="0">
