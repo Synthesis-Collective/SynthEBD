@@ -42,6 +42,8 @@ This belongs near the top, as I could never have built SynthEBD on my own. I am 
 - Ashen and Nem (SkyrimMods Discord) for helping me learn Papyrus and JContainers to get OBody/Autobody integration into SynthEBD.
   
 - Mator (Modding Tools Discord) for also providing an absurd amount of support when I was building the original zEBD patcher on which SynthEBD is based.
+
+- Focustense and Erri120 (Mutagen Discord) for additional help with C# and general coding.
   
 - BigBlueWolf, TikiPrime, DisappointingHero, and Aria_Leonsbane (Nexus) for taking the time to write plugins for zEBD. There's no better endorsement than seeing someone take your mod and expand it.
   
