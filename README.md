@@ -437,32 +437,32 @@ This menu controls the given BodySlide Template and dictates which NPCs it can/c
 
 **Notes**: Longer description of what the BodySlide looks like (optional; purely for user benefit).
 
-**Descriptors**: BodyShape Descriptors (sourced from this BodyGen Config's *Morph Descriptors* Menu) that describe the given BodyGen Morph.
+**Descriptors**: BodyShape Descriptors (sourced from the (O/Auto)Body Integration *Body Descriptors* Menu) that describe the given BodySlide.
 
-**Allowed Races**: Races that can be assigned the given Morph. If no Allowed Races (and no *Allwoed Race Groupings* are selected, NPCs of all races can receive the given Morph).
+**Allowed Races**: Races that can be assigned to the given BodySlide. If no Allowed Races (and no *Allwoed Race Groupings* are selected, NPCs of all races can receive the given BodySlide).
 
-**Allowed Race Groupings**: Race Groupings that can be assigned the given Morph.
+**Allowed Race Groupings**: Race Groupings that can be assigned the given BodySlide.
 
-**Disallowed Races**: Races that cannot be assigned the given Morph. Dominant over *Allowed Races* and *Allowed Race Groupings*.
+**Disallowed Races**: Races that cannot be assigned the given BodySlide. Dominant over *Allowed Races* and *Allowed Race Groupings*.
 
-**Disallowed Race Groupings**: Race Groupings that cannot be assigned the given Morph. Dominant over *Allowed Races* and *Allowed Race Groupings*.
+**Disallowed Race Groupings**: Race Groupings that cannot be assigned the given BodySlide. Dominant over *Allowed Races* and *Allowed Race Groupings*.
 
-**Allowed NPC Attributes**: If any are present, the given Morph can only be assigned to NPCs that match the given attributes. For more information, see the *Attribute Assignment System* below.
+**Allowed NPC Attributes**: If any are present, the given BodySlide can only be assigned to NPCs that match the given attributes. For more information, see the *Attribute Assignment System* below.
 
-- **ForceIf**: If checked, an NPC <u>must</u> be assigned the given Morph if it matches the give attribute (as long as another subgroup at the same position doesn't match more ForceIf attributes)
+- **ForceIf**: If checked, an NPC <u>must</u> be assigned the given BodySlide if it matches the give attribute (as long as another subgroup at the same position doesn't match more ForceIf attributes)
   
-- **Weight**: The "score" assigned to each matched *Force If* Attribute for the given Morph.
+- **Weight**: The "score" assigned to each matched *Force If* Attribute for the given BodySlide.
   
 
-**Disallowed NPC Attributes**: If any are present, the given Morph cannot be assigned to NPCs that match the given attributes. Dominant over *Allowed NPC Attributes*. For more information, see the *Attribute Assignment System* below.
+**Disallowed NPC Attributes**: If any are present, the given BodySlide cannot be assigned to NPCs that match the given attributes. Dominant over *Allowed NPC Attributes*. For more information, see the *Attribute Assignment System* below.
 
-**Allowed NPC Weight Range**: The minimum and maximum weight an NPC may have to receive the given Morph.
+**Allowed NPC Weight Range**: The minimum and maximum weight an NPC may have to receive the given BodySlide.
 
-**Distribute to non-forced NPCs**: If checked, the given Morph is available to distribute randomly (that is, not just via *Specific NPC Assignments* or *ForceIf Attributes*).
+**Distribute to non-forced NPCs**: If checked, the given BodySlide is available to distribute randomly (that is, not just via *Specific NPC Assignments* or *ForceIf Attributes*).
 
-**Allow Unique NPCs**: If checked, the given Morph can be distributed randomly to NPCs flagged as Unique.
+**Allow Unique NPCs**: If checked, the given BodySlide can be distributed randomly to NPCs flagged as Unique.
 
-**Allow Non-Unique NPCs**: If checked, the given Morph can be distributed randomly to NPCs not flagged as Unique.
+**Allow Non-Unique NPCs**: If checked, the given BodySlide can be distributed randomly to NPCs not flagged as Unique.
 
 **Distribution Probability Weighting**: Probability for an NPC to randomly receive the given BodySlide (relative to other BodySlides).
 
