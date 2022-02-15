@@ -40,7 +40,7 @@
             <TextBlock Grid.Column="0" Grid.Row="4">Apply to Textures and Meshes</TextBlock>
             <CheckBox Grid.Column="1" Grid.Row="4" IsChecked="{Binding Path=bApplyToAssets, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="5">Apply to BodyGen</TextBlock>
+            <TextBlock Grid.Column="0" Grid.Row="5">Apply to Body Shape</TextBlock>
             <CheckBox Grid.Column="1" Grid.Row="5" IsChecked="{Binding Path=bApplyToBodyGen, Mode=TwoWay}"></CheckBox>
 
             <TextBlock Grid.Column="0" Grid.Row="6">Apply to Height</TextBlock>
