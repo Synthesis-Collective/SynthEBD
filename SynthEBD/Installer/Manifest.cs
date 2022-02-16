@@ -10,9 +10,10 @@ namespace SynthEBD
     {
         public Manifest()
         {
-            ConfigName = "";
+            ConfigName = "New Config";
             ConfigDescription = "";
-            DestinationModFolder = "";
+            DestinationModFolder = "Top Level Folder";
+            ConfigPrefix = "Prefix";
             FileExtensionMap = new Dictionary<string, string>() { { "nif", "meshes" }, { "dds", "textures" } };
             AssetPackPaths = new HashSet<string>();
             RecordTemplatePaths = new HashSet<string>();
@@ -24,6 +25,7 @@ namespace SynthEBD
         public string ConfigName { get; set; }
         public string ConfigDescription { get; set; }
         public string DestinationModFolder { get; set; }
+        public string ConfigPrefix { get; set; }
         public Dictionary<string, string> FileExtensionMap { get; set; }
         public HashSet<string> AssetPackPaths { get; set; }
         public HashSet<string> RecordTemplatePaths { get; set; }

@@ -71,6 +71,7 @@ namespace SynthEBD
         {
             viewModel.DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, raceGroupingVMs, viewModel, model);
 
+            viewModel.DescriptorUI.TemplateDescriptorList.Clear();
             foreach (var descriptor in model.TemplateDescriptors)
             {
                 viewModel.DescriptorUI.TemplateDescriptorList.Add(VM_BodyShapeDescriptor.GetViewModelFromModel(descriptor, raceGroupingVMs, viewModel, model));

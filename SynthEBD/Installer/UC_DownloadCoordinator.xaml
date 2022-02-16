@@ -21,10 +21,11 @@
 
         <TextBlock Grid.Row="0" Grid.Column="0" Foreground="White">Please download the required resources and navigate to them using the interface below</TextBlock>
 
-        <ItemsControl Grid.Row="1" Grid.Column="0" ItemsSource="{Binding DownloadInfo}" BorderThickness="1" BorderBrush="#5844b4">
+        <ItemsControl Grid.Row="1" Grid.Column="0" ItemsSource="{Binding DownloadInfo}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_DownloadCoordinator+VM_DownloadInfo}">
-                    <Grid>
+                    <Border BorderThickness="1" BorderBrush="#5844b4">
+                        <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="auto"/>
                             <ColumnDefinition Width="*"/>
@@ -37,7 +38,7 @@
                             <RowDefinition Height="auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding ModName}" Foreground="White"/>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding ModName}" Foreground="White" FontWeight="Bold"/>
 
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="Download file:" Foreground="White"/>
                         <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ModDownloadName}" Foreground="White"/>
@@ -58,6 +59,7 @@
                             <TextBox Text="{Binding Path}" MinWidth="100" Foreground="White"/>
                         </StackPanel>
                     </Grid>
+                    </Border>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>

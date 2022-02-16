@@ -44,6 +44,10 @@ namespace SynthEBD
             {
                 viewModel.AssociatedRules = VM_BodyShapeDescriptorRules.GetViewModelFromModel(descriptorRules, viewModel, parentConfig, raceGroupingVMs);
             }
+            else
+            {
+                viewModel.AssociatedRules = new VM_BodyShapeDescriptorRules(viewModel, raceGroupingVMs, parentConfig);
+            }
 
             return viewModel;
         }
@@ -51,10 +55,12 @@ namespace SynthEBD
         public static BodyShapeDescriptor DumpViewModeltoModel(VM_BodyShapeDescriptor viewModel, HashSet<BodyShapeDescriptorRules> descriptorRules)
         {
             BodyShapeDescriptor model = new BodyShapeDescriptor() { Category = viewModel.ParentShell.Category, Value = viewModel.Value, Signature = viewModel.Signature };
-            if (!descriptorRules.Where(x => x.DescriptorSignature == model.Signature).Any())
+            var matchedDescriptorModel = descriptorRules.Where(x => x.DescriptorSignature == model.Signature).FirstOrDefault();
+            if (matchedDescriptorModel is not null)
             {
-                descriptorRules.Add(VM_BodyShapeDescriptorRules.DumpViewModelToModel(viewModel.AssociatedRules));
+                descriptorRules.Remove(matchedDescriptorModel); // remove current model and replace with new one
             }
+            descriptorRules.Add(VM_BodyShapeDescriptorRules.DumpViewModelToModel(viewModel.AssociatedRules));
             return model;
         }
     }

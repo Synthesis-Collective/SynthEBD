@@ -17,7 +17,7 @@ namespace SynthEBD
             this.ParentWindow = parentWindow;
 
             // synchronous version for debugging only
-            
+            /*
             ClickRun = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ =>
@@ -32,9 +32,7 @@ namespace SynthEBD
                     VM_ConsistencyUI.GetViewModelsFromModels(ParentWindow.Consistency, ParentWindow.CUIVM.Assignments, ParentWindow.TMVM.AssetPacks); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
                 }
                 );
-
-
-            /*
+            */
             ClickRun = ReactiveUI.ReactiveCommand.CreateFromTask(
                 
                 execute: async _ =>
@@ -46,16 +44,15 @@ namespace SynthEBD
                     await Task.Run(() => Patcher.RunPatcher(
                         ParentWindow.AssetPacks.Where(x => PatcherSettings.TexMesh.SelectedAssetPacks.Contains(x.GroupName)).ToList(), ParentWindow.BodyGenConfigs, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
                         ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.RecordTemplateLinkCache, ParentWindow.RecordTemplatePlugins, ParentWindow.StatusBarVM));
-                    VM_ConsistencyUI.GetViewModelsFromModels(ParentWindow.Consistency, ParentWindow.CUIVM.Assignments); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
+                    VM_ConsistencyUI.GetViewModelsFromModels(ParentWindow.Consistency, ParentWindow.CUIVM.Assignments, ParentWindow.TMVM.AssetPacks); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
                 });
-            */
         }
         public SolidColorBrush BackgroundColor { get; set; }
 
         public MainWindow_ViewModel ParentWindow { get; set; }
 
-        //public ReactiveUI.IReactiveCommand ClickRun { get; }
-        public SynthEBD.RelayCommand ClickRun { get; }
+        public ReactiveUI.IReactiveCommand ClickRun { get; }
+        //public SynthEBD.RelayCommand ClickRun { get; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 

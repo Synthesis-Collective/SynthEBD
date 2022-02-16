@@ -61,10 +61,13 @@ namespace SynthEBD
                 {
                     ParentViewModel.MMVM.UpdatePatcherSettings(); // make sure mod manager integration is synced w/ latest settings
                     var installedConfigs = ConfigInstaller.InstallConfigFile();
-                    mainViewModel.SaveAndRefreshPlugins();
-                    foreach (var newConfig in mainViewModel.TMVM.AssetPacks.Where(x => installedConfigs.Contains(x.GroupName)))
+                    if (installedConfigs.Any())
                     {
-                        newConfig.IsSelected = true;
+                        mainViewModel.SaveAndRefreshPlugins();
+                        foreach (var newConfig in mainViewModel.TMVM.AssetPacks.Where(x => installedConfigs.Contains(x.GroupName)))
+                        {
+                            newConfig.IsSelected = true;
+                        }
                     }
                 }
                 );
@@ -114,7 +117,7 @@ namespace SynthEBD
             errors = new List<string>();
             foreach (var config in AssetPacks)
             {
-                if (!config.Validate(bodyGenConfigs, out var configErrors))
+                if (config.IsSelected && !config.Validate(bodyGenConfigs, out var configErrors))
                 {
                     isValid = false;
                     errors.AddRange(configErrors);

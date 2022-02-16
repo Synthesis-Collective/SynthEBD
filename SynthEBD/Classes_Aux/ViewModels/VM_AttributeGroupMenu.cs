@@ -29,6 +29,7 @@ namespace SynthEBD
 
         public static void GetViewModelFromModels(HashSet<AttributeGroup> models, VM_AttributeGroupMenu viewModel)
         {
+            viewModel.Groups.Clear();
             // first add each group to the menu
             foreach (var model in models)
             {

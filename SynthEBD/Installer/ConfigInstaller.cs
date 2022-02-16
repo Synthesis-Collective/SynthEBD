@@ -42,9 +42,9 @@ namespace SynthEBD
                     return installedConfigs;
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                System.Windows.MessageBox.Show("Archive extraction failed. This may be because the resulting file paths were too long. Try moving your Temp Folder in Mod Manager Integration to a short path such as your desktop. Installation aborted.");
+                System.Windows.MessageBox.Show("Archive extraction failed. This may be because the resulting file paths were too long. Try moving your Temp Folder in Mod Manager Integration to a short path such as your desktop. Installation aborted. Exception Message: " + ex.Message); ;
             }
 
             string manifestPath = Path.Combine(tempFolderPath, "Manifest.json");
@@ -204,7 +204,11 @@ namespace SynthEBD
             {
                 string extractedPath = GetPathWithoutSynthEBDPrefix(assetPath, manifest);
                 string fullPath = Path.Combine(tempFolderPath, extractedPath);
-                if (!File.Exists(fullPath))
+                if (BSAHandler.ReferencedPathExists(assetPath, out _, out _))
+                {
+                    continue;
+                }
+                else if (!File.Exists(fullPath))
                 {
                     missingFiles.Add(assetPath);
                     continue;
@@ -284,6 +288,11 @@ namespace SynthEBD
             {
                 System.Windows.MessageBox.Show("Manifest did not include a destination folder. A new folder called \"New SynthEBD Config\" will appear in your mod list. Pleast rename this folder to something sensible after completing installation.");
                 manifest.DestinationModFolder = "New SynthEBD Config";
+            }
+            if (manifest.ConfigPrefix == null || string.IsNullOrWhiteSpace(manifest.ConfigPrefix))
+            {
+                System.Windows.MessageBox.Show("Manifest did not include a destination prefix. This must match the second directory of each file path in the config file (e.g. textures\\PREFIX\\some\\texture.dds). Please fix the manifest file.");
+                return false;
             }
             return true;
         }
@@ -431,17 +440,15 @@ namespace SynthEBD
 
         public static string GenerateInstalledPath(string extractedPath, Manifest manifest)
         {
-            string modFolder = manifest.DestinationModFolder;
-
             string extensionFolder = GetExpectedDataFolderFromExtension(extractedPath, manifest);
 
             if (PatcherSettings.ModManagerIntegration.ModManagerType == ModManager.None)
             {
-                return Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, extensionFolder, modFolder, extractedPath);
+                return Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, extensionFolder, manifest.ConfigPrefix, extractedPath);
             }
             else
             {
-                return Path.Combine(PatcherSettings.ModManagerIntegration.CurrentInstallationFolder, modFolder, extensionFolder, modFolder, extractedPath);
+                return Path.Combine(PatcherSettings.ModManagerIntegration.CurrentInstallationFolder, manifest.DestinationModFolder, extensionFolder, manifest.ConfigPrefix, extractedPath);
             }
         }
 
@@ -449,7 +456,7 @@ namespace SynthEBD
         {
             string extensionFolder = GetExpectedDataFolderFromExtension(path, manifest);
 
-            string synthEBDPrefix = Path.Combine(extensionFolder, manifest.DestinationModFolder);
+            string synthEBDPrefix = Path.Combine(extensionFolder, manifest.ConfigPrefix);
 
             return Path.GetRelativePath(synthEBDPrefix, path);
         }
