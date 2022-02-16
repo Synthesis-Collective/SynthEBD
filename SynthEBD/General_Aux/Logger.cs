@@ -303,9 +303,9 @@ namespace SynthEBD
             Instance.StatusColor = newColor;
         }
 
-        public static void UpdateStatusAsync(string message, bool triggerWarning)
+        public static async Task UpdateStatusAsync(string message, bool triggerWarning)
         {
-            Task.Run(() => _UpdateStatusAsync(message, triggerWarning));
+            await Task.Run(() => _UpdateStatusAsync(message, triggerWarning));
         }
         
         private static async Task _UpdateStatusAsync(string message, bool triggerWarning)
@@ -317,9 +317,9 @@ namespace SynthEBD
             }
         }
 
-        public static void ArchiveStatusAsync()
+        public static async Task ArchiveStatusAsync()
         {
-            Task.Run(() => _ArchiveStatusAsync());
+            await Task.Run(() => _ArchiveStatusAsync());
         }
 
         private static async Task _ArchiveStatusAsync()
@@ -333,9 +333,9 @@ namespace SynthEBD
             Instance.BackupStatusColor = Instance.StatusColor;
         }
         
-        public static void DeArchiveStatusAsync()
+        public static async Task DeArchiveStatusAsync()
         {
-            Task.Run(() => _DeArchiveStatusAsync());
+            await Task.Run(() => _DeArchiveStatusAsync());
         }
 
         private static async Task _DeArchiveStatusAsync()
