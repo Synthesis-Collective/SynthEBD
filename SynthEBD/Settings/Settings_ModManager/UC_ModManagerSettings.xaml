@@ -3,10 +3,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
              d:DataContext="{d:DesignInstance Type=local:VM_SettingsModManager}"
              xmlns:local="clr-namespace:SynthEBD"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
+    <UserControl.Resources>
+        <local:PathLimitVisibilityConverter x:Key="PathVisibilityConverter" />
+    </UserControl.Resources>
+    
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -15,9 +20,9 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-
 
         <TextBlock Grid.Row="0" Grid.Column="0" MinWidth="125" Text="Mod Manager Type" VerticalAlignment="Center" ToolTip="Which mod manager you are using" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
         <ComboBox Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" SelectedValue="{Binding ModManagerType}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ModManager}}}" IsSynchronizedWithCurrentItem="True"/>
@@ -28,7 +33,10 @@
             <TextBox Text="{Binding TempFolder}"/>
         </StackPanel>
 
-        <ContentPresenter Content="{Binding DisplayedSubVM}" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3">
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="FilePath Length Limit" Visibility="{Binding ModManagerType, Converter={StaticResource PathVisibilityConverter}}" VerticalAlignment="Center" ToolTip="Maximum file path of an installed asset before path shortening functionality is triggered" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+        <xctk:IntegerUpDown Grid.Row="2" Grid.Column="1" Visibility="{Binding ModManagerType, Converter={StaticResource PathVisibilityConverter}}" Value="{Binding FilePathLimit}" Foreground="White" MinWidth="25" Margin="10 0 0 0"/>
+
+        <ContentPresenter Content="{Binding DisplayedSubVM}" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_MO2Integration}">
                     <local:UC_MO2Integration/>

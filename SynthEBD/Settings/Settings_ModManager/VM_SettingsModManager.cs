@@ -43,7 +43,7 @@ namespace SynthEBD
         public object DisplayedSubVM { get; set; }
 
         public string TempFolder { get; set; }
-
+        public int FilePathLimit { get; set; }
         public RelayCommand SelectTempFolder { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -78,6 +78,7 @@ namespace SynthEBD
                 case ModManager.ModOrganizer2: model.CurrentInstallationFolder = model.MO2Settings.ModFolderPath; break;
                 case ModManager.Vortex: model.CurrentInstallationFolder = model.VortexSettings.StagingFolderPath; break;
             }
+            viewModel.FilePathLimit = model.FilePathLimit;
         }
 
         public static void DumpViewModelToModel(Settings_ModManager model, VM_SettingsModManager viewModel)
@@ -93,6 +94,8 @@ namespace SynthEBD
                 case ModManager.ModOrganizer2: model.CurrentInstallationFolder = model.MO2Settings.ModFolderPath; break;
                 case ModManager.Vortex: model.CurrentInstallationFolder = model.VortexSettings.StagingFolderPath; break;
             }
+
+            model.FilePathLimit = viewModel.FilePathLimit;
         }
     }
 
@@ -102,6 +105,7 @@ namespace SynthEBD
         {
             this.ModFolderPath = "";
             this.ExecutablePath = "";
+            this.FilePathLimit = 220;
 
             FindModFolder = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -127,7 +131,7 @@ namespace SynthEBD
         }
         public string ModFolderPath { get; set; }
         public string ExecutablePath { get; set; }
-
+        public int FilePathLimit { get; set; }
         public RelayCommand FindModFolder { get; set; }
         public RelayCommand FindExecutable { get; set; }
 
@@ -137,11 +141,13 @@ namespace SynthEBD
         {
             viewModel.ModFolderPath = model.ModFolderPath;
             viewModel.ExecutablePath = model.ExecutablePath;
+            viewModel.FilePathLimit = model.FilePathLimit;
         }
         public static void DumpViewModelToModel(Settings_ModManager.MO2 model, VM_MO2Integration viewModel)
         {
             model.ModFolderPath = viewModel.ModFolderPath;
             model.ExecutablePath = viewModel.ExecutablePath;
+            model.FilePathLimit = viewModel.FilePathLimit;
         }
     }
 
@@ -150,7 +156,7 @@ namespace SynthEBD
         public VM_VortexIntergation()
         {
             this.StagingFolderPath = "";
-
+            this.FilePathLimit = 220;
             FindStagingFolder = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ =>
@@ -163,16 +169,37 @@ namespace SynthEBD
                 );
         }
         public string StagingFolderPath { get; set; }
+        public int FilePathLimit { get; set; }
         public RelayCommand FindStagingFolder { get; set; }
         public event PropertyChangedEventHandler PropertyChanged;
 
         public static void GetViewModelFromModel(Settings_ModManager.Vortex model, VM_VortexIntergation viewModel)
         {
             viewModel.StagingFolderPath = model.StagingFolderPath;
+            viewModel.FilePathLimit = model.FilePathLimit;
         }
         public static void DumpViewModelToModel(Settings_ModManager.Vortex model, VM_VortexIntergation viewModel)
         {
             model.StagingFolderPath = viewModel.StagingFolderPath;
+            model.FilePathLimit = viewModel.FilePathLimit;
+        }
+    }
+
+    public class PathLimitVisibilityConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            bool visibility = false;
+            if (value is ModManager)
+            {
+                visibility = (ModManager)value == ModManager.None;
+            }
+            return visibility ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+        }
+        public object ConvertBack(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            System.Windows.Visibility visibility = (System.Windows.Visibility)value;
+            return (visibility == System.Windows.Visibility.Visible);
         }
     }
 }

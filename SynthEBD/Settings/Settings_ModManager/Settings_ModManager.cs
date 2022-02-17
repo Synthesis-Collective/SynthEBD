@@ -16,6 +16,7 @@ namespace SynthEBD
             MO2Settings = new MO2();
             VortexSettings = new Vortex();
             TempExtractionFolder = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location), "Temp");
+            FilePathLimit = 260;
         }
 
         public ModManager ModManagerType { get; set; }
@@ -24,15 +25,18 @@ namespace SynthEBD
         public string DefaultInstallationFolder { get; set; }
         public string CurrentInstallationFolder { get; set; }
         public string TempExtractionFolder { get; set; }
+        public int FilePathLimit { get; set; }
         public class MO2
         {
             public MO2()
             {
                 ExecutablePath = "";
                 ModFolderPath = "";
+                FilePathLimit = 220;
             }
             public string ExecutablePath { get; set; }
             public string ModFolderPath { get; set; }
+            public int FilePathLimit { get; set; }
         }
 
         public class Vortex
@@ -40,8 +44,10 @@ namespace SynthEBD
             public Vortex()
             {
                 StagingFolderPath = "";
+                FilePathLimit = 220;
             }
             public string StagingFolderPath { get; set; }
+            public int FilePathLimit { get; set; }
         }
     }
 
