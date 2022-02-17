@@ -132,7 +132,7 @@ namespace SynthEBD
                         continue;
                     }
 
-                    referencedFilePaths.UnionWith(GetAssetPackSourcePaths(validationAP.Subgroups, new HashSet<string>()));
+                    referencedFilePaths.UnionWith(GetAssetPackSourcePaths(validationAP));
 
                     installedConfigs.Add(validationAP.GroupName);
 
@@ -209,38 +209,46 @@ namespace SynthEBD
 
             foreach (string assetPath in referencedFilePaths)
             {
-                string extractedSubPath = GetPathWithoutSynthEBDPrefix(assetPath, manifest);
-                string extractedFullPath = Path.Combine(tempFolderPath, extractedSubPath);
-                if (BSAHandler.ReferencedPathExists(assetPath, out _, out _))
+                if (PathStartsWithModName(assetPath))
                 {
                     continue;
                 }
-                else if (!reversedAssetPathMapping.ContainsKey(assetPath) && !File.Exists(extractedFullPath))
+                else if (reversedAssetPathMapping.ContainsKey(assetPath))
                 {
-                    missingFiles.Add(assetPath);
-                    continue;
-                }
+                    var pathInConfigFile = reversedAssetPathMapping[assetPath];
+                    string extractedSubPath = GetPathWithoutSynthEBDPrefix(pathInConfigFile, manifest);
+                    string extractedFullPath = Path.Combine(tempFolderPath, extractedSubPath);
 
-                if (reversedAssetPathMapping.ContainsKey(assetPath))
-                {
-                    if (!File.Exists(reversedAssetPathMapping[assetPath]))
+                    if (!File.Exists(extractedFullPath))
                     {
-                        var pathInConfigFile = reversedAssetPathMapping[assetPath];
-                        extractedSubPath = GetPathWithoutSynthEBDPrefix(pathInConfigFile, manifest);
-                        extractedFullPath = Path.Combine(tempFolderPath, extractedSubPath);
-                        string destinationSubPath = GetPathWithoutSynthEBDPrefix(assetPath, manifest);
-                        string destinationFullPath = GenerateInstalledPath(destinationSubPath, manifest);
+                        missingFiles.Add(assetPath);
+                        continue;
+                    }
+
+                    string destinationSubPath = GetPathWithoutSynthEBDPrefix(assetPath, manifest);
+                    string destinationFullPath = GenerateInstalledPath(destinationSubPath, manifest);
+                    if (!File.Exists(destinationFullPath))
+                    {
                         PatcherIO.CreateDirectoryIfNeeded(destinationFullPath, PatcherIO.PathType.File);
                         File.Move(extractedFullPath, destinationFullPath);
                     }
                 }
                 else
                 {
-                    string destination = GenerateInstalledPath(extractedSubPath, manifest);
-                    if (!File.Exists(destination))
+                    string extractedSubPath = GetPathWithoutSynthEBDPrefix(assetPath, manifest);
+                    string extractedFullPath = Path.Combine(tempFolderPath, extractedSubPath);
+
+                    if (!File.Exists(extractedFullPath))
                     {
-                        PatcherIO.CreateDirectoryIfNeeded(destination, PatcherIO.PathType.File);
-                        File.Move(extractedFullPath, destination);
+                        missingFiles.Add(assetPath);
+                        continue;
+                    }
+
+                    string destinationFullPath = GenerateInstalledPath(extractedSubPath, manifest);
+                    if (!File.Exists(destinationFullPath))
+                    {
+                        PatcherIO.CreateDirectoryIfNeeded(destinationFullPath, PatcherIO.PathType.File);
+                        File.Move(extractedFullPath, destinationFullPath);
                     }
                 }
             }
@@ -357,12 +365,25 @@ namespace SynthEBD
             }
         }
 
-        public static HashSet<string> GetAssetPackSourcePaths(IEnumerable<AssetPack.Subgroup> subgroups, HashSet<string> collectedPaths)
+        public static HashSet<string> GetAssetPackSourcePaths(AssetPack assetPack)
+        {
+            // get paths in main subgroups
+            var referencedPaths = GetSubgroupListPaths(assetPack.Subgroups, new HashSet<string>());
+
+            // get paths in replacer subgroups
+            foreach (var replacer in assetPack.ReplacerGroups)
+            {
+                referencedPaths = GetSubgroupListPaths(replacer.Subgroups, referencedPaths);
+            }
+            return referencedPaths;
+        }
+
+        public static HashSet<string> GetSubgroupListPaths(IEnumerable<AssetPack.Subgroup> subgroups, HashSet<string> collectedPaths)
         { 
             foreach (var subgroup in subgroups)
             {
                 collectedPaths.UnionWith(subgroup.Paths.Select(x => x.Source));
-                collectedPaths = GetAssetPackSourcePaths(subgroup.Subgroups, collectedPaths);
+                collectedPaths = GetSubgroupListPaths(subgroup.Subgroups, collectedPaths);
             }
             return collectedPaths;
         }
@@ -390,8 +411,8 @@ namespace SynthEBD
                 }
                 else if (!actionsTaken.HasFlag(PathModifications.TrimmedSubFolders))
                 {
-                    pathMap = RemapDirectoryNames(assetPack, manifest);
-                    RemapAssetPackPaths(assetPack.Subgroups, pathMap);
+                    pathMap = RemapDirectoryNames(assetPack, manifest); // from list of paths, generate a map of old -> new paths
+                    RemapAssetPackPaths(assetPack, pathMap); // from path map, reassign the paths referenced in the asset pack
                     actionsTaken |= PathModifications.TrimmedSubFolders;
                 }
                 else
@@ -418,10 +439,12 @@ namespace SynthEBD
         public static int GetLongestPathLength(AssetPack assetPack, Manifest manifest, out string longestPath)
         {
             longestPath = "";
-            var referencedPaths = GetAssetPackSourcePaths(assetPack.Subgroups, new HashSet<string>());
+            
+            var referencedPaths = GetAssetPackSourcePaths(assetPack);
+
             foreach (var referencedPath in referencedPaths)
             {
-                if (BSAHandler.ReferencedPathExists(referencedPath, out _, out _)) { continue; }
+                if (PathStartsWithModName(referencedPath)) { continue; }
 
                 if (referencedPath.Length > longestPath.Length)
                 {
@@ -492,23 +515,49 @@ namespace SynthEBD
         {
             Dictionary<string, string> pathMap = new Dictionary<string, string>();
 
-            int folderName = 0;
+            int newFileNameIndex = 0;
 
-            var containedPaths = GetAssetPackSourcePaths(extractedPack.Subgroups, new HashSet<string>());
+            var containedPaths = GetAssetPackSourcePaths(extractedPack);
+
+            Dictionary<string, int> pathCountsByFile = new Dictionary<string, int>();
 
             foreach (var path in containedPaths)
             {
-                if (!pathMap.ContainsKey(path) && !BSAHandler.ReferencedPathExists(path, out _, out _) && HasRecognizedExtension(path, manifest, out string currentFileExtension))
+                if (!pathMap.ContainsKey(path) && !PathStartsWithModName(path) && HasRecognizedExtension(path, manifest, out string currentFileExtension))
                 {
-                    pathMap.Add(path, GenerateRemappedPath(path, manifest, currentFileExtension, folderName));
-                    folderName++;
+                    string fileName = Path.GetFileNameWithoutExtension(path);
+                    if(pathCountsByFile.ContainsKey(fileName))
+                    {
+                        pathCountsByFile[fileName]++;
+                        newFileNameIndex = pathCountsByFile[fileName];
+                    }
+                    else
+                    {
+                        pathCountsByFile.Add(fileName, 1);
+                        newFileNameIndex = 1;
+                    }
+
+                    pathMap.Add(path, GenerateRemappedPath(path, manifest, currentFileExtension, fileName, newFileNameIndex));
+                    newFileNameIndex++;
                 }
             }
 
             return pathMap;
         }
 
-        public static void RemapAssetPackPaths(IEnumerable<AssetPack.Subgroup> subgroups, Dictionary<string, string> pathMap)
+        public static void RemapAssetPackPaths(AssetPack assetPack, Dictionary<string, string> pathMap)
+        {
+            // remap paths in main subgroups
+            RemapSubgroupListPaths(assetPack.Subgroups, pathMap);
+
+            // remap paths in replacer subgroups
+            foreach (var replacer in assetPack.ReplacerGroups)
+            {
+                RemapSubgroupListPaths(replacer.Subgroups, pathMap);
+            }
+        }
+
+        public static void RemapSubgroupListPaths(IEnumerable<AssetPack.Subgroup> subgroups, Dictionary<string, string> pathMap)
         {
             foreach (var subgroup in subgroups)
             {
@@ -519,14 +568,14 @@ namespace SynthEBD
                         path.Source = pathMap[path.Source];
                     }
                 }
-                RemapAssetPackPaths(subgroup.Subgroups, pathMap);
+                RemapSubgroupListPaths(subgroup.Subgroups, pathMap);
             }
         }
 
-        public static string GenerateRemappedPath(string path, Manifest manifest, string extension, int folderName)
+        public static string GenerateRemappedPath(string path, Manifest manifest, string extension, string folderName, int fileName)
         {
             string parentFolder = manifest.FileExtensionMap[extension];
-            return Path.Join(parentFolder, manifest.ConfigPrefix, folderName.ToString(), Path.GetFileName(path));
+            return Path.Join(parentFolder, manifest.ConfigPrefix, folderName, fileName.ToString() + "." + extension);
         }
 
         public static bool HasRecognizedExtension(string path, Manifest manifest, out string extension)
@@ -548,6 +597,28 @@ namespace SynthEBD
             None,
             TrimmedModFolder,
             TrimmedSubFolders
+        }
+
+        public static bool PathStartsWithModName(string path)
+        {
+            string[] split = path.Split(Path.DirectorySeparatorChar);
+            if (!split.Any())
+            {
+                return false;
+            }
+
+            string[] split2 = split[0].Split('.');
+            if (split2.Length != 2)
+            {
+                return false;
+            }
+
+            string extension = split2[1].ToLower();
+            if (extension == "esp" || extension == "esm" || extension == "esl")
+            {
+                return true;
+            }
+            return false;
         }
 
 
