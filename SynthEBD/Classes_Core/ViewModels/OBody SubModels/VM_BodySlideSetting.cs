@@ -70,6 +70,18 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ => this.ParentCollection.Remove(this)
                 );
+
+            Clone = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => { 
+                    var cloneModel = VM_BodySlideSetting.DumpViewModelToModel(this);
+                    var cloneViewModel = new VM_BodySlideSetting(BodyShapeDescriptors, raceGroupingVMs, ParentCollection, ParentConfig);
+                    VM_BodySlideSetting.GetViewModelFromModel(cloneModel, cloneViewModel, BodyShapeDescriptors, raceGroupingVMs, ParentConfig);
+                    var index = parentCollection.IndexOf(this);
+                    parentCollection.Insert(index, cloneViewModel);
+                }
+                );
+
             DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => UpdateBorder());
         }
 
@@ -96,6 +108,7 @@ namespace SynthEBD
         public RelayCommand AddAllowedAttribute { get; }
         public RelayCommand AddDisallowedAttribute { get; }
         public RelayCommand DeleteMe { get; }
+        public RelayCommand Clone { get; }
 
         public VM_SettingsOBody ParentConfig { get; set; }
         public ObservableCollection<VM_BodySlideSetting> ParentCollection { get; set; }
