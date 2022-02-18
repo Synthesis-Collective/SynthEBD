@@ -392,9 +392,12 @@ namespace SynthEBD
         {
             pathMap = new Dictionary<string, string>();
             int pathLengthLimit = 260;
-            if (PatcherSettings.ModManagerIntegration.ModManagerType != ModManager.None)
+
+            switch(PatcherSettings.ModManagerIntegration.ModManagerType)
             {
-                pathLengthLimit = 220; // seems to be the limit of what MO2 can virtualize before it encounters errors
+                case ModManager.None: pathLengthLimit = PatcherSettings.ModManagerIntegration.FilePathLimit; break;
+                case ModManager.ModOrganizer2: pathLengthLimit = PatcherSettings.ModManagerIntegration.MO2Settings.FilePathLimit; break;
+                case ModManager.Vortex: pathLengthLimit = PatcherSettings.ModManagerIntegration.VortexSettings.FilePathLimit; break;
             }
 
             PathModifications actionsTaken = PathModifications.None;
