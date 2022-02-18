@@ -11,7 +11,6 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         
@@ -37,7 +36,7 @@
             <RadioButton Grid.Row="1" Grid.Column="1" IsChecked="{Binding DisplayedConfigIsFemale}"  Command="{Binding DisplayFemaleConfig}">Displayed</RadioButton>
             <RadioButton Grid.Row="1" Grid.Column="3" IsChecked="{Binding DisplayedConfigIsMale}"  Command="{Binding DisplayMaleConfig}">Displayed</RadioButton>
         </Grid>
-        
+
         <ContentPresenter Grid.Row="1" Content="{Binding CurrentlyDisplayedConfig}">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_BodyGenConfig}">
@@ -45,6 +44,5 @@
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>
-
     </Grid>
 </UserControl>
