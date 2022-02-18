@@ -400,40 +400,23 @@ namespace SynthEBD
                 case ModManager.Vortex: pathLengthLimit = PatcherSettings.ModManagerIntegration.VortexSettings.FilePathLimit; break;
             }
 
-            PathModifications actionsTaken = PathModifications.None;
-            int currentLongestPathLength = GetLongestPathLength(assetPack, manifest, out string longestPath);
+            int originalLongestPathLength = GetLongestPathLength(assetPack, manifest, out string longestPath);
 
-            string originalDestFolder = manifest.DestinationModFolder;
-
-            while (currentLongestPathLength >= pathLengthLimit)
+            if (originalLongestPathLength > pathLengthLimit)
             {
-                actionsTaken |= PathModifications.TrimmedModFolder;
-                if (TryTrimModFolder(manifest))
+                pathMap = RemapDirectoryNames(assetPack, manifest); // from list of paths, generate a map of old -> new paths
+                RemapAssetPackPaths(assetPack, pathMap); // from path map, reassign the paths referenced in the asset pack
+
+                int newLongestPathLength = GetLongestPathLength(assetPack, manifest, out _);
+                if (newLongestPathLength > pathLengthLimit)
                 {
-                    break;
-                }
-                else if (!actionsTaken.HasFlag(PathModifications.TrimmedSubFolders))
-                {
-                    pathMap = RemapDirectoryNames(assetPack, manifest); // from list of paths, generate a map of old -> new paths
-                    RemapAssetPackPaths(assetPack, pathMap); // from path map, reassign the paths referenced in the asset pack
-                    actionsTaken |= PathModifications.TrimmedSubFolders;
+                    System.Windows.MessageBox.Show("Cannot extract the required asset files for config file " + assetPack.GroupName + ". The longest path (" + longestPath + ") is " + originalLongestPathLength + " characters and a maximum of " + pathLengthLimit + "are allowed. After automatic renaming the longest path was still " + newLongestPathLength + " charactersl long. Please consider moving the destination directory to a shorter path");
+                    return false;
                 }
                 else
                 {
-                    System.Windows.MessageBox.Show("Cannot extract the required asset files for config file " + assetPack.GroupName + ". The longest path is " + currentLongestPathLength + " characters and a maximum of " + pathLengthLimit + "are allowed, and no automated measures could fix the issue. Please consider moving the destination directory to a shorter path. The longest filepath was " + longestPath);
-                    return false;
+                    System.Windows.MessageBox.Show("Config file " + assetPack.GroupName + " was modified to comply with the path length limit (" + pathLengthLimit + "). The longest file path (" + longestPath + ") would have been " + originalLongestPathLength + ", and has been truncated to " + newLongestPathLength +". All paths within the config file and the destination data folder were automatically modified; no additional action is required.");
                 }
-
-                currentLongestPathLength = GetLongestPathLength(assetPack, manifest, out longestPath);
-            }
-
-            if (actionsTaken.HasFlag(PathModifications.TrimmedSubFolders))
-            {
-                System.Windows.MessageBox.Show("Config file " + assetPack.GroupName + " was modified to comply with the path length limit. All paths within the config file and the destination data folder were automatically modified; no additional action is required.");
-            }
-            else if (actionsTaken.HasFlag(PathModifications.TrimmedModFolder))
-            {
-                System.Windows.MessageBox.Show("The destination data folder was shortened from " + originalDestFolder + " to " + manifest.DestinationModFolder + " to comply with path length limit. No additional action is required.");
             }
 
             return true;
@@ -455,12 +438,12 @@ namespace SynthEBD
                 }
             }
 
-            string installedPath = GenerateInstalledPath(GetPathWithoutSynthEBDPrefix(longestPath, manifest), manifest);
+            longestPath = GenerateInstalledPath(GetPathWithoutSynthEBDPrefix(longestPath, manifest), manifest);
 
-            return installedPath.Length;
+            return longestPath.Length;
         }
 
-        public static bool TryTrimModFolder(Manifest manifest)
+        public static bool TryTrimModFolder(Manifest manifest) // currently deprectated - I don't think this is an intuitive functionality but leaving for now as a future consideration.
         {
             if (!manifest.DestinationModFolder.Any())
             {

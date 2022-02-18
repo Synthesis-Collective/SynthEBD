@@ -46,6 +46,7 @@ namespace SynthEBD
                 DownloadInfo = new HashSet<DownloadInfoContainer>();
                 OptionsDescription = "";
                 Options = new HashSet<Option>();
+                DestinationModFolder = "";
             }
             public string Name { get; set; }
             public string Description { get; set; }
@@ -55,6 +56,7 @@ namespace SynthEBD
             public HashSet<DownloadInfoContainer> DownloadInfo { get; set; }
             public string OptionsDescription { get; set; }
             public HashSet<Option> Options { get; set; }
+            public string DestinationModFolder { get; set; } // overwrites main if populated
         }
 
         public class DownloadInfoContainer

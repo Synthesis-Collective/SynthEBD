@@ -118,9 +118,13 @@ namespace SynthEBD
                         SelectedRecordTemplatePaths.UnionWith(selection.RecordTemplatePaths);
                         SelectedBodyGenConfigPaths.UnionWith(selection.BodyGenConfigPaths);
                         DownloadInfo.UnionWith(selection.DownloadInfo);
-                        parentVM.DownloadMenu = new VM_DownloadCoordinator(DownloadInfo, AssociatedWindow, parentVM);
-                        parentVM.DisplayedViewModel = parentVM.DownloadMenu;
+                        if (!string.IsNullOrWhiteSpace(selection.DestinationModFolder))
+                        {
+                            Manifest.DestinationModFolder = selection.DestinationModFolder;
+                        }
                     }
+                    parentVM.DownloadMenu = new VM_DownloadCoordinator(DownloadInfo, AssociatedWindow, parentVM);
+                    parentVM.DisplayedViewModel = parentVM.DownloadMenu;
                 }
                 );
         }
@@ -128,6 +132,7 @@ namespace SynthEBD
         public Manifest Manifest { get; set; }
         public string Name { get; set; }
         public string Description { get; set; }
+        public string DestinationModFolder { get; set; }
         public ObservableCollection<string> AssetPackPaths { get; set; }
         public ObservableCollection<string> RecordTemplatePaths { get; set; }
         public ObservableCollection<string> BodyGenConfigPaths { get; set; }
@@ -178,6 +183,8 @@ namespace SynthEBD
             SelectedOption = null;
             Parent = parent;
             Installer = installer;
+
+            DestinationModFolder = option.DestinationModFolder;
         }
 
         public string Name { get; set; }
@@ -192,6 +199,7 @@ namespace SynthEBD
         public IHasInstallerOptions Parent { get; set; }
         public bool IsSelected { get; set; }
         public VM_ConfigSelector Installer { get; set; }
+        public string DestinationModFolder { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
     }
@@ -210,5 +218,6 @@ namespace SynthEBD
         public IHasInstallerOptions Parent { get; set; }
         public bool IsSelected { get; set; }
         public VM_ConfigSelector Installer { get; set; }
+        public string DestinationModFolder { get; set; }
     }
 }
