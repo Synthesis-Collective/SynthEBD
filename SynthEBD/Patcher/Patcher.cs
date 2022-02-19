@@ -487,6 +487,13 @@ namespace SynthEBD
 
         public static void ResolvePatchableRaces()
         {
+            if (Patcher.MainLinkCache is null)
+            {
+                Logger.LogError("Error: Main link cache is null.");
+                Logger.SwitchViewToLogDisplay();
+                return;
+            }
+
             PatchableRaces = new HashSet<IFormLinkGetter<IRaceGetter>>();
             foreach (var raceFK in PatcherSettings.General.PatchableRaces)
             {
