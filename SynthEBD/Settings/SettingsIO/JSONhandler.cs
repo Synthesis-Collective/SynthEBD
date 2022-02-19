@@ -24,26 +24,55 @@ namespace SynthEBD
             return jsonSettings;
         }
 
-        public static T Deserialize(string jsonInputStr)
+        public static T Deserialize(string jsonInputStr, out bool success, out string exception)
         {
-            return JsonConvert.DeserializeObject<T>(jsonInputStr, GetSynthEBDJSONSettings());
+            try
+            {
+                success = true;
+                exception = "";
+                return JsonConvert.DeserializeObject<T>(jsonInputStr, GetSynthEBDJSONSettings());
+            }
+            catch (Exception ex)
+            {
+                success = false;
+                exception = ex.Message;
+                return default(T);
+            }
         }
 
-        public static T LoadJSONFile(string loadLoc)
+        public static T LoadJSONFile(string loadLoc, out bool success, out string exception)
         {
-            return Deserialize(File.ReadAllText(loadLoc));
+            return Deserialize(File.ReadAllText(loadLoc), out success, out exception);
         }
 
-        public static string Serialize(T input)
+        public static string Serialize(T input, out bool success, out string exception)
         {
-            return JsonConvert.SerializeObject(input, Formatting.Indented, GetSynthEBDJSONSettings());
+            try
+            {
+                success = true;
+                exception = "";
+                return JsonConvert.SerializeObject(input, Formatting.Indented, GetSynthEBDJSONSettings());
+            }
+            catch (Exception ex)
+            {
+                exception = ex.Message;
+                success = false;
+                return "";
+            }
         }
 
-        public static void SaveJSONFile(T input, string saveLoc)
+        public static void SaveJSONFile(T input, string saveLoc, out bool success, out string exception)
         {
-            File.WriteAllText(saveLoc, Serialize(input));
+            try
+            {
+                File.WriteAllText(saveLoc, Serialize(input, out success, out exception));
+            }
+            catch(Exception ex)
+            {
+                exception = ex.Message;
+                success = false;
+            }
         }
-
 
         private class AttributeConverter : JsonConverter
         {

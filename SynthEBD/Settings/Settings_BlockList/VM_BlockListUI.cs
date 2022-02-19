@@ -113,15 +113,16 @@ namespace SynthEBD
                 // Open document
                 string filename = dialog.FileName;
 
-                try
+                var loadedZList = JSONhandler<zEBDBlockList>.LoadJSONFile(filename, out bool parsed, out string exceptionStr);
+                if (parsed)
                 {
-                    var loadedZList = JSONhandler<zEBDBlockList>.LoadJSONFile(filename);
                     var loadedList = zEBDBlockList.ToSynthEBD(loadedZList);
                     GetViewModelFromModel(loadedList, this);
                 }
-                catch
+                else
                 {
-                    // Warn user
+                    Logger.LogMessage("Block list parsing failed with the following exception: " + exceptionStr);
+                    Logger.SwitchViewToLogDisplay();
                 }
             }
         }

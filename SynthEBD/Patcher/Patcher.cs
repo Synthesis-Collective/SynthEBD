@@ -65,8 +65,15 @@ namespace SynthEBD
             }
 
             // Several operations are performed that mutate the input settings. For Asset Packs this does not affect saved settings because the operations are performed on the derived FlattenedAssetPacks, but for BodyGen configs and OBody settings these are made directly to the settings files. Therefore, create a deep copy of the configs and operate on those to avoid altering the user's saved settings upon exiting the program
-            BodyGenConfigs copiedBodyGenConfigs = JSONhandler<BodyGenConfigs>.Deserialize(JSONhandler<BodyGenConfigs>.Serialize(bodyGenConfigs));
-            Settings_OBody copiedOBodySettings = JSONhandler<Settings_OBody>.Deserialize(JSONhandler<Settings_OBody>.Serialize(PatcherSettings.OBody));
+            bool serializationSuccess, deserializationSuccess;
+            string serializatonException, deserializationException;
+
+            BodyGenConfigs copiedBodyGenConfigs = JSONhandler<BodyGenConfigs>.Deserialize(JSONhandler<BodyGenConfigs>.Serialize(bodyGenConfigs, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
+            if (!serializationSuccess) { Logger.LogMessage("Error serializing BodyGen configs. Exception: " + serializatonException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
+            if (!deserializationSuccess) { Logger.LogMessage("Error deserializing BodyGen configs. Exception: " + deserializationException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
+            Settings_OBody copiedOBodySettings = JSONhandler<Settings_OBody>.Deserialize(JSONhandler<Settings_OBody>.Serialize(PatcherSettings.OBody, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
+            if (!serializationSuccess) { Logger.LogMessage("Error serializing OBody Settings. Exception: " + serializatonException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
+            if (!deserializationSuccess) { Logger.LogMessage("Error deserializing OBody Settings. Exception: " + deserializationException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
             copiedOBodySettings.CurrentlyExistingBodySlides = PatcherSettings.OBody.CurrentlyExistingBodySlides; // JSONIgnored so doesn't get serialized/deserialized
 
             if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)

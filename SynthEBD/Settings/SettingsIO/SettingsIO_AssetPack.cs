@@ -115,7 +115,7 @@ namespace SynthEBD
                 }
                 catch
                 {
-                    // Warn User
+                    Logger.LogError("Could not parse or load record template plugin " + s)
                 }
             }
             return loadedTemplatePlugins;
@@ -139,19 +139,29 @@ namespace SynthEBD
             return loadedTemplatePlugins;
         }
 
-        public static void SaveAssetPacks(List<AssetPack> assetPacks)
+        public static void SaveAssetPacks(List<AssetPack> assetPacks, out bool success)
         {
+            success = true;
             for (int i = 0; i < assetPacks.Count; i++)
             {
-                SaveAssetPack(assetPacks[i]);
+                SaveAssetPack(assetPacks[i], out bool apSuccess);
+                if (!apSuccess)
+                {
+                    success=false;
+                }
             }
         }
 
-        public static void SaveAssetPack(AssetPack assetPack)
+        public static void SaveAssetPack(AssetPack assetPack, out bool success)
         {
+            success = true;
             if (assetPack.FilePath != "" && assetPack.FilePath.StartsWith(PatcherSettings.Paths.AssetPackDirPath, StringComparison.InvariantCultureIgnoreCase))
             {
-                JSONhandler<AssetPack>.SaveJSONFile(assetPack, assetPack.FilePath);
+                JSONhandler<AssetPack>.SaveJSONFile(assetPack, assetPack.FilePath, out success, out string exceptionStr);
+                if (!success)
+                {
+                    Logger.LogMessage("Error saving Asset Pack Config File: " + exceptionStr);
+                }
             }
             else
             {
@@ -168,7 +178,11 @@ namespace SynthEBD
                         newPath = Path.Combine(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.AssetPackDirPath), assetPack.GroupName + ".json");
                     }
 
-                    JSONhandler<AssetPack>.SaveJSONFile(assetPack, newPath);
+                    JSONhandler<AssetPack>.SaveJSONFile(assetPack, newPath, out success, out string exceptionStr);
+                    if (!success)
+                    {
+                        Logger.LogMessage("Error saving Asset Pack Config File: " + exceptionStr);
+                    }
                 }
 
                 else
@@ -195,7 +209,11 @@ namespace SynthEBD
                     // Process open file dialog box results
                     if (result == true)
                     {
-                        JSONhandler<AssetPack>.SaveJSONFile(assetPack, dialog.FileName);
+                        JSONhandler<AssetPack>.SaveJSONFile(assetPack, dialog.FileName, out success, out string exceptionStr);
+                        if (!success)
+                        {
+                            Logger.LogMessage("Error saving Asset Pack Config File: " + exceptionStr);
+                        }
                     }
                 }
             }

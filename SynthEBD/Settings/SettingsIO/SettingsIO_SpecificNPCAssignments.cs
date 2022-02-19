@@ -15,24 +15,18 @@ namespace SynthEBD
 
             if (File.Exists(PatcherSettings.Paths.SpecificNPCAssignmentsPath))
             {
-                try
+                specificNPCAssignments = JSONhandler<HashSet<NPCAssignment>>.LoadJSONFile(PatcherSettings.Paths.SpecificNPCAssignmentsPath, out bool success, out string exceptionStr);
+                if (!success)
                 {
-                    specificNPCAssignments = JSONhandler<HashSet<NPCAssignment>>.LoadJSONFile(PatcherSettings.Paths.SpecificNPCAssignmentsPath);
-                }
-                catch
-                {
-                    // Warn User
+                    Logger.LogError("Could not parse Specific NPC Assignments. Error: " + exceptionStr);
                 }
             }
             else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.SpecificNPCAssignmentsPath)))
             {
-                try
+                specificNPCAssignments = JSONhandler<HashSet<NPCAssignment>>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.SpecificNPCAssignmentsPath), out bool success, out string exceptionStr);
+                if (!success)
                 {
-                    specificNPCAssignments = JSONhandler<HashSet<NPCAssignment>>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.SpecificNPCAssignmentsPath));
-                }
-                catch
-                {
-                    // Warn User
+                    Logger.LogError("Could not parse Specific NPC Assignments. Error: " + exceptionStr);
                 }
             }
 
@@ -41,13 +35,11 @@ namespace SynthEBD
 
         public static void SaveAssignments(HashSet<NPCAssignment> assignments)
         {
-            try
-            {
-                JSONhandler<HashSet<NPCAssignment>>.SaveJSONFile(assignments, PatcherSettings.Paths.SpecificNPCAssignmentsPath);
-            }
-            catch
+            JSONhandler<HashSet<NPCAssignment>>.SaveJSONFile(assignments, PatcherSettings.Paths.SpecificNPCAssignmentsPath, out bool success, out string exceptionStr);
+            if (!success)
             {
                 Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Block List to " + PatcherSettings.Paths.BlockListPath, ErrorType.Error, 5);
+                Logger.LogMessage("Could not save Block List. Error: " + exceptionStr);
             }
         }
     }

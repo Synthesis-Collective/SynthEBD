@@ -182,19 +182,28 @@ namespace SynthEBD
         {
             DumpViewModelsToModels();
 
-            JSONhandler<Settings_General>.SaveJSONFile(PatcherSettings.General, Paths.GeneralSettingsPath);
+            bool saveSuccess;
+            string exceptionStr;
+            bool pauseAtEnd = false;
 
-            JSONhandler<Settings_TexMesh>.SaveJSONFile(PatcherSettings.TexMesh, PatcherSettings.Paths.TexMeshSettingsPath);
+            JSONhandler<Settings_General>.SaveJSONFile(PatcherSettings.General, Paths.GeneralSettingsPath, out saveSuccess, out exceptionStr);
+            if (!saveSuccess) { Logger.LogMessage("Error saving General Settings: " + exceptionStr); Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
+
+            JSONhandler<Settings_TexMesh>.SaveJSONFile(PatcherSettings.TexMesh, PatcherSettings.Paths.TexMeshSettingsPath, out saveSuccess, out exceptionStr);
+            if (!saveSuccess) { Logger.LogMessage("Error saving Texture and Mesh Settingss: " + exceptionStr); Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
             SettingsIO_AssetPack.SaveAssetPacks(AssetPacks);
 
-            JSONhandler<Settings_Height>.SaveJSONFile(PatcherSettings.Height, PatcherSettings.Paths.HeightSettingsPath);
+            JSONhandler<Settings_Height>.SaveJSONFile(PatcherSettings.Height, PatcherSettings.Paths.HeightSettingsPath, out saveSuccess, out exceptionStr);
+            if (!saveSuccess) { Logger.LogMessage("Error saving Height Settings: " + exceptionStr); Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
             SettingsIO_Height.SaveHeightConfigs(HeightConfigs);
 
-            JSONhandler<Settings_BodyGen>.SaveJSONFile(PatcherSettings.BodyGen, PatcherSettings.Paths.BodyGenSettingsPath);
+            JSONhandler<Settings_BodyGen>.SaveJSONFile(PatcherSettings.BodyGen, PatcherSettings.Paths.BodyGenSettingsPath, out saveSuccess, out exceptionStr);
+            if (!saveSuccess) { Logger.LogMessage("Error saving BodyGen Settings: " + exceptionStr); Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
             SettingsIO_BodyGen.SaveBodyGenConfigs(BodyGenConfigs.Female);
             SettingsIO_BodyGen.SaveBodyGenConfigs(BodyGenConfigs.Male);
 
-            JSONhandler<Settings_OBody>.SaveJSONFile(PatcherSettings.OBody, PatcherSettings.Paths.OBodySettingsPath);
+            JSONhandler<Settings_OBody>.SaveJSONFile(PatcherSettings.OBody, PatcherSettings.Paths.OBodySettingsPath, out saveSuccess, out exceptionStr);
+            if (!saveSuccess) { Logger.LogMessage("Error saving OBody/AutoBody Settings: " + exceptionStr); Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
 
             SettingsIO_Misc.SaveConsistency(Consistency);
 
@@ -207,7 +216,13 @@ namespace SynthEBD
 
             SettingsIO_Misc.SaveTrimPaths(TMVM.TrimPaths.ToHashSet());
 
-            JSONhandler<Settings_ModManager>.SaveJSONFile(PatcherSettings.ModManagerIntegration, PatcherSettings.Paths.ModManagerSettingsPath);
+            JSONhandler<Settings_ModManager>.SaveJSONFile(PatcherSettings.ModManagerIntegration, PatcherSettings.Paths.ModManagerSettingsPath, out saveSuccess, out exceptionStr);
+            if (!saveSuccess) { Logger.LogMessage("Error saving Mod Manager Integration Settings: " + exceptionStr); Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
+
+            if (pauseAtEnd)
+            {
+                System.Threading.Thread.Sleep(5000);
+            }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

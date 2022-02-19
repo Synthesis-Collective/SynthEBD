@@ -56,10 +56,12 @@ namespace SynthEBD
             Manifest manifest = null;
             try
             {
-                manifest = JSONhandler<Manifest>.LoadJSONFile(manifestPath);
-                if (manifest == null)
+                manifest = JSONhandler<Manifest>.LoadJSONFile(manifestPath, out bool parsed, out string exceptionStr);
+                if (!parsed)
                 {
                     System.Windows.MessageBox.Show("Could not parse Manifest.json in " + tempFolderPath + ". Installation aborted.");
+                    Logger.LogMessage(exceptionStr);
+                    Logger.SwitchViewToLogDisplay();
                     return installedConfigs;
                 }
                 else if (!ValidateManifest(manifest))
