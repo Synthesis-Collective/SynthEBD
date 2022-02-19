@@ -17,6 +17,7 @@ namespace SynthEBD
             VortexIntegrationVM = new VM_VortexIntergation();
             DisplayedSubVM = null;
             TempFolder = "";
+            FilePathLimit = 260;
 
             SelectTempFolder = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
