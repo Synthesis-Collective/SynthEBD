@@ -25,6 +25,8 @@ namespace SynthEBD
             this.TrimPaths = new ObservableCollection<TrimPath>();
             this.AssetPacks = new ObservableCollection<VM_AssetPack>();
 
+            List<string> installedConfigsInCurrentSession = new List<string>();
+
             ParentViewModel = mainViewModel;
 
             AddTrimPath = new SynthEBD.RelayCommand(
@@ -63,8 +65,9 @@ namespace SynthEBD
                     var installedConfigs = ConfigInstaller.InstallConfigFile();
                     if (installedConfigs.Any())
                     {
+                        installedConfigsInCurrentSession.AddRange(installedConfigs);
                         mainViewModel.SaveAndRefreshPlugins();
-                        foreach (var newConfig in mainViewModel.TexMeshSettingsVM.AssetPacks.Where(x => installedConfigs.Contains(x.GroupName)))
+                        foreach (var newConfig in mainViewModel.TexMeshSettingsVM.AssetPacks.Where(x => installedConfigsInCurrentSession.Contains(x.GroupName)))
                         {
                             newConfig.IsSelected = true;
                         }
