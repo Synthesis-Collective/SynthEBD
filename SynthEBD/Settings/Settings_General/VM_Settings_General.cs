@@ -92,6 +92,7 @@ namespace SynthEBD
                 System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;
                 PatcherSettings.General.bLoadSettingsFromDataFolder = bLoadSettingsFromDataFolder;
                 PatcherSettings.Paths = new Paths();
+                Patcher.MainLinkCache = PatcherEnvironmentProvider.Environment.LinkCache;
                 Patcher.ResolvePatchableRaces();
                 MainWindowVM.LoadInitialSettingsViewModels();
                 MainWindowVM.LoadPluginViewModels();

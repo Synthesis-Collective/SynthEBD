@@ -34,5 +34,11 @@ namespace SynthEBD
             }
             mainWindow.Show();
         }
+
+        private void Application_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
+        {
+            MessageBox.Show("SynthEBD has crashed with the following error:" + Environment.NewLine + e.Exception.Message, "Error");
+            e.Handled = true;
+        }
     }
 }
