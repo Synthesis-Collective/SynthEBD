@@ -33,7 +33,16 @@ namespace SynthEBD
             }
 
             string tempFolderPath = Path.Combine(PatcherSettings.ModManagerIntegration.TempExtractionFolder, DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture));
-            Directory.CreateDirectory(tempFolderPath);
+            
+            try
+            {
+                Directory.CreateDirectory(tempFolderPath);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError("Could not create or access the temp folder at " + tempFolderPath + ". Details: " + ex.Message);
+                return installedConfigs;
+            }
 
             try
             {
@@ -169,7 +178,15 @@ namespace SynthEBD
                 string destPath = Path.Combine(PatcherSettings.Paths.BodyGenConfigDirPath, Path.GetFileName(bgPath));
                 if (!File.Exists(destPath))
                 {
-                    File.Move(Path.Combine(tempFolderPath, bgPath), destPath, false);
+                    string sourcePath = Path.Combine(tempFolderPath, bgPath);
+                    try
+                    {
+                        File.Move(sourcePath, destPath, false);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Windows.MessageBox.Show("Could not move " + sourcePath + " to " + destPath + ": " + ex.Message);
+                    }
                 }
                 else
                 {
@@ -184,7 +201,15 @@ namespace SynthEBD
                 string destPath = Path.Combine(PatcherSettings.Paths.RecordTemplatesDirPath, Path.GetFileName(templatePath));
                 if (!File.Exists(destPath))
                 {
-                    File.Move(Path.Combine(tempFolderPath, templatePath), destPath, false);
+                    string sourcePath = Path.Combine(tempFolderPath, templatePath);
+                    try
+                    {
+                        File.Move(sourcePath, destPath, false);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Windows.MessageBox.Show("Could not move " + sourcePath + " to " + destPath + ": " + ex.Message);
+                    }
                 }
                 else
                 {
@@ -214,6 +239,8 @@ namespace SynthEBD
                 reversedAssetPathMapping = assetPathMapping.ToDictionary(x => x.Value, x => x.Key);
             }
 
+            bool assetPathCopyErrors = false;
+
             foreach (string assetPath in referencedFilePaths)
             {
                 if (PathStartsWithModName(assetPath))
@@ -236,8 +263,25 @@ namespace SynthEBD
                     string destinationFullPath = GenerateInstalledPath(destinationSubPath, manifest);
                     if (!File.Exists(destinationFullPath))
                     {
-                        PatcherIO.CreateDirectoryIfNeeded(destinationFullPath, PatcherIO.PathType.File);
-                        File.Move(extractedFullPath, destinationFullPath);
+                        try
+                        {
+                            PatcherIO.CreateDirectoryIfNeeded(destinationFullPath, PatcherIO.PathType.File);
+                        }
+                        catch (Exception ex)
+                        {
+                            assetPathCopyErrors = true;
+                            Logger.LogError("Could not create or access directory " + destinationFullPath + ": " + ex.Message);
+                        }
+
+                        try
+                        {
+                            File.Move(extractedFullPath, destinationFullPath);
+                        }
+                        catch (Exception ex)
+                        {
+                            assetPathCopyErrors = true;
+                            Logger.LogError("Could not move " + extractedFullPath + " to " + destinationFullPath + ": " + ex.Message);
+                        }
                     }
                 }
                 else
@@ -254,8 +298,25 @@ namespace SynthEBD
                     string destinationFullPath = GenerateInstalledPath(extractedSubPath, manifest);
                     if (!File.Exists(destinationFullPath))
                     {
-                        PatcherIO.CreateDirectoryIfNeeded(destinationFullPath, PatcherIO.PathType.File);
-                        File.Move(extractedFullPath, destinationFullPath);
+                        try
+                        {
+                            PatcherIO.CreateDirectoryIfNeeded(destinationFullPath, PatcherIO.PathType.File);
+                        }
+                        catch (Exception ex)
+                        {
+                            assetPathCopyErrors = true;
+                            Logger.LogError("Could not create or access directory " + destinationFullPath + ": " + ex.Message);
+                        }
+
+                        try
+                        {
+                            File.Move(extractedFullPath, destinationFullPath);
+                        }
+                        catch (Exception ex)
+                        {
+                            assetPathCopyErrors = true;
+                            Logger.LogError("Could not move " + extractedFullPath + " to " + destinationFullPath + ": " + ex.Message);
+                        }
                     }
                 }
             }
@@ -265,6 +326,11 @@ namespace SynthEBD
             if (missingFiles.Any())
             {
                 System.Windows.MessageBox.Show("The following expected files were not found in the selected mod archives:" + Environment.NewLine + string.Join(Environment.NewLine, missingFiles));
+            }
+            if (assetPathCopyErrors)
+            {
+                System.Windows.MessageBox.Show("Some installation errors occurred. Please see the Status Log.");
+                Logger.SwitchViewToLogDisplay();
             }
 
             /*
