@@ -13,7 +13,7 @@ namespace SynthEBD
 {
     public class VM_BodyGenConfig : INotifyPropertyChanged, IHasAttributeGroupMenu
     {
-        public VM_BodyGenConfig(VM_Settings_General generalSettingsVM)
+        public VM_BodyGenConfig(VM_Settings_General generalSettingsVM, ObservableCollection<VM_BodyGenConfig> parentCollection, VM_SettingsBodyGen bodyGenSettingsVM)
         {
             this.Label = "";
             this.Gender = Gender.Female;
@@ -25,6 +25,7 @@ namespace SynthEBD
             this.DisplayedUI = this.TemplateMorphUI;
             this.AttributeGroupMenu = new VM_AttributeGroupMenu();
             this.MiscMenu = new VM_BodyGenMiscMenu();
+            this.ParentCollection = parentCollection;
 
             ClickTemplateMenu = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -51,6 +52,59 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ => this.DisplayedUI = this.MiscMenu
                 );
+            ClickDelete = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    if (System.Windows.MessageBox.Show("Are you sure you want to permanently delete this BodyGen Config?", "Confirmation", System.Windows.MessageBoxButton.OKCancel) == System.Windows.MessageBoxResult.OK)
+                    {
+                        try
+                        {
+                            System.IO.File.Delete(this.SourcePath);
+                            if (ParentCollection.Contains(this)) // false if user tries to delete a new blank view model
+                            {
+                                ParentCollection.Remove(this);
+                                bool updateDisplayedConfig = false;
+                                if (bodyGenSettingsVM.CurrentMaleConfig == this)
+                                {
+                                    if (bodyGenSettingsVM.CurrentlyDisplayedConfig == this) {  updateDisplayedConfig = true; }
+
+                                    if (ParentCollection.Any())
+                                    {
+                                        bodyGenSettingsVM.CurrentMaleConfig = ParentCollection.First();
+                                    }
+                                    else
+                                    {
+                                        bodyGenSettingsVM.CurrentMaleConfig = new VM_BodyGenConfig(generalSettingsVM, ParentCollection, bodyGenSettingsVM);
+                                    }
+
+                                    if (updateDisplayedConfig) {  bodyGenSettingsVM.CurrentlyDisplayedConfig = bodyGenSettingsVM.CurrentMaleConfig; }
+                                }
+                                else if (bodyGenSettingsVM.CurrentFemaleConfig == this)
+                                {
+                                    if (bodyGenSettingsVM.CurrentlyDisplayedConfig == this) { updateDisplayedConfig = true; }
+
+                                    if (ParentCollection.Any())
+                                    {
+                                        bodyGenSettingsVM.CurrentFemaleConfig = ParentCollection.First();
+                                    }
+                                    else
+                                    {
+                                        bodyGenSettingsVM.CurrentFemaleConfig = new VM_BodyGenConfig(generalSettingsVM, ParentCollection, bodyGenSettingsVM);
+                                    }
+
+                                    if (updateDisplayedConfig) { bodyGenSettingsVM.CurrentlyDisplayedConfig = bodyGenSettingsVM.CurrentFemaleConfig; }
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            Logger.LogError("Could not delete file at " + this.SourcePath);
+                            Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not delete BodyGen Config", ErrorType.Error, 5);
+                        }
+                    }
+                }
+                );
 
             ImportAttributeGroups = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -71,8 +125,16 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    SettingsIO_BodyGen.SaveBodyGenConfig(DumpViewModelToModel(this));
-                    Logger.CallTimedNotifyStatusUpdateAsync(Label + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                    SettingsIO_BodyGen.SaveBodyGenConfig(DumpViewModelToModel(this), out bool saveSuccess);
+                    if (saveSuccess)
+                    {
+                        Logger.CallTimedNotifyStatusUpdateAsync(Label + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                    }
+                    else
+                    {
+                        Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save " + Label + ".", ErrorType.Error, 5);
+                        Logger.SwitchViewToLogDisplay();
+                    }
                 }
                 );
         }
@@ -85,6 +147,7 @@ namespace SynthEBD
 
         public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
         public VM_BodyGenMiscMenu MiscMenu { get; set; }
+        public ObservableCollection<VM_BodyGenConfig> ParentCollection { get; set; }
 
         public string SourcePath { get; set; }
 
@@ -94,6 +157,7 @@ namespace SynthEBD
         public ICommand ClickGroupsMenu { get; }
         public ICommand ClickAttributeGroupsMenu { get; }
         public ICommand ClickMiscMenu { get; }
+        public ICommand ClickDelete { get; }
         public RelayCommand ImportAttributeGroups { get; }
         public RelayCommand Save { get; }
 
@@ -102,9 +166,9 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static VM_BodyGenConfig GetViewModelFromModel(BodyGenConfig model, VM_Settings_General generalSettingsVM)
+        public static VM_BodyGenConfig GetViewModelFromModel(BodyGenConfig model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_BodyGenConfig> parentCollection, VM_SettingsBodyGen bodyGenSettingsVM)
         {
-            VM_BodyGenConfig viewModel = new VM_BodyGenConfig(generalSettingsVM);
+            VM_BodyGenConfig viewModel = new VM_BodyGenConfig(generalSettingsVM, parentCollection, bodyGenSettingsVM);
             viewModel.Label = model.Label;
             viewModel.Gender = model.Gender;
 

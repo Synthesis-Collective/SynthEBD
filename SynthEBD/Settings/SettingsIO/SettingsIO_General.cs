@@ -11,20 +11,25 @@ namespace SynthEBD
 {
     public class SettingsIO_General
     {
-        public static void loadGeneralSettings()
+        public static void LoadGeneralSettings(out bool loadSuccess)
         {
             if (File.Exists(Paths.GeneralSettingsPath))
             {
-                PatcherSettings.General = JSONhandler<Settings_General>.LoadJSONFile(Paths.GeneralSettingsPath);
-                if(PatcherSettings.General != null && string.IsNullOrWhiteSpace(PatcherSettings.General.OutputDataFolder))
+                PatcherSettings.General = JSONhandler<Settings_General>.LoadJSONFile(Paths.GeneralSettingsPath, out loadSuccess, out string exceptionStr);
+                if(loadSuccess && string.IsNullOrWhiteSpace(PatcherSettings.General.OutputDataFolder))
                 {
                     PatcherSettings.General.OutputDataFolder = PatcherEnvironmentProvider.Environment.DataFolderPath;
+                }
+                else if (!loadSuccess)
+                {
+                    Logger.LogError("Could not parse General Settings. Error: " + exceptionStr);
                 }
             }
             else
             {
-                Logger.TimedNotifyStatusUpdate("Could not find general settings file - creating new settings", ErrorType.Warning, 3);
                 PatcherSettings.General = new Settings_General();
+                PatcherSettings.General.OutputDataFolder = PatcherEnvironmentProvider.Environment.DataFolderPath;
+                loadSuccess = true;
             }
         }
     }

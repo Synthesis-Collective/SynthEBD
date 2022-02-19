@@ -46,8 +46,16 @@ namespace SynthEBD
                 {
                     var tmpModel = new BlockList ();
                     DumpViewModelToModel(this, tmpModel);
-                    SettingsIO_BlockList.SaveBlockList(tmpModel);
-                    Logger.CallTimedNotifyStatusUpdateAsync("BlockList Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                    SettingsIO_BlockList.SaveBlockList(tmpModel, out bool saveSuccess);
+                    if (saveSuccess)
+                    {
+                        Logger.CallTimedNotifyStatusUpdateAsync("BlockList Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                    }
+                    else
+                    {
+                        Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Block List.", ErrorType.Error, 5);
+                        Logger.SwitchViewToLogDisplay();
+                    }
                 }
                 );
         }

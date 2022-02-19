@@ -110,15 +110,26 @@ namespace SynthEBD
             SaveButton = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => {
-                    SettingsIO_AssetPack.SaveAssetPack(DumpViewModelToModel(this));
-                    Logger.CallTimedNotifyStatusUpdateAsync(GroupName + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                    SettingsIO_AssetPack.SaveAssetPack(DumpViewModelToModel(this), out bool success);
+                    if (success)
+                    {
+                        Logger.CallTimedNotifyStatusUpdateAsync(GroupName + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                    }
+                    else
+                    {
+                        Logger.CallTimedLogErrorWithStatusUpdateAsync(GroupName + " could not be saved.", ErrorType.Error, 3);
+                    }
                 }
                 );
 
             DiscardButton = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => {
-                    var reloaded = SettingsIO_AssetPack.LoadAssetPack(SourcePath, PatcherSettings.General.RaceGroupings, mainVM.RecordTemplatePlugins, mainVM.BodyGenConfigs);
+                    var reloaded = SettingsIO_AssetPack.LoadAssetPack(SourcePath, PatcherSettings.General.RaceGroupings, mainVM.RecordTemplatePlugins, mainVM.BodyGenConfigs, out bool success);
+                    if (!success)
+                    {
+                        Logger.CallTimedLogErrorWithStatusUpdateAsync(GroupName + " could not be reloaded from drive.", ErrorType.Error, 3);
+                    }
                     var reloadedVM = VM_AssetPack.GetViewModelFromModel(reloaded, generalSettingsVM, ParentCollection, bodygenSettingsVM, OBodyDescriptorMenu, RecordTemplateLinkCache, mainVM);
                     this.IsSelected = reloadedVM.IsSelected;
                     this.AttributeGroupMenu = reloadedVM.AttributeGroupMenu;
@@ -231,7 +242,7 @@ namespace SynthEBD
             }
             else
             {
-                viewModel.TrackedBodyGenConfig = new VM_BodyGenConfig(generalSettingsVM);
+                viewModel.TrackedBodyGenConfig = new VM_BodyGenConfig(generalSettingsVM, new ObservableCollection<VM_BodyGenConfig>(), bodygenSettingsVM);
             }
 
             VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu);
@@ -376,7 +387,8 @@ namespace SynthEBD
                         }
                         catch
                         {
-                            //Warn User
+                            Logger.LogError("Could not delete file at " + this.SourcePath);
+                            Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not delete Asset Pack Config File", ErrorType.Error, 5);
                         }
                     }
                     

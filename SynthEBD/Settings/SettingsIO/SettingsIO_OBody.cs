@@ -10,17 +10,27 @@ namespace SynthEBD
 {
     public class SettingsIO_OBody
     {
-        public static Settings_OBody LoadOBodySettings()
+        public static Settings_OBody LoadOBodySettings(out bool loadSuccess)
         {
             Settings_OBody oBodySettings = new Settings_OBody();
 
+            loadSuccess = true;
+
             if (File.Exists(PatcherSettings.Paths.OBodySettingsPath))
             {
-                oBodySettings = JSONhandler<Settings_OBody>.LoadJSONFile(PatcherSettings.Paths.OBodySettingsPath);
+                oBodySettings = JSONhandler<Settings_OBody>.LoadJSONFile(PatcherSettings.Paths.OBodySettingsPath, out loadSuccess, out string exceptionStr);
+                if (!loadSuccess)
+                {
+                    Logger.LogError("Could not load O/AutoBody Settings. Error: " + exceptionStr);
+                }
             }
             else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.OBodySettingsPath)))
             {
-                oBodySettings = JSONhandler<Settings_OBody>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.OBodySettingsPath));
+                oBodySettings = JSONhandler<Settings_OBody>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.OBodySettingsPath), out loadSuccess, out string exceptionStr);
+                if (!loadSuccess)
+                {
+                    Logger.LogError("Could not load O/AutoBody Settings. Error: " + exceptionStr);
+                }
             }
 
             foreach (var attributeGroup in PatcherSettings.General.AttributeGroups) // add any available attribute groups from the general patcher settings

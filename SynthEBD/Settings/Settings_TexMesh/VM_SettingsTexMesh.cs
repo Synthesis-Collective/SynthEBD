@@ -52,19 +52,19 @@ namespace SynthEBD
                 );
             AddNewAssetPackConfigFile = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.AssetPacks.Add(new VM_AssetPack(this.AssetPacks, ParentViewModel.BGVM, ParentViewModel.OBVM.DescriptorUI, ParentViewModel.SGVM, ParentViewModel.RecordTemplateLinkCache, ParentViewModel))
+                execute: _ => this.AssetPacks.Add(new VM_AssetPack(this.AssetPacks, ParentViewModel.BodyGenSettingsVM, ParentViewModel.OBodySettingsVM.DescriptorUI, ParentViewModel.GeneralSettingsVM, ParentViewModel.RecordTemplateLinkCache, ParentViewModel))
                 );
 
             InstallFromArchive = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    ParentViewModel.MMVM.UpdatePatcherSettings(); // make sure mod manager integration is synced w/ latest settings
+                    ParentViewModel.ModManagerSettingsVM.UpdatePatcherSettings(); // make sure mod manager integration is synced w/ latest settings
                     var installedConfigs = ConfigInstaller.InstallConfigFile();
                     if (installedConfigs.Any())
                     {
                         mainViewModel.SaveAndRefreshPlugins();
-                        foreach (var newConfig in mainViewModel.TMVM.AssetPacks.Where(x => installedConfigs.Contains(x.GroupName)))
+                        foreach (var newConfig in mainViewModel.TexMeshSettingsVM.AssetPacks.Where(x => installedConfigs.Contains(x.GroupName)))
                         {
                             newConfig.IsSelected = true;
                         }
@@ -78,10 +78,10 @@ namespace SynthEBD
                 {
                     if (IO_Aux.SelectFile(PatcherSettings.Paths.AssetPackDirPath, "Config files (*.json)|*.json", out string path))
                     {
-                        var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, ParentViewModel.RecordTemplatePlugins, ParentViewModel.BodyGenConfigs);
-                        if (newAssetPack != null)
+                        var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, ParentViewModel.RecordTemplatePlugins, ParentViewModel.BodyGenConfigs, out bool loadSuccess);
+                        if (loadSuccess)
                         {
-                            var newAssetPackVM = VM_AssetPack.GetViewModelFromModel(newAssetPack, ParentViewModel.SGVM, AssetPacks, ParentViewModel.BGVM, ParentViewModel.OBVM.DescriptorUI, ParentViewModel.RecordTemplateLinkCache, ParentViewModel);
+                            var newAssetPackVM = VM_AssetPack.GetViewModelFromModel(newAssetPack, ParentViewModel.GeneralSettingsVM, AssetPacks, ParentViewModel.BodyGenSettingsVM, ParentViewModel.OBodySettingsVM.DescriptorUI, ParentViewModel.RecordTemplateLinkCache, ParentViewModel);
                             newAssetPackVM.IsSelected = true;
                             AssetPacks.Add(newAssetPackVM);
                         }

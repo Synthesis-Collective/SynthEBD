@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ReactiveUI;
 
 namespace SynthEBD
 {
@@ -14,9 +15,11 @@ namespace SynthEBD
         {
             this.MaleConfigs = new ObservableCollection<VM_BodyGenConfig>();
             this.FemaleConfigs = new ObservableCollection<VM_BodyGenConfig>();
-            this.CurrentMaleConfig = new VM_BodyGenConfig(generalSettingsVM);
-            this.CurrentFemaleConfig = new VM_BodyGenConfig(generalSettingsVM);
+            this.CurrentMaleConfig = null;
+            this.CurrentFemaleConfig = null;
             this.CurrentlyDisplayedConfig = null;
+            this.DisplayedConfigIsFemale = true;
+            this.DisplayedConfigIsMale = false;
 
             DisplayMaleConfig = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -37,6 +40,46 @@ namespace SynthEBD
                     this.DisplayedConfigIsMale = false;
                 }
                 );
+
+            AddNewMaleConfig = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    var newConfig = new VM_BodyGenConfig(generalSettingsVM, this.MaleConfigs, this) { Gender = Gender.Male};
+                    this.MaleConfigs.Add(newConfig);
+                    this.CurrentMaleConfig = newConfig;
+                    this.CurrentlyDisplayedConfig = newConfig;
+                    this.DisplayedConfigIsMale = true;
+                    this.DisplayedConfigIsFemale = false;
+                });
+
+            AddNewFemaleConfig = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    var newConfig = new VM_BodyGenConfig(generalSettingsVM, this.FemaleConfigs, this) { Gender = Gender.Female};
+                    this.FemaleConfigs.Add(newConfig);
+                    this.CurrentFemaleConfig = newConfig;
+                    this.CurrentlyDisplayedConfig = newConfig;
+                    this.DisplayedConfigIsFemale = true;
+                    this.DisplayedConfigIsMale = false;
+                });
+
+            this.WhenAnyValue(x => x.CurrentMaleConfig).Subscribe(x =>
+            {
+                if (DisplayedConfigIsMale)
+                {
+                    CurrentlyDisplayedConfig = CurrentMaleConfig;
+                }
+            });
+
+            this.WhenAnyValue(x => x.CurrentFemaleConfig).Subscribe(x =>
+            {
+                if (DisplayedConfigIsFemale)
+                {
+                    CurrentlyDisplayedConfig = CurrentFemaleConfig;
+                }
+            });
         }
 
         public ObservableCollection<VM_BodyGenConfig> MaleConfigs { get; set; }
@@ -49,7 +92,9 @@ namespace SynthEBD
         public bool DisplayedConfigIsMale { get; set; }
 
         public RelayCommand DisplayMaleConfig { get; }
+        public RelayCommand AddNewMaleConfig { get; }
         public RelayCommand DisplayFemaleConfig { get; }
+        public RelayCommand AddNewFemaleConfig { get; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -57,12 +102,12 @@ namespace SynthEBD
         {
             foreach(var config in configModels.Female)
             {
-                viewModel.FemaleConfigs.Add(VM_BodyGenConfig.GetViewModelFromModel(config, generalSettingsVM));
+                viewModel.FemaleConfigs.Add(VM_BodyGenConfig.GetViewModelFromModel(config, generalSettingsVM, viewModel.FemaleConfigs, viewModel));
             }
 
             foreach(var config in configModels.Male)
             {
-                viewModel.MaleConfigs.Add(VM_BodyGenConfig.GetViewModelFromModel(config, generalSettingsVM));
+                viewModel.MaleConfigs.Add(VM_BodyGenConfig.GetViewModelFromModel(config, generalSettingsVM, viewModel.MaleConfigs, viewModel));
             }
 
             viewModel.CurrentMaleConfig = GetConfigByLabel(model.CurrentMaleConfig, viewModel.MaleConfigs);
@@ -95,16 +140,6 @@ namespace SynthEBD
                 viewModel.CurrentlyDisplayedConfig = viewModel.CurrentMaleConfig;
                 viewModel.DisplayedConfigIsFemale = false;
                 viewModel.DisplayedConfigIsMale = true;
-            }
-
-            //add blank configs if necessary
-            if (viewModel.CurrentFemaleConfig == null)
-            {
-                viewModel.CurrentFemaleConfig = new VM_BodyGenConfig(generalSettingsVM);
-            }
-            if (viewModel.CurrentMaleConfig == null)
-            {
-                viewModel.CurrentMaleConfig = new VM_BodyGenConfig(generalSettingsVM);
             }
         }
 

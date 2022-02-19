@@ -9,46 +9,44 @@ namespace SynthEBD
 {
     class SettingsIO_BlockList
     {
-        public static BlockList LoadBlockList()
+        public static BlockList LoadBlockList(out bool loadSuccess)
         {
             BlockList loadedList = new BlockList();
 
+            loadSuccess = true;
+
             if (File.Exists(PatcherSettings.Paths.BlockListPath))
             {
-                try
+                loadedList = JSONhandler<BlockList>.LoadJSONFile(PatcherSettings.Paths.BlockListPath, out loadSuccess, out string exceptionStr);
+
+                if (!loadSuccess)
                 {
-                    loadedList = JSONhandler<BlockList>.LoadJSONFile(PatcherSettings.Paths.BlockListPath);
-                }
-                catch
-                {
-                    try
+                    var loadedZList = JSONhandler<zEBDBlockList>.LoadJSONFile(PatcherSettings.Paths.BlockListPath, out loadSuccess, out string zExceptionStr);
+                    if (loadSuccess)
                     {
-                        var loadedZList = JSONhandler<zEBDBlockList>.LoadJSONFile(PatcherSettings.Paths.BlockListPath);
                         loadedList = zEBDBlockList.ToSynthEBD(loadedZList);
                     }
-                    catch
+                    else
                     {
-                        // Warn User
+                        Logger.LogError("Could not parse Block List as either SynthEBD or zEBD list. Error: " + exceptionStr);
                     }
                 }
             }
 
             else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BlockListPath)))
             {
-                try
+                loadedList = JSONhandler<BlockList>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BlockListPath), out loadSuccess, out string exceptionStr);
+
+                if (!loadSuccess)
                 {
-                    loadedList = JSONhandler<BlockList>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BlockListPath));
-                }
-                catch
-                {
-                    try
+                    var loadedZList = JSONhandler<zEBDBlockList>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BlockListPath), out loadSuccess, out string zExceptionStr);
+                    if (loadSuccess)
                     {
-                        var loadedZList = JSONhandler<zEBDBlockList>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BlockListPath));
                         loadedList = zEBDBlockList.ToSynthEBD(loadedZList);
                     }
-                    catch
+                    else
                     {
-                        // Warn User
+                        Logger.LogError("Could not parse Block List as either SynthEBD or zEBD list. Error: " + exceptionStr);
                     }
                 }
             }
@@ -56,14 +54,12 @@ namespace SynthEBD
             return loadedList;
         }
 
-        public static void SaveBlockList(BlockList blockList)
+        public static void SaveBlockList(BlockList blockList, out bool saveSuccess)
         {
-            try
+            JSONhandler<BlockList>.SaveJSONFile(blockList, PatcherSettings.Paths.BlockListPath, out saveSuccess, out string exceptionStr);
+            if (!saveSuccess)
             {
-                JSONhandler<BlockList>.SaveJSONFile(blockList, PatcherSettings.Paths.BlockListPath);
-            }
-            catch
-            {
+                Logger.LogError("Could not save Block List. Error: " + exceptionStr);
                 Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Block List to " + PatcherSettings.Paths.BlockListPath, ErrorType.Error, 5);
             }
         }

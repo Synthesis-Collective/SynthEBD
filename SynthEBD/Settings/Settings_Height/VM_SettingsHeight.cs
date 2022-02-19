@@ -77,9 +77,10 @@ namespace SynthEBD
                     break;
                 }
             }
-            if (currentConfigFound == false)
+
+            if (string.IsNullOrEmpty(model.SelectedHeightConfig) && viewModel.AvailableHeightConfigs.Any())
             {
-                // Warn User
+                viewModel.SelectedHeightConfig = viewModel.AvailableHeightConfigs.First();
             }
         }
 

@@ -12,27 +12,40 @@ namespace SynthEBD
 {
     class SettingsIO_AssetPack
     {
-        public static Settings_TexMesh LoadTexMeshSettings()
+        public static Settings_TexMesh LoadTexMeshSettings(out bool loadSuccess)
         {
             Settings_TexMesh texMeshSettings = new Settings_TexMesh();
 
+            loadSuccess = true;
+
             if (File.Exists(PatcherSettings.Paths.TexMeshSettingsPath))
             {
-                texMeshSettings = JSONhandler<Settings_TexMesh>.LoadJSONFile(PatcherSettings.Paths.TexMeshSettingsPath);
+                texMeshSettings = JSONhandler<Settings_TexMesh>.LoadJSONFile(PatcherSettings.Paths.TexMeshSettingsPath, out loadSuccess, out string exceptionStr);
+                if (!loadSuccess)
+                {
+                    Logger.LogError("Could not load Texture/Mesh Settings. Error: " + exceptionStr);
+                }
             }
             else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.TexMeshSettingsPath)))
             {
-                texMeshSettings = JSONhandler<Settings_TexMesh>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.TexMeshSettingsPath));
+                texMeshSettings = JSONhandler<Settings_TexMesh>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.TexMeshSettingsPath), out loadSuccess, out string exceptionStr);
+                if (!loadSuccess)
+                {
+                    Logger.LogError("Could not load Texture/Mesh Settings. Error: " + exceptionStr);
+                }
             }
 
-            texMeshSettings.TrimPaths = SettingsIO_Misc.LoadTrimPaths();
+            texMeshSettings.TrimPaths = SettingsIO_Misc.LoadTrimPaths(out bool trimPathLoadSuccess);
+            if (!trimPathLoadSuccess) { loadSuccess = false; }
 
             return texMeshSettings;
         }
 
-        public static List<SynthEBD.AssetPack> LoadAssetPacks(List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs)
+        public static List<SynthEBD.AssetPack> LoadAssetPacks(List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs, out bool loadSuccess)
         {
             List<AssetPack> loadedPacks = new List<AssetPack>();
+
+            loadSuccess = true;
 
             string[] filePaths;
 
@@ -42,41 +55,49 @@ namespace SynthEBD
             }
             else
             {
-                // Warn User
                 filePaths = Directory.GetFiles(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.AssetPackDirPath), "*.json");
             }
 
             foreach (string s in filePaths)
             {
-                var synthEBDconfig = LoadAssetPack(s, raceGroupings, recordTemplatePlugins, availableBodyGenConfigs);
-                if (synthEBDconfig != null)
+                var synthEBDconfig = LoadAssetPack(s, raceGroupings, recordTemplatePlugins, availableBodyGenConfigs, out bool success);
+                if (success)
                 {
                     loadedPacks.Add(synthEBDconfig);
+                }
+                else
+                {
+                    loadSuccess = false;
                 }
             }
 
             return loadedPacks;
         }
 
-        public static AssetPack LoadAssetPack(string path, List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs)
+        public static AssetPack LoadAssetPack(string path, List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs, out bool loadSuccess)
         {
             var synthEBDconfig = new AssetPack();
 
-            try // first try deserializing to SynthEBD asset pack
+            synthEBDconfig = JSONhandler<AssetPack>.LoadJSONFile(path, out bool success, out string exceptionStr);
+            if (!success)
             {
-                synthEBDconfig = JSONhandler<AssetPack>.LoadJSONFile(path);
-            }
-            catch
-            {
-                try
+                var zEBDconfig = JSONhandler<ZEBDAssetPack>.LoadJSONFile(path, out bool zSuccess, out string zExceptionStr);
+                if (zSuccess)
                 {
-                    var zEBDconfig = JSONhandler<ZEBDAssetPack>.LoadJSONFile(path);
                     synthEBDconfig = ZEBDAssetPack.ToSynthEBDAssetPack(zEBDconfig, raceGroupings, recordTemplatePlugins, availableBodyGenConfigs);
+                    loadSuccess = true;
                 }
-                catch
+                else
                 {
-                    throw new Exception("Could not parse the config file at " + path);
+                    Logger.LogError("Could not parse " + path + " as SynthEBD or zEBD Asset Config File. Error: " + exceptionStr);
+                    Logger.SwitchViewToLogDisplay();
+                    loadSuccess = false;
+                    return synthEBDconfig;
                 }
+            }
+            else
+            {
+                loadSuccess = true;
             }
 
             foreach (var attributeGroup in PatcherSettings.General.AttributeGroups) // add any available attribute groups from the general patcher settings
@@ -91,11 +112,13 @@ namespace SynthEBD
             return synthEBDconfig;
         }
 
-        public static List<SkyrimMod> LoadRecordTemplates()
+        public static List<SkyrimMod> LoadRecordTemplates(out bool loadSuccess)
         {
             List<SkyrimMod> loadedTemplatePlugins = new List<SkyrimMod>();
 
             string[] filePaths;
+
+            loadSuccess = true;
 
             if (Directory.Exists(PatcherSettings.Paths.RecordTemplatesDirPath))
             {
@@ -103,7 +126,6 @@ namespace SynthEBD
             }
             else
             {
-                // Warn User
                 filePaths = Directory.GetFiles(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.RecordTemplatesDirPath), "*.esp");
             }
 
@@ -115,15 +137,18 @@ namespace SynthEBD
                 }
                 catch
                 {
-                    Logger.LogError("Could not parse or load record template plugin " + s)
+                    Logger.LogError("Could not parse or load record template plugin " + s);
+                    loadSuccess = false;
                 }
             }
             return loadedTemplatePlugins;
         }
 
-        public static List<SkyrimMod> LoadRecordTemplates(HashSet<string> filePaths)
+        public static List<SkyrimMod> LoadRecordTemplates(HashSet<string> filePaths, out bool loadSuccess)
         {
             List<SkyrimMod> loadedTemplatePlugins = new List<SkyrimMod>();
+
+            loadSuccess = true;
 
             foreach (string s in filePaths)
             {
@@ -133,7 +158,8 @@ namespace SynthEBD
                 }
                 catch
                 {
-                    // Warn User
+                    Logger.LogError("Could not parse or load record template plugin " + s);
+                    loadSuccess = false;
                 }
             }
             return loadedTemplatePlugins;

@@ -37,8 +37,16 @@ namespace SynthEBD
                 {
                     HashSet<NPCAssignment> modelsToSave = new HashSet<NPCAssignment>();
                     DumpViewModelToModels(this, modelsToSave);
-                    SettingsIO_SpecificNPCAssignments.SaveAssignments(modelsToSave);
-                    Logger.CallTimedNotifyStatusUpdateAsync("Specific NPC Assignments Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                    SettingsIO_SpecificNPCAssignments.SaveAssignments(modelsToSave, out bool saveSuccess);
+                    if (saveSuccess)
+                    {
+                        Logger.CallTimedNotifyStatusUpdateAsync("Specific NPC Assignments Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                    }
+                    else
+                    {
+                        Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Specific NPC Assignments.", ErrorType.Error, 5);
+                        Logger.SwitchViewToLogDisplay();
+                    }
                 }
                 );
         }
@@ -93,12 +101,10 @@ namespace SynthEBD
                 // Open document
                 string filename = dialog.FileName;
 
-                try
+                var zSpecificNPCAssignments = JSONhandler<HashSet<zEBDSpecificNPCAssignment>>.LoadJSONFile(filename, out bool loadSuccess, out string exceptionStr);
+                if (loadSuccess)
                 {
-                    var zSpecificNPCAssignments = JSONhandler<HashSet<zEBDSpecificNPCAssignment>>.LoadJSONFile(filename);
                     var newModels = zEBDSpecificNPCAssignment.ToSynthEBDNPCAssignments(zSpecificNPCAssignments);
-
-                    var env = PatcherEnvironmentProvider.Environment;
 
                     foreach (var model in newModels)
                     {
@@ -109,9 +115,9 @@ namespace SynthEBD
                         }
                     }
                 }
-                catch
+                else
                 {
-                    // Warn user
+                    Logger.LogError("Could not parse zEBD Specific NPC Assignments. Error: " + exceptionStr);
                 }
             }
         }

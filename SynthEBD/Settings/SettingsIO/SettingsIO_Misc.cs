@@ -10,128 +10,161 @@ namespace SynthEBD
 {
     public class SettingsIO_Misc
     {
-        public static HashSet<string> LoadNPCNameExclusions()
+        public static HashSet<string> LoadNPCNameExclusions(out bool loadSuccess)
         {
             HashSet<string> exclusions = new HashSet<string>();
 
+            loadSuccess = true;
+
             if (File.Exists(PatcherSettings.Paths.LinkedNPCNameExclusionsPath))
             {
-                exclusions = JSONhandler<HashSet<string>>.LoadJSONFile(PatcherSettings.Paths.LinkedNPCNameExclusionsPath);
+                exclusions = JSONhandler<HashSet<string>>.LoadJSONFile(PatcherSettings.Paths.LinkedNPCNameExclusionsPath, out loadSuccess, out string exceptionStr);
+                if (!loadSuccess)
+                {
+                    Logger.LogError("Could not load Unique NPC Name Exclusion List. Error: " + exceptionStr);
+                }
             }
             else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.LinkedNPCNameExclusionsPath)))
             {
-                // Warn User
-                exclusions = JSONhandler<HashSet<string>>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.LinkedNPCNameExclusionsPath));
+                exclusions = JSONhandler<HashSet<string>>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.LinkedNPCNameExclusionsPath), out loadSuccess, out string exceptionStr);
+                if (!loadSuccess)
+                {
+                    Logger.LogError("Could not load Unique NPC Name Exclusion List. Error: " + exceptionStr);
+                }
             }
             else
             {
-                // Warn User
+                Logger.LogError("Could not find Unique NPC Name Exclusion List at " + PatcherSettings.Paths.LinkedNPCNameExclusionsPath);
             }
 
             return exclusions;
         }
 
-        public static void SaveNPCNameExclusions(HashSet<string> exclusions)
+        public static void SaveNPCNameExclusions(HashSet<string> exclusions, out bool saveSuccess)
         {
-            try
+            JSONhandler<HashSet<string>>.SaveJSONFile(exclusions, PatcherSettings.Paths.LinkedNPCNameExclusionsPath, out saveSuccess, out string exceptionStr);
+            if (!saveSuccess)
             {
-                JSONhandler<HashSet<string>>.SaveJSONFile(exclusions, PatcherSettings.Paths.LinkedNPCNameExclusionsPath);
-            }
-            catch
-            {
-                Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save linked NPC name exclusions to " + PatcherSettings.Paths.LinkedNPCNameExclusionsPath, ErrorType.Error, 5);
+                Logger.LogError("Could not save Unique NPC Name Exclusion List. Error: " + exceptionStr);
+                Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Unique NPC Name Exclusion List to " + PatcherSettings.Paths.LinkedNPCNameExclusionsPath, ErrorType.Error, 5);
             }
         }
 
-        public static HashSet<LinkedNPCGroup> LoadLinkedNPCGroups()
+        public static HashSet<LinkedNPCGroup> LoadLinkedNPCGroups(out bool loadSuccess)
         {
             HashSet<LinkedNPCGroup> linkedNPCGroups = new HashSet<LinkedNPCGroup>();
 
+            loadSuccess = true;
+
             if (File.Exists(PatcherSettings.Paths.LinkedNPCsPath))
             {
-                linkedNPCGroups = JSONhandler<HashSet<LinkedNPCGroup>>.LoadJSONFile(PatcherSettings.Paths.LinkedNPCsPath);
+                linkedNPCGroups = JSONhandler<HashSet<LinkedNPCGroup>>.LoadJSONFile(PatcherSettings.Paths.LinkedNPCsPath, out loadSuccess, out string exceptionStr);
+                if (!loadSuccess)
+                {
+                    Logger.LogError("Could not load Linked NPC Groups. Error: " + exceptionStr);
+                }
             }
             else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.LinkedNPCsPath)))
             {
-                // Warn User
-                linkedNPCGroups = JSONhandler<HashSet<LinkedNPCGroup>>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.LinkedNPCsPath));
+                linkedNPCGroups = JSONhandler<HashSet<LinkedNPCGroup>>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.LinkedNPCsPath), out loadSuccess, out string exceptionStr);
+                if (!loadSuccess)
+                {
+                    Logger.LogError("Could not load Linked NPC Groups. Error: " + exceptionStr);
+                }
             }
             else
             {
-                // Warn User
+                Logger.LogError("Could not find Linked NPC Groups at " + PatcherSettings.Paths.LinkedNPCsPath);
             }
 
             return linkedNPCGroups;
         }
 
-        public static void SaveLinkedNPCGroups(HashSet<LinkedNPCGroup> linkedGroups)
+        public static void SaveLinkedNPCGroups(HashSet<LinkedNPCGroup> linkedGroups, out bool saveSuccess)
         {
-            try
+            JSONhandler<HashSet<LinkedNPCGroup>>.SaveJSONFile(linkedGroups, PatcherSettings.Paths.LinkedNPCsPath, out saveSuccess, out string exceptionStr);
+
+            if (!saveSuccess)
             {
-                JSONhandler<HashSet<LinkedNPCGroup>>.SaveJSONFile(linkedGroups, PatcherSettings.Paths.LinkedNPCsPath);
-            }
-            catch
-            {
-                Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save linked NPC groups to " + PatcherSettings.Paths.LinkedNPCsPath, ErrorType.Error, 5);
+                Logger.LogError("Could not save Linked NPC Groups. Error: " + exceptionStr);
+                Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Linked NPC Groups to " + PatcherSettings.Paths.LinkedNPCsPath, ErrorType.Error, 5);
             }
         }
 
-        public static HashSet<TrimPath> LoadTrimPaths()
+        public static HashSet<TrimPath> LoadTrimPaths(out bool loadSuccess)
         {
             HashSet<TrimPath> trimPaths = new HashSet<TrimPath>();
 
+            loadSuccess = true;
+
             if (File.Exists(PatcherSettings.Paths.TrimPathsPath))
             {
-                trimPaths = JSONhandler<HashSet<TrimPath>>.LoadJSONFile(PatcherSettings.Paths.TrimPathsPath);
+                trimPaths = JSONhandler<HashSet<TrimPath>>.LoadJSONFile(PatcherSettings.Paths.TrimPathsPath, out loadSuccess, out string exceptionStr);
+                if (!loadSuccess)
+                {
+                    Logger.LogError("Could not load Asset Path Trimming List. Error: " + exceptionStr);
+                }
             }
             else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.TrimPathsPath)))
             {
-                // Warn User
-                trimPaths = JSONhandler<HashSet<TrimPath>>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.TrimPathsPath));
+                trimPaths = JSONhandler<HashSet<TrimPath>>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.TrimPathsPath), out loadSuccess, out string exceptionStr);
+                if (!loadSuccess)
+                {
+                    Logger.LogError("Could not load Asset Path Trimming List. Error: " + exceptionStr);
+                }
             }
             else
             {
-                // Warn User
+                Logger.LogError("Could not find Asset Path Trimming List at " + PatcherSettings.Paths.TrimPathsPath);
             }
 
             return trimPaths;
         }
 
-        public static void SaveTrimPaths(HashSet<TrimPath> trimPaths)
+        public static void SaveTrimPaths(HashSet<TrimPath> trimPaths, out bool saveSuccess)
         {
-            try
+            JSONhandler<HashSet<TrimPath>>.SaveJSONFile(trimPaths, PatcherSettings.Paths.TrimPathsPath, out saveSuccess, out string exceptionStr);
+
+            if (!saveSuccess)
             {
-                JSONhandler<HashSet<TrimPath>>.SaveJSONFile(trimPaths, PatcherSettings.Paths.TrimPathsPath);
-            }
-            catch
-            {
-                Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save TrimPaths to " + PatcherSettings.Paths.TrimPathsPath, ErrorType.Error, 5);
+                Logger.LogError("Could not save Asset Path Trimming List. Error: " + exceptionStr);
+                Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Asset Path Trimming List to " + PatcherSettings.Paths.TrimPathsPath, ErrorType.Error, 5);
             }
         }
 
-        public static Dictionary<string, NPCAssignment> LoadConsistency()
+        public static Dictionary<string, NPCAssignment> LoadConsistency(out bool loadSuccess)
         {
             var loaded = new Dictionary<string, NPCAssignment>();
+
+            loadSuccess = true;
+
             if (File.Exists(PatcherSettings.Paths.ConsistencyPath))
             {
-                loaded = JSONhandler<Dictionary<string, NPCAssignment>>.LoadJSONFile(PatcherSettings.Paths.ConsistencyPath);
+                loaded = JSONhandler<Dictionary<string, NPCAssignment>>.LoadJSONFile(PatcherSettings.Paths.ConsistencyPath, out loadSuccess, out string exceptionStr);
+                if (!loadSuccess)
+                {
+                    Logger.LogError("Could not load Consistency File. Error: " + exceptionStr);
+                }
             }
             else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.ConsistencyPath)))
             {
-                loaded = JSONhandler<Dictionary<string, NPCAssignment>>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.ConsistencyPath));
+                loaded = JSONhandler<Dictionary<string, NPCAssignment>>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.ConsistencyPath), out loadSuccess, out string exceptionStr);
+                if (!loadSuccess)
+                {
+                    Logger.LogError("Could not load Consistency File. Error: " + exceptionStr);
+                }
             }
             // note: No need to alert user if consistency can't be loaded - it won't be available on first run
             return loaded;
         }
-        public static void SaveConsistency(Dictionary<string, NPCAssignment> consistency)
+        public static void SaveConsistency(Dictionary<string, NPCAssignment> consistency, out bool saveSuccess)
         {
-            try
+            JSONhandler<Dictionary<string, NPCAssignment>>.SaveJSONFile(consistency, PatcherSettings.Paths.ConsistencyPath, out saveSuccess, out string exceptionStr);
+
+            if (!saveSuccess)
             {
-                JSONhandler<Dictionary<string, NPCAssignment>>.SaveJSONFile(consistency, PatcherSettings.Paths.ConsistencyPath);
-            }
-            catch
-            {
-                Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Consistency to " + PatcherSettings.Paths.ConsistencyPath, ErrorType.Error, 5);
+                Logger.LogError("Could not save Consistency File. Error: " + exceptionStr);
+                Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Consistency File to " + PatcherSettings.Paths.ConsistencyPath, ErrorType.Error, 5);
             }
         }
     }

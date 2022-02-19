@@ -53,25 +53,16 @@ namespace SynthEBD
                 System.Windows.MessageBox.Show("Could not find Manifest.json in " + tempFolderPath + ". Installation aborted.");
             }
 
-            Manifest manifest = null;
-            try
-            {
-                manifest = JSONhandler<Manifest>.LoadJSONFile(manifestPath, out bool parsed, out string exceptionStr);
-                if (!parsed)
-                {
-                    System.Windows.MessageBox.Show("Could not parse Manifest.json in " + tempFolderPath + ". Installation aborted.");
-                    Logger.LogMessage(exceptionStr);
-                    Logger.SwitchViewToLogDisplay();
-                    return installedConfigs;
-                }
-                else if (!ValidateManifest(manifest))
-                {
-                    return installedConfigs;
-                }
-            }
-            catch
+            Manifest manifest = JSONhandler<Manifest>.LoadJSONFile(manifestPath, out bool parsed, out string exceptionStr);
+            if (!parsed)
             {
                 System.Windows.MessageBox.Show("Could not parse Manifest.json in " + tempFolderPath + ". Installation aborted.");
+                Logger.LogMessage(exceptionStr);
+                Logger.SwitchViewToLogDisplay();
+                return installedConfigs;
+            }
+            else if (!ValidateManifest(manifest))
+            {
                 return installedConfigs;
             }
 
@@ -92,7 +83,12 @@ namespace SynthEBD
             {
                 recordTemplatePaths.Add(Path.Combine(tempFolderPath, rtPath));
             }
-            List<SkyrimMod> validationRecordTemplates = SettingsIO_AssetPack.LoadRecordTemplates(recordTemplatePaths);
+            List<SkyrimMod> validationRecordTemplates = SettingsIO_AssetPack.LoadRecordTemplates(recordTemplatePaths, out bool loadSuccess);
+            if (!loadSuccess)
+            {
+                System.Windows.MessageBox.Show("Could not parse all Record Template Plugins at " + string.Join(", ", recordTemplatePaths) + ". Installation aborted.");
+                return new List<string>();
+            }
 
             // BodyGen config
             HashSet<string> bodyGenConfigPaths = new HashSet<string>();
@@ -100,7 +96,12 @@ namespace SynthEBD
             {
                 bodyGenConfigPaths.Add(Path.Combine(tempFolderPath, bgPath));
             }
-            BodyGenConfigs validationBG = SettingsIO_BodyGen.loadBodyGenConfigs(bodyGenConfigPaths.ToArray(), PatcherSettings.General.RaceGroupings);
+            BodyGenConfigs validationBG = SettingsIO_BodyGen.LoadBodyGenConfigs(bodyGenConfigPaths.ToArray(), PatcherSettings.General.RaceGroupings, out loadSuccess);
+            if (!loadSuccess)
+            {
+                System.Windows.MessageBox.Show("Could not parse all BodyGen configs at " + string.Join(", ", bodyGenConfigPaths) + ". Installation aborted.");
+                return new List<string>();
+            }
 
             #endregion
 
@@ -113,47 +114,51 @@ namespace SynthEBD
             foreach (var configPath in installerVM.SelectorMenu.SelectedAssetPackPaths)
             {
                 string extractedPath = Path.Combine(tempFolderPath, configPath);
-                //try
-                //{
-                    var validationAP = SettingsIO_AssetPack.LoadAssetPack(extractedPath, PatcherSettings.General.RaceGroupings, validationRecordTemplates, validationBG);
-                    string destinationPath = Path.Combine(PatcherSettings.Paths.AssetPackDirPath, validationAP.GroupName + ".json");
+                var validationAP = SettingsIO_AssetPack.LoadAssetPack(extractedPath, PatcherSettings.General.RaceGroupings, validationRecordTemplates, validationBG, out loadSuccess);
+                if (!loadSuccess)
+                {
+                    System.Windows.MessageBox.Show("Could not parse Asset Pack " + configPath + ". Installation aborted.");
+                    continue;
+                }
 
-                    if (!HandleLongFilePaths(validationAP, manifest, out assetPathMapping))
+                string destinationPath = Path.Combine(PatcherSettings.Paths.AssetPackDirPath, validationAP.GroupName + ".json");
+
+                if (!HandleLongFilePaths(validationAP, manifest, out assetPathMapping))
+                {
+                    continue;
+                }
+
+                if (!File.Exists(destinationPath))
+                {
+                    validationAP.FilePath = destinationPath;
+                    SettingsIO_AssetPack.SaveAssetPack(validationAP, out bool saveSuccess); // save as Json instead of moving in case the referenced paths were modified by HandleLongFilePaths()
+                    if (!saveSuccess)
                     {
+                        System.Windows.MessageBox.Show("Could not save Asset Pack to " + destinationPath + ". Installation aborted.");
                         continue;
                     }
-                    
-                    if (!File.Exists(destinationPath))
-                    {
-                        validationAP.FilePath = destinationPath;
-                        SettingsIO_AssetPack.SaveAssetPack(validationAP); // save as Json instead of moving in case the referenced paths were modified by HandleLongFilePaths()
-                    }
-                    else
-                    {
-                        skippedConfigs.Add(Path.GetFileName(extractedPath));
-                        continue;
-                    }
+                }
+                else
+                {
+                    skippedConfigs.Add(Path.GetFileName(extractedPath));
+                    continue;
+                }
 
-                    referencedFilePaths.UnionWith(GetAssetPackSourcePaths(validationAP));
+                referencedFilePaths.UnionWith(GetAssetPackSourcePaths(validationAP));
 
-                    installedConfigs.Add(validationAP.GroupName);
+                installedConfigs.Add(validationAP.GroupName);
 
-                    /*
-                    //test
-                    var referencedPaths = GetAssetPackSourcePaths(validationAP.Subgroups, new HashSet<string>());
-                    SimulatedDirectory testDir = new SimulatedDirectory(manifest.DestinationModFolder);
-                    foreach (var p in referencedPaths)
-                    {
-                        SimulatedDirectory.CreateFile(testDir, p);
-                    }
-                    string debug = "";
-                    //end test
-                    */
-                //}
-                //catch
-                //{
-                //    System.Windows.MessageBox.Show("Could not parse Asset Pack " + assetPath + ". Installation aborted.");
-                //    continue;
+                /*
+                //test
+                var referencedPaths = GetAssetPackSourcePaths(validationAP.Subgroups, new HashSet<string>());
+                SimulatedDirectory testDir = new SimulatedDirectory(manifest.DestinationModFolder);
+                foreach (var p in referencedPaths)
+                {
+                    SimulatedDirectory.CreateFile(testDir, p);
+                }
+                string debug = "";
+                //end test
+                */
                 //}
             }
             #endregion

@@ -86,7 +86,8 @@ namespace SynthEBD
                     }
                     catch
                     {
-                        // Warn user
+                        Logger.LogError("Unable to open archive reader to BSA file " + bsaFile.Path);
+                        Logger.SwitchViewToLogDisplay();
                     }
                 }
                 if (archiveReaders.Any())
@@ -119,7 +120,8 @@ namespace SynthEBD
                 }
                 catch
                 {
-                    throw new Exception("Could not open archive " + bsaFile);
+                    Logger.LogError("Could not open archive " + bsaFile.Path);
+                    Logger.SwitchViewToLogDisplay();
                 }
             }
             return readers;
@@ -138,7 +140,8 @@ namespace SynthEBD
                     }
                     catch
                     {
-                        throw new Exception("Could not create directory at " + dirPath + ". Check path length and permissions.");
+                        Logger.LogError("Could not create directory at " + dirPath + ". Check path length and permissions.");
+                        Logger.SwitchViewToLogDisplay();
                     }
                 }
                 try
@@ -148,9 +151,8 @@ namespace SynthEBD
                 }
                 catch
                 {
-                    Console.WriteLine("==========================================================================================================");
-                    Console.WriteLine("Could not extract file from BSA: " + file.Path + " to " + destPath + ". Check path length and permissions.");
-                    Console.WriteLine("==========================================================================================================");
+                    Logger.LogError("Could not extract file from BSA: " + file.Path + " to " + destPath + ". Check path length and permissions.");
+                    Logger.SwitchViewToLogDisplay();
                 }
             }
             else

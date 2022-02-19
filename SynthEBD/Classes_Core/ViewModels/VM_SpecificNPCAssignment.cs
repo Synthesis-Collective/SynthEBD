@@ -173,7 +173,6 @@ namespace SynthEBD
 
             if (viewModel.NPCFormKey.IsNull)
             {
-                // Warn User
                 return null;
             }
 
@@ -181,11 +180,11 @@ namespace SynthEBD
 
             if (!npcFormLink.TryResolve(PatcherEnvironmentProvider.Environment.LinkCache, out var npcRecord))
             {
-                // Warn User
-                return null;
+                Logger.LogMessage("Warning: the target NPC of the Specific NPC Assignment with FormKey " + viewModel.NPCFormKey.ToString() + " was not found in the current load order.");
+                Logger.SwitchViewToLogDisplay();
             }
 
-            viewModel.Gender = getGender(viewModel.NPCFormKey);
+            viewModel.Gender = GetGender(viewModel.NPCFormKey);
 
             bool assetPackFound = false;
             if (model.AssetPackName.Length == 0) { assetPackFound = true; }
@@ -233,7 +232,8 @@ namespace SynthEBD
                 }
                 if (morphFound == false)
                 {
-                    // Warn User
+                    Logger.LogError("Warning: The forced BodyGen morph " + forcedMorph + " for NPC " + viewModel.DispName + " no longer exists.");
+                    Logger.SwitchViewToLogDisplay();
                 }
             }
 
@@ -247,7 +247,8 @@ namespace SynthEBD
                 }
                 else
                 {
-                    // Warn user
+                    Logger.LogError("Warning: The forced Asset Replacer " + replacer.AssetPackName + " for NPC " + viewModel.DispName + " no longer exists.");
+                    Logger.SwitchViewToLogDisplay();
                 }
             }
 
@@ -278,7 +279,8 @@ namespace SynthEBD
                         }
                         else
                         {
-                            // Warn User
+                            Logger.LogError("Warning: The forced Subgroup " + id + " for NPC " + model.DispName + " no longer exists.");
+                            Logger.SwitchViewToLogDisplay();
                         }
                     }
                 }
@@ -286,13 +288,14 @@ namespace SynthEBD
 
             if (!assetPackFound)
             {
-                // Warn User
+                Logger.LogError("Warning: The forced Asset Pack " + assetPackName + " for NPC " + model.DispName + " no longer exists.");
+                Logger.SwitchViewToLogDisplay();
             }
 
             return assetPackFound;
         }
 
-        private static bool LinkAssetPackToForcedAssignment(NPCAssignment.MixInAssignment model, IHasForcedAssets viewModel, string assetPackName, ObservableCollection<VM_AssetPack> assetPacks)
+        private static bool LinkAssetPackToForcedAssignment(NPCAssignment.MixInAssignment model, IHasForcedAssets viewModel, string assetPackName, ObservableCollection<VM_AssetPack> assetPacks, string npcName)
         {
             bool assetPackFound = false;
             foreach (var ap in assetPacks)
@@ -312,7 +315,8 @@ namespace SynthEBD
                         }
                         else
                         {
-                            // Warn User
+                            Logger.LogError("Warning: The forced Subgroup " + id + " for NPC " + npcName + " no longer exists.");
+                            Logger.SwitchViewToLogDisplay();
                         }
                     }
                 }
@@ -320,7 +324,8 @@ namespace SynthEBD
 
             if (!assetPackFound)
             {
-                // Warn User
+                Logger.LogError("Warning: The forced Asset Pack " + assetPackName + " for NPC " + npcName + " no longer exists.");
+                Logger.SwitchViewToLogDisplay();
             }
 
             return assetPackFound;
@@ -540,10 +545,10 @@ namespace SynthEBD
 
         public void TriggerGenderUpdate(object sender, PropertyChangedEventArgs e)
         {
-            this.Gender = getGender(this.NPCFormKey);
+            this.Gender = GetGender(this.NPCFormKey);
         }
 
-        public static Gender getGender (FormKey NPCFormKey)
+        public static Gender GetGender (FormKey NPCFormKey)
         {
             var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
 
@@ -559,7 +564,8 @@ namespace SynthEBD
                 }
             }
 
-            // Warn User
+            Logger.LogError("Could not resolve gender of NPC with FormKey " + NPCFormKey.ToString() + " because it does not exist in the current load order.");
+            Logger.SwitchViewToLogDisplay();
             return Gender.Male;
         }
 
@@ -627,7 +633,7 @@ namespace SynthEBD
             public static VM_MixInSpecificAssignment GetViewModelFromModel(NPCAssignment.MixInAssignment model, VM_SpecificNPCAssignment parent, ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen bodyGenSettings, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, ObservableCollection<VM_MixInSpecificAssignment> parentCollection)
             {
                 var viewModel = new VM_MixInSpecificAssignment(parent, assetPacks, bodyGenSettings, oBodySettings, generalSettingsVM, parentCollection);
-                LinkAssetPackToForcedAssignment(model, viewModel, model.AssetPackName, assetPacks);
+                LinkAssetPackToForcedAssignment(model, viewModel, model.AssetPackName, assetPacks, parent.DispName);
                 return viewModel;
             }
             public static NPCAssignment.MixInAssignment DumpViewModelToModel(VM_MixInSpecificAssignment viewModel)

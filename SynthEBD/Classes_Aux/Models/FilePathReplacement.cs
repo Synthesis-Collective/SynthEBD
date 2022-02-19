@@ -60,7 +60,8 @@ namespace SynthEBD
             
             if (!recordTemplateLinkCache.TryResolve<INpcGetter>(templateFK, out var templateNPC))
             {
-                // Warn User
+                Logger.LogError("Error: Cannot resolve template NPC with FormKey " + templateFK.ToString());
+                Logger.SwitchViewToLogDisplay();
                 return null;
             }
             else

@@ -26,7 +26,7 @@ namespace SynthEBD
             this.bChangeMeshesOrTextures = true;
             this.BodySelectionMode = BodyShapeSelectionMode.None;
             this.BSSelectionMode = BodySlideSelectionMode.OBody;
-            this.bChangeHeight = false;
+            this.bChangeHeight = true;
             this.OutputDataFolder = "";
             this.bEnableConsistency = true;
             this.ExcludePlayerCharacter = true;

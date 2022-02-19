@@ -113,7 +113,7 @@ namespace SynthEBD
 
             foreach (string s in sgList)
             {
-                int position = (getSubgroupTopLevelIndex(s, subgroupHierarchy));
+                int position = (GetSubgroupTopLevelIndex(s, subgroupHierarchy));
                 if (position >= 0)
                 {
                     if(!dict.ContainsKey(position))
@@ -131,23 +131,24 @@ namespace SynthEBD
         }
 
 
-        private static int getSubgroupTopLevelIndex(string subgroupID, List<AssetPack.Subgroup> subgroupHierarchy)
+        private static int GetSubgroupTopLevelIndex(string subgroupID, List<AssetPack.Subgroup> subgroupHierarchy)
         {
             for (int i = 0; i < subgroupHierarchy.Count; i++)
             {
-                if (currentSubgroupContainsID(subgroupID, subgroupHierarchy[i])) { return i; }
+                if (CurrentSubgroupContainsID(subgroupID, subgroupHierarchy[i])) { return i; }
             }
 
-            // Warn User
+            Logger.LogError("Error: DictionaryMapper.GetSubgroupTopLevelIndex() could not find the top-level subgroup of the subgroup with ID " + subgroupID + ". Please report this issue.");
+            Logger.SwitchViewToLogDisplay();
             return -1;
         }
 
-        private static bool currentSubgroupContainsID(string subgroupID, AssetPack.Subgroup currentSubgroup)
+        private static bool CurrentSubgroupContainsID(string subgroupID, AssetPack.Subgroup currentSubgroup)
         {
             if (currentSubgroup.ID == subgroupID) { return true; }
             foreach (var sg in currentSubgroup.Subgroups)
             {
-                if (currentSubgroupContainsID(subgroupID, sg)) { return true; }
+                if (CurrentSubgroupContainsID(subgroupID, sg)) { return true; }
             }
             return false;
         }

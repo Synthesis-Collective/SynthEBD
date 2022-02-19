@@ -52,7 +52,7 @@ namespace SynthEBD
                 return subName + " (" + NPCFormKey.ToString() + ")";
             }
 
-            // Warn User
+            Logger.LogError("Could not resolve NPC with FormKey " + NPCFormKey.ToString() + " in the current load order");
             return "";
         }
 
@@ -216,7 +216,8 @@ namespace SynthEBD
 
             if (matches.Count == 0)
             {
-                // WARN USER
+                Logger.LogError("Could not parse " + str + " as a FormID");
+                Logger.SwitchViewToLogDisplay();
                 return output;
             }
 
@@ -225,7 +226,8 @@ namespace SynthEBD
             string[] split =  subStr.Split(':');
             if (split.Length != 2)
             {
-                // WARN USER
+                Logger.LogError("Could not parse " + str + " as a FormID");
+                Logger.SwitchViewToLogDisplay();
                 return output;
             }
 
@@ -233,7 +235,8 @@ namespace SynthEBD
 
             if (formID.Length != 8)
             {
-                // WARN USER
+                Logger.LogError("Could not parse " + str + " as a FormID");
+                Logger.SwitchViewToLogDisplay();
                 return output;
             }
 
@@ -247,7 +250,7 @@ namespace SynthEBD
             }
             catch
             {
-                // WARN USER
+                Logger.LogError("Could not parse " + str + " as a FormID");
                 return output;
             }
 
@@ -261,7 +264,9 @@ namespace SynthEBD
             }
             catch
             {
-                // WARN USER
+                Logger.LogError("Could not create FormKey " + fkString + " from FormID " + str);
+                Logger.SwitchViewToLogDisplay();
+                return output;
             }
 
             return output;
@@ -280,7 +285,10 @@ namespace SynthEBD
                     {
                         case 6: fkString = formID + ":" + plugin.ModKey.FileName; break;
                         case 8: fkString = formID.Substring(2, 6) + ":" + plugin.ModKey.FileName; break;
-                        default: break; // Warn User
+                        default:
+                            Logger.LogError("Could not convert zEBD FormKey Signature " + fkString + " to FormKey");
+                            Logger.SwitchViewToLogDisplay();
+                            break;
                     }
                 }
             }
@@ -291,7 +299,8 @@ namespace SynthEBD
             }
             catch
             {
-                // WARN USER
+                Logger.LogError("Could not convert zEBD FormKey Signature " + fkString + " to FormKey");
+                Logger.SwitchViewToLogDisplay();
             }
 
             return output;
@@ -330,7 +339,8 @@ namespace SynthEBD
             }
             catch
             {
-                // Warn User
+                Logger.LogError("Could not convert \"" + s + "\" into a Body Shape Descriptor");
+                Logger.SwitchViewToLogDisplay();
             }
             return newDescriptor;
         }

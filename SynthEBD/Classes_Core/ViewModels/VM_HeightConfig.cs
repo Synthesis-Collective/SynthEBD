@@ -44,8 +44,16 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    SettingsIO_Height.SaveHeightConfig(DumpViewModelToModel(this));
-                    Logger.CallTimedNotifyStatusUpdateAsync(Label + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                    SettingsIO_Height.SaveHeightConfig(DumpViewModelToModel(this), out bool saveSuccess);
+                    if (saveSuccess)
+                    {
+                        Logger.CallTimedNotifyStatusUpdateAsync(Label + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                    }
+                    else
+                    {
+                        Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save " + Label + ".", ErrorType.Error, 5);
+                        Logger.SwitchViewToLogDisplay();
+                    }
                 }
                 );
         }
