@@ -205,59 +205,60 @@ namespace SynthEBD
 
             bool saveSuccess;
             string exceptionStr;
-            bool pauseAtEnd = false;
+            bool showFinalExceptions = false;
 
             JSONhandler<Settings_General>.SaveJSONFile(PatcherSettings.General, Paths.GeneralSettingsPath, out saveSuccess, out exceptionStr);
-            if (!saveSuccess) { Logger.LogMessage("Error saving General Settings: " + exceptionStr); Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
+            if (!saveSuccess) { Logger.LogMessage("Error saving General Settings: " + exceptionStr); showFinalExceptions = true; }
 
             JSONhandler<Settings_TexMesh>.SaveJSONFile(PatcherSettings.TexMesh, PatcherSettings.Paths.TexMeshSettingsPath, out saveSuccess, out exceptionStr);
-            if (!saveSuccess) { Logger.LogMessage("Error saving Texture and Mesh Settings: " + exceptionStr); Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
+            if (!saveSuccess) { Logger.LogMessage("Error saving Texture and Mesh Settings: " + exceptionStr); showFinalExceptions = true; }
             
             SettingsIO_AssetPack.SaveAssetPacks(AssetPacks, out saveSuccess);
-            if (!saveSuccess) { Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
+            if (!saveSuccess) { showFinalExceptions = true; }
 
             JSONhandler<Settings_Height>.SaveJSONFile(PatcherSettings.Height, PatcherSettings.Paths.HeightSettingsPath, out saveSuccess, out exceptionStr);
-            if (!saveSuccess) { Logger.LogMessage("Error saving Height Settings: " + exceptionStr); Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
+            if (!saveSuccess) { Logger.LogMessage("Error saving Height Settings: " + exceptionStr); showFinalExceptions = true; }
             
             SettingsIO_Height.SaveHeightConfigs(HeightConfigs, out saveSuccess);
-            if (!saveSuccess) { Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
+            if (!saveSuccess) { showFinalExceptions = true; }
 
             JSONhandler<Settings_BodyGen>.SaveJSONFile(PatcherSettings.BodyGen, PatcherSettings.Paths.BodyGenSettingsPath, out saveSuccess, out exceptionStr);
-            if (!saveSuccess) { Logger.LogMessage("Error saving BodyGen Settings: " + exceptionStr); Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
+            if (!saveSuccess) { Logger.LogMessage("Error saving BodyGen Settings: " + exceptionStr); showFinalExceptions = true; }
             
             SettingsIO_BodyGen.SaveBodyGenConfigs(BodyGenConfigs.Female, out saveSuccess);
-            if (!saveSuccess) { Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
+            if (!saveSuccess) { showFinalExceptions = true; }
 
             SettingsIO_BodyGen.SaveBodyGenConfigs(BodyGenConfigs.Male, out saveSuccess);
-            if (!saveSuccess) { Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
+            if (!saveSuccess) { showFinalExceptions = true; }
 
             JSONhandler<Settings_OBody>.SaveJSONFile(PatcherSettings.OBody, PatcherSettings.Paths.OBodySettingsPath, out saveSuccess, out exceptionStr);
-            if (!saveSuccess) { Logger.LogMessage("Error saving OBody/AutoBody Settings: " + exceptionStr); Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
+            if (!saveSuccess) { Logger.LogMessage("Error saving OBody/AutoBody Settings: " + exceptionStr); showFinalExceptions = true; }
 
             SettingsIO_Misc.SaveConsistency(Consistency, out saveSuccess);
-            if (!saveSuccess) { Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
+            if (!saveSuccess) { showFinalExceptions = true; }
 
             SettingsIO_SpecificNPCAssignments.SaveAssignments(SpecificNPCAssignments, out saveSuccess);
-            if (!saveSuccess) { Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
+            if (!saveSuccess) { showFinalExceptions = true; }
 
             SettingsIO_BlockList.SaveBlockList(BlockList, out saveSuccess);
-            if (!saveSuccess) { Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
+            if (!saveSuccess) { showFinalExceptions = true; }
 
             SettingsIO_Misc.SaveLinkedNPCGroups(LinkedNPCGroups, out saveSuccess);
-            if (!saveSuccess) { Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
+            if (!saveSuccess) { showFinalExceptions = true; }
 
             SettingsIO_Misc.SaveNPCNameExclusions(GeneralSettingsVM.LinkedNameExclusions.Select(cms => cms.Content).ToHashSet(), out saveSuccess);
-            if (!saveSuccess) { Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
+            if (!saveSuccess) { showFinalExceptions = true; }
 
             SettingsIO_Misc.SaveTrimPaths(TexMeshSettingsVM.TrimPaths.ToHashSet(), out saveSuccess);
-            if (!saveSuccess) { Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
+            if (!saveSuccess) { showFinalExceptions = true; }
 
             JSONhandler<Settings_ModManager>.SaveJSONFile(PatcherSettings.ModManagerIntegration, PatcherSettings.Paths.ModManagerSettingsPath, out saveSuccess, out exceptionStr);
-            if (!saveSuccess) { Logger.LogMessage("Error saving Mod Manager Integration Settings: " + exceptionStr); Logger.SwitchViewToLogDisplay(); pauseAtEnd = true; }
+            if (!saveSuccess) { Logger.LogMessage("Error saving Mod Manager Integration Settings: " + exceptionStr); showFinalExceptions = true; }
 
-            if (pauseAtEnd)
+            if (showFinalExceptions)
             {
-                System.Threading.Thread.Sleep(5000);
+                Logger.SwitchViewToLogDisplay();
+                System.Windows.MessageBox.Show("Errors were encountered upon closing. See the log window.");
             }
         }
 

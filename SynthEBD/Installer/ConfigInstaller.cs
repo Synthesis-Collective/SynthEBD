@@ -487,7 +487,7 @@ namespace SynthEBD
                 int newLongestPathLength = GetLongestPathLength(assetPack, manifest, out _);
                 if (newLongestPathLength > pathLengthLimit)
                 {
-                    System.Windows.MessageBox.Show("Cannot extract the required asset files for config file " + assetPack.GroupName + ". The longest path (" + longestPath + ") is " + originalLongestPathLength + " characters and a maximum of " + pathLengthLimit + "are allowed. After automatic renaming the longest path was still " + newLongestPathLength + " charactersl long. Please consider moving the destination directory to a shorter path");
+                    System.Windows.MessageBox.Show("Cannot extract the required asset files for config file " + assetPack.GroupName + ". The longest path (" + longestPath + ") is " + originalLongestPathLength + " characters and a maximum of " + pathLengthLimit + " are allowed. After automatic renaming the longest path was still " + newLongestPathLength + " charactersl long. Please consider moving the destination directory to a shorter path");
                     return false;
                 }
                 else
