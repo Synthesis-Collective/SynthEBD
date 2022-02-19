@@ -333,7 +333,7 @@ namespace SynthEBD
             Instance.BackupStatusColor = Instance.StatusColor;
         }
         
-        public static async Task DeArchiveStatusAsync()
+        public static async Task UnarchiveStatusAsync()
         {
             await Task.Run(() => _DeArchiveStatusAsync());
         }
@@ -344,7 +344,7 @@ namespace SynthEBD
             Instance.StatusColor = Instance.BackupStatusColor;
         }
 
-        public static void DeArchiveStatus()
+        public static void UnarchiveStatus()
         {
             Instance.StatusString = Instance.BackupStatusString;
             Instance.StatusColor = Instance.BackupStatusColor;
@@ -360,7 +360,7 @@ namespace SynthEBD
                 Task.Delay(durationSec * 1000).Wait();
             });
             t.Wait();
-            DeArchiveStatus();
+            UnarchiveStatus();
         }
 
         public static void CallTimedLogErrorWithStatusUpdateAsync(string error, ErrorType type, int durationSec)
@@ -387,7 +387,7 @@ namespace SynthEBD
             // in order to show the changes     
             await Task.Delay(durationSec * 1000);
 
-            DeArchiveStatus();
+            UnarchiveStatus();
         }
 
         private static async Task TimedNotifyStatusUpdateAsync(string message, int durationSec)
@@ -399,7 +399,7 @@ namespace SynthEBD
             // in order to show the changes     
             await Task.Delay(durationSec * 1000);
 
-            DeArchiveStatus();
+            UnarchiveStatus();
         }
 
         private static async Task TimedNotifyStatusUpdateAsync(string message, int durationSec, SolidColorBrush textColor)
@@ -411,7 +411,7 @@ namespace SynthEBD
             // in order to show the changes     
             await Task.Delay(durationSec * 1000);
 
-            DeArchiveStatus();
+            UnarchiveStatus();
         }
 
         public static void ClearStatusError()

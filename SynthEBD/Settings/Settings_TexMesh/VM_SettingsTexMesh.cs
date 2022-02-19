@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Forms;
 
 namespace SynthEBD
 {
@@ -41,9 +42,13 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    if (ValidateAllConfigs(mainViewModel.BodyGenConfigs, out List<string> errors))
+                    if (!AssetPacks.Any())
                     {
-                        MessageBox.Show("No errors found.");
+                        System.Windows.MessageBox.Show("There are no Asset Pack Config Files installed.");
+                    }
+                    else if (ValidateAllConfigs(mainViewModel.BodyGenConfigs, out List<string> errors))
+                    {
+                        System.Windows.MessageBox.Show("No errors found.");
                     }
                     else
                     {
@@ -66,11 +71,16 @@ namespace SynthEBD
                     if (installedConfigs.Any())
                     {
                         installedConfigsInCurrentSession.AddRange(installedConfigs);
+                        //Logger.ArchiveStatus();
+                        //Task.Run(() => Logger.UpdateStatusAsync("Refreshing loaded settings - please wait.", false));
+                        Cursor.Current = Cursors.WaitCursor;
                         mainViewModel.SaveAndRefreshPlugins();
+                        //Logger.UnarchiveStatus();
                         foreach (var newConfig in mainViewModel.TexMeshSettingsVM.AssetPacks.Where(x => installedConfigsInCurrentSession.Contains(x.GroupName)))
                         {
                             newConfig.IsSelected = true;
                         }
+                        Cursor.Current = Cursors.Default;
                     }
                 }
                 );

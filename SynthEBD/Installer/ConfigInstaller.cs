@@ -224,13 +224,17 @@ namespace SynthEBD
             }
 
             #region move dependency files
-            _ = Logger.ArchiveStatusAsync();
-            _ = Logger.UpdateStatusAsync("Extracting mods - please wait.", false);
+
+            //System.Windows.Application.Current.Dispatcher.InvokeAsync(async () => await Logger.ArchiveStatusAsync());
+            //_ = Logger.ArchiveStatusAsync();
+            //System.Windows.Application.Current.Dispatcher.InvokeAsync(async () => await Logger.UpdateStatusAsync("Extracting mods - please wait.", false));
+            //_ = Logger.UpdateStatusAsync("Extracting mods - please wait.", false);
             foreach(string dependencyArchive in installerVM.DownloadMenu.DownloadInfo.Select(x => x.Path))
             {
                 ExtractArchive(dependencyArchive, tempFolderPath);
             }
-            _ = Logger.DeArchiveStatusAsync();
+            //System.Windows.Application.Current.Dispatcher.InvokeAsync(async () => await Logger.UnarchiveStatusAsync());
+            //_ = Logger.DeArchiveStatusAsync();
 
             List<string> missingFiles = new List<string>();
             Dictionary<string, string> reversedAssetPathMapping = new Dictionary<string, string>();
