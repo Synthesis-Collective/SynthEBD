@@ -192,7 +192,9 @@ General Settings controls global patcher functionality.
 
 **Exclude Presets**: If checked, SynthEBD won't patch player appearance presets. Recommended to leave on.
 
-**Load Settings from Game Data Folder**: If checked, instead of loading settings from the SynthEBD data folder, the patcher will instead try to load settings from Data\SynthEBD (or the equivalent virtualized directory if using a mod manager). Useful for having different SynthEBD settings for different mod manager profiles; e.g. one profile for CBBE and another for UNP. If the box is checked when no settings exist in Data\SynthEBD, they will be created there when the patcher exits. As an example, this is how this feature would be set up in Mod Organizer 2:![](file://C:\Users\dpira\AppData\Roaming\marktext\images\2022-02-13-17-01-41-image.png)
+**Load Settings from Game Data Folder**: If checked, instead of loading settings from the SynthEBD data folder, the patcher will instead try to load settings from Data\SynthEBD (or the equivalent virtualized directory if using a mod manager). Useful for having different SynthEBD settings for different mod manager profiles; e.g. one profile for CBBE and another for UNP. If the box is checked when no settings exist in Data\SynthEBD, they will be created there when the patcher exits. As an example, this is how this feature would be set up in Mod Organizer 2:
+![2022-02-13-17-01-41-image](https://user-images.githubusercontent.com/63175798/154865440-fc5ec16b-ad5b-4ecf-8f2b-264f9b12d252.png)
+
 
 **Link NPCs With Same Name**: If checked, the patcher assigns the same output to NPCs that it thinks are the same character (e.g. NPCs that are unique and have the same Name, where that name is not found in the *Linked NPC Name Exclusions* list). This is to make sure that when mods add another copy of a vanilla NPC, they get the same output.
 
@@ -266,9 +268,10 @@ The Config Customization Menu defines both the assets the config file distribute
 - Primary: This Config File describes "main" assets (such as body textures or meshes). Only one Primary config file will be assigned to an NPC.
   
 - MixIn: Mix-In config files describe "auxiliary" assets. They are expected not to overlap with Primary config files - if they do, the asset defined by the MixIn will supercede the one described by the Primary. These are intended for small additional assets that are not included in Primary type config files. The patcher will attempt to assign assets from <u>all</u> mix-in config files to each NPC.
-  
 
-**Subgroups**: This is a TreeView defining the asset structure defined in the config file. **<u>NPCs will receive one subgroup from each of the top-level subgroups in the TreeView</u>**. In the example, below, each NPC will receive one Head Diffuse texture from the available options, one Head Normals texture from those available, etc. Click the green + sign to add a child subgroup, or the red x to delete the current subgroup.![](file://C:\Users\dpira\AppData\Roaming\marktext\images\2022-02-13-17-59-21-image.png)
+**Subgroups**: This is a TreeView defining the asset structure defined in the config file. **<u>NPCs will receive one subgroup from each of the top-level subgroups in the TreeView</u>**. In the example, below, each NPC will receive one Head Diffuse texture from the available options, one Head Normals texture from those available, etc. Click the green + sign to add a child subgroup, or the red x to delete the current subgroup.
+
+![2022-02-13-17-59-21-image](https://user-images.githubusercontent.com/63175798/154865426-a920c2cd-2a6e-414a-9a18-ba19dfc908a5.png)
 
 Clicking on a *Subgroup* will open the *Subgroup Customization Menu* (defined at the end of this section).
 
@@ -725,7 +728,7 @@ In addition to the above, two special types of attributes exist:
 
 **Custom** Attributes allow you to specify any data element belong to the NPC record or its subrecord. To use it, first specify a reference NPC that you know matches the given attribute (this is only for the UI to tell you if your Custom Attribute works - the reference NPC has no bearing on the actual patching process). Then specify the type of the attribute: **Text**, **Integer**, **Decimal**, **Boolean** (True/False), or **Record**. Finally, set the condition you wish to evaluate with your custom attribute. The animation below depicts the usage of Custom attributes:
 
-![Custom Attribute](file://E:\Downloads\XFXmBNu.gif)
+https://user-images.githubusercontent.com/63175798/154865378-730d3eb2-0c45-4fba-b15d-fd1a4f43c561.mp4
 
 **Group** Attributes present a checkbox corresponding to the list of available ***Attribute Groups***. These ***Attribute Groups*** are sourced from the parent Asset Config Plugin File, BodyGen Config File, or O/AutoBody Settings. If an Attribute Group is checked, it gets replaced with its constitutent Attributes at the start of patcher execution.
 
