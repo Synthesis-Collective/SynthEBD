@@ -476,6 +476,10 @@ This menu controls the given BodySlide Template and dictates which NPCs it can/c
 
 **Hide Preset**: If checked, the given BodySlide preset will be hidden from the BodySlide list unless the ***Show Hidden*** checkbox is checked.
 
+**Clone Preset**: Creates a duplicate entry of the current preset which manages the same core BodySlide preset. The idea for this is if you have a BodySlide preset with very different characteristics depending ont the NPC's weight, you can clone the preset and set the Weight Range and Descriptors separately for each clone to make sure the bodyslide at any given NPC weight is annotated correctly.
+
+**Delete Preset**: Delets the current preset from your list of preset settings. Note that this doesn't delete the actual BodySlide, and if you relaunch SynthEBD without moving that preset from your mod list it'll get re-imported (sans any custom distribution rules you might have assigned). To make SynthEBD permanently ignore a preset, uncheck "Distribute to Non-forced NPCs" and check "Hide Preset".
+
 ### Height Assignment
 
 This menu enables customization of NPC and racial heights.
