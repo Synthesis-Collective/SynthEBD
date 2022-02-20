@@ -752,6 +752,10 @@ Q: I'm a new user, what do I do?
 
 A: Please read the Getting Started section and come back if you have specific questions. This isn't to be rude or terse, but simply because the patcher has too many options to be walked through in a short post or comment.
 
+Q: What happened to the "Director's Cut" Config Files?
+
+A: In zEBD, I distributed config files in two versions: blank (no distribution rules, where only the texture paths were defined) and "Director's Cut" (my take on how the textures should be distributed by class/faction/etc). In SynthEBD, all of the config files are "Director's Cut" to begin with. The reasons for this are A) having to maintain two versions of each config file is obnoxious, B) most new users would probably prefer having my distribution rules, even if they don't quite perfectly align with their preferences, to no distribution rules at all, and C) if a user is comfortable enough with SynthEBD to fill out the blank config file, they should be equally comfortable modifying my existing rule set.
+
 Q: I want to distribute textures from Mod X, but there's no config file for it. What do I do?
 
 A: If the zEBD Nexus page has a config file for Mod X, I haven't gotten around to uploaded the SynthEBD-formatted version but I do plan to do it. If you need it ASAP you can install the zEBD-formatted config file through SynthEBD and it will be auto-upgraded (with the caveats described above). If I have not made a config file for the mod you want, you can ask but I'm getting ever busier IRL and can't guarantee I'll have time to do it. Please check out how the existing configs work and take a stab at making one yourself! You can even upload it to the Nexus to get some sweet mod author cred ;)
