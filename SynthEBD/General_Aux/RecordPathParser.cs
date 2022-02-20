@@ -10,7 +10,6 @@ using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
 using Mutagen.Bethesda.Plugins.Cache;
-using FastMember;
 using System.Linq.Expressions;
 using Loqui;
 

@@ -58,7 +58,7 @@ namespace SynthEBD
                 templateFK = chosenAssetPack.DefaultRecordTemplate;
             }
             
-            if (!recordTemplateLinkCache.TryResolve<INpcGetter>(templateFK, out var templateNPC))
+            if (!recordTemplateLinkCache.TryResolve<INpcGetter>(templateFK, out var templateNPC) && chosenAssetPack.Type != FlattenedAssetPack.AssetPackType.ReplacerVirtual)
             {
                 Logger.LogError("Error: Cannot resolve template NPC with FormKey " + templateFK.ToString());
                 Logger.SwitchViewToLogDisplay();

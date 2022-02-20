@@ -12,7 +12,6 @@ using System.Reflection;
 using Mutagen.Bethesda.Plugins.Records;
 using Loqui;
 using Mutagen.Bethesda.Plugins.Cache;
-using FastMember;
 
 namespace SynthEBD
 {

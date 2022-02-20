@@ -369,7 +369,14 @@ namespace SynthEBD
             }
             */
 
-            Directory.Delete(tempFolderPath, true);
+            try
+            {
+                IO_Aux.DeleteDirectoryAF(tempFolderPath);
+            }
+            catch
+            {
+                System.Windows.MessageBox.Show("Could not delete the temp folder located at " + tempFolderPath + ". This may be because the folder path or some of the contained file paths exceeded 260 characters. You may delete this folder manually.");
+            }
 
             if (PatcherSettings.ModManagerIntegration.ModManagerType != ModManager.None && referencedFilePaths.Any())
             {
