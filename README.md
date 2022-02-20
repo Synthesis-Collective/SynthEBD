@@ -100,6 +100,12 @@ The different SynthEBD modules have their own requirements:
 3. Download any SynthEBD Asset Config Files you would like to use (e.g. Tempered Skins, Bjin, etc.)
   
 4. Launch SynthEBD.exe (through your mod manager if you are using one).
+
+5. Set the Output Data Folder (where SynthEBD-generated files will be written. As an MO2 user I prefer C:\MyMO2Path\mods\SynthEBD Output.
+
+6. Select the distribution mode you'd like to use for bodies (none, BodyGen, or OBody/AutoBody)
+
+7. (if using a mod manger) Go to the *Mod Manager Integration Menu* and set up your mod manager paths.
   
 5. In the *Textures and Meshes* tab, click *Install Config From Archive*. Select one of the config files that you downloaded in step 3, and follow the on-screen instructions to complete the installation.
   
