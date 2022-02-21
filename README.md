@@ -111,7 +111,7 @@ The different SynthEBD modules have their own requirements, in addition to the c
   
 9. Repeat step 5 for all of the config file(s) you downloaded
   
-10. If you are using a mod manager, close SynthEBD and relaunch it (so that the virtual file system knows about the newly installed files).
+10. If you are using a mod manager, close SynthEBD and relaunch it (so that the virtual file system knows about the newly installed files). If you've configured your mod manager integration, you will also need to refresh your mod manager and activate the newly installed mods that will appear at the end of your mod list.
 
 11. If you are distributing body shapes via OBody/AutoBody, go to the *O/AutoBody Settings* and make sure all of your custom BodySlides are annotated with the appropriate descriptors.
   
