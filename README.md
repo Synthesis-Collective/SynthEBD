@@ -54,7 +54,7 @@ This belongs near the top, as I could never have built SynthEBD on my own. I am 
 
 ### Requirements
 
-The different SynthEBD modules have their own requirements:
+The different SynthEBD modules have their own requirements, in addition to the core requirement of [.NET Framework 6.0](https://dotnet.microsoft.com/en-us/download/dotnet/6.0):
 
 ###### Asset Distribution:
 
@@ -100,14 +100,22 @@ The different SynthEBD modules have their own requirements:
 3. Download any SynthEBD Asset Config Files you would like to use (e.g. Tempered Skins, Bjin, etc.)
   
 4. Launch SynthEBD.exe (through your mod manager if you are using one).
+
+5. Set the Output Data Folder (where SynthEBD-generated files will be written. As an MO2 user I prefer C:\MyMO2Path\mods\SynthEBD Output).
+
+6. Select the distribution mode you'd like to use for body shapes (none, BodyGen, or OBody/AutoBody)
+
+7. (if using a mod manger) Go to the *Mod Manager Integration Menu* and set up your mod manager paths.
   
-5. In the *Textures and Meshes* tab, click *Install Config From Archive*. Select one of the config files that you downloaded in step 3, and follow the on-screen instructions to complete the installation.
+8. In the *Textures and Meshes* tab, click *Install Config From Archive*. Select one of the config files that you downloaded in step 3, and follow the on-screen instructions to complete the installation.
   
-6. Repeat step 5 for all of the config file(s) you downloaded
+9. Repeat step 5 for all of the config file(s) you downloaded
   
-7. If you are using a mod manager, close SynthEBD and relaunch it (so that the virtual file system knows about the newly installed files).
+10. If you are using a mod manager, close SynthEBD and relaunch it (so that the virtual file system knows about the newly installed files). If you've configured your mod manager integration, you will also need to refresh your mod manager and activate the newly installed mods that will appear at the end of your mod list.
+
+11. If you are distributing body shapes via OBody/AutoBody, go to the *O/AutoBody Settings* and make sure all of your custom BodySlides are annotated with the appropriate descriptors.
   
-8. Click the green *Run* button.
+12. Click the green *Run* button.
   
 
 ### Important Differences from zEBD (For Previous Users)
@@ -139,7 +147,7 @@ Despite the new paint job, SynthEBD functions very similarly to zEBD so if you'r
 
 **Asset Destinations as Paths**: In zEBD, the destination for an asset such as a texture was specified simply by the file name (e.g. "malebody_0.dds"). In SynthEBD the destinations are specified by their direct record subpaths. While this may look more intimidating, it allows the patcher to function better and faster. If you are making your own config file, please take a look at the ones I uploaded see what the subpaths should look like. You can also use the aforementioned Record Intellisense to help figure out what the subpaths should be for new asset types/destinations that I don't cover in my own config files.
 
-**Asset Replacers**: Config files can specify assets that should only be assigned if an NPC already has the corresponding assets. This is used by my "official" config files to distribute retextured facial scars to NPCs who have the vanilla textured scars. This generally works well for head parts. *Note that this does not work for face tints (e.g. makeup), which are stored in Race records and baked into NPC facegen, both of which make it challenging to distribute/replace them among NPCs*. I am exploring the concept of a separate face tint distribution system, which may come in a later update, but for the time being this is not possible, and it will always be somewhat tenuous due to the aforementioned issue of it being baked into facegen. In the meantime, for tint distribution I refer you to the wonderful [Distributed BodyPaints and Overlays]([Distributed Bodypaints and Overlays at Skyrim Special Edition Nexus - Mods and Community (nexusmods.com)](https://www.nexusmods.com/skyrimspecialedition/mods/55386)) mod by Ryugenesis.
+**Asset Replacers**: Config files can specify assets that should only be assigned if an NPC already has the corresponding assets. This is used by my "official" config files to distribute retextured facial scars to NPCs who have the vanilla textured scars. This generally works well for head parts. *Note that this does not work for face tints (e.g. makeup), which are stored in Race records and baked into NPC facegen, both of which make it challenging to distribute/replace them among NPCs*. I am exploring the concept of a separate face tint distribution system, which may come in a later update, but for the time being this is not possible, and it will always be somewhat tenuous due to the aforementioned issue of it being baked into facegen. In the meantime, for tint distribution I refer you to the wonderful [Distributed BodyPaints and Overlays](https://www.nexusmods.com/skyrimspecialedition/mods/55386) mod by Ryugenesis.
 
 **Config Auto Installer**: For config plugin files packaged with a SynthEBD Manifest, such as the ones I upload, installation can be semi-automated using the "Install Config from Archive" button to ensure that users download the correct file(s) and that both the config file and all necessary asset files end up in their correct destinations, thereby countering some of the confusion derived from the nontraditional installation instructions that z/SynthEBD require. For config files shipped without a Manifest, a simple "Install Config JSON File" option remains available.
 
@@ -184,7 +192,9 @@ General Settings controls global patcher functionality.
 
 **Exclude Presets**: If checked, SynthEBD won't patch player appearance presets. Recommended to leave on.
 
-**Load Settings from Game Data Folder**: If checked, instead of loading settings from the SynthEBD data folder, the patcher will instead try to load settings from Data\SynthEBD (or the equivalent virtualized directory if using a mod manager). Useful for having different SynthEBD settings for different mod manager profiles; e.g. one profile for CBBE and another for UNP. If the box is checked when no settings exist in Data\SynthEBD, they will be created there when the patcher exits. As an example, this is how this feature would be set up in Mod Organizer 2:![](file://C:\Users\dpira\AppData\Roaming\marktext\images\2022-02-13-17-01-41-image.png)
+**Load Settings from Game Data Folder**: If checked, instead of loading settings from the SynthEBD data folder, the patcher will instead try to load settings from Data\SynthEBD (or the equivalent virtualized directory if using a mod manager). Useful for having different SynthEBD settings for different mod manager profiles; e.g. one profile for CBBE and another for UNP. If the box is checked when no settings exist in Data\SynthEBD, they will be created there when the patcher exits. As an example, this is how this feature would be set up in Mod Organizer 2:
+![2022-02-13-17-01-41-image](https://user-images.githubusercontent.com/63175798/154865440-fc5ec16b-ad5b-4ecf-8f2b-264f9b12d252.png)
+
 
 **Link NPCs With Same Name**: If checked, the patcher assigns the same output to NPCs that it thinks are the same character (e.g. NPCs that are unique and have the same Name, where that name is not found in the *Linked NPC Name Exclusions* list). This is to make sure that when mods add another copy of a vanilla NPC, they get the same output.
 
@@ -258,9 +268,10 @@ The Config Customization Menu defines both the assets the config file distribute
 - Primary: This Config File describes "main" assets (such as body textures or meshes). Only one Primary config file will be assigned to an NPC.
   
 - MixIn: Mix-In config files describe "auxiliary" assets. They are expected not to overlap with Primary config files - if they do, the asset defined by the MixIn will supercede the one described by the Primary. These are intended for small additional assets that are not included in Primary type config files. The patcher will attempt to assign assets from <u>all</u> mix-in config files to each NPC.
-  
 
-**Subgroups**: This is a TreeView defining the asset structure defined in the config file. **<u>NPCs will receive one subgroup from each of the top-level subgroups in the TreeView</u>**. In the example, below, each NPC will receive one Head Diffuse texture from the available options, one Head Normals texture from those available, etc. Click the green + sign to add a child subgroup, or the red x to delete the current subgroup.![](file://C:\Users\dpira\AppData\Roaming\marktext\images\2022-02-13-17-59-21-image.png)
+**Subgroups**: This is a TreeView defining the asset structure defined in the config file. **<u>NPCs will receive one subgroup from each of the top-level subgroups in the TreeView</u>**. In the example, below, each NPC will receive one Head Diffuse texture from the available options, one Head Normals texture from those available, etc. Click the green + sign to add a child subgroup, or the red x to delete the current subgroup.
+
+![2022-02-13-17-59-21-image](https://user-images.githubusercontent.com/63175798/154865426-a920c2cd-2a6e-414a-9a18-ba19dfc908a5.png)
 
 Clicking on a *Subgroup* will open the *Subgroup Customization Menu* (defined at the end of this section).
 
@@ -467,6 +478,10 @@ This menu controls the given BodySlide Template and dictates which NPCs it can/c
 **Distribution Probability Weighting**: Probability for an NPC to randomly receive the given BodySlide (relative to other BodySlides).
 
 **Hide Preset**: If checked, the given BodySlide preset will be hidden from the BodySlide list unless the ***Show Hidden*** checkbox is checked.
+
+**Clone Preset**: Creates a duplicate entry of the current preset which manages the same core BodySlide preset. The idea for this is if you have a BodySlide preset with very different characteristics depending ont the NPC's weight, you can clone the preset and set the Weight Range and Descriptors separately for each clone to make sure the bodyslide at any given NPC weight is annotated correctly.
+
+**Delete Preset**: Delets the current preset from your list of preset settings. Note that this doesn't delete the actual BodySlide, and if you relaunch SynthEBD without moving that preset from your mod list it'll get re-imported (sans any custom distribution rules you might have assigned). To make SynthEBD permanently ignore a preset, uncheck "Distribute to Non-forced NPCs" and check "Hide Preset".
 
 ### Height Assignment
 
@@ -713,7 +728,7 @@ In addition to the above, two special types of attributes exist:
 
 **Custom** Attributes allow you to specify any data element belong to the NPC record or its subrecord. To use it, first specify a reference NPC that you know matches the given attribute (this is only for the UI to tell you if your Custom Attribute works - the reference NPC has no bearing on the actual patching process). Then specify the type of the attribute: **Text**, **Integer**, **Decimal**, **Boolean** (True/False), or **Record**. Finally, set the condition you wish to evaluate with your custom attribute. The animation below depicts the usage of Custom attributes:
 
-![Custom Attribute](file://E:\Downloads\XFXmBNu.gif)
+https://user-images.githubusercontent.com/63175798/154865378-730d3eb2-0c45-4fba-b15d-fd1a4f43c561.mp4
 
 **Group** Attributes present a checkbox corresponding to the list of available ***Attribute Groups***. These ***Attribute Groups*** are sourced from the parent Asset Config Plugin File, BodyGen Config File, or O/AutoBody Settings. If an Attribute Group is checked, it gets replaced with its constitutent Attributes at the start of patcher execution.
 
@@ -743,6 +758,10 @@ A: It uses Mutagen, which Synthesis is built on, and "MutEBD" doesn't have the s
 Q: I'm a new user, what do I do?
 
 A: Please read the Getting Started section and come back if you have specific questions. This isn't to be rude or terse, but simply because the patcher has too many options to be walked through in a short post or comment.
+
+Q: What happened to the "Director's Cut" Config Files?
+
+A: In zEBD, I distributed config files in two versions: blank (no distribution rules, where only the texture paths were defined) and "Director's Cut" (my take on how the textures should be distributed by class/faction/etc). In SynthEBD, all of the config files are "Director's Cut" to begin with. The reasons for this are A) having to maintain two versions of each config file is obnoxious, B) most new users would probably prefer having my distribution rules, even if they don't quite perfectly align with their preferences, to no distribution rules at all, and C) if a user is comfortable enough with SynthEBD to fill out the blank config file, they should be equally comfortable modifying my existing rule set.
 
 Q: I want to distribute textures from Mod X, but there's no config file for it. What do I do?
 
