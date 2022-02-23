@@ -152,6 +152,7 @@
                     <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding ValidateButton}" Foreground="MediumPurple" ToolTip="Check this config file for errors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Validate</Button>
                     <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding SaveButton}" Foreground="MediumPurple" ToolTip="Save changes to this config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Save</Button>
                     <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding DiscardButton}" Foreground="MediumPurple" ToolTip="Discard changes to this config file and reload last saved version" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Discard Changes</Button>
+                    <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding MergeWithAssetPack}" Foreground="MediumPurple" ToolTip="Merge this config file with another config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Merge With</Button>
                 </StackPanel>
             </Grid>
         </Expander>

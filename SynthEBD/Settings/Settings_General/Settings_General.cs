@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.FormKeys.SkyrimSE;
+using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD
 {
@@ -12,6 +13,7 @@ namespace SynthEBD
     {
         public Settings_General()
         {
+            this.SkyrimVersion = SkyrimRelease.SkyrimSE;
             this.bShowToolTips = true;
             this.bChangeMeshesOrTextures = true;
             this.BodySelectionMode = BodyShapeSelectionMode.None;
@@ -113,7 +115,7 @@ namespace SynthEBD
         public bool ExcludePresets { get; set; }
         public bool bLinkNPCsWithSameName { get; set; }
         public string PatchFileName { get; set; }
-
+        public SkyrimRelease SkyrimVersion { get; set; }
         public bool bVerboseModeAssetsNoncompliant { get; set; }
         public bool bVerboseModeAssetsAll { get; set; }
         public List<FormKey> VerboseModeNPClist { get; set; } // enable FormKey (multi?) picker for this
@@ -127,7 +129,6 @@ namespace SynthEBD
         public HashSet<AttributeGroup> AttributeGroups { get; set; }
         public bool OverwritePluginAttGroups { get; set; }
     }
-
     public enum BodyShapeSelectionMode
     {
         None,

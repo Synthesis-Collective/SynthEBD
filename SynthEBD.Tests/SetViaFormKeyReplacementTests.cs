@@ -13,7 +13,7 @@ public class SetViaFormKeyReplacementTests
     [Fact]
     public void ArrayDynamic()
     {
-        var mod = new SkyrimMod(ModKey.Null, SkyrimRelease.SkyrimSE);
+        var mod = new SkyrimMod(ModKey.Null, SkyrimGameType.SkyrimSE);
         var arm = mod.Armors.AddNew();
         arm.Armature.Add(mod.ArmorAddons.AddNew());
         dynamic list = arm.Armature;
@@ -25,7 +25,7 @@ public class SetViaFormKeyReplacementTests
     [Fact]
     public void ArrayStraight()
     {
-        var mod = new SkyrimMod(ModKey.Null, SkyrimRelease.SkyrimSE);
+        var mod = new SkyrimMod(ModKey.Null, SkyrimGameType.SkyrimSE);
         var arm = mod.Armors.AddNew();
         arm.Armature.Add(mod.ArmorAddons.AddNew());
         var list = arm.Armature;
@@ -37,7 +37,7 @@ public class SetViaFormKeyReplacementTests
     [Fact]
     public void SingleDynamic()
     {
-        var mod = new SkyrimMod(ModKey.Null, SkyrimRelease.SkyrimSE);
+        var mod = new SkyrimMod(ModKey.Null, SkyrimGameType.SkyrimSE);
         var arm = mod.Armors.AddNew();
         arm.Race.SetTo(mod.Races.AddNew());
         dynamic dyn = arm;
@@ -49,7 +49,7 @@ public class SetViaFormKeyReplacementTests
     [Fact]
     public void SingleStraight()
     {
-        var mod = new SkyrimMod(ModKey.Null, SkyrimRelease.SkyrimSE);
+        var mod = new SkyrimMod(ModKey.Null, SkyrimGameType.SkyrimSE);
         var arm = mod.Armors.AddNew();
         arm.Race.SetTo(mod.Races.AddNew());
         var race = new Race(mod);

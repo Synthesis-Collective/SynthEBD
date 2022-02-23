@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace SynthEBD
 {  
@@ -21,7 +22,15 @@ namespace SynthEBD
         private static Lazy<PatcherEnvironment> _env = new(
             () =>
             {
-                return new PatcherEnvironment();
+                if (PatcherSettings.General != null)
+                {
+                    return new PatcherEnvironment(PatcherSettings.General.SkyrimVersion);
+                }
+                else
+                {
+                    return new PatcherEnvironment(SkyrimRelease.SkyrimSE);
+                }
+                
             });
 
         public static PatcherEnvironment Environment => _env.Value;
@@ -50,9 +59,17 @@ namespace SynthEBD
 
         private static IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> OriginState { get; set; }
 
-        public PatcherEnvironment()
+        public PatcherEnvironment(SkyrimRelease gameType)
         {
-            OriginState = GameEnvironment.Typical.Skyrim(SkyrimRelease.SkyrimSE, LinkCachePreferences.OnlyIdentifiers());
+            try
+            {
+                OriginState = GameEnvironment.Typical.Skyrim(gameType, LinkCachePreferences.OnlyIdentifiers());
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Patcher environment creation failed with the following error: " + Environment.NewLine + ex.Message);
+                Environment.Exit(-1);
+            }
 
             if (PatcherSettings.General != null)
             {
@@ -101,6 +118,24 @@ namespace SynthEBD
                 LoadOrder = OriginState.LoadOrder;
             }
             // Note: Do not rebuild the linkcache from the new load order. Not necessary, and breaks FormKey picker UIs
+        }
+
+        public void RefreshAndChangeGameType(SkyrimRelease gameType, string outputModName)
+        {
+            try
+            {
+                OriginState = GameEnvironment.Typical.Skyrim(gameType, LinkCachePreferences.OnlyIdentifiers());
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Patcher environment creation failed with the following error: " + Environment.NewLine + ex.Message);
+                Environment.Exit(-1);
+            }
+            Refresh(outputModName, false);
+            LinkCache = LoadOrder.ToMutableLinkCache();
+            DataFolderPath = OriginState.DataFolderPath;
+            LoadOrderFilePath = OriginState.LoadOrderFilePath;
+            CreationClubListingsFilePath = OriginState.CreationClubListingsFilePath;
         }
 
         public void SuspendEnvironment()

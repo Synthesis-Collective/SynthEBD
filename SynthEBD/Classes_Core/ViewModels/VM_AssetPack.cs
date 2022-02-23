@@ -92,6 +92,11 @@ namespace SynthEBD
                 }
                 );
 
+            MergeWithAssetPack = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => { MergeInAssetPack(mainVM); }
+                );
+
             ValidateButton = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => {
@@ -186,7 +191,7 @@ namespace SynthEBD
         public RelayCommand AddAdditionalRecordTemplateAssignment { get; }
         public RelayCommand AddRecordTemplateAdditionalRacesPath { get; }
         public RelayCommand ImportAttributeGroups { get; }
-
+        public RelayCommand MergeWithAssetPack { get; }
         public RelayCommand ValidateButton { get; }
         public RelayCommand SaveButton { get; }
         public RelayCommand DiscardButton { get; }
@@ -406,6 +411,58 @@ namespace SynthEBD
                 case Gender.Male: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.MaleConfigs; break;
             }
         }
+
+        public void MergeInAssetPack(MainWindow_ViewModel mainVM)
+        {
+            if (IO_Aux.SelectFile(PatcherSettings.Paths.AssetPackDirPath, "Config files (*.json)|*.json", out string path))
+            {
+                var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, mainVM.RecordTemplatePlugins, mainVM.BodyGenConfigs, out bool loadSuccess);
+                if (loadSuccess)
+                {
+                    var newAssetPackVM = VM_AssetPack.GetViewModelFromModel(newAssetPack, mainVM.GeneralSettingsVM, mainVM.TexMeshSettingsVM.AssetPacks, mainVM.BodyGenSettingsVM, mainVM.OBodySettingsVM.DescriptorUI, mainVM.RecordTemplateLinkCache, mainVM);
+                    
+                    // first add completely new top-level subgroups if necessary
+                    foreach (var subgroup in newAssetPackVM.Subgroups)
+                    {
+                        if (!this.Subgroups.Select(x => x .ID).Contains(subgroup.ID, StringComparer.OrdinalIgnoreCase))
+                        {
+                            this.Subgroups.Add(subgroup);
+                        }
+                    }
+
+                    // merge existing subgroups
+                    foreach (var subgroup in this.Subgroups)
+                    {
+                        var matchedSubgroup = newAssetPackVM.Subgroups.Where(x => x.ID == subgroup.ID).FirstOrDefault();
+                        if (matchedSubgroup != null)
+                        {
+                            MergeSubgroupLists(subgroup.Subgroups, matchedSubgroup.Subgroups);
+                        }
+                    }
+                }
+                else
+                {
+                    System.Windows.MessageBox.Show("That file could not be parsed as a valid Asset Config Plugin File.");
+                }
+            }
+        }
+
+        public static void MergeSubgroupLists(ObservableCollection<VM_Subgroup> ListA, ObservableCollection<VM_Subgroup> ListB)
+        {
+            foreach (VM_Subgroup candidateSubgroup in ListB)
+            {
+                var matchedSubgroup = ListA.Where(x => x.ID == candidateSubgroup.ID).FirstOrDefault();
+                if (matchedSubgroup is null)
+                {
+                    ListA.Add(candidateSubgroup);
+                }
+                else
+                {
+                    MergeSubgroupLists(matchedSubgroup.Subgroups, candidateSubgroup.Subgroups);
+                }
+            }
+        }
+
 
         public event PropertyChangedEventHandler PropertyChanged;
     }

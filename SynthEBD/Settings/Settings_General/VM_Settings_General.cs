@@ -22,6 +22,7 @@ namespace SynthEBD
         public VM_Settings_General(MainWindow_ViewModel mainVM)
         {
             MainWindowVM = mainVM;
+            this.SkyrimVersion = SkyrimRelease.SkyrimSE;
             this.bShowToolTips = true;
             this.bChangeMeshesOrTextures = true;
             this.BodySelectionMode = BodyShapeSelectionMode.None;
@@ -101,6 +102,8 @@ namespace SynthEBD
             });
 
             this.WhenAnyValue(x => x.patchFileName).Subscribe(x => PatcherEnvironmentProvider.Environment.Refresh(patchFileName, false));
+
+            this.WhenAnyValue(x => x.SkyrimVersion).Subscribe(x => PatcherEnvironmentProvider.Environment.RefreshAndChangeGameType(SkyrimVersion, patchFileName));
         }
 
         public MainWindow_ViewModel MainWindowVM { get; set; }
@@ -118,7 +121,7 @@ namespace SynthEBD
         public ObservableCollection<VM_CollectionMemberString> LinkedNameExclusions { get; set; }
         public ObservableCollection<VM_LinkedNPCGroup> LinkedNPCGroups { get; set; }
         public string patchFileName { get; set;  }
-
+        public SkyrimRelease SkyrimVersion { get; set; }
         public bool bVerboseModeAssetsNoncompliant { get; set;  }
         public bool bVerboseModeAssetsAll { get; set;  }
         public ObservableCollection<FormKey> verboseModeNPClist { get; set; }
@@ -146,6 +149,7 @@ namespace SynthEBD
         public static void GetViewModelFromModel(VM_Settings_General viewModel)
         {
             var model = PatcherSettings.General;
+            viewModel.SkyrimVersion = model.SkyrimVersion;
             viewModel.bShowToolTips = model.bShowToolTips;
             viewModel.bChangeMeshesOrTextures = model.bChangeMeshesOrTextures;
             viewModel.BodySelectionMode = model.BodySelectionMode;
@@ -169,6 +173,7 @@ namespace SynthEBD
         }
         public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
         {
+            model.SkyrimVersion = viewModel.SkyrimVersion;
             model.bShowToolTips = viewModel.bShowToolTips;
             model.bChangeMeshesOrTextures = viewModel.bChangeMeshesOrTextures;
             model.BodySelectionMode = viewModel.BodySelectionMode;
