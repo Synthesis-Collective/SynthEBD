@@ -14,6 +14,7 @@ using System.Text;
 using System.Threading.Tasks;
 using ReactiveUI;
 using Mutagen.Bethesda.Plugins.Cache.Internals.Implementations;
+using DynamicData.Binding;
 
 namespace SynthEBD
 {
@@ -21,7 +22,8 @@ namespace SynthEBD
     {
         public VM_SpecificNPCAssignment(ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen bodyGenSettings, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM)
         {
-            this.PropertyChanged += TriggerDispNameUpdate;
+            SubscribedGeneralSettings = generalSettingsVM;
+            SubscribedOBodySettings = oBodySettings;
             
             this.DispName = "New Assignment";
             this.NPCFormKey = new FormKey();
@@ -46,25 +48,18 @@ namespace SynthEBD
             this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
 
-            this.PropertyChanged += TriggerGenderUpdate;
-            this.PropertyChanged += TriggerAvailableAssetPackUpdate;
-            this.PropertyChanged += TriggerAvailableSubgroupsUpdate;
-            this.PropertyChanged += TriggerAvailableMorphsUpdate;
+            this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => RefreshAll());
             
-            this.SubscribedAssetPacks.CollectionChanged += TriggerAvailableAssetPackUpdate;
-            
-            this.ForcedAssetPack.PropertyChanged += TriggerAvailableSubgroupsUpdate;
-            this.ForcedSubgroups.CollectionChanged += TriggerAvailableSubgroupsUpdate;
-            
-            this.ForcedBodyGenMorphs.CollectionChanged += TriggerAvailableMorphsUpdate;
-            this.SubscribedBodyGenSettings.PropertyChanged += TriggerAvailableMorphsUpdate;
-            this.SubscribedBodyGenSettings.MaleConfigs.CollectionChanged += TriggerAvailableMorphsUpdate;
-            this.SubscribedBodyGenSettings.FemaleConfigs.CollectionChanged += TriggerAvailableMorphsUpdate;
-            this.SubscribedBodyGenSettings.CurrentMaleConfig.PropertyChanged += TriggerAvailableMorphsUpdate;
-            this.SubscribedBodyGenSettings.CurrentFemaleConfig.PropertyChanged += TriggerAvailableMorphsUpdate;
+            this.SubscribedAssetPacks.ToObservableChangeSet().Subscribe(x => RefreshAssets());
+            this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x => UpdateAvailableSubgroups(this));
+            this.ForcedSubgroups.ToObservableChangeSet().Subscribe(x => UpdateAvailableSubgroups(this));
 
-            UpdateAvailableAssetPacks(this);
-            UpdateAvailableBodySlides(oBodySettings, generalSettingsVM);
+            this.WhenAnyValue(x => x.SubscribedBodyGenSettings).Subscribe(x => UpdateAvailableMorphs(this));
+            this.ForcedBodyGenMorphs.ToObservableChangeSet().Subscribe(x => UpdateAvailableMorphs(this));
+            this.SubscribedBodyGenSettings.MaleConfigs.ToObservableChangeSet().Subscribe(x => UpdateAvailableMorphs(this));
+            this.SubscribedBodyGenSettings.FemaleConfigs.ToObservableChangeSet().Subscribe(x => UpdateAvailableMorphs(this));
+            this.SubscribedBodyGenSettings.WhenAnyValue(x => x.CurrentMaleConfig).Subscribe(x => UpdateAvailableMorphs(this));
+            this.SubscribedBodyGenSettings.WhenAnyValue(x => x.CurrentFemaleConfig).Subscribe(x => UpdateAvailableMorphs(this));
 
             this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => UpdateAvailableBodySlides(oBodySettings, generalSettingsVM));
             oBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesFemale).Subscribe(x => UpdateAvailableBodySlides(oBodySettings, generalSettingsVM));
@@ -72,13 +67,8 @@ namespace SynthEBD
 
             this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x =>
             {
-                foreach (var replacer in ForcedAssetReplacements)
-                {
-                    replacer.ParentAssetPack = ForcedAssetPack;
-                }
+                ForcedAssetReplacements.Remove(ForcedAssetReplacements.Where(x => x.ParentAssetPack != ForcedAssetPack));
             });
-
-            SubscribedGeneralSettings = generalSettingsVM;
 
             DeleteForcedAssetPack = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -122,6 +112,9 @@ namespace SynthEBD
                     }
                 }
                 );
+
+            UpdateAvailableAssetPacks(this);
+            UpdateAvailableBodySlides(oBodySettings, generalSettingsVM);
         }
 
         // Caption
@@ -153,7 +146,7 @@ namespace SynthEBD
         public Gender Gender;
 
         public VM_Settings_General SubscribedGeneralSettings { get; set; }
-
+        public VM_SettingsOBody SubscribedOBodySettings { get; set; }
         public ILinkCache lk { get; set; }
         public IEnumerable<Type> NPCFormKeyTypes { get; set; }
         public RelayCommand DeleteForcedAssetPack { get; set; }
@@ -375,6 +368,7 @@ namespace SynthEBD
             return model;
         }
 
+        /*
         public void TriggerAvailableAssetPackUpdate(object sender, PropertyChangedEventArgs e)
         {
             UpdateAvailableAssetPacks(this);
@@ -404,8 +398,9 @@ namespace SynthEBD
         {
             UpdateAvailableMorphs(this);
         }
+        */
 
-        public static void UpdateAvailableAssetPacks(VM_SpecificNPCAssignment assignment)
+        public void UpdateAvailableAssetPacks(VM_SpecificNPCAssignment assignment)
         {
             assignment.AvailableAssetPacks.Clear();
             assignment.AvailableMixInAssetPacks.Clear();
@@ -535,18 +530,41 @@ namespace SynthEBD
             AvailableBodySlides = new ObservableCollection<VM_BodySlideSetting>() { new VM_BodySlideSetting(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, AvailableBodySlides, oBodySettings) { Label = "" } }; // blank entry
             AvailableBodySlides.AddRange(SubscribedBodySlides);
         }
+        /*
         public void TriggerDispNameUpdate(object sender, PropertyChangedEventArgs e)
         {
             if (this.NPCFormKey.IsNull == false)
             {
                 this.DispName = Converters.CreateNPCDispNameFromFormKey(this.NPCFormKey);
             }
+        }*/
+
+        public void RefreshAll()
+        {
+            if (this.NPCFormKey.IsNull == false)
+            {
+                this.DispName = Converters.CreateNPCDispNameFromFormKey(this.NPCFormKey);
+            }
+
+            this.Gender = GetGender(this.NPCFormKey);
+
+            UpdateAvailableAssetPacks(this);
+            UpdateAvailableSubgroups(this);
+            UpdateAvailableMorphs(this);
+            UpdateAvailableBodySlides(SubscribedOBodySettings, SubscribedGeneralSettings);
+        }
+        
+        public void RefreshAssets()
+        {
+            UpdateAvailableAssetPacks(this);
+            UpdateAvailableSubgroups(this);
         }
 
+        /*
         public void TriggerGenderUpdate(object sender, PropertyChangedEventArgs e)
         {
             this.Gender = GetGender(this.NPCFormKey);
-        }
+        }*/
 
         public static Gender GetGender (FormKey NPCFormKey)
         {
@@ -564,8 +582,11 @@ namespace SynthEBD
                 }
             }
 
-            Logger.LogError("Could not resolve gender of NPC with FormKey " + NPCFormKey.ToString() + " because it does not exist in the current load order.");
-            Logger.SwitchViewToLogDisplay();
+            if (!NPCFormKey.IsNull)
+            {
+                Logger.LogError("Could not resolve gender of NPC with FormKey " + NPCFormKey.ToString() + " because it does not exist in the current load order.");
+                Logger.SwitchViewToLogDisplay();
+            }
             return Gender.Male;
         }
 
