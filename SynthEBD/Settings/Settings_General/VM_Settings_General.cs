@@ -103,7 +103,7 @@ namespace SynthEBD
 
             this.WhenAnyValue(x => x.patchFileName).Subscribe(x => PatcherEnvironmentProvider.Environment.Refresh(patchFileName, false));
 
-            this.WhenAnyValue(x => x.SkyrimVersion).Subscribe(x => PatcherEnvironmentProvider.Environment.RefreshAndChangeGameType(SkyrimVersion, patchFileName));
+            this.WhenAnyValue(x => x.SkyrimVersion).Skip(1).Subscribe(x => PatcherEnvironmentProvider.Environment.RefreshAndChangeGameType(SkyrimVersion, patchFileName));
         }
 
         public MainWindow_ViewModel MainWindowVM { get; set; }

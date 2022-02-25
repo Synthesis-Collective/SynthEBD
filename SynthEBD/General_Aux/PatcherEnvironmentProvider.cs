@@ -28,12 +28,45 @@ namespace SynthEBD
                 }
                 else
                 {
-                    return new PatcherEnvironment(SkyrimRelease.SkyrimSE);
+                    return TryAllEnvironments();
                 }
                 
             });
 
         public static PatcherEnvironment Environment => _env.Value;
+
+        public static PatcherEnvironment TryAllEnvironments()
+        {
+            try
+            {
+                return new PatcherEnvironment(SkyrimRelease.SkyrimSE);
+            }
+            catch { };
+            try
+            {
+                new PatcherEnvironment(SkyrimRelease.SkyrimVR);
+            }
+            catch { };
+            try
+            {
+                new PatcherEnvironment(SkyrimRelease.SkyrimLE);
+            }
+            catch { };
+            try
+            {
+                new PatcherEnvironment(SkyrimRelease.EnderalSE);
+            }
+            catch { };
+            try
+            {
+                new PatcherEnvironment(SkyrimRelease.EnderalLE);
+            }
+            catch { };
+
+            MessageBox.Show("Environment creation failed. Could not detect any supported versions of Skyirm.");
+            System.Windows.Application.Current.Shutdown();
+            return null;
+        }
     }
 
     public class PatcherEnvironment : IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter>

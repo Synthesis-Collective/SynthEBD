@@ -204,10 +204,24 @@ namespace SynthEBD
             switch (viewModel.Gender)
             {
                 case Gender.Male:
-                    templates = BGVM.CurrentMaleConfig.TemplateMorphUI.Templates;
+                    if (BGVM.CurrentMaleConfig != null)
+                    {
+                        templates = BGVM.CurrentMaleConfig.TemplateMorphUI.Templates;
+                    }
+                    else
+                    {
+                        templates = new ObservableCollection<VM_BodyGenTemplate>();
+                    }
                     break;
                 case Gender.Female:
-                    templates = BGVM.CurrentFemaleConfig.TemplateMorphUI.Templates;
+                    if (BGVM.CurrentFemaleConfig != null)
+                    {
+                        templates = BGVM.CurrentFemaleConfig.TemplateMorphUI.Templates;
+                    }
+                    else
+                    {
+                        templates = new ObservableCollection<VM_BodyGenTemplate>();
+                    }
                     break;
             }
 
