@@ -28,14 +28,14 @@ namespace SynthEBD
                 }
                 else
                 {
-                    return TryAllEnvironments();
+                    return TryStartEnvironment();
                 }
                 
             });
 
         public static PatcherEnvironment Environment => _env.Value;
 
-        public static PatcherEnvironment TryAllEnvironments()
+        public static PatcherEnvironment TryStartEnvironment()
         {
             try
             {
@@ -90,98 +90,135 @@ namespace SynthEBD
 
         ILinkCache IGameEnvironmentState.LinkCache => LinkCache;
 
-        private static IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> OriginState { get; set; }
-
-        public PatcherEnvironment(SkyrimRelease gameType)
+        public static IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> GetOriginState(SkyrimRelease gameType)
         {
             try
             {
-                OriginState = GameEnvironment.Typical.Skyrim(gameType, LinkCachePreferences.OnlyIdentifiers());
+                return GameEnvironment.Typical.Skyrim(gameType, LinkCachePreferences.OnlyIdentifiers());
             }
-            catch (Exception ex)
+            catch
             {
-                MessageBox.Show("Patcher environment creation failed with the following error: " + Environment.NewLine + ex.Message);
-                Environment.Exit(-1);
+                return PatcherEnvironmentProvider.TryStartEnvironment();
             }
-
-            if (PatcherSettings.General != null)
-            {
-                LoadOrder = (ILoadOrder<IModListing<ISkyrimModGetter>>)OriginState.LoadOrder.ListedOrder
-                    .OnlyEnabledAndExisting()
-                    .RemoveModAndDependents(PatcherSettings.General.PatchFileName + ".esp", false) // remove the output plugin and any plugins mastered to previous versions of it
-                    .ToLoadOrder();
-            }
-            else
-            {
-                LoadOrder = OriginState.LoadOrder;
-            }
-            LinkCache = LoadOrder.ToMutableLinkCache();
-
-            DataFolderPath = OriginState.DataFolderPath;
-            LoadOrderFilePath = OriginState.LoadOrderFilePath;
-            CreationClubListingsFilePath = OriginState.CreationClubListingsFilePath;
         }
+
+        public PatcherEnvironment(SkyrimRelease gameType)
+        {
+            using (var originState = GetOriginState(gameType))
+            {
+                if (PatcherSettings.General != null)
+                {
+                    LoadOrder = (ILoadOrder<IModListing<ISkyrimModGetter>>)originState.LoadOrder.ListedOrder
+                        .OnlyEnabledAndExisting()
+                        .RemoveModAndDependents(PatcherSettings.General.PatchFileName + ".esp", false) // remove the output plugin and any plugins mastered to previous versions of it
+                        .ToLoadOrder();
+                }
+                else
+                {
+                    LoadOrder = originState.LoadOrder;
+                }
+                LinkCache = LoadOrder.ToMutableLinkCache();
+
+                DataFolderPath = originState.DataFolderPath;
+                LoadOrderFilePath = originState.LoadOrderFilePath;
+                CreationClubListingsFilePath = originState.CreationClubListingsFilePath;
+            }
+        }
+
         public void Refresh(string outputModName, bool verbose)
         {
+            SkyrimRelease game;
             if (PatcherSettings.General != null)
             {
-                LoadOrder = (ILoadOrder<IModListing<ISkyrimModGetter>>)OriginState.LoadOrder.ListedOrder
-                    .OnlyEnabledAndExisting()
-                    .RemoveModAndDependents(outputModName + ".esp", verbose) // remove the output plugin and any plugins mastered to previous versions of it
-                    .ToLoadOrder();
+                game = PatcherSettings.General.SkyrimVersion;
             }
             else
             {
-                LoadOrder = OriginState.LoadOrder;
+                game = SkyrimRelease.SkyrimSE;
             }
-            // Note: Do not rebuild the linkcache from the new load order. Not necessary, and breaks FormKey picker UIs
+
+            using (var originState = GetOriginState(game))
+            {
+                if (PatcherSettings.General != null)
+                {
+                    LoadOrder = (ILoadOrder<IModListing<ISkyrimModGetter>>)originState.LoadOrder.ListedOrder
+                        .OnlyEnabledAndExisting()
+                        .RemoveModAndDependents(outputModName + ".esp", verbose) // remove the output plugin and any plugins mastered to previous versions of it
+                        .ToLoadOrder();
+                }
+                else
+                {
+                    LoadOrder = originState.LoadOrder;
+                }
+                LinkCache = LoadOrder.ToMutableLinkCache();
+
+                DataFolderPath = originState.DataFolderPath;
+                LoadOrderFilePath = originState.LoadOrderFilePath;
+                CreationClubListingsFilePath = originState.CreationClubListingsFilePath;
+            }
         }
 
         public void Refresh(bool verbose)
         {
+            SkyrimRelease game;
             if (PatcherSettings.General != null)
             {
-                LoadOrder = (ILoadOrder<IModListing<ISkyrimModGetter>>)OriginState.LoadOrder.ListedOrder
-                    .OnlyEnabledAndExisting()
-                    .RemoveModAndDependents(PatcherSettings.General.PatchFileName + ".esp", verbose) // remove the output plugin and any plugins mastered to previous versions of it
-                    .ToLoadOrder();
+                game = PatcherSettings.General.SkyrimVersion;
             }
             else
             {
-                LoadOrder = OriginState.LoadOrder;
+                game = SkyrimRelease.SkyrimSE;
             }
-            // Note: Do not rebuild the linkcache from the new load order. Not necessary, and breaks FormKey picker UIs
+            using (var originState = GetOriginState(game))
+            {
+                if (PatcherSettings.General != null)
+                {
+                    LoadOrder = (ILoadOrder<IModListing<ISkyrimModGetter>>)originState.LoadOrder.ListedOrder
+                        .OnlyEnabledAndExisting()
+                        .RemoveModAndDependents(PatcherSettings.General.PatchFileName + ".esp", verbose) // remove the output plugin and any plugins mastered to previous versions of it
+                        .ToLoadOrder();
+                }
+                else
+                {
+                    LoadOrder = originState.LoadOrder;
+                }
+                LinkCache = LoadOrder.ToMutableLinkCache();
+
+                DataFolderPath = originState.DataFolderPath;
+                LoadOrderFilePath = originState.LoadOrderFilePath;
+                CreationClubListingsFilePath = originState.CreationClubListingsFilePath;
+            }
         }
 
         public void RefreshAndChangeGameType(SkyrimRelease gameType, string outputModName)
         {
-            try
+            using (var originState = GetOriginState(gameType))
             {
-                OriginState = GameEnvironment.Typical.Skyrim(gameType, LinkCachePreferences.OnlyIdentifiers());
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Patcher environment creation failed with the following error: " + Environment.NewLine + ex.Message);
-                Environment.Exit(-1);
-            }
-            Refresh(outputModName, false);
-            LinkCache = LoadOrder.ToMutableLinkCache();
-            DataFolderPath = OriginState.DataFolderPath;
-            LoadOrderFilePath = OriginState.LoadOrderFilePath;
-            CreationClubListingsFilePath = OriginState.CreationClubListingsFilePath;
+                if (PatcherSettings.General != null)
+                {
+                    LoadOrder = (ILoadOrder<IModListing<ISkyrimModGetter>>)originState.LoadOrder.ListedOrder
+                        .OnlyEnabledAndExisting()
+                        .RemoveModAndDependents(outputModName + ".esp", false) // remove the output plugin and any plugins mastered to previous versions of it
+                        .ToLoadOrder();
+                }
+                else
+                {
+                    LoadOrder = originState.LoadOrder;
+                }
+                LinkCache = LoadOrder.ToMutableLinkCache();
+
+                DataFolderPath = originState.DataFolderPath;
+                LoadOrderFilePath = originState.LoadOrderFilePath;
+                CreationClubListingsFilePath = originState.CreationClubListingsFilePath;
+            };
         }
 
         public void SuspendEnvironment()
         {
-            if (OriginState != null)
-            {
-                OriginState.LoadOrder.Dispose(); // release outputMod.esp so that it can be written to even if it's in the load order
-            }
+
         }
         public void ResumeEnvironment()
-        {
-            OriginState = GameEnvironment.Typical.Skyrim(SkyrimRelease.SkyrimSE, LinkCachePreferences.OnlyIdentifiers());
-            Refresh(false);
+        { 
         }
 
         public virtual void Dispose(bool disposing)
