@@ -58,12 +58,15 @@ namespace SynthEBD
                     iterationInfo.RemainingVariantsByIndex.Add(i, null); // set up placeholders for backtracking
                 }
                 iterationInfo.RemainingVariantsByIndex[0] = iterationInfo.ChosenAssetPack.ShallowCopy(); // initial state of the chosen asset pack
-                iterationInfo.ChosenAssetPack = ConformRequiredExcludedSubgroups(iterationInfo.ChosenSeed, iterationInfo.ChosenAssetPack, npcInfo);
-                if (iterationInfo.ChosenAssetPack == null)
+                if (!ConformRequiredExcludedSubgroups(generatedCombination, iterationInfo.ChosenSeed, iterationInfo.ChosenAssetPack, npcInfo, out var filteredAssetPack))
                 {
                     Logger.LogReport("Cannot create a combination with the chosen seed subgroup due to conflicting required/excluded subgroup rules. Selecting a different seed.", false, npcInfo);
                     Logger.CloseReportSubsectionsToParentOf("CombinationGeneration", npcInfo);
                     return RemoveInvalidSeed(iterationInfo.AvailableSeeds, iterationInfo); // exit this function and re-enter from caller to choose a new seed
+                }
+                else
+                {
+                    iterationInfo.ChosenAssetPack = filteredAssetPack;
                 }
             }
             #endregion
@@ -94,12 +97,12 @@ namespace SynthEBD
                     else if ((i - 1) == iterationInfo.ChosenSeed.TopLevelSubgroupIndex) // skip over the seed subgroup
                     {
                         Logger.LogReport("No subgroups remain at position (" + i + "). Selecting a different subgroup at position " + (i - 2), false, npcInfo);
-                        i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination, i, 2);
+                        i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination, generatedCombination.ContainedSubgroups[i - 2], i, 2);
                     }
                     else
                     {
                         Logger.LogReport("No subgroups remain at position (" + i + "). Selecting a different subgroup at position " + (i - 1), false, npcInfo);
-                        i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination, i, 1);
+                        i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination, generatedCombination.ContainedSubgroups[i - 1], i, 1);
                     }
                     continue;
                 }
@@ -118,20 +121,23 @@ namespace SynthEBD
                 }
                 #endregion
 
-                generatedCombination.ContainedSubgroups[i] = nextSubgroup;
-                iterationInfo.ChosenAssetPack = ConformRequiredExcludedSubgroups(nextSubgroup, iterationInfo.ChosenAssetPack, npcInfo);
-
-                if (generatedCombination.ContainedSubgroups.Last() != null) // if this is the last position in the combination, check if the combination has already been processed during a previous iteration of the calling function with stricter filtering
+                bool nextSubgroupCompatible = ConformRequiredExcludedSubgroups(generatedCombination, nextSubgroup, iterationInfo.ChosenAssetPack, npcInfo, out var filteredAssetPack);
+                if (nextSubgroupCompatible)
                 {
-                    generatedSignature = iterationInfo.ChosenAssetPack.GroupName + ":" + String.Join('|', generatedCombination.ContainedSubgroups.Where(x => x.Id != AssetPack.ConfigDistributionRules.SubgroupIDString).Select(x => x.Id));
-                    if (iterationInfo.PreviouslyGeneratedCombinations.Contains(generatedSignature))
+                    iterationInfo.ChosenAssetPack = filteredAssetPack;
+                    generatedCombination.ContainedSubgroups[i] = nextSubgroup;
+                    if (generatedCombination.ContainedSubgroups.Last() != null) // if this is the last position in the combination, check if the combination has already been processed during a previous iteration of the calling function with stricter filtering
                     {
-                        combinationAlreadyTried = true;
+                        generatedSignature = iterationInfo.ChosenAssetPack.GroupName + ":" + String.Join('|', generatedCombination.ContainedSubgroups.Where(x => x.Id != AssetPack.ConfigDistributionRules.SubgroupIDString).Select(x => x.Id));
+                        if (iterationInfo.PreviouslyGeneratedCombinations.Contains(generatedSignature))
+                        {
+                            combinationAlreadyTried = true;
+                        }
                     }
                 }
 
                 // backtrack if no combinations are valid after filtering by required/excluded subgroups
-                if (iterationInfo.ChosenAssetPack == null || combinationAlreadyTried)
+                if (!nextSubgroupCompatible || combinationAlreadyTried)
                 {
                     if (iterationInfo.ChosenAssetPack == null)
                     {
@@ -143,7 +149,7 @@ namespace SynthEBD
                     }
 
                     Logger.LogReport("Selecting a different subgroup at position " + i + ".", false, npcInfo);
-                    i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination, i, 0);
+                    i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination, nextSubgroup, i, 0);
                     continue;
                 }
                 else
@@ -167,11 +173,38 @@ namespace SynthEBD
             return null;
         }
 
-        private static FlattenedAssetPack ConformRequiredExcludedSubgroups(FlattenedSubgroup targetSubgroup, FlattenedAssetPack chosenAssetPack, NPCInfo npcInfo)
+        private static bool ConformRequiredExcludedSubgroups(SubgroupCombination currentCombination, FlattenedSubgroup targetSubgroup, FlattenedAssetPack chosenAssetPack, NPCInfo npcInfo, out FlattenedAssetPack filteredAssetPack)
         {
+            filteredAssetPack = chosenAssetPack;
             if (!targetSubgroup.ExcludedSubgroupIDs.Any() && !targetSubgroup.RequiredSubgroupIDs.Any())
             {
-                return chosenAssetPack;
+                return true;
+            }
+
+            // check if incoming subgroup is allowed by all existing subgroups
+            foreach (var subgroup in currentCombination.ContainedSubgroups.Where(x => x is not null))
+            {
+                foreach (var index in subgroup.RequiredSubgroupIDs)
+                {
+                    var debug1 = index.Value.Intersect(targetSubgroup.ContainedSubgroupIDs);
+
+                    if (index.Key == targetSubgroup.TopLevelSubgroupIndex && !index.Value.Intersect(targetSubgroup.ContainedSubgroupIDs).Any())
+                    {
+                        Logger.LogReport("\tSubgroup " + targetSubgroup.Id + " cannot be added because a different subgroup is required at position " + index.Key + " by the already assigned subgroup " + subgroup.Id + Environment.NewLine, false, npcInfo);
+                        return false;
+                    }
+                }
+
+                foreach (var index in subgroup.ExcludedSubgroupIDs)
+                {
+                    var debug2 = index.Value.Intersect(targetSubgroup.ContainedSubgroupIDs);
+
+                    if (index.Key == targetSubgroup.TopLevelSubgroupIndex && index.Value.Intersect(targetSubgroup.ContainedSubgroupIDs).Any())
+                    {
+                        Logger.LogReport("\tSubgroup " + targetSubgroup.Id + " cannot be added because it is excluded at position " + index.Key + " by the already assigned subgroup " + subgroup.Id + Environment.NewLine, false, npcInfo);
+                        return false;
+                    }
+                }
             }
 
             Logger.LogReport("Trimming remaining subgroups within " + chosenAssetPack.GroupName + " by the required/excluded subgroups of " + targetSubgroup.Id + Environment.NewLine, false, npcInfo);
@@ -183,30 +216,30 @@ namespace SynthEBD
                 trialSubgroups.Add(new List<FlattenedSubgroup>(chosenAssetPack.Subgroups[i]));
             }
 
-            // check excluded subgroups
-            foreach (var entry in targetSubgroup.ExcludedSubgroupIDs)
+            // check excluded subgroups of incoming subgroup
+            foreach (var index in targetSubgroup.ExcludedSubgroupIDs)
             {
-                trialSubgroups[entry.Key] = chosenAssetPack.Subgroups[entry.Key].Where(x => entry.Value.Contains(x.Id) == false).ToList();
-                if (!trialSubgroups[entry.Key].Any())
+                trialSubgroups[index.Key] = chosenAssetPack.Subgroups[index.Key].Where(x => !index.Value.Intersect(x.ContainedSubgroupIDs).Any()).ToList();
+                if (!trialSubgroups[index.Key].Any())
                 {
-                    Logger.LogReport("Subgroup " + targetSubgroup.Id + " cannot be added because it excludes (" + String.Join(',', entry.Value) + ") which eliminates all options at position " + entry.Key + Environment.NewLine, false, npcInfo);
-                    return null;
+                    Logger.LogReport("\tSubgroup " + targetSubgroup.Id + " cannot be added because it excludes (" + String.Join(',', index.Value) + ") which eliminates all options at position " + index.Key + Environment.NewLine, false, npcInfo);
+                    return false;
                 }
             }
 
-            // check required subgroups
-            foreach (var entry in targetSubgroup.RequiredSubgroupIDs)
+            // check required subgroups of incoming subgroup
+            foreach (var index in targetSubgroup.RequiredSubgroupIDs)
             {
-                trialSubgroups[entry.Key] = chosenAssetPack.Subgroups[entry.Key].Where(x => entry.Value.Contains(x.Id)).ToList();
-                if (!trialSubgroups[entry.Key].Any())
+                trialSubgroups[index.Key] = chosenAssetPack.Subgroups[index.Key].Where(x => index.Value.Intersect(x.ContainedSubgroupIDs).Any()).ToList();
+                if (!trialSubgroups[index.Key].Any())
                 {
-                    Logger.LogReport("Subgroup " + targetSubgroup.Id + " cannot be added because it requires (" + String.Join('|', entry.Value) + ") which eliminates all options at position " + entry.Key + Environment.NewLine, false, npcInfo);
-                    return null;
+                    Logger.LogReport("\tSubgroup " + targetSubgroup.Id + " cannot be added because it requires (" + String.Join('|', index.Value) + ") which eliminates all options at position " + index.Key + Environment.NewLine, false, npcInfo);
+                    return false;
                 }
             }
 
-            chosenAssetPack.Subgroups = trialSubgroups;
-            return chosenAssetPack;
+            filteredAssetPack.Subgroups = trialSubgroups;
+            return true;
         }
 
         public static List<FlattenedSubgroup> GetAllSubgroups(HashSet<FlattenedAssetPack> availableAssetPacks)
@@ -467,7 +500,7 @@ namespace SynthEBD
                         else
                         {
                             Logger.LogReport("Selecting consistency Asset Pack (" + npcInfo.ConsistencyNPCAssignment.AssetPackName + ").", false, npcInfo);
-                            consistencyAssetPack = consistencyAssetPack.ShallowCopy(); // otherwise subsequent NPCs will get pruned packs as the consistency pack is modified in the current round of patching
+                            //consistencyAssetPack = consistencyAssetPack.ShallowCopy(); // otherwise subsequent NPCs will get pruned packs as the consistency pack is modified in the current round of patching
 
                             // check each subgroup against specific npc assignment
                             List<string> consistencySubgroupIDs = null;
