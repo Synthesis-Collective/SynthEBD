@@ -180,7 +180,7 @@ namespace SynthEBD
         }
         public void ResumeEnvironment()
         {
-            OriginState = GameEnvironment.Typical.Skyrim(SkyrimRelease.SkyrimSE, LinkCachePreferences.OnlyIdentifiers());
+            OriginState = GameEnvironment.Typical.Skyrim(PatcherSettings.General.SkyrimVersion, LinkCachePreferences.OnlyIdentifiers());
             Refresh(false);
         }
 
