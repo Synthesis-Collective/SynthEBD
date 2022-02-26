@@ -115,7 +115,9 @@ namespace SynthEBD
                 }
                 else
                 {
-                    LoadOrder = originState.LoadOrder;
+                    LoadOrder = (ILoadOrder<IModListing<ISkyrimModGetter>>)originState.LoadOrder.ListedOrder
+                        .OnlyEnabledAndExisting()
+                        .ToLoadOrder();
                 }
                 LinkCache = LoadOrder.ToMutableLinkCache();
 
@@ -148,7 +150,9 @@ namespace SynthEBD
                 }
                 else
                 {
-                    LoadOrder = originState.LoadOrder;
+                    LoadOrder = (ILoadOrder<IModListing<ISkyrimModGetter>>)originState.LoadOrder.ListedOrder
+                        .OnlyEnabledAndExisting()
+                        .ToLoadOrder();
                 }
                 LinkCache = LoadOrder.ToMutableLinkCache();
 
@@ -180,7 +184,9 @@ namespace SynthEBD
                 }
                 else
                 {
-                    LoadOrder = originState.LoadOrder;
+                    LoadOrder = (ILoadOrder<IModListing<ISkyrimModGetter>>)originState.LoadOrder.ListedOrder
+                        .OnlyEnabledAndExisting()
+                        .ToLoadOrder();
                 }
                 LinkCache = LoadOrder.ToMutableLinkCache();
 
@@ -203,7 +209,9 @@ namespace SynthEBD
                 }
                 else
                 {
-                    LoadOrder = originState.LoadOrder;
+                    LoadOrder = (ILoadOrder<IModListing<ISkyrimModGetter>>)originState.LoadOrder.ListedOrder
+                        .OnlyEnabledAndExisting()
+                        .ToLoadOrder();
                 }
                 LinkCache = LoadOrder.ToMutableLinkCache();
 
