@@ -30,7 +30,7 @@ namespace SynthEBD
             string output = "";
             foreach (var assignment in Patcher.BodyGenTracker.AllChosenMorphsMale)
             {
-                var currentConfig = bodyGenConfigs.Male.Where(x => x.Label == assignment.Key).Single();
+                var currentConfig = bodyGenConfigs.Male.Where(x => x.Label == assignment.Key).First(); // first instead of single in case user has duplicate configs installed
                 var assignedTemplates = currentConfig.Templates.Where(x => assignment.Value.Contains(x.Label));
 
                 foreach (var template in assignedTemplates)
@@ -41,7 +41,7 @@ namespace SynthEBD
 
             foreach (var assignment in Patcher.BodyGenTracker.AllChosenMorphsFemale)
             {
-                var currentConfig = bodyGenConfigs.Female.Where(x => x.Label == assignment.Key).Single();
+                var currentConfig = bodyGenConfigs.Female.Where(x => x.Label == assignment.Key).First();  // first instead of single in case user has duplicate configs installed
                 var assignedTemplates = currentConfig.Templates.Where(x => assignment.Value.Contains(x.Label));
 
                 foreach (var template in assignedTemplates)
