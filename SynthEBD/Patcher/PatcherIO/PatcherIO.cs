@@ -56,7 +56,12 @@ namespace SynthEBD
                 {
                     File.Delete(patchOutputPath);
                 }
-                outputMod.WriteToBinary(patchOutputPath);
+
+                var writeParams = new Mutagen.Bethesda.Plugins.Binary.Parameters.BinaryWriteParameters()
+                {
+                    MastersListOrdering = new Mutagen.Bethesda.Plugins.Binary.Parameters.MastersListOrderingByLoadOrder(PatcherEnvironmentProvider.Environment.LoadOrder)
+                };
+                outputMod.WriteToBinary(patchOutputPath, writeParams);
                 Logger.LogMessage("Wrote output file at " + patchOutputPath + ".");
             }
             catch { Logger.LogErrorWithStatusUpdate("Could not write output file to " + patchOutputPath, ErrorType.Error); };
