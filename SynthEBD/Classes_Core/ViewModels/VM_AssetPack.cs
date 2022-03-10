@@ -13,6 +13,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using ReactiveUI;
+using BespokeFusion;
+using System.Windows.Media;
 
 namespace SynthEBD
 {
@@ -61,6 +63,11 @@ namespace SynthEBD
             generalSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
 
             RecordTemplateLinkCache = recordTemplateLinkCache;
+
+            AddSubgroup = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => { Subgroups.Add(new VM_Subgroup(generalSettingsVM.RaceGroupings, Subgroups, this, OBodyDescriptorMenu, false)); }
+                );
 
             RemoveAssetPackConfigFile = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -187,7 +194,7 @@ namespace SynthEBD
         public ObservableCollection<VM_AssetPack> ParentCollection { get; set; }
 
         public RelayCommand RemoveAssetPackConfigFile { get; }
-
+        public RelayCommand AddSubgroup { get; }
         public RelayCommand AddAdditionalRecordTemplateAssignment { get; }
         public RelayCommand AddRecordTemplateAdditionalRacesPath { get; }
         public RelayCommand ImportAttributeGroups { get; }
@@ -414,6 +421,8 @@ namespace SynthEBD
 
         public void MergeInAssetPack(MainWindow_ViewModel mainVM)
         {
+            List<string> newSubgroupNames = new List<string>();
+
             if (IO_Aux.SelectFile(PatcherSettings.Paths.AssetPackDirPath, "Config files (*.json)|*.json", out string path))
             {
                 var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, mainVM.RecordTemplatePlugins, mainVM.BodyGenConfigs, out bool loadSuccess);
@@ -426,7 +435,11 @@ namespace SynthEBD
                     {
                         if (!this.Subgroups.Select(x => x .ID).Contains(subgroup.ID, StringComparer.OrdinalIgnoreCase))
                         {
-                            this.Subgroups.Add(subgroup);
+                            var clone = subgroup.Clone() as VM_Subgroup;
+                            clone.ParentAssetPack = this;
+                            clone.ParentCollection = this.Subgroups;
+                            this.Subgroups.Add(clone);
+                            newSubgroupNames.Add(clone.ID + ": " + clone.Name);
                         }
                     }
 
@@ -436,8 +449,23 @@ namespace SynthEBD
                         var matchedSubgroup = newAssetPackVM.Subgroups.Where(x => x.ID == subgroup.ID).FirstOrDefault();
                         if (matchedSubgroup != null)
                         {
-                            MergeSubgroupLists(subgroup.Subgroups, matchedSubgroup.Subgroups);
+                            MergeSubgroupLists(subgroup.Subgroups, matchedSubgroup.Subgroups, this, newSubgroupNames);
                         }
+                    }
+
+                    if (newSubgroupNames.Any())
+                    {
+                        var box = new CustomMaterialMessageBox()
+                        {
+                            TxtMessage = { Text = "The following subgroups were imported:" + Environment.NewLine + string.Join(Environment.NewLine, newSubgroupNames), Foreground = Brushes.White },
+                            TxtTitle = { Text = "Config Merger", Foreground = Brushes.White },
+                            BtnOk = { Content = "Ok" },
+                            BtnCancel = { IsEnabled = false, Visibility = Visibility.Hidden },
+                            MainContentControl = { Background = Brushes.Black },
+                            TitleBackgroundPanel = { Background = Brushes.Black },
+                            BorderBrush = Brushes.Silver
+                        };
+                        box.Show();
                     }
                 }
                 else
@@ -447,18 +475,22 @@ namespace SynthEBD
             }
         }
 
-        public static void MergeSubgroupLists(ObservableCollection<VM_Subgroup> ListA, ObservableCollection<VM_Subgroup> ListB)
+        public static void MergeSubgroupLists(ObservableCollection<VM_Subgroup> ListA, ObservableCollection<VM_Subgroup> ListB, VM_AssetPack parentAssetPack, List<string> newSubgroupNames)
         {
             foreach (VM_Subgroup candidateSubgroup in ListB)
             {
                 var matchedSubgroup = ListA.Where(x => x.ID == candidateSubgroup.ID).FirstOrDefault();
                 if (matchedSubgroup is null)
                 {
-                    ListA.Add(candidateSubgroup);
+                    var clone = candidateSubgroup.Clone() as VM_Subgroup;
+                    clone.ParentAssetPack = parentAssetPack;
+                    clone.ParentCollection = ListA;
+                    ListA.Add(clone);
+                    newSubgroupNames.Add(clone.ID + ": " + clone.Name);
                 }
                 else
                 {
-                    MergeSubgroupLists(matchedSubgroup.Subgroups, candidateSubgroup.Subgroups);
+                    MergeSubgroupLists(matchedSubgroup.Subgroups, candidateSubgroup.Subgroups, parentAssetPack, newSubgroupNames);
                 }
             }
         }

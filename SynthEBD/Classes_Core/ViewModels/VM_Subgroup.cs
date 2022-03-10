@@ -151,7 +151,7 @@ namespace SynthEBD
         public HashSet<string> RequiredSubgroupIDs { get; set; } // temporary placeholder for RequiredSubgroups until all subgroups are loaded in
         public HashSet<string> ExcludedSubgroupIDs { get; set; } // temporary placeholder for ExcludedSubgroups until all subgroups are loaded in
 
-        ObservableCollection<VM_Subgroup> ParentCollection { get; set; }
+        public ObservableCollection<VM_Subgroup> ParentCollection { get; set; }
         public VM_AssetPack ParentAssetPack { get; set; }
         public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
 

@@ -13,6 +13,7 @@ namespace SynthEBD
         public VM_SpecificNPCAssignmentsUI(VM_SettingsTexMesh texMeshSettings, VM_SettingsBodyGen bodyGenSettings, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM)
         {
             this.Assignments = new ObservableCollection<VM_SpecificNPCAssignment>();
+            this.CurrentlyDisplayedAssignment = null;
             this.BodyGenSettings = bodyGenSettings;
             this.TexMeshSettings = texMeshSettings;
 
@@ -56,7 +57,7 @@ namespace SynthEBD
 
         public VM_SettingsBodyGen BodyGenSettings { get; set; }
 
-        VM_SettingsTexMesh TexMeshSettings { get; set; }
+        public VM_SettingsTexMesh TexMeshSettings { get; set; }
 
         public RelayCommand AddAssignment { get; set; }
         public RelayCommand RemoveAssignment { get; set; }

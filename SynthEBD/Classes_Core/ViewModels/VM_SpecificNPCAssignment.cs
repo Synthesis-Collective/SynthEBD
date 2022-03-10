@@ -555,11 +555,12 @@ namespace SynthEBD
 
         public void RefreshAll()
         {
-            if (this.NPCFormKey.IsNull == false)
+            if (this.NPCFormKey.IsNull)
             {
-                this.DispName = Converters.CreateNPCDispNameFromFormKey(this.NPCFormKey);
+                return;
             }
 
+            this.DispName = Converters.CreateNPCDispNameFromFormKey(this.NPCFormKey);
             this.Gender = GetGender(this.NPCFormKey);
 
             UpdateAvailableAssetPacks(this);
