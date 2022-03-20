@@ -746,9 +746,6 @@ Body Shape Descriptors are Category: Value pairs that describe a given body shap
 
 - Slow startup when BodyGen configs are installed. This is likely to be fixed in a future update.
   
-- In Config File Asset Replacer menu, selecting a template NPC in one replacer group and then selecting another template NPC in a different replacer group clears the first group's template. This will hopefully be fixed soon but I've been having trouble tracking down the cause - in the meantime I recommend saving frequently when editing asset replacers.
-  
-
 ### F.A.Q.
 
 Q: Why is called SynthEBD when it doesn't use Synthesis?
