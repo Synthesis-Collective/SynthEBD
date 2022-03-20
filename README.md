@@ -223,6 +223,8 @@ General Settings controls global patcher functionality.
 
 **Verbose Mode for Specific NPCs**: If checked, SynthEBD will write a detailed operation log for every NPC selected in the NPC picker menu.
 
+**Verbose Mode Detailed Attributes**: If checked, the detailed operation logs toggled in the settings above will show Names (if available) or EditorIDs for NPC Attributes, rather that their FormKeys. This makes the log more easily interpretable if you're trying to figure out why an NPC matched or didn't match an attribute, but significantly slows down patching speed, so it's recommended to enable this only for troubleshooting.
+
 ### Textures and Meshes
 
 The Textures and Meshes menu controls all asset-related distribution options (most commonly Texture distribution).
