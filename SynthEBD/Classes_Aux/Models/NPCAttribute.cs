@@ -1,4 +1,7 @@
 ﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Aspects;
+using Mutagen.Bethesda.Plugins.Records;
+using Mutagen.Bethesda.Skyrim;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -198,6 +201,33 @@ namespace SynthEBD
 
             return mergedAttributes;
         }
+
+        public static string FormKeyToLogStringNamed<T>(FormKey fk) where T: class, IMajorRecordGetter, INamedGetter
+        {
+            string output = fk.ToString();
+            if (Patcher.MainLinkCache.TryResolve<T>(fk, out var getter))
+            {
+                if (getter.Name != null && !string.IsNullOrWhiteSpace(getter.Name.ToString()))
+                {
+                    output = getter.Name.ToString();
+                }
+                else if (getter.EditorID != null && !string.IsNullOrWhiteSpace(getter.EditorID))
+                {
+                    output = getter.EditorID;
+                }
+            }
+            return output;
+        }
+
+        public static string FormKeyToLogStringUnnamed<T>(FormKey fk) where T : class, IMajorRecordGetter
+        {
+            string output = fk.ToString();
+            if (Patcher.MainLinkCache.TryResolve<T>(fk, out var getter) && getter.EditorID != null && !string.IsNullOrWhiteSpace(getter.EditorID))
+            {
+                output = getter.EditorID;
+            }
+            return output;
+        }
     }
 
     public enum NPCAttributeType
@@ -251,7 +281,7 @@ namespace SynthEBD
 
         public string ToLogString()
         {
-            return "\tVoiceType: {" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "}";
+            return "\tVoiceType: {" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<IVoiceTypeGetter>(x))) + "}";
         }
     }
 
@@ -288,7 +318,7 @@ namespace SynthEBD
 
         public string ToLogString()
         {
-            return "\tClass: {" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "}";
+            return "\tClass: {" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<IClassGetter>(x))) + "}";
         }
     }
 
@@ -365,7 +395,7 @@ namespace SynthEBD
                 case CustomAttributeType.Decimal: logStr += "Decimal: " + Path + " " + Comparator + " " + ValueStr; break;
                 case CustomAttributeType.Boolean: logStr += "Boolean: " + Path + " " + Comparator + " " + ValueStr; break;
                 case CustomAttributeType.Text: logStr += "Text: " + Path + " " + Comparator + " " + ValueStr; break;
-                case CustomAttributeType.Record: logStr += "Record: " + Path + " " + Comparator + " " + String.Join(", ", ValueFKs.Select(x => x.ToString())); break;
+                case CustomAttributeType.Record: logStr += "Record: " + Path + " " + Comparator + " " + String.Join(", ", ValueFKs.Select(x => x.ToString())); break; // probably not worth using a generic TryResolve (or using reflection to get type) just for logging
             }
             return logStr;
         }
@@ -410,7 +440,7 @@ namespace SynthEBD
 
         public string ToLogString()
         {
-            return "\tFactions: {" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "} Rank: " + RankMin + " - " + RankMax;
+            return "\tFactions: {" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<IFactionGetter>(x))) + "} Rank: " + RankMin + " - " + RankMax;
         }
     }
 
@@ -446,7 +476,7 @@ namespace SynthEBD
 
         public string ToLogString()
         {
-            return "\tFace Texture: {" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "}";
+            return "\tFace Texture: {" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<ITextureSetGetter>(x))) + "}";
         }
     }
 
@@ -482,7 +512,7 @@ namespace SynthEBD
 
         public string ToLogString()
         {
-            return "\tRace: {" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "}";
+            return "\tRace: {" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<IRaceGetter>(x))) + "}";
         }
     }
 
@@ -518,7 +548,7 @@ namespace SynthEBD
 
         public string ToLogString()
         {
-            return "\tNPC: {" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "}";
+            return "\tNPC: {" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<INpcGetter>(x))) + "}";
         }
     }
 
