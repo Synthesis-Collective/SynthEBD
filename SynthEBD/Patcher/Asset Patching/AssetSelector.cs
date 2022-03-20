@@ -620,22 +620,26 @@ namespace SynthEBD
             }
 
             // Allowed Attributes
-            if (subgroup.AllowedAttributes.Any() && !AttributeMatcher.HasMatchedAttributes(subgroup.AllowedAttributes, npcInfo.NPC))
+            if (subgroup.AllowedAttributes.Any() && !AttributeMatcher.HasMatchedAttributes(subgroup.AllowedAttributes, npcInfo.NPC, LogMatchType.Unmatched, out string unmatchedAttributes))
             {
-                Logger.LogReport(reportString + "is invalid because the NPC does not match any of the morph's allowed attributes", false, npcInfo);
+                Logger.LogReport(reportString + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedAttributes, false, npcInfo);
                 return false;
             }
 
             // Disallowed Attributes
-            if (AttributeMatcher.HasMatchedAttributes(subgroup.DisallowedAttributes, npcInfo.NPC))
+            if (AttributeMatcher.HasMatchedAttributes(subgroup.DisallowedAttributes, npcInfo.NPC, LogMatchType.Matched, out string matchedAttributes))
             {
-                Logger.LogReport(reportString + "is invalid because the NPC matches one of the morph's disallowed attributes", false, npcInfo);
+                Logger.LogReport(reportString + " is invalid because the NPC matches one of its disallowed attributes: " + matchedAttributes, false, npcInfo);
                 return false;
             }
 
             // if the current subgroup's forceIf attributes match the current NPC, skip the checks for Distribution Enabled
 
-            subgroup.ForceIfMatchCount = AttributeMatcher.GetForceIfAttributeCount(subgroup.AllowedAttributes, npcInfo.NPC);
+            subgroup.ForceIfMatchCount = AttributeMatcher.GetForceIfAttributeCount(subgroup.AllowedAttributes, npcInfo.NPC, out string forceIfAttributes);
+            if (subgroup.ForceIfMatchCount > 0)
+            {
+                Logger.LogReport(reportString + ": current NPC matches the following ForceIf attributes: " + forceIfAttributes, false, npcInfo);
+            }
 
             // Distribution Enabled
             if (subgroup.ForceIfMatchCount == 0 && !subgroup.DistributionEnabled)

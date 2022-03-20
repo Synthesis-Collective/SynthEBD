@@ -8,15 +8,22 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
+    public enum LogMatchType
+    {
+        None,
+        Matched,
+        Unmatched,
+        ForceIf
+    }
     public class AttributeMatcher
     {
-        public static bool HasMatchedAttributes(HashSet<NPCAttribute> attributeList, INpcGetter npc)
+        public static bool HasMatchedAttributes(HashSet<NPCAttribute> attributeList, INpcGetter npc, LogMatchType logType, out string matchLog)
         {
-            return MatchNPCtoAttributeList(attributeList, npc, false, out int unused);
+            return MatchNPCtoAttributeList(attributeList, npc, false, logType, out int unused, out matchLog);
         }
-        public static int GetForceIfAttributeCount(HashSet<NPCAttribute> attributeList, INpcGetter npc)
+        public static int GetForceIfAttributeCount(HashSet<NPCAttribute> attributeList, INpcGetter npc, out string matchLog)
         {
-            MatchNPCtoAttributeList(attributeList, npc, true, out int count);
+            MatchNPCtoAttributeList(attributeList, npc, true, LogMatchType.ForceIf, out int count, out matchLog);
             return count;
         }
 
@@ -26,17 +33,19 @@ namespace SynthEBD
         /// <param name="attributeList"></param>
         /// <param name="npc"></param>
         /// <param name="getForceIfCount"></param>
-        /// <param name="matchedForceIfAttributeCount"></param>
+        /// <param name="matchedForceIfAttributeWeightedCount"></param>
         /// <returns></returns>
-        private static bool MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, bool getForceIfCount, out int matchedForceIfAttributeCount)
+        private static bool MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, bool getForceIfCount, LogMatchType logType, out int matchedForceIfAttributeWeightedCount, out string matchLog)
         {
             bool matched = false;
-            matchedForceIfAttributeCount = 0;
+            matchedForceIfAttributeWeightedCount = 0;
+            matchLog = string.Empty;
             if (attributeList.Count == 0) { return false; }
 
             foreach (var attribute in attributeList)
             {
                 bool subAttributeMatched = true;
+                int currentAttributeForceIfWeight = 0; // for logging only
                 foreach (var subAttribute in attribute.SubAttributes)
                 {
                     switch(subAttribute.Type)
@@ -105,8 +114,16 @@ namespace SynthEBD
                             }
                             break;
                     }
-                    if (subAttributeMatched == false) { break; }
-                    else if (subAttribute.ForceIf) { matchedForceIfAttributeCount += subAttribute.Weighting; }
+
+                    if (!subAttributeMatched) 
+                    {
+                        if (logType == LogMatchType.Unmatched)
+                        {
+                            matchLog += subAttribute.ToLogString();
+                        }
+                        break; 
+                    }
+                    else if (subAttribute.ForceIf) { matchedForceIfAttributeWeightedCount += subAttribute.Weighting; currentAttributeForceIfWeight += subAttribute.Weighting; }
                 }
                 if (!subAttributeMatched) // sub attributes are treated as AND, so as soon as one isn't matched return false
                 {
@@ -114,10 +131,18 @@ namespace SynthEBD
                 }
                 else if (!getForceIfCount) // if the calling function only wants to know if any attributes are matched, and does not care how many of the matched attributes are ForceIf, then return true as soon as the first attribute is matched
                 {
+                    if (logType == LogMatchType.Matched)
+                    {
+                        matchLog = attribute.ToLogString();
+                    }
                     return true;
                 }
                 else
                 {
+                    if (logType == LogMatchType.ForceIf)
+                    {
+                        matchLog += "\n" + attribute.ToLogString() + " (Weighting: " + currentAttributeForceIfWeight + ")";
+                    }
                     matched = true;
                 }
             }

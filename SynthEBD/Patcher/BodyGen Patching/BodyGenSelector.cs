@@ -332,7 +332,11 @@ namespace SynthEBD
             {
                 if (MorphIsValid(candidateMorph, npcInfo, ignoredFactors, assignedAssetCombination))
                 {
-                    candidateMorph.MatchedForceIfCount = AttributeMatcher.GetForceIfAttributeCount(candidateMorph.AllowedAttributes, npcInfo.NPC);
+                    candidateMorph.MatchedForceIfCount = AttributeMatcher.GetForceIfAttributeCount(candidateMorph.AllowedAttributes, npcInfo.NPC, out string forceIfAttributes);
+                    if (candidateMorph.MatchedForceIfCount > 0)
+                    {
+                        Logger.LogReport("Morph " + candidateMorph.Label + ": current NPC matches the following ForceIf attributes: " + forceIfAttributes, false, npcInfo);
+                    }
                     outputMorphs.Add(candidateMorph);
                 }
             }
@@ -397,16 +401,16 @@ namespace SynthEBD
             }
 
             // Allowed Attributes
-            if (candidateMorph.AllowedAttributes.Any() && !AttributeMatcher.HasMatchedAttributes(candidateMorph.AllowedAttributes, npcInfo.NPC))
+            if (candidateMorph.AllowedAttributes.Any() && !AttributeMatcher.HasMatchedAttributes(candidateMorph.AllowedAttributes, npcInfo.NPC, LogMatchType.Unmatched, out string unmatchedAttributes))
             {
-                Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the NPC does not match any of the morph's allowed attributes", false, npcInfo);
+                Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedAttributes, false, npcInfo);
                 return false;
             }
 
             // Disallowed Attributes
-            if (AttributeMatcher.HasMatchedAttributes(candidateMorph.DisallowedAttributes, npcInfo.NPC))
+            if (AttributeMatcher.HasMatchedAttributes(candidateMorph.DisallowedAttributes, npcInfo.NPC, LogMatchType.Matched, out string matchedAttributes))
             {
-                Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the NPC matches one of the morph's disallowed attributes", false, npcInfo);
+                Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the NPC matches one of its disallowed attributes: " + matchedAttributes, false, npcInfo);
                 return false;
             }
 

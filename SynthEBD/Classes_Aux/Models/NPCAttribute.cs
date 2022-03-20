@@ -136,6 +136,11 @@ namespace SynthEBD
             return output;
         }
 
+        public string ToLogString()
+        {
+            return "Match one of: " + Environment.NewLine + string.Join(" AND ", SubAttributes.Select(x => x.ToLogString()));
+        }
+
         public static ITypedNPCAttribute CloneAsNew(ITypedNPCAttribute inputInterface)
         {
             switch(inputInterface.Type)
@@ -243,6 +248,11 @@ namespace SynthEBD
             output.Weighting = input.Weighting;
             return output;
         }
+
+        public string ToLogString()
+        {
+            return "\tVoiceType: {" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "}";
+        }
     }
 
     public class NPCAttributeClass : ITypedNPCAttribute
@@ -274,6 +284,11 @@ namespace SynthEBD
             output.FormKeys = input.FormKeys;
             output.Weighting = input.Weighting;
             return output;
+        }
+
+        public string ToLogString()
+        {
+            return "\tClass: {" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "}";
         }
     }
 
@@ -336,8 +351,23 @@ namespace SynthEBD
             {
                 output.ValueStr = input.ValueStr;
             }
+            output.Comparator = input.Comparator;
             output.Weighting = input.Weighting;
             return output;
+        }
+
+        public string ToLogString()
+        {
+            string logStr =  "\tCustom ";
+            switch(CustomType)
+            {
+                case CustomAttributeType.Integer: logStr += "Integer: " + Path + " " + Comparator + " " + ValueStr; break;
+                case CustomAttributeType.Decimal: logStr += "Decimal: " + Path + " " + Comparator + " " + ValueStr; break;
+                case CustomAttributeType.Boolean: logStr += "Boolean: " + Path + " " + Comparator + " " + ValueStr; break;
+                case CustomAttributeType.Text: logStr += "Text: " + Path + " " + Comparator + " " + ValueStr; break;
+                case CustomAttributeType.Record: logStr += "Record: " + Path + " " + Comparator + " " + String.Join(", ", ValueFKs.Select(x => x.ToString())); break;
+            }
+            return logStr;
         }
     }
 
@@ -377,6 +407,11 @@ namespace SynthEBD
             output.Weighting = input.Weighting;
             return output;
         }
+
+        public string ToLogString()
+        {
+            return "\tFactions: {" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "} Rank: " + RankMin + " - " + RankMax;
+        }
     }
 
     public class NPCAttributeFaceTexture : ITypedNPCAttribute
@@ -407,6 +442,11 @@ namespace SynthEBD
             output.FormKeys = input.FormKeys;
             output.Weighting = input.Weighting;
             return output;
+        }
+
+        public string ToLogString()
+        {
+            return "\tFace Texture: {" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "}";
         }
     }
 
@@ -439,6 +479,11 @@ namespace SynthEBD
             output.Weighting = input.Weighting;
             return output;
         }
+
+        public string ToLogString()
+        {
+            return "\tRace: {" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "}";
+        }
     }
 
     public class NPCAttributeNPC : ITypedNPCAttribute
@@ -469,6 +514,11 @@ namespace SynthEBD
             output.FormKeys = input.FormKeys;
             output.Weighting = input.Weighting;
             return output;
+        }
+
+        public string ToLogString()
+        {
+            return "\tNPC: {" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "}";
         }
     }
 
@@ -516,6 +566,11 @@ namespace SynthEBD
             output.Weighting = input.Weighting;
             return output;
         }
+
+        public string ToLogString()
+        {
+            return "\tGroup: {" + string.Join(", ", SelectedLabels) + "}";
+        }
     }
 
     public interface ITypedNPCAttribute
@@ -524,6 +579,7 @@ namespace SynthEBD
         bool Equals(ITypedNPCAttribute other);
         public bool ForceIf { get; set; }
         public int Weighting { get; set; }
+        public string ToLogString();
     }
 
     public class AttributeGroup
