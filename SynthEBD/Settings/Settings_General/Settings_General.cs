@@ -28,6 +28,7 @@ namespace SynthEBD
             this.bVerboseModeAssetsNoncompliant = false;
             this.bVerboseModeAssetsAll = false;
             this.VerboseModeNPClist = new List<FormKey>();
+            this.VerboseModeDetailedAttributes = false;
             this.bLoadSettingsFromDataFolder = false;
             this.PatchableRaces = new List<FormKey>()
             {
@@ -118,10 +119,11 @@ namespace SynthEBD
         public SkyrimRelease SkyrimVersion { get; set; }
         public bool bVerboseModeAssetsNoncompliant { get; set; }
         public bool bVerboseModeAssetsAll { get; set; }
-        public List<FormKey> VerboseModeNPClist { get; set; } // enable FormKey (multi?) picker for this
+        public List<FormKey> VerboseModeNPClist { get; set; }
+        public bool VerboseModeDetailedAttributes { get; set; }
         public bool bLoadSettingsFromDataFolder { get; set; }
 
-        public List<FormKey> PatchableRaces { get; set; } // enable FormKey (multi?) picker for this
+        public List<FormKey> PatchableRaces { get; set; }
 
         public List<RaceAlias> RaceAliases { get; set; }
 

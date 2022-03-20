@@ -39,6 +39,7 @@ namespace SynthEBD
             this.bVerboseModeAssetsNoncompliant = false;
             this.bVerboseModeAssetsAll = false;
             this.verboseModeNPClist = new ObservableCollection<FormKey>();
+            this.VerboseModeDetailedAttributes = false;
             this.bLoadSettingsFromDataFolder = false;
             this.patchableRaces = new ObservableCollection<FormKey>();
             this.raceAliases = new ObservableCollection<VM_raceAlias>();
@@ -125,6 +126,7 @@ namespace SynthEBD
         public bool bVerboseModeAssetsNoncompliant { get; set;  }
         public bool bVerboseModeAssetsAll { get; set;  }
         public ObservableCollection<FormKey> verboseModeNPClist { get; set; }
+        public bool VerboseModeDetailedAttributes { get; set; }
         public bool bLoadSettingsFromDataFolder { get; set;  }
 
         public ObservableCollection<FormKey> patchableRaces { get; set; }
@@ -164,6 +166,7 @@ namespace SynthEBD
             viewModel.bVerboseModeAssetsNoncompliant = model.bVerboseModeAssetsNoncompliant;
             viewModel.bVerboseModeAssetsAll = model.bVerboseModeAssetsAll;
             viewModel.verboseModeNPClist = new ObservableCollection<FormKey>(model.VerboseModeNPClist);
+            viewModel.VerboseModeDetailedAttributes = model.VerboseModeDetailedAttributes;
             viewModel.bLoadSettingsFromDataFolder = model.bLoadSettingsFromDataFolder;
             viewModel.patchableRaces = new ObservableCollection<FormKey>(model.PatchableRaces);
             viewModel.raceAliases = VM_raceAlias.GetViewModelsFromModels(model.RaceAliases, PatcherEnvironmentProvider.Environment, viewModel);
@@ -188,6 +191,7 @@ namespace SynthEBD
             model.bVerboseModeAssetsNoncompliant = viewModel.bVerboseModeAssetsNoncompliant;
             model.bVerboseModeAssetsAll = viewModel.bVerboseModeAssetsAll;
             model.VerboseModeNPClist = viewModel.verboseModeNPClist.ToList();
+            model.VerboseModeDetailedAttributes = viewModel.VerboseModeDetailedAttributes;
             model.bLoadSettingsFromDataFolder = viewModel.bLoadSettingsFromDataFolder;
             model.PatchableRaces = viewModel.patchableRaces.ToList();
 

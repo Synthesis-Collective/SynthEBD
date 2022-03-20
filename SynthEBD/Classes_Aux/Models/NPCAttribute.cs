@@ -141,7 +141,7 @@ namespace SynthEBD
 
         public string ToLogString()
         {
-            return "Match one of: " + Environment.NewLine + string.Join(" AND ", SubAttributes.Select(x => x.ToLogString()));
+            return "{" + string.Join(" AND ", SubAttributes.Select(x => x.ToLogString())) + "}";
         }
 
         public static ITypedNPCAttribute CloneAsNew(ITypedNPCAttribute inputInterface)
@@ -281,7 +281,14 @@ namespace SynthEBD
 
         public string ToLogString()
         {
-            return "\tVoiceType: {" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<IVoiceTypeGetter>(x))) + "}";
+            if (PatcherSettings.General.VerboseModeDetailedAttributes)
+            {
+                return "VoiceType: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<IVoiceTypeGetter>(x))) + "]";
+            }
+            else
+            {
+                return "VoiceType: [" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "]";
+            }
         }
     }
 
@@ -318,7 +325,14 @@ namespace SynthEBD
 
         public string ToLogString()
         {
-            return "\tClass: {" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<IClassGetter>(x))) + "}";
+            if (PatcherSettings.General.VerboseModeDetailedAttributes)
+            {
+                return "Class: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<IClassGetter>(x))) + "]";
+            }
+            else
+            {
+                return "Class: [" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "]";
+            }
         }
     }
 
@@ -440,7 +454,14 @@ namespace SynthEBD
 
         public string ToLogString()
         {
-            return "\tFactions: {" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<IFactionGetter>(x))) + "} Rank: " + RankMin + " - " + RankMax;
+            if (PatcherSettings.General.VerboseModeDetailedAttributes)
+            {
+                return "Factions: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<IFactionGetter>(x))) + "] Rank: " + RankMin + " - " + RankMax;
+            }
+            else
+            {
+                return "Factions: [" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "] Rank: " + RankMin + " - " + RankMax;
+            }
         }
     }
 
@@ -476,7 +497,14 @@ namespace SynthEBD
 
         public string ToLogString()
         {
-            return "\tFace Texture: {" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<ITextureSetGetter>(x))) + "}";
+            if (PatcherSettings.General.VerboseModeDetailedAttributes)
+            {
+                return "Face Texture: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<ITextureSetGetter>(x))) + "]";
+            }
+            else
+            {
+                return "Face Texture: [" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "]";
+            }
         }
     }
 
@@ -512,7 +540,14 @@ namespace SynthEBD
 
         public string ToLogString()
         {
-            return "\tRace: {" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<IRaceGetter>(x))) + "}";
+            if (PatcherSettings.General.VerboseModeDetailedAttributes)
+            {
+                return "Race: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<IRaceGetter>(x))) + "]";
+            }
+            else
+            {
+                return "Race: [" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "]";
+            }
         }
     }
 
@@ -548,7 +583,14 @@ namespace SynthEBD
 
         public string ToLogString()
         {
-            return "\tNPC: {" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<INpcGetter>(x))) + "}";
+            if (PatcherSettings.General.VerboseModeDetailedAttributes)
+            {
+                return "NPC: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<INpcGetter>(x))) + "]";
+            }
+            else
+            {
+                return "NPC: [" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "]";
+            }
         }
     }
 
@@ -599,7 +641,7 @@ namespace SynthEBD
 
         public string ToLogString()
         {
-            return "\tGroup: {" + string.Join(", ", SelectedLabels) + "}";
+            return "Group: [" + string.Join(", ", SelectedLabels) + "]";
         }
     }
 
