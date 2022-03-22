@@ -123,6 +123,12 @@ namespace SynthEBD
             if (Directory.Exists(PatcherSettings.Paths.RecordTemplatesDirPath))
             {
                 filePaths = Directory.GetFiles(PatcherSettings.Paths.RecordTemplatesDirPath, "*.esp");
+
+                // load any available record templates in the fallback folder since they may not have been copied over and missing them will screw up the config files
+                var fileNames = filePaths.Select(x => Path.GetFileName(x));
+                var fallBackFilePaths = Directory.GetFiles(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.RecordTemplatesDirPath), "*.esp");
+                var additionalFilePaths = fallBackFilePaths.Where(x => !fileNames.Contains(Path.GetFileName(x)));
+                filePaths = filePaths.Concat(additionalFilePaths).ToArray();
             }
             else
             {

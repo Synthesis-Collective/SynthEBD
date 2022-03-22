@@ -60,6 +60,7 @@ namespace SynthEBD
             if (!File.Exists(manifestPath))
             {
                 System.Windows.MessageBox.Show("Could not find Manifest.json in " + tempFolderPath + ". Installation aborted.");
+                return installedConfigs;
             }
 
             Manifest manifest = JSONhandler<Manifest>.LoadJSONFile(manifestPath, out bool parsed, out string exceptionStr);
