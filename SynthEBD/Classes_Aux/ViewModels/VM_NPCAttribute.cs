@@ -52,6 +52,7 @@ namespace SynthEBD
             startingShell.Attribute = startingAttributeGroup;
             newAtt.GroupedSubAttributes.Add(startingShell);
             newAtt.DisplayForceIfOption = displayForceIfOption;
+            newAtt.DisplayForceIfWeight = displayForceIfWeight;
             return newAtt;
         }
 
@@ -77,6 +78,7 @@ namespace SynthEBD
         {
             VM_NPCAttribute viewModel = new VM_NPCAttribute(parentCollection, attributeGroups);
             viewModel.DisplayForceIfOption = displayForceIfOption;
+            viewModel.DisplayForceIfWeight = displayForceIfWeight;
             foreach (var attributeShellModel in model.SubAttributes)
             {
                 var shellVM = new VM_NPCAttributeShell(viewModel, displayForceIfOption, displayForceIfWeight, attributeGroups);
@@ -95,6 +97,7 @@ namespace SynthEBD
                 }
                 shellVM.ForceIf = attributeShellModel.ForceIf;
                 shellVM.DisplayForceIfOption = displayForceIfOption;
+                shellVM.DisplayForceIfWeight = displayForceIfWeight ?? false;
                 viewModel.GroupedSubAttributes.Add(shellVM);
             }
 

@@ -15,7 +15,7 @@ using ReactiveUI;
 
 namespace SynthEBD
 {
-    public class VM_Settings_General : INotifyPropertyChanged
+    public class VM_Settings_General : INotifyPropertyChanged, IHasAttributeGroupMenu
     {
         public event PropertyChangedEventHandler PropertyChanged;
         
@@ -44,7 +44,7 @@ namespace SynthEBD
             this.patchableRaces = new ObservableCollection<FormKey>();
             this.raceAliases = new ObservableCollection<VM_raceAlias>();
             this.RaceGroupings = new ObservableCollection<VM_RaceGrouping>();
-            AttributeGroupMenu = new VM_AttributeGroupMenu();
+            AttributeGroupMenu = new VM_AttributeGroupMenu(null, false);
             OverwritePluginAttGroups = true;
 
             this.lk = PatcherEnvironmentProvider.Environment.LinkCache;

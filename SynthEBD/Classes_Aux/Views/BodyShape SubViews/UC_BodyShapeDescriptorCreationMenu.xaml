@@ -15,13 +15,13 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center">Category</TextBlock>
         <Button Grid.Row="1" Grid.Column="0" Command="{Binding AddTemplateDescriptorShell}" Foreground="Lightgreen">Add New</Button>
-        <ListBox Grid.Row="2" Grid.Column="0" SelectedValue="{Binding CurrentlyDisplayedTemplateDescriptorShell}" ItemsSource="{Binding TemplateDescriptors}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="#5844b4">
+        <ScrollViewer Grid.Row="2" Grid.Column="0" >
+            <ListBox SelectedValue="{Binding CurrentlyDisplayedTemplateDescriptorShell}" ItemsSource="{Binding TemplateDescriptors}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="#5844b4">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Grid>
@@ -53,13 +53,16 @@
                 </Style>
             </ListBox.ItemContainerStyle>
         </ListBox>
+        </ScrollViewer>
 
-        <ContentPresenter Grid.Row="0" Grid.RowSpan="4" Grid.Column="1" Content="{Binding CurrentlyDisplayedTemplateDescriptorShell}" Margin="0 0 10 0">
-            <ContentPresenter.Resources>
-                <DataTemplate DataType="{x:Type local:VM_BodyShapeDescriptorShell}">
-                    <local:UC_BodyShapeDescriptorShell/>
-                </DataTemplate>
-            </ContentPresenter.Resources>
-        </ContentPresenter>
+        <ScrollViewer Grid.Row="0" Grid.RowSpan="3" Grid.Column="1">
+            <ContentPresenter Content="{Binding CurrentlyDisplayedTemplateDescriptorShell}" Margin="0 0 10 0">
+                <ContentPresenter.Resources>
+                    <DataTemplate DataType="{x:Type local:VM_BodyShapeDescriptorShell}">
+                        <local:UC_BodyShapeDescriptorShell/>
+                    </DataTemplate>
+                </ContentPresenter.Resources>
+            </ContentPresenter>
+        </ScrollViewer>
     </Grid>
 </UserControl>

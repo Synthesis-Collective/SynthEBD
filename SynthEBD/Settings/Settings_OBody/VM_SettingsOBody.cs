@@ -14,25 +14,10 @@ namespace SynthEBD
         {
             DescriptorUI = new VM_BodyShapeDescriptorCreationMenu(raceGroupingVMs, this);
             BodySlidesUI = new VM_BodySlidesMenu(this, raceGroupingVMs);
-            AttributeGroupMenu = new VM_AttributeGroupMenu();
+            AttributeGroupMenu = new VM_AttributeGroupMenu(generalSettingsVM.AttributeGroupMenu, true);
             MiscUI = new VM_OBodyMiscSettings();
 
             DisplayedUI = BodySlidesUI;
-
-            ImportAttributeGroups = new SynthEBD.RelayCommand(
-                canExecute: _ => true,
-                execute: _ =>
-                {
-                    var alreadyContainedGroups = AttributeGroupMenu.Groups.Select(x => x.Label).ToHashSet();
-                    foreach (var attGroup in generalSettingsVM.AttributeGroupMenu.Groups)
-                    {
-                        if (!alreadyContainedGroups.Contains(attGroup.Label))
-                        {
-                            AttributeGroupMenu.Groups.Add(VM_AttributeGroup.Copy(attGroup, AttributeGroupMenu));
-                        }
-                    }
-                }
-                );
 
             ClickBodySlidesMenu = new RelayCommand(
                 canExecute: _ => true,
@@ -60,7 +45,6 @@ namespace SynthEBD
         public VM_BodySlidesMenu BodySlidesUI { get; set; }
         public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
         public VM_OBodyMiscSettings MiscUI { get; set; }
-        public RelayCommand ImportAttributeGroups { get; }
         public RelayCommand ClickBodySlidesMenu { get; }
         public RelayCommand ClickDescriptorsMenu { get; }
         public RelayCommand ClickAttributeGroupsMenu { get; }

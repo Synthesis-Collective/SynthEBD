@@ -52,10 +52,7 @@
                     <local:UC_BodyGenGroupsMenu/>
                 </DataTemplate>
                 <DataTemplate DataType="{x:Type local:VM_AttributeGroupMenu}">
-                    <StackPanel>
-                        <local:UC_AttributeGroupMenu/>
-                        <Button Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ImportAttributeGroups}" Foreground="Lightgreen">Import from General Settings</Button>
-                    </StackPanel>
+                    <local:UC_AttributeGroupMenu/>
                 </DataTemplate>
                 <DataTemplate DataType="{x:Type local:VM_BodyGenMiscMenu}">
                     <local:UC_BodyGenMiscMenu/>

@@ -10,20 +10,40 @@ namespace SynthEBD
 {
     public class VM_AttributeGroupMenu : INotifyPropertyChanged
     {
-        public VM_AttributeGroupMenu()
+        public VM_AttributeGroupMenu(VM_AttributeGroupMenu generalSettingsAttributes, bool showImportFromGeneralOption)
         {
             Groups = new ObservableCollection<VM_AttributeGroup>();
             DisplayedGroup = null;
+            GeneralSettingsAttributes = generalSettingsAttributes;
+            ShowImportFromGeneralOption = showImportFromGeneralOption;
 
             AddGroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => this.Groups.Add(new VM_AttributeGroup(this))
                 );
+
+
+            ImportAttributeGroups = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    var alreadyContainedGroups = Groups.Select(x => x.Label).ToHashSet();
+                    foreach (var attGroup in GeneralSettingsAttributes.Groups)
+                    {
+                        if (!alreadyContainedGroups.Contains(attGroup.Label))
+                        {
+                            Groups.Add(VM_AttributeGroup.Copy(attGroup, this));
+                        }
+                    }
+                }
+                );
         }
         public ObservableCollection<VM_AttributeGroup> Groups { get; set; }
         public VM_AttributeGroup DisplayedGroup { get; set; }
-
+        public VM_AttributeGroupMenu GeneralSettingsAttributes { get; set; }
+        public bool ShowImportFromGeneralOption { get; set; }
         public RelayCommand AddGroup { get; }
+        public RelayCommand ImportAttributeGroups { get; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 

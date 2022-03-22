@@ -53,7 +53,7 @@ namespace SynthEBD
             this.AdditionalRecordTemplateAssignments = new ObservableCollection<VM_AdditionalRecordTemplate>();
             this.DefaultRecordTemplateAdditionalRacesPaths = new ObservableCollection<VM_CollectionMemberString>();
 
-            this.AttributeGroupMenu = new VM_AttributeGroupMenu();
+            this.AttributeGroupMenu = new VM_AttributeGroupMenu(generalSettingsVM.AttributeGroupMenu, true);
 
             this.ReplacersMenu = new VM_AssetPackDirectReplacerMenu(this, OBodyDescriptorMenu);
 
@@ -82,21 +82,6 @@ namespace SynthEBD
             AddRecordTemplateAdditionalRacesPath = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => { this.DefaultRecordTemplateAdditionalRacesPaths.Add(new VM_CollectionMemberString("", this.DefaultRecordTemplateAdditionalRacesPaths)); }
-                );
-
-            ImportAttributeGroups = new SynthEBD.RelayCommand(
-                canExecute: _ => true,
-                execute: _ =>
-                {
-                    var alreadyContainedGroups = AttributeGroupMenu.Groups.Select(x => x.Label).ToHashSet();
-                    foreach (var attGroup in generalSettingsVM.AttributeGroupMenu.Groups)
-                    {
-                        if (!alreadyContainedGroups.Contains(attGroup.Label))
-                        {
-                            AttributeGroupMenu.Groups.Add(VM_AttributeGroup.Copy(attGroup, AttributeGroupMenu));
-                        }
-                    }
-                }
                 );
 
             MergeWithAssetPack = new SynthEBD.RelayCommand(
@@ -197,7 +182,6 @@ namespace SynthEBD
         public RelayCommand AddSubgroup { get; }
         public RelayCommand AddAdditionalRecordTemplateAssignment { get; }
         public RelayCommand AddRecordTemplateAdditionalRacesPath { get; }
-        public RelayCommand ImportAttributeGroups { get; }
         public RelayCommand MergeWithAssetPack { get; }
         public RelayCommand ValidateButton { get; }
         public RelayCommand SaveButton { get; }

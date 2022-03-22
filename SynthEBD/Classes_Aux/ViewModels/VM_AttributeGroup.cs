@@ -96,11 +96,10 @@ namespace SynthEBD
             return model;
         }
 
-        public static VM_AttributeGroup Copy(VM_AttributeGroup input, VM_AttributeGroupMenu parent)
+        public static VM_AttributeGroup Copy(VM_AttributeGroup toCopy, VM_AttributeGroupMenu newParentMenu)
         {
-            var copy = new VM_AttributeGroup(parent);
-            copy.Label = input.Label;
-            copy.Attributes = new ObservableCollection<VM_NPCAttribute>(input.Attributes);
+            var model = DumpViewModelToModel(toCopy);
+            var copy = GetViewModelFromModel(model, newParentMenu);
             return copy;
         }
       
