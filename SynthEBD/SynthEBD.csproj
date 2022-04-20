@@ -5,6 +5,7 @@
     <TargetFramework>net6.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <GenerateDocumentationFile>False</GenerateDocumentationFile>
+    <ApplicationIcon>Resources\Visual\SynthEBDicon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -102,6 +103,7 @@
     <Content Include="Resources\JContainers Domain\Source\PSM_SynthEBD.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Resources\Visual\SynthEBDicon.ico" />
     <Content Include="Settings\LinkedNPCNameExclusions.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
