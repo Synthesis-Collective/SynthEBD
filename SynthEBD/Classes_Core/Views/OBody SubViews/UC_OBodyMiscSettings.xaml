@@ -19,9 +19,10 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <Button Command="{Binding SetRaceMenuINI}" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="0 0 0 10" Foreground="LightGreen" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3">Set RaceMenu INI to enable OBody/AutoBody</Button>
+        <Button Command="{Binding SetRaceMenuINI}" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0 0 0 10" Foreground="LightGreen" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3">Set RaceMenu INI to enable OBody/AutoBody</Button>
 
         <TextBlock Grid.Row="1" Grid.Column="0" ToolTip="BodySlide groups that will be sent to the Male list upon import" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Male Bodyslide Groups</TextBlock>
         <Button Grid.Row="1"  Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddMaleSliderGroup}" Foreground="LightGreen">Add New</Button>
@@ -51,5 +52,8 @@
 
         <TextBlock Grid.Row="3" Grid.Column="0" ToolTip="Display in-game notification when assigning a Bodyslide" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Use Verbose Scripts</TextBlock>
         <CheckBox Grid.Row="3" Grid.Column="1" IsChecked="{Binding UseVerboseScripts}"></CheckBox>
+
+        <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" ToolTip="INI recommended; JSON doesn't work in VR as of current build" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">AutoBody Assignment Mode</TextBlock>
+        <ComboBox Grid.Row="4" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding AutoBodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AutoBodySelectionMode}}}" IsSynchronizedWithCurrentItem="True"/>
     </Grid>
 </UserControl>

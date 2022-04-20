@@ -72,7 +72,7 @@ namespace SynthEBD
             return output;
         }
 
-        private static string FormatFormKeyForBodyGen(FormKey FK)
+        public static string FormatFormKeyForBodyGen(FormKey FK)
         {
             return FK.ModKey.ToString() + "|" + FK.IDString().TrimStart(new Char[] { '0' });
         }

@@ -190,6 +190,83 @@ namespace SynthEBD
             }
         }
 
+        public static void WriteAssignmentIni()
+        {
+            if (Patcher.BodySlideTracker.Count == 0)
+            {
+                Logger.LogMessage("No BodySlides were assigned to any NPCs");
+                return;
+            }
+
+            string outputStr = "";
+
+            foreach (var entry in Patcher.BodySlideTracker)
+            {
+                outputStr += BodyGenWriter.FormatFormKeyForBodyGen(entry.Key) + "=" + entry.Value + Environment.NewLine;
+            }
+
+            var destPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "autoBody", "Config", "morphs.ini");
+
+            try
+            {
+                PatcherIO.CreateDirectoryIfNeeded(destPath, PatcherIO.PathType.File);
+                File.WriteAllText(destPath, outputStr);
+            }
+            catch
+            {
+                Logger.LogErrorWithStatusUpdate("Could not write BodySlide assignments to " + destPath, ErrorType.Error);
+            }
+        }
+
+        public static void ClearOutputForJsonMode()
+        {
+            HashSet<string> toClear = new HashSet<string>()
+            {
+                Path.Combine(PatcherSettings.General.OutputDataFolder, "autoBody", "Config", "morphs.ini"),
+                Path.Combine(PatcherSettings.General.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.PatchFileName, "morphs.ini")
+            };
+
+            foreach (string path in toClear)
+            {
+                if (File.Exists(path))
+                {
+                    try
+                    {
+                        File.Delete(path);
+                    }
+                    catch
+                    {
+                        Logger.LogErrorWithStatusUpdate("Could not delete file at " + path, ErrorType.Warning);
+                    }
+                }
+            }    
+        }
+
+        public static void ClearOutputForIniMode()
+        {
+            HashSet<string> toClear = new HashSet<string>()
+            {
+                Path.Combine(PatcherSettings.General.OutputDataFolder, "SynthEBD", "BodySlideDict.json"),
+                Path.Combine(PatcherSettings.General.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini"),
+                Path.Combine(PatcherSettings.General.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.PatchFileName, "morphs.ini")
+            };
+
+            foreach (string path in toClear)
+            {
+                if (File.Exists(path))
+                {
+                    try
+                    {
+                        File.Delete(path);
+                    }
+                    catch
+                    {
+                        Logger.LogErrorWithStatusUpdate("Could not delete file at " + path, ErrorType.Warning);
+                    }
+                }
+            }
+        }
+
         public static void TryCopyResourceFile(string sourcePath, string destPath)
         {
             if (!File.Exists(sourcePath))

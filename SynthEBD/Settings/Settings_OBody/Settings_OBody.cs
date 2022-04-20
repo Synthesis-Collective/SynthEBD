@@ -9,6 +9,12 @@ using System.Xml.Linq;
 
 namespace SynthEBD
 {
+    public enum AutoBodySelectionMode
+    {
+        INI,
+        JSON
+    }
+
     public class Settings_OBody: IHasDescriptorRules
     {
         public Settings_OBody()
@@ -33,6 +39,7 @@ namespace SynthEBD
             this.FemaleSliderGroups = new HashSet<string>();
             this.DescriptorRules = new HashSet<BodyShapeDescriptorRules>();
             this.UseVerboseScripts = false;
+            this.AutoBodySelectionMode = AutoBodySelectionMode.INI;
         }
         public List<BodySlideSetting> BodySlidesMale { get; set; }
         public List<BodySlideSetting> BodySlidesFemale { get; set; }
@@ -42,6 +49,7 @@ namespace SynthEBD
         public HashSet<string> FemaleSliderGroups { get; set; }
         public HashSet<BodyShapeDescriptorRules> DescriptorRules { get; set; }
         public bool UseVerboseScripts { get; set; }
+        public AutoBodySelectionMode AutoBodySelectionMode { get; set; }
         
         [JsonIgnore]
         public HashSet<string> CurrentlyExistingBodySlides { get; set; }

@@ -92,16 +92,24 @@ namespace SynthEBD
                 OBodyPreprocessing.CompileRulesRaces(copiedOBodySettings);
                 OBodyPreprocessing.FlattenGroupAttributes(copiedOBodySettings);
 
-                var bodyslidesLoaded = outputMod.Globals.AddNewShort();
-                bodyslidesLoaded.EditorID = "SynthEBDBodySlidesLoaded";
-                bodyslidesLoaded.Data = 0;
-
-                OBodyWriter.CreateSynthEBDDomain();
-                OBodyWriter.CreateBodySlideLoaderQuest(outputMod, bodyslidesLoaded);
-                bodySlideAssignmentSpell = OBodyWriter.CreateOBodyAssignmentSpell(outputMod, bodyslidesLoaded);
-                OBodyWriter.WriteBodySlideSPIDIni(bodySlideAssignmentSpell, copiedOBodySettings, outputMod);
-
                 BodySlideTracker = new Dictionary<FormKey, string>();
+
+                if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.AutoBody && PatcherSettings.OBody.AutoBodySelectionMode == AutoBodySelectionMode.INI)
+                {
+                    OBodyWriter.ClearOutputForIniMode();
+                }
+                else
+                {
+                    OBodyWriter.ClearOutputForJsonMode();
+                    var bodyslidesLoaded = outputMod.Globals.AddNewShort();
+                    bodyslidesLoaded.EditorID = "SynthEBDBodySlidesLoaded";
+                    bodyslidesLoaded.Data = 0;
+
+                    OBodyWriter.CreateSynthEBDDomain();
+                    OBodyWriter.CreateBodySlideLoaderQuest(outputMod, bodyslidesLoaded);
+                    bodySlideAssignmentSpell = OBodyWriter.CreateOBodyAssignmentSpell(outputMod, bodyslidesLoaded);
+                    OBodyWriter.WriteBodySlideSPIDIni(bodySlideAssignmentSpell, copiedOBodySettings, outputMod);
+                }
             }
 
             if (PatcherSettings.General.bChangeHeight)
@@ -141,8 +149,15 @@ namespace SynthEBD
             }
             else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
             {
-                OBodyWriter.CopyBodySlideScript();
-                OBodyWriter.WriteAssignmentDictionary();
+                if (PatcherSettings.OBody.AutoBodySelectionMode == AutoBodySelectionMode.INI)
+                {
+                    OBodyWriter.WriteAssignmentIni();
+                }
+                else
+                {
+                    OBodyWriter.CopyBodySlideScript();
+                    OBodyWriter.WriteAssignmentDictionary();
+                }
             }
 
             PatcherEnvironmentProvider.Environment.SuspendEnvironment(); // allow access to SynthEBD.esp if it is active in the load order
