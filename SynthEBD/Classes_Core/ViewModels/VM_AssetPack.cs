@@ -73,7 +73,12 @@ namespace SynthEBD
 
             RemoveAssetPackConfigFile = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => { FileDialogs.ConfirmFileDeletion(this.SourcePath, "Asset Pack Config File"); this.ParentCollection.Remove(this); }
+                execute: _ => {
+                    if (FileDialogs.ConfirmFileDeletion(this.SourcePath, "Asset Pack Config File"))
+                    {
+                        ParentCollection.Remove(this);
+                    }
+                }
                 );
 
             AddAdditionalRecordTemplateAssignment = new SynthEBD.RelayCommand(

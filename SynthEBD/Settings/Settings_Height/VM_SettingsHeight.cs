@@ -34,12 +34,13 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    FileDialogs.ConfirmFileDeletion(SelectedHeightConfig.SourcePath, "Height Configuration File");
-
-                    this.AvailableHeightConfigs.Remove(SelectedHeightConfig);
-                    if (this.AvailableHeightConfigs.Count > 0)
+                    if (FileDialogs.ConfirmFileDeletion(SelectedHeightConfig.SourcePath, "Height Configuration File"))
                     {
-                        this.SelectedHeightConfig = AvailableHeightConfigs[0];
+                        this.AvailableHeightConfigs.Remove(SelectedHeightConfig);
+                        if (this.AvailableHeightConfigs.Count > 0)
+                        {
+                            this.SelectedHeightConfig = AvailableHeightConfigs[0];
+                        }
                     }
                 }
                 );

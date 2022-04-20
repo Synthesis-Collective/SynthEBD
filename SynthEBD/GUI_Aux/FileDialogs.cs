@@ -9,20 +9,27 @@ namespace SynthEBD
 {
     class FileDialogs
     {
-        public static void ConfirmFileDeletion(string path, string filetype)
+        public static bool ConfirmFileDeletion(string path, string filetype)
         {
-            MessageBoxResult result = MessageBox.Show("Are you sure you want to permanently delete this " + filetype + "?", "", MessageBoxButton.YesNo);
-
-            if (path != "")
+            if (MessageBox.Show("Are you sure you want to permanently delete this " + filetype + "?", "", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
             {
                 try
                 {
-                    System.IO.File.Delete(path);
+                    if (!string.IsNullOrWhiteSpace(path))
+                    {
+                        System.IO.File.Delete(path);
+                    }
+                    return true;
                 }
                 catch
                 {
                     Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not delete file at " + path, ErrorType.Warning, 5);
+                    return false;
                 }
+            }
+            else
+            {
+                return false;
             }
         }
     }
