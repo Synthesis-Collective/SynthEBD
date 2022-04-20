@@ -64,6 +64,8 @@ namespace SynthEBD
 
             RecordTemplateLinkCache = recordTemplateLinkCache;
 
+            this.WhenAnyValue(x => x.Gender).Subscribe(x => SetDefaultRecordTemplate());
+
             AddSubgroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => { Subgroups.Add(new VM_Subgroup(generalSettingsVM.RaceGroupings, Subgroups, this, OBodyDescriptorMenu, false)); }
@@ -479,6 +481,25 @@ namespace SynthEBD
             }
         }
 
+        public void SetDefaultRecordTemplate()
+        {
+            switch(Gender)
+            {
+                case Gender.Male:
+                    if (RecordTemplateLinkCache.TryResolve("DefaultMale", out var defaultMaleRec))
+                    {
+                        DefaultTemplateFK = defaultMaleRec.FormKey;
+                    }
+                    break;
+                case Gender.Female:
+                    if (RecordTemplateLinkCache.TryResolve("DefaultFemale", out var defaultFemaleRec))
+                    {
+                        DefaultTemplateFK = defaultFemaleRec.FormKey;
+                    }
+                    break;
+            }
+            
+        }
 
         public event PropertyChangedEventHandler PropertyChanged;
     }
