@@ -28,43 +28,31 @@ namespace SynthEBD
                 }
                 else
                 {
-                    return TryAllEnvironments();
+                    return new PatcherEnvironment(null);
                 }
                 
             });
 
         public static PatcherEnvironment Environment => _env.Value;
 
-        public static PatcherEnvironment TryAllEnvironments()
+        public static IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> TryAllEnvironments()
         {
-            try
-            {
-                return new PatcherEnvironment(SkyrimRelease.SkyrimSE);
-            }
-            catch { };
-            try
-            {
-                new PatcherEnvironment(SkyrimRelease.SkyrimVR);
-            }
-            catch { };
-            try
-            {
-                new PatcherEnvironment(SkyrimRelease.SkyrimLE);
-            }
-            catch { };
-            try
-            {
-                new PatcherEnvironment(SkyrimRelease.EnderalSE);
-            }
-            catch { };
-            try
-            {
-                new PatcherEnvironment(SkyrimRelease.EnderalLE);
-            }
-            catch { };
+            SkyrimRelease[] releases = new SkyrimRelease[] { SkyrimRelease.SkyrimSE, SkyrimRelease.SkyrimVR, SkyrimRelease.SkyrimLE, SkyrimRelease.EnderalSE, SkyrimRelease.EnderalLE };
 
-            MessageBox.Show("Environment creation failed. Could not detect any supported versions of Skyirm.");
+            foreach (var release in releases)
+            {
+                try
+                {
+                    return GameEnvironment.Typical.Skyrim(release, LinkCachePreferences.OnlyIdentifiers());
+                }
+                catch { 
+                    continue; 
+                }
+            }
+
+            MessageBox.Show("Environment creation failed. Could not detect any supported versions of Skyrim.");
             System.Windows.Application.Current.Shutdown();
+            System.Environment.Exit(1);
             return null;
         }
     }
@@ -92,16 +80,22 @@ namespace SynthEBD
 
         private static IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> OriginState { get; set; }
 
-        public PatcherEnvironment(SkyrimRelease gameType)
+        public PatcherEnvironment(SkyrimRelease? gameType)
         {
-            try
+            if (gameType is not null)
             {
-                OriginState = GameEnvironment.Typical.Skyrim(gameType, LinkCachePreferences.OnlyIdentifiers());
+                try
+                {
+                    OriginState = GameEnvironment.Typical.Skyrim(gameType.Value, LinkCachePreferences.OnlyIdentifiers());
+                }
+                catch
+                {
+                    OriginState = PatcherEnvironmentProvider.TryAllEnvironments();
+                }
             }
-            catch (Exception ex)
+            else
             {
-                MessageBox.Show("Patcher environment creation failed with the following error: " + Environment.NewLine + ex.Message);
-                Environment.Exit(-1);
+                OriginState = PatcherEnvironmentProvider.TryAllEnvironments();
             }
 
             if (PatcherSettings.General != null)
@@ -163,6 +157,7 @@ namespace SynthEBD
             {
                 MessageBox.Show("Patcher environment creation failed with the following error: " + Environment.NewLine + ex.Message);
                 Environment.Exit(-1);
+                Application.Current.Shutdown();
             }
             Refresh(outputModName, false);
             LinkCache = LoadOrder.ToMutableLinkCache();
