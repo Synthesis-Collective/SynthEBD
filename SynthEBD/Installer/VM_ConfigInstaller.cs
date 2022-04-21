@@ -19,12 +19,14 @@ namespace SynthEBD
             DisplayedViewModel = SelectorMenu;
 
             Cancelled = false;
+            Completed = false;
         }
         public Window_ConfigInstaller Window { get; set; }
         public object DisplayedViewModel { get; set; }
         public VM_ConfigSelector SelectorMenu { get; set; }
         public VM_DownloadCoordinator DownloadMenu { get; set; }
         public bool Cancelled { get; set; }
+        public bool Completed { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
     }

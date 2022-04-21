@@ -53,6 +53,7 @@ namespace SynthEBD
                     }
                     if(allFound)
                     {
+                        parentVM.Completed = true;
                         AssociatedWindow.Close();
                     }
                 }

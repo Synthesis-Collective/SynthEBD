@@ -81,7 +81,7 @@ namespace SynthEBD
             installerWindow.DataContext = installerVM;
             installerWindow.ShowDialog();
 
-            if (installerVM.Cancelled)
+            if (installerVM.Cancelled || !installerVM.Completed)
             {
                 return installedConfigs;
             }
