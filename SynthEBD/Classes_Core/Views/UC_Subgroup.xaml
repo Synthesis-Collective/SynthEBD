@@ -19,6 +19,7 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto" MinWidth="215"/>
             <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="auto"/>
         </Grid.ColumnDefinitions>
 
         <Grid.RowDefinitions>
@@ -48,6 +49,14 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
+        <ItemsControl Grid.Row="0" Grid.RowSpan="24" Grid.Column="2" ItemsSource="{Binding PreviewImages}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+        </ItemsControl>
+        
         <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Used internally and for logging" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">ID</TextBlock>
         <TextBox Grid.Row="0" Grid.Column="1" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=ID, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 

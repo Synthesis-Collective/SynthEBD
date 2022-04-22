@@ -13,6 +13,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Collections.Specialized;
 using ReactiveUI;
+using Pfim;
+using System.Windows.Media.Imaging;
 
 namespace SynthEBD
 {
@@ -67,6 +69,9 @@ namespace SynthEBD
                 this.PathsMenu = new VM_FilePathReplacementMenu(this, setExplicitReferenceNPC, parentAssetPack.RecordTemplateLinkCache);
                 parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => this.PathsMenu.ReferenceLinkCache = parentAssetPack.RecordTemplateLinkCache);
             }
+
+            ImagePaths = new HashSet<string>();
+            PreviewImages = new ObservableCollection<Image>();
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -154,6 +159,9 @@ namespace SynthEBD
         public ObservableCollection<VM_Subgroup> ParentCollection { get; set; }
         public VM_AssetPack ParentAssetPack { get; set; }
         public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
+        
+        public HashSet<string> ImagePaths { get; set; }
+        public ObservableCollection<Image> PreviewImages { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -197,7 +205,34 @@ namespace SynthEBD
                 viewModel.Subgroups.Add(GetViewModelFromModel(sg, generalSettingsVM, viewModel.Subgroups, parentAssetPack, OBodyDescriptorMenu, setExplicitReferenceNPC));
             }
 
+            //dds preview
+            GetDDSPaths(viewModel, viewModel.ImagePaths);
+            viewModel.PathsToImages();
+
             return viewModel;
+        }
+
+        public static void GetDDSPaths(VM_Subgroup viewModel, HashSet<string> paths)
+        {
+            var ddsPaths = viewModel.PathsMenu.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, x.Source))).Select(x => x.Source).ToHashSet();
+            paths.UnionWith(ddsPaths.Select(x => System.IO.Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, x)));
+            foreach (var subgroup in viewModel.Subgroups)
+            {
+                GetDDSPaths(subgroup, paths);
+            }
+        }
+
+        public async void PathsToImages()
+        {
+            foreach (var file in this.ImagePaths)
+            {
+                IImage image = await Task.Run(() => Pfim.Pfim.FromFile(file));
+                foreach (var im in Graphics.WpfImage(image))
+                {
+                    this.PreviewImages.Add(im);
+                }
+            }
+            int debug = 0;
         }
 
         public void CallRefreshTrackedBodyShapeDescriptorsC(object sender, NotifyCollectionChangedEventArgs e)
