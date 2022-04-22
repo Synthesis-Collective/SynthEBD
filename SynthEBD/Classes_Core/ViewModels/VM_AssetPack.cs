@@ -64,6 +64,10 @@ namespace SynthEBD
 
             RecordTemplateLinkCache = recordTemplateLinkCache;
 
+            PreviewImages = new ObservableCollection<System.Windows.Controls.Image>();
+
+            this.WhenAnyValue(x => x.DisplayedSubgroup).Subscribe(x => UpdatePreviewImages());
+
             this.WhenAnyValue(x => x.Gender).Subscribe(x => SetDefaultRecordTemplate());
 
             AddSubgroup = new SynthEBD.RelayCommand(
@@ -153,6 +157,11 @@ namespace SynthEBD
                     Logger.CallTimedNotifyStatusUpdateAsync("Discarded Changes", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
                 }
                 );
+
+            SelectedSubgroupChanged = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x => this.DisplayedSubgroup = (VM_Subgroup)x
+                );
         }
 
         public string GroupName { get; set; }
@@ -185,6 +194,8 @@ namespace SynthEBD
 
         public ObservableCollection<VM_AssetPack> ParentCollection { get; set; }
 
+        public VM_Subgroup DisplayedSubgroup { get; set; }
+
         public RelayCommand RemoveAssetPackConfigFile { get; }
         public RelayCommand AddSubgroup { get; }
         public RelayCommand AddAdditionalRecordTemplateAssignment { get; }
@@ -193,7 +204,10 @@ namespace SynthEBD
         public RelayCommand ValidateButton { get; }
         public RelayCommand SaveButton { get; }
         public RelayCommand DiscardButton { get; }
+        public RelayCommand SelectedSubgroupChanged { get; }
         public BodyShapeSelectionMode BodyShapeMode { get; set; }
+
+        public ObservableCollection<System.Windows.Controls.Image> PreviewImages { get; set; }
 
         public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>() // referenced by xaml; don't trust VS reference count
         {
@@ -206,6 +220,26 @@ namespace SynthEBD
             var model = DumpViewModelToModel(this);
             errors = new List<string>();
             return model.Validate(errors, bodyGenConfigs);
+        }
+
+        public async void UpdatePreviewImages()
+        {
+            this.PreviewImages.Clear();
+            if (this.DisplayedSubgroup == null) { return; }
+            foreach (var file in this.DisplayedSubgroup.ImagePaths)
+            {
+                Pfim.IImage image = await Task.Run(() => Pfim.Pfim.FromFile(file));
+                if (image != null)
+                {
+                    var converted = Graphics.WpfImage(image).FirstOrDefault();
+                    if (converted != null)
+                    {
+                        converted.Stretch = Stretch.Uniform;
+                        converted.StretchDirection = System.Windows.Controls.StretchDirection.DownOnly;
+                        PreviewImages.Add(converted);
+                    }
+                }    
+            }
         }
 
         public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(ObservableCollection<VM_AssetPack> viewModels, List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)

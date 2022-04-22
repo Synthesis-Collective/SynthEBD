@@ -71,7 +71,6 @@ namespace SynthEBD
             }
 
             ImagePaths = new HashSet<string>();
-            PreviewImages = new ObservableCollection<Image>();
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -161,7 +160,6 @@ namespace SynthEBD
         public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
         
         public HashSet<string> ImagePaths { get; set; }
-        public ObservableCollection<Image> PreviewImages { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -207,7 +205,6 @@ namespace SynthEBD
 
             //dds preview
             GetDDSPaths(viewModel, viewModel.ImagePaths);
-            viewModel.PathsToImages();
 
             return viewModel;
         }
@@ -220,19 +217,6 @@ namespace SynthEBD
             {
                 GetDDSPaths(subgroup, paths);
             }
-        }
-
-        public async void PathsToImages()
-        {
-            foreach (var file in this.ImagePaths)
-            {
-                IImage image = await Task.Run(() => Pfim.Pfim.FromFile(file));
-                foreach (var im in Graphics.WpfImage(image))
-                {
-                    this.PreviewImages.Add(im);
-                }
-            }
-            int debug = 0;
         }
 
         public void CallRefreshTrackedBodyShapeDescriptorsC(object sender, NotifyCollectionChangedEventArgs e)
