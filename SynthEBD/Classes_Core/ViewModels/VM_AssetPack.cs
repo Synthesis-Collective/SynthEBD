@@ -66,6 +66,8 @@ namespace SynthEBD
 
             PreviewImages = new ObservableCollection<System.Windows.Controls.Image>();
 
+            ParentMenuVM = mainVM.TexMeshSettingsVM;
+
             this.WhenAnyValue(x => x.DisplayedSubgroup).Subscribe(x => UpdatePreviewImages());
 
             this.WhenAnyValue(x => x.Gender).Subscribe(x => SetDefaultRecordTemplate());
@@ -206,9 +208,10 @@ namespace SynthEBD
         public RelayCommand DiscardButton { get; }
         public RelayCommand SelectedSubgroupChanged { get; }
         public BodyShapeSelectionMode BodyShapeMode { get; set; }
-
+        public bool ShowPreviewImages { get; set; }
         public ObservableCollection<System.Windows.Controls.Image> PreviewImages { get; set; }
 
+        public VM_SettingsTexMesh ParentMenuVM { get; set; }
         public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>() // referenced by xaml; don't trust VS reference count
         {
             {Gender.Male, "Male"},

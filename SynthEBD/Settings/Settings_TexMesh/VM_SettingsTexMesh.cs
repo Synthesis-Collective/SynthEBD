@@ -23,6 +23,7 @@ namespace SynthEBD
             this.bForceVanillaBodyMeshPath = false;
             this.bDisplayPopupAlerts = true;
             this.bGenerateAssignmentLog = true;
+            this.bShowPreviewImages = true;
             this.TrimPaths = new ObservableCollection<TrimPath>();
             this.AssetPacks = new ObservableCollection<VM_AssetPack>();
 
@@ -110,7 +111,7 @@ namespace SynthEBD
         public bool bForceVanillaBodyMeshPath { get; set; }
         public bool bDisplayPopupAlerts { get; set; }
         public bool bGenerateAssignmentLog { get; set; }
-
+        public bool bShowPreviewImages { get; set; }
         public ObservableCollection<TrimPath> TrimPaths { get; set; }
 
         public ObservableCollection<VM_AssetPack> AssetPacks { get; set; }
@@ -149,6 +150,7 @@ namespace SynthEBD
             viewModel.bForceVanillaBodyMeshPath = model.bForceVanillaBodyMeshPath;
             viewModel.bDisplayPopupAlerts = model.bDisplayPopupAlerts;
             viewModel.bGenerateAssignmentLog = model.bGenerateAssignmentLog;
+            viewModel.bShowPreviewImages = model.bShowPreviewImages;
             viewModel.TrimPaths = new ObservableCollection<TrimPath>(model.TrimPaths);
         }
 
@@ -161,6 +163,7 @@ namespace SynthEBD
             model.bForceVanillaBodyMeshPath = viewModel.bForceVanillaBodyMeshPath;
             model.bDisplayPopupAlerts = viewModel.bDisplayPopupAlerts;
             model.bGenerateAssignmentLog = viewModel.bGenerateAssignmentLog;
+            model.bShowPreviewImages = viewModel.bShowPreviewImages;
             model.SelectedAssetPacks = viewModel.AssetPacks.Where(x => x.IsSelected).Select(x => x.GroupName).ToHashSet();
         }
 

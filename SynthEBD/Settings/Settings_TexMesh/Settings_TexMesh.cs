@@ -18,6 +18,7 @@ namespace SynthEBD
             this.bForceVanillaBodyMeshPath = false;
             this.bDisplayPopupAlerts = true;
             this.bGenerateAssignmentLog = true;
+            this.bShowPreviewImages = true;
             this.SelectedAssetPacks = new HashSet<string>();
             this.TrimPaths = new HashSet<TrimPath>();
         }
@@ -29,7 +30,7 @@ namespace SynthEBD
         public bool bForceVanillaBodyMeshPath { get; set; }
         public bool bDisplayPopupAlerts { get; set; }
         public bool bGenerateAssignmentLog { get; set; }
-
+        public bool bShowPreviewImages { get; set; }
         public HashSet<string> SelectedAssetPacks { get; set; }
         [JsonIgnore]
         public HashSet<TrimPath> TrimPaths { get; set; }
