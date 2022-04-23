@@ -28,8 +28,9 @@
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="auto"/>
+                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width= "auto"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="auto"/>
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="auto"/>
@@ -46,15 +47,26 @@
                     <RowDefinition Height="auto"/>
                 </Grid.RowDefinitions>
 
-                <ItemsControl Grid.Row="0" Grid.RowSpan="24" Grid.Column="2" ItemsSource="{Binding PreviewImages}" Width="300" Height="550">
+                <GridSplitter Grid.Row="0" Grid.Column="2" Grid.RowSpan="12" Margin="3,0,3,0"
+                  Width="3" Background="Purple" 
+                  VerticalAlignment="Stretch" 
+                  HorizontalAlignment="Center" />
+                
+                <ItemsControl Grid.Row="0" Grid.RowSpan="12" Grid.Column="3" ItemsSource="{Binding PreviewImages}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <WrapPanel Width="300" Height="550" />
+                            <WrapPanel>
+                                <WrapPanel.Resources>
+                                    <Style TargetType="{x:Type Image}">
+                                        <Setter Property="Margin" Value="0 0 0 2" />
+                                    </Style>
+                                </WrapPanel.Resources>
+                            </WrapPanel>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Image Source="{Binding}" Height="50" Width="50" Stretch="Uniform" StretchDirection="DownOnly"/>
+                            <Image Source="{Binding}" MaxHeight="50" Stretch="Uniform" StretchDirection="DownOnly"/>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

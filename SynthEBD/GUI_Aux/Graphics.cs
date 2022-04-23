@@ -27,13 +27,15 @@ namespace SynthEBD
             yield return new Image
             {
                 Source = bsource,
-                Width = image.Width,
-                Height = image.Height,
-                MaxHeight = image.Height,
-                MaxWidth = image.Width,
-                Margin = new Thickness(4)
+                // parameters below are set in the original pfim code, but interfere with xaml sizing. Leaving commented code for reference
+                //Width = image.Width,
+                //Height = image.Height,
+                //MaxHeight = image.Height,
+                //MaxWidth = image.Width,
+                //Margin = new Thickness(4)
             };
 
+            /* This was in the original pfim code, but mipmaps are not needed for SynthEBD and just slow down the load.
             foreach (var mip in image.MipMaps)
             {
                 var mipAddr = addr + mip.DataOffset;
@@ -41,7 +43,7 @@ namespace SynthEBD
                     PixelFormat(image), null, mipAddr, mip.DataLen, mip.Stride);
                 yield return new Image
                 {
-                    Source = mipSource,
+                    Source = mipSource,z
                     Width = mip.Width,
                     Height = mip.Height,
                     MaxHeight = mip.Height,
@@ -49,6 +51,7 @@ namespace SynthEBD
                     Margin = new Thickness(4)
                 };
             }
+            */
         }
 
         private static PixelFormat PixelFormat(IImage image)
