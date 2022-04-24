@@ -71,7 +71,7 @@
                   VerticalAlignment="Stretch" 
                   HorizontalAlignment="Center" Visibility="{Binding Path=ParentMenuVM.bShowPreviewImages, Converter={StaticResource BoolToVis}}" />
 
-                <ScrollViewer Grid.Row="5" Grid.Column="3" Height="{Binding Path=ActualHeight, ElementName=ContentDisplay}">
+                <ScrollViewer Grid.Row="5" Grid.Column="3" Height="{Binding Path=ActualHeight, ElementName=SubgroupPresenter}">
                     <ItemsControl ItemsSource="{Binding PreviewImages}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>

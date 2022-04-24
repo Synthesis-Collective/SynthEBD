@@ -70,9 +70,8 @@ namespace SynthEBD
                 parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => this.PathsMenu.ReferenceLinkCache = parentAssetPack.RecordTemplateLinkCache);
             }
 
-            this.PathsMenu.WhenAnyValue(x => x.Paths).Subscribe(x => GetDDSPaths(this, this.ImagePaths));
-
             ImagePaths = new HashSet<string>();
+            this.PathsMenu.WhenAnyValue(x => x.Paths).Subscribe(x => GetDDSPaths(this, this.ImagePaths));
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
