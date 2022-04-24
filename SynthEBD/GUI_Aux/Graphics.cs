@@ -16,6 +16,34 @@ namespace SynthEBD
     {
         private static List<GCHandle> handles = new List<GCHandle>();
 
+        public class ImagePathWithSource
+        {
+            public ImagePathWithSource(string path, string source)
+            {
+                Path = path;
+                Source = source;
+            }
+            public string Path { get; set; }
+            public string Source { get; set; }
+
+            public override bool Equals(object obj)
+            {
+                var item = obj as ImagePathWithSource;
+                if (item == null) { return false; }
+                return item.Path == Path && item.Source == Source;
+            }
+
+            public override int GetHashCode()
+            {
+                return (Path + Source).GetHashCode();
+            }
+
+            public static string GetSource(VM_Subgroup subgroup)
+            {
+                return subgroup.ID + ": " + subgroup.Name;
+            }
+        }
+
         public static IEnumerable<Image> WpfImage(IImage image)
         {
             var pinnedArray = GCHandle.Alloc(image.Data, GCHandleType.Pinned);

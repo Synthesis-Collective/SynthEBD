@@ -76,17 +76,18 @@
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <WrapPanel>
+                                    <!--
                                     <WrapPanel.Resources>
                                         <Style TargetType="{x:Type Image}">
                                             <Setter Property="Margin" Value="0 0 0 2" />
                                         </Style>
-                                    </WrapPanel.Resources>
+                                    </WrapPanel.Resources> -->
                                 </WrapPanel>
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Image Source="{Binding}" Stretch="Uniform" StretchDirection="DownOnly"/>
+                                <local:UC_PreviewImage DataContext="{Binding .}"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

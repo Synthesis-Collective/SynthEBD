@@ -70,7 +70,7 @@ namespace SynthEBD
                 parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => this.PathsMenu.ReferenceLinkCache = parentAssetPack.RecordTemplateLinkCache);
             }
 
-            ImagePaths = new HashSet<string>();
+            ImagePaths = new ObservableCollection<Graphics.ImagePathWithSource>();
             this.PathsMenu.WhenAnyValue(x => x.Paths).Subscribe(x => GetDDSPaths(this, this.ImagePaths));
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
@@ -160,7 +160,7 @@ namespace SynthEBD
         public VM_AssetPack ParentAssetPack { get; set; }
         public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
         
-        public HashSet<string> ImagePaths { get; set; }
+        public ObservableCollection<Graphics.ImagePathWithSource> ImagePaths { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -210,10 +210,22 @@ namespace SynthEBD
             return viewModel;
         }
 
-        public static void GetDDSPaths(VM_Subgroup viewModel, HashSet<string> paths)
+        public static void GetDDSPaths(VM_Subgroup viewModel, ObservableCollection<Graphics.ImagePathWithSource> paths)
         {
-            var ddsPaths = viewModel.PathsMenu.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, x.Source))).Select(x => x.Source).ToHashSet();
-            paths.UnionWith(ddsPaths.Select(x => System.IO.Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, x)));
+            var ddsPaths = viewModel.PathsMenu.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, x.Source)))
+                .Select(x => x.Source)
+                .Select(x => System.IO.Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, x))
+                .ToHashSet();
+            var source = Graphics.ImagePathWithSource.GetSource(viewModel);
+            foreach (var path in ddsPaths)
+            {
+                var imagePathWithSource = new Graphics.ImagePathWithSource(path, source);
+                if (!paths.Contains(imagePathWithSource))
+                {
+                    paths.Add(imagePathWithSource);
+                }
+            }
+            //paths.UnionWith(ddsPaths.Select(x => System.IO.Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, x)));
             foreach (var subgroup in viewModel.Subgroups)
             {
                 GetDDSPaths(subgroup, paths);

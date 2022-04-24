@@ -64,7 +64,7 @@ namespace SynthEBD
 
             RecordTemplateLinkCache = recordTemplateLinkCache;
 
-            PreviewImages = new ObservableCollection<System.Windows.Controls.Image>();
+            PreviewImages = new ObservableCollection<VM_PreviewImage>();
 
             ParentMenuVM = mainVM.TexMeshSettingsVM;
 
@@ -209,7 +209,7 @@ namespace SynthEBD
         public RelayCommand SelectedSubgroupChanged { get; }
         public BodyShapeSelectionMode BodyShapeMode { get; set; }
         public bool ShowPreviewImages { get; set; }
-        public ObservableCollection<System.Windows.Controls.Image> PreviewImages { get; set; }
+        public ObservableCollection<VM_PreviewImage> PreviewImages { get; set; }
 
         public VM_SettingsTexMesh ParentMenuVM { get; set; }
         public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>() // referenced by xaml; don't trust VS reference count
@@ -229,9 +229,9 @@ namespace SynthEBD
         {
             this.PreviewImages.Clear();
             if (this.DisplayedSubgroup == null) { return; }
-            foreach (var file in this.DisplayedSubgroup.ImagePaths)
+            foreach (var sourcedFile in this.DisplayedSubgroup.ImagePaths)
             {
-                Pfim.IImage image = await Task.Run(() => Pfim.Pfim.FromFile(file));
+                Pfim.IImage image = await Task.Run(() => Pfim.Pfim.FromFile(sourcedFile.Path));
                 if (image != null)
                 {
                     var converted = Graphics.WpfImage(image).FirstOrDefault();
@@ -239,10 +239,11 @@ namespace SynthEBD
                     {
                         converted.Stretch = Stretch.Uniform;
                         converted.StretchDirection = System.Windows.Controls.StretchDirection.DownOnly;
-                        PreviewImages.Add(converted);
+                        PreviewImages.Add(new VM_PreviewImage(converted, sourcedFile.Source));
                     }
                 }    
             }
+            return;
         }
 
         public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(ObservableCollection<VM_AssetPack> viewModels, List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)
