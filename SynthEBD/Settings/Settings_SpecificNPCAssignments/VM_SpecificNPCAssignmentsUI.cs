@@ -10,7 +10,7 @@ namespace SynthEBD
 {
     public class VM_SpecificNPCAssignmentsUI : INotifyPropertyChanged
     {
-        public VM_SpecificNPCAssignmentsUI(VM_SettingsTexMesh texMeshSettings, VM_SettingsBodyGen bodyGenSettings, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM)
+        public VM_SpecificNPCAssignmentsUI(VM_SettingsTexMesh texMeshSettings, VM_SettingsBodyGen bodyGenSettings, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, MainWindow_ViewModel mainVM)
         {
             this.Assignments = new ObservableCollection<VM_SpecificNPCAssignment>();
             this.CurrentlyDisplayedAssignment = null;
@@ -19,7 +19,7 @@ namespace SynthEBD
 
             AddAssignment = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.Assignments.Add(new VM_SpecificNPCAssignment(texMeshSettings.AssetPacks, bodyGenSettings, oBodySettings, generalSettingsVM))
+                execute: _ => this.Assignments.Add(new VM_SpecificNPCAssignment(texMeshSettings.AssetPacks, bodyGenSettings, oBodySettings, generalSettingsVM, mainVM))
                 );
 
             RemoveAssignment = new SynthEBD.RelayCommand(
@@ -29,7 +29,7 @@ namespace SynthEBD
 
             ImportFromZEBDcommand = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => ImportFromZEBD(oBodySettings, generalSettingsVM)
+                execute: _ => ImportFromZEBD(oBodySettings, generalSettingsVM, mainVM)
                 );
 
             Save = new SynthEBD.RelayCommand(
@@ -67,12 +67,12 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static void GetViewModelFromModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<NPCAssignment> models, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM)
+        public static void GetViewModelFromModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<NPCAssignment> models, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, MainWindow_ViewModel mainVM)
         {
             viewModel.Assignments.Clear();
             foreach (var assignment in models)
             {
-                viewModel.Assignments.Add(VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, viewModel.TexMeshSettings.AssetPacks, viewModel.BodyGenSettings, oBodySettings, generalSettingsVM));
+                viewModel.Assignments.Add(VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, viewModel.TexMeshSettings.AssetPacks, viewModel.BodyGenSettings, oBodySettings, generalSettingsVM, mainVM));
             }
         }
 
@@ -85,7 +85,7 @@ namespace SynthEBD
             }
         }
 
-        public void ImportFromZEBD(VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM)
+        public void ImportFromZEBD(VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, MainWindow_ViewModel mainVM)
         {
             // Configure open file dialog box
             var dialog = new Microsoft.Win32.OpenFileDialog();
@@ -109,7 +109,7 @@ namespace SynthEBD
 
                     foreach (var model in newModels)
                     {
-                        var assignmentVM = VM_SpecificNPCAssignment.GetViewModelFromModel(model, this.TexMeshSettings.AssetPacks, this.BodyGenSettings, oBodySettings, generalSettingsVM);
+                        var assignmentVM = VM_SpecificNPCAssignment.GetViewModelFromModel(model, this.TexMeshSettings.AssetPacks, this.BodyGenSettings, oBodySettings, generalSettingsVM, mainVM);
                         if (assignmentVM != null) // null if the imported NPC doesn't exist in the current load order
                         {
                             this.Assignments.Add(assignmentVM);

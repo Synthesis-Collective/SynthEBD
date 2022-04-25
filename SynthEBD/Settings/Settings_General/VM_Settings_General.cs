@@ -46,6 +46,7 @@ namespace SynthEBD
             this.RaceGroupings = new ObservableCollection<VM_RaceGrouping>();
             AttributeGroupMenu = new VM_AttributeGroupMenu(null, false);
             OverwritePluginAttGroups = true;
+            this.CustomGamePath = "";
 
             this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
@@ -89,7 +90,35 @@ namespace SynthEBD
                 }
                 );
 
-            this.WhenAnyValue(x => x.bLoadSettingsFromDataFolder).Skip(1).Subscribe(x =>
+            SelectCustomGameFolder = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    if (IO_Aux.SelectFile("", "Executable files (*.exe)|*.exe", "Select your game executable", out var gamePath))
+                    {
+                        CustomGamePath = gamePath;
+                        PatcherSettings.General.CustomGamePath = gamePath;
+                        PatcherEnvironmentProvider.Environment.RefreshAndChangeGameType(SkyrimVersion, patchFileName);
+                    }
+                }
+                );
+
+            ClearCustomGameFolder = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    if (string.IsNullOrWhiteSpace(PatcherSettings.General.CustomGamePath))
+                    {
+                        System.Windows.MessageBox.Show("There is no custom game path to clear.");
+                        return;
+                    }
+                    CustomGamePath = "";
+                    PatcherSettings.General.CustomGamePath = "";
+                    PatcherEnvironmentProvider.Environment.RefreshAndChangeGameType(SkyrimVersion, patchFileName);
+                }
+                );
+
+            this.WhenAnyValue(x => x.bLoadSettingsFromDataFolder).Skip(2).Subscribe(x =>
             {
                 System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;
                 PatcherSettings.General.bLoadSettingsFromDataFolder = bLoadSettingsFromDataFolder;
@@ -128,7 +157,7 @@ namespace SynthEBD
         public ObservableCollection<FormKey> verboseModeNPClist { get; set; }
         public bool VerboseModeDetailedAttributes { get; set; }
         public bool bLoadSettingsFromDataFolder { get; set;  }
-
+        public string CustomGamePath { get; set; }
         public ObservableCollection<FormKey> patchableRaces { get; set; }
 
         public ObservableCollection<VM_raceAlias> raceAliases { get; set;  }
@@ -147,6 +176,8 @@ namespace SynthEBD
         public RelayCommand AddLinkedNPCGroup { get; }
         public RelayCommand RemoveLinkedNPCGroup { get; }
         public RelayCommand SelectOutputFolder { get; }
+        public RelayCommand SelectCustomGameFolder { get; }
+        public RelayCommand ClearCustomGameFolder { get; }
 
         public static void GetViewModelFromModel(VM_Settings_General viewModel)
         {
@@ -173,6 +204,7 @@ namespace SynthEBD
             viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, PatcherEnvironmentProvider.Environment, viewModel);
             VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu);
             viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;
+            viewModel.CustomGamePath = model.CustomGamePath;
         }
         public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
         {
@@ -210,6 +242,7 @@ namespace SynthEBD
 
             VM_AttributeGroupMenu.DumpViewModelToModels(viewModel.AttributeGroupMenu, model.AttributeGroups);
             model.OverwritePluginAttGroups = viewModel.OverwritePluginAttGroups;
+            model.CustomGamePath = viewModel.CustomGamePath;
 
             PatcherSettings.General = model;
         }

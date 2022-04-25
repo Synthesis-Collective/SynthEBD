@@ -19,7 +19,7 @@ namespace SynthEBD
             this.BodySelectionMode = BodyShapeSelectionMode.None;
             this.BSSelectionMode = BodySlideSelectionMode.OBody;
             this.bChangeHeight = true;
-            this.OutputDataFolder = PatcherEnvironmentProvider.Environment.DataFolderPath;
+            this.OutputDataFolder = "";
             this.bEnableConsistency = true;
             this.ExcludePlayerCharacter = true;
             this.ExcludePresets = true;
@@ -30,6 +30,7 @@ namespace SynthEBD
             this.VerboseModeNPClist = new List<FormKey>();
             this.VerboseModeDetailedAttributes = false;
             this.bLoadSettingsFromDataFolder = false;
+            this.CustomGamePath = "";
             this.PatchableRaces = new List<FormKey>()
             {
                 Skyrim.Race.NordRace.FormKey,
@@ -111,6 +112,7 @@ namespace SynthEBD
         public BodySlideSelectionMode BSSelectionMode { get; set; }
         public bool bChangeHeight { get; set; }
         public string OutputDataFolder { get; set; }
+        public string CustomGamePath { get; set; }
         public bool bEnableConsistency { get; set; }
         public bool ExcludePlayerCharacter { get; set; }
         public bool ExcludePresets { get; set; }

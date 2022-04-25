@@ -123,7 +123,7 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    if (IO_Aux.SelectFile("", "Executable files (*.exe)|*.exe", out var execPath))
+                    if (IO_Aux.SelectFile("", "Executable files (*.exe)|*.exe", "Select the MO2 executable", out var execPath))
                     {
                         ExecutablePath = execPath;
                     }

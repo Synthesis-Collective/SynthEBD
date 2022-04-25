@@ -21,11 +21,11 @@ namespace SynthEBD
         public VM_SettingsTexMesh TexMeshSettingsVM { get; }
         public VM_SettingsBodyGen BodyGenSettingsVM { get; }
         public VM_SettingsOBody OBodySettingsVM { get; }
-        public VM_SettingsHeight HeightSettingsVM { get; } = new();
+        public VM_SettingsHeight HeightSettingsVM { get; }
         public VM_SpecificNPCAssignmentsUI SpecificAssignmentsUIVM { get; }
         public VM_ConsistencyUI ConsistencyUIVM { get; }
         public VM_BlockListUI BlockListVM { get; } = new();
-        public VM_SettingsModManager ModManagerSettingsVM { get; } = new();
+        public VM_SettingsModManager ModManagerSettingsVM { get; }
         public VM_NavPanel NavPanelVM { get; }
 
         public VM_RunButton RunButtonVM { get; }
@@ -49,22 +49,23 @@ namespace SynthEBD
 
         public MainWindow_ViewModel()
         {
+            // Load general settings
+            SettingsIO_General.LoadGeneralSettings(out _);
             GeneralSettingsVM = new VM_Settings_General(this);
+            VM_Settings_General.GetViewModelFromModel(GeneralSettingsVM);
+
+            HeightSettingsVM = new VM_SettingsHeight();
             BodyGenSettingsVM = new VM_SettingsBodyGen(GeneralSettingsVM);
             OBodySettingsVM = new VM_SettingsOBody(GeneralSettingsVM.RaceGroupings, GeneralSettingsVM);
             TexMeshSettingsVM = new VM_SettingsTexMesh(this);
-            SpecificAssignmentsUIVM = new VM_SpecificNPCAssignmentsUI(TexMeshSettingsVM, BodyGenSettingsVM, OBodySettingsVM, GeneralSettingsVM);
+            SpecificAssignmentsUIVM = new VM_SpecificNPCAssignmentsUI(TexMeshSettingsVM, BodyGenSettingsVM, OBodySettingsVM, GeneralSettingsVM, this);
             ConsistencyUIVM = new VM_ConsistencyUI();
-
+            ModManagerSettingsVM = new VM_SettingsModManager();
             NavPanelVM = new VM_NavPanel(this);
 
             StatusBarVM = new VM_StatusBar();
 
             RunButtonVM = new VM_RunButton(this);
-
-            // Load general settings
-            SettingsIO_General.LoadGeneralSettings(out _);
-            VM_Settings_General.GetViewModelFromModel(GeneralSettingsVM);
 
             // get paths
             PatcherSettings.Paths = new Paths();
@@ -168,7 +169,7 @@ namespace SynthEBD
             // load specific assignments (must load after plugin view models)
             SpecificNPCAssignments = SettingsIO_SpecificNPCAssignments.LoadAssignments(out loadSuccess);
             if (!loadSuccess) { Logger.SwitchViewToLogDisplay(); }
-            VM_SpecificNPCAssignmentsUI.GetViewModelFromModels(SpecificAssignmentsUIVM, SpecificNPCAssignments, OBodySettingsVM, GeneralSettingsVM);
+            VM_SpecificNPCAssignmentsUI.GetViewModelFromModels(SpecificAssignmentsUIVM, SpecificNPCAssignments, OBodySettingsVM, GeneralSettingsVM, this);
 
             // Load Consistency (must load after plugin view models)
             Consistency = SettingsIO_Misc.LoadConsistency(out loadSuccess);

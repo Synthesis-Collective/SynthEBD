@@ -80,23 +80,63 @@ namespace SynthEBD
 
         private static IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> OriginState { get; set; }
 
-        public PatcherEnvironment(SkyrimRelease? gameType)
+        private static GameRelease SkyrimReleaseToGameRelease(SkyrimRelease gameType)
+        {
+            switch(gameType)
+            {
+                case SkyrimRelease.SkyrimSE: return GameRelease.SkyrimSE;
+                case SkyrimRelease.SkyrimLE: return GameRelease.SkyrimLE;
+                case SkyrimRelease.SkyrimVR: return GameRelease.SkyrimVR;
+                case SkyrimRelease.EnderalSE: return GameRelease.EnderalSE;
+                case SkyrimRelease.EnderalLE: return GameRelease.EnderalLE;
+                default: return new GameRelease();
+            }
+        }
+
+        public void GetOriginState(SkyrimRelease? gameType)
         {
             if (gameType is not null)
             {
-                try
+                if (!string.IsNullOrWhiteSpace(PatcherSettings.General.CustomGamePath))
                 {
-                    OriginState = GameEnvironment.Typical.Skyrim(gameType.Value, LinkCachePreferences.OnlyIdentifiers());
+                    var gameDir = System.IO.Path.GetDirectoryName(PatcherSettings.General.CustomGamePath);
+                    var dataDir = System.IO.Path.Combine(gameDir, "data");
+                    try
+                    {
+                        OriginState = GameEnvironment.Typical.Builder<ISkyrimMod, ISkyrimModGetter>(SkyrimReleaseToGameRelease(gameType.Value)).WithTargetDataFolder(dataDir).Build();
+                        Logger.TimedNotifyStatusUpdate("Built environment from " + PatcherSettings.General.CustomGamePath, ErrorType.Warning, 3);
+                    }
+                    catch
+                    {
+                        Logger.TimedNotifyStatusUpdate("Could not build environment from " + PatcherSettings.General.CustomGamePath, ErrorType.Error, 5);
+                    }
                 }
-                catch
+                else
                 {
-                    OriginState = PatcherEnvironmentProvider.TryAllEnvironments();
+                    GetDefaultOriginState(gameType);
                 }
             }
             else
             {
                 OriginState = PatcherEnvironmentProvider.TryAllEnvironments();
             }
+        }
+
+        public void GetDefaultOriginState(SkyrimRelease? gameType)
+        {
+            try
+            {
+                OriginState = GameEnvironment.Typical.Skyrim(gameType.Value, LinkCachePreferences.OnlyIdentifiers());
+            }
+            catch
+            {
+                OriginState = PatcherEnvironmentProvider.TryAllEnvironments();
+            }
+        }
+
+        public PatcherEnvironment(SkyrimRelease? gameType)
+        {
+            GetOriginState(gameType);
 
             if (PatcherSettings.General != null)
             {
@@ -149,16 +189,8 @@ namespace SynthEBD
 
         public void RefreshAndChangeGameType(SkyrimRelease gameType, string outputModName)
         {
-            try
-            {
-                OriginState = GameEnvironment.Typical.Skyrim(gameType, LinkCachePreferences.OnlyIdentifiers());
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Patcher environment creation failed with the following error: " + Environment.NewLine + ex.Message);
-                Environment.Exit(-1);
-                Application.Current.Shutdown();
-            }
+            GetOriginState(gameType);
+
             Refresh(outputModName, false);
             LinkCache = LoadOrder.ToMutableLinkCache();
             DataFolderPath = OriginState.DataFolderPath;

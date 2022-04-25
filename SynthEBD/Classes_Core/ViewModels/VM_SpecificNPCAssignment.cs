@@ -20,14 +20,14 @@ namespace SynthEBD
 {
     public class VM_SpecificNPCAssignment : INotifyPropertyChanged, IHasForcedAssets
     {
-        public VM_SpecificNPCAssignment(ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen bodyGenSettings, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM)
+        public VM_SpecificNPCAssignment(ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen bodyGenSettings, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, MainWindow_ViewModel mainVM)
         {
             SubscribedGeneralSettings = generalSettingsVM;
             SubscribedOBodySettings = oBodySettings;
             
             this.DispName = "New Assignment";
             this.NPCFormKey = new FormKey();
-            this.ForcedAssetPack = new VM_AssetPack(assetPacks, bodyGenSettings, oBodySettings.DescriptorUI, generalSettingsVM, null, null);
+            this.ForcedAssetPack = new VM_AssetPack(assetPacks, bodyGenSettings, oBodySettings.DescriptorUI, generalSettingsVM, mainVM.RecordTemplateLinkCache, mainVM);
             this.ForcedSubgroups = new ObservableCollection<VM_Subgroup>();
             this.ForcedMixIns = new ObservableCollection<VM_MixInSpecificAssignment>();
             this.ForcedAssetReplacements = new ObservableCollection<VM_AssetReplacementAssignment>();
@@ -159,9 +159,9 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static VM_SpecificNPCAssignment GetViewModelFromModel(NPCAssignment model, ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen BGVM, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM)
+        public static VM_SpecificNPCAssignment GetViewModelFromModel(NPCAssignment model, ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen BGVM, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, MainWindow_ViewModel mainVM)
         {
-            var viewModel = new VM_SpecificNPCAssignment(assetPacks, BGVM, oBodySettings, generalSettingsVM);
+            var viewModel = new VM_SpecificNPCAssignment(assetPacks, BGVM, oBodySettings, generalSettingsVM, mainVM);
             viewModel.NPCFormKey = model.NPCFormKey;
 
             if (viewModel.NPCFormKey.IsNull)

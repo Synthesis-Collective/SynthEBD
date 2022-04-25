@@ -43,7 +43,7 @@ namespace SynthEBD
             }
         }
 
-        public static bool SelectFile(string initDir, string filter, out string path)
+        public static bool SelectFile(string initDir, string filter, string title, out string path)
         {
             path = "";
 
@@ -57,6 +57,8 @@ namespace SynthEBD
             {
                 dialog.InitialDirectory = initDir;
             }
+
+            dialog.Title = title;
 
             if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
