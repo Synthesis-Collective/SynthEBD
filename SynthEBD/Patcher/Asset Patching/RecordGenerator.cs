@@ -34,6 +34,7 @@ namespace SynthEBD
 
             if (nonHardcodedPaths.Any())
             {
+                System.Diagnostics.Trace.WriteLine(npcInfo.LogIDstring);
                 AssignGenericAssetPaths(npcInfo, nonHardcodedPaths, currentNPC, recordTemplateLinkCache, outputMod, longestPath, true, false, npcObjectMap, objectCaches, assignedPaths);
             }
         }

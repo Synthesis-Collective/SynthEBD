@@ -636,7 +636,9 @@ namespace SynthEBD
                     {
                         matchConditionStr = matchConditionStr.Replace("PatchableRaces", '{' + patchableRaceArgIndex.ToString() + "}");
                         addPatchableRaceArg = true;
-                        evalParameters[evalParameters.Count - 1] = evalParameters[evalParameters.Count - 1].FormKey.AsLinkGetter<IRaceGetter>();
+                        GetSubObject(evalParameters.Last(), "FormKey", out dynamic formKeyDyn);
+                        FormKey raceFK = (FormKey)formKeyDyn;
+                        evalParameters[evalParameters.Count - 1] = raceFK.AsLinkGetter<IRaceGetter>();
                     }
                 }
                 if(skipToNext) { continue; }
