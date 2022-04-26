@@ -390,28 +390,34 @@ namespace SynthEBD
                     #endregion
 
                     #region Asset Replacer assignment
-                    if (assetsAssigned) // assign direct replacers
+                    HashSet<SubgroupCombination> assetReplacerCombinations = new HashSet<SubgroupCombination>();
+                    if (assetsAssigned) // assign direct replacers that a come from the assigned primary asset pack
                     {
-                        HashSet<SubgroupCombination> assetReplacerCombinations = new HashSet<SubgroupCombination>();
                         foreach (var combination in assignedCombinations)
                         {
                             assetReplacerCombinations.UnionWith(AssetSelector.SelectAssetReplacers(combination.AssetPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
                         }
-
-                        assignedCombinations.AddRange(assetReplacerCombinations);
                     }
+                    foreach (var replacerOnlyPack in mixInAssetPacks.Where(x => !x.Subgroups.Any() && x.AssetReplacerGroups.Any())) // add asset replacers from mix-in asset packs that ONLY have replacer assets, since they won't be contained in assignedCombinations
+                    {
+                        assetReplacerCombinations.UnionWith(AssetSelector.SelectAssetReplacers(replacerOnlyPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
+                    }
+                    assignedCombinations.AddRange(assetReplacerCombinations);
                     #endregion
 
                     #region Generate Records
-                    var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
-                    var npcObjectMap = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", npcRecord} };
-                    var assignedPaths = new List<FilePathReplacementParsed>(); // for logging only
-                    RecordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, recordTemplateLinkCache, npcObjectMap, objectCaches, outputMod, assignedPaths);
-                    CombinationLog.LogAssignment(currentNPCInfo, assignedCombinations, assignedPaths);
-                    if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
-                    npcRecord.Keywords.Add(EBDFaceKW);
-                    npcRecord.Keywords.Add(EBDScriptKW);
-                    RecordGenerator.AddKeywordsToNPC(assignedCombinations, npcRecord, outputMod);
+                    if (assignedCombinations.Any())
+                    {
+                        var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
+                        var npcObjectMap = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", npcRecord } };
+                        var assignedPaths = new List<FilePathReplacementParsed>(); // for logging only
+                        RecordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, recordTemplateLinkCache, npcObjectMap, objectCaches, outputMod, assignedPaths);
+                        CombinationLog.LogAssignment(currentNPCInfo, assignedCombinations, assignedPaths);
+                        if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
+                        npcRecord.Keywords.Add(EBDFaceKW);
+                        npcRecord.Keywords.Add(EBDScriptKW);
+                        RecordGenerator.AddKeywordsToNPC(assignedCombinations, npcRecord, outputMod);
+                    }
                     #endregion
                 }
 
