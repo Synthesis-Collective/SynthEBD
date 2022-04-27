@@ -15,7 +15,7 @@ namespace SynthEBD
             {
                 try
                 {
-                    if (!string.IsNullOrWhiteSpace(path))
+                    if (!string.IsNullOrWhiteSpace(path) && System.IO.File.Exists(path))
                     {
                         System.IO.File.Delete(path);
                     }
