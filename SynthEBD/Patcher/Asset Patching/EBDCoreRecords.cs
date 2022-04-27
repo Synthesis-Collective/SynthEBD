@@ -132,5 +132,21 @@ namespace SynthEBD
                 }
             }
         }
+
+        
+        public static Keyword CreateHeadPartKeyword(SkyrimMod outputMod)
+        {
+            var headPartKW = outputMod.Keywords.AddNew();
+            headPartKW.EditorID = "EBDValidHeadPartActor";
+            return headPartKW;
+        }
+
+        public static void ApplyHeadPartKeyword(HashSet<Npc> headPartNPCs, Keyword headPartKeyword)
+        {
+            foreach (var Npc in headPartNPCs)
+            {
+                Npc.Keywords.Add(headPartKeyword);
+            }
+        }
     }
 }
