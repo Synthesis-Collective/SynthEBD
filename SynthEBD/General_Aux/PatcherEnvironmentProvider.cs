@@ -50,9 +50,23 @@ namespace SynthEBD
                 }
             }
 
-            MessageBox.Show("Environment creation failed. Could not detect any supported versions of Skyrim.");
-            System.Windows.Application.Current.Shutdown();
-            System.Environment.Exit(1);
+            var customEnvWindow = new Window_CustomEnvironment();
+            var customEnvVM = new VM_CustomEnvironment(customEnvWindow);
+            customEnvWindow.DataContext = customEnvVM;
+            customEnvWindow.ShowDialog();
+
+            if (customEnvVM.IsValidated)
+            {
+                PatcherSettings.General.SkyrimVersion = customEnvVM.SkyrimRelease;
+                PatcherSettings.General.CustomGamePath = customEnvVM.CustomGamePath;
+                return customEnvVM.Environment;
+            }
+            else
+            {
+                System.Windows.Application.Current.Shutdown();
+                System.Environment.Exit(1);
+            }
+           
             return null;
         }
     }
@@ -93,17 +107,22 @@ namespace SynthEBD
             }
         }
 
+        public static IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> BuildCustomEnvironment(string executablePath, SkyrimRelease skyrimRelease) // this function expects calling function to handle exceptions
+        {
+            var gameDir = System.IO.Path.GetDirectoryName(executablePath);
+            var dataDir = System.IO.Path.Combine(gameDir, "data");
+            return  GameEnvironment.Typical.Builder<ISkyrimMod, ISkyrimModGetter>(SkyrimReleaseToGameRelease(skyrimRelease)).WithTargetDataFolder(dataDir).Build();
+        }
+
         public void GetOriginState(SkyrimRelease? gameType)
         {
             if (gameType is not null)
             {
                 if (!string.IsNullOrWhiteSpace(PatcherSettings.General.CustomGamePath))
                 {
-                    var gameDir = System.IO.Path.GetDirectoryName(PatcherSettings.General.CustomGamePath);
-                    var dataDir = System.IO.Path.Combine(gameDir, "data");
                     try
                     {
-                        OriginState = GameEnvironment.Typical.Builder<ISkyrimMod, ISkyrimModGetter>(SkyrimReleaseToGameRelease(gameType.Value)).WithTargetDataFolder(dataDir).Build();
+                        OriginState = BuildCustomEnvironment(PatcherSettings.General.CustomGamePath, gameType.Value);
                         Logger.TimedNotifyStatusUpdate("Built environment from " + PatcherSettings.General.CustomGamePath, ErrorType.Warning, 3);
                     }
                     catch
@@ -154,6 +173,7 @@ namespace SynthEBD
             DataFolderPath = OriginState.DataFolderPath;
             LoadOrderFilePath = OriginState.LoadOrderFilePath;
             CreationClubListingsFilePath = OriginState.CreationClubListingsFilePath;
+            GameRelease = OriginState.GameRelease;
         }
         public void Refresh(string outputModName, bool verbose)
         {
