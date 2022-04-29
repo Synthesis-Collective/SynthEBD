@@ -53,7 +53,7 @@ namespace SynthEBD
                 {
                     IsVisible = true;
                 }
-                UpdateBorder();
+                UpdateStatusDisplay();
             });
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
@@ -82,7 +82,7 @@ namespace SynthEBD
                 }
                 );
 
-            DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => UpdateBorder());
+            DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => UpdateStatusDisplay());
         }
 
         public string Label { get; set; }
@@ -116,12 +116,18 @@ namespace SynthEBD
         public SolidColorBrush BorderColor { get; set; }
         public bool HideInMenu { get; set; }
         public bool IsVisible {  get; set; }
+        public string StatusHeader { get; set; }
+        public string StatusText { get; set; }
+        public bool ShowStatus { get; set; }
 
-        public void UpdateBorder()
+        public void UpdateStatusDisplay()
         {
             if (!ParentConfig.BodySlidesUI.CurrentlyExistingBodySlides.Contains(this.Label))
             {
                 BorderColor = new SolidColorBrush(Colors.Red);
+                StatusHeader = "Warning:";
+                StatusText = "Source BodySlide XML files are missing. Will not be assigned.";
+                ShowStatus = true;
             }
             else if (HideInMenu)
             {
@@ -130,10 +136,16 @@ namespace SynthEBD
             else if(!DescriptorsSelectionMenu.IsAnnotated())
             {
                 BorderColor = new SolidColorBrush(Colors.Yellow);
+                StatusHeader = "Warning:";
+                StatusText = "Bodyslide has not been annotated with descriptors. May not pair correctly with textures.";
+                ShowStatus = true;
             }
             else
             {
                 BorderColor = new SolidColorBrush(Colors.LightGreen);
+                StatusHeader = string.Empty;
+                StatusText = string.Empty;
+                ShowStatus = false;
             }
         }
 
@@ -174,9 +186,9 @@ namespace SynthEBD
             viewModel.ProbabilityWeighting = model.ProbabilityWeighting;
             viewModel.WeightRange = model.WeightRange;
 
-            viewModel.UpdateBorder();
+            viewModel.UpdateStatusDisplay();
 
-            viewModel.DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => viewModel.UpdateBorder());
+            viewModel.DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => viewModel.UpdateStatusDisplay());
 
             viewModel.HideInMenu = model.HideInMenu;
         }

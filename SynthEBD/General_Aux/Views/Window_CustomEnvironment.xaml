@@ -9,10 +9,6 @@
         mc:Ignorable="d"
         Title="Custom Game Installation" Height="200" Width="600">
 
-    <Window.Resources>
-        <local:BodySlideVisibilityConverter x:Key="BSVisibilityConverter" />
-    </Window.Resources>
-    
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
