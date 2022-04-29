@@ -37,9 +37,9 @@ namespace SynthEBD
                             Environment = PatcherEnvironment.BuildCustomEnvironment(CustomGamePath, SkyrimRelease);
                             Validate();
                         }
-                        catch
+                        catch (Exception ex)
                         {
-                            FailureMessage("Environment creation failed.");
+                            FailureMessage("Environment creation failed with error:" + System.Environment.NewLine + ExceptionLogger.GetExceptionStack(ex, ""));
                         }
                         Cursor.Current = Cursors.Default;
                     }
