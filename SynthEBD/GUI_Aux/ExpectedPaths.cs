@@ -12,7 +12,7 @@ namespace SynthEBD
     public class Paths
     {
         private static string SynthEBDexeDirPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
-        public static string GeneralSettingsPath = Path.Combine(SynthEBDexeDirPath, "Settings\\GeneralSettings.json");
+        public static string SettingsSourcePath = Path.Combine(SynthEBDexeDirPath, "Settings\\SettingsSource.json");
 
         public Paths()
         {
@@ -56,7 +56,7 @@ namespace SynthEBD
                 Directory.CreateDirectory(recordTemplatesDirPath);
             }
 
-            switch (PatcherSettings.General.bLoadSettingsFromDataFolder)
+            switch (PatcherSettings.LoadFromDataFolder)
             {
                 case false:
                     RelativePath = SynthEBDexeDirPath;
@@ -68,7 +68,7 @@ namespace SynthEBD
 
             LogFolderPath = Path.Combine(SynthEBDexeDirPath, "Logs");
             ResourcesFolderPath = Path.Combine(SynthEBDexeDirPath, "Resources");
-
+            this.GeneralSettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "GeneralSettings.json");
             this.TexMeshSettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "TexMeshSettings.json");
             this.AssetPackDirPath = Path.Combine(RelativePath, assetsDirRelPath);
             this.HeightSettingsPath = Path.Combine(RelativePath, settingsDirRelPath, "HeightSettings.json");
@@ -92,7 +92,7 @@ namespace SynthEBD
         private string RelativePath { get; set; } 
         public string LogFolderPath { get; set; }
         public string ResourcesFolderPath { get; set; }
-        
+        public string GeneralSettingsPath { get; set; }
         public string TexMeshSettingsPath { get; set; } // path of the Textures and Meshes settings file
         public string AssetPackDirPath { get; set; }
         public string HeightSettingsPath { get; set; } // path of the Textures and Meshes settings file

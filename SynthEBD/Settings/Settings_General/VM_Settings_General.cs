@@ -48,6 +48,8 @@ namespace SynthEBD
             OverwritePluginAttGroups = true;
             this.CustomGamePath = "";
 
+            this.bLoadSettingsFromDataFolder = PatcherSettings.LoadFromDataFolder;
+
             this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
             this.NPCPickerFormKeys = typeof(INpcGetter).AsEnumerable();
@@ -118,10 +120,10 @@ namespace SynthEBD
                 }
                 );
 
-            this.WhenAnyValue(x => x.bLoadSettingsFromDataFolder).Skip(2).Subscribe(x =>
+            this.WhenAnyValue(x => x.bLoadSettingsFromDataFolder).Skip(1).Subscribe(x =>
             {
                 System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;
-                PatcherSettings.General.bLoadSettingsFromDataFolder = bLoadSettingsFromDataFolder;
+                PatcherSettings.LoadFromDataFolder = bLoadSettingsFromDataFolder;
                 PatcherSettings.Paths = new Paths();
                 Patcher.MainLinkCache = PatcherEnvironmentProvider.Environment.LinkCache;
                 Patcher.ResolvePatchableRaces();
@@ -198,7 +200,6 @@ namespace SynthEBD
             viewModel.bVerboseModeAssetsAll = model.bVerboseModeAssetsAll;
             viewModel.verboseModeNPClist = new ObservableCollection<FormKey>(model.VerboseModeNPClist);
             viewModel.VerboseModeDetailedAttributes = model.VerboseModeDetailedAttributes;
-            viewModel.bLoadSettingsFromDataFolder = model.bLoadSettingsFromDataFolder;
             viewModel.patchableRaces = new ObservableCollection<FormKey>(model.PatchableRaces);
             viewModel.raceAliases = VM_raceAlias.GetViewModelsFromModels(model.RaceAliases, PatcherEnvironmentProvider.Environment, viewModel);
             viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, PatcherEnvironmentProvider.Environment, viewModel);
@@ -224,7 +225,6 @@ namespace SynthEBD
             model.bVerboseModeAssetsAll = viewModel.bVerboseModeAssetsAll;
             model.VerboseModeNPClist = viewModel.verboseModeNPClist.ToList();
             model.VerboseModeDetailedAttributes = viewModel.VerboseModeDetailedAttributes;
-            model.bLoadSettingsFromDataFolder = viewModel.bLoadSettingsFromDataFolder;
             model.PatchableRaces = viewModel.patchableRaces.ToList();
 
             model.RaceAliases.Clear();
@@ -245,6 +245,8 @@ namespace SynthEBD
             model.CustomGamePath = viewModel.CustomGamePath;
 
             PatcherSettings.General = model;
+
+            PatcherSettings.LoadFromDataFolder = viewModel.bLoadSettingsFromDataFolder;
         }
 
         public void ToggleTooltipVisibility(object sender, PropertyChangedEventArgs e)

@@ -14,7 +14,7 @@ namespace SynthEBD
             ConfigDescription = "";
             DestinationModFolder = "Top Level Folder";
             ConfigPrefix = "Prefix";
-            FileExtensionMap = new Dictionary<string, string>() { { "nif", "meshes" }, { "dds", "textures" } };
+            FileExtensionMap = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase) { { "nif", "meshes" }, { "tri", "meshes" }, { "dds", "textures" } };
             AssetPackPaths = new HashSet<string>();
             RecordTemplatePaths = new HashSet<string>();
             BodyGenConfigPaths = new HashSet<string>();

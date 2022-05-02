@@ -29,7 +29,6 @@ namespace SynthEBD
             this.bVerboseModeAssetsAll = false;
             this.VerboseModeNPClist = new List<FormKey>();
             this.VerboseModeDetailedAttributes = false;
-            this.bLoadSettingsFromDataFolder = false;
             this.CustomGamePath = "";
             this.PatchableRaces = new List<FormKey>()
             {
@@ -123,12 +122,8 @@ namespace SynthEBD
         public bool bVerboseModeAssetsAll { get; set; }
         public List<FormKey> VerboseModeNPClist { get; set; }
         public bool VerboseModeDetailedAttributes { get; set; }
-        public bool bLoadSettingsFromDataFolder { get; set; }
-
         public List<FormKey> PatchableRaces { get; set; }
-
         public List<RaceAlias> RaceAliases { get; set; }
-
         public List<RaceGrouping> RaceGroupings { get; set; }
         public HashSet<AttributeGroup> AttributeGroups { get; set; }
         public bool OverwritePluginAttGroups { get; set; }

@@ -10,6 +10,25 @@ namespace SynthEBD
 {
     public class SettingsIO_Misc
     {
+        public static void GetSettingsSource()
+        {
+            if (File.Exists(Paths.SettingsSourcePath))
+            {
+                bool loadFromDataDir = JSONhandler<bool>.LoadJSONFile(Paths.SettingsSourcePath, out bool loadSuccess, out string exceptionStr);
+                if (loadSuccess)
+                {
+                    PatcherSettings.LoadFromDataFolder = loadFromDataDir;
+                }
+                else if (!loadSuccess)
+                {
+                    Logger.LogError("Could not load Settings Source. Error: " + exceptionStr);
+                    PatcherSettings.LoadFromDataFolder = false;
+                }
+            }
+
+            PatcherSettings.Paths = new Paths();
+        }
+
         public static HashSet<string> LoadNPCNameExclusions(out bool loadSuccess)
         {
             HashSet<string> exclusions = new HashSet<string>();

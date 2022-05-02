@@ -49,11 +49,11 @@ namespace SynthEBD
 
         public MainWindow_ViewModel()
         {
-            // Load general settings
-            SettingsIO_General.LoadGeneralSettings(out _);
-            GeneralSettingsVM = new VM_Settings_General(this);
-            VM_Settings_General.GetViewModelFromModel(GeneralSettingsVM);
+            // initialize paths
+            SettingsIO_Misc.GetSettingsSource();
 
+            // Load settings
+            GeneralSettingsVM = new VM_Settings_General(this);
             HeightSettingsVM = new VM_SettingsHeight();
             BodyGenSettingsVM = new VM_SettingsBodyGen(GeneralSettingsVM);
             OBodySettingsVM = new VM_SettingsOBody(GeneralSettingsVM.RaceGroupings, GeneralSettingsVM);
@@ -66,13 +66,6 @@ namespace SynthEBD
             StatusBarVM = new VM_StatusBar();
 
             RunButtonVM = new VM_RunButton(this);
-
-            // get paths
-            PatcherSettings.Paths = new Paths();
-
-            // Initialize patchable races from general settings (required by some UI elements)
-            Patcher.MainLinkCache = PatcherEnvironmentProvider.Environment.LinkCache;
-            Patcher.ResolvePatchableRaces();
 
             LoadInitialSettingsViewModels();
             LoadPluginViewModels();
@@ -98,6 +91,16 @@ namespace SynthEBD
         public void LoadInitialSettingsViewModels() // view models that should be loaded before plugin VMs
         {
             bool loadSuccess;
+
+            // Load general settings
+            SettingsIO_General.LoadGeneralSettings(out loadSuccess);
+            if (!loadSuccess) { Logger.SwitchViewToLogDisplay(); }
+            VM_Settings_General.GetViewModelFromModel(GeneralSettingsVM);
+
+            // Initialize patchable races from general settings (required by some UI elements)
+            Patcher.MainLinkCache = PatcherEnvironmentProvider.Environment.LinkCache;
+            Patcher.ResolvePatchableRaces();
+
             // Load texture and mesh settings
             PatcherSettings.TexMesh = SettingsIO_AssetPack.LoadTexMeshSettings(out loadSuccess);
             if (!loadSuccess) { Logger.SwitchViewToLogDisplay(); }
@@ -208,7 +211,7 @@ namespace SynthEBD
             string exceptionStr;
             bool showFinalExceptions = false;
 
-            JSONhandler<Settings_General>.SaveJSONFile(PatcherSettings.General, Paths.GeneralSettingsPath, out saveSuccess, out exceptionStr);
+            JSONhandler<Settings_General>.SaveJSONFile(PatcherSettings.General, PatcherSettings.Paths.GeneralSettingsPath, out saveSuccess, out exceptionStr);
             if (!saveSuccess) { Logger.LogMessage("Error saving General Settings: " + exceptionStr); showFinalExceptions = true; }
 
             JSONhandler<Settings_TexMesh>.SaveJSONFile(PatcherSettings.TexMesh, PatcherSettings.Paths.TexMeshSettingsPath, out saveSuccess, out exceptionStr);
@@ -255,6 +258,9 @@ namespace SynthEBD
 
             JSONhandler<Settings_ModManager>.SaveJSONFile(PatcherSettings.ModManagerIntegration, PatcherSettings.Paths.ModManagerSettingsPath, out saveSuccess, out exceptionStr);
             if (!saveSuccess) { Logger.LogMessage("Error saving Mod Manager Integration Settings: " + exceptionStr); showFinalExceptions = true; }
+
+            JSONhandler<bool>.SaveJSONFile(PatcherSettings.LoadFromDataFolder, Paths.SettingsSourcePath, out saveSuccess, out exceptionStr);
+            if (!saveSuccess) { Logger.LogMessage("Error saving Settings Source: " + exceptionStr); showFinalExceptions = true; }
 
             if (showFinalExceptions)
             {
