@@ -156,7 +156,7 @@ namespace SynthEBD
 
             if (exceedsPathLimit && !isInner)
             {
-                System.Windows.MessageBox.Show("Some file/folder paths in " + target_dir + " exceed 260 characters and cannot be deleted automatically. You may delete them manually after SynthEBD closes.");
+                CustomMessageBox.DisplayNotificationOK("Deletion Warning", "Some file/folder paths in " + target_dir + " exceed 260 characters and cannot be deleted automatically. You may delete them manually after SynthEBD closes.");
             }
         }
     }

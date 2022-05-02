@@ -109,7 +109,7 @@ namespace SynthEBD
                 {
                     if (string.IsNullOrWhiteSpace(PatcherSettings.General.CustomGamePath))
                     {
-                        System.Windows.MessageBox.Show("There is no custom game path to clear.");
+                        CustomMessageBox.DisplayNotificationOK("", "There is no custom game path to clear.");
                         return;
                     }
                     CustomGamePath = "";

@@ -70,7 +70,7 @@ namespace SynthEBD
         {
             if (CheckForCircularReferences(this, new HashSet<string>()))
             {
-                System.Windows.MessageBox.Show("Circular reference detected.");
+                CustomMessageBox.DisplayNotificationOK("Attribute Group Error", "Circular reference detected.");
                 Attributes = new ObservableCollection<VM_NPCAttribute>(Attributes_Bak);
             }
             else
@@ -108,7 +108,7 @@ namespace SynthEBD
         {
             if (CheckForCircularReferences(this, new HashSet<string>()))
             {
-                System.Windows.MessageBox.Show("Circular reference detected.");
+                CustomMessageBox.DisplayNotificationOK("Attribute Group Error", "Circular reference detected.");
                 Attributes = new ObservableCollection<VM_NPCAttribute>(Attributes_Bak);
             }
             else
@@ -121,7 +121,7 @@ namespace SynthEBD
         {
             if (CheckForCircularReferences(this, new HashSet<string>()))
             {
-                System.Windows.MessageBox.Show("Circular reference detected.");
+                CustomMessageBox.DisplayNotificationOK("Attribute Group Error", "Circular reference detected.");
                 Attributes = new ObservableCollection<VM_NPCAttribute>(Attributes_Bak);
             }
             else

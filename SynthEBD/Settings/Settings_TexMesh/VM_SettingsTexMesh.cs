@@ -45,11 +45,11 @@ namespace SynthEBD
                 {
                     if (!AssetPacks.Any())
                     {
-                        System.Windows.MessageBox.Show("There are no Asset Pack Config Files installed.");
+                        CustomMessageBox.DisplayNotificationOK("", "There are no Asset Pack Config Files installed.");
                     }
                     else if (ValidateAllConfigs(mainViewModel.BodyGenConfigs, out List<string> errors))
                     {
-                        System.Windows.MessageBox.Show("No errors found.");
+                        CustomMessageBox.DisplayNotificationOK("", "No errors found.");
                     }
                     else
                     {

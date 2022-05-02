@@ -56,7 +56,7 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    if (System.Windows.MessageBox.Show("Are you sure you want to permanently delete this BodyGen Config?", "Confirmation", System.Windows.MessageBoxButton.OKCancel) == System.Windows.MessageBoxResult.OK)
+                    if (CustomMessageBox.DisplayNotificationYesNo("Confirmation", "Are you sure you want to permanently delete this BodyGen Config?"))
                     {
                         try
                         {

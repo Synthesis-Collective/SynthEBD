@@ -39,7 +39,7 @@ namespace SynthEBD
                         }
                         catch (Exception ex)
                         {
-                            FailureMessage("Environment creation failed with error:" + System.Environment.NewLine + ExceptionLogger.GetExceptionStack(ex, ""));
+                            CustomMessageBox.DisplayNotificationOK("Invalid Environment", "Environment creation failed with error:" + System.Environment.NewLine + ExceptionLogger.GetExceptionStack(ex, ""));
                         }
                         Cursor.Current = Cursors.Default;
                     }
@@ -84,23 +84,8 @@ namespace SynthEBD
             }
             else
             {
-                FailureMessage("The chosen executable does not appear to be a Skyrim release.");
+                CustomMessageBox.DisplayNotificationOK("Invalid Environment", "The chosen executable does not appear to be a Skyrim release.");
             }
-        }
-
-        private void FailureMessage(string message)
-        {
-            var box = new CustomMaterialMessageBox()
-            {
-                TxtMessage = { Text = message, Foreground = Brushes.White },
-                TxtTitle = { Text = "Invalid Environment", Foreground = Brushes.White },
-                BtnOk = { Content = "Ok" },
-                BtnCancel = { Visibility = Visibility.Hidden },
-                MainContentControl = { Background = Brushes.Black },
-                TitleBackgroundPanel = { Background = Brushes.Black },
-                BorderBrush = Brushes.Silver
-            };
-            box.Show();
         }
     }
 }

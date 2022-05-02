@@ -871,7 +871,7 @@ namespace SynthEBD
                 string logPath = System.IO.Path.Combine(PatcherSettings.Paths.LogFolderPath, logFile);
                 Task.Run(() => PatcherIO.WriteTextFile(logPath, conversionErrors));
                 Logger.LogMessage(conversionErrors);
-                System.Windows.MessageBox.Show("Errors were encountered during upgrade of a zEBD Config File. Please see log at " + logPath + ".");
+                CustomMessageBox.DisplayNotificationOK("Import Error", "Errors were encountered during upgrade of a zEBD Config File. Please see log at " + logPath + ".");
             }
 
             return s;

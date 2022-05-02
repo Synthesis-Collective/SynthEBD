@@ -107,7 +107,7 @@ namespace SynthEBD
                 execute: _ => {
                     if (Validate(mainVM.BodyGenConfigs, out List<string> errors))
                     {
-                        MessageBox.Show("No errors found.");
+                        CustomMessageBox.DisplayNotificationOK("Validation", "No errors found.");
                     }
                     else
                     {
@@ -416,10 +416,11 @@ namespace SynthEBD
 
         public void RemoveAssetPackDialog()
         {
-            MessageBoxResult result = MessageBox.Show("Are you sure you want to permanently delete this config file?", "", MessageBoxButton.YesNo);
+            bool result = CustomMessageBox.DisplayNotificationYesNo("Confirm Deletion", "Are you sure you want to permanently delete this config file?");
+            
             switch (result)
             {
-                case MessageBoxResult.Yes:
+                case true:
                     if (File.Exists(this.SourcePath))
                     {
                         try
@@ -434,7 +435,7 @@ namespace SynthEBD
                     }
                     
                     break;
-                case MessageBoxResult.No:
+                case false:
                     break;
             }
         }
@@ -484,22 +485,12 @@ namespace SynthEBD
 
                     if (newSubgroupNames.Any())
                     {
-                        var box = new CustomMaterialMessageBox()
-                        {
-                            TxtMessage = { Text = "The following subgroups were imported:" + Environment.NewLine + string.Join(Environment.NewLine, newSubgroupNames), Foreground = Brushes.White },
-                            TxtTitle = { Text = "Config Merger", Foreground = Brushes.White },
-                            BtnOk = { Content = "Ok" },
-                            BtnCancel = { IsEnabled = false, Visibility = Visibility.Hidden },
-                            MainContentControl = { Background = Brushes.Black },
-                            TitleBackgroundPanel = { Background = Brushes.Black },
-                            BorderBrush = Brushes.Silver
-                        };
-                        box.Show();
+                        CustomMessageBox.DisplayNotificationOK("Config Merger", "The following subgroups were imported:" + Environment.NewLine + string.Join(Environment.NewLine, newSubgroupNames));
                     }
                 }
                 else
                 {
-                    System.Windows.MessageBox.Show("That file could not be parsed as a valid Asset Config Plugin File.");
+                    CustomMessageBox.DisplayNotificationOK("Config Merger", "That file could not be parsed as a valid Asset Config Plugin File.");
                 }
             }
         }

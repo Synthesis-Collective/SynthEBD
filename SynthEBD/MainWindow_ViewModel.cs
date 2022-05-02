@@ -259,7 +259,7 @@ namespace SynthEBD
             if (showFinalExceptions)
             {
                 Logger.SwitchViewToLogDisplay();
-                System.Windows.MessageBox.Show("Errors were encountered upon closing. See the log window.");
+                CustomMessageBox.DisplayNotificationOK("", "Errors were encountered upon closing. See the log window.");
             }
         }
 

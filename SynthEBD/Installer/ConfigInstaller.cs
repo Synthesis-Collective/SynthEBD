@@ -23,7 +23,7 @@ namespace SynthEBD
             var installedConfigs = new List<string>();
             if (PatcherSettings.ModManagerIntegration.ModManagerType != ModManager.None && string.IsNullOrWhiteSpace(PatcherSettings.ModManagerIntegration.CurrentInstallationFolder))
             {
-                System.Windows.MessageBox.Show("You must set the location of your mod manager's Mods folder before installing a config file archive.");
+                CustomMessageBox.DisplayNotificationOK("Installation failed", "You must set the location of your mod manager's Mods folder before installing a config file archive.");
                 return installedConfigs;
             }
 
@@ -53,20 +53,20 @@ namespace SynthEBD
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show("Archive extraction failed. This may be because the resulting file paths were too long. Try moving your Temp Folder in Mod Manager Integration to a short path such as your desktop. Installation aborted. Exception Message: " + ex.Message); ;
+                CustomMessageBox.DisplayNotificationOK("Installation failed", "Archive extraction failed. This may be because the resulting file paths were too long. Try moving your Temp Folder in Mod Manager Integration to a short path such as your desktop. Installation aborted. Exception Message: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(ex, ""));
             }
 
             string manifestPath = Path.Combine(tempFolderPath, "Manifest.json");
             if (!File.Exists(manifestPath))
             {
-                System.Windows.MessageBox.Show("Could not find Manifest.json in " + tempFolderPath + ". Installation aborted.");
+                CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not find Manifest.json in " + tempFolderPath + ". Installation aborted.");
                 return installedConfigs;
             }
 
             Manifest manifest = JSONhandler<Manifest>.LoadJSONFile(manifestPath, out bool parsed, out string exceptionStr);
             if (!parsed)
             {
-                System.Windows.MessageBox.Show("Could not parse Manifest.json in " + tempFolderPath + ". Installation aborted.");
+                CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse Manifest.json in " + tempFolderPath + ". Installation aborted.");
                 Logger.LogMessage(exceptionStr);
                 Logger.SwitchViewToLogDisplay();
                 return installedConfigs;
@@ -96,7 +96,7 @@ namespace SynthEBD
             List<SkyrimMod> validationRecordTemplates = SettingsIO_AssetPack.LoadRecordTemplates(recordTemplatePaths, out bool loadSuccess);
             if (!loadSuccess)
             {
-                System.Windows.MessageBox.Show("Could not parse all Record Template Plugins at " + string.Join(", ", recordTemplatePaths) + ". Installation aborted.");
+                CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse all Record Template Plugins at " + string.Join(", ", recordTemplatePaths) + ". Installation aborted.");
                 return new List<string>();
             }
 
@@ -109,7 +109,7 @@ namespace SynthEBD
             BodyGenConfigs validationBG = SettingsIO_BodyGen.LoadBodyGenConfigs(bodyGenConfigPaths.ToArray(), PatcherSettings.General.RaceGroupings, out loadSuccess);
             if (!loadSuccess)
             {
-                System.Windows.MessageBox.Show("Could not parse all BodyGen configs at " + string.Join(", ", bodyGenConfigPaths) + ". Installation aborted.");
+                CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse all BodyGen configs at " + string.Join(", ", bodyGenConfigPaths) + ". Installation aborted.");
                 return new List<string>();
             }
 
@@ -127,7 +127,7 @@ namespace SynthEBD
                 var validationAP = SettingsIO_AssetPack.LoadAssetPack(extractedPath, PatcherSettings.General.RaceGroupings, validationRecordTemplates, validationBG, out loadSuccess);
                 if (!loadSuccess)
                 {
-                    System.Windows.MessageBox.Show("Could not parse Asset Pack " + configPath + ". Installation aborted.");
+                    CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse Asset Pack " + configPath + ". Installation aborted.");
                     continue;
                 }
 
@@ -144,7 +144,7 @@ namespace SynthEBD
                     SettingsIO_AssetPack.SaveAssetPack(validationAP, out bool saveSuccess); // save as Json instead of moving in case the referenced paths were modified by HandleLongFilePaths()
                     if (!saveSuccess)
                     {
-                        System.Windows.MessageBox.Show("Could not save Asset Pack to " + destinationPath + ". Installation aborted.");
+                        CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not save Asset Pack to " + destinationPath + ". Installation aborted.");
                         continue;
                     }
                 }
@@ -186,7 +186,7 @@ namespace SynthEBD
                     }
                     catch (Exception ex)
                     {
-                        System.Windows.MessageBox.Show("Could not move " + sourcePath + " to " + destPath + ": " + ex.Message);
+                        CustomMessageBox.DisplayNotificationOK("Installation warning", "Could not move " + sourcePath + " to " + destPath + ": " + ex.Message);
                     }
                 }
                 else
@@ -209,7 +209,7 @@ namespace SynthEBD
                     }
                     catch (Exception ex)
                     {
-                        System.Windows.MessageBox.Show("Could not move " + sourcePath + " to " + destPath + ": " + ex.Message);
+                        CustomMessageBox.DisplayNotificationOK("Installation warning", "Could not move " + sourcePath + " to " + destPath + ": " + ex.Message);
                     }
                 }
                 else
@@ -221,7 +221,7 @@ namespace SynthEBD
 
             if (skippedConfigs.Any())
             {
-                System.Windows.MessageBox.Show("The following resources were not installed because they already exist in your settings:" + Environment.NewLine + String.Join(Environment.NewLine, skippedConfigs));
+                CustomMessageBox.DisplayNotificationOK("Installation warning", "The following resources were not installed because they already exist in your settings:" + Environment.NewLine + String.Join(Environment.NewLine, skippedConfigs));
             }
 
             #region move dependency files
@@ -330,11 +330,11 @@ namespace SynthEBD
 
             if (missingFiles.Any())
             {
-                System.Windows.MessageBox.Show("The following expected files were not found in the selected mod archives:" + Environment.NewLine + string.Join(Environment.NewLine, missingFiles));
+                CustomMessageBox.DisplayNotificationOK("Installation warning", "The following expected files were not found in the selected mod archives:" + Environment.NewLine + string.Join(Environment.NewLine, missingFiles));
             }
             if (assetPathCopyErrors)
             {
-                System.Windows.MessageBox.Show("Some installation errors occurred. Please see the Status Log.");
+                CustomMessageBox.DisplayNotificationOK("Installation warning", "Some installation errors occurred. Please see the Status Log.");
                 Logger.SwitchViewToLogDisplay();
             }
 
@@ -376,12 +376,12 @@ namespace SynthEBD
             }
             catch
             {
-                System.Windows.MessageBox.Show("Could not delete the temp folder located at " + tempFolderPath + ". This may be because the folder path or some of the contained file paths exceeded 260 characters. You may delete this folder manually.");
+                CustomMessageBox.DisplayNotificationOK("Installation warning", "Could not delete the temp folder located at " + tempFolderPath + ". This may be because the folder path or some of the contained file paths exceeded 260 characters. You may delete this folder manually.");
             }
 
             if (PatcherSettings.ModManagerIntegration.ModManagerType != ModManager.None && referencedFilePaths.Any())
             {
-                System.Windows.MessageBox.Show("Installation complete. You will need to restart your mod manager to rebuild the VFS in order for SynthEBD to see the newly installed asset files.");
+                CustomMessageBox.DisplayNotificationOK("Installation success", "Installation complete. You will need to restart your mod manager to rebuild the VFS in order for SynthEBD to see the newly installed asset files.");
             }
 
             return installedConfigs;
@@ -391,12 +391,12 @@ namespace SynthEBD
         {
             if (PatcherSettings.ModManagerIntegration.ModManagerType != ModManager.None && (manifest.DestinationModFolder == null || string.IsNullOrWhiteSpace(manifest.DestinationModFolder)))
             {
-                System.Windows.MessageBox.Show("Manifest did not include a destination folder. A new folder called \"New SynthEBD Config\" will appear in your mod list. Pleast rename this folder to something sensible after completing installation.");
+                CustomMessageBox.DisplayNotificationOK("Installation warning", "Manifest did not include a destination folder. A new folder called \"New SynthEBD Config\" will appear in your mod list. Pleast rename this folder to something sensible after completing installation.");
                 manifest.DestinationModFolder = "New SynthEBD Config";
             }
             if (manifest.ConfigPrefix == null || string.IsNullOrWhiteSpace(manifest.ConfigPrefix))
             {
-                System.Windows.MessageBox.Show("Manifest did not include a destination prefix. This must match the second directory of each file path in the config file (e.g. textures\\PREFIX\\some\\texture.dds). Please fix the manifest file.");
+                CustomMessageBox.DisplayNotificationOK("Installation error", "Manifest did not include a destination prefix. This must match the second directory of each file path in the config file (e.g. textures\\PREFIX\\some\\texture.dds). Please fix the manifest file.");
                 return false;
             }
             return true;
@@ -445,7 +445,7 @@ namespace SynthEBD
             else
             {
                 Cursor.Current = Cursors.Default;
-                System.Windows.MessageBox.Show("Could not extract the config archive. Valid formats are .7z, .zip, and .rar.");
+                CustomMessageBox.DisplayNotificationOK("Installation error", "Could not extract the config archive. Valid formats are .7z, .zip, and .rar.");
                 return false;
             }
         }
@@ -495,12 +495,12 @@ namespace SynthEBD
                 int newLongestPathLength = GetLongestPathLength(assetPack, manifest, out _);
                 if (newLongestPathLength > pathLengthLimit)
                 {
-                    System.Windows.MessageBox.Show("Cannot extract the required asset files for config file " + assetPack.GroupName + ". The longest path (" + longestPath + ") is " + originalLongestPathLength + " characters and a maximum of " + pathLengthLimit + " are allowed. After automatic renaming the longest path was still " + newLongestPathLength + " charactersl long. Please consider moving the destination directory to a shorter path");
+                    CustomMessageBox.DisplayNotificationOK("Installation error", "Cannot extract the required asset files for config file " + assetPack.GroupName + ". The longest path (" + longestPath + ") is " + originalLongestPathLength + " characters and a maximum of " + pathLengthLimit + " are allowed. After automatic renaming the longest path was still " + newLongestPathLength + " charactersl long. Please consider moving the destination directory to a shorter path");
                     return false;
                 }
                 else
                 {
-                    System.Windows.MessageBox.Show("Config file " + assetPack.GroupName + " was modified to comply with the path length limit (" + pathLengthLimit + "). The longest file path (" + longestPath + ") would have been " + originalLongestPathLength + ", and has been truncated to " + newLongestPathLength +". All paths within the config file and the destination data folder were automatically modified; no additional action is required.");
+                    CustomMessageBox.DisplayNotificationOK("Installation notice", "Config file " + assetPack.GroupName + " was modified to comply with the path length limit (" + pathLengthLimit + "). The longest file path (" + longestPath + ") would have been " + originalLongestPathLength + ", and has been truncated to " + newLongestPathLength + ". All paths within the config file and the destination data folder were automatically modified; no additional action is required.");
                 }
             }
 

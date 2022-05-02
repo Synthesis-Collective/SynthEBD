@@ -37,7 +37,7 @@ namespace SynthEBD
 
         private void Application_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
-            MessageBox.Show("SynthEBD has crashed with the following error:" + Environment.NewLine + e.Exception.Message + Environment.NewLine + "See Logs\\Crash Logs for details", "Error");
+            CustomMessageBox.DisplayNotificationOK("SynthEBD has crashed.", "SynthEBD has crashed with the following error:" + Environment.NewLine + e.Exception.Message + Environment.NewLine + "See Logs\\Crash Logs for details");
 
             var path = System.IO.Path.Combine(PatcherSettings.Paths.LogFolderPath, "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
             PatcherIO.WriteTextFile(path, ExceptionLogger.GetExceptionStack(e.Exception, ""));

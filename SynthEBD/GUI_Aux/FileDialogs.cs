@@ -11,7 +11,7 @@ namespace SynthEBD
     {
         public static bool ConfirmFileDeletion(string path, string filetype)
         {
-            if (MessageBox.Show("Are you sure you want to permanently delete this " + filetype + "?", "", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+            if (CustomMessageBox.DisplayNotificationYesNo("Confirm Deletion", "Are you sure you want to permanently delete this " + filetype + "?"))
             {
                 try
                 {

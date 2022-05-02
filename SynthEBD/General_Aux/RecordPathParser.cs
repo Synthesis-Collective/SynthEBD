@@ -718,7 +718,8 @@ namespace SynthEBD
                     {
                         matchConditionStr = matchConditionStr.Replace("PatchableRaces", '{' + patchableRaceArgIndex.ToString() + "}");
                         addPatchableRaceArg = true;
-                        evalParameters[evalParameters.Count - 1] = evalParameters[evalParameters.Count - 1].FormKey.AsLinkGetter<IRaceGetter>();
+                        var raceGetter = (IFormKeyGetter)evalParameters[evalParameters.Count - 1];
+                        evalParameters[evalParameters.Count - 1] = raceGetter.FormKey.AsLinkGetter<IRaceGetter>();
                     }
                 }
                 if (skipToNext) { continue; }

@@ -78,7 +78,7 @@ namespace SynthEBD
                canExecute: _ => true,
                execute: x =>
                {
-                   if (MessageBox.Show("Are you sure you want to completely clear the consistency file?", "Confirmation", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+                   if (CustomMessageBox.DisplayNotificationYesNo("Confirmation", "Are you sure you want to completely clear the consistency file?"))
                    {
                        this.CurrentlyDisplayedAssignment = null;
                        this.Assignments.Clear();

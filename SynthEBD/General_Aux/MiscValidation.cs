@@ -186,7 +186,7 @@ namespace SynthEBD
             else if (message.Any())
             {
                 message.Add("Morphs that lack descriptors can be misassigned by the texture/body shape assigner. Do you want to continue patching?");
-                return ShowMorphDescriptorConfirmationBox(String.Join(Environment.NewLine, message));
+                return CustomMessageBox.DisplayNotificationYesNo("Missing Descriptors", String.Join(Environment.NewLine, message));
             }
             else
             {
@@ -204,7 +204,7 @@ namespace SynthEBD
             {
                 bsMissingDescriptors.Insert(0, "The following active BodySlides have not been annotated with any body shape descriptors:");
                 bsMissingDescriptors.Add("Bodyslides that lack descriptors can be misassigned by the texture/body shape assigner. Do you want to continue patching?");
-                return ShowMorphDescriptorConfirmationBox(String.Join(Environment.NewLine, bsMissingDescriptors));
+                return CustomMessageBox.DisplayNotificationYesNo("Missing Descriptors", String.Join(Environment.NewLine, bsMissingDescriptors));
             }
             else
             {
@@ -223,24 +223,6 @@ namespace SynthEBD
                 }
             }
         }
-
-        private static bool ShowMorphDescriptorConfirmationBox(string message)
-        {
-            var box = new CustomMaterialMessageBox()
-            {
-                TxtMessage = { Text = message, Foreground = Brushes.White },
-                TxtTitle = { Text = "Missing Descriptors", Foreground = Brushes.White },
-                BtnOk = { Content = "Yes" },
-                BtnCancel = { Content = "No" },
-                MainContentControl = { Background = Brushes.Black },
-                TitleBackgroundPanel = { Background = Brushes.Black },
-                BorderBrush = Brushes.Silver
-            };
-            box.Show();
-
-            return box.Result == System.Windows.MessageBoxResult.OK;
-        }
-
         public static bool VerifyGeneratedTriFilesForOBody(Settings_OBody oBodySettings)
         {
             bool valid = true;
