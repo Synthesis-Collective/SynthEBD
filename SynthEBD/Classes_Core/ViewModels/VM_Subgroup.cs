@@ -24,6 +24,8 @@ namespace SynthEBD
         public VM_Subgroup(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_Subgroup> parentCollection, VM_AssetPack parentAssetPack, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, bool setExplicitReferenceNPC)
         {
             SubscribedRaceGroupings = raceGroupingVMs;
+            SubscribedOBodyDescriptorMenu = OBodyDescriptorMenu;
+            SetExplicitReferenceNPC = setExplicitReferenceNPC;
             ParentAssetPack = parentAssetPack;
 
             this.ID = "";
@@ -47,8 +49,8 @@ namespace SynthEBD
                 this.AllowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
                 this.DisallowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
             }
-            AllowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(OBodyDescriptorMenu, SubscribedRaceGroupings, parentAssetPack);
-            DisallowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(OBodyDescriptorMenu, SubscribedRaceGroupings, parentAssetPack);
+            AllowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(SubscribedOBodyDescriptorMenu, SubscribedRaceGroupings, parentAssetPack);
+            DisallowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(SubscribedOBodyDescriptorMenu, SubscribedRaceGroupings, parentAssetPack);
 
             this.WeightRange = new NPCWeightRange();
             this.Subgroups = new ObservableCollection<VM_Subgroup>();
@@ -61,13 +63,13 @@ namespace SynthEBD
             this.ParentCollection = parentCollection;
 
             // must be set after Parent Asset Pack
-            if (setExplicitReferenceNPC)
+            if (SetExplicitReferenceNPC)
             {
-                this.PathsMenu = new VM_FilePathReplacementMenu(this, setExplicitReferenceNPC, this.LinkCache);
+                this.PathsMenu = new VM_FilePathReplacementMenu(this, SetExplicitReferenceNPC, this.LinkCache);
             }
             else
             {
-                this.PathsMenu = new VM_FilePathReplacementMenu(this, setExplicitReferenceNPC, parentAssetPack.RecordTemplateLinkCache);
+                this.PathsMenu = new VM_FilePathReplacementMenu(this, SetExplicitReferenceNPC, parentAssetPack.RecordTemplateLinkCache);
                 parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => this.PathsMenu.ReferenceLinkCache = parentAssetPack.RecordTemplateLinkCache);
             }
 
@@ -101,7 +103,7 @@ namespace SynthEBD
 
             DeleteMe = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => { this.ParentCollection.Remove(this); MessageBox.Show("debug"); }
+                execute: _ => this.ParentCollection.Remove(this)
                 );
 
             DeleteRequiredSubgroup = new SynthEBD.RelayCommand(
@@ -153,14 +155,14 @@ namespace SynthEBD
         public RelayCommand DeleteMe { get; }
         public RelayCommand DeleteRequiredSubgroup { get; }
         public RelayCommand DeleteExcludedSubgroup { get; }
-
+        public bool SetExplicitReferenceNPC { get; set; }
         public HashSet<string> RequiredSubgroupIDs { get; set; } // temporary placeholder for RequiredSubgroups until all subgroups are loaded in
         public HashSet<string> ExcludedSubgroupIDs { get; set; } // temporary placeholder for ExcludedSubgroups until all subgroups are loaded in
 
         public ObservableCollection<VM_Subgroup> ParentCollection { get; set; }
         public VM_AssetPack ParentAssetPack { get; set; }
         public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
-        
+        public VM_BodyShapeDescriptorCreationMenu SubscribedOBodyDescriptorMenu { get; set; }
         public ObservableCollection<Graphics.ImagePathWithSource> ImagePaths { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -290,7 +292,45 @@ namespace SynthEBD
 
         public object Clone()
         {
-            return this.MemberwiseClone();
+            var clone = new VM_Subgroup(this.SubscribedRaceGroupings, this.ParentCollection, this.ParentAssetPack, this.SubscribedOBodyDescriptorMenu, this.SetExplicitReferenceNPC);
+            clone.AddKeywords = new ObservableCollection<VM_CollectionMemberString>(this.AddKeywords);
+            clone.AllowedAttributes = new ObservableCollection<VM_NPCAttribute>(this.AllowedAttributes);
+            clone.DisallowedAttributes = new ObservableCollection<VM_NPCAttribute>(this.DisallowedAttributes);
+            if (this.AllowedBodyGenDescriptors is not null)
+            {
+                clone.AllowedBodyGenDescriptors = this.AllowedBodyGenDescriptors.Clone();
+            }
+            if (this.DisallowedBodyGenDescriptors is not null)
+            {
+                clone.DisallowedBodyGenDescriptors = this.DisallowedBodyGenDescriptors.Clone();
+            }
+            clone.AllowedBodySlideDescriptors = this.AllowedBodySlideDescriptors.Clone();
+            clone.DisallowedBodySlideDescriptors = this.DisallowedBodySlideDescriptors.Clone();
+            clone.AllowedRaceGroupings = this.AllowedRaceGroupings.Clone();
+            clone.DisallowedRaceGroupings = this.DisallowedRaceGroupings.Clone();
+            clone.AllowedRaces = new ObservableCollection<FormKey>(this.AllowedRaces);
+            clone.DisallowedRaces = new ObservableCollection<FormKey>(this.DisallowedRaces);
+            clone.AllowUnique = this.AllowUnique;
+            clone.AllowNonUnique = this.AllowNonUnique;
+            clone.DistributionEnabled = this.DistributionEnabled;
+            clone.ID = this.ID;
+            clone.Name = this.Name;
+            clone.RequiredSubgroupIDs = new HashSet<string>(RequiredSubgroupIDs);
+            clone.ExcludedSubgroupIDs = new HashSet<string>(ExcludedSubgroupIDs);
+            clone.RequiredSubgroups = new ObservableCollection<VM_Subgroup>(this.RequiredSubgroups);
+            clone.ExcludedSubgroups = new ObservableCollection<VM_Subgroup>(this.ExcludedSubgroups);
+            clone.WeightRange = new NPCWeightRange { Lower = this.WeightRange.Lower, Upper = this.WeightRange.Upper };
+            clone.ProbabilityWeighting = this.ProbabilityWeighting;
+            clone.PathsMenu = this.PathsMenu.Clone();
+            GetDDSPaths(clone, clone.ImagePaths);
+
+            clone.Subgroups.Clear();
+            foreach (var subgroup in this.Subgroups)
+            {
+                clone.Subgroups.Add(subgroup.Clone() as VM_Subgroup);
+            }
+
+            return clone;
         }
 
         public void DragOver(IDropInfo dropInfo)

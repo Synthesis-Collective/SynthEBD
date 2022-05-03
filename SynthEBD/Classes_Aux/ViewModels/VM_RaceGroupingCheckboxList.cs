@@ -36,6 +36,17 @@ namespace SynthEBD
         public ObservableCollection<RaceGroupingSelection> RaceGroupingSelections { get; set; }
         public string HeaderCaption { get; set; }
 
+        public VM_RaceGroupingCheckboxList Clone()
+        {
+            var clone = new VM_RaceGroupingCheckboxList(SubscribedMasterList);
+            clone.RaceGroupingSelections.Clear();
+            foreach (var entry in RaceGroupingSelections)
+            {
+                clone.RaceGroupingSelections.Add(entry.Clone());
+            }
+            return clone;
+        }
+
         public static string BuildHeaderCaption(VM_RaceGroupingCheckboxList checkList)
         {
             string header = "";
@@ -83,7 +94,7 @@ namespace SynthEBD
                 this.SubscribedMasterRaceGrouping.PropertyChanged += RefreshRaceGroupingName;
 
                 this.ParentCheckList = parent;
-                this.PropertyChanged += refreshHeaderCaption;
+                this.PropertyChanged += RefreshHeaderCaption;
             }
             public string Label { get; set; }
             public bool IsSelected { get; set; }
@@ -99,9 +110,17 @@ namespace SynthEBD
 
             public VM_RaceGroupingCheckboxList ParentCheckList { get; set; }
 
-            public void refreshHeaderCaption(object sender, PropertyChangedEventArgs e)
+            public void RefreshHeaderCaption(object sender, PropertyChangedEventArgs e)
             {
                 ParentCheckList.HeaderCaption = BuildHeaderCaption(ParentCheckList);
+            }
+
+            public RaceGroupingSelection Clone()
+            {
+                RaceGroupingSelection clone = new RaceGroupingSelection(SubscribedMasterRaceGrouping, ParentCheckList);
+                clone.Label = Label;
+                clone.IsSelected = IsSelected;
+                return clone;
             }
         }
 

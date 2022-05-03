@@ -84,6 +84,15 @@ namespace SynthEBD
             this.WhenAnyValue(x => x.ReferenceNPCFormKey).Subscribe(x => RefreshDestColor());
         }
 
+        public VM_FilePathReplacement Clone(VM_FilePathReplacementMenu parentMenu)
+        {
+            VM_FilePathReplacement clone = new VM_FilePathReplacement(parentMenu);
+            clone.Source = Source;
+            clone.IntellisensedPath = this.IntellisensedPath;
+            clone.ReferenceNPCFormKey = this.ReferenceNPCFormKey.DeepCopyByExpressionTree();
+            return clone;
+        }
+
         public string Source { get; set; }
         public string IntellisensedPath { get; set; }
 

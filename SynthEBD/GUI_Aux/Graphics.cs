@@ -26,6 +26,11 @@ namespace SynthEBD
             public string Path { get; set; }
             public string Source { get; set; }
 
+            public ImagePathWithSource Clone()
+            {
+                return new ImagePathWithSource(Path, Source);
+            }
+
             public override bool Equals(object obj)
             {
                 var item = obj as ImagePathWithSource;

@@ -18,6 +18,8 @@ namespace SynthEBD
         {
             this.Header = "";
             this.TrackedMenu = trackedMenu;
+            this.TrackedRaceGroupings = raceGroupingVMs;
+            this.Parent = parentConfig;
             this.DescriptorShells = new ObservableCollection<VM_BodyShapeDescriptorShellSelector>();
             foreach (var Descriptor in TrackedMenu.TemplateDescriptors)
             {
@@ -29,9 +31,17 @@ namespace SynthEBD
         }
         public string Header { get; set; }
         public VM_BodyShapeDescriptorCreationMenu TrackedMenu { get; set; }
+        public IHasAttributeGroupMenu Parent { get; set; }
         public ObservableCollection<VM_BodyShapeDescriptorShellSelector> DescriptorShells { get; set; }
+        ObservableCollection<VM_RaceGrouping>  TrackedRaceGroupings { get; set; }
         public VM_BodyShapeDescriptorShellSelector CurrentlyDisplayedShell { get; set; }
         public event PropertyChangedEventHandler PropertyChanged;
+
+        public VM_BodyShapeDescriptorSelectionMenu Clone()
+        {
+            var modelDump = DumpToHashSet(this);
+            return InitializeFromHashSet(modelDump, TrackedMenu, TrackedRaceGroupings, Parent);
+        }
 
         public bool IsAnnotated()
         {

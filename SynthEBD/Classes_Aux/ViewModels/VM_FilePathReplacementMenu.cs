@@ -54,6 +54,14 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
+        public VM_FilePathReplacementMenu Clone()
+        {
+            VM_FilePathReplacementMenu clone = new VM_FilePathReplacementMenu(ParentSubgroup, ParentSubgroup.SetExplicitReferenceNPC, ReferenceLinkCache);
+            clone.HasContents = this.HasContents;
+            clone.Paths = new ObservableCollection<VM_FilePathReplacement>() { this.Paths.Select(x => x.Clone(clone)) };
+            return clone;
+        }
+
         public static VM_FilePathReplacementMenu GetViewModelFromModels(HashSet<FilePathReplacement> models, VM_Subgroup parentSubgroup, bool setExplicitReferenceNPC)
         {
             VM_FilePathReplacementMenu viewModel = null;
