@@ -41,20 +41,8 @@ namespace SynthEBD
             this.ParentConfig = parentConfig;
             this.ParentCollection = parentCollection;
 
-            this.HideInMenu = false;
-
-            this.WhenAnyValue(x => x.HideInMenu).Subscribe(x =>
-            {
-                if (!parentConfig.BodySlidesUI.ShowHidden && HideInMenu)
-                {
-                    IsVisible = false;
-                }
-                else
-                {
-                    IsVisible = true;
-                }
-                UpdateStatusDisplay();
-            });
+            this.IsHidden = false;
+            this.IsVisible = true;
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -70,6 +58,38 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ => this.ParentCollection.Remove(this)
                 );
+
+            HideButtonText = "Hide";
+
+            ToggleHide = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    if (IsHidden)
+                    {
+                        IsHidden = false;
+                        HideButtonText = "Hide";
+                    }
+                    else
+                    {
+                        IsHidden = true;
+                        HideButtonText = "Unhide";
+                    }
+                }
+                );
+
+            this.WhenAnyValue(x => x.IsHidden).Subscribe(x =>
+            {
+                if (!parentConfig.BodySlidesUI.ShowHidden && IsHidden)
+                {
+                    IsVisible = false;
+                }
+                else
+                {
+                    IsVisible = true;
+                }
+                UpdateStatusDisplay();
+            });
 
             Clone = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -109,13 +129,14 @@ namespace SynthEBD
         public RelayCommand AddDisallowedAttribute { get; }
         public RelayCommand DeleteMe { get; }
         public RelayCommand Clone { get; }
-
+        public RelayCommand ToggleHide { get; }
         public VM_SettingsOBody ParentConfig { get; set; }
         public ObservableCollection<VM_BodySlideSetting> ParentCollection { get; set; }
 
         public SolidColorBrush BorderColor { get; set; }
-        public bool HideInMenu { get; set; }
         public bool IsVisible {  get; set; }
+        public bool IsHidden { get; set; } // not the same as IsVisible. IsVisible can be set true if the "show hidden" button is checked.
+        public string HideButtonText { get; set; }
         public string StatusHeader { get; set; }
         public string StatusText { get; set; }
         public bool ShowStatus { get; set; }
@@ -129,7 +150,7 @@ namespace SynthEBD
                 StatusText = "Source BodySlide XML files are missing. Will not be assigned.";
                 ShowStatus = true;
             }
-            else if (HideInMenu)
+            else if (IsHidden)
             {
                 BorderColor = new SolidColorBrush(Colors.LightSlateGray);
             }
@@ -190,7 +211,7 @@ namespace SynthEBD
 
             viewModel.DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => viewModel.UpdateStatusDisplay());
 
-            viewModel.HideInMenu = model.HideInMenu;
+            viewModel.IsHidden = model.HideInMenu;
         }
 
         public static BodySlideSetting DumpViewModelToModel(VM_BodySlideSetting viewModel)
@@ -210,7 +231,7 @@ namespace SynthEBD
             model.AllowRandom = viewModel.bAllowRandom;
             model.ProbabilityWeighting = viewModel.ProbabilityWeighting;
             model.WeightRange = viewModel.WeightRange;
-            model.HideInMenu = viewModel.HideInMenu;
+            model.HideInMenu = viewModel.IsHidden;
             return model;
         }
     }

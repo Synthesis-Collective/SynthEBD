@@ -69,7 +69,7 @@ namespace SynthEBD
                 {
                     case true: b.IsVisible = true; break;
                     case false:
-                        switch (b.HideInMenu)
+                        switch (b.IsHidden)
                         {
                             case true: b.IsVisible = false; break;
                             case false: b.IsVisible = true; break;
