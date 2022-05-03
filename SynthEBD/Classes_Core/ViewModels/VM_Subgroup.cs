@@ -15,10 +15,11 @@ using System.Collections.Specialized;
 using ReactiveUI;
 using Pfim;
 using System.Windows.Media.Imaging;
+using GongSolutions.Wpf.DragDrop;
 
 namespace SynthEBD
 {
-    public class VM_Subgroup : INotifyPropertyChanged, ICloneable
+    public class VM_Subgroup : INotifyPropertyChanged, ICloneable, IDropTarget, IHasSubgroupViewModels
     {
         public VM_Subgroup(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_Subgroup> parentCollection, VM_AssetPack parentAssetPack, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, bool setExplicitReferenceNPC)
         {
@@ -100,7 +101,7 @@ namespace SynthEBD
 
             DeleteMe = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.ParentCollection.Remove(this)
+                execute: _ => { this.ParentCollection.Remove(this); MessageBox.Show("debug"); }
                 );
 
             DeleteRequiredSubgroup = new SynthEBD.RelayCommand(
@@ -290,6 +291,41 @@ namespace SynthEBD
         public object Clone()
         {
             return this.MemberwiseClone();
+        }
+
+        public void DragOver(IDropInfo dropInfo)
+        {
+            if (dropInfo.Data is VM_Subgroup)
+            {
+                dropInfo.DropTargetAdorner = DropTargetAdorners.Highlight;
+                dropInfo.Effects = DragDropEffects.Move;
+            }
+        }
+
+        public void Drop(IDropInfo dropInfo)
+        {
+            if (dropInfo.Data is VM_Subgroup && dropInfo.VisualTarget is ListBox)
+            {
+                var listBox = (ListBox)dropInfo.VisualTarget;
+                var parentContextSubgroup = listBox.DataContext as VM_Subgroup;
+                if (parentContextSubgroup != null)
+                {
+                    var draggedSubgroup = (VM_Subgroup)dropInfo.Data;
+                    var cloned = (VM_Subgroup)draggedSubgroup.Clone();
+                    if (listBox.Name == "lbRequiredSubgroups")
+                    {
+                        cloned.ParentCollection = parentContextSubgroup.RequiredSubgroups;
+                        parentContextSubgroup.RequiredSubgroups.Add(cloned);
+                        parentContextSubgroup.RequiredSubgroupIDs.Add(cloned.ID);
+                    }
+                    else if (listBox.Name == "lbExcludedSubgroups")
+                    {
+                        cloned.ParentCollection = parentContextSubgroup.ExcludedSubgroups;
+                        parentContextSubgroup.ExcludedSubgroups.Add(cloned);
+                        parentContextSubgroup.ExcludedSubgroupIDs.Add(cloned.ID);
+                    }
+                }
+            }
         }
     }
 }

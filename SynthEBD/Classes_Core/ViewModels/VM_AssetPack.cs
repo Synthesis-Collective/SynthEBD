@@ -15,10 +15,12 @@ using System.Windows;
 using ReactiveUI;
 using BespokeFusion;
 using System.Windows.Media;
+using GongSolutions.Wpf.DragDrop;
+using System.Windows.Controls;
 
 namespace SynthEBD
 {
-    public class VM_AssetPack : INotifyPropertyChanged, IHasAttributeGroupMenu
+    public class VM_AssetPack : INotifyPropertyChanged, IHasAttributeGroupMenu, IDropTarget, IHasSubgroupViewModels
     {
         public VM_AssetPack(ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, VM_Settings_General generalSettingsVM, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)
         {
@@ -535,7 +537,63 @@ namespace SynthEBD
             
         }
 
+        public void DragOver(IDropInfo dropInfo)
+        {
+            if (dropInfo.Data is VM_Subgroup)
+            {
+                dropInfo.DropTargetAdorner = DropTargetAdorners.Highlight;
+                dropInfo.Effects = DragDropEffects.Move;
+                if (dropInfo.KeyStates.HasFlag(DragDropKeyStates.RightMouseButton))
+                {
+                    DropInitiatedRightClick = true;
+                }
+            }
+        }
+
+        public void Drop(IDropInfo dropInfo)
+        {
+            if (dropInfo.Data is VM_Subgroup)
+            {
+                var draggedSubgroup = (VM_Subgroup)dropInfo.Data;
+                var clone = (VM_Subgroup)draggedSubgroup.Clone();
+                if (dropInfo.TargetItem is VM_Subgroup)
+                {
+                    VM_Subgroup dropTarget = (VM_Subgroup)dropInfo.TargetItem;
+
+                    if (dropTarget.Name == draggedSubgroup.Name && dropTarget.ID == draggedSubgroup.ID) { return; }
+
+                    clone.ParentCollection = dropTarget.Subgroups;
+                    clone.ParentAssetPack = dropTarget.ParentAssetPack;
+                    dropTarget.Subgroups.Add(clone);
+                }
+                else if (dropInfo.VisualTarget is TreeView)
+                {
+                    var targetTV = (TreeView)dropInfo.VisualTarget;
+                    var dropTarget = (VM_AssetPack)targetTV.DataContext;
+                    if (targetTV.Name == "TVsubgroups" && dropTarget != null)
+                    {
+                        clone.ParentCollection = dropTarget.Subgroups;
+                        clone.ParentAssetPack = dropTarget;
+                        dropTarget.Subgroups.Add(clone);
+                    }
+                }
+
+                if (!DropInitiatedRightClick)
+                {
+                    draggedSubgroup.ParentCollection.Remove(draggedSubgroup);
+                }
+            }
+
+            DropInitiatedRightClick = false;
+        }
+
+        public bool DropInitiatedRightClick { get; set; }
+
         public event PropertyChangedEventHandler PropertyChanged;
     }
-    
+
+    public interface IHasSubgroupViewModels
+    {
+        ObservableCollection<VM_Subgroup> Subgroups { get; }
+    }
 }

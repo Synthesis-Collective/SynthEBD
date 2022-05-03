@@ -123,7 +123,7 @@
         </StackPanel>
 
         <TextBlock Grid.Row="15" Grid.Column="0" Margin="0 0 15 0" ToolTip="Other subgroups from this config file that must be assigned if this subgroup is assigned (Drag and Drop)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Required Subgroups</TextBlock>
-        <ListBox Grid.Row="15" Grid.Column="1" ItemsSource="{Binding RequiredSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4">
+        <ListBox Grid.Row="15" Grid.Column="1" ItemsSource="{Binding RequiredSubgroups}" Name="lbRequiredSubgroups" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.DropHandler="{Binding}" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal">
@@ -142,7 +142,7 @@
         </ListBox>
 
         <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0" ToolTip="Other subgroups from this config file that may not be assigned if this subgroup is assigned (Drag and Drop)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Excluded Subgroups</TextBlock>
-        <ListBox Grid.Row="16" Grid.Column="1" ItemsSource="{Binding ExcludedSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4">
+        <ListBox Grid.Row="16" Grid.Column="1" ItemsSource="{Binding ExcludedSubgroups}" Name="lbExcludedSubgroups" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.DropHandler="{Binding}" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal">

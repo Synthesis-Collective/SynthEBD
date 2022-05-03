@@ -9,7 +9,6 @@
              xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              d:DataContext="{d:DesignInstance Type=local:VM_AssetPack}"
              mc:Ignorable="d"
-             
              d:DesignHeight="450" d:DesignWidth="800">
 
     <UserControl.Resources>
@@ -107,7 +106,7 @@
 
                 <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Assets and their associated distribution rules" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Subgroups</TextBlock>
                 <Button Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Right" Command="{Binding AddSubgroup}" Foreground="Lightgreen">+</Button>
-                <TreeView Grid.Row="5" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding Subgroups}"  Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton">
+                <TreeView Grid.Row="5" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding Subgroups}"  Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.DropHandler="{Binding}"  dd:DragDrop.CanDragWithMouseRightButton="True">
                     <TreeView.Resources>
                         <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
                             <StackPanel Orientation="Horizontal">
