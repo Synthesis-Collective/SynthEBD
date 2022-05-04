@@ -229,7 +229,8 @@ namespace SynthEBD
 
         public async void UpdatePreviewImages()
         {
-            this.PreviewImages.Clear();
+            //this.PreviewImages.Clear();
+            this.PreviewImages = new ObservableCollection<VM_PreviewImage>();
             if (this.DisplayedSubgroup == null) { return; }
             foreach (var sourcedFile in this.DisplayedSubgroup.ImagePaths)
             {

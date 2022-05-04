@@ -166,6 +166,7 @@ namespace SynthEBD
                             PortableSettingsFolder = selectedPath;
                             PatcherSettings.General.PortableSettingsFolder = PortableSettingsFolder;
                             PatcherSettings.Paths.UpdatePaths();
+                            mainVM.SaveAndRefreshPlugins();
                         }
                     }
                 }
@@ -183,6 +184,7 @@ namespace SynthEBD
                     PortableSettingsFolder = "";
                     PatcherSettings.General.PortableSettingsFolder = "";
                     PatcherSettings.Paths.UpdatePaths();
+                    mainVM.SaveAndRefreshPlugins();
                 }
                 );
 

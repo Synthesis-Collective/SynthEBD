@@ -84,8 +84,10 @@ namespace SynthEBD
 
         public void SaveAndRefreshPlugins()
         {
+            System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;
             SavePluginViewModels();
             LoadPluginViewModels();
+            System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.Default;
         }
 
         public void LoadInitialSettingsViewModels() // view models that should be loaded before plugin VMs
