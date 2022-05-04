@@ -65,6 +65,7 @@ namespace SynthEBD
         {
             try
             {
+                PatcherIO.CreateDirectoryIfNeeded(saveLoc, PatcherIO.PathType.File);
                 File.WriteAllText(saveLoc, Serialize(input, out success, out exception));
             }
             catch(Exception ex)

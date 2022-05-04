@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Reactive.Linq;
 using System.Text;
@@ -29,6 +30,7 @@ namespace SynthEBD
             this.BSSelectionMode = BodySlideSelectionMode.OBody;
             this.bChangeHeight = true;
             this.OutputDataFolder = "";
+            this.PortableSettingsFolder = "";
             this.bEnableConsistency = true;
             this.ExcludePlayerCharacter = true;
             this.ExcludePresets = true;
@@ -124,7 +126,7 @@ namespace SynthEBD
             {
                 System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;
                 PatcherSettings.LoadFromDataFolder = bLoadSettingsFromDataFolder;
-                PatcherSettings.Paths = new Paths();
+                PatcherSettings.Paths.UpdatePaths();
                 Patcher.MainLinkCache = PatcherEnvironmentProvider.Environment.LinkCache;
                 Patcher.ResolvePatchableRaces();
                 MainWindowVM.LoadInitialSettingsViewModels();
@@ -132,6 +134,57 @@ namespace SynthEBD
                 MainWindowVM.LoadFinalSettingsViewModels();
                 System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.Default;
             });
+
+            SelectPortableSettingsFolder = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    string initDir = "";
+                    if (mainVM.ModManagerSettingsVM.ModManagerType == ModManager.ModOrganizer2)
+                    {
+                        if (!string.IsNullOrEmpty(mainVM.ModManagerSettingsVM.MO2IntegrationVM.ModFolderPath) && Directory.Exists(mainVM.ModManagerSettingsVM.MO2IntegrationVM.ModFolderPath))
+                        {
+                            initDir = mainVM.ModManagerSettingsVM.MO2IntegrationVM.ModFolderPath;
+                        }
+                    }
+                    else if (mainVM.ModManagerSettingsVM.ModManagerType == ModManager.Vortex)
+                    {
+                        if (!string.IsNullOrEmpty(mainVM.ModManagerSettingsVM.VortexIntegrationVM.StagingFolderPath) && Directory.Exists(mainVM.ModManagerSettingsVM.VortexIntegrationVM.StagingFolderPath))
+                        {
+                            initDir = mainVM.ModManagerSettingsVM.VortexIntegrationVM.StagingFolderPath;
+                        }
+                    }
+
+                    if (IO_Aux.SelectFolder(initDir, out string selectedPath))
+                    {
+                        if (!string.Equals(new DirectoryInfo(selectedPath).Name, "SynthEBD", StringComparison.OrdinalIgnoreCase))
+                        {
+                            CustomMessageBox.DisplayNotificationOK("Invalid Directory", "The folder name must be \"SynthEBD\"");
+                        }
+                        else
+                        {
+                            PortableSettingsFolder = selectedPath;
+                            PatcherSettings.General.PortableSettingsFolder = PortableSettingsFolder;
+                            PatcherSettings.Paths.UpdatePaths();
+                        }
+                    }
+                }
+                );
+
+            ClearPortableSettingsFolder = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    if (string.IsNullOrWhiteSpace(PatcherSettings.General.PortableSettingsFolder))
+                    {
+                        CustomMessageBox.DisplayNotificationOK("", "There is no settings folder path to clear.");
+                        return;
+                    }
+                    PortableSettingsFolder = "";
+                    PatcherSettings.General.PortableSettingsFolder = "";
+                    PatcherSettings.Paths.UpdatePaths();
+                }
+                );
 
             this.WhenAnyValue(x => x.patchFileName).Subscribe(x => PatcherEnvironmentProvider.Environment.Refresh(patchFileName, false));
 
@@ -148,6 +201,7 @@ namespace SynthEBD
         public bool ExcludePresets { get; set; }
         public bool bChangeHeight { get; set;  }
         public string OutputDataFolder { get; set; }
+        public string PortableSettingsFolder { get; set; }
         public bool bEnableConsistency { get; set;  }
         public bool bLinkNPCsWithSameName { get; set;  }
         public ObservableCollection<VM_CollectionMemberString> LinkedNameExclusions { get; set; }
@@ -180,7 +234,8 @@ namespace SynthEBD
         public RelayCommand SelectOutputFolder { get; }
         public RelayCommand SelectCustomGameFolder { get; }
         public RelayCommand ClearCustomGameFolder { get; }
-
+        public RelayCommand SelectPortableSettingsFolder { get; }
+        public RelayCommand ClearPortableSettingsFolder { get; }
         public static void GetViewModelFromModel(VM_Settings_General viewModel)
         {
             var model = PatcherSettings.General;
@@ -206,6 +261,9 @@ namespace SynthEBD
             VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu);
             viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;
             viewModel.CustomGamePath = model.CustomGamePath;
+            viewModel.PortableSettingsFolder = model.PortableSettingsFolder;
+
+            PatcherSettings.Paths.UpdatePaths();
         }
         public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
         {
@@ -243,6 +301,7 @@ namespace SynthEBD
             VM_AttributeGroupMenu.DumpViewModelToModels(viewModel.AttributeGroupMenu, model.AttributeGroups);
             model.OverwritePluginAttGroups = viewModel.OverwritePluginAttGroups;
             model.CustomGamePath = viewModel.CustomGamePath;
+            model.PortableSettingsFolder = viewModel.PortableSettingsFolder;
 
             PatcherSettings.General = model;
 
