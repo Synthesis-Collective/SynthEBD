@@ -140,6 +140,7 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
+        <TextBlock Grid.Row="15" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Text="{Binding RequiredSubgroupsLabel, UpdateSourceTrigger=PropertyChanged}"/>
 
         <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0" ToolTip="Other subgroups from this config file that may not be assigned if this subgroup is assigned (Drag and Drop)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Excluded Subgroups</TextBlock>
         <ListBox Grid.Row="16" Grid.Column="1" ItemsSource="{Binding ExcludedSubgroups}" Name="lbExcludedSubgroups" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.DropHandler="{Binding}" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4">
@@ -159,6 +160,7 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
+        <TextBlock Grid.Row="16" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Text="{Binding ExcludedSubgroupsLabel, UpdateSourceTrigger=PropertyChanged}"/>
 
         <TextBlock Grid.Row="17" Grid.Column="0" Margin="0 0 15 0" ToolTip="Keywords that should be added to an NPC if this subgroup is assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Add Keywords to NPC</TextBlock>
         <Button Grid.Row="17" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddNPCKeyword}" Foreground="Lightgreen">Add New</Button>

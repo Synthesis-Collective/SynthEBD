@@ -555,13 +555,13 @@ namespace SynthEBD
             if (dropInfo.Data is VM_Subgroup)
             {
                 var draggedSubgroup = (VM_Subgroup)dropInfo.Data;
-                var clone = (VM_Subgroup)draggedSubgroup.Clone();
                 if (dropInfo.TargetItem is VM_Subgroup)
                 {
                     VM_Subgroup dropTarget = (VM_Subgroup)dropInfo.TargetItem;
 
                     if (dropTarget.Name == draggedSubgroup.Name && dropTarget.ID == draggedSubgroup.ID) { return; }
 
+                    var clone = (VM_Subgroup)draggedSubgroup.Clone(dropTarget.Subgroups);
                     clone.ParentCollection = dropTarget.Subgroups;
                     clone.ParentAssetPack = dropTarget.ParentAssetPack;
                     dropTarget.Subgroups.Add(clone);
@@ -572,6 +572,7 @@ namespace SynthEBD
                     var dropTarget = (VM_AssetPack)targetTV.DataContext;
                     if (targetTV.Name == "TVsubgroups" && dropTarget != null)
                     {
+                        var clone = (VM_Subgroup)draggedSubgroup.Clone(dropTarget.Subgroups);
                         clone.ParentCollection = dropTarget.Subgroups;
                         clone.ParentAssetPack = dropTarget;
                         dropTarget.Subgroups.Add(clone);

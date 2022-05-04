@@ -13,8 +13,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Collections.Specialized;
 using ReactiveUI;
-using Pfim;
-using System.Windows.Media.Imaging;
 using GongSolutions.Wpf.DragDrop;
 
 namespace SynthEBD
@@ -60,6 +58,8 @@ namespace SynthEBD
             this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
             this.RequiredSubgroupIDs = new HashSet<string>();
             this.ExcludedSubgroupIDs = new HashSet<string>();
+            RequiredSubgroupsLabel = "Drag subgroups here from the tree view";
+            ExcludedSubgroupsLabel = "Drag subgroups here from the tree view";
             this.ParentCollection = parentCollection;
 
             // must be set after Parent Asset Pack
@@ -108,12 +108,12 @@ namespace SynthEBD
 
             DeleteRequiredSubgroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: x => this.RequiredSubgroups.Remove((VM_Subgroup)x)
+                execute:  x => { this.RequiredSubgroups.Remove((VM_Subgroup)x); RefreshListBoxLabel(this.RequiredSubgroups, SubgroupListBox.Required); }
                 );
 
             DeleteExcludedSubgroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: x => this.ExcludedSubgroups.Remove((VM_Subgroup)x)
+                execute: x => { this.ExcludedSubgroups.Remove((VM_Subgroup)x); RefreshListBoxLabel(this.ExcludedSubgroups, SubgroupListBox.Excluded); }
                 );
         }
 
@@ -158,6 +158,8 @@ namespace SynthEBD
         public bool SetExplicitReferenceNPC { get; set; }
         public HashSet<string> RequiredSubgroupIDs { get; set; } // temporary placeholder for RequiredSubgroups until all subgroups are loaded in
         public HashSet<string> ExcludedSubgroupIDs { get; set; } // temporary placeholder for ExcludedSubgroups until all subgroups are loaded in
+        public string RequiredSubgroupsLabel { get; set; }
+        public string ExcludedSubgroupsLabel { get; set; }
 
         public ObservableCollection<VM_Subgroup> ParentCollection { get; set; }
         public VM_AssetPack ParentAssetPack { get; set; }
@@ -213,6 +215,29 @@ namespace SynthEBD
             return viewModel;
         }
 
+        private void RefreshListBoxLabel(ObservableCollection<VM_Subgroup> listSource, SubgroupListBox whichBox)
+        {
+            string label = "";
+            if (listSource.Any())
+            {
+                label = "";
+            }
+            else
+            {
+                label = "Drag subgroups here from the tree view";
+            }
+
+            switch(whichBox)
+            {
+                case SubgroupListBox.Required: RequiredSubgroupsLabel = label; break;
+                case SubgroupListBox.Excluded: ExcludedSubgroupsLabel = label; break;
+            }
+        }
+        private enum SubgroupListBox
+        {
+            Required,
+            Excluded
+        }
         public static void GetDDSPaths(VM_Subgroup viewModel, ObservableCollection<Graphics.ImagePathWithSource> paths)
         {
             var ddsPaths = viewModel.PathsMenu.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, x.Source)))
@@ -292,7 +317,12 @@ namespace SynthEBD
 
         public object Clone()
         {
-            var clone = new VM_Subgroup(this.SubscribedRaceGroupings, this.ParentCollection, this.ParentAssetPack, this.SubscribedOBodyDescriptorMenu, this.SetExplicitReferenceNPC);
+            return this.Clone(this.ParentCollection);
+        }
+
+        public object Clone(ObservableCollection<VM_Subgroup> parentCollection)
+        {
+            var clone = new VM_Subgroup(this.SubscribedRaceGroupings, parentCollection, this.ParentAssetPack, this.SubscribedOBodyDescriptorMenu, this.SetExplicitReferenceNPC);
             clone.AddKeywords = new ObservableCollection<VM_CollectionMemberString>(this.AddKeywords);
             clone.AllowedAttributes = new ObservableCollection<VM_NPCAttribute>(this.AllowedAttributes);
             clone.DisallowedAttributes = new ObservableCollection<VM_NPCAttribute>(this.DisallowedAttributes);
@@ -327,7 +357,7 @@ namespace SynthEBD
             clone.Subgroups.Clear();
             foreach (var subgroup in this.Subgroups)
             {
-                clone.Subgroups.Add(subgroup.Clone() as VM_Subgroup);
+                clone.Subgroups.Add(subgroup.Clone(clone.Subgroups) as VM_Subgroup);
             }
 
             return clone;
@@ -351,18 +381,17 @@ namespace SynthEBD
                 if (parentContextSubgroup != null)
                 {
                     var draggedSubgroup = (VM_Subgroup)dropInfo.Data;
-                    var cloned = (VM_Subgroup)draggedSubgroup.Clone();
                     if (listBox.Name == "lbRequiredSubgroups")
                     {
-                        cloned.ParentCollection = parentContextSubgroup.RequiredSubgroups;
-                        parentContextSubgroup.RequiredSubgroups.Add(cloned);
-                        parentContextSubgroup.RequiredSubgroupIDs.Add(cloned.ID);
+                        parentContextSubgroup.RequiredSubgroups.Add(draggedSubgroup);
+                        parentContextSubgroup.RequiredSubgroupIDs.Add(draggedSubgroup.ID);
+                        RefreshListBoxLabel(parentContextSubgroup.RequiredSubgroups, SubgroupListBox.Required);
                     }
                     else if (listBox.Name == "lbExcludedSubgroups")
                     {
-                        cloned.ParentCollection = parentContextSubgroup.ExcludedSubgroups;
-                        parentContextSubgroup.ExcludedSubgroups.Add(cloned);
-                        parentContextSubgroup.ExcludedSubgroupIDs.Add(cloned.ID);
+                        parentContextSubgroup.ExcludedSubgroups.Add(draggedSubgroup);
+                        parentContextSubgroup.ExcludedSubgroupIDs.Add(draggedSubgroup.ID);
+                        RefreshListBoxLabel(parentContextSubgroup.ExcludedSubgroups, SubgroupListBox.Excluded);
                     }
                 }
             }
