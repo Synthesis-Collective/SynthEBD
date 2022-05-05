@@ -1,9 +1,9 @@
 ﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_BodyShapeDescriptor : INotifyPropertyChanged
+public class VM_BodyShapeDescriptor : ViewModel
 {
     public VM_BodyShapeDescriptor(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
     {
@@ -24,8 +24,6 @@ public class VM_BodyShapeDescriptor : INotifyPropertyChanged
     public VM_BodyShapeDescriptorShell ParentShell { get; set; }
 
     public RelayCommand RemoveDescriptorValue { get; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static VM_BodyShapeDescriptor GetViewModelFromModel(BodyShapeDescriptor model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, IHasDescriptorRules parentDescriptorConfig)
     {

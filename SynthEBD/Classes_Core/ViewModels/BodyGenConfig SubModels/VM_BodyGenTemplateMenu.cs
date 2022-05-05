@@ -5,10 +5,11 @@ using Noggog;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_BodyGenTemplateMenu : INotifyPropertyChanged
+public class VM_BodyGenTemplateMenu : ViewModel
 {
     public VM_BodyGenTemplateMenu(VM_BodyGenConfig parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
@@ -30,12 +31,10 @@ public class VM_BodyGenTemplateMenu : INotifyPropertyChanged
 
     public RelayCommand AddTemplate { get; }
     public RelayCommand RemoveTemplate { get; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 }
 
 
-public class VM_BodyGenTemplate : INotifyPropertyChanged
+public class VM_BodyGenTemplate : ViewModel
 {
     public VM_BodyGenTemplate(ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodyGenTemplate> parentCollection, VM_BodyGenConfig parentConfig)
     {
@@ -108,8 +107,6 @@ public class VM_BodyGenTemplate : INotifyPropertyChanged
     public double ProbabilityWeighting { get; set; }
     public ObservableCollection<VM_CollectionMemberString> RequiredTemplates { get; set; }
     public NPCWeightRange WeightRange { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
     public string Caption_MemberOfTemplateGroups { get; set; }
     public string Caption_BodyShapeDescriptors { get; set; }
     public ILinkCache lk { get; set; }

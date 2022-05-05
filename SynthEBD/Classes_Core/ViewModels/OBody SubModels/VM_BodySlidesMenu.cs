@@ -1,10 +1,10 @@
 ﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_BodySlidesMenu : INotifyPropertyChanged
+public class VM_BodySlidesMenu : ViewModel
 {
     public VM_BodySlidesMenu(VM_SettingsOBody parentVM, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
@@ -53,8 +53,6 @@ public class VM_BodySlidesMenu : INotifyPropertyChanged
     public RelayCommand AddPreset { get; }
     public RelayCommand RemovePreset { get; }
     public bool ShowHidden { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     private static void TogglePresetVisibility(ObservableCollection<VM_BodySlideSetting> bodySlides, bool showHidden)
     {

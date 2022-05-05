@@ -1,10 +1,11 @@
 ﻿using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_BlockedPlugin : INotifyPropertyChanged
+public class VM_BlockedPlugin : ViewModel
 {
     public VM_BlockedPlugin()
     {
@@ -26,7 +27,6 @@ public class VM_BlockedPlugin : INotifyPropertyChanged
     public bool BodyShape { get; set; }
 
     public ILinkCache lk { get; set; }
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public void TriggerDispNameUpdate(object sender, PropertyChangedEventArgs e)
     {

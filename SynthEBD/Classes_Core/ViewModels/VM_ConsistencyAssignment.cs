@@ -1,11 +1,11 @@
 ﻿using Mutagen.Bethesda.Plugins;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_ConsistencyAssignment : INotifyPropertyChanged
+public class VM_ConsistencyAssignment : ViewModel
 {
     public VM_ConsistencyAssignment()
     {
@@ -59,8 +59,6 @@ public class VM_ConsistencyAssignment : INotifyPropertyChanged
     public bool AssetPackAssigned { get; set; }
     public bool BodySlideAssigned { get; set; }
     public bool HeightAssigned { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static VM_ConsistencyAssignment GetViewModelFromModel(NPCAssignment model, ObservableCollection<VM_AssetPack> AssetPackVMs)
     {

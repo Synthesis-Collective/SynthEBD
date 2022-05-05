@@ -1,10 +1,11 @@
 ﻿using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_SelectableCollectionMemberString : INotifyPropertyChanged
+public class VM_SelectableCollectionMemberString : ViewModel
 {
     public VM_SelectableCollectionMemberString(VM_CollectionMemberString subscribedString, ICollectionParent parentCollection)
     {
@@ -20,8 +21,6 @@ public class VM_SelectableCollectionMemberString : INotifyPropertyChanged
     public bool IsSelected { get; set; }
     public RelayCommand DeleteCommand { get; }
 
-    public event PropertyChangedEventHandler PropertyChanged;
-
     public void refreshHeaderCaption(object sender, PropertyChangedEventArgs e)
     {
         this.Parent.RebuildHeader();
@@ -35,7 +34,7 @@ public interface ICollectionParent
     void RebuildHeader();
 }
 
-public class VM_CollectionMemberStringCheckboxList : INotifyPropertyChanged, ICollectionParent
+public class VM_CollectionMemberStringCheckboxList : ViewModel, ICollectionParent
 {
     public VM_CollectionMemberStringCheckboxList(ObservableCollection<VM_CollectionMemberString> collectionMemberStrings)
     {
@@ -51,8 +50,6 @@ public class VM_CollectionMemberStringCheckboxList : INotifyPropertyChanged, ICo
     }
 
     public ObservableCollection<VM_CollectionMemberString> SubscribedMasterList { get; set; } // to fire the CollectionChanged event
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     void RefreshCheckList(object sender, NotifyCollectionChangedEventArgs e)
     {

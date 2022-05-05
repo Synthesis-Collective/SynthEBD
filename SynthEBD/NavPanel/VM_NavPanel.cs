@@ -1,9 +1,9 @@
-﻿using System.ComponentModel;
-using System.Windows.Input;
+﻿using System.Windows.Input;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_NavPanel : INotifyPropertyChanged
+public class VM_NavPanel : ViewModel
 {
     public ICommand ClickSG { get; }
     public ICommand ClickTM { get; }
@@ -60,6 +60,4 @@ public class VM_NavPanel : INotifyPropertyChanged
             execute: _ => mainWindowVM.DisplayedViewModel = mainWindowVM.ModManagerSettingsVM
         );
     }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 }

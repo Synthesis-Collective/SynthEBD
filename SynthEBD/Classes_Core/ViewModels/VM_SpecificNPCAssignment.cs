@@ -5,13 +5,13 @@ using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using System.ComponentModel;
 using ReactiveUI;
 using DynamicData.Binding;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_SpecificNPCAssignment : INotifyPropertyChanged, IHasForcedAssets
+public class VM_SpecificNPCAssignment : ViewModel, IHasForcedAssets
 {
     public VM_SpecificNPCAssignment(MainWindow_ViewModel mainVM)
     {
@@ -149,8 +149,6 @@ public class VM_SpecificNPCAssignment : INotifyPropertyChanged, IHasForcedAssets
     public RelayCommand AddForcedReplacer { get; set; }
 
     public RelayCommand DeleteForcedMixInSubgroup { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static VM_SpecificNPCAssignment GetViewModelFromModel(NPCAssignment model, MainWindow_ViewModel mainVM)
     {
@@ -598,7 +596,7 @@ public class VM_SpecificNPCAssignment : INotifyPropertyChanged, IHasForcedAssets
         return Gender.Male;
     }
 
-    public class VM_MixInSpecificAssignment : INotifyPropertyChanged, IHasForcedAssets
+    public class VM_MixInSpecificAssignment : ViewModel, IHasForcedAssets
     {
         public VM_MixInSpecificAssignment(VM_SpecificNPCAssignment parent, MainWindow_ViewModel mainVM, ObservableCollection<VM_MixInSpecificAssignment> parentCollection)
         {
@@ -651,8 +649,6 @@ public class VM_SpecificNPCAssignment : INotifyPropertyChanged, IHasForcedAssets
         public RelayCommand DeleteCommand { get; set; }
         public RelayCommand DeleteForcedSubgroup { get; set; }
         public RelayCommand AddForcedReplacer { get; set; }
-
-        public event PropertyChangedEventHandler PropertyChanged;
 
         public void TriggerAvailableSubgroupsUpdate(object sender, NotifyCollectionChangedEventArgs e)
         {

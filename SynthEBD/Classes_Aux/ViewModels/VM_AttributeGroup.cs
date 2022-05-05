@@ -4,11 +4,12 @@ using System.ComponentModel;
 using System.Reactive.Linq;
 using DynamicData;
 using DynamicData.Binding;
+using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_AttributeGroup : INotifyPropertyChanged
+public class VM_AttributeGroup : ViewModel
 {
     public VM_AttributeGroup(VM_AttributeGroupMenu parent)
     {
@@ -46,8 +47,6 @@ public class VM_AttributeGroup : INotifyPropertyChanged
     public RelayCommand AddAttribute { get; }
 
     public ObservableCollection<VM_NPCAttribute> Attributes_Bak { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public void RefreshAttributeWatch(object sender, NotifyCollectionChangedEventArgs e)
     {

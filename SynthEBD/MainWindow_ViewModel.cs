@@ -2,10 +2,11 @@
 using Mutagen.Bethesda.Skyrim;
 using System.ComponentModel;
 using System.Windows;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class MainWindow_ViewModel : INotifyPropertyChanged
+public class MainWindow_ViewModel : ViewModel
 {
     public VM_Settings_General GeneralSettingsVM { get; }
     public VM_SettingsTexMesh TexMeshSettingsVM { get; }
@@ -275,6 +276,4 @@ public class MainWindow_ViewModel : INotifyPropertyChanged
             Logger.SwitchViewToLogDisplay();
         }
     }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 }

@@ -6,14 +6,13 @@ using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
+using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_Settings_General : INotifyPropertyChanged, IHasAttributeGroupMenu
+public class VM_Settings_General : ViewModel, IHasAttributeGroupMenu
 {
-    public event PropertyChangedEventHandler PropertyChanged;
-        
     public VM_Settings_General(MainWindow_ViewModel mainVM)
     {
         MainWindowVM = mainVM;

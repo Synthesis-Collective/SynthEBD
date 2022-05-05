@@ -1,9 +1,9 @@
 ﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_BlockListUI : INotifyPropertyChanged
+public class VM_BlockListUI : ViewModel
 {
     public VM_BlockListUI()
     {
@@ -67,8 +67,6 @@ public class VM_BlockListUI : INotifyPropertyChanged
     public RelayCommand RemoveBlockedPlugin { get; set; }
     public RelayCommand ImportFromZEBDcommand { get; set; }
     public RelayCommand Save { get; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static void GetViewModelFromModel(BlockList model, VM_BlockListUI viewModel)
     {

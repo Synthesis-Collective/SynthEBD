@@ -3,10 +3,11 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_BlockedNPC : INotifyPropertyChanged
+public class VM_BlockedNPC : ViewModel
 {
     public VM_BlockedNPC()
     {
@@ -29,8 +30,6 @@ public class VM_BlockedNPC : INotifyPropertyChanged
 
     public ILinkCache lk { get; set; }
     public IEnumerable<Type> NPCFormKeyTypes { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public void TriggerDispNameUpdate(object sender, PropertyChangedEventArgs e)
     {

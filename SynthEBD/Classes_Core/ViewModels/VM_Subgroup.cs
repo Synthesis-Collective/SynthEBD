@@ -9,10 +9,11 @@ using System.Windows.Controls;
 using System.Collections.Specialized;
 using ReactiveUI;
 using GongSolutions.Wpf.DragDrop;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_Subgroup : INotifyPropertyChanged, ICloneable, IDropTarget, IHasSubgroupViewModels
+public class VM_Subgroup : ViewModel, ICloneable, IDropTarget, IHasSubgroupViewModels
 {
     public VM_Subgroup(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_Subgroup> parentCollection, VM_AssetPack parentAssetPack, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, bool setExplicitReferenceNPC)
     {
@@ -161,8 +162,6 @@ public class VM_Subgroup : INotifyPropertyChanged, ICloneable, IDropTarget, IHas
     public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
     public VM_BodyShapeDescriptorCreationMenu SubscribedOBodyDescriptorMenu { get; set; }
     public ObservableCollection<Graphics.ImagePathWithSource> ImagePaths { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static VM_Subgroup GetViewModelFromModel(AssetPack.Subgroup model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_Subgroup> parentCollection, VM_AssetPack parentAssetPack, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, bool setExplicitReferenceNPC)
     {

@@ -1,8 +1,8 @@
-﻿using System.ComponentModel;
+﻿using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_ConfigInstaller  : INotifyPropertyChanged
+public class VM_ConfigInstaller : ViewModel
 {
     public VM_ConfigInstaller(Manifest manifest, Window_ConfigInstaller window)
     {
@@ -20,6 +20,4 @@ public class VM_ConfigInstaller  : INotifyPropertyChanged
     public VM_DownloadCoordinator DownloadMenu { get; set; }
     public bool Cancelled { get; set; }
     public bool Completed { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 }

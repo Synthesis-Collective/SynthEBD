@@ -1,16 +1,16 @@
 ﻿using Mutagen.Bethesda.Skyrim;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using ReactiveUI;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Noggog;
 using DynamicData.Binding;
 using DynamicData;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_FilePathReplacementMenu : INotifyPropertyChanged
+public class VM_FilePathReplacementMenu : ViewModel
 {
     public VM_FilePathReplacementMenu(VM_Subgroup parent, bool setExplicitReferenceNPC, ILinkCache refLinkCache)
     {
@@ -46,8 +46,6 @@ public class VM_FilePathReplacementMenu : INotifyPropertyChanged
     public ILinkCache ReferenceLinkCache { get; set; }
     public IEnumerable<Type> NPCType { get; set; }
     public bool HasContents { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public VM_FilePathReplacementMenu Clone()
     {

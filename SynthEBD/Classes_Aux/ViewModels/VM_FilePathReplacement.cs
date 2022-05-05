@@ -3,13 +3,13 @@ using System.Windows.Media;
 using System.IO;
 using ReactiveUI;
 using Mutagen.Bethesda.Skyrim;
-using System.ComponentModel;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_FilePathReplacement : INotifyPropertyChanged, IImplementsRecordIntellisense
+public class VM_FilePathReplacement : ViewModel, IImplementsRecordIntellisense
 {
     public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu)
     {
@@ -99,8 +99,6 @@ public class VM_FilePathReplacement : INotifyPropertyChanged, IImplementsRecordI
     public ObservableCollection<RecordIntellisense.PathSuggestion> PathSuggestions { get; set; }
     public FormKey ReferenceNPCFormKey { get; set; }
     public ILinkCache LinkCache { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static VM_FilePathReplacement GetViewModelFromModel(FilePathReplacement model, VM_FilePathReplacementMenu parentMenu)
     {

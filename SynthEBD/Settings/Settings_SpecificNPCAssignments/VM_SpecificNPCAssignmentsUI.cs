@@ -1,9 +1,9 @@
 ﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_SpecificNPCAssignmentsUI : INotifyPropertyChanged
+public class VM_SpecificNPCAssignmentsUI : ViewModel
 {
     public VM_SpecificNPCAssignmentsUI(VM_SettingsTexMesh texMeshSettings, VM_SettingsBodyGen bodyGenSettings, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, MainWindow_ViewModel mainVM)
     {
@@ -59,8 +59,6 @@ public class VM_SpecificNPCAssignmentsUI : INotifyPropertyChanged
 
     public RelayCommand ImportFromZEBDcommand { get; set; }
     public RelayCommand Save { get; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static void GetViewModelFromModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<NPCAssignment> models, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, MainWindow_ViewModel mainVM)
     {

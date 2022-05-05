@@ -1,9 +1,10 @@
 ﻿using System.ComponentModel;
 using System.Windows.Media;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_StatusBar : INotifyPropertyChanged
+public class VM_StatusBar : ViewModel
 {
     public VM_StatusBar()
     {
@@ -17,40 +18,14 @@ public class VM_StatusBar : INotifyPropertyChanged
         this.IsPatching = false;
     }
 
-    public string DispString
-    {
-        get { return _dispString; }
-        set
-        {
-            if (value != _dispString)
-            {
-                _dispString = value;
-                OnPropertyChanged("DispString");
-            }
-        }
-    }
-    private string _dispString;
+    public string DispString { get; set; }
     private Logger SubscribedLogger { get; set; }
     public SolidColorBrush FontColor { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public int ProgressBarMax { get; set; }
     public int ProgressBarCurrent { get; set; }
     public string ProgressBarDisp { get; set; }
     public bool IsPatching { get; set; }
-
-    protected void OnPropertyChanged(PropertyChangedEventArgs e)
-    {
-        PropertyChangedEventHandler handler = PropertyChanged;
-        if (handler != null)
-            handler(this, e);
-    }
-
-    protected void OnPropertyChanged(string propertyName)
-    {
-        OnPropertyChanged(new PropertyChangedEventArgs(propertyName));
-    }
 
     public void RefreshDisp(object sender, PropertyChangedEventArgs e)
     {

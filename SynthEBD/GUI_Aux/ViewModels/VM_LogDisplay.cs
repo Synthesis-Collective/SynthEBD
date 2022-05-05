@@ -1,11 +1,10 @@
 ﻿using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_LogDisplay : INotifyPropertyChanged
+public class VM_LogDisplay : ViewModel
 {
-    public event PropertyChangedEventHandler PropertyChanged;
-
     private Logger SubscribedLogger { get; set; }
 
     public string DispString { get; set; }

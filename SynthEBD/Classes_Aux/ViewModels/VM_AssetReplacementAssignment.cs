@@ -1,10 +1,10 @@
 ﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_AssetReplacementAssignment : INotifyPropertyChanged
+public class VM_AssetReplacementAssignment : ViewModel
 {
     public VM_AssetReplacementAssignment(VM_AssetPack parent, ObservableCollection<VM_AssetReplacementAssignment> parentCollection)
     {
@@ -47,8 +47,6 @@ public class VM_AssetReplacementAssignment : INotifyPropertyChanged
     public VM_AssetReplacerGroup SubscribedReplacerGroup { get; set; }
     public RelayCommand DeleteCommand { get; set; }
     public RelayCommand AddSubgroupCommand { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static VM_AssetReplacementAssignment GetViewModelFromModel(NPCAssignment.AssetReplacerAssignment model, VM_AssetPack parentAssetPack, ObservableCollection<VM_AssetReplacementAssignment> parentCollection)
     {

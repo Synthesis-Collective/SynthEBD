@@ -1,13 +1,11 @@
 ﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Windows.Forms;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_SettingsTexMesh : INotifyPropertyChanged
+public class VM_SettingsTexMesh : ViewModel
 {
-    public event PropertyChangedEventHandler PropertyChanged;
-
     public VM_SettingsTexMesh(MainWindow_ViewModel mainViewModel)
     {
         this.bChangeNPCTextures = true;

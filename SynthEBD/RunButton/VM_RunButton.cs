@@ -1,9 +1,9 @@
-﻿using System.ComponentModel;
-using System.Windows.Media;
+﻿using System.Windows.Media;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_RunButton : INotifyPropertyChanged
+public class VM_RunButton : ViewModel
 {
     public VM_RunButton(MainWindow_ViewModel parentWindow)
     {
@@ -46,9 +46,6 @@ public class VM_RunButton : INotifyPropertyChanged
     public MainWindow_ViewModel ParentWindow { get; set; }
 
     public ReactiveUI.IReactiveCommand ClickRun { get; }
-    //public SynthEBD.RelayCommand ClickRun { get; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public bool PreRunValidation()
     {

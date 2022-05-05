@@ -1,9 +1,9 @@
 ﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_BodyShapeDescriptorCreationMenu : INotifyPropertyChanged
+public class VM_BodyShapeDescriptorCreationMenu : ViewModel
 {
     public VM_BodyShapeDescriptorCreationMenu(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
     {
@@ -29,5 +29,4 @@ public class VM_BodyShapeDescriptorCreationMenu : INotifyPropertyChanged
 
     public RelayCommand AddTemplateDescriptorShell { get; }
     public RelayCommand RemoveTemplateDescriptorShell { get; }
-    public event PropertyChangedEventHandler PropertyChanged;
 }

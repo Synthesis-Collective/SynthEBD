@@ -3,11 +3,11 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_BodyShapeDescriptorRules : INotifyPropertyChanged
+public class VM_BodyShapeDescriptorRules : ViewModel
 {
     public VM_BodyShapeDescriptorRules(VM_BodyShapeDescriptor descriptor, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
     {
@@ -59,8 +59,6 @@ public class VM_BodyShapeDescriptorRules : INotifyPropertyChanged
 
     public RelayCommand AddAllowedAttribute { get; }
     public RelayCommand AddDisallowedAttribute { get; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static VM_BodyShapeDescriptorRules GetViewModelFromModel(BodyShapeDescriptorRules model, VM_BodyShapeDescriptor parentVM, IHasAttributeGroupMenu parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {

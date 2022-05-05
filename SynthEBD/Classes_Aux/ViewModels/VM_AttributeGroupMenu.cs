@@ -1,9 +1,9 @@
 ﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_AttributeGroupMenu : INotifyPropertyChanged
+public class VM_AttributeGroupMenu : ViewModel
 {
     public VM_AttributeGroupMenu(VM_AttributeGroupMenu generalSettingsAttributes, bool showImportFromGeneralOption)
     {
@@ -39,8 +39,6 @@ public class VM_AttributeGroupMenu : INotifyPropertyChanged
     public bool ShowImportFromGeneralOption { get; set; }
     public RelayCommand AddGroup { get; }
     public RelayCommand ImportAttributeGroups { get; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static void GetViewModelFromModels(HashSet<AttributeGroup> models, VM_AttributeGroupMenu viewModel)
     {

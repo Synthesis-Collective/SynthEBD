@@ -1,10 +1,10 @@
 ﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_ConfigSelector : INotifyPropertyChanged, IHasInstallerOptions
+public class VM_ConfigSelector : ViewModel, IHasInstallerOptions
 {
     public VM_ConfigSelector(Manifest manifest, Window_ConfigInstaller window, VM_ConfigInstaller parentVM)
     {
@@ -156,10 +156,8 @@ public class VM_ConfigSelector : INotifyPropertyChanged, IHasInstallerOptions
     public HashSet<string> SelectedBodyGenConfigPaths { get; set; }
 
     public Window_ConfigInstaller AssociatedWindow { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 }
-public class VM_Option : INotifyPropertyChanged, IHasInstallerOptions
+public class VM_Option : ViewModel, IHasInstallerOptions
 {
     public VM_Option(Manifest.Option option, IHasInstallerOptions parent, VM_ConfigSelector installer)
     {
@@ -195,8 +193,6 @@ public class VM_Option : INotifyPropertyChanged, IHasInstallerOptions
     public bool IsSelected { get; set; }
     public VM_ConfigSelector Installer { get; set; }
     public string DestinationModFolder { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 }
 
 public interface IHasInstallerOptions

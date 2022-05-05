@@ -1,9 +1,9 @@
-﻿using System.ComponentModel;
-using System.Windows.Controls;
+﻿using System.Windows.Controls;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_PreviewImage : INotifyPropertyChanged
+public class VM_PreviewImage : ViewModel
 {
     public VM_PreviewImage(Image image, string source)
     {
@@ -12,6 +12,4 @@ public class VM_PreviewImage : INotifyPropertyChanged
     }
     public Image Image { get; set; }
     public string Source { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 }

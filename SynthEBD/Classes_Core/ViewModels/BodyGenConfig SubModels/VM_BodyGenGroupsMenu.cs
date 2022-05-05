@@ -1,9 +1,9 @@
 ﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_BodyGenGroupsMenu : INotifyPropertyChanged
+public class VM_BodyGenGroupsMenu : ViewModel
 {
     public VM_BodyGenGroupsMenu(VM_BodyGenConfig parentMenu)
     {
@@ -23,5 +23,4 @@ public class VM_BodyGenGroupsMenu : INotifyPropertyChanged
 
     public RelayCommand AddTemplateGroup { get; }
     public RelayCommand RemoveTemplateGroup { get; }
-    public event PropertyChangedEventHandler PropertyChanged;
 }

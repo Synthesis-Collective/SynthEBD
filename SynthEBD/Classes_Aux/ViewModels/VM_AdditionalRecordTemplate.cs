@@ -3,11 +3,11 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_AdditionalRecordTemplate : INotifyPropertyChanged
+public class VM_AdditionalRecordTemplate : ViewModel
 {
     public VM_AdditionalRecordTemplate(ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, ObservableCollection<VM_AdditionalRecordTemplate> parentCollection)
     {
@@ -52,6 +52,4 @@ public class VM_AdditionalRecordTemplate : INotifyPropertyChanged
     public ObservableCollection<VM_AdditionalRecordTemplate> ParentCollection { get; set; }
     public RelayCommand AddAdditionalRacesPath { get; }
     public RelayCommand DeleteCommand { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 }

@@ -3,11 +3,11 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_ConfigDistributionRules : IProbabilityWeighted, INotifyPropertyChanged
+public class VM_ConfigDistributionRules : ViewModel, IProbabilityWeighted
 {
     public VM_ConfigDistributionRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
     {
@@ -79,8 +79,6 @@ public class VM_ConfigDistributionRules : IProbabilityWeighted, INotifyPropertyC
     public RelayCommand AddNPCKeyword { get; }
     public VM_AssetPack ParentAssetPack { get; set; }
     public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static VM_ConfigDistributionRules GetViewModelFromModel(AssetPack.ConfigDistributionRules model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
     {

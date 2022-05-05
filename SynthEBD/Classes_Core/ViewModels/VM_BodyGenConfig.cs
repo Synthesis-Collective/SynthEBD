@@ -1,10 +1,10 @@
 ﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Windows.Input;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_BodyGenConfig : INotifyPropertyChanged, IHasAttributeGroupMenu
+public class VM_BodyGenConfig : ViewModel, IHasAttributeGroupMenu
 {
     public VM_BodyGenConfig(VM_Settings_General generalSettingsVM, ObservableCollection<VM_BodyGenConfig> parentCollection, VM_SettingsBodyGen bodyGenSettingsVM)
     {
@@ -140,8 +140,6 @@ public class VM_BodyGenConfig : INotifyPropertyChanged, IHasAttributeGroupMenu
 
     public string Label { get; set; }
     public Gender Gender { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static VM_BodyGenConfig GetViewModelFromModel(BodyGenConfig model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_BodyGenConfig> parentCollection, VM_SettingsBodyGen bodyGenSettingsVM)
     {

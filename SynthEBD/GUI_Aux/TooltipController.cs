@@ -1,13 +1,11 @@
-﻿using System.ComponentModel;
+﻿using Noggog.WPF;
 
 namespace SynthEBD;
 
-public sealed class TooltipController : INotifyPropertyChanged
+public sealed class TooltipController : ViewModel
 {
     private static TooltipController instance;
-    private static object lockObj = new Object();
-
-    public event PropertyChangedEventHandler PropertyChanged;
+    private static object lockObj = new();
 
     private TooltipController() { }
 

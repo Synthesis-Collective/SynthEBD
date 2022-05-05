@@ -1,9 +1,9 @@
 ﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_OBodyMiscSettings : INotifyPropertyChanged
+public class VM_OBodyMiscSettings : ViewModel
 {
     public VM_OBodyMiscSettings()
     {
@@ -46,8 +46,6 @@ public class VM_OBodyMiscSettings : INotifyPropertyChanged
     public RelayCommand SetRaceMenuINI { get; }
     public RelayCommand AddMaleSliderGroup { get; set; }
     public RelayCommand AddFemaleSliderGroup { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static VM_OBodyMiscSettings GetViewModelFromModel(Settings_OBody model)
     {

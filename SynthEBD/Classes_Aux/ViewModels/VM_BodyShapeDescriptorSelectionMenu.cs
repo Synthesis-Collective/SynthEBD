@@ -1,10 +1,11 @@
 ﻿using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_BodyShapeDescriptorSelectionMenu : INotifyPropertyChanged
+public class VM_BodyShapeDescriptorSelectionMenu : ViewModel
 {
     public VM_BodyShapeDescriptorSelectionMenu(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
     {
@@ -27,7 +28,6 @@ public class VM_BodyShapeDescriptorSelectionMenu : INotifyPropertyChanged
     public ObservableCollection<VM_BodyShapeDescriptorShellSelector> DescriptorShells { get; set; }
     ObservableCollection<VM_RaceGrouping>  TrackedRaceGroupings { get; set; }
     public VM_BodyShapeDescriptorShellSelector CurrentlyDisplayedShell { get; set; }
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public VM_BodyShapeDescriptorSelectionMenu Clone()
     {
@@ -166,7 +166,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : INotifyPropertyChanged
     }
 }
 
-public class VM_BodyShapeDescriptorShellSelector : INotifyPropertyChanged
+public class VM_BodyShapeDescriptorShellSelector : ViewModel
 {
     public VM_BodyShapeDescriptorShellSelector(VM_BodyShapeDescriptorShell trackedShell, VM_BodyShapeDescriptorSelectionMenu parentMenu)
     {
@@ -182,8 +182,6 @@ public class VM_BodyShapeDescriptorShellSelector : INotifyPropertyChanged
     public VM_BodyShapeDescriptorShell TrackedShell { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu ParentMenu { get; set; }
     public ObservableCollection<VM_BodyShapeDescriptorSelector> DescriptorSelectors { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     void UpdateDescriptorList(object sender, NotifyCollectionChangedEventArgs e)
     {
@@ -226,7 +224,7 @@ public class VM_BodyShapeDescriptorShellSelector : INotifyPropertyChanged
     }
 }
 
-public class VM_BodyShapeDescriptorSelector : INotifyPropertyChanged
+public class VM_BodyShapeDescriptorSelector : ViewModel
 {
     public VM_BodyShapeDescriptorSelector(VM_BodyShapeDescriptor trackedDescriptor, VM_BodyShapeDescriptorSelectionMenu parentMenu)
     {
@@ -243,8 +241,6 @@ public class VM_BodyShapeDescriptorSelector : INotifyPropertyChanged
     public VM_BodyShapeDescriptorSelectionMenu ParentMenu { get; set; }
     public string Value { get; set; }
     public bool IsSelected { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public void refreshLabelAndHeader(object sender, PropertyChangedEventArgs e)
     {

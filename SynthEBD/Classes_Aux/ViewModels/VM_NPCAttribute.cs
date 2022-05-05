@@ -5,15 +5,15 @@ using Noggog;
 using ReactiveUI;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using System.ComponentModel;
 using System.Reactive;
 using System.Reactive.Linq;
 using System.Windows.Media;
+using Noggog.WPF;
 using static SynthEBD.RecordIntellisense;
 
 namespace SynthEBD;
 
-public class VM_NPCAttribute : INotifyPropertyChanged
+public class VM_NPCAttribute : ViewModel
 {
     public VM_NPCAttribute(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups)
     {
@@ -32,8 +32,6 @@ public class VM_NPCAttribute : INotifyPropertyChanged
     public bool DisplayForceIfOption { get; set; }
     public bool? DisplayForceIfWeight { get; set; }
     public ObservableCollection<VM_NPCAttribute> ParentCollection { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static VM_NPCAttribute CreateNewFromUI(ObservableCollection<VM_NPCAttribute> parentCollection, bool displayForceIfOption, bool? displayForceIfWeight, ObservableCollection<VM_AttributeGroup> attributeGroups)
     {
@@ -127,7 +125,7 @@ public class VM_NPCAttribute : INotifyPropertyChanged
     }
 }
 
-public class VM_NPCAttributeShell : INotifyPropertyChanged
+public class VM_NPCAttributeShell : ViewModel
 {
     public VM_NPCAttributeShell(VM_NPCAttribute parentVM, bool displayForceIfOption, bool? displayForceIfWeight, ObservableCollection<VM_AttributeGroup> attributeGroups)
     {
@@ -180,8 +178,6 @@ public class VM_NPCAttributeShell : INotifyPropertyChanged
     public RelayCommand DeleteCommand { get; }
 
     public RelayCommand ChangeType { get; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 }
 
 public interface ISubAttributeViewModel
@@ -268,7 +264,7 @@ public class VM_NPCAttributeClass : ISubAttributeViewModel
     }
 }
 
-public class VM_NPCAttributeCustom : ISubAttributeViewModel, INotifyPropertyChanged, IImplementsRecordIntellisense
+public class VM_NPCAttributeCustom : ViewModel, ISubAttributeViewModel, IImplementsRecordIntellisense
 {
     public VM_NPCAttributeCustom(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
@@ -343,8 +339,7 @@ public class VM_NPCAttributeCustom : ISubAttributeViewModel, INotifyPropertyChan
     public RelayCommand DeleteCommand { get; }
     public IObservable<Unit> NeedsRefresh { get; }
     public System.Windows.Media.SolidColorBrush StatusFontColor { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
+    
     public static VM_NPCAttributeCustom GetViewModelFromModel(NPCAttributeCustom model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
         var viewModel = new VM_NPCAttributeCustom(parentVM, parentShell);
@@ -613,7 +608,7 @@ public class VM_NPCAttributeNPC : ISubAttributeViewModel
     }
 }
 
-public class VM_NPCAttributeGroup : INotifyPropertyChanged, ISubAttributeViewModel
+public class VM_NPCAttributeGroup : ViewModel, ISubAttributeViewModel
 {
     public VM_NPCAttributeGroup(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> attributeGroups)
     {
@@ -636,7 +631,6 @@ public class VM_NPCAttributeGroup : INotifyPropertyChanged, ISubAttributeViewMod
     public ObservableCollection<VM_AttributeGroup> SubscribedAttributeGroupCollection { get; set; }
 
     public IObservable<Unit> NeedsRefresh { get; set; }
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public void RebuildCheckList(object sender, NotifyCollectionChangedEventArgs e)
     {

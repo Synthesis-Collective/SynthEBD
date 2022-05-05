@@ -1,10 +1,10 @@
 ﻿using Mutagen.Bethesda.Plugins.Cache;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_SettingsHeight : INotifyPropertyChanged
+public class VM_SettingsHeight : ViewModel
 {
     public VM_SettingsHeight()
     {
@@ -53,8 +53,6 @@ public class VM_SettingsHeight : INotifyPropertyChanged
     public RelayCommand AddHeightConfig { get; }
 
     public RelayCommand DeleteCurrentHeightConfig { get; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static void GetViewModelFromModel(VM_SettingsHeight viewModel, Settings_Height model)
     {

@@ -1,9 +1,9 @@
-﻿using System.ComponentModel;
+﻿using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_SettingsModManager : INotifyPropertyChanged
+public class VM_SettingsModManager : ViewModel
 {
     public VM_SettingsModManager()
     {
@@ -41,8 +41,6 @@ public class VM_SettingsModManager : INotifyPropertyChanged
     public string TempFolder { get; set; }
     public int FilePathLimit { get; set; }
     public RelayCommand SelectTempFolder { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public void UpdateDisplayedVM()
     {
@@ -95,7 +93,7 @@ public class VM_SettingsModManager : INotifyPropertyChanged
     }
 }
 
-public class VM_MO2Integration : INotifyPropertyChanged
+public class VM_MO2Integration : ViewModel
 {
     public VM_MO2Integration()
     {
@@ -131,8 +129,6 @@ public class VM_MO2Integration : INotifyPropertyChanged
     public RelayCommand FindModFolder { get; set; }
     public RelayCommand FindExecutable { get; set; }
 
-    public event PropertyChangedEventHandler PropertyChanged;
-
     public static void GetViewModelFromModel(Settings_ModManager.MO2 model, VM_MO2Integration viewModel)
     {
         viewModel.ModFolderPath = model.ModFolderPath;
@@ -147,7 +143,7 @@ public class VM_MO2Integration : INotifyPropertyChanged
     }
 }
 
-public class VM_VortexIntergation : INotifyPropertyChanged
+public class VM_VortexIntergation : ViewModel
 {
     public VM_VortexIntergation()
     {
@@ -167,7 +163,6 @@ public class VM_VortexIntergation : INotifyPropertyChanged
     public string StagingFolderPath { get; set; }
     public int FilePathLimit { get; set; }
     public RelayCommand FindStagingFolder { get; set; }
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static void GetViewModelFromModel(Settings_ModManager.Vortex model, VM_VortexIntergation viewModel)
     {

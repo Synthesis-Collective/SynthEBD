@@ -1,10 +1,11 @@
 ﻿using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_AttributeGroupCheckList : INotifyPropertyChanged
+public class VM_AttributeGroupCheckList : ViewModel
 {
     public VM_AttributeGroupCheckList(ObservableCollection<VM_AttributeGroup> AttributeVMs)
     {
@@ -28,7 +29,7 @@ public class VM_AttributeGroupCheckList : INotifyPropertyChanged
         this.AttributeSelections = newCheckList.AttributeSelections;
     }
 
-    public class AttributeSelection : INotifyPropertyChanged
+    public class AttributeSelection : ViewModel
     {
         public AttributeSelection(VM_AttributeGroup attributeGroupVM, VM_AttributeGroupCheckList parent)
         {
@@ -42,7 +43,6 @@ public class VM_AttributeGroupCheckList : INotifyPropertyChanged
         public bool IsSelected { get; set; }
 
         public VM_AttributeGroup SubscribedMasterAttributeGroup { get; set; } // to fire the PropertyChanged event
-        public event PropertyChangedEventHandler PropertyChanged;
         public void RefreshName(object sender, PropertyChangedEventArgs e)
         {
             VM_AttributeGroup updatedMasterAttributeGroup = (VM_AttributeGroup)sender;
@@ -52,6 +52,4 @@ public class VM_AttributeGroupCheckList : INotifyPropertyChanged
         public VM_AttributeGroupCheckList ParentCheckList { get; set; }
         public string Label { get; set; }
     }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 }

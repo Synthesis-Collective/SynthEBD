@@ -4,10 +4,11 @@ using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_ConsistencyUI : INotifyPropertyChanged
+public class VM_ConsistencyUI : ViewModel
 {
     public VM_ConsistencyUI()
     {
@@ -87,8 +88,6 @@ public class VM_ConsistencyUI : INotifyPropertyChanged
     public ILinkCache lk { get; set; }
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; }
     public FormKey SelectedNPCFormKey { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public RelayCommand DeleteCurrentNPC { get; set; }
 

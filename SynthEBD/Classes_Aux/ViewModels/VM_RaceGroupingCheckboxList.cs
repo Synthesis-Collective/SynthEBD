@@ -1,10 +1,11 @@
 ﻿using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_RaceGroupingCheckboxList : INotifyPropertyChanged
+public class VM_RaceGroupingCheckboxList : ViewModel
 {
     public VM_RaceGroupingCheckboxList(ObservableCollection<VM_RaceGrouping> RaceGroupingVMs)
     {
@@ -79,7 +80,7 @@ public class VM_RaceGroupingCheckboxList : INotifyPropertyChanged
         return checkBoxList;
     }
 
-    public class RaceGroupingSelection : INotifyPropertyChanged
+    public class RaceGroupingSelection : ViewModel
     {
         public RaceGroupingSelection(VM_RaceGrouping raceGroupingVM, VM_RaceGroupingCheckboxList parent)
         {
@@ -95,7 +96,6 @@ public class VM_RaceGroupingCheckboxList : INotifyPropertyChanged
         public bool IsSelected { get; set; }
 
         public VM_RaceGrouping SubscribedMasterRaceGrouping { get; set; } // to fire the PropertyChanged event
-        public event PropertyChangedEventHandler PropertyChanged;
         public void RefreshRaceGroupingName(object sender, PropertyChangedEventArgs e)
         {
             VM_RaceGrouping updatedMasterRaceGrouping = (VM_RaceGrouping)sender;
@@ -118,6 +118,4 @@ public class VM_RaceGroupingCheckboxList : INotifyPropertyChanged
             return clone;
         }
     }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 }

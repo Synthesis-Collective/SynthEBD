@@ -3,11 +3,11 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_HeightConfig : INotifyPropertyChanged
+public class VM_HeightConfig : ViewModel
 {
     public VM_HeightConfig()
     {
@@ -60,8 +60,6 @@ public class VM_HeightConfig : INotifyPropertyChanged
     public RelayCommand SetAllDistModes { get; }
     public RelayCommand Save { get; }
 
-    public event PropertyChangedEventHandler PropertyChanged;
-
     public static void GetViewModelsFromModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models)
     {
         for (int i = 0; i < models.Count; i++)
@@ -94,7 +92,7 @@ public class VM_HeightConfig : INotifyPropertyChanged
         return model;
     }
 }
-public class VM_HeightAssignment : INotifyPropertyChanged
+public class VM_HeightAssignment : ViewModel
 {
     public VM_HeightAssignment(ObservableCollection<VM_HeightAssignment> parentCollection)
     {
@@ -122,8 +120,6 @@ public class VM_HeightAssignment : INotifyPropertyChanged
     public IEnumerable<Type> FormKeyPickerTypes { get; set; }
     public ILinkCache lk { get; set; }
     public RelayCommand DeleteCommand { get; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static ObservableCollection<VM_HeightAssignment> GetViewModelsFromModels(HashSet<HeightAssignment> models)
     {

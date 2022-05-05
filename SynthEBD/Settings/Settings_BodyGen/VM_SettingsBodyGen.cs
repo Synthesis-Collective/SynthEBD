@@ -1,10 +1,10 @@
 ﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_SettingsBodyGen : INotifyPropertyChanged
+public class VM_SettingsBodyGen : ViewModel
 {
     public VM_SettingsBodyGen(VM_Settings_General generalSettingsVM)
     {
@@ -90,8 +90,6 @@ public class VM_SettingsBodyGen : INotifyPropertyChanged
     public RelayCommand AddNewMaleConfig { get; }
     public RelayCommand DisplayFemaleConfig { get; }
     public RelayCommand AddNewFemaleConfig { get; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static void GetViewModelFromModel(BodyGenConfigs configModels, Settings_BodyGen model, VM_SettingsBodyGen viewModel, VM_Settings_General generalSettingsVM)
     {

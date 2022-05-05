@@ -5,10 +5,11 @@ using Noggog;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_LinkedNPCGroup : INotifyPropertyChanged
+public class VM_LinkedNPCGroup : ViewModel
 {
     public VM_LinkedNPCGroup()
     {
@@ -28,8 +29,6 @@ public class VM_LinkedNPCGroup : INotifyPropertyChanged
     public IEnumerable<Type> NPCFormKeyTypes { get; set; }
     public string Primary { get; set; }
     public HashSet<string> PrimaryCandidates { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public void RefereshPrimaryAssignment(object sender, PropertyChangedEventArgs e)
     {

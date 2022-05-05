@@ -1,11 +1,11 @@
 ﻿using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Skyrim;
-using System.ComponentModel;
 using System.Windows.Forms;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_CustomEnvironment : INotifyPropertyChanged
+public class VM_CustomEnvironment : ViewModel
 {
     public VM_CustomEnvironment(Window_CustomEnvironment window)
     {
@@ -62,8 +62,6 @@ public class VM_CustomEnvironment : INotifyPropertyChanged
     public RelayCommand OK { get; set; }
     public RelayCommand Exit { get; set; }
     public IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> Environment { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     private void Validate()
     {

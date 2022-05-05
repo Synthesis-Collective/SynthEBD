@@ -1,9 +1,9 @@
 ﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_SettingsOBody : INotifyPropertyChanged, IHasAttributeGroupMenu
+public class VM_SettingsOBody : ViewModel, IHasAttributeGroupMenu
 {
     public VM_SettingsOBody(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_General generalSettingsVM)
     {
@@ -44,7 +44,6 @@ public class VM_SettingsOBody : INotifyPropertyChanged, IHasAttributeGroupMenu
     public RelayCommand ClickDescriptorsMenu { get; }
     public RelayCommand ClickAttributeGroupsMenu { get; }
     public RelayCommand ClickMiscMenu { get; }
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static void GetViewModelFromModel(Settings_OBody model, VM_SettingsOBody viewModel, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {

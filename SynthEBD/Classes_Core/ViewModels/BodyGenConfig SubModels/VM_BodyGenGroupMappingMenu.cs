@@ -4,11 +4,11 @@ using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_BodyGenGroupMappingMenu : INotifyPropertyChanged
+public class VM_BodyGenGroupMappingMenu : ViewModel
 {
     public VM_BodyGenGroupMappingMenu(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
@@ -29,10 +29,9 @@ public class VM_BodyGenGroupMappingMenu : INotifyPropertyChanged
     public VM_BodyGenRacialMapping DisplayedMapping { get; set; }
     public RelayCommand AddMapping { get; }
     public RelayCommand RemoveMapping { get; }
-    public event PropertyChangedEventHandler PropertyChanged;
 }
 
-public class VM_BodyGenRacialMapping : INotifyPropertyChanged
+public class VM_BodyGenRacialMapping : ViewModel
 {
     public VM_BodyGenRacialMapping(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
@@ -67,8 +66,6 @@ public class VM_BodyGenRacialMapping : INotifyPropertyChanged
     public RelayCommand AddCombination { get; }
     public RelayCommand RemoveCombination { get; }
 
-    public event PropertyChangedEventHandler PropertyChanged;
-
     public static VM_BodyGenRacialMapping GetViewModelFromModel(BodyGenConfig.RacialMapping model, VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
         VM_BodyGenRacialMapping viewModel = new VM_BodyGenRacialMapping(groupsMenu, raceGroupingVMs);
@@ -96,7 +93,7 @@ public class VM_BodyGenRacialMapping : INotifyPropertyChanged
         return model;
     }
 }
-public class VM_BodyGenCombination : INotifyPropertyChanged
+public class VM_BodyGenCombination : ViewModel
 {
     public VM_BodyGenCombination(VM_BodyGenGroupsMenu groupsMenu, VM_BodyGenRacialMapping parent)
     {
@@ -129,8 +126,6 @@ public class VM_BodyGenCombination : INotifyPropertyChanged
     public RelayCommand RemoveMember { get; }
 
     public RelayCommand AddMember { get; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static VM_BodyGenCombination GetViewModelFromModel(BodyGenConfig.RacialMapping.BodyGenCombination model, VM_BodyGenGroupsMenu groupsMenu, VM_BodyGenRacialMapping parent)
     {

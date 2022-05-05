@@ -3,12 +3,12 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_AssetPackDirectReplacerMenu : INotifyPropertyChanged
+public class VM_AssetPackDirectReplacerMenu : ViewModel
 {
     public VM_AssetPackDirectReplacerMenu(VM_AssetPack parent, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
     {
@@ -25,8 +25,6 @@ public class VM_AssetPackDirectReplacerMenu : INotifyPropertyChanged
     public VM_AssetPack ParentAssetPack { get; set; }
 
     public RelayCommand AddGroup { get; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static VM_AssetPackDirectReplacerMenu GetViewModelFromModels(List<AssetReplacerGroup> models, VM_AssetPack parentAssetPack, VM_Settings_General generalSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
     {
@@ -50,7 +48,7 @@ public class VM_AssetPackDirectReplacerMenu : INotifyPropertyChanged
     }
 }
 
-public class VM_AssetReplacerGroup : INotifyPropertyChanged
+public class VM_AssetReplacerGroup : ViewModel
 {
     public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
     {
@@ -93,8 +91,6 @@ public class VM_AssetReplacerGroup : INotifyPropertyChanged
     public RelayCommand Remove { get; }
 
     public RelayCommand AddTopLevelSubgroup { get; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     public static VM_AssetReplacerGroup GetViewModelFromModel(AssetReplacerGroup model, VM_AssetPackDirectReplacerMenu parentMenu, VM_Settings_General generalSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
     {

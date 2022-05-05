@@ -3,13 +3,13 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Windows.Media;
+using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_BodySlideSetting : INotifyPropertyChanged
+public class VM_BodySlideSetting : ViewModel
 {
     public VM_BodySlideSetting(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection, VM_SettingsOBody parentConfig)
     {
@@ -114,8 +114,6 @@ public class VM_BodySlideSetting : INotifyPropertyChanged
     public bool bAllowRandom { get; set; }
     public double ProbabilityWeighting { get; set; }
     public NPCWeightRange WeightRange { get; set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
     public string Caption_BodyShapeDescriptors { get; set; }
     public ILinkCache lk { get; set; }
     public IEnumerable<Type> RacePickerFormKeys { get; set; }

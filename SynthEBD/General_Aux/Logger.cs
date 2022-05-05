@@ -1,17 +1,15 @@
 ﻿using Mutagen.Bethesda.Skyrim;
-using System.ComponentModel;
 using System.Text;
 using System.Windows.Media;
 using System.Xml.Linq;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public sealed class Logger : INotifyPropertyChanged
+public sealed class Logger : ViewModel
 {
     private static Logger instance;
-    private static object lockObj = new Object();
-
-    public event PropertyChangedEventHandler PropertyChanged;
+    private static object lockObj = new();
 
     public VM_RunButton RunButton { get; set; }
     public MainWindow_ViewModel MainVM { get; set; }

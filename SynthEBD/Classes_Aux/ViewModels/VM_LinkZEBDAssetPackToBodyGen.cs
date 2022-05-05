@@ -1,8 +1,8 @@
-﻿using System.ComponentModel;
+﻿using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_LinkZEBDAssetPackToBodyGen : INotifyPropertyChanged
+public class VM_LinkZEBDAssetPackToBodyGen : ViewModel
 {
     public VM_LinkZEBDAssetPackToBodyGen(BodyGenConfigs availableConfigs, Gender gender, string assetPackLabel, Window_LinkZEBDAssetPackToBodyGen associatedWindow)
     {
@@ -39,6 +39,4 @@ public class VM_LinkZEBDAssetPackToBodyGen : INotifyPropertyChanged
     public Window_LinkZEBDAssetPackToBodyGen AssociatedWindow { get; set; }
     public RelayCommand OKcommand { get; }
     public RelayCommand ClearCommand { get; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 }

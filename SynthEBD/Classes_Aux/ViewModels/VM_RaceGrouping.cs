@@ -4,11 +4,11 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_RaceGrouping : INotifyPropertyChanged
+public class VM_RaceGrouping : ViewModel
 {
     public VM_RaceGrouping(RaceGrouping raceGrouping, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env, VM_Settings_General parentVM)
     {
@@ -26,7 +26,6 @@ public class VM_RaceGrouping : INotifyPropertyChanged
     public VM_Settings_General ParentVM { get; set; }
     public RelayCommand DeleteCommand { get; }
 
-    public event PropertyChangedEventHandler PropertyChanged;
     public static ObservableCollection<VM_RaceGrouping> GetViewModelsFromModels(List<RaceGrouping> models, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env, VM_Settings_General parentVM)
     {
         var RGVM = new ObservableCollection<VM_RaceGrouping>();
