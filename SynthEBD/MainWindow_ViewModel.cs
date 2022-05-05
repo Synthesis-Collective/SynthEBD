@@ -49,6 +49,9 @@ namespace SynthEBD
 
         public MainWindow_ViewModel()
         {
+            // initialize logger
+            Logger.Instance.MainVM = this;
+
             // initialize paths
             SettingsIO_Misc.GetSettingsSource();
 
@@ -62,9 +65,7 @@ namespace SynthEBD
             ConsistencyUIVM = new VM_ConsistencyUI();
             ModManagerSettingsVM = new VM_SettingsModManager();
             NavPanelVM = new VM_NavPanel(this);
-
             StatusBarVM = new VM_StatusBar();
-
             RunButtonVM = new VM_RunButton(this);
 
             LoadInitialSettingsViewModels();
@@ -75,7 +76,6 @@ namespace SynthEBD
             DisplayedViewModel = GeneralSettingsVM;
             NavViewModel = NavPanelVM;
             Logger.Instance.RunButton = RunButtonVM;
-            Logger.Instance.MainVM = this;
 
             Application.Current.MainWindow.Closing += new CancelEventHandler(MainWindow_Closing);
 
