@@ -86,24 +86,11 @@ namespace SynthEBD
 
         private static IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> OriginState { get; set; }
 
-        private static GameRelease SkyrimReleaseToGameRelease(SkyrimRelease gameType)
-        {
-            switch(gameType)
-            {
-                case SkyrimRelease.SkyrimSE: return GameRelease.SkyrimSE;
-                case SkyrimRelease.SkyrimLE: return GameRelease.SkyrimLE;
-                case SkyrimRelease.SkyrimVR: return GameRelease.SkyrimVR;
-                case SkyrimRelease.EnderalSE: return GameRelease.EnderalSE;
-                case SkyrimRelease.EnderalLE: return GameRelease.EnderalLE;
-                default: return new GameRelease();
-            }
-        }
-
         public static IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> BuildCustomEnvironment(string executablePath, SkyrimRelease skyrimRelease) // this function expects calling function to handle exceptions
         {
             var gameDir = System.IO.Path.GetDirectoryName(executablePath);
             var dataDir = System.IO.Path.Combine(gameDir, "data");
-            return  GameEnvironment.Typical.Builder<ISkyrimMod, ISkyrimModGetter>(SkyrimReleaseToGameRelease(skyrimRelease)).WithTargetDataFolder(dataDir).Build();
+            return  GameEnvironment.Typical.Builder<ISkyrimMod, ISkyrimModGetter>(skyrimRelease.ToGameRelease()).WithTargetDataFolder(dataDir).Build();
         }
 
         public void GetOriginState(SkyrimRelease? gameType)
