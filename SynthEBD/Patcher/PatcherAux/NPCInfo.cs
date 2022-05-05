@@ -90,7 +90,7 @@ namespace SynthEBD
             Secondary
         }
 
-        private static Gender GetGender(INpcGetter npc)
+        public static Gender GetGender(INpcGetter npc)
         {
             if (npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Female))
             {

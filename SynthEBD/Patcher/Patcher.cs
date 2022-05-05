@@ -140,6 +140,7 @@ namespace SynthEBD
             {
                 Keyword EBDValidHeadPartActorKW = EBDCoreRecords.CreateHeadPartKeyword(outputMod);
                 EBDCoreRecords.ApplyHeadPartKeyword(headPartNPCs, EBDValidHeadPartActorKW);
+                HeadPartFunctions.ApplyNeededFaceTextures(headPartNPCs);
             }
 
             Logger.StopTimer();
