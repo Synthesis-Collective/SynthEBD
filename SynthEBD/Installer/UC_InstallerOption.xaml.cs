@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_InstallerOption.xaml
+/// </summary>
+public partial class UC_InstallerOption : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_InstallerOption.xaml
-    /// </summary>
-    public partial class UC_InstallerOption : UserControl
+    public UC_InstallerOption()
     {
-        public UC_InstallerOption()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

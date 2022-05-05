@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_BodyShapeDescriptorCreationMenu.xaml
+/// </summary>
+public partial class UC_BodyShapeDescriptorCreationMenu : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_BodyShapeDescriptorCreationMenu.xaml
-    /// </summary>
-    public partial class UC_BodyShapeDescriptorCreationMenu : UserControl
+    public UC_BodyShapeDescriptorCreationMenu()
     {
-        public UC_BodyShapeDescriptorCreationMenu()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

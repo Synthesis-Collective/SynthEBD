@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_HeightSettings.xaml
+/// </summary>
+public partial class UC_HeightSettings : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_HeightSettings.xaml
-    /// </summary>
-    public partial class UC_HeightSettings : UserControl
+    public UC_HeightSettings()
     {
-        public UC_HeightSettings()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

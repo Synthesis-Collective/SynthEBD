@@ -1,18 +1,17 @@
-﻿namespace SynthEBD
+﻿namespace SynthEBD;
+
+public class ExceptionLogger
 {
-    public class ExceptionLogger
+    public static string GetExceptionStack(Exception e, string error)
     {
-        public static string GetExceptionStack(Exception e, string error)
+        error += e.Message + Environment.NewLine + e.StackTrace + Environment.NewLine + Environment.NewLine;
+        if (e.InnerException != null)
         {
-            error += e.Message + Environment.NewLine + e.StackTrace + Environment.NewLine + Environment.NewLine;
-            if (e.InnerException != null)
-            {
-                return GetExceptionStack(e.InnerException, error);
-            }
-            else
-            {
-                return error;
-            }
+            return GetExceptionStack(e.InnerException, error);
+        }
+        else
+        {
+            return error;
         }
     }
 }

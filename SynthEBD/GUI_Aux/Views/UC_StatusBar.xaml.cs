@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for StatusBar.xaml
+/// </summary>
+public partial class UC_StatusBar : UserControl
 {
-    /// <summary>
-    /// Interaction logic for StatusBar.xaml
-    /// </summary>
-    public partial class UC_StatusBar : UserControl
+    public UC_StatusBar()
     {
-        public UC_StatusBar()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

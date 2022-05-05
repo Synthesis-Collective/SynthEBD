@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_RaceGroupingCheckbox.xaml
+/// </summary>
+public partial class UC_RaceGroupingCheckboxList : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_RaceGroupingCheckbox.xaml
-    /// </summary>
-    public partial class UC_RaceGroupingCheckboxList : UserControl
+    public UC_RaceGroupingCheckboxList()
     {
-        public UC_RaceGroupingCheckboxList()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

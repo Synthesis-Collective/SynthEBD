@@ -1,29 +1,28 @@
 ﻿using System.IO;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+public class SettingsIO_ModManager
 {
-    public class SettingsIO_ModManager
+    public static Settings_ModManager LoadModManagerSettings(out bool loadSuccess)
     {
-        public static Settings_ModManager LoadModManagerSettings(out bool loadSuccess)
+        Settings_ModManager modManagerSettings = new Settings_ModManager();
+
+        loadSuccess = true;
+
+        if (File.Exists(PatcherSettings.Paths.ModManagerSettingsPath))
         {
-            Settings_ModManager modManagerSettings = new Settings_ModManager();
-
-            loadSuccess = true;
-
-            if (File.Exists(PatcherSettings.Paths.ModManagerSettingsPath))
+            modManagerSettings = JSONhandler<Settings_ModManager>.LoadJSONFile(PatcherSettings.Paths.ModManagerSettingsPath, out loadSuccess, out string exceptionStr);
+            if (loadSuccess && string.IsNullOrWhiteSpace(modManagerSettings.CurrentInstallationFolder))
             {
-                modManagerSettings = JSONhandler<Settings_ModManager>.LoadJSONFile(PatcherSettings.Paths.ModManagerSettingsPath, out loadSuccess, out string exceptionStr);
-                if (loadSuccess && string.IsNullOrWhiteSpace(modManagerSettings.CurrentInstallationFolder))
-                {
-                    modManagerSettings.CurrentInstallationFolder = PatcherEnvironmentProvider.Environment.DataFolderPath;
-                }
-                else if (!loadSuccess)
-                {
-                    Logger.LogError("Could not load Mod Manager Integration Settings. Error: " + exceptionStr);
-                }
+                modManagerSettings.CurrentInstallationFolder = PatcherEnvironmentProvider.Environment.DataFolderPath;
             }
-
-            return modManagerSettings;
+            else if (!loadSuccess)
+            {
+                Logger.LogError("Could not load Mod Manager Integration Settings. Error: " + exceptionStr);
+            }
         }
+
+        return modManagerSettings;
     }
 }

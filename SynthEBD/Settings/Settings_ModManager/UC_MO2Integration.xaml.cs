@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_MO2Integration.xaml
+/// </summary>
+public partial class UC_MO2Integration : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_MO2Integration.xaml
-    /// </summary>
-    public partial class UC_MO2Integration : UserControl
+    public UC_MO2Integration()
     {
-        public UC_MO2Integration()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

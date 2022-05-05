@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_AssetReplacerAssignment_Consistency.xaml
+/// </summary>
+public partial class UC_AssetReplacementAssignment_Consistency : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_AssetReplacerAssignment_Consistency.xaml
-    /// </summary>
-    public partial class UC_AssetReplacementAssignment_Consistency : UserControl
+    public UC_AssetReplacementAssignment_Consistency()
     {
-        public UC_AssetReplacementAssignment_Consistency()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_AdditionalRecordTemplate.xaml
+/// </summary>
+public partial class UC_AdditionalRecordTemplate : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_AdditionalRecordTemplate.xaml
-    /// </summary>
-    public partial class UC_AdditionalRecordTemplate : UserControl
+    public UC_AdditionalRecordTemplate()
     {
-        public UC_AdditionalRecordTemplate()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

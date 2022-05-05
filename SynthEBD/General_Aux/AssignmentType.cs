@@ -1,12 +1,11 @@
-﻿namespace SynthEBD
+﻿namespace SynthEBD;
+
+public enum AssignmentType
 {
-    public enum AssignmentType
-    {
-        PrimaryAssets,
-        MixInAssets,
-        ReplacerAssets,
-        BodyGen,
-        BodySlide,
-        Height
-    }
+    PrimaryAssets,
+    MixInAssets,
+    ReplacerAssets,
+    BodyGen,
+    BodySlide,
+    Height
 }

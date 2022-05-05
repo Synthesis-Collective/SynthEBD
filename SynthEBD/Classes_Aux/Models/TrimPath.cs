@@ -1,14 +1,13 @@
-﻿namespace SynthEBD
-{
-    public class TrimPath
-    {
-        public TrimPath()
-        {
-            this.Extension = "";
-            this.PathToTrim = "";
-        }
+﻿namespace SynthEBD;
 
-        public string Extension { get; set; }
-        public string PathToTrim { get; set; }
+public class TrimPath
+{
+    public TrimPath()
+    {
+        this.Extension = "";
+        this.PathToTrim = "";
     }
+
+    public string Extension { get; set; }
+    public string PathToTrim { get; set; }
 }

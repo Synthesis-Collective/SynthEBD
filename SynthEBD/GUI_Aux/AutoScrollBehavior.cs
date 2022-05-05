@@ -1,46 +1,45 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+public static class AutoScrollBehavior // https://stackoverflow.com/questions/8370209/how-to-scroll-to-the-bottom-of-a-scrollviewer-automatically-with-xaml-and-bindin
 {
-    public static class AutoScrollBehavior // https://stackoverflow.com/questions/8370209/how-to-scroll-to-the-bottom-of-a-scrollviewer-automatically-with-xaml-and-bindin
+    public static readonly DependencyProperty AutoScrollProperty =
+        DependencyProperty.RegisterAttached("AutoScroll", typeof(bool), typeof(AutoScrollBehavior), new PropertyMetadata(false, AutoScrollPropertyChanged));
+
+
+    public static void AutoScrollPropertyChanged(DependencyObject obj, DependencyPropertyChangedEventArgs args)
     {
-        public static readonly DependencyProperty AutoScrollProperty =
-            DependencyProperty.RegisterAttached("AutoScroll", typeof(bool), typeof(AutoScrollBehavior), new PropertyMetadata(false, AutoScrollPropertyChanged));
-
-
-        public static void AutoScrollPropertyChanged(DependencyObject obj, DependencyPropertyChangedEventArgs args)
+        var scrollViewer = obj as ScrollViewer;
+        if (scrollViewer != null && (bool)args.NewValue)
         {
-            var scrollViewer = obj as ScrollViewer;
-            if (scrollViewer != null && (bool)args.NewValue)
-            {
-                scrollViewer.ScrollChanged += ScrollViewer_ScrollChanged;
-                scrollViewer.ScrollToEnd();
-            }
-            else
-            {
-                scrollViewer.ScrollChanged -= ScrollViewer_ScrollChanged;
-            }
+            scrollViewer.ScrollChanged += ScrollViewer_ScrollChanged;
+            scrollViewer.ScrollToEnd();
         }
-
-        private static void ScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
+        else
         {
-            // Only scroll to bottom when the extent changed. Otherwise you can't scroll up
-            if (e.ExtentHeightChange != 0)
-            {
-                var scrollViewer = sender as ScrollViewer;
-                scrollViewer?.ScrollToBottom();
-            }
+            scrollViewer.ScrollChanged -= ScrollViewer_ScrollChanged;
         }
+    }
 
-        public static bool GetAutoScroll(DependencyObject obj)
+    private static void ScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        // Only scroll to bottom when the extent changed. Otherwise you can't scroll up
+        if (e.ExtentHeightChange != 0)
         {
-            return (bool)obj.GetValue(AutoScrollProperty);
+            var scrollViewer = sender as ScrollViewer;
+            scrollViewer?.ScrollToBottom();
         }
+    }
 
-        public static void SetAutoScroll(DependencyObject obj, bool value)
-        {
-            obj.SetValue(AutoScrollProperty, value);
-        }
+    public static bool GetAutoScroll(DependencyObject obj)
+    {
+        return (bool)obj.GetValue(AutoScrollProperty);
+    }
+
+    public static void SetAutoScroll(DependencyObject obj, bool value)
+    {
+        obj.SetValue(AutoScrollProperty, value);
     }
 }

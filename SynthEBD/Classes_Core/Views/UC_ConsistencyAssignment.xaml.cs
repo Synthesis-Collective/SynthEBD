@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_ConsistencyAssignment.xaml
+/// </summary>
+public partial class UC_ConsistencyAssignment : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_ConsistencyAssignment.xaml
-    /// </summary>
-    public partial class UC_ConsistencyAssignment : UserControl
+    public UC_ConsistencyAssignment()
     {
-        public UC_ConsistencyAssignment()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

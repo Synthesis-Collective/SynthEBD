@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_AttributeGroup.xaml
+/// </summary>
+public partial class UC_AttributeGroupMenu : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_AttributeGroup.xaml
-    /// </summary>
-    public partial class UC_AttributeGroupMenu : UserControl
+    public UC_AttributeGroupMenu()
     {
-        public UC_AttributeGroupMenu()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

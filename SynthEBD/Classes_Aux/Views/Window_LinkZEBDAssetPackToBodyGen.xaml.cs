@@ -1,15 +1,14 @@
 ﻿using System.Windows;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for Window_LinkZEBDAssetPackToBodyGen.xaml
+/// </summary>
+public partial class Window_LinkZEBDAssetPackToBodyGen : Window
 {
-    /// <summary>
-    /// Interaction logic for Window_LinkZEBDAssetPackToBodyGen.xaml
-    /// </summary>
-    public partial class Window_LinkZEBDAssetPackToBodyGen : Window
+    public Window_LinkZEBDAssetPackToBodyGen()
     {
-        public Window_LinkZEBDAssetPackToBodyGen()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

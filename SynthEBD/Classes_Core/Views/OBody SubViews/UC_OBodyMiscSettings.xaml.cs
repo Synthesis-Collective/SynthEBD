@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_OBodyMiscSettings.xaml
+/// </summary>
+public partial class UC_OBodyMiscSettings : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_OBodyMiscSettings.xaml
-    /// </summary>
-    public partial class UC_OBodyMiscSettings : UserControl
+    public UC_OBodyMiscSettings()
     {
-        public UC_OBodyMiscSettings()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

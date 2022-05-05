@@ -1,15 +1,14 @@
 ﻿using System.Windows;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for Window_ConfigInstaller.xaml
+/// </summary>
+public partial class Window_ConfigInstaller : Window
 {
-    /// <summary>
-    /// Interaction logic for Window_ConfigInstaller.xaml
-    /// </summary>
-    public partial class Window_ConfigInstaller : Window
+    public Window_ConfigInstaller()
     {
-        public Window_ConfigInstaller()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

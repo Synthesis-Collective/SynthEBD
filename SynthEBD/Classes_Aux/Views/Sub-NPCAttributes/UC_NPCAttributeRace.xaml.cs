@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_NPCAttributeRace.xaml
+/// </summary>
+public partial class UC_NPCAttributeRace : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_NPCAttributeRace.xaml
-    /// </summary>
-    public partial class UC_NPCAttributeRace : UserControl
+    public UC_NPCAttributeRace()
     {
-        public UC_NPCAttributeRace()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

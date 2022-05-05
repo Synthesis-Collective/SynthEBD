@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_CollectionMemberStringCheckboxList.xaml
+/// </summary>
+public partial class UC_CollectionMemberStringCheckboxList : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_CollectionMemberStringCheckboxList.xaml
-    /// </summary>
-    public partial class UC_CollectionMemberStringCheckboxList : UserControl
+    public UC_CollectionMemberStringCheckboxList()
     {
-        public UC_CollectionMemberStringCheckboxList()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

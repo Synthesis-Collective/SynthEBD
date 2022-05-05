@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_BlockedPlugin.xaml
+/// </summary>
+public partial class UC_BlockedPlugin : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_BlockedPlugin.xaml
-    /// </summary>
-    public partial class UC_BlockedPlugin : UserControl
+    public UC_BlockedPlugin()
     {
-        public UC_BlockedPlugin()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

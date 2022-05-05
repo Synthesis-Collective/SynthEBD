@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_NPCAttributeVoiceType.xaml
+/// </summary>
+public partial class UC_NPCAttributeVoiceType : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_NPCAttributeVoiceType.xaml
-    /// </summary>
-    public partial class UC_NPCAttributeVoiceType : UserControl
+    public UC_NPCAttributeVoiceType()
     {
-        public UC_NPCAttributeVoiceType()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

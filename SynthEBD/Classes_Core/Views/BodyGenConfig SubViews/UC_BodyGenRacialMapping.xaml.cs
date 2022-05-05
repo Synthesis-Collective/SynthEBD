@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_BodyGenRacialSettings.xaml
+/// </summary>
+public partial class UC_BodyGenRacialMapping : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_BodyGenRacialSettings.xaml
-    /// </summary>
-    public partial class UC_BodyGenRacialMapping : UserControl
+    public UC_BodyGenRacialMapping()
     {
-        public UC_BodyGenRacialMapping()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

@@ -1,290 +1,289 @@
-﻿namespace SynthEBD
+﻿namespace SynthEBD;
+
+public class OBodySelector
 {
-    public class OBodySelector
+    public static BodySlideSetting SelectBodySlidePreset(NPCInfo npcInfo, out bool selectionMade, Settings_OBody oBodySettings, SubgroupCombination assignedAssetCombination, out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
     {
-        public static BodySlideSetting SelectBodySlidePreset(NPCInfo npcInfo, out bool selectionMade, Settings_OBody oBodySettings, SubgroupCombination assignedAssetCombination, out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
+        selectionMade = false;
+
+        Logger.OpenReportSubsection("OBodySelection", npcInfo);
+        Logger.LogReport("Selecting a BodySlide preset for the current NPC", false, npcInfo);
+        List<BodySlideSetting> availablePresets = null;
+        statusFlags = new AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag();
+        switch (npcInfo.Gender)
+        {
+            case Gender.Male: availablePresets = new List<BodySlideSetting>(oBodySettings.BodySlidesMale); break; // shallow copy to allow pruning
+            case Gender.Female: availablePresets = new List<BodySlideSetting>(oBodySettings.BodySlidesFemale); break;
+        }
+
+        if (!availablePresets.Any())
         {
             selectionMade = false;
+            Logger.LogReport("No BodySlide presets are available for NPCs of the current gender.", false, npcInfo);
+            Logger.CloseReportSubsection(npcInfo);
+            return null;
+        }
 
-            Logger.OpenReportSubsection("OBodySelection", npcInfo);
-            Logger.LogReport("Selecting a BodySlide preset for the current NPC", false, npcInfo);
-            List<BodySlideSetting> availablePresets = null;
-            statusFlags = new AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag();
-            switch (npcInfo.Gender)
+        AssetAndBodyShapeSelector.ClearStatusFlags(statusFlags);
+
+        BodySlideSetting selectedPreset = null;
+
+        #region Specific NPC Assignments
+        if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.BodySlidePreset != "")
+        {
+            selectedPreset = availablePresets.Where(x => x.Label == npcInfo.SpecificNPCAssignment.BodySlidePreset).FirstOrDefault();
+            if (selectedPreset != null)
             {
-                case Gender.Male: availablePresets = new List<BodySlideSetting>(oBodySettings.BodySlidesMale); break; // shallow copy to allow pruning
-                case Gender.Female: availablePresets = new List<BodySlideSetting>(oBodySettings.BodySlidesFemale); break;
-            }
-
-            if (!availablePresets.Any())
-            {
-                selectionMade = false;
-                Logger.LogReport("No BodySlide presets are available for NPCs of the current gender.", false, npcInfo);
-                Logger.CloseReportSubsection(npcInfo);
-                return null;
-            }
-
-            AssetAndBodyShapeSelector.ClearStatusFlags(statusFlags);
-
-            BodySlideSetting selectedPreset = null;
-
-            #region Specific NPC Assignments
-            if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.BodySlidePreset != "")
-            {
-                selectedPreset = availablePresets.Where(x => x.Label == npcInfo.SpecificNPCAssignment.BodySlidePreset).FirstOrDefault();
-                if (selectedPreset != null)
-                {
-                    Logger.LogReport("Assigned forced BodySlide preset " + selectedPreset.Label, false, npcInfo);
-                }
-                else
-                {
-                    Logger.LogReport("Could not find the forced BodySlide preset \"" + npcInfo.SpecificNPCAssignment.BodySlidePreset + "\" within the available presets. Attempting to assign another preset.", true, npcInfo);
-                }
-            }
-            #endregion
-
-            #region Linked NPC Group
-            if (selectedPreset == null && npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary) // check for selectedPreset == null to avoid overwriting Specific Assignment
-            {
-                selectedPreset = npcInfo.AssociatedLinkGroup.AssignedBodySlide;
-                if (selectedPreset != null)
-                {
-                    Logger.LogReport("Assigned linked BodySlide preset " + selectedPreset.Label + " from primary NPC " + npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString(), false, npcInfo);
-                }
-                else
-                {
-                    Logger.LogReport("Could not find the linked BodySlide preset \"" + npcInfo.AssociatedLinkGroup.AssignedBodySlide + "\" from primary NPC " + npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() + " within the available presets. Attempting to assign another preset.", true, npcInfo);
-                }
-            }
-            #endregion
-
-            #region Unique NPC replicates
-            else if (selectedPreset == null && UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName)) // check for selectedPreset == null to avoid overwriting Specific Assignment
-            {
-                selectedPreset = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodySlide);
-                if (selectedPreset != null)
-                {
-                    Logger.LogReport("Assigned BodySlide preset " + selectedPreset.Label + " from unique NPC with same name: " + npcName, false, npcInfo);
-                }
-            }
-            #endregion
-
-            #region Random Selection
-
-            if (selectedPreset == null)
-            {
-                var filteredPresets = new List<BodySlideSetting>(); // fall back if ForceIfs fail
-                var forceIfPresets = new List<BodySlideSetting>();
-
-                foreach (var preset in availablePresets)
-                {
-                    if (PresetIsValid(preset, npcInfo, assignedAssetCombination))
-                    {
-                        filteredPresets.Add(preset);
-                        if (preset.MatchedForceIfCount > 0)
-                        {
-                            forceIfPresets.Add(preset);
-                        }
-                    }
-                }
-
-                if (forceIfPresets.Any())
-                {
-                    #region Consistency (With ForceIf)
-                    if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && forceIfPresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
-                    {
-                        selectedPreset = forceIfPresets.Where(x => x.Label == npcInfo.ConsistencyNPCAssignment.BodySlidePreset).FirstOrDefault();
-                    }
-                    #endregion
-                    else
-                    {
-                        selectedPreset = (BodySlideSetting)ProbabilityWeighting.SelectByProbability(forceIfPresets);
-                    }
-                }
-                else
-                {
-                    #region Consistency (With ForceIf)
-                    if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && filteredPresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
-                    {
-                        selectedPreset = filteredPresets.Where(x => x.Label == npcInfo.ConsistencyNPCAssignment.BodySlidePreset).FirstOrDefault();
-                    }
-                    #endregion
-                    else
-                    {
-                        selectedPreset = (BodySlideSetting)ProbabilityWeighting.SelectByProbability(filteredPresets);
-                    }
-                }
-            }
-            #endregion
-
-            if (selectedPreset == null)
-            {
-                Logger.LogReport("Could not choose any valid BodySlide presets for NPC " + npcInfo.LogIDstring, true, npcInfo);
-                Logger.CloseReportSubsection(npcInfo);
-                selectionMade = false;
-                return null;
+                Logger.LogReport("Assigned forced BodySlide preset " + selectedPreset.Label, false, npcInfo);
             }
             else
             {
-                Logger.LogReport("Chose BodySlide Preset: " + selectedPreset.Label, false, npcInfo);
-                selectionMade = true;
+                Logger.LogReport("Could not find the forced BodySlide preset \"" + npcInfo.SpecificNPCAssignment.BodySlidePreset + "\" within the available presets. Attempting to assign another preset.", true, npcInfo);
+            }
+        }
+        #endregion
 
-                if (selectedPreset.Label != npcInfo.ConsistencyNPCAssignment.BodySlidePreset && availablePresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
+        #region Linked NPC Group
+        if (selectedPreset == null && npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary) // check for selectedPreset == null to avoid overwriting Specific Assignment
+        {
+            selectedPreset = npcInfo.AssociatedLinkGroup.AssignedBodySlide;
+            if (selectedPreset != null)
+            {
+                Logger.LogReport("Assigned linked BodySlide preset " + selectedPreset.Label + " from primary NPC " + npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString(), false, npcInfo);
+            }
+            else
+            {
+                Logger.LogReport("Could not find the linked BodySlide preset \"" + npcInfo.AssociatedLinkGroup.AssignedBodySlide + "\" from primary NPC " + npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() + " within the available presets. Attempting to assign another preset.", true, npcInfo);
+            }
+        }
+        #endregion
+
+        #region Unique NPC replicates
+        else if (selectedPreset == null && UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName)) // check for selectedPreset == null to avoid overwriting Specific Assignment
+        {
+            selectedPreset = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodySlide);
+            if (selectedPreset != null)
+            {
+                Logger.LogReport("Assigned BodySlide preset " + selectedPreset.Label + " from unique NPC with same name: " + npcName, false, npcInfo);
+            }
+        }
+        #endregion
+
+        #region Random Selection
+
+        if (selectedPreset == null)
+        {
+            var filteredPresets = new List<BodySlideSetting>(); // fall back if ForceIfs fail
+            var forceIfPresets = new List<BodySlideSetting>();
+
+            foreach (var preset in availablePresets)
+            {
+                if (PresetIsValid(preset, npcInfo, assignedAssetCombination))
                 {
-                    Logger.LogReport("The consisteny BodySlide preset could not be chosen because it no longer complied with the current distribution rules so a new BodySlide was selected." + npcInfo.LogIDstring, true, npcInfo);
+                    filteredPresets.Add(preset);
+                    if (preset.MatchedForceIfCount > 0)
+                    {
+                        forceIfPresets.Add(preset);
+                    }
                 }
             }
 
-            //store selected morphs
-            if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && npcInfo.ConsistencyNPCAssignment.BodySlidePreset == selectedPreset.Label)
+            if (forceIfPresets.Any())
             {
-                statusFlags |= AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag.MatchesConsistency;
+                #region Consistency (With ForceIf)
+                if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && forceIfPresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
+                {
+                    selectedPreset = forceIfPresets.Where(x => x.Label == npcInfo.ConsistencyNPCAssignment.BodySlidePreset).FirstOrDefault();
+                }
+                #endregion
+                else
+                {
+                    selectedPreset = (BodySlideSetting)ProbabilityWeighting.SelectByProbability(forceIfPresets);
+                }
             }
+            else
+            {
+                #region Consistency (With ForceIf)
+                if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && filteredPresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
+                {
+                    selectedPreset = filteredPresets.Where(x => x.Label == npcInfo.ConsistencyNPCAssignment.BodySlidePreset).FirstOrDefault();
+                }
+                #endregion
+                else
+                {
+                    selectedPreset = (BodySlideSetting)ProbabilityWeighting.SelectByProbability(filteredPresets);
+                }
+            }
+        }
+        #endregion
 
+        if (selectedPreset == null)
+        {
+            Logger.LogReport("Could not choose any valid BodySlide presets for NPC " + npcInfo.LogIDstring, true, npcInfo);
             Logger.CloseReportSubsection(npcInfo);
+            selectionMade = false;
+            return null;
+        }
+        else
+        {
+            Logger.LogReport("Chose BodySlide Preset: " + selectedPreset.Label, false, npcInfo);
+            selectionMade = true;
 
-            return selectedPreset;
+            if (selectedPreset.Label != npcInfo.ConsistencyNPCAssignment.BodySlidePreset && availablePresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
+            {
+                Logger.LogReport("The consisteny BodySlide preset could not be chosen because it no longer complied with the current distribution rules so a new BodySlide was selected." + npcInfo.LogIDstring, true, npcInfo);
+            }
         }
 
-        public static bool PresetIsValid(BodySlideSetting candidatePreset, NPCInfo npcInfo, SubgroupCombination assignedAssetCombination)
+        //store selected morphs
+        if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && npcInfo.ConsistencyNPCAssignment.BodySlidePreset == selectedPreset.Label)
         {
-            if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.BodyGenMorphNames.Contains(candidatePreset.Label))
-            {
-                Logger.LogReport("Preset " + candidatePreset.Label + " is valid because it is specifically assigned by user.", false, npcInfo);
-                return true;
-            }
+            statusFlags |= AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag.MatchesConsistency;
+        }
 
-            // Allow unique NPCs
-            if (!candidatePreset.AllowUnique && npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
-            {
-                Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because it is disallowed for unique NPCs", false, npcInfo);
-                return false;
-            }
+        Logger.CloseReportSubsection(npcInfo);
 
-            // Allow non-unique NPCs
-            if (!candidatePreset.AllowNonUnique && !npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
-            {
-                Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because it is disallowed for non-unique NPCs", false, npcInfo);
-                return false;
-            }
+        return selectedPreset;
+    }
 
-            // Allowed Races
-            if (candidatePreset.AllowedRaces.Any() && !candidatePreset.AllowedRaces.Contains(npcInfo.BodyShapeRace))
-            {
-                Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its allowed races do not include the current NPC's race", false, npcInfo);
-                return false;
-            }
-
-            // Disallowed Races
-            if (candidatePreset.DisallowedRaces.Contains(npcInfo.BodyShapeRace))
-            {
-                Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its disallowed races include the current NPC's race", false, npcInfo);
-                return false;
-            }
-
-            // Weight Range
-            if (npcInfo.NPC.Weight < candidatePreset.WeightRange.Lower || npcInfo.NPC.Weight > candidatePreset.WeightRange.Upper)
-            {
-                Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because the current NPC's weight falls outside of the it's allowed weight range", false, npcInfo);
-                return false;
-            }
-
-            // Allowed Attributes
-            if (candidatePreset.AllowedAttributes.Any() && !AttributeMatcher.HasMatchedAttributes(candidatePreset.AllowedAttributes, npcInfo.NPC, LogMatchType.Unmatched, out string unmatchedAttributes))
-            {
-                Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedAttributes, false, npcInfo);
-                return false;
-            }
-
-            // Disallowed Attributes
-            if (AttributeMatcher.HasMatchedAttributes(candidatePreset.DisallowedAttributes, npcInfo.NPC, LogMatchType.Matched, out string matchedAttributes))
-            {
-                Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because the NPC matches one of its disallowed attributes: " + matchedAttributes, false, npcInfo);
-                return false;
-            }
-
-            if (assignedAssetCombination != null)
-            {
-                foreach (var subgroup in assignedAssetCombination.ContainedSubgroups)
-                {
-                    if (subgroup.AllowedBodyGenDescriptors.Any())
-                    {
-                        if (!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors))
-                        {
-                            Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptors does not match any of the assigned asset combination's allowed descriptors", false, npcInfo);
-                            return false;
-                        }
-                    }
-
-                    if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors))
-                    {
-                        Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because one of its descriptors matches one of the assigned asset combination's disallowed descriptors", false, npcInfo);
-                        return false;
-                    }
-                }
-            }
-
-            // if the current subgroup's forceIf attributes match the current NPC, skip the checks for Distribution Enabled
-
-            candidatePreset.MatchedForceIfCount = AttributeMatcher.GetForceIfAttributeCount(candidatePreset.AllowedAttributes, npcInfo.NPC, out string forceIfAttributes);
-            if (candidatePreset.MatchedForceIfCount > 0)
-            {
-                Logger.LogReport("Preset " + candidatePreset.Label + ": current NPC matches the following ForceIf attributes: " + forceIfAttributes, false, npcInfo);
-            }
-
-            if (!candidatePreset.AllowRandom && candidatePreset.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above
-            {
-                Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because it can only be assigned via ForceIf attribtues or Specific NPC Assignments", false, npcInfo);
-                return false;
-            }
-
-            // If the candidateMorph is still valid
+    public static bool PresetIsValid(BodySlideSetting candidatePreset, NPCInfo npcInfo, SubgroupCombination assignedAssetCombination)
+    {
+        if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.BodyGenMorphNames.Contains(candidatePreset.Label))
+        {
+            Logger.LogReport("Preset " + candidatePreset.Label + " is valid because it is specifically assigned by user.", false, npcInfo);
             return true;
         }
 
-        public static bool CurrentNPCHasAvailablePresets(NPCInfo npcInfo, Settings_OBody oBodySettings)
+        // Allow unique NPCs
+        if (!candidatePreset.AllowUnique && npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
         {
-            List<BodySlideSetting> currentBodySlides = new List<BodySlideSetting>();
-            switch (npcInfo.Gender)
-            {
-                case Gender.Male: currentBodySlides = oBodySettings.BodySlidesMale; break;
-                case Gender.Female: currentBodySlides = oBodySettings.BodySlidesFemale; break;
-            }
-
-            if (!currentBodySlides.Any())
-            {
-                return false;
-            }
-
-            else
-            {
-                foreach (var slide in currentBodySlides)
-                {
-                    if ((!slide.AllowedRaces.Any() || slide.AllowedRaces.Contains(npcInfo.BodyShapeRace)) && !slide.DisallowedRaces.Contains(npcInfo.BodyShapeRace))
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            Logger.LogReport("No BodySlide presets are available for this NPC.", false, npcInfo);
-
+            Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because it is disallowed for unique NPCs", false, npcInfo);
             return false;
         }
-        public static void RecordBodySlideConsistencyAndLinkedNPCs(BodySlideSetting assignedBodySlide, NPCInfo npcInfo)
-        {
-            npcInfo.ConsistencyNPCAssignment.BodySlidePreset = assignedBodySlide.Label;
 
-            // assign to linked group if necessary 
-            if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
+        // Allow non-unique NPCs
+        if (!candidatePreset.AllowNonUnique && !npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
+        {
+            Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because it is disallowed for non-unique NPCs", false, npcInfo);
+            return false;
+        }
+
+        // Allowed Races
+        if (candidatePreset.AllowedRaces.Any() && !candidatePreset.AllowedRaces.Contains(npcInfo.BodyShapeRace))
+        {
+            Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its allowed races do not include the current NPC's race", false, npcInfo);
+            return false;
+        }
+
+        // Disallowed Races
+        if (candidatePreset.DisallowedRaces.Contains(npcInfo.BodyShapeRace))
+        {
+            Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its disallowed races include the current NPC's race", false, npcInfo);
+            return false;
+        }
+
+        // Weight Range
+        if (npcInfo.NPC.Weight < candidatePreset.WeightRange.Lower || npcInfo.NPC.Weight > candidatePreset.WeightRange.Upper)
+        {
+            Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because the current NPC's weight falls outside of the it's allowed weight range", false, npcInfo);
+            return false;
+        }
+
+        // Allowed Attributes
+        if (candidatePreset.AllowedAttributes.Any() && !AttributeMatcher.HasMatchedAttributes(candidatePreset.AllowedAttributes, npcInfo.NPC, LogMatchType.Unmatched, out string unmatchedAttributes))
+        {
+            Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedAttributes, false, npcInfo);
+            return false;
+        }
+
+        // Disallowed Attributes
+        if (AttributeMatcher.HasMatchedAttributes(candidatePreset.DisallowedAttributes, npcInfo.NPC, LogMatchType.Matched, out string matchedAttributes))
+        {
+            Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because the NPC matches one of its disallowed attributes: " + matchedAttributes, false, npcInfo);
+            return false;
+        }
+
+        if (assignedAssetCombination != null)
+        {
+            foreach (var subgroup in assignedAssetCombination.ContainedSubgroups)
             {
-                npcInfo.AssociatedLinkGroup.AssignedBodySlide = assignedBodySlide;
+                if (subgroup.AllowedBodyGenDescriptors.Any())
+                {
+                    if (!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors))
+                    {
+                        Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptors does not match any of the assigned asset combination's allowed descriptors", false, npcInfo);
+                        return false;
+                    }
+                }
+
+                if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors))
+                {
+                    Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because one of its descriptors matches one of the assigned asset combination's disallowed descriptors", false, npcInfo);
+                    return false;
+                }
             }
-            // assign to unique NPC list if necessary
-            if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedBodySlidePreset == null)
+        }
+
+        // if the current subgroup's forceIf attributes match the current NPC, skip the checks for Distribution Enabled
+
+        candidatePreset.MatchedForceIfCount = AttributeMatcher.GetForceIfAttributeCount(candidatePreset.AllowedAttributes, npcInfo.NPC, out string forceIfAttributes);
+        if (candidatePreset.MatchedForceIfCount > 0)
+        {
+            Logger.LogReport("Preset " + candidatePreset.Label + ": current NPC matches the following ForceIf attributes: " + forceIfAttributes, false, npcInfo);
+        }
+
+        if (!candidatePreset.AllowRandom && candidatePreset.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above
+        {
+            Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because it can only be assigned via ForceIf attribtues or Specific NPC Assignments", false, npcInfo);
+            return false;
+        }
+
+        // If the candidateMorph is still valid
+        return true;
+    }
+
+    public static bool CurrentNPCHasAvailablePresets(NPCInfo npcInfo, Settings_OBody oBodySettings)
+    {
+        List<BodySlideSetting> currentBodySlides = new List<BodySlideSetting>();
+        switch (npcInfo.Gender)
+        {
+            case Gender.Male: currentBodySlides = oBodySettings.BodySlidesMale; break;
+            case Gender.Female: currentBodySlides = oBodySettings.BodySlidesFemale; break;
+        }
+
+        if (!currentBodySlides.Any())
+        {
+            return false;
+        }
+
+        else
+        {
+            foreach (var slide in currentBodySlides)
             {
-                Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedBodySlidePreset = assignedBodySlide;
+                if ((!slide.AllowedRaces.Any() || slide.AllowedRaces.Contains(npcInfo.BodyShapeRace)) && !slide.DisallowedRaces.Contains(npcInfo.BodyShapeRace))
+                {
+                    return true;
+                }
             }
+        }
+
+        Logger.LogReport("No BodySlide presets are available for this NPC.", false, npcInfo);
+
+        return false;
+    }
+    public static void RecordBodySlideConsistencyAndLinkedNPCs(BodySlideSetting assignedBodySlide, NPCInfo npcInfo)
+    {
+        npcInfo.ConsistencyNPCAssignment.BodySlidePreset = assignedBodySlide.Label;
+
+        // assign to linked group if necessary 
+        if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
+        {
+            npcInfo.AssociatedLinkGroup.AssignedBodySlide = assignedBodySlide;
+        }
+        // assign to unique NPC list if necessary
+        if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedBodySlidePreset == null)
+        {
+            Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedBodySlidePreset = assignedBodySlide;
         }
     }
 }

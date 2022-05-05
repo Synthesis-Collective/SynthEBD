@@ -1,31 +1,30 @@
 ﻿using System.ComponentModel;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+public sealed class TooltipController : INotifyPropertyChanged
 {
-    public sealed class TooltipController : INotifyPropertyChanged
+    private static TooltipController instance;
+    private static object lockObj = new Object();
+
+    public event PropertyChangedEventHandler PropertyChanged;
+
+    private TooltipController() { }
+
+    public bool DisplayToolTips { get; set; }
+    public static TooltipController Instance
     {
-        private static TooltipController instance;
-        private static object lockObj = new Object();
-
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        private TooltipController() { }
-
-        public bool DisplayToolTips { get; set; }
-        public static TooltipController Instance
+        get
         {
-            get
+            lock (lockObj)
             {
-                lock (lockObj)
+                if (instance == null)
                 {
-                    if (instance == null)
-                    {
-                        instance = new TooltipController();
-                        instance.DisplayToolTips = true;
-                    }
+                    instance = new TooltipController();
+                    instance.DisplayToolTips = true;
                 }
-                return instance;
             }
+            return instance;
         }
     }
 }

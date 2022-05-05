@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_BodyGenConfig.xaml
+/// </summary>
+public partial class UC_BodyGenConfig : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_BodyGenConfig.xaml
-    /// </summary>
-    public partial class UC_BodyGenConfig : UserControl
+    public UC_BodyGenConfig()
     {
-        public UC_BodyGenConfig()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

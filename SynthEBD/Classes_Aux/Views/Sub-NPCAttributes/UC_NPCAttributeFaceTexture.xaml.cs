@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_NPCAttributeFaceTexture.xaml
+/// </summary>
+public partial class UC_NPCAttributeFaceTexture : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_NPCAttributeFaceTexture.xaml
-    /// </summary>
-    public partial class UC_NPCAttributeFaceTexture : UserControl
+    public UC_NPCAttributeFaceTexture()
     {
-        public UC_NPCAttributeFaceTexture()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

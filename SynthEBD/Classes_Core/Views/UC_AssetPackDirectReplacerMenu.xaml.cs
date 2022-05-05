@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_AssetPackDirectReplacerMenu.xaml
+/// </summary>
+public partial class UC_AssetPackDirectReplacerMenu : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_AssetPackDirectReplacerMenu.xaml
-    /// </summary>
-    public partial class UC_AssetPackDirectReplacerMenu : UserControl
+    public UC_AssetPackDirectReplacerMenu()
     {
-        public UC_AssetPackDirectReplacerMenu()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

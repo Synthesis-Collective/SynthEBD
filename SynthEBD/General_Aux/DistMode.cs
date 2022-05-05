@@ -1,8 +1,7 @@
-﻿namespace SynthEBD
+﻿namespace SynthEBD;
+
+public enum DistMode
 {
-    public enum DistMode
-    {
-        uniform,
-        bellCurve
-    }
+    uniform,
+    bellCurve
 }

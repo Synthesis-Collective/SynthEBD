@@ -1,8 +1,7 @@
-﻿namespace SynthEBD
+﻿namespace SynthEBD;
+
+public enum Gender
 {
-    public enum Gender
-    {
-        Male,
-        Female
-    }
+    Male,
+    Female
 }

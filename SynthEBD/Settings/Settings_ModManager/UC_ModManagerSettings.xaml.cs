@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_ModManagerSettings.xaml
+/// </summary>
+public partial class UC_ModManagerSettings : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_ModManagerSettings.xaml
-    /// </summary>
-    public partial class UC_ModManagerSettings : UserControl
+    public UC_ModManagerSettings()
     {
-        public UC_ModManagerSettings()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_CollectionMemberStringCollection.xaml
+/// </summary>
+public partial class UC_CollectionMemberStringCollection : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_CollectionMemberStringCollection.xaml
-    /// </summary>
-    public partial class UC_CollectionMemberStringCollection : UserControl
+    public UC_CollectionMemberStringCollection()
     {
-        public UC_CollectionMemberStringCollection()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

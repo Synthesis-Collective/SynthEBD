@@ -1,134 +1,133 @@
 ﻿using Mutagen.Bethesda.Plugins;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+public class FlattenedAssetPack
 {
-    public class FlattenedAssetPack
+    public FlattenedAssetPack(AssetPack source, AssetPackType type)
     {
-        public FlattenedAssetPack(AssetPack source, AssetPackType type)
-        {
-            this.GroupName = source.GroupName;
-            this.Gender = source.Gender;
-            this.Subgroups = new List<List<FlattenedSubgroup>>();
-            this.DefaultRecordTemplate = source.DefaultRecordTemplate;
-            this.AdditionalRecordTemplateAssignments = source.AdditionalRecordTemplateAssignments;
-            this.AssociatedBodyGenConfigName = source.AssociatedBodyGenConfigName;
-            this.Source = source;
-            this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
-            this.Type = type;
-            this.ReplacerName = "";
-            this.MatchedWholeConfigForceIfs = 0;
+        this.GroupName = source.GroupName;
+        this.Gender = source.Gender;
+        this.Subgroups = new List<List<FlattenedSubgroup>>();
+        this.DefaultRecordTemplate = source.DefaultRecordTemplate;
+        this.AdditionalRecordTemplateAssignments = source.AdditionalRecordTemplateAssignments;
+        this.AssociatedBodyGenConfigName = source.AssociatedBodyGenConfigName;
+        this.Source = source;
+        this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
+        this.Type = type;
+        this.ReplacerName = "";
+        this.MatchedWholeConfigForceIfs = 0;
 
-            var configRulesSubgroup = AssetPack.ConfigDistributionRules.CreateInheritanceParent(source.DistributionRules);
-            this.DistributionRules = new FlattenedSubgroup(configRulesSubgroup, PatcherSettings.General.RaceGroupings, new List<AssetPack.Subgroup>(), this);
+        var configRulesSubgroup = AssetPack.ConfigDistributionRules.CreateInheritanceParent(source.DistributionRules);
+        this.DistributionRules = new FlattenedSubgroup(configRulesSubgroup, PatcherSettings.General.RaceGroupings, new List<AssetPack.Subgroup>(), this);
+    }
+
+    public FlattenedAssetPack(string groupName, Gender gender, FormKey defaultRecordTemplate, HashSet<AdditionalRecordTemplate> additionalRecordTemplateAssignments, string associatedBodyGenConfigName, AssetPack source, AssetPackType type)
+    {
+        this.GroupName = groupName;
+        this.Gender = gender;
+        this.Subgroups = new List<List<FlattenedSubgroup>>();
+        this.DefaultRecordTemplate = defaultRecordTemplate;
+        this.AdditionalRecordTemplateAssignments = additionalRecordTemplateAssignments;
+        this.AssociatedBodyGenConfigName = associatedBodyGenConfigName;
+        this.Source = source;
+        this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
+        this.Type = type;
+        this.ReplacerName = "";
+        this.MatchedWholeConfigForceIfs = 0;
+
+        var configRulesSubgroup = AssetPack.ConfigDistributionRules.CreateInheritanceParent(source.DistributionRules);
+        this.DistributionRules = new FlattenedSubgroup(configRulesSubgroup, PatcherSettings.General.RaceGroupings, new List<AssetPack.Subgroup>(), this);
+    }
+
+    public FlattenedAssetPack(AssetPackType type)
+    {
+        this.GroupName = "";
+        this.Gender = Gender.Male;
+        this.Subgroups = new List<List<FlattenedSubgroup>>();
+        this.DefaultRecordTemplate = new FormKey();
+        this.AdditionalRecordTemplateAssignments = new HashSet<AdditionalRecordTemplate>();
+        this.AssociatedBodyGenConfigName = "";
+        this.Source = new AssetPack();
+        this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
+        this.Type = type;
+        this.ReplacerName = "";
+        this.MatchedWholeConfigForceIfs = 0;
+        this.DistributionRules = new FlattenedSubgroup(new AssetPack.Subgroup(), PatcherSettings.General.RaceGroupings, new List<AssetPack.Subgroup>(), this);
+    }
+
+    public string GroupName { get; set; }
+    public Gender Gender { get; set; }
+    public List<List<FlattenedSubgroup>> Subgroups { get; set; }
+    public FormKey DefaultRecordTemplate { get; set; }
+    public HashSet<AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
+    public string AssociatedBodyGenConfigName { get; set; }
+    public AssetPack Source { get; set; }
+    public List<FlattenedReplacerGroup> AssetReplacerGroups { get; set; }
+    public AssetPackType Type { get; set; }
+    public string ReplacerName { get; set; } // only used when Type == ReplacerVirtual
+    public int MatchedWholeConfigForceIfs { get; set; }
+    public FlattenedSubgroup DistributionRules { get; set; } // "virtual" subgroup
+
+    public enum AssetPackType
+    {
+        Primary,
+        MixIn,
+        ReplacerVirtual
+    }
+
+    public static FlattenedAssetPack FlattenAssetPack(AssetPack source)
+    {
+        FlattenedAssetPack output = null;
+        if (source.ConfigType == SynthEBD.AssetPackType.MixIn)
+        {
+            output = new FlattenedAssetPack(source, AssetPackType.MixIn);
+        }
+        else
+        {
+            output = new FlattenedAssetPack(source, AssetPackType.Primary);
         }
 
-        public FlattenedAssetPack(string groupName, Gender gender, FormKey defaultRecordTemplate, HashSet<AdditionalRecordTemplate> additionalRecordTemplateAssignments, string associatedBodyGenConfigName, AssetPack source, AssetPackType type)
+        for (int i = 0; i < source.Subgroups.Count; i++)
         {
-            this.GroupName = groupName;
-            this.Gender = gender;
-            this.Subgroups = new List<List<FlattenedSubgroup>>();
-            this.DefaultRecordTemplate = defaultRecordTemplate;
-            this.AdditionalRecordTemplateAssignments = additionalRecordTemplateAssignments;
-            this.AssociatedBodyGenConfigName = associatedBodyGenConfigName;
-            this.Source = source;
-            this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
-            this.Type = type;
-            this.ReplacerName = "";
-            this.MatchedWholeConfigForceIfs = 0;
-
-            var configRulesSubgroup = AssetPack.ConfigDistributionRules.CreateInheritanceParent(source.DistributionRules);
-            this.DistributionRules = new FlattenedSubgroup(configRulesSubgroup, PatcherSettings.General.RaceGroupings, new List<AssetPack.Subgroup>(), this);
+            var flattenedSubgroups = new List<FlattenedSubgroup>();
+            FlattenedSubgroup.FlattenSubgroups(source.Subgroups[i], null, flattenedSubgroups, PatcherSettings.General.RaceGroupings, output.GroupName, i,  source.Subgroups, output);
+            output.Subgroups.Add(flattenedSubgroups);
         }
 
-        public FlattenedAssetPack(AssetPackType type)
+
+        for (int i = 0; i < source.ReplacerGroups.Count; i++)
         {
-            this.GroupName = "";
-            this.Gender = Gender.Male;
-            this.Subgroups = new List<List<FlattenedSubgroup>>();
-            this.DefaultRecordTemplate = new FormKey();
-            this.AdditionalRecordTemplateAssignments = new HashSet<AdditionalRecordTemplate>();
-            this.AssociatedBodyGenConfigName = "";
-            this.Source = new AssetPack();
-            this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
-            this.Type = type;
-            this.ReplacerName = "";
-            this.MatchedWholeConfigForceIfs = 0;
-            this.DistributionRules = new FlattenedSubgroup(new AssetPack.Subgroup(), PatcherSettings.General.RaceGroupings, new List<AssetPack.Subgroup>(), this);
+            output.AssetReplacerGroups.Add(FlattenedReplacerGroup.FlattenReplacerGroup(source.ReplacerGroups[i], PatcherSettings.General.RaceGroupings, output));
         }
 
-        public string GroupName { get; set; }
-        public Gender Gender { get; set; }
-        public List<List<FlattenedSubgroup>> Subgroups { get; set; }
-        public FormKey DefaultRecordTemplate { get; set; }
-        public HashSet<AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
-        public string AssociatedBodyGenConfigName { get; set; }
-        public AssetPack Source { get; set; }
-        public List<FlattenedReplacerGroup> AssetReplacerGroups { get; set; }
-        public AssetPackType Type { get; set; }
-        public string ReplacerName { get; set; } // only used when Type == ReplacerVirtual
-        public int MatchedWholeConfigForceIfs { get; set; }
-        public FlattenedSubgroup DistributionRules { get; set; } // "virtual" subgroup
+        return output;
+    }
 
-        public enum AssetPackType
+    public FlattenedAssetPack ShallowCopy()
+    {
+        FlattenedAssetPack copy = new FlattenedAssetPack(this.GroupName, this.Gender, this.DefaultRecordTemplate, this.AdditionalRecordTemplateAssignments, this.AssociatedBodyGenConfigName, this.Source, this.Type);
+        foreach (var subgroupList in this.Subgroups)
         {
-            Primary,
-            MixIn,
-            ReplacerVirtual
+            copy.Subgroups.Add(new List<FlattenedSubgroup>(subgroupList));
         }
-
-        public static FlattenedAssetPack FlattenAssetPack(AssetPack source)
+        foreach (var replacer in this.AssetReplacerGroups)
         {
-            FlattenedAssetPack output = null;
-            if (source.ConfigType == SynthEBD.AssetPackType.MixIn)
-            {
-                output = new FlattenedAssetPack(source, AssetPackType.MixIn);
-            }
-            else
-            {
-                output = new FlattenedAssetPack(source, AssetPackType.Primary);
-            }
-
-            for (int i = 0; i < source.Subgroups.Count; i++)
-            {
-                var flattenedSubgroups = new List<FlattenedSubgroup>();
-                FlattenedSubgroup.FlattenSubgroups(source.Subgroups[i], null, flattenedSubgroups, PatcherSettings.General.RaceGroupings, output.GroupName, i,  source.Subgroups, output);
-                output.Subgroups.Add(flattenedSubgroups);
-            }
-
-
-            for (int i = 0; i < source.ReplacerGroups.Count; i++)
-            {
-                output.AssetReplacerGroups.Add(FlattenedReplacerGroup.FlattenReplacerGroup(source.ReplacerGroups[i], PatcherSettings.General.RaceGroupings, output));
-            }
-
-            return output;
+            copy.AssetReplacerGroups.Add(replacer.ShallowCopy());
         }
+        return copy;
+    }
 
-        public FlattenedAssetPack ShallowCopy()
+    public static FlattenedAssetPack CreateVirtualFromReplacerGroup(FlattenedReplacerGroup source, string sourceAssetPackName)
+    {
+        FlattenedAssetPack virtualFAP = new FlattenedAssetPack(AssetPackType.ReplacerVirtual);
+        virtualFAP.GroupName = source.Source.GroupName;
+        virtualFAP.ReplacerName = source.Name;
+        foreach (var subgroupsAtPos in source.Subgroups)
         {
-            FlattenedAssetPack copy = new FlattenedAssetPack(this.GroupName, this.Gender, this.DefaultRecordTemplate, this.AdditionalRecordTemplateAssignments, this.AssociatedBodyGenConfigName, this.Source, this.Type);
-            foreach (var subgroupList in this.Subgroups)
-            {
-                copy.Subgroups.Add(new List<FlattenedSubgroup>(subgroupList));
-            }
-            foreach (var replacer in this.AssetReplacerGroups)
-            {
-                copy.AssetReplacerGroups.Add(replacer.ShallowCopy());
-            }
-            return copy;
+            virtualFAP.Subgroups.Add(subgroupsAtPos);
         }
-
-        public static FlattenedAssetPack CreateVirtualFromReplacerGroup(FlattenedReplacerGroup source, string sourceAssetPackName)
-        {
-            FlattenedAssetPack virtualFAP = new FlattenedAssetPack(AssetPackType.ReplacerVirtual);
-            virtualFAP.GroupName = source.Source.GroupName;
-            virtualFAP.ReplacerName = source.Name;
-            foreach (var subgroupsAtPos in source.Subgroups)
-            {
-                virtualFAP.Subgroups.Add(subgroupsAtPos);
-            }
-            virtualFAP.Source = source.Source;
-            return virtualFAP;
-        }
+        virtualFAP.Source = source.Source;
+        return virtualFAP;
     }
 }

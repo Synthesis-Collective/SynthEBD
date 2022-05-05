@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_BlockedNPC.xaml
+/// </summary>
+public partial class UC_BlockedNPC : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_BlockedNPC.xaml
-    /// </summary>
-    public partial class UC_BlockedNPC : UserControl
+    public UC_BlockedNPC()
     {
-        public UC_BlockedNPC()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

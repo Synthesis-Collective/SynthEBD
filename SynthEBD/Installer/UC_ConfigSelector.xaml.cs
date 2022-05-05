@@ -1,15 +1,14 @@
 ﻿using System.Windows.Controls;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+/// <summary>
+/// Interaction logic for UC_ConfigSelector.xaml
+/// </summary>
+public partial class UC_ConfigSelector : UserControl
 {
-    /// <summary>
-    /// Interaction logic for UC_ConfigSelector.xaml
-    /// </summary>
-    public partial class UC_ConfigSelector : UserControl
+    public UC_ConfigSelector()
     {
-        public UC_ConfigSelector()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }
