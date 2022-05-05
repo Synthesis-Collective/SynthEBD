@@ -29,8 +29,7 @@ namespace SynthEBD
 
         public static IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> TryAllEnvironments()
         {
-            //SkyrimRelease[] releases = new SkyrimRelease[] { SkyrimRelease.SkyrimSE, SkyrimRelease.SkyrimVR, SkyrimRelease.SkyrimLE, SkyrimRelease.EnderalSE, SkyrimRelease.EnderalLE };
-            SkyrimRelease[] releases = new SkyrimRelease[] { SkyrimRelease.EnderalLE };
+            SkyrimRelease[] releases = new SkyrimRelease[] { SkyrimRelease.SkyrimSE, SkyrimRelease.SkyrimVR, SkyrimRelease.SkyrimLE, SkyrimRelease.EnderalSE, SkyrimRelease.EnderalLE };
 
             foreach (var release in releases)
             {
