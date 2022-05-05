@@ -61,8 +61,7 @@ namespace SynthEBD
 
             LogFolderPath = Path.Combine(SynthEBDexeDirPath, "Logs");
             ResourcesFolderPath = Path.Combine(SynthEBDexeDirPath, "Resources");
-            RefreshRelativePath();
-            RefreshPaths();
+            UpdatePaths();
         }
 
         private string RelativePath { get; set; } 
@@ -107,9 +106,9 @@ namespace SynthEBD
                     RelativePath = SynthEBDexeDirPath;
                     break;
                 case true:
-                    if (PatcherSettings.LoadFromDataFolder && PatcherSettings.General != null && !string.IsNullOrWhiteSpace(PatcherSettings.General.PortableSettingsFolder) && Directory.Exists(PatcherSettings.General.PortableSettingsFolder))
+                    if (PatcherSettings.LoadFromDataFolder && !string.IsNullOrWhiteSpace(PatcherSettings.PortableSettingsFolder) && Directory.Exists(PatcherSettings.PortableSettingsFolder))
                     {
-                        RelativePath = PatcherSettings.General.PortableSettingsFolder;
+                        RelativePath = PatcherSettings.PortableSettingsFolder;
                     }
                     else
                     {

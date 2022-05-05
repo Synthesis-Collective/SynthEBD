@@ -158,7 +158,7 @@ namespace SynthEBD
             // load asset packs
             AssetPacks = SettingsIO_AssetPack.LoadAssetPacks(PatcherSettings.General.RaceGroupings, RecordTemplatePlugins, BodyGenConfigs, out loadSuccess); // load asset pack models from json
             if (!loadSuccess) { Logger.SwitchViewToLogDisplay(); }
-            VM_AssetPack.GetViewModelsFromModels(TexMeshSettingsVM.AssetPacks, AssetPacks, GeneralSettingsVM, PatcherSettings.TexMesh, BodyGenSettingsVM, OBodySettingsVM.DescriptorUI, RecordTemplateLinkCache, this); // add asset pack view models to TexMesh shell view model here
+            VM_AssetPack.GetViewModelsFromModels(AssetPacks, PatcherSettings.TexMesh, this); // add asset pack view models to TexMesh shell view model here
 
             // load heights
             HeightConfigs = SettingsIO_Height.LoadHeightConfigs(out loadSuccess);
@@ -233,37 +233,37 @@ namespace SynthEBD
             if (!saveSuccess) { Logger.LogMessage("Error saving BodyGen Settings: " + exceptionStr); allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
             
             SettingsIO_BodyGen.SaveBodyGenConfigs(BodyGenConfigs.Female, out saveSuccess);
-            if (!saveSuccess) { allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
+            if (!saveSuccess) { allExceptions += "Error saving BodyGen configs" + Environment.NewLine; showFinalExceptions = true; }
 
             SettingsIO_BodyGen.SaveBodyGenConfigs(BodyGenConfigs.Male, out saveSuccess);
-            if (!saveSuccess) { allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
+            if (!saveSuccess) { allExceptions += "Error saving BodyGen configs" + Environment.NewLine; showFinalExceptions = true; }
 
             JSONhandler<Settings_OBody>.SaveJSONFile(PatcherSettings.OBody, PatcherSettings.Paths.OBodySettingsPath, out saveSuccess, out exceptionStr);
             if (!saveSuccess) { Logger.LogMessage("Error saving OBody/AutoBody Settings: " + exceptionStr); allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
 
             SettingsIO_Misc.SaveConsistency(Consistency, out saveSuccess);
-            if (!saveSuccess) { allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
+            if (!saveSuccess) { allExceptions += "Error saving Consistency" + Environment.NewLine; showFinalExceptions = true; }
 
             SettingsIO_SpecificNPCAssignments.SaveAssignments(SpecificNPCAssignments, out saveSuccess);
-            if (!saveSuccess) { allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
+            if (!saveSuccess) { allExceptions += "Error saving Specific NPC Assignmentss" + Environment.NewLine; showFinalExceptions = true; }
 
             SettingsIO_BlockList.SaveBlockList(BlockList, out saveSuccess);
-            if (!saveSuccess) { allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
+            if (!saveSuccess) { allExceptions += "Error saving Block List" + Environment.NewLine; showFinalExceptions = true; }
 
             SettingsIO_Misc.SaveLinkedNPCGroups(LinkedNPCGroups, out saveSuccess);
-            if (!saveSuccess) { allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
+            if (!saveSuccess) { allExceptions += "Error saving Linked NPC Groups" + Environment.NewLine; showFinalExceptions = true; }
 
             SettingsIO_Misc.SaveNPCNameExclusions(GeneralSettingsVM.LinkedNameExclusions.Select(cms => cms.Content).ToHashSet(), out saveSuccess);
-            if (!saveSuccess) { allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
+            if (!saveSuccess) { allExceptions += "Error saving Linked NPC Name Exclusions" + Environment.NewLine; showFinalExceptions = true; }
 
             SettingsIO_Misc.SaveTrimPaths(TexMeshSettingsVM.TrimPaths.ToHashSet(), out saveSuccess);
-            if (!saveSuccess) { allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
+            if (!saveSuccess) { allExceptions += "Error saving Asset Path Trimming Settings" + Environment.NewLine; showFinalExceptions = true; }
 
             JSONhandler<Settings_ModManager>.SaveJSONFile(PatcherSettings.ModManagerIntegration, PatcherSettings.Paths.ModManagerSettingsPath, out saveSuccess, out exceptionStr);
             if (!saveSuccess) { Logger.LogMessage("Error saving Mod Manager Integration Settings: " + exceptionStr); allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
 
-            JSONhandler<bool>.SaveJSONFile(PatcherSettings.LoadFromDataFolder, Paths.SettingsSourcePath, out saveSuccess, out exceptionStr);
-            if (!saveSuccess) { Logger.LogMessage("Error saving Settings Source: " + exceptionStr); allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
+            SettingsIO_Misc.SaveSettingsSource(out saveSuccess, out exceptionStr);
+            if (!saveSuccess) { allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
 
             if (showFinalExceptions)
             {

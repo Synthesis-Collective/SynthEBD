@@ -14,10 +14,13 @@ namespace SynthEBD
         {
             if (File.Exists(Paths.SettingsSourcePath))
             {
-                bool loadFromDataDir = JSONhandler<bool>.LoadJSONFile(Paths.SettingsSourcePath, out bool loadSuccess, out string exceptionStr);
+                LoadSource loadSource = JSONhandler<LoadSource>.LoadJSONFile(Paths.SettingsSourcePath, out bool loadSuccess, out string exceptionStr);
                 if (loadSuccess)
                 {
-                    PatcherSettings.LoadFromDataFolder = loadFromDataDir;
+                    PatcherSettings.LoadFromDataFolder = loadSource.LoadFromDataDir;
+                    PatcherSettings.CustomGamePath = loadSource.GameEnvironmentDirectory;
+                    PatcherSettings.PortableSettingsFolder = loadSource.PortableSettingsFolder;
+                    PatcherSettings.SkyrimVersion = loadSource.SkyrimVersion;
                 }
                 else if (!loadSuccess)
                 {
@@ -27,6 +30,12 @@ namespace SynthEBD
             }
 
             PatcherSettings.Paths = new Paths();
+        }
+
+        public static void SaveSettingsSource(out bool saveSuccess, out string exceptionStr)
+        {
+            LoadSource source = new LoadSource() { GameEnvironmentDirectory = PatcherSettings.CustomGamePath, LoadFromDataDir = PatcherSettings.LoadFromDataFolder, PortableSettingsFolder = PatcherSettings.PortableSettingsFolder, SkyrimVersion = PatcherSettings.SkyrimVersion };
+            JSONhandler<LoadSource>.SaveJSONFile(source, Paths.SettingsSourcePath, out saveSuccess, out exceptionStr);
         }
 
         public static HashSet<string> LoadNPCNameExclusions(out bool loadSuccess)

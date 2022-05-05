@@ -23,7 +23,7 @@ namespace SynthEBD
         public VM_Settings_General(MainWindow_ViewModel mainVM)
         {
             MainWindowVM = mainVM;
-            this.SkyrimVersion = SkyrimRelease.SkyrimSE;
+            this.SkyrimVersion = PatcherSettings.SkyrimVersion;
             this.bShowToolTips = true;
             this.bChangeMeshesOrTextures = true;
             this.BodySelectionMode = BodyShapeSelectionMode.None;
@@ -101,7 +101,7 @@ namespace SynthEBD
                     if (IO_Aux.SelectFile("", "Executable files (*.exe)|*.exe", "Select your game executable", out var gamePath))
                     {
                         CustomGamePath = gamePath;
-                        PatcherSettings.General.CustomGamePath = gamePath;
+                        PatcherSettings.CustomGamePath = gamePath;
                         PatcherEnvironmentProvider.Environment.RefreshAndChangeGameType(SkyrimVersion, patchFileName);
                     }
                 }
@@ -111,13 +111,13 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    if (string.IsNullOrWhiteSpace(PatcherSettings.General.CustomGamePath))
+                    if (string.IsNullOrWhiteSpace(PatcherSettings.CustomGamePath))
                     {
                         CustomMessageBox.DisplayNotificationOK("", "There is no custom game path to clear.");
                         return;
                     }
                     CustomGamePath = "";
-                    PatcherSettings.General.CustomGamePath = "";
+                    PatcherSettings.CustomGamePath = "";
                     PatcherEnvironmentProvider.Environment.RefreshAndChangeGameType(SkyrimVersion, patchFileName);
                 }
                 );
@@ -164,7 +164,7 @@ namespace SynthEBD
                         else
                         {
                             PortableSettingsFolder = selectedPath;
-                            PatcherSettings.General.PortableSettingsFolder = PortableSettingsFolder;
+                            PatcherSettings.PortableSettingsFolder = PortableSettingsFolder;
                             PatcherSettings.Paths.UpdatePaths();
                             mainVM.SaveAndRefreshPlugins();
                         }
@@ -176,13 +176,13 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    if (string.IsNullOrWhiteSpace(PatcherSettings.General.PortableSettingsFolder))
+                    if (string.IsNullOrWhiteSpace(PatcherSettings.PortableSettingsFolder))
                     {
                         CustomMessageBox.DisplayNotificationOK("", "There is no settings folder path to clear.");
                         return;
                     }
                     PortableSettingsFolder = "";
-                    PatcherSettings.General.PortableSettingsFolder = "";
+                    PatcherSettings.PortableSettingsFolder = "";
                     PatcherSettings.Paths.UpdatePaths();
                     mainVM.SaveAndRefreshPlugins();
                 }
@@ -241,7 +241,6 @@ namespace SynthEBD
         public static void GetViewModelFromModel(VM_Settings_General viewModel)
         {
             var model = PatcherSettings.General;
-            viewModel.SkyrimVersion = model.SkyrimVersion;
             viewModel.bShowToolTips = model.bShowToolTips;
             viewModel.bChangeMeshesOrTextures = model.bChangeMeshesOrTextures;
             viewModel.BodySelectionMode = model.BodySelectionMode;
@@ -261,15 +260,15 @@ namespace SynthEBD
             viewModel.raceAliases = VM_raceAlias.GetViewModelsFromModels(model.RaceAliases, PatcherEnvironmentProvider.Environment, viewModel);
             viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, PatcherEnvironmentProvider.Environment, viewModel);
             VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu);
-            viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;
-            viewModel.CustomGamePath = model.CustomGamePath;
-            viewModel.PortableSettingsFolder = model.PortableSettingsFolder;
+            viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;            
 
-            PatcherSettings.Paths.UpdatePaths();
+            viewModel.bLoadSettingsFromDataFolder = PatcherSettings.LoadFromDataFolder;
+            viewModel.SkyrimVersion = PatcherSettings.SkyrimVersion;
+            viewModel.CustomGamePath = PatcherSettings.CustomGamePath;
+            viewModel.PortableSettingsFolder = PatcherSettings.PortableSettingsFolder;
         }
         public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
         {
-            model.SkyrimVersion = viewModel.SkyrimVersion;
             model.bShowToolTips = viewModel.bShowToolTips;
             model.bChangeMeshesOrTextures = viewModel.bChangeMeshesOrTextures;
             model.BodySelectionMode = viewModel.BodySelectionMode;
@@ -296,18 +295,18 @@ namespace SynthEBD
             model.RaceGroupings.Clear();
             foreach (var x in viewModel.RaceGroupings)
             {
-                //model.RaceGroupings.Add(x.RaceGrouping);
                 model.RaceGroupings.Add(VM_RaceGrouping.DumpViewModelToModel(x));
             }
 
             VM_AttributeGroupMenu.DumpViewModelToModels(viewModel.AttributeGroupMenu, model.AttributeGroups);
             model.OverwritePluginAttGroups = viewModel.OverwritePluginAttGroups;
-            model.CustomGamePath = viewModel.CustomGamePath;
-            model.PortableSettingsFolder = viewModel.PortableSettingsFolder;
 
             PatcherSettings.General = model;
 
             PatcherSettings.LoadFromDataFolder = viewModel.bLoadSettingsFromDataFolder;
+            PatcherSettings.SkyrimVersion = viewModel.SkyrimVersion;
+            PatcherSettings.CustomGamePath = viewModel.CustomGamePath;
+            PatcherSettings.PortableSettingsFolder = viewModel.PortableSettingsFolder;
         }
 
         public void ToggleTooltipVisibility(object sender, PropertyChangedEventArgs e)

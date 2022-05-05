@@ -13,14 +13,12 @@ namespace SynthEBD
     {
         public Settings_General()
         {
-            this.SkyrimVersion = SkyrimRelease.SkyrimSE;
             this.bShowToolTips = true;
             this.bChangeMeshesOrTextures = true;
             this.BodySelectionMode = BodyShapeSelectionMode.None;
             this.BSSelectionMode = BodySlideSelectionMode.OBody;
             this.bChangeHeight = true;
             this.OutputDataFolder = "";
-            this.PortableSettingsFolder = "";
             this.bEnableConsistency = true;
             this.ExcludePlayerCharacter = true;
             this.ExcludePresets = true;
@@ -30,7 +28,6 @@ namespace SynthEBD
             this.bVerboseModeAssetsAll = false;
             this.VerboseModeNPClist = new List<FormKey>();
             this.VerboseModeDetailedAttributes = false;
-            this.CustomGamePath = "";
             this.PatchableRaces = new List<FormKey>()
             {
                 Skyrim.Race.NordRace.FormKey,
@@ -112,14 +109,11 @@ namespace SynthEBD
         public BodySlideSelectionMode BSSelectionMode { get; set; }
         public bool bChangeHeight { get; set; }
         public string OutputDataFolder { get; set; }
-        public string PortableSettingsFolder { get; set; }
-        public string CustomGamePath { get; set; }
         public bool bEnableConsistency { get; set; }
         public bool ExcludePlayerCharacter { get; set; }
         public bool ExcludePresets { get; set; }
         public bool bLinkNPCsWithSameName { get; set; }
         public string PatchFileName { get; set; }
-        public SkyrimRelease SkyrimVersion { get; set; }
         public bool bVerboseModeAssetsNoncompliant { get; set; }
         public bool bVerboseModeAssetsAll { get; set; }
         public List<FormKey> VerboseModeNPClist { get; set; }

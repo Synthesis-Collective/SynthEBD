@@ -22,7 +22,7 @@ namespace SynthEBD
 {
     public class VM_AssetPack : INotifyPropertyChanged, IHasAttributeGroupMenu, IDropTarget, IHasSubgroupViewModels
     {
-        public VM_AssetPack(ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, VM_Settings_General generalSettingsVM, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)
+        public VM_AssetPack(MainWindow_ViewModel mainVM)
         {
             this.GroupName = "";
             this.ShortName = "";
@@ -35,11 +35,11 @@ namespace SynthEBD
 
             this.IsSelected = true;
 
-            this.ParentCollection = parentCollection;
+            this.ParentCollection = mainVM.TexMeshSettingsVM.AssetPacks;
 
             this.SourcePath = "";
 
-            this.CurrentBodyGenSettings = bodygenSettingsVM;
+            this.CurrentBodyGenSettings = mainVM.BodyGenSettingsVM;
             switch (this.Gender)
             {
                 case Gender.Female: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.FemaleConfigs; break;
@@ -55,16 +55,16 @@ namespace SynthEBD
             this.AdditionalRecordTemplateAssignments = new ObservableCollection<VM_AdditionalRecordTemplate>();
             this.DefaultRecordTemplateAdditionalRacesPaths = new ObservableCollection<VM_CollectionMemberString>();
 
-            this.AttributeGroupMenu = new VM_AttributeGroupMenu(generalSettingsVM.AttributeGroupMenu, true);
+            this.AttributeGroupMenu = new VM_AttributeGroupMenu(mainVM.GeneralSettingsVM.AttributeGroupMenu, true);
 
-            this.ReplacersMenu = new VM_AssetPackDirectReplacerMenu(this, OBodyDescriptorMenu);
+            this.ReplacersMenu = new VM_AssetPackDirectReplacerMenu(this, mainVM.OBodySettingsVM.DescriptorUI);
 
-            this.DistributionRules = new VM_ConfigDistributionRules(generalSettingsVM.RaceGroupings, this, OBodyDescriptorMenu);
+            this.DistributionRules = new VM_ConfigDistributionRules(mainVM.GeneralSettingsVM.RaceGroupings, this, mainVM.OBodySettingsVM.DescriptorUI);
 
-            this.BodyShapeMode = generalSettingsVM.BodySelectionMode;
-            generalSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
+            this.BodyShapeMode = mainVM.GeneralSettingsVM.BodySelectionMode;
+            mainVM.GeneralSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
 
-            RecordTemplateLinkCache = recordTemplateLinkCache;
+            RecordTemplateLinkCache = mainVM.RecordTemplateLinkCache;
 
             PreviewImages = new ObservableCollection<VM_PreviewImage>();
 
@@ -76,7 +76,7 @@ namespace SynthEBD
 
             AddSubgroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => { Subgroups.Add(new VM_Subgroup(generalSettingsVM.RaceGroupings, Subgroups, this, OBodyDescriptorMenu, false)); }
+                execute: _ => { Subgroups.Add(new VM_Subgroup(mainVM.GeneralSettingsVM.RaceGroupings, Subgroups, this, mainVM.OBodySettingsVM.DescriptorUI, false)); }
                 );
 
             RemoveAssetPackConfigFile = new SynthEBD.RelayCommand(
@@ -142,7 +142,7 @@ namespace SynthEBD
                     {
                         Logger.CallTimedLogErrorWithStatusUpdateAsync(GroupName + " could not be reloaded from drive.", ErrorType.Error, 3);
                     }
-                    var reloadedVM = VM_AssetPack.GetViewModelFromModel(reloaded, generalSettingsVM, ParentCollection, bodygenSettingsVM, OBodyDescriptorMenu, RecordTemplateLinkCache, mainVM);
+                    var reloadedVM = VM_AssetPack.GetViewModelFromModel(reloaded, mainVM);
                     this.IsSelected = reloadedVM.IsSelected;
                     this.AttributeGroupMenu = reloadedVM.AttributeGroupMenu;
                     this.AvailableBodyGenConfigs = reloadedVM.AvailableBodyGenConfigs;
@@ -249,20 +249,19 @@ namespace SynthEBD
             return;
         }
 
-        public static ObservableCollection<VM_AssetPack> GetViewModelsFromModels(ObservableCollection<VM_AssetPack> viewModels, List<AssetPack> assetPacks, VM_Settings_General generalSettingsVM, Settings_TexMesh texMeshSettings, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)
+        public static void GetViewModelsFromModels(List<AssetPack> assetPacks, Settings_TexMesh texMeshSettings, MainWindow_ViewModel mainVM)
         {
-            viewModels.Clear();
+            mainVM.TexMeshSettingsVM.AssetPacks.Clear();
             for (int i = 0; i < assetPacks.Count; i++)
             {
-                var viewModel = GetViewModelFromModel(assetPacks[i], generalSettingsVM, viewModels, bodygenSettingsVM, OBodyDescriptorMenu, recordTemplateLinkCache, mainVM);
+                var viewModel = GetViewModelFromModel(assetPacks[i], mainVM);
                 viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].GroupName);
-                viewModels.Add(viewModel);
+                mainVM.TexMeshSettingsVM.AssetPacks.Add(viewModel);
             }
-            return viewModels;
         }
-        public static VM_AssetPack GetViewModelFromModel(AssetPack model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_AssetPack> parentCollection, VM_SettingsBodyGen bodygenSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, MainWindow_ViewModel mainVM)
+        public static VM_AssetPack GetViewModelFromModel(AssetPack model, MainWindow_ViewModel mainVM)
         {
-            var viewModel = new VM_AssetPack(parentCollection, bodygenSettingsVM, OBodyDescriptorMenu, generalSettingsVM, recordTemplateLinkCache, mainVM);
+            var viewModel = new VM_AssetPack(mainVM);
             viewModel.GroupName = model.GroupName;
             viewModel.ShortName = model.ShortName;
             viewModel.ConfigType = model.ConfigType;
@@ -270,33 +269,33 @@ namespace SynthEBD
             viewModel.DisplayAlerts = model.DisplayAlerts;
             viewModel.UserAlert = model.UserAlert;
 
-            viewModel.RaceGroupingList = new ObservableCollection<VM_RaceGrouping>(generalSettingsVM.RaceGroupings);
+            viewModel.RaceGroupingList = new ObservableCollection<VM_RaceGrouping>(mainVM.GeneralSettingsVM.RaceGroupings);
 
             if (model.AssociatedBodyGenConfigName != "")
             {
                 switch(viewModel.Gender)
                 {
                     case Gender.Female:
-                        viewModel.TrackedBodyGenConfig = bodygenSettingsVM.FemaleConfigs.Where(x => x.Label == model.AssociatedBodyGenConfigName).FirstOrDefault();
+                        viewModel.TrackedBodyGenConfig = mainVM.BodyGenSettingsVM.FemaleConfigs.Where(x => x.Label == model.AssociatedBodyGenConfigName).FirstOrDefault();
                         break;
                     case Gender.Male:
-                        viewModel.TrackedBodyGenConfig = bodygenSettingsVM.MaleConfigs.Where(x => x.Label == model.AssociatedBodyGenConfigName).FirstOrDefault();
+                        viewModel.TrackedBodyGenConfig = mainVM.BodyGenSettingsVM.MaleConfigs.Where(x => x.Label == model.AssociatedBodyGenConfigName).FirstOrDefault();
                         break;
                 }
             }
             else
             {
-                viewModel.TrackedBodyGenConfig = new VM_BodyGenConfig(generalSettingsVM, new ObservableCollection<VM_BodyGenConfig>(), bodygenSettingsVM);
+                viewModel.TrackedBodyGenConfig = new VM_BodyGenConfig(mainVM.GeneralSettingsVM, new ObservableCollection<VM_BodyGenConfig>(), mainVM.BodyGenSettingsVM);
             }
 
             VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu);
 
-            viewModel.ReplacersMenu = VM_AssetPackDirectReplacerMenu.GetViewModelFromModels(model.ReplacerGroups, viewModel, generalSettingsVM, OBodyDescriptorMenu);
+            viewModel.ReplacersMenu = VM_AssetPackDirectReplacerMenu.GetViewModelFromModels(model.ReplacerGroups, viewModel, mainVM.GeneralSettingsVM, mainVM.OBodySettingsVM.DescriptorUI);
 
             viewModel.DefaultTemplateFK = model.DefaultRecordTemplate;
             foreach(var additionalTemplateAssignment in model.AdditionalRecordTemplateAssignments)
             {
-                var assignmentVM = new VM_AdditionalRecordTemplate(recordTemplateLinkCache, viewModel.AdditionalRecordTemplateAssignments);
+                var assignmentVM = new VM_AdditionalRecordTemplate(mainVM.RecordTemplateLinkCache, viewModel.AdditionalRecordTemplateAssignments);
                 assignmentVM.RaceFormKeys = new ObservableCollection<FormKey>(additionalTemplateAssignment.Races);
                 assignmentVM.TemplateNPC = additionalTemplateAssignment.TemplateNPC;
                 assignmentVM.AdditionalRacesPaths = VM_CollectionMemberString.InitializeCollectionFromHashSet(additionalTemplateAssignment.AdditionalRacesPaths);
@@ -310,7 +309,7 @@ namespace SynthEBD
 
             foreach (var sg in model.Subgroups)
             {
-                viewModel.Subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM, viewModel.Subgroups, viewModel, OBodyDescriptorMenu, false));
+                viewModel.Subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg, mainVM.GeneralSettingsVM, viewModel.Subgroups, viewModel, mainVM.OBodySettingsVM.DescriptorUI, false));
             }
 
             // go back through now that all subgroups have corresponding view models, and link the required and excluded subgroups
@@ -318,7 +317,7 @@ namespace SynthEBD
             LinkRequiredSubgroups(flattenedSubgroupList);
             LinkExcludedSubgroups(flattenedSubgroupList);
 
-            viewModel.DistributionRules = VM_ConfigDistributionRules.GetViewModelFromModel(model.DistributionRules, generalSettingsVM.RaceGroupings, viewModel, OBodyDescriptorMenu);
+            viewModel.DistributionRules = VM_ConfigDistributionRules.GetViewModelFromModel(model.DistributionRules, mainVM.GeneralSettingsVM.RaceGroupings, viewModel, mainVM.OBodySettingsVM.DescriptorUI);
 
             viewModel.SourcePath = model.FilePath;
 
@@ -461,7 +460,7 @@ namespace SynthEBD
                 var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, mainVM.RecordTemplatePlugins, mainVM.BodyGenConfigs, out bool loadSuccess);
                 if (loadSuccess)
                 {
-                    var newAssetPackVM = VM_AssetPack.GetViewModelFromModel(newAssetPack, mainVM.GeneralSettingsVM, mainVM.TexMeshSettingsVM.AssetPacks, mainVM.BodyGenSettingsVM, mainVM.OBodySettingsVM.DescriptorUI, mainVM.RecordTemplateLinkCache, mainVM);
+                    var newAssetPackVM = VM_AssetPack.GetViewModelFromModel(newAssetPack, mainVM);
                     
                     // first add completely new top-level subgroups if necessary
                     foreach (var subgroup in newAssetPackVM.Subgroups)

@@ -20,14 +20,15 @@ namespace SynthEBD
 {
     public class VM_SpecificNPCAssignment : INotifyPropertyChanged, IHasForcedAssets
     {
-        public VM_SpecificNPCAssignment(ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen bodyGenSettings, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, MainWindow_ViewModel mainVM)
+        public VM_SpecificNPCAssignment(MainWindow_ViewModel mainVM)
         {
-            SubscribedGeneralSettings = generalSettingsVM;
-            SubscribedOBodySettings = oBodySettings;
-            
+            SubscribedGeneralSettings = mainVM.GeneralSettingsVM;
+            SubscribedOBodySettings = mainVM.OBodySettingsVM;
+            SubscribedBodyGenSettings = mainVM.BodyGenSettingsVM;
+
             this.DispName = "New Assignment";
             this.NPCFormKey = new FormKey();
-            this.ForcedAssetPack = new VM_AssetPack(assetPacks, bodyGenSettings, oBodySettings.DescriptorUI, generalSettingsVM, mainVM.RecordTemplateLinkCache, mainVM);
+            this.ForcedAssetPack = new VM_AssetPack(mainVM);
             this.ForcedSubgroups = new ObservableCollection<VM_Subgroup>();
             this.ForcedMixIns = new ObservableCollection<VM_MixInSpecificAssignment>();
             this.ForcedAssetReplacements = new ObservableCollection<VM_AssetReplacementAssignment>();
@@ -38,11 +39,10 @@ namespace SynthEBD
             this.Gender = Gender.Female;
             this.AvailableAssetPacks = new ObservableCollection<VM_AssetPack>(); // filtered by gender
             this.AvailableMixInAssetPacks = new ObservableCollection<VM_AssetPack>(); // filtered by gender
-            this.SubscribedAssetPacks = assetPacks;
+            this.SubscribedAssetPacks = mainVM.TexMeshSettingsVM.AssetPacks;
 
             this.AvailableSubgroups = new ObservableCollection<VM_Subgroup>();
 
-            this.SubscribedBodyGenSettings = bodyGenSettings;
             this.AvailableMorphs = new ObservableCollection<VM_BodyGenTemplate>(); // filtered by gender
 
             this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
@@ -61,9 +61,9 @@ namespace SynthEBD
             this.SubscribedBodyGenSettings.WhenAnyValue(x => x.CurrentMaleConfig).Subscribe(x => UpdateAvailableMorphs(this));
             this.SubscribedBodyGenSettings.WhenAnyValue(x => x.CurrentFemaleConfig).Subscribe(x => UpdateAvailableMorphs(this));
 
-            this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => UpdateAvailableBodySlides(oBodySettings, generalSettingsVM));
-            oBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesFemale).Subscribe(x => UpdateAvailableBodySlides(oBodySettings, generalSettingsVM));
-            oBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesMale).Subscribe(x => UpdateAvailableBodySlides(oBodySettings, generalSettingsVM));
+            this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => UpdateAvailableBodySlides(SubscribedOBodySettings, SubscribedGeneralSettings));
+            SubscribedOBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesFemale).Subscribe(x => UpdateAvailableBodySlides(SubscribedOBodySettings, SubscribedGeneralSettings));
+            SubscribedOBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesMale).Subscribe(x => UpdateAvailableBodySlides(SubscribedOBodySettings, SubscribedGeneralSettings));
 
             this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x =>
             {
@@ -75,7 +75,7 @@ namespace SynthEBD
                 execute: x =>
                 {
                     this.ForcedSubgroups.Clear();
-                    this.ForcedAssetPack = new VM_AssetPack(assetPacks, bodyGenSettings, oBodySettings.DescriptorUI, generalSettingsVM, null, null);
+                    this.ForcedAssetPack = new VM_AssetPack(mainVM);
                 }
                 );
             DeleteForcedSubgroup = new SynthEBD.RelayCommand(
@@ -90,7 +90,7 @@ namespace SynthEBD
 
             AddForcedMixIn = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: x => this.ForcedMixIns.Add(new VM_MixInSpecificAssignment(this, assetPacks, bodyGenSettings, oBodySettings, generalSettingsVM, ForcedMixIns))
+                execute: x => this.ForcedMixIns.Add(new VM_MixInSpecificAssignment(this, mainVM, ForcedMixIns))
                 );
 
             AddForcedReplacer = new SynthEBD.RelayCommand(
@@ -114,7 +114,7 @@ namespace SynthEBD
                 );
 
             UpdateAvailableAssetPacks(this);
-            UpdateAvailableBodySlides(oBodySettings, generalSettingsVM);
+            UpdateAvailableBodySlides(SubscribedOBodySettings, SubscribedGeneralSettings);
         }
 
         // Caption
@@ -159,9 +159,9 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static VM_SpecificNPCAssignment GetViewModelFromModel(NPCAssignment model, ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen BGVM, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, MainWindow_ViewModel mainVM)
+        public static VM_SpecificNPCAssignment GetViewModelFromModel(NPCAssignment model, MainWindow_ViewModel mainVM)
         {
-            var viewModel = new VM_SpecificNPCAssignment(assetPacks, BGVM, oBodySettings, generalSettingsVM, mainVM);
+            var viewModel = new VM_SpecificNPCAssignment(mainVM);
             viewModel.NPCFormKey = model.NPCFormKey;
 
             if (viewModel.NPCFormKey.IsNull)
@@ -183,12 +183,12 @@ namespace SynthEBD
             if (model.AssetPackName.Length == 0) { assetPackFound = true; }
             else
             {
-                LinkAssetPackToForcedAssignment(model, viewModel, model.AssetPackName, assetPacks);
+                LinkAssetPackToForcedAssignment(model, viewModel, model.AssetPackName, mainVM.TexMeshSettingsVM.AssetPacks);
             }
 
             foreach (var forcedMixIn in model.MixInAssignments)
             {
-                viewModel.ForcedMixIns.Add(VM_MixInSpecificAssignment.GetViewModelFromModel(forcedMixIn, viewModel, assetPacks, BGVM, oBodySettings, generalSettingsVM, viewModel.ForcedMixIns));
+                viewModel.ForcedMixIns.Add(VM_MixInSpecificAssignment.GetViewModelFromModel(forcedMixIn, viewModel, mainVM, viewModel.ForcedMixIns));
             }
 
             if (model.Height != null)
@@ -204,9 +204,9 @@ namespace SynthEBD
             switch (viewModel.Gender)
             {
                 case Gender.Male:
-                    if (BGVM.CurrentMaleConfig != null)
+                    if (mainVM.BodyGenSettingsVM.CurrentMaleConfig != null)
                     {
-                        templates = BGVM.CurrentMaleConfig.TemplateMorphUI.Templates;
+                        templates = mainVM.BodyGenSettingsVM.CurrentMaleConfig.TemplateMorphUI.Templates;
                     }
                     else
                     {
@@ -214,9 +214,9 @@ namespace SynthEBD
                     }
                     break;
                 case Gender.Female:
-                    if (BGVM.CurrentFemaleConfig != null)
+                    if (mainVM.BodyGenSettingsVM.CurrentFemaleConfig != null)
                     {
-                        templates = BGVM.CurrentFemaleConfig.TemplateMorphUI.Templates;
+                        templates = mainVM.BodyGenSettingsVM.CurrentFemaleConfig.TemplateMorphUI.Templates;
                     }
                     else
                     {
@@ -247,7 +247,7 @@ namespace SynthEBD
 
             foreach (var replacer in model.AssetReplacerAssignments)
             {
-                var parentAssetPack = assetPacks.Where(x => x.GroupName == replacer.AssetPackName).FirstOrDefault();
+                var parentAssetPack = mainVM.TexMeshSettingsVM.AssetPacks.Where(x => x.GroupName == replacer.AssetPackName).FirstOrDefault();
                 if (parentAssetPack != null)
                 {
                     viewModel.ForcedAssetReplacements.Add(VM_AssetReplacementAssignment.GetViewModelFromModel(replacer, parentAssetPack, viewModel.ForcedAssetReplacements));
@@ -607,13 +607,13 @@ namespace SynthEBD
 
         public class VM_MixInSpecificAssignment : INotifyPropertyChanged, IHasForcedAssets
         {
-            public VM_MixInSpecificAssignment(VM_SpecificNPCAssignment parent, ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen bodyGenSettings, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, ObservableCollection<VM_MixInSpecificAssignment> parentCollection)
+            public VM_MixInSpecificAssignment(VM_SpecificNPCAssignment parent, MainWindow_ViewModel mainVM, ObservableCollection<VM_MixInSpecificAssignment> parentCollection)
             {
                 ParentCollection = parentCollection;
                 Parent = parent;
 
                 this.AvailableMixInAssetPacks = Parent.AvailableMixInAssetPacks;
-                this.ForcedAssetPack = new VM_AssetPack(assetPacks, bodyGenSettings, oBodySettings.DescriptorUI, generalSettingsVM, null, null);
+                this.ForcedAssetPack = new VM_AssetPack(mainVM);
                 this.ForcedSubgroups = new ObservableCollection<VM_Subgroup>();
                 this.AvailableSubgroups = new ObservableCollection<VM_Subgroup>();
                 this.ForcedAssetReplacements = new ObservableCollection<VM_AssetReplacementAssignment>();
@@ -666,10 +666,10 @@ namespace SynthEBD
                 UpdateAvailableSubgroups(this);
             }
 
-            public static VM_MixInSpecificAssignment GetViewModelFromModel(NPCAssignment.MixInAssignment model, VM_SpecificNPCAssignment parent, ObservableCollection<VM_AssetPack> assetPacks, VM_SettingsBodyGen bodyGenSettings, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, ObservableCollection<VM_MixInSpecificAssignment> parentCollection)
+            public static VM_MixInSpecificAssignment GetViewModelFromModel(NPCAssignment.MixInAssignment model, VM_SpecificNPCAssignment parent, MainWindow_ViewModel mainVM, ObservableCollection<VM_MixInSpecificAssignment> parentCollection)
             {
-                var viewModel = new VM_MixInSpecificAssignment(parent, assetPacks, bodyGenSettings, oBodySettings, generalSettingsVM, parentCollection);
-                LinkAssetPackToForcedAssignment(model, viewModel, model.AssetPackName, assetPacks, parent.DispName);
+                var viewModel = new VM_MixInSpecificAssignment(parent, mainVM, parentCollection);
+                LinkAssetPackToForcedAssignment(model, viewModel, model.AssetPackName, mainVM.TexMeshSettingsVM.AssetPacks, parent.DispName);
                 return viewModel;
             }
             public static NPCAssignment.MixInAssignment DumpViewModelToModel(VM_MixInSpecificAssignment viewModel)

@@ -22,22 +22,15 @@ namespace SynthEBD
         private static Lazy<PatcherEnvironment> _env = new(
             () =>
             {
-                if (PatcherSettings.General != null)
-                {
-                    return new PatcherEnvironment(PatcherSettings.General.SkyrimVersion);
-                }
-                else
-                {
-                    return new PatcherEnvironment(null);
-                }
-                
+                return new PatcherEnvironment(PatcherSettings.SkyrimVersion);
             });
 
         public static PatcherEnvironment Environment => _env.Value;
 
         public static IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> TryAllEnvironments()
         {
-            SkyrimRelease[] releases = new SkyrimRelease[] { SkyrimRelease.SkyrimSE, SkyrimRelease.SkyrimVR, SkyrimRelease.SkyrimLE, SkyrimRelease.EnderalSE, SkyrimRelease.EnderalLE };
+            //SkyrimRelease[] releases = new SkyrimRelease[] { SkyrimRelease.SkyrimSE, SkyrimRelease.SkyrimVR, SkyrimRelease.SkyrimLE, SkyrimRelease.EnderalSE, SkyrimRelease.EnderalLE };
+            SkyrimRelease[] releases = new SkyrimRelease[] { SkyrimRelease.EnderalLE };
 
             foreach (var release in releases)
             {
@@ -57,8 +50,8 @@ namespace SynthEBD
 
             if (customEnvVM.IsValidated)
             {
-                PatcherSettings.General.SkyrimVersion = customEnvVM.SkyrimRelease;
-                PatcherSettings.General.CustomGamePath = customEnvVM.CustomGamePath;
+                PatcherSettings.SkyrimVersion = customEnvVM.SkyrimRelease;
+                PatcherSettings.CustomGamePath = customEnvVM.CustomGamePath;
                 return customEnvVM.Environment;
             }
             else
@@ -118,16 +111,16 @@ namespace SynthEBD
         {
             if (gameType is not null)
             {
-                if (!string.IsNullOrWhiteSpace(PatcherSettings.General.CustomGamePath))
+                if (!string.IsNullOrWhiteSpace(PatcherSettings.CustomGamePath))
                 {
                     try
                     {
-                        OriginState = BuildCustomEnvironment(PatcherSettings.General.CustomGamePath, gameType.Value);
-                        Logger.TimedNotifyStatusUpdate("Built environment from " + PatcherSettings.General.CustomGamePath, ErrorType.Warning, 3);
+                        OriginState = BuildCustomEnvironment(PatcherSettings.CustomGamePath, gameType.Value);
+                        Logger.TimedNotifyStatusUpdate("Built environment from " + PatcherSettings.CustomGamePath, ErrorType.Warning, 3);
                     }
                     catch
                     {
-                        Logger.TimedNotifyStatusUpdate("Could not build environment from " + PatcherSettings.General.CustomGamePath, ErrorType.Error, 5);
+                        Logger.TimedNotifyStatusUpdate("Could not build environment from " + PatcherSettings.CustomGamePath, ErrorType.Error, 5);
                     }
                 }
                 else
@@ -227,7 +220,7 @@ namespace SynthEBD
         }
         public void ResumeEnvironment()
         {
-            OriginState = GameEnvironment.Typical.Skyrim(PatcherSettings.General.SkyrimVersion, LinkCachePreferences.OnlyIdentifiers());
+            OriginState = GameEnvironment.Typical.Skyrim(PatcherSettings.SkyrimVersion, LinkCachePreferences.OnlyIdentifiers());
             Refresh(false);
         }
 

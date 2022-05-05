@@ -19,7 +19,7 @@ namespace SynthEBD
 
             AddAssignment = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.Assignments.Add(new VM_SpecificNPCAssignment(texMeshSettings.AssetPacks, bodyGenSettings, oBodySettings, generalSettingsVM, mainVM))
+                execute: _ => this.Assignments.Add(new VM_SpecificNPCAssignment(mainVM))
                 );
 
             RemoveAssignment = new SynthEBD.RelayCommand(
@@ -72,7 +72,7 @@ namespace SynthEBD
             viewModel.Assignments.Clear();
             foreach (var assignment in models)
             {
-                viewModel.Assignments.Add(VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, viewModel.TexMeshSettings.AssetPacks, viewModel.BodyGenSettings, oBodySettings, generalSettingsVM, mainVM));
+                viewModel.Assignments.Add(VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, mainVM));
             }
         }
 
@@ -109,7 +109,7 @@ namespace SynthEBD
 
                     foreach (var model in newModels)
                     {
-                        var assignmentVM = VM_SpecificNPCAssignment.GetViewModelFromModel(model, this.TexMeshSettings.AssetPacks, this.BodyGenSettings, oBodySettings, generalSettingsVM, mainVM);
+                        var assignmentVM = VM_SpecificNPCAssignment.GetViewModelFromModel(model, mainVM);
                         if (assignmentVM != null) // null if the imported NPC doesn't exist in the current load order
                         {
                             this.Assignments.Add(assignmentVM);

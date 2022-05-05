@@ -60,7 +60,7 @@ namespace SynthEBD
                 );
             AddNewAssetPackConfigFile = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.AssetPacks.Add(new VM_AssetPack(this.AssetPacks, ParentViewModel.BodyGenSettingsVM, ParentViewModel.OBodySettingsVM.DescriptorUI, ParentViewModel.GeneralSettingsVM, ParentViewModel.RecordTemplateLinkCache, ParentViewModel))
+                execute: _ => this.AssetPacks.Add(new VM_AssetPack(ParentViewModel))
                 );
 
             InstallFromArchive = new SynthEBD.RelayCommand(
@@ -96,7 +96,7 @@ namespace SynthEBD
                         if (loadSuccess)
                         {
                             newAssetPack.FilePath = System.IO.Path.Combine(PatcherSettings.Paths.AssetPackDirPath, System.IO.Path.GetFileName(newAssetPack.FilePath)); // overwrite existing filepath so it doesn't get deleted from source
-                            var newAssetPackVM = VM_AssetPack.GetViewModelFromModel(newAssetPack, ParentViewModel.GeneralSettingsVM, AssetPacks, ParentViewModel.BodyGenSettingsVM, ParentViewModel.OBodySettingsVM.DescriptorUI, ParentViewModel.RecordTemplateLinkCache, ParentViewModel);
+                            var newAssetPackVM = VM_AssetPack.GetViewModelFromModel(newAssetPack, ParentViewModel);
                             newAssetPackVM.IsSelected = true;
                             AssetPacks.Add(newAssetPackVM);
                         }
