@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Mutagen.Bethesda.Plugins;
-using System.IO;
+﻿using Mutagen.Bethesda.Plugins;
 using Newtonsoft.Json;
 
 namespace SynthEBD

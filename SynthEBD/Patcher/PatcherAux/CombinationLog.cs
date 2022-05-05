@@ -1,11 +1,5 @@
 ﻿using Mutagen.Bethesda.Plugins;
-using Mutagen.Bethesda.Plugins.Records;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SynthEBD
 {

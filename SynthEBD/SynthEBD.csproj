@@ -6,6 +6,7 @@
     <UseWPF>true</UseWPF>
     <GenerateDocumentationFile>False</GenerateDocumentationFile>
     <ApplicationIcon>Resources\Visual\SynthEBDicon.ico</ApplicationIcon>
+    <ImplicitUsings>true</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>

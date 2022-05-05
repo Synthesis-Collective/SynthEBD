@@ -1,5 +1,4 @@
 ﻿using Mutagen.Bethesda.FormKeys.SkyrimSE;
-using System.Collections.Generic;
 
 namespace SynthEBD
 {

@@ -1,16 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.ObjectModel;
 using System.Windows.Media;
 using System.IO;
-using System.Reactive;
-using System.Reactive.Linq;
 using ReactiveUI;
 using Mutagen.Bethesda.Skyrim;
-using System.Windows;
 using System.ComponentModel;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;

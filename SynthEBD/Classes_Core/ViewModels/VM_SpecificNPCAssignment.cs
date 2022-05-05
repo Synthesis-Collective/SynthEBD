@@ -1,19 +1,12 @@
 ﻿using Mutagen.Bethesda;
-using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using ReactiveUI;
-using Mutagen.Bethesda.Plugins.Cache.Internals.Implementations;
 using DynamicData.Binding;
 
 namespace SynthEBD

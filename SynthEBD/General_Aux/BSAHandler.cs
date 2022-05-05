@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Mutagen.Bethesda;
+﻿using Mutagen.Bethesda;
 using System.IO;
 using Mutagen.Bethesda.Archives;
 using Mutagen.Bethesda.Plugins;
