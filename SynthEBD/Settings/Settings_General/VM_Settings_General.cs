@@ -46,17 +46,6 @@ public class VM_Settings_General : ViewModel, IHasAttributeGroupMenu
             execute: x => this.LinkedNPCGroups.Remove((VM_LinkedNPCGroup)x)
         );
 
-        SelectOutputFolder = new SynthEBD.RelayCommand(
-            canExecute: _ => true,
-            execute: _ =>
-            {
-                if (IO_Aux.SelectFolder(PatcherEnvironmentProvider.Environment.DataFolderPath, out var tmpFolder))
-                {
-                    OutputDataFolder = tmpFolder;
-                }
-            }
-        );
-
         SelectCustomGameFolder = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -165,7 +154,12 @@ public class VM_Settings_General : ViewModel, IHasAttributeGroupMenu
     public bool ExcludePlayerCharacter { get; set; } = true;
     public bool ExcludePresets { get; set; } = true;
     public bool bChangeHeight { get; set;  } = true;
-    public string OutputDataFolder { get; set; } = "";
+    public PathPickerVM OutputDataFolder { get; } = new()
+    {
+        ExistCheckOption = PathPickerVM.CheckOptions.IfPathNotEmpty,
+        PathType = PathPickerVM.PathTypeOptions.Folder,
+        PromptTitle = "Data Folder Override"
+    };
     public string PortableSettingsFolder { get; set; } = "";
     public bool bEnableConsistency { get; set;  } = true;
     public bool bLinkNPCsWithSameName { get; set;  } = true;
@@ -196,7 +190,6 @@ public class VM_Settings_General : ViewModel, IHasAttributeGroupMenu
     public RelayCommand AddLinkedNPCNameExclusion { get; }
     public RelayCommand AddLinkedNPCGroup { get; }
     public RelayCommand RemoveLinkedNPCGroup { get; }
-    public RelayCommand SelectOutputFolder { get; }
     public RelayCommand SelectCustomGameFolder { get; }
     public RelayCommand ClearCustomGameFolder { get; }
     public RelayCommand SelectPortableSettingsFolder { get; }
@@ -209,7 +202,7 @@ public class VM_Settings_General : ViewModel, IHasAttributeGroupMenu
         viewModel.BodySelectionMode = model.BodySelectionMode;
         viewModel.BSSelectionMode = model.BSSelectionMode;
         viewModel.bChangeHeight = model.bChangeHeight;
-        viewModel.OutputDataFolder = model.OutputDataFolder;
+        viewModel.OutputDataFolder.TargetPath = model.OutputDataFolder;
         viewModel.bEnableConsistency = model.bEnableConsistency;
         viewModel.ExcludePlayerCharacter = model.ExcludePlayerCharacter;
         viewModel.ExcludePresets = model.ExcludePresets;
@@ -237,7 +230,7 @@ public class VM_Settings_General : ViewModel, IHasAttributeGroupMenu
         model.BodySelectionMode = viewModel.BodySelectionMode;
         model.BSSelectionMode = viewModel.BSSelectionMode;
         model.bChangeHeight = viewModel.bChangeHeight;
-        model.OutputDataFolder = viewModel.OutputDataFolder;
+        model.OutputDataFolder = viewModel.OutputDataFolder.TargetPath;
         model.bEnableConsistency = viewModel.bEnableConsistency;
         model.ExcludePlayerCharacter = viewModel.ExcludePlayerCharacter;
         model.ExcludePresets = viewModel.ExcludePresets;
