@@ -4,15 +4,8 @@ namespace SynthEBD;
 
 public class LoadSource
 {
-    public LoadSource()
-    {
-        LoadFromDataDir = false;
-        GameEnvironmentDirectory = "";
-        PortableSettingsFolder = "";
-        SkyrimVersion = SkyrimRelease.SkyrimSE;
-    }
-    public bool LoadFromDataDir { get; set; }
-    public string GameEnvironmentDirectory { get; set; }
-    public string PortableSettingsFolder { get; set; }
-    public SkyrimRelease SkyrimVersion { get; set; }
+    public bool LoadFromDataDir { get; set; } = false;
+    public string GameEnvironmentDirectory { get; set; } = "";
+    public string PortableSettingsFolder { get; set; } = "";
+    public SkyrimRelease SkyrimVersion { get; set; } = SkyrimRelease.SkyrimSE;
 }

@@ -8,13 +8,6 @@ public class VM_BodySlidesMenu : ViewModel
 {
     public VM_BodySlidesMenu(VM_SettingsOBody parentVM, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
-        BodySlidesMale = new ObservableCollection<VM_BodySlideSetting>();
-        BodySlidesFemale = new ObservableCollection<VM_BodySlideSetting>();
-        SelectedGender = Gender.Female;
-        CurrentlyDisplayedBodySlide = null;
-        CurrentlyExistingBodySlides = new HashSet<string>();
-        ShowHidden = false;
-
         AddPreset = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => CurrentlyDisplayedBodySlides.Add(new VM_BodySlideSetting(parentVM.DescriptorUI, raceGroupingVMs, this.CurrentlyDisplayedBodySlides, parentVM))
@@ -41,18 +34,18 @@ public class VM_BodySlidesMenu : ViewModel
         });
 
     }
-    public ObservableCollection<VM_BodySlideSetting> BodySlidesMale { get; set; }
-    public ObservableCollection<VM_BodySlideSetting> BodySlidesFemale { get; set; }
+    public ObservableCollection<VM_BodySlideSetting> BodySlidesMale { get; set; } = new();
+    public ObservableCollection<VM_BodySlideSetting> BodySlidesFemale { get; set; } = new();
 
     public ObservableCollection<VM_BodySlideSetting> CurrentlyDisplayedBodySlides { get; set; }
-    public VM_BodySlideSetting CurrentlyDisplayedBodySlide { get; set; }
-    public Gender SelectedGender { get; set; }
+    public VM_BodySlideSetting CurrentlyDisplayedBodySlide { get; set; } = null;
+    public Gender SelectedGender { get; set; } = Gender.Female;
 
-    public HashSet<string> CurrentlyExistingBodySlides { get; set; }
+    public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new();
 
     public RelayCommand AddPreset { get; }
     public RelayCommand RemovePreset { get; }
-    public bool ShowHidden { get; set; }
+    public bool ShowHidden { get; set; } = false;
 
     private static void TogglePresetVisibility(ObservableCollection<VM_BodySlideSetting> bodySlides, bool showHidden)
     {

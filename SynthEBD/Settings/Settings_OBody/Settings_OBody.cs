@@ -12,42 +12,30 @@ public enum AutoBodySelectionMode
 
 public class Settings_OBody: IHasDescriptorRules
 {
-    public Settings_OBody()
+    public List<BodySlideSetting> BodySlidesMale { get; set; } = new();
+    public List<BodySlideSetting> BodySlidesFemale { get; set; } = new();
+    public HashSet<BodyShapeDescriptor> TemplateDescriptors { get; set; } = new()
     {
-        this.BodySlidesMale = new List<BodySlideSetting>();
-        this.BodySlidesFemale = new List<BodySlideSetting>();
-        this.TemplateDescriptors = new HashSet<BodyShapeDescriptor>()
-        {
-            new BodyShapeDescriptor(){Category = "Build", Value = "Slight", Signature = "Build: Slight"},
-            new BodyShapeDescriptor(){Category = "Build", Value = "Medium", Signature = "Build: Medium"},
-            new BodyShapeDescriptor(){Category = "Build", Value = "Curvy", Signature = "Build: Curvy"},
-            new BodyShapeDescriptor(){Category = "Build", Value = "Chubby", Signature = "Build: Chubby"},
-            new BodyShapeDescriptor(){Category = "Build", Value = "Exaggerated", Signature = "Build: Exaggerated"},
-            new BodyShapeDescriptor(){Category = "Build", Value = "Powerful", Signature = "Build: Powerful"},
-            new BodyShapeDescriptor(){Category = "Chest", Value = "Busty", Signature = "Build: Busty"},
-            new BodyShapeDescriptor(){Category = "Chest", Value = "Medium", Signature = "Build: Medium"},
-            new BodyShapeDescriptor(){Category = "Chest", Value = "Petite", Signature = "Build: Petite"},
-        };
-        this.AttributeGroups = new HashSet<AttributeGroup>();
-        this.CurrentlyExistingBodySlides = new HashSet<string>();
-        this.MaleSliderGroups = new HashSet<string>();
-        this.FemaleSliderGroups = new HashSet<string>();
-        this.DescriptorRules = new HashSet<BodyShapeDescriptorRules>();
-        this.UseVerboseScripts = false;
-        this.AutoBodySelectionMode = AutoBodySelectionMode.INI;
-    }
-    public List<BodySlideSetting> BodySlidesMale { get; set; }
-    public List<BodySlideSetting> BodySlidesFemale { get; set; }
-    public HashSet<BodyShapeDescriptor> TemplateDescriptors { get; set; }
-    public HashSet<AttributeGroup> AttributeGroups { get; set; }
-    public HashSet<string> MaleSliderGroups { get; set; }
-    public HashSet<string> FemaleSliderGroups { get; set; }
-    public HashSet<BodyShapeDescriptorRules> DescriptorRules { get; set; }
-    public bool UseVerboseScripts { get; set; }
-    public AutoBodySelectionMode AutoBodySelectionMode { get; set; }
-        
+        new BodyShapeDescriptor(){Category = "Build", Value = "Slight", Signature = "Build: Slight"},
+        new BodyShapeDescriptor(){Category = "Build", Value = "Medium", Signature = "Build: Medium"},
+        new BodyShapeDescriptor(){Category = "Build", Value = "Curvy", Signature = "Build: Curvy"},
+        new BodyShapeDescriptor(){Category = "Build", Value = "Chubby", Signature = "Build: Chubby"},
+        new BodyShapeDescriptor(){Category = "Build", Value = "Exaggerated", Signature = "Build: Exaggerated"},
+        new BodyShapeDescriptor(){Category = "Build", Value = "Powerful", Signature = "Build: Powerful"},
+        new BodyShapeDescriptor(){Category = "Chest", Value = "Busty", Signature = "Build: Busty"},
+        new BodyShapeDescriptor(){Category = "Chest", Value = "Medium", Signature = "Build: Medium"},
+        new BodyShapeDescriptor(){Category = "Chest", Value = "Petite", Signature = "Build: Petite"},
+    };
+
+    public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
+    public HashSet<string> MaleSliderGroups { get; set; } = new();
+    public HashSet<string> FemaleSliderGroups { get; set; } = new();
+    public HashSet<BodyShapeDescriptorRules> DescriptorRules { get; set; } = new();
+    public bool UseVerboseScripts { get; set; } = false;
+    public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
+
     [JsonIgnore]
-    public HashSet<string> CurrentlyExistingBodySlides { get; set; }
+    public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new();
 
     public void ImportBodySlides(HashSet<BodyShapeDescriptor> templateDescriptors)
     {
@@ -143,44 +131,22 @@ public class Settings_OBody: IHasDescriptorRules
 
 public class BodySlideSetting : IProbabilityWeighted
 {
-    public BodySlideSetting()
-    {
-        this.Label = "";
-        this.Notes = "";
-        this.BodyShapeDescriptors = new HashSet<BodyShapeDescriptor>();
-        this.AllowedRaces = new HashSet<FormKey>();
-        this.AllowedRaceGroupings = new HashSet<string>();
-        this.DisallowedRaces = new HashSet<FormKey>();
-        this.DisallowedRaceGroupings = new HashSet<string>();
-        this.AllowedAttributes = new HashSet<NPCAttribute>();
-        this.DisallowedAttributes = new HashSet<NPCAttribute>();
-        this.AllowUnique = true;
-        this.AllowNonUnique = true;
-        this.AllowRandom = true;
-        this.ProbabilityWeighting = 1;
-        this.WeightRange = new NPCWeightRange();
-        this.HideInMenu = false;
-
-        // used during patching, not written to settings file
-        this.MatchedForceIfCount = 0;
-    }
-
-    public string Label { get; set; }
-    public string Notes { get; set; }
-    public HashSet<BodyShapeDescriptor> BodyShapeDescriptors { get; set; }
-    public HashSet<FormKey> AllowedRaces { get; set; }
-    public HashSet<FormKey> DisallowedRaces { get; set; }
-    public HashSet<string> AllowedRaceGroupings { get; set; }
-    public HashSet<string> DisallowedRaceGroupings { get; set; }
-    public HashSet<NPCAttribute> AllowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
-    public HashSet<NPCAttribute> DisallowedAttributes { get; set; }
-    public bool AllowUnique { get; set; }
-    public bool AllowNonUnique { get; set; }
-    public bool AllowRandom { get; set; }
-    public double ProbabilityWeighting { get; set; }
-    public NPCWeightRange WeightRange { get; set; }
-    public bool HideInMenu { get; set; }
+    public string Label { get; set; } = "";
+    public string Notes { get; set; } = "";
+    public HashSet<BodyShapeDescriptor> BodyShapeDescriptors { get; set; } = new();
+    public HashSet<FormKey> AllowedRaces { get; set; } = new();
+    public HashSet<FormKey> DisallowedRaces { get; set; } = new();
+    public HashSet<string> AllowedRaceGroupings { get; set; } = new();
+    public HashSet<string> DisallowedRaceGroupings { get; set; } = new();
+    public HashSet<NPCAttribute> AllowedAttributes { get; set; } = new(); // keeping as array to allow deserialization of original zEBD settings files
+    public HashSet<NPCAttribute> DisallowedAttributes { get; set; } = new();
+    public bool AllowUnique { get; set; } = true;
+    public bool AllowNonUnique { get; set; } = true;
+    public bool AllowRandom { get; set; } = true;
+    public double ProbabilityWeighting { get; set; } = 1;
+    public NPCWeightRange WeightRange { get; set; } = new();
+    public bool HideInMenu { get; set; } = false;
 
     [JsonIgnore]
-    public int MatchedForceIfCount { get; set; }
+    public int MatchedForceIfCount { get; set; } = 0;
 }

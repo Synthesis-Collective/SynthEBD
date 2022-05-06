@@ -17,19 +17,17 @@ public class VM_NPCAttribute : ViewModel
 {
     public VM_NPCAttribute(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups)
     {
-        this.GroupedSubAttributes = new ObservableCollection<VM_NPCAttributeShell>();
         this.ParentCollection = parentCollection;
         this.GroupedSubAttributes.CollectionChanged += TrimEmptyAttributes;
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
         AddToParent = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Add(CreateNewFromUI(parentCollection, this.DisplayForceIfOption, this.DisplayForceIfWeight, attributeGroups)));
-        this.DisplayForceIfOption = true;
     }
 
-    public ObservableCollection<VM_NPCAttributeShell> GroupedSubAttributes { get; set; } // everything within this collection is evaluated as AND (all must be true)
+    public ObservableCollection<VM_NPCAttributeShell> GroupedSubAttributes { get; set; } = new(); // everything within this collection is evaluated as AND (all must be true)
     public RelayCommand DeleteCommand { get; }
     public RelayCommand AddToParent { get; }
-    public bool DisplayForceIfOption { get; set; }
+    public bool DisplayForceIfOption { get; set; } = true;
     public bool? DisplayForceIfWeight { get; set; }
     public ObservableCollection<VM_NPCAttribute> ParentCollection { get; set; }
 
@@ -129,10 +127,7 @@ public class VM_NPCAttributeShell : ViewModel
 {
     public VM_NPCAttributeShell(VM_NPCAttribute parentVM, bool displayForceIfOption, bool? displayForceIfWeight, ObservableCollection<VM_AttributeGroup> attributeGroups)
     {
-        this.Type = NPCAttributeType.Class;
         this.Attribute = new VM_NPCAttributeClass(parentVM, this);
-        this.ForceIf = false;
-        this.ForceIfWeight = 1;
         this.DisplayForceIfOption = displayForceIfOption;
         if (displayForceIfWeight is not null)
         {
@@ -168,9 +163,9 @@ public class VM_NPCAttributeShell : ViewModel
         );
     }
     public ISubAttributeViewModel Attribute { get; set; }
-    public NPCAttributeType Type { get; set; }
-    public bool ForceIf { get; set; }
-    public int ForceIfWeight { get; set; }
+    public NPCAttributeType Type { get; set; } = NPCAttributeType.Class;
+    public bool ForceIf { get; set; } = false;
+    public int ForceIfWeight { get; set; } = 1;
     public bool DisplayForceIfOption { get; set; }
     public bool DisplayForceIfWeight { get; set; }
 
@@ -190,7 +185,6 @@ public class VM_NPCAttributeVoiceType : ISubAttributeViewModel
 {
     public VM_NPCAttributeVoiceType(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
-        this.VoiceTypeFormKeys = new ObservableCollection<FormKey>();
         this.ParentVM = parentVM;
         this.ParentShell = parentShell;
         DeleteCommand = new RelayCommand(
@@ -203,19 +197,15 @@ public class VM_NPCAttributeVoiceType : ISubAttributeViewModel
                     parentVM.ParentCollection.Remove(parentVM);
                 }
             }) ;
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.AllowedFormKeyTypes = typeof(IVoiceTypeGetter).AsEnumerable();
-
-        this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
     }
-    public ObservableCollection<FormKey> VoiceTypeFormKeys { get; set; }
+    public ObservableCollection<FormKey> VoiceTypeFormKeys { get; set; } = new();
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
-    public ILinkCache lk { get; set; }
-    public IEnumerable<Type> AllowedFormKeyTypes { get; set; }
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IVoiceTypeGetter).AsEnumerable();
 
-    public IObservable<Unit> NeedsRefresh { get; }
+    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
 
     public static VM_NPCAttributeVoiceType GetViewModelFromModel(NPCAttributeVoiceType model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
@@ -234,22 +224,18 @@ public class VM_NPCAttributeClass : ISubAttributeViewModel
 {
     public VM_NPCAttributeClass(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
-        this.ClassFormKeys = new ObservableCollection<FormKey>();
         this.ParentVM = parentVM;
         this.ParentShell = parentShell;
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.AllowedFormKeyTypes = typeof(IClassGetter).AsEnumerable();
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
-
-        this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
     }
-    public ObservableCollection<FormKey> ClassFormKeys { get; set; }
+    public ObservableCollection<FormKey> ClassFormKeys { get; set; } = new();
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
-    public ILinkCache lk { get; set; }
-    public IEnumerable<Type> AllowedFormKeyTypes { get; set; }
-    public IObservable<Unit> NeedsRefresh { get; }
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IClassGetter).AsEnumerable();
+    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+
     public static VM_NPCAttributeClass GetViewModelFromModel(NPCAttributeClass model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
         var newAtt = new VM_NPCAttributeClass(parentVM, parentShell);
@@ -268,37 +254,14 @@ public class VM_NPCAttributeCustom : ViewModel, ISubAttributeViewModel, IImpleme
 {
     public VM_NPCAttributeCustom(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
-        this.CustomType = CustomAttributeType.Text;
-        this.IntellisensedPath = "";
-        this.ValueStr = "";
-        this.ValueFKs = new ObservableCollection<FormKey>();
-
-        this.ShowValueTextField = true;
-        this.ShowValueFormKeyPicker = false;
-        this.ShowValueBoolPicker = false;
-
-        this.PathSuggestions = new ObservableCollection<PathSuggestion>();
-        this.ChosenPathSuggestion = null;
-        this.ReferenceNPCFormKey = new FormKey();
-        this.ReferenceNPCType = typeof(INpcGetter).AsEnumerable();
-            
-        this.ValueGetterTypes = new SortedDictionary<string, Type>();
-
         foreach (var reg in Loqui.LoquiRegistration.StaticRegister.Registrations.Where(x => x.ProtocolKey.Namespace == "Skyrim").Where(x => x.GetterType.IsAssignableTo(typeof(Mutagen.Bethesda.Plugins.Records.IMajorRecordGetter))))
         {
             ValueGetterTypes.Add(reg.Name, reg.GetterType);
         }
 
-        this.Comparators = new ObservableCollection<string>();
-
-        this.LinkCache = PatcherEnvironmentProvider.Environment.LinkCache;
-
         ParentVM = parentVM;
         ParentShell = parentShell;
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
-        this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
-
-        this.StatusFontColor = new SolidColorBrush(Colors.White);
 
         InitializeSubscriptions(this);
 
@@ -314,32 +277,32 @@ public class VM_NPCAttributeCustom : ViewModel, ISubAttributeViewModel, IImpleme
         this.WhenAnyValue(x => x.ReferenceNPCFormKey).Subscribe(x => Evaluate());
     }
 
-    public CustomAttributeType CustomType { get; set; }
-    public string IntellisensedPath { get; set; }
-    public string ValueStr { get; set; }
-    public ObservableCollection<FormKey> ValueFKs { get; set; }
-    public SortedDictionary<string, Type> ValueGetterTypes { get; set; }
+    public CustomAttributeType CustomType { get; set; } = CustomAttributeType.Text;
+    public string IntellisensedPath { get; set; } = "";
+    public string ValueStr { get; set; } = "";
+    public ObservableCollection<FormKey> ValueFKs { get; set; } = new();
+    public SortedDictionary<string, Type> ValueGetterTypes { get; set; } = new();
     public Type ValueFKtype { get; set; }
     public IEnumerable<Type> ValueFKtypeCollection { get; set; }
-    public ILinkCache LinkCache { get; set; }
-    public ObservableCollection<PathSuggestion> PathSuggestions { get; set; }
-    public PathSuggestion ChosenPathSuggestion { get; set; }
-    public FormKey ReferenceNPCFormKey { get; set; }
-    public IEnumerable<Type> ReferenceNPCType { get; set; }
-    public ObservableCollection<string> Comparators { get; set; }
+    public ILinkCache LinkCache => PatcherEnvironmentProvider.Environment.LinkCache;
+    public ObservableCollection<PathSuggestion> PathSuggestions { get; set; } = new();
+    public PathSuggestion ChosenPathSuggestion { get; set; } = null;
+    public FormKey ReferenceNPCFormKey { get; set; } = new();
+    public IEnumerable<Type> ReferenceNPCType { get; set; } = typeof(INpcGetter).AsEnumerable();
+    public ObservableCollection<string> Comparators { get; set; } = new();
     public string ChosenComparator { get; set; }
     public string EvalResult { get; set; }
 
-    public bool ShowValueTextField { get; set; }
-    public bool ShowValueFormKeyPicker { get; set; }
-    public bool ShowValueBoolPicker { get; set; }
+    public bool ShowValueTextField { get; set; } = true;
+    public bool ShowValueFormKeyPicker { get; set; } = false;
+    public bool ShowValueBoolPicker { get; set; } = false;
 
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
-    public IObservable<Unit> NeedsRefresh { get; }
-    public System.Windows.Media.SolidColorBrush StatusFontColor { get; set; }
-    
+    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+    public System.Windows.Media.SolidColorBrush StatusFontColor { get; set; } = new(Colors.White);
+
     public static VM_NPCAttributeCustom GetViewModelFromModel(NPCAttributeCustom model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
         var viewModel = new VM_NPCAttributeCustom(parentVM, parentShell);
@@ -472,26 +435,20 @@ public class VM_NPCAttributeFactions : ISubAttributeViewModel
 {
     public VM_NPCAttributeFactions(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
-        this.FactionFormKeys = new ObservableCollection<FormKey>();
-        this.RankMin = -1;
-        this.RankMax = 100;
         this.ParentVM = parentVM;
         this.ParentShell = parentShell;
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.AllowedFormKeyTypes = typeof(IFactionGetter).AsEnumerable();
-
-        this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
     }
-    public ObservableCollection<FormKey> FactionFormKeys { get; set; }
-    public int RankMin { get; set; }
-    public int RankMax { get; set; }
+    public ObservableCollection<FormKey> FactionFormKeys { get; set; } = new();
+    public int RankMin { get; set; } = -1;
+    public int RankMax { get; set; } = 100;
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
-    public ILinkCache lk { get; set; }
-    public IEnumerable<Type> AllowedFormKeyTypes { get; set; }
-    public IObservable<Unit> NeedsRefresh { get; }
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IFactionGetter).AsEnumerable();
+    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+
     public static VM_NPCAttributeFactions GetViewModelFromModel(NPCAttributeFactions model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
         var newAtt = new VM_NPCAttributeFactions(parentVM, parentShell);
@@ -511,22 +468,18 @@ public class VM_NPCAttributeFaceTexture : ISubAttributeViewModel
 {
     public VM_NPCAttributeFaceTexture(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
-        this.FaceTextureFormKeys = new ObservableCollection<FormKey>();
         this.ParentVM = parentVM;
         this.ParentShell = parentShell;
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.AllowedFormKeyTypes = typeof(ITextureSetGetter).AsEnumerable();
-
-        this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
     }
-    public ObservableCollection<FormKey> FaceTextureFormKeys { get; set; }
+    public ObservableCollection<FormKey> FaceTextureFormKeys { get; set; } = new();
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
-    public ILinkCache lk { get; set; }
-    public IEnumerable<Type> AllowedFormKeyTypes { get; set; }
-    public IObservable<Unit> NeedsRefresh { get; }
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(ITextureSetGetter).AsEnumerable();
+    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+
     public static VM_NPCAttributeFaceTexture GetViewModelFromModel(NPCAttributeFaceTexture model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
         var newAtt = new VM_NPCAttributeFaceTexture(parentVM, parentShell);
@@ -545,22 +498,18 @@ public class VM_NPCAttributeRace : ISubAttributeViewModel
 {
     public VM_NPCAttributeRace(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
-        this.RaceFormKeys = new ObservableCollection<FormKey>();
         this.ParentVM = parentVM;
         this.ParentShell = parentShell;
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.AllowedFormKeyTypes = typeof(IRaceGetter).AsEnumerable();
-
-        this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
     }
-    public ObservableCollection<FormKey> RaceFormKeys { get; set; }
+    public ObservableCollection<FormKey> RaceFormKeys { get; set; } = new();
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
-    public ILinkCache lk { get; set; }
-    public IEnumerable<Type> AllowedFormKeyTypes { get; set; }
-    public IObservable<Unit> NeedsRefresh { get; }
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IRaceGetter).AsEnumerable();
+    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+
     public static VM_NPCAttributeRace getViewModelFromModel(NPCAttributeRace model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
         var newAtt = new VM_NPCAttributeRace(parentVM, parentShell);
@@ -579,22 +528,18 @@ public class VM_NPCAttributeNPC : ISubAttributeViewModel
 {
     public VM_NPCAttributeNPC(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
-        this.NPCFormKeys = new ObservableCollection<FormKey>();
         this.ParentVM = parentVM;
         this.ParentShell = parentShell;
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.AllowedFormKeyTypes = typeof(INpcGetter).AsEnumerable();
-
-        this.NeedsRefresh = System.Reactive.Linq.Observable.Empty<Unit>();
     }
-    public ObservableCollection<FormKey> NPCFormKeys { get; set; }
+    public ObservableCollection<FormKey> NPCFormKeys { get; set; } = new();
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
-    public ILinkCache lk { get; set; }
-    public IEnumerable<Type> AllowedFormKeyTypes { get; set; }
-    public IObservable<Unit> NeedsRefresh { get; }
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
+    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+
     public static VM_NPCAttributeNPC getViewModelFromModel(NPCAttributeNPC model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
         var newAtt = new VM_NPCAttributeNPC(parentVM, parentShell);

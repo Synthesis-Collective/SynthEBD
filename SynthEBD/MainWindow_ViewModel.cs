@@ -12,18 +12,18 @@ public class MainWindow_ViewModel : ViewModel
     public VM_SettingsTexMesh TexMeshSettingsVM { get; }
     public VM_SettingsBodyGen BodyGenSettingsVM { get; }
     public VM_SettingsOBody OBodySettingsVM { get; }
-    public VM_SettingsHeight HeightSettingsVM { get; }
+    public VM_SettingsHeight HeightSettingsVM { get; } = new();
     public VM_SpecificNPCAssignmentsUI SpecificAssignmentsUIVM { get; }
-    public VM_ConsistencyUI ConsistencyUIVM { get; }
+    public VM_ConsistencyUI ConsistencyUIVM { get; } = new();
     public VM_BlockListUI BlockListVM { get; } = new();
-    public VM_SettingsModManager ModManagerSettingsVM { get; }
+    public VM_SettingsModManager ModManagerSettingsVM { get; } = new();
     public VM_NavPanel NavPanelVM { get; }
 
     public VM_RunButton RunButtonVM { get; }
     public object DisplayedViewModel { get; set; }
     public object NavViewModel { get; set; }
 
-    public VM_StatusBar StatusBarVM { get; set; }
+    public VM_StatusBar StatusBarVM { get; set; } = new();
 
     public VM_LogDisplay LogDisplayVM { get; set; } = new();
     public List<AssetPack> AssetPacks { get; set; }
@@ -48,15 +48,11 @@ public class MainWindow_ViewModel : ViewModel
 
         // Load settings
         GeneralSettingsVM = new VM_Settings_General(this);
-        HeightSettingsVM = new VM_SettingsHeight();
         BodyGenSettingsVM = new VM_SettingsBodyGen(GeneralSettingsVM);
         OBodySettingsVM = new VM_SettingsOBody(GeneralSettingsVM.RaceGroupings, GeneralSettingsVM);
         TexMeshSettingsVM = new VM_SettingsTexMesh(this);
         SpecificAssignmentsUIVM = new VM_SpecificNPCAssignmentsUI(TexMeshSettingsVM, BodyGenSettingsVM, OBodySettingsVM, GeneralSettingsVM, this);
-        ConsistencyUIVM = new VM_ConsistencyUI();
-        ModManagerSettingsVM = new VM_SettingsModManager();
         NavPanelVM = new VM_NavPanel(this);
-        StatusBarVM = new VM_StatusBar();
         RunButtonVM = new VM_RunButton(this);
 
         LoadInitialSettingsViewModels();

@@ -6,14 +6,8 @@ namespace SynthEBD;
 
 public class FilePathReplacement
 {
-    public FilePathReplacement()
-    {
-        this.Source = "";
-        this.Destination = "";
-    }
-
-    public string Source { get; set; }
-    public string Destination { get; set; }
+    public string Source { get; set; } = "";
+    public string Destination { get; set; } = "";
 }
     
 public class FilePathReplacementParsed
@@ -25,7 +19,6 @@ public class FilePathReplacementParsed
         this.DestinationStr = pathTemplate.Destination;
         this.TemplateNPC = GetTemplateNPC(npcInfo, sourceAssetPack, recordTemplateLinkCache);
         this.ParentCombination = parentCombination;
-        this.TraversedRecords = new HashSet<GeneratedRecordInfo>(); // FormKey, EditorID
     }
 
     public string Source { get; set; }
@@ -33,7 +26,7 @@ public class FilePathReplacementParsed
     public string DestinationStr { get; set; }
     public INpcGetter TemplateNPC { get; set; }
     public SubgroupCombination ParentCombination { get; set; } // for logging only
-    public HashSet<GeneratedRecordInfo> TraversedRecords { get; set; } // for logging only
+    public HashSet<GeneratedRecordInfo> TraversedRecords { get; set; } = new(); // for logging only
 
     private static INpcGetter GetTemplateNPC(NPCInfo npcInfo, FlattenedAssetPack chosenAssetPack, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
     {

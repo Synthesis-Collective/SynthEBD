@@ -8,16 +8,12 @@ public class VM_BodyGenConfig : ViewModel, IHasAttributeGroupMenu
 {
     public VM_BodyGenConfig(VM_Settings_General generalSettingsVM, ObservableCollection<VM_BodyGenConfig> parentCollection, VM_SettingsBodyGen bodyGenSettingsVM)
     {
-        this.Label = "";
-        this.Gender = Gender.Female;
-
         this.GroupMappingUI = new VM_BodyGenGroupMappingMenu(this.GroupUI, generalSettingsVM.RaceGroupings);
         this.GroupUI = new VM_BodyGenGroupsMenu(this);
         this.DescriptorUI = new VM_BodyShapeDescriptorCreationMenu(generalSettingsVM.RaceGroupings, this);
         this.TemplateMorphUI = new VM_BodyGenTemplateMenu(this, generalSettingsVM.RaceGroupings);
         this.DisplayedUI = this.TemplateMorphUI;
         this.AttributeGroupMenu = new VM_AttributeGroupMenu(generalSettingsVM.AttributeGroupMenu, true);
-        this.MiscMenu = new VM_BodyGenMiscMenu();
         this.ParentCollection = parentCollection;
 
         ClickTemplateMenu = new SynthEBD.RelayCommand(
@@ -124,7 +120,7 @@ public class VM_BodyGenConfig : ViewModel, IHasAttributeGroupMenu
     public VM_BodyGenTemplateMenu TemplateMorphUI { get; set; }
 
     public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
-    public VM_BodyGenMiscMenu MiscMenu { get; set; }
+    public VM_BodyGenMiscMenu MiscMenu { get; set; } = new();
     public ObservableCollection<VM_BodyGenConfig> ParentCollection { get; set; }
 
     public string SourcePath { get; set; }
@@ -138,8 +134,8 @@ public class VM_BodyGenConfig : ViewModel, IHasAttributeGroupMenu
     public ICommand ClickDelete { get; }
     public RelayCommand Save { get; }
 
-    public string Label { get; set; }
-    public Gender Gender { get; set; }
+    public string Label { get; set; } = "";
+    public Gender Gender { get; set; } = Gender.Female;
 
     public static VM_BodyGenConfig GetViewModelFromModel(BodyGenConfig model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_BodyGenConfig> parentCollection, VM_SettingsBodyGen bodyGenSettingsVM)
     {

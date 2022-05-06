@@ -5,36 +5,19 @@ namespace SynthEBD;
 
 public class AssetPack : IModelHasSubgroups
 {
-    public AssetPack()
-    {
-        this.GroupName = "";
-        this.ShortName = "";
-        this.ConfigType = AssetPackType.Primary;
-        this.Gender = Gender.Male;
-        this.DisplayAlerts = true;
-        this.UserAlert = "";
-        this.Subgroups = new List<Subgroup>();
-        this.DefaultRecordTemplate = new FormKey();
-        this.AdditionalRecordTemplateAssignments = new HashSet<AdditionalRecordTemplate>();
-        this.AssociatedBodyGenConfigName = "";
-        this.DefaultRecordTemplateAdditionalRacesPaths = new HashSet<string>();
-        this.AttributeGroups = new HashSet<AttributeGroup>();
-        this.ReplacerGroups = new List<AssetReplacerGroup>();
-    }
-
-    public string GroupName { get; set; }
-    public string ShortName { get; set; }
-    public AssetPackType ConfigType { get; set; }
-    public Gender Gender { get; set; }
-    public bool DisplayAlerts { get; set; }
-    public string UserAlert { get; set; }
-    public List<Subgroup> Subgroups { get; set; } // don't change to HashSet - need indexing for RequiredSubgroups
-    public FormKey DefaultRecordTemplate { get; set; }
-    public HashSet<AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
-    public string AssociatedBodyGenConfigName { get; set; }
-    public List<AssetReplacerGroup> ReplacerGroups { get; set; }
-    public HashSet<string> DefaultRecordTemplateAdditionalRacesPaths { get; set; }
-    public HashSet<AttributeGroup> AttributeGroups { get; set; }
+    public string GroupName { get; set; } = "";
+    public string ShortName { get; set; } = "";
+    public AssetPackType ConfigType { get; set; } = AssetPackType.Primary;
+    public Gender Gender { get; set; } = Gender.Male;
+    public bool DisplayAlerts { get; set; } = true;
+    public string UserAlert { get; set; } = "";
+    public List<Subgroup> Subgroups { get; set; } = new(); // don't change to HashSet - need indexing for RequiredSubgroups
+    public FormKey DefaultRecordTemplate { get; set; } = new();
+    public HashSet<AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; } = new();
+    public string AssociatedBodyGenConfigName { get; set; } = "";
+    public List<AssetReplacerGroup> ReplacerGroups { get; set; } = new();
+    public HashSet<string> DefaultRecordTemplateAdditionalRacesPaths { get; set; } = new();
+    public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
     public ConfigDistributionRules DistributionRules { get; set; }
     [Newtonsoft.Json.JsonIgnore]
     public string FilePath { get; set; }
@@ -103,40 +86,21 @@ public class AssetPack : IModelHasSubgroups
 
     public class ConfigDistributionRules : IProbabilityWeighted
     {
-        public ConfigDistributionRules()
-        {
-            this.AllowedRaces = new HashSet<FormKey>();
-            this.AllowedRaceGroupings = new HashSet<string>();
-            this.DisallowedRaces = new HashSet<FormKey>();
-            this.DisallowedRaceGroupings = new HashSet<string>();
-            this.AllowedAttributes = new HashSet<NPCAttribute>();
-            this.DisallowedAttributes = new HashSet<NPCAttribute>();
-            this.AllowUnique = true;
-            this.AllowNonUnique = true;
-            this.AddKeywords = new HashSet<string>();
-            this.ProbabilityWeighting = 1;
-            this.AllowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>();
-            this.DisallowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>();
-            this.AllowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>();
-            this.DisallowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>();
-            this.WeightRange = new NPCWeightRange();
-        }
-
-        public HashSet<FormKey> AllowedRaces { get; set; }
-        public HashSet<string> AllowedRaceGroupings { get; set; }
-        public HashSet<FormKey> DisallowedRaces { get; set; }
-        public HashSet<string> DisallowedRaceGroupings { get; set; }
-        public HashSet<NPCAttribute> AllowedAttributes { get; set; }
-        public HashSet<NPCAttribute> DisallowedAttributes { get; set; }
-        public bool AllowUnique { get; set; }
-        public bool AllowNonUnique { get; set; }
-        public HashSet<string> AddKeywords { get; set; }
-        public double ProbabilityWeighting { get; set; }
-        public HashSet<BodyShapeDescriptor> AllowedBodyGenDescriptors { get; set; }
-        public HashSet<BodyShapeDescriptor> DisallowedBodyGenDescriptors { get; set; }
-        public HashSet<BodyShapeDescriptor> AllowedBodySlideDescriptors { get; set; }
-        public HashSet<BodyShapeDescriptor> DisallowedBodySlideDescriptors { get; set; }
-        public NPCWeightRange WeightRange { get; set; }
+        public HashSet<FormKey> AllowedRaces { get; set; } = new();
+        public HashSet<string> AllowedRaceGroupings { get; set; } = new();
+        public HashSet<FormKey> DisallowedRaces { get; set; } = new();
+        public HashSet<string> DisallowedRaceGroupings { get; set; } = new();
+        public HashSet<NPCAttribute> AllowedAttributes { get; set; } = new();
+        public HashSet<NPCAttribute> DisallowedAttributes { get; set; } = new();
+        public bool AllowUnique { get; set; } = true;
+        public bool AllowNonUnique { get; set; } = true;
+        public HashSet<string> AddKeywords { get; set; } = new();
+        public double ProbabilityWeighting { get; set; } = 1;
+        public HashSet<BodyShapeDescriptor> AllowedBodyGenDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor> DisallowedBodyGenDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor> AllowedBodySlideDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor> DisallowedBodySlideDescriptors { get; set; } = new();
+        public NPCWeightRange WeightRange { get; set; } = new();
 
         public static string SubgroupIDString = "ConfigDistributionRules";
         public static string SubgroupNameString = "Main Distribution Rules";
@@ -167,59 +131,30 @@ public class AssetPack : IModelHasSubgroups
 
     public class Subgroup : IProbabilityWeighted, IModelHasSubgroups
     {
-        public Subgroup()
-        {
-            this.ID = "";
-            this.Name = "";
-            this.Enabled = true;
-            this.DistributionEnabled = true;
-            this.AllowedRaces = new HashSet<FormKey>();
-            this.AllowedRaceGroupings = new HashSet<string>();
-            this.DisallowedRaces = new HashSet<FormKey>();
-            this.DisallowedRaceGroupings = new HashSet<string>();
-            this.AllowedAttributes = new HashSet<NPCAttribute>();
-            this.DisallowedAttributes = new HashSet<NPCAttribute>();
-            this.AllowUnique = true;
-            this.AllowNonUnique = true;
-            this.RequiredSubgroups = new HashSet<string>();
-            this.ExcludedSubgroups = new HashSet<string>();
-            this.AddKeywords = new HashSet<string>();
-            this.ProbabilityWeighting = 1;
-            this.Paths = new HashSet<FilePathReplacement>();
-            this.AllowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>();
-            this.DisallowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>();
-            this.AllowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>();
-            this.DisallowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>();
-            this.WeightRange = new NPCWeightRange();
-            this.Subgroups = new List<Subgroup>();
-
-            this.TopLevelSubgroupID = "";
-        }
-            
-        public string ID { get; set; }
-        public string Name { get; set; }
-        public bool Enabled { get; set; }
-        public bool DistributionEnabled { get; set; }
-        public HashSet<FormKey> AllowedRaces { get; set; }
-        public HashSet<string> AllowedRaceGroupings { get; set; }
-        public HashSet<FormKey> DisallowedRaces { get; set; }
-        public HashSet<string> DisallowedRaceGroupings { get; set; }
-        public HashSet<NPCAttribute> AllowedAttributes { get; set; }
-        public HashSet<NPCAttribute> DisallowedAttributes { get; set; } 
-        public bool AllowUnique { get; set; }
-        public bool AllowNonUnique { get; set; }
-        public HashSet<string> RequiredSubgroups { get; set; }
-        public HashSet<string> ExcludedSubgroups { get; set; }
-        public HashSet<string> AddKeywords { get; set; }
-        public double ProbabilityWeighting { get; set; }
-        public HashSet<FilePathReplacement> Paths { get; set; }
-        public HashSet<BodyShapeDescriptor> AllowedBodyGenDescriptors { get; set; }
-        public HashSet<BodyShapeDescriptor> DisallowedBodyGenDescriptors { get; set; }
-        public HashSet<BodyShapeDescriptor> AllowedBodySlideDescriptors { get; set; }
-        public HashSet<BodyShapeDescriptor> DisallowedBodySlideDescriptors { get; set; }
-        public NPCWeightRange WeightRange { get; set; }
-        public List<Subgroup> Subgroups { get; set; }
-        public string TopLevelSubgroupID { get; set; }
+        public string ID { get; set; } = "";
+        public string Name { get; set; } = "";
+        public bool Enabled { get; set; } = true;
+        public bool DistributionEnabled { get; set; } = true;
+        public HashSet<FormKey> AllowedRaces { get; set; } = new();
+        public HashSet<string> AllowedRaceGroupings { get; set; } = new();
+        public HashSet<FormKey> DisallowedRaces { get; set; } = new();
+        public HashSet<string> DisallowedRaceGroupings { get; set; } = new();
+        public HashSet<NPCAttribute> AllowedAttributes { get; set; } = new();
+        public HashSet<NPCAttribute> DisallowedAttributes { get; set; } = new();
+        public bool AllowUnique { get; set; } = true;
+        public bool AllowNonUnique { get; set; } = true;
+        public HashSet<string> RequiredSubgroups { get; set; } = new();
+        public HashSet<string> ExcludedSubgroups { get; set; } = new();
+        public HashSet<string> AddKeywords { get; set; } = new();
+        public double ProbabilityWeighting { get; set; } = 1;
+        public HashSet<FilePathReplacement> Paths { get; set; } = new();
+        public HashSet<BodyShapeDescriptor> AllowedBodyGenDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor> DisallowedBodyGenDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor> AllowedBodySlideDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor> DisallowedBodySlideDescriptors { get; set; } = new();
+        public NPCWeightRange WeightRange { get; set; } = new();
+        public List<Subgroup> Subgroups { get; set; } = new();
+        public string TopLevelSubgroupID { get; set; } = "";
     }
 
     private static bool ValidateSubgroups(List<AssetPack.Subgroup> subgroups, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig)
@@ -489,25 +424,14 @@ public enum AssetPackType
 }
 public class AssetReplacerGroup : IModelHasSubgroups
 {
-    public AssetReplacerGroup()
-    {
-        this.Label = "";
-        this.Subgroups = new List<AssetPack.Subgroup>();
-        this.TemplateNPCFormKey = new FormKey();
-    }
-
-    public string Label { get; set; }
-    public List<AssetPack.Subgroup> Subgroups { get; set; }
-    public FormKey TemplateNPCFormKey { get; set; }
+    public string Label { get; set; } = "";
+    public List<AssetPack.Subgroup> Subgroups { get; set; } = new();
+    public FormKey TemplateNPCFormKey { get; set; } = new();
 }
 
 public class RecordReplacerSpecifier
 {
-    public RecordReplacerSpecifier()
-    {
-        Paths = new HashSet<string>();
-    }
-    public HashSet<string> Paths { get; set; }
+    public HashSet<string> Paths { get; set; } = new();
     public FormKey DestFormKeySpecifier { get; set; }
     public SubgroupCombination.DestinationSpecifier DestSpecifier { get; set; }
 }
@@ -546,71 +470,36 @@ public class TintColorSelector : IProbabilityWeighted
 // Backward compatibility classes for loading zEBD settings files and converting to synthEBD
 class ZEBDAssetPack
 {
-    public ZEBDAssetPack()
-    {
-        this.groupName = "";
-        this.gender = Gender.Male;
-        this.displayAlerts = true;
-        this.userAlert = "";
-        this.subgroups = new HashSet<ZEBDSubgroup>();
-    }
-
-    public string groupName { get; set; }
-    public Gender gender { get; set; }
-    public bool displayAlerts { get; set; }
-    public string userAlert { get; set; }
-    public HashSet<ZEBDSubgroup> subgroups { get; set; }
+    public string groupName { get; set; } = "";
+    public Gender gender { get; set; } = Gender.Male;
+    public bool displayAlerts { get; set; } = true;
+    public string userAlert { get; set; } = "";
+    public HashSet<ZEBDSubgroup> subgroups { get; set; } = new();
 
     public class ZEBDSubgroup
     {
-        public ZEBDSubgroup()
-        {
-            this.id = "";
-            this.name = "";
-            this.enabled = true;
-            this.distributionEnabled = true;
-            this.allowedRaces = new List<string>();
-            this.allowedRaceGroupings = new List<RaceGrouping>();
-            this.disallowedRaces = new List<string>();
-            this.disallowedRaceGroupings = new List<RaceGrouping>();
-            this.allowedAttributes = new List<string[]>();
-            this.disallowedAttributes = new List<string[]>();
-            this.forceIfAttributes = new List<string[]>();
-            this.bAllowUnique = true;
-            this.bAllowNonUnique = true;
-            this.requiredSubgroups = new List<string>();
-            this.excludedSubgroups = new List<string>();
-            this.addKeywords = new List<string>();
-            this.probabilityWeighting = 1;
-            this.paths = new List<string[]>();
-            this.allowedBodyGenDescriptors = new List<string>();
-            this.disallowedBodyGenDescriptors = new List<string>();
-            this.weightRange = new string[] { null, null };
-            this.subgroups = new List<ZEBDSubgroup>();
-        }
-
-        public string id { get; set; }
-        public string name { get; set; }
-        public bool enabled { get; set; }
-        public bool distributionEnabled { get; set; }
-        public List<string> allowedRaces { get; set; }
-        public List<RaceGrouping> allowedRaceGroupings { get; set; }
-        public List<RaceGrouping> disallowedRaceGroupings { get; set; }
-        public List<string> disallowedRaces { get; set; }
-        public List<string[]> allowedAttributes { get; set; }
-        public List<string[]> disallowedAttributes { get; set; }
-        public List<string[]> forceIfAttributes { get; set; }
-        public bool bAllowUnique { get; set; }
-        public bool bAllowNonUnique { get; set; }
-        public List<string> requiredSubgroups { get; set; }
-        public List<string> excludedSubgroups { get; set; }
-        public List<string> addKeywords { get; set; }
-        public double probabilityWeighting { get; set; }
-        public List<string[]> paths { get; set; }
-        public List<string> allowedBodyGenDescriptors { get; set; }
-        public List<string> disallowedBodyGenDescriptors { get; set; }
-        public string[] weightRange { get; set; }
-        public List<ZEBDSubgroup> subgroups { get; set; }
+        public string id { get; set; } = "";
+        public string name { get; set; } = "";
+        public bool enabled { get; set; } = true;
+        public bool distributionEnabled { get; set; } = true;
+        public List<string> allowedRaces { get; set; } = new();
+        public List<RaceGrouping> allowedRaceGroupings { get; set; } = new();
+        public List<RaceGrouping> disallowedRaceGroupings { get; set; } = new();
+        public List<string> disallowedRaces { get; set; } = new();
+        public List<string[]> allowedAttributes { get; set; } = new();
+        public List<string[]> disallowedAttributes { get; set; } = new();
+        public List<string[]> forceIfAttributes { get; set; } = new();
+        public bool bAllowUnique { get; set; } = true;
+        public bool bAllowNonUnique { get; set; } = true;
+        public List<string> requiredSubgroups { get; set; } = new();
+        public List<string> excludedSubgroups { get; set; } = new();
+        public List<string> addKeywords { get; set; } = new();
+        public double probabilityWeighting { get; set; } = 1;
+        public List<string[]> paths { get; set; } = new();
+        public List<string> allowedBodyGenDescriptors { get; set; } = new();
+        public List<string> disallowedBodyGenDescriptors { get; set; } = new();
+        public string[] weightRange { get; set; } = new string[] { null, null };
+        public List<ZEBDSubgroup> subgroups { get; set; } = new();
 
         public string hashKey { get; set; }
 

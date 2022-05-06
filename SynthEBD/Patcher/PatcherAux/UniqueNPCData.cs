@@ -7,32 +7,18 @@ public class UniqueNPCData
     public static HashSet<string> UniqueNameExclusions { get; set; }
     public class UniqueNPCTracker
     {
-        public UniqueNPCTracker()
-        {
-            AssignedCombination = null;
-            AssignedMorphs = new List<BodyGenConfig.BodyGenTemplate>();
-            AssignedBodySlidePreset = null;
-            AssignedHeight = -1;
-            this.ReplacerAssignments = new List<LinkedAssetReplacerAssignment>();
-            this.MixInAssignments = new Dictionary<string, SubgroupCombination>();
-        }
-        public SubgroupCombination AssignedCombination { get; set; }
-        public List<BodyGenConfig.BodyGenTemplate> AssignedMorphs { get; set; }
-        public BodySlideSetting AssignedBodySlidePreset { get; set; }
-        public float AssignedHeight { get; set; }
-        public List<LinkedAssetReplacerAssignment> ReplacerAssignments { get; set; }
-        public Dictionary<string, SubgroupCombination> MixInAssignments { get; set; }
+        public SubgroupCombination AssignedCombination { get; set; } = null;
+        public List<BodyGenConfig.BodyGenTemplate> AssignedMorphs { get; set; } = new();
+        public BodySlideSetting AssignedBodySlidePreset { get; set; } = null;
+        public float AssignedHeight { get; set; } = -1;
+        public List<LinkedAssetReplacerAssignment> ReplacerAssignments { get; set; } = new();
+        public Dictionary<string, SubgroupCombination> MixInAssignments { get; set; } = new();
+
         public class LinkedAssetReplacerAssignment
         {
-            public LinkedAssetReplacerAssignment()
-            {
-                GroupName = "";
-                ReplacerName = "";
-                AssignedReplacerCombination = null;
-            }
-            public string GroupName { get; set; }
-            public string ReplacerName { get; set; }
-            public SubgroupCombination AssignedReplacerCombination { get; set; }
+            public string GroupName { get; set; } = "";
+            public string ReplacerName { get; set; } = "";
+            public SubgroupCombination AssignedReplacerCombination { get; set; } = null;
         }
     }
 

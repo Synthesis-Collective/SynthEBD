@@ -9,11 +9,9 @@ public class VM_BodyShapeDescriptorSelectionMenu : ViewModel
 {
     public VM_BodyShapeDescriptorSelectionMenu(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
     {
-        this.Header = "";
         this.TrackedMenu = trackedMenu;
         this.TrackedRaceGroupings = raceGroupingVMs;
         this.Parent = parentConfig;
-        this.DescriptorShells = new ObservableCollection<VM_BodyShapeDescriptorShellSelector>();
         foreach (var Descriptor in TrackedMenu.TemplateDescriptors)
         {
             this.DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(Descriptor, this));
@@ -22,10 +20,10 @@ public class VM_BodyShapeDescriptorSelectionMenu : ViewModel
 
         trackedMenu.TemplateDescriptors.CollectionChanged += UpdateShellList;
     }
-    public string Header { get; set; }
+    public string Header { get; set; } = "";
     public VM_BodyShapeDescriptorCreationMenu TrackedMenu { get; set; }
     public IHasAttributeGroupMenu Parent { get; set; }
-    public ObservableCollection<VM_BodyShapeDescriptorShellSelector> DescriptorShells { get; set; }
+    public ObservableCollection<VM_BodyShapeDescriptorShellSelector> DescriptorShells { get; set; } = new();
     ObservableCollection<VM_RaceGrouping>  TrackedRaceGroupings { get; set; }
     public VM_BodyShapeDescriptorShellSelector CurrentlyDisplayedShell { get; set; }
 
@@ -172,7 +170,6 @@ public class VM_BodyShapeDescriptorShellSelector : ViewModel
     {
         this.TrackedShell = trackedShell;
         this.ParentMenu = parentMenu;
-        this.DescriptorSelectors = new ObservableCollection<VM_BodyShapeDescriptorSelector>();
         foreach (var descriptor in this.TrackedShell.Descriptors)
         {
             this.DescriptorSelectors.Add(new VM_BodyShapeDescriptorSelector(descriptor, this.ParentMenu));
@@ -181,7 +178,7 @@ public class VM_BodyShapeDescriptorShellSelector : ViewModel
     }
     public VM_BodyShapeDescriptorShell TrackedShell { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu ParentMenu { get; set; }
-    public ObservableCollection<VM_BodyShapeDescriptorSelector> DescriptorSelectors { get; set; }
+    public ObservableCollection<VM_BodyShapeDescriptorSelector> DescriptorSelectors { get; set; } = new();
 
     void UpdateDescriptorList(object sender, NotifyCollectionChangedEventArgs e)
     {
@@ -230,7 +227,6 @@ public class VM_BodyShapeDescriptorSelector : ViewModel
     {
         this.TrackedDescriptor = trackedDescriptor;
         this.ParentMenu = parentMenu;
-        this.IsSelected = false;
         this.Value = TrackedDescriptor.Value;
 
         this.TrackedDescriptor.PropertyChanged += refreshLabelAndHeader;
@@ -240,7 +236,7 @@ public class VM_BodyShapeDescriptorSelector : ViewModel
     public VM_BodyShapeDescriptor TrackedDescriptor { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu ParentMenu { get; set; }
     public string Value { get; set; }
-    public bool IsSelected { get; set; }
+    public bool IsSelected { get; set; } = false;
 
     public void refreshLabelAndHeader(object sender, PropertyChangedEventArgs e)
     {

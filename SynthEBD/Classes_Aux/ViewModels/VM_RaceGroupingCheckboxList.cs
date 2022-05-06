@@ -9,7 +9,6 @@ public class VM_RaceGroupingCheckboxList : ViewModel
 {
     public VM_RaceGroupingCheckboxList(ObservableCollection<VM_RaceGrouping> RaceGroupingVMs)
     {
-        this.RaceGroupingSelections = new ObservableCollection<RaceGroupingSelection>();
         foreach (var rgvm in RaceGroupingVMs)
         {
             this.RaceGroupingSelections.Add(new RaceGroupingSelection(rgvm, this));
@@ -29,7 +28,7 @@ public class VM_RaceGroupingCheckboxList : ViewModel
         this.RaceGroupingSelections = newCheckList.RaceGroupingSelections;
     }
 
-    public ObservableCollection<RaceGroupingSelection> RaceGroupingSelections { get; set; }
+    public ObservableCollection<RaceGroupingSelection> RaceGroupingSelections { get; set; } = new();
     public string HeaderCaption { get; set; }
 
     public VM_RaceGroupingCheckboxList Clone()
@@ -85,7 +84,6 @@ public class VM_RaceGroupingCheckboxList : ViewModel
         public RaceGroupingSelection(VM_RaceGrouping raceGroupingVM, VM_RaceGroupingCheckboxList parent)
         {
             this.Label = raceGroupingVM.Label;
-            this.IsSelected = false;
             this.SubscribedMasterRaceGrouping = raceGroupingVM;
             this.SubscribedMasterRaceGrouping.PropertyChanged += RefreshRaceGroupingName;
 
@@ -93,7 +91,7 @@ public class VM_RaceGroupingCheckboxList : ViewModel
             this.PropertyChanged += RefreshHeaderCaption;
         }
         public string Label { get; set; }
-        public bool IsSelected { get; set; }
+        public bool IsSelected { get; set; } = false;
 
         public VM_RaceGrouping SubscribedMasterRaceGrouping { get; set; } // to fire the PropertyChanged event
         public void RefreshRaceGroupingName(object sender, PropertyChangedEventArgs e)

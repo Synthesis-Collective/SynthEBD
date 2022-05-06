@@ -541,7 +541,6 @@ public class BodyGenSelector
         {
             MaxMatchedForceIfAttributes = 0;
             ProbabilityWeighting = bodyGenCombination.ProbabilityWeighting;
-            Templates = new List<HashSet<BodyGenConfig.BodyGenTemplate>>();
 
             foreach (var templateGroup in bodyGenCombination.Members)
             {
@@ -566,7 +565,6 @@ public class BodyGenSelector
             MaxMatchedForceIfAttributes = template.MaxMatchedForceIfAttributes;
             ProbabilityWeighting = template.ProbabilityWeighting;
             InitializedSuccessfully = template.InitializedSuccessfully;
-            Templates = new List<HashSet<BodyGenConfig.BodyGenTemplate>>();
             foreach (var setAtPosition in template.Templates)
             {
                 Templates.Add(new HashSet<BodyGenConfig.BodyGenTemplate>(setAtPosition));
@@ -575,7 +573,7 @@ public class BodyGenSelector
 
         public int MaxMatchedForceIfAttributes { get; set; }
         public double ProbabilityWeighting { get; set; }
-        public List<HashSet<BodyGenConfig.BodyGenTemplate>> Templates { get; set; }
+        public List<HashSet<BodyGenConfig.BodyGenTemplate>> Templates { get; set; } = new();
         public bool InitializedSuccessfully { get; set; } // false if one or more of the template sublists contains no templates.
     }
 

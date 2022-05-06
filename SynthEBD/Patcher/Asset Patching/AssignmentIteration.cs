@@ -8,16 +8,12 @@ public class AssignmentIteration
 {
     public AssignmentIteration()
     {
-        this.AvailableSeeds = new List<FlattenedSubgroup>();
-        this.ChosenSeed = null;
-        this.ChosenAssetPack = null;
-        this.RemainingVariantsByIndex = new Dictionary<int, FlattenedAssetPack>();
         this.PreviouslyGeneratedCombinations = new HashSet<string>();
     }
-    public List<FlattenedSubgroup> AvailableSeeds { get; set; }
-    public FlattenedSubgroup ChosenSeed { get; set; }
-    public FlattenedAssetPack ChosenAssetPack { get; set; }
-    public Dictionary<int, FlattenedAssetPack> RemainingVariantsByIndex { get; set; }
+    public List<FlattenedSubgroup> AvailableSeeds { get; set; } = new();
+    public FlattenedSubgroup ChosenSeed { get; set; } = null;
+    public FlattenedAssetPack ChosenAssetPack { get; set; } = null;
+    public Dictionary<int, FlattenedAssetPack> RemainingVariantsByIndex { get; set; } = new();
     public HashSet<string> PreviouslyGeneratedCombinations = new HashSet<string>();
 
     public static int BackTrack(AssignmentIteration iterationInfo, SubgroupCombination currentCombination, FlattenedSubgroup toRemove, int currentIndex, int steps)

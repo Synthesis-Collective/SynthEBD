@@ -11,14 +11,13 @@ public class VM_SelectableCollectionMemberString : ViewModel
     {
         this.SubscribedString = subscribedString;
         this.Parent = parentCollection;
-        this.IsSelected = false;
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => this.Parent.CollectionMemberStrings.Remove(this));
 
         this.PropertyChanged += refreshHeaderCaption;
     }
     public VM_CollectionMemberString SubscribedString { get; set; }
     public ICollectionParent Parent { get; set; }
-    public bool IsSelected { get; set; }
+    public bool IsSelected { get; set; } = false;
     public RelayCommand DeleteCommand { get; }
 
     public void refreshHeaderCaption(object sender, PropertyChangedEventArgs e)
@@ -38,7 +37,6 @@ public class VM_CollectionMemberStringCheckboxList : ViewModel, ICollectionParen
 {
     public VM_CollectionMemberStringCheckboxList(ObservableCollection<VM_CollectionMemberString> collectionMemberStrings)
     {
-        this.CollectionMemberStrings = new ObservableCollection<VM_SelectableCollectionMemberString>();
         foreach (var cms in collectionMemberStrings)
         {
             this.CollectionMemberStrings.Add(new VM_SelectableCollectionMemberString(cms, this));
@@ -70,7 +68,7 @@ public class VM_CollectionMemberStringCheckboxList : ViewModel, ICollectionParen
         this.CollectionMemberStrings = newCheckList.CollectionMemberStrings;
     }
 
-    public ObservableCollection<VM_SelectableCollectionMemberString> CollectionMemberStrings { get; set; }
+    public ObservableCollection<VM_SelectableCollectionMemberString> CollectionMemberStrings { get; set; } = new();
     public string Header { get; set; }
 
     public void RebuildHeader()

@@ -9,10 +9,6 @@ public class VM_CustomEnvironment : ViewModel
 {
     public VM_CustomEnvironment(Window_CustomEnvironment window)
     {
-        IsValidated = false;
-        CustomGamePath = "";
-        SkyrimRelease = SkyrimRelease.SkyrimSE;
-
         SelectCustomGameFolder = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -55,9 +51,9 @@ public class VM_CustomEnvironment : ViewModel
             }
         );
     }
-    public string CustomGamePath { get; set; }
-    public bool IsValidated { get; set; }
-    public SkyrimRelease SkyrimRelease { get; set; }
+    public string CustomGamePath { get; set; } = "";
+    public bool IsValidated { get; set; } = false;
+    public SkyrimRelease SkyrimRelease { get; set; } = SkyrimRelease.SkyrimSE;
     public RelayCommand SelectCustomGameFolder { get; set; }
     public RelayCommand OK { get; set; }
     public RelayCommand Exit { get; set; }

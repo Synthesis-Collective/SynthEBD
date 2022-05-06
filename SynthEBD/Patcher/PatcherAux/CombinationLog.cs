@@ -151,17 +151,10 @@ public class CombinationLog
 
 public class CombinationInfo
 {
-    public CombinationInfo()
-    {
-        SubgroupIDs = "";
-        AssignedRecords = new HashSet<GeneratedRecordInfo>(new GeneratedRecordInfo.CombinationRecordComparer());
-        NPCsAssignedTo = new HashSet<string>();
-        AssignedFormKeys = new HashSet<string>();
-    }
-    public string SubgroupIDs { get; set; }
-    public HashSet<GeneratedRecordInfo> AssignedRecords { get; set; }
-    public HashSet<string> NPCsAssignedTo { get; set; }
-    public HashSet<string> AssignedFormKeys { get; set; } // same data as AssignedRecords but easier to check against
+    public string SubgroupIDs { get; set; } = "";
+    public HashSet<GeneratedRecordInfo> AssignedRecords { get; set; } = new(new GeneratedRecordInfo.CombinationRecordComparer());
+    public HashSet<string> NPCsAssignedTo { get; set; } = new();
+    public HashSet<string> AssignedFormKeys { get; set; } = new(); // same data as AssignedRecords but easier to check against
 }
 
 public class GeneratedRecordInfo

@@ -8,15 +8,11 @@ public class FlattenedAssetPack
     {
         this.GroupName = source.GroupName;
         this.Gender = source.Gender;
-        this.Subgroups = new List<List<FlattenedSubgroup>>();
         this.DefaultRecordTemplate = source.DefaultRecordTemplate;
         this.AdditionalRecordTemplateAssignments = source.AdditionalRecordTemplateAssignments;
         this.AssociatedBodyGenConfigName = source.AssociatedBodyGenConfigName;
         this.Source = source;
-        this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
         this.Type = type;
-        this.ReplacerName = "";
-        this.MatchedWholeConfigForceIfs = 0;
 
         var configRulesSubgroup = AssetPack.ConfigDistributionRules.CreateInheritanceParent(source.DistributionRules);
         this.DistributionRules = new FlattenedSubgroup(configRulesSubgroup, PatcherSettings.General.RaceGroupings, new List<AssetPack.Subgroup>(), this);
@@ -26,15 +22,11 @@ public class FlattenedAssetPack
     {
         this.GroupName = groupName;
         this.Gender = gender;
-        this.Subgroups = new List<List<FlattenedSubgroup>>();
         this.DefaultRecordTemplate = defaultRecordTemplate;
         this.AdditionalRecordTemplateAssignments = additionalRecordTemplateAssignments;
         this.AssociatedBodyGenConfigName = associatedBodyGenConfigName;
         this.Source = source;
-        this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
         this.Type = type;
-        this.ReplacerName = "";
-        this.MatchedWholeConfigForceIfs = 0;
 
         var configRulesSubgroup = AssetPack.ConfigDistributionRules.CreateInheritanceParent(source.DistributionRules);
         this.DistributionRules = new FlattenedSubgroup(configRulesSubgroup, PatcherSettings.General.RaceGroupings, new List<AssetPack.Subgroup>(), this);
@@ -44,29 +36,25 @@ public class FlattenedAssetPack
     {
         this.GroupName = "";
         this.Gender = Gender.Male;
-        this.Subgroups = new List<List<FlattenedSubgroup>>();
         this.DefaultRecordTemplate = new FormKey();
         this.AdditionalRecordTemplateAssignments = new HashSet<AdditionalRecordTemplate>();
         this.AssociatedBodyGenConfigName = "";
         this.Source = new AssetPack();
-        this.AssetReplacerGroups = new List<FlattenedReplacerGroup>();
         this.Type = type;
-        this.ReplacerName = "";
-        this.MatchedWholeConfigForceIfs = 0;
         this.DistributionRules = new FlattenedSubgroup(new AssetPack.Subgroup(), PatcherSettings.General.RaceGroupings, new List<AssetPack.Subgroup>(), this);
     }
 
     public string GroupName { get; set; }
     public Gender Gender { get; set; }
-    public List<List<FlattenedSubgroup>> Subgroups { get; set; }
+    public List<List<FlattenedSubgroup>> Subgroups { get; set; } = new();
     public FormKey DefaultRecordTemplate { get; set; }
     public HashSet<AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
     public string AssociatedBodyGenConfigName { get; set; }
     public AssetPack Source { get; set; }
-    public List<FlattenedReplacerGroup> AssetReplacerGroups { get; set; }
+    public List<FlattenedReplacerGroup> AssetReplacerGroups { get; set; } = new();
     public AssetPackType Type { get; set; }
-    public string ReplacerName { get; set; } // only used when Type == ReplacerVirtual
-    public int MatchedWholeConfigForceIfs { get; set; }
+    public string ReplacerName { get; set; } = ""; // only used when Type == ReplacerVirtual
+    public int MatchedWholeConfigForceIfs { get; set; } = 0;
     public FlattenedSubgroup DistributionRules { get; set; } // "virtual" subgroup
 
     public enum AssetPackType

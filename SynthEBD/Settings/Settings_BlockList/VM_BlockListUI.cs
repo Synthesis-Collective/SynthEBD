@@ -7,9 +7,6 @@ public class VM_BlockListUI : ViewModel
 {
     public VM_BlockListUI()
     {
-        this.BlockedNPCs = new ObservableCollection<VM_BlockedNPC>();
-        this.BlockedPlugins = new ObservableCollection<VM_BlockedPlugin>();
-
         AddBlockedNPC = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: x => this.BlockedNPCs.Add(new VM_BlockedNPC())
@@ -55,8 +52,8 @@ public class VM_BlockListUI : ViewModel
         );
     }
 
-    public ObservableCollection<VM_BlockedNPC> BlockedNPCs { get; set; }
-    public ObservableCollection<VM_BlockedPlugin> BlockedPlugins { get; set; }
+    public ObservableCollection<VM_BlockedNPC> BlockedNPCs { get; set; } = new();
+    public ObservableCollection<VM_BlockedPlugin> BlockedPlugins { get; set; } = new();
 
     public VM_BlockedNPC DisplayedNPC { get; set; }
     public VM_BlockedPlugin DisplayedPlugin { get; set; }

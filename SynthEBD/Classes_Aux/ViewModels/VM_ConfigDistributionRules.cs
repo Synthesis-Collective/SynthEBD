@@ -14,16 +14,8 @@ public class VM_ConfigDistributionRules : ViewModel, IProbabilityWeighted
         SubscribedRaceGroupings = raceGroupingVMs;
         ParentAssetPack = parentAssetPack;
 
-        this.AllowedRaces = new ObservableCollection<FormKey>();
         this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
-        this.DisallowedRaces = new ObservableCollection<FormKey>();
         this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
-        this.AllowedAttributes = new ObservableCollection<VM_NPCAttribute>();
-        this.DisallowedAttributes = new ObservableCollection<VM_NPCAttribute>();
-        this.AllowUnique = true;
-        this.AllowNonUnique = true;
-        this.AddKeywords = new ObservableCollection<VM_CollectionMemberString>();
-        this.ProbabilityWeighting = 1;
         if (parentAssetPack.TrackedBodyGenConfig != null)
         {
             this.AllowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
@@ -32,11 +24,7 @@ public class VM_ConfigDistributionRules : ViewModel, IProbabilityWeighted
         AllowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(OBodyDescriptorMenu, SubscribedRaceGroupings, parentAssetPack);
         DisallowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(OBodyDescriptorMenu, SubscribedRaceGroupings, parentAssetPack);
 
-        this.WeightRange = new NPCWeightRange();
-
         //UI-related
-        this.LinkCache = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
 
         AddAllowedAttribute = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -54,25 +42,25 @@ public class VM_ConfigDistributionRules : ViewModel, IProbabilityWeighted
         );
     }
 
-    public ObservableCollection<FormKey> AllowedRaces { get; set; }
+    public ObservableCollection<FormKey> AllowedRaces { get; set; } = new();
     public VM_RaceGroupingCheckboxList AllowedRaceGroupings { get; set; }
-    public ObservableCollection<FormKey> DisallowedRaces { get; set; }
+    public ObservableCollection<FormKey> DisallowedRaces { get; set; } = new();
     public VM_RaceGroupingCheckboxList DisallowedRaceGroupings { get; set; }
-    public ObservableCollection<VM_NPCAttribute> AllowedAttributes { get; set; }
-    public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; }
-    public bool AllowUnique { get; set; }
-    public bool AllowNonUnique { get; set; }
-    public ObservableCollection<VM_CollectionMemberString> AddKeywords { get; set; }
-    public double ProbabilityWeighting { get; set; }
+    public ObservableCollection<VM_NPCAttribute> AllowedAttributes { get; set; } = new();
+    public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; } = new();
+    public bool AllowUnique { get; set; } = true;
+    public bool AllowNonUnique { get; set; } = true;
+    public ObservableCollection<VM_CollectionMemberString> AddKeywords { get; set; } = new();
+    public double ProbabilityWeighting { get; set; } = 1;
     public VM_BodyShapeDescriptorSelectionMenu AllowedBodyGenDescriptors { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu DisallowedBodyGenDescriptors { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu AllowedBodySlideDescriptors { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu DisallowedBodySlideDescriptors { get; set; }
-    public NPCWeightRange WeightRange { get; set; }
+    public NPCWeightRange WeightRange { get; set; } = new();
 
     //UI-related
-    public ILinkCache LinkCache { get; set; }
-    public IEnumerable<Type> RacePickerFormKeys { get; set; }
+    public ILinkCache LinkCache => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
     public RelayCommand AddAllowedAttribute { get; }
     public RelayCommand AddDisallowedAttribute { get; }

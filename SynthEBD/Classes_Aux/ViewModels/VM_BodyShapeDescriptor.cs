@@ -7,8 +7,6 @@ public class VM_BodyShapeDescriptor : ViewModel
 {
     public VM_BodyShapeDescriptor(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
     {
-        this.Value = "";
-        this.Signature = "";
         this.ParentShell = parentShell;
         AssociatedRules = new VM_BodyShapeDescriptorRules(this, raceGroupingVMs, parentConfig);
 
@@ -17,8 +15,8 @@ public class VM_BodyShapeDescriptor : ViewModel
             execute: _ => this.ParentShell.Descriptors.Remove(this)
         );
     }
-    public string Value { get; set; }
-    public string Signature { get; set; }
+    public string Value { get; set; } = "";
+    public string Signature { get; set; } = "";
     public VM_BodyShapeDescriptorRules AssociatedRules { get; set; }
 
     public VM_BodyShapeDescriptorShell ParentShell { get; set; }

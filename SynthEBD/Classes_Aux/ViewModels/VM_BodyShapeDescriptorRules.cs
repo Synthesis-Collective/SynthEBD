@@ -12,20 +12,8 @@ public class VM_BodyShapeDescriptorRules : ViewModel
     public VM_BodyShapeDescriptorRules(VM_BodyShapeDescriptor descriptor, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
     {
         DescriptorSignature = descriptor.Signature;
-        this.AllowedRaces = new ObservableCollection<FormKey>();
         this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
-        this.DisallowedRaces = new ObservableCollection<FormKey>();
         this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
-        this.AllowedAttributes = new ObservableCollection<VM_NPCAttribute>();
-        this.DisallowedAttributes = new ObservableCollection<VM_NPCAttribute>();
-        this.bAllowUnique = true;
-        this.bAllowNonUnique = true;
-        this.bAllowRandom = true;
-        this.ProbabilityWeighting = 1;
-        this.WeightRange = new NPCWeightRange();
-
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
 
         ParentConfig = parentConfig;
 
@@ -41,21 +29,21 @@ public class VM_BodyShapeDescriptorRules : ViewModel
     }
 
     public string DescriptorSignature { get; set; }
-    public ObservableCollection<FormKey> AllowedRaces { get; set; }
-    public ObservableCollection<FormKey> DisallowedRaces { get; set; }
+    public ObservableCollection<FormKey> AllowedRaces { get; set; } = new();
+    public ObservableCollection<FormKey> DisallowedRaces { get; set; } = new();
     public VM_RaceGroupingCheckboxList AllowedRaceGroupings { get; set; }
     public VM_RaceGroupingCheckboxList DisallowedRaceGroupings { get; set; }
-    public ObservableCollection<VM_NPCAttribute> AllowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
-    public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; }
-    public bool bAllowUnique { get; set; }
-    public bool bAllowNonUnique { get; set; }
-    public bool bAllowRandom { get; set; }
-    public double ProbabilityWeighting { get; set; }
-    public NPCWeightRange WeightRange { get; set; }
+    public ObservableCollection<VM_NPCAttribute> AllowedAttributes { get; set; } = new(); // keeping as array to allow deserialization of original zEBD settings files
+    public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; } = new();
+    public bool bAllowUnique { get; set; } = true;
+    public bool bAllowNonUnique { get; set; } = true;
+    public bool bAllowRandom { get; set; } = true;
+    public double ProbabilityWeighting { get; set; } = 1;
+    public NPCWeightRange WeightRange { get; set; } = new();
 
     IHasAttributeGroupMenu ParentConfig { get; set; }
-    public ILinkCache lk { get; set; }
-    public IEnumerable<Type> RacePickerFormKeys { get; set; }
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
     public RelayCommand AddAllowedAttribute { get; }
     public RelayCommand AddDisallowedAttribute { get; }

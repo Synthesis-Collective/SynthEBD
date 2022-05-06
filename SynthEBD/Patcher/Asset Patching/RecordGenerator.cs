@@ -507,13 +507,8 @@ public class RecordGenerator
 
     private class ObjectAtIndex
     {
-        public ObjectAtIndex()
-        {
-            generatedObj = null;
-            indexInTemplate = null; // index in template NPC remains invariant throughout patcher execution so is safe to store rather than having to call RecordPathParser to find the array index of the generatedObj for the given NPC
-        }
-        public dynamic generatedObj { get; set; }
-        public int? indexInTemplate { get; set; }
+        public dynamic generatedObj { get; set; } = null;
+        public int? indexInTemplate { get; set; } = null;
     }
 
     private static bool TryGetGeneratedObject(HashSet<string> pathSignature, string pathRelativeToNPC, HashSet<INpcGetter> templateSignature, out dynamic storedObj, out int? indexIfInArray)

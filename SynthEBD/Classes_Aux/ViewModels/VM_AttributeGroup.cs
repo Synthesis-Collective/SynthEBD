@@ -13,8 +13,6 @@ public class VM_AttributeGroup : ViewModel
 {
     public VM_AttributeGroup(VM_AttributeGroupMenu parent)
     {
-        Label = "";
-        Attributes = new ObservableCollection<VM_NPCAttribute>();
         ParentMenu = parent;
 
         Remove = new SynthEBD.RelayCommand(
@@ -39,8 +37,8 @@ public class VM_AttributeGroup : ViewModel
         ParentMenu.Groups.CollectionChanged += RefreshAttributeWatch; // this is needed because the Subscription set in this constructor will not follow other attribute groups added to the parent collection after the current one is loaded
     }
 
-    public string Label { get; set; }
-    public ObservableCollection<VM_NPCAttribute> Attributes { get; set; }
+    public string Label { get; set; } = "";
+    public ObservableCollection<VM_NPCAttribute> Attributes { get; set; } = new();
     public VM_AttributeGroupMenu ParentMenu { get; set; }
 
     public RelayCommand Remove { get; }

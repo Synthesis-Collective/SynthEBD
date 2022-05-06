@@ -13,7 +13,6 @@ public class VM_BodyGenTemplateMenu : ViewModel
 {
     public VM_BodyGenTemplateMenu(VM_BodyGenConfig parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
-        this.Templates = new ObservableCollection<VM_BodyGenTemplate>();
         this.CurrentlyDisplayedTemplate = new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, this.Templates, parentConfig);
         AddTemplate = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -25,7 +24,7 @@ public class VM_BodyGenTemplateMenu : ViewModel
             execute: x => this.Templates.Remove((VM_BodyGenTemplate)x)
         );
     }
-    public ObservableCollection<VM_BodyGenTemplate> Templates { get; set; }
+    public ObservableCollection<VM_BodyGenTemplate> Templates { get; set; } = new();
 
     public VM_BodyGenTemplate CurrentlyDisplayedTemplate { get; set; }
 
@@ -38,33 +37,13 @@ public class VM_BodyGenTemplate : ViewModel
 {
     public VM_BodyGenTemplate(ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodyGenTemplate> parentCollection, VM_BodyGenConfig parentConfig)
     {
-        this.Label = "";
-        this.Notes = "";
-        this.Specs = "";
         this.GroupSelectionCheckList = new VM_CollectionMemberStringCheckboxList(templateGroups);
         this.DescriptorsSelectionMenu = new VM_BodyShapeDescriptorSelectionMenu(BodyShapeDescriptors, raceGroupingVMs, parentConfig);
-        this.AllowedRaces = new ObservableCollection<FormKey>();
         this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
-        this.DisallowedRaces = new ObservableCollection<FormKey>();
         this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
-        this.AllowedAttributes = new ObservableCollection<VM_NPCAttribute>();
-        this.DisallowedAttributes = new ObservableCollection<VM_NPCAttribute>();
-        this.bAllowUnique = true;
-        this.bAllowNonUnique = true;
-        this.bAllowRandom = true;
-        this.ProbabilityWeighting = 1;
-        this.RequiredTemplates = new ObservableCollection<VM_CollectionMemberString>();
-        this.WeightRange = new NPCWeightRange();
-
-        this.Caption_MemberOfTemplateGroups = "";
-        this.Caption_BodyShapeDescriptors = "";
-
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
 
         this.ParentConfig = parentConfig;
         this.ParentCollection = parentCollection;
-        this.OtherGroupsTemplateCollection = new ObservableCollection<VM_BodyGenTemplate>();
         parentCollection.CollectionChanged += UpdateOtherGroupsTemplateCollection;
         templateGroups.CollectionChanged += UpdateOtherGroupsTemplateCollection;
         this.GroupSelectionCheckList.PropertyChanged += UpdateOtherGroupsTemplateCollectionP;
@@ -90,27 +69,27 @@ public class VM_BodyGenTemplate : ViewModel
         );
     }
 
-    public string Label { get; set; }
-    public string Notes { get; set; }
-    public string Specs { get; set; } // will need special logic during I/O because in zEBD settings this is called "params" which is reserved in C#
+    public string Label { get; set; } = "";
+    public string Notes { get; set; } = "";
+    public string Specs { get; set; } = ""; // will need special logic during I/O because in zEBD settings this is called "params" which is reserved in C#
     public VM_CollectionMemberStringCheckboxList GroupSelectionCheckList { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu DescriptorsSelectionMenu { get; set; }
-    public ObservableCollection<FormKey> AllowedRaces { get; set; }
-    public ObservableCollection<FormKey> DisallowedRaces { get; set; }
+    public ObservableCollection<FormKey> AllowedRaces { get; set; } = new();
+    public ObservableCollection<FormKey> DisallowedRaces { get; set; } = new();
     public VM_RaceGroupingCheckboxList AllowedRaceGroupings { get; set; }
     public VM_RaceGroupingCheckboxList DisallowedRaceGroupings { get; set; }
-    public ObservableCollection<VM_NPCAttribute> AllowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
-    public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; }
-    public bool bAllowUnique { get; set; }
-    public bool bAllowNonUnique { get; set; }
-    public bool bAllowRandom { get; set; }
-    public double ProbabilityWeighting { get; set; }
-    public ObservableCollection<VM_CollectionMemberString> RequiredTemplates { get; set; }
-    public NPCWeightRange WeightRange { get; set; }
-    public string Caption_MemberOfTemplateGroups { get; set; }
-    public string Caption_BodyShapeDescriptors { get; set; }
-    public ILinkCache lk { get; set; }
-    public IEnumerable<Type> RacePickerFormKeys { get; set; }
+    public ObservableCollection<VM_NPCAttribute> AllowedAttributes { get; set; } = new(); // keeping as array to allow deserialization of original zEBD settings files
+    public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; } = new();
+    public bool bAllowUnique { get; set; } = true;
+    public bool bAllowNonUnique { get; set; } = true;
+    public bool bAllowRandom { get; set; } = true;
+    public double ProbabilityWeighting { get; set; } = 1;
+    public ObservableCollection<VM_CollectionMemberString> RequiredTemplates { get; set; } = new();
+    public NPCWeightRange WeightRange { get; set; } = new();
+    public string Caption_MemberOfTemplateGroups { get; set; } = "";
+    public string Caption_BodyShapeDescriptors { get; set; } = "";
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
     public RelayCommand AddAllowedAttribute { get; }
     public RelayCommand AddDisallowedAttribute { get; }
@@ -119,7 +98,7 @@ public class VM_BodyGenTemplate : ViewModel
 
     public VM_BodyGenConfig ParentConfig { get; set; }
     public ObservableCollection<VM_BodyGenTemplate> ParentCollection {get; set;}
-    public ObservableCollection<VM_BodyGenTemplate> OtherGroupsTemplateCollection { get; set; }
+    public ObservableCollection<VM_BodyGenTemplate> OtherGroupsTemplateCollection { get; set; } = new();
 
     public static void GetViewModelFromModel(BodyGenConfig.BodyGenTemplate model, VM_BodyGenTemplate viewModel, VM_BodyShapeDescriptorCreationMenu descriptorMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {

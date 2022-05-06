@@ -4,83 +4,44 @@ namespace SynthEBD;
 
 public class NPCAssignment
 {
-    public NPCAssignment()
-    {
-        this.DispName = "";
-        this.NPCFormKey = new FormKey();
-        this.AssetPackName = "";
-        this.SubgroupIDs = null;
-        this.Height = null;
-        this.BodyGenMorphNames = null;
-        this.BodySlidePreset = "";
-        this.AssetReplacerAssignments = new List<AssetReplacerAssignment>();
-        this.MixInAssignments = new List<MixInAssignment>();
-    }
-
-    public string DispName { get; set; }
-    public FormKey NPCFormKey { get; set; }
-    public string AssetPackName { get; set; }
-    public List<string> SubgroupIDs { get; set; } // order matters
-    public float? Height { get; set; }
-    public List<string> BodyGenMorphNames { get; set; } // order matters
-    public string BodySlidePreset { get; set; }
-    public List<AssetReplacerAssignment> AssetReplacerAssignments { get; set; }
-    public List<MixInAssignment> MixInAssignments { get; set;}
+    public string DispName { get; set; } = "";
+    public FormKey NPCFormKey { get; set; } = new();
+    public string AssetPackName { get; set; } = "";
+    public List<string> SubgroupIDs { get; set; } = null; // order matters
+    public float? Height { get; set; } = null;
+    public List<string> BodyGenMorphNames { get; set; } = null; // order matters
+    public string BodySlidePreset { get; set; } = "";
+    public List<AssetReplacerAssignment> AssetReplacerAssignments { get; set; } = new();
+    public List<MixInAssignment> MixInAssignments { get; set;} = new();
 
     public class AssetReplacerAssignment
     {
-        public AssetReplacerAssignment()
-        {
-            AssetPackName = "";
-            ReplacerName = "";
-            SubgroupIDs = new List<string>();
-        }
-        public string AssetPackName { get; set; }
-        public string ReplacerName { get; set; }
-        public List<string> SubgroupIDs { get; set; }
+        public string AssetPackName { get; set; } = "";
+        public string ReplacerName { get; set; } = "";
+        public List<string> SubgroupIDs { get; set; } = new();
     }
 
     public class MixInAssignment
     {
-        public MixInAssignment()
-        {
-            AssetPackName = "";
-            SubgroupIDs = new List<string>();
-            AssetReplacerAssignments = new List<AssetReplacerAssignment>();
-        }
-        public string AssetPackName { get; set; }
-        public List<string> SubgroupIDs { get; set; }
-        public List<AssetReplacerAssignment> AssetReplacerAssignments { get; set; }
+        public string AssetPackName { get; set; } = "";
+        public List<string> SubgroupIDs { get; set; } = new();
+        public List<AssetReplacerAssignment> AssetReplacerAssignments { get; set; } = new();
     }
 }
 
 public class zEBDSpecificNPCAssignment
 {
-    public zEBDSpecificNPCAssignment()
-    {
-        this.name = "";
-        this.formID = "";
-        this.EDID = "";
-        this.rootPlugin = "";
-        this.race = "";
-        this.gender = "";
-        this.forcedAssetPack = "";
-        this.forcedSubgroups = new List<zEBDForcedSubgroup>();
-        this.forcedHeight = "";
-        this.forcedBodyGenMorphs = new List<string>();
-        this.displayString = "";
-    }
-    public string name { get; set; }
-    public string formID { get; set; }
-    public string EDID { get; set; }
-    public string rootPlugin { get; set; }
-    public string race { get; set; }
-    public string gender { get; set; }
-    public string forcedAssetPack { get; set; }
-    public List<zEBDForcedSubgroup> forcedSubgroups { get; set; }
-    public string forcedHeight { get; set; }
-    public List<string> forcedBodyGenMorphs { get; set; }
-    public string displayString { get; set; }
+    public string name { get; set; } = "";
+    public string formID { get; set; } = "";
+    public string EDID { get; set; } = "";
+    public string rootPlugin { get; set; } = "";
+    public string race { get; set; } = "";
+    public string gender { get; set; } = "";
+    public string forcedAssetPack { get; set; } = "";
+    public List<zEBDForcedSubgroup> forcedSubgroups { get; set; } = new();
+    public string forcedHeight { get; set; } = "";
+    public List<string> forcedBodyGenMorphs { get; set; } = new();
+    public string displayString { get; set; } = "";
 
     public class zEBDForcedSubgroup
     {

@@ -7,7 +7,6 @@ public class VM_BodyGenGroupsMenu : ViewModel
 {
     public VM_BodyGenGroupsMenu(VM_BodyGenConfig parentMenu)
     {
-        this.TemplateGroups = new ObservableCollection<VM_CollectionMemberString>();
         this.TemplateGroupsCheckList = new VM_CollectionMemberStringCheckboxList(this.TemplateGroups);
         this.ParentMenu = parentMenu;
 
@@ -17,7 +16,7 @@ public class VM_BodyGenGroupsMenu : ViewModel
         );
     }
 
-    public ObservableCollection<VM_CollectionMemberString> TemplateGroups { get; set; }
+    public ObservableCollection<VM_CollectionMemberString> TemplateGroups { get; set; } = new();
     public VM_CollectionMemberStringCheckboxList TemplateGroupsCheckList { get; set; }
     public VM_BodyGenConfig ParentMenu { get; set; }
 

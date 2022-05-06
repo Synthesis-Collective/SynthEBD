@@ -8,8 +8,6 @@ public class VM_AssetReplacementAssignment : ViewModel
 {
     public VM_AssetReplacementAssignment(VM_AssetPack parent, ObservableCollection<VM_AssetReplacementAssignment> parentCollection)
     {
-        ReplacerName = "";
-        SubgroupIDs = new ObservableCollection<VM_CollectionMemberString>();
         ParentAssetPack = parent;
         ParentCollection = parentCollection;
 
@@ -39,8 +37,8 @@ public class VM_AssetReplacementAssignment : ViewModel
             }
         });
     }
-    public string ReplacerName { get; set; }
-    public ObservableCollection<VM_CollectionMemberString> SubgroupIDs { get; set; }
+    public string ReplacerName { get; set; } = "";
+    public ObservableCollection<VM_CollectionMemberString> SubgroupIDs { get; set; } = new();
     public VM_AssetPack ParentAssetPack { get; set; }
     public ObservableCollection<VM_AssetReplacementAssignment> ParentCollection { get; set; }
 

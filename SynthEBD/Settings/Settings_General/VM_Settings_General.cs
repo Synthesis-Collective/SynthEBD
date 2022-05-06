@@ -16,38 +16,8 @@ public class VM_Settings_General : ViewModel, IHasAttributeGroupMenu
     public VM_Settings_General(MainWindow_ViewModel mainVM)
     {
         MainWindowVM = mainVM;
-        this.SkyrimVersion = PatcherSettings.SkyrimVersion;
-        this.bShowToolTips = true;
-        this.bChangeMeshesOrTextures = true;
-        this.BodySelectionMode = BodyShapeSelectionMode.None;
-        this.BSSelectionMode = BodySlideSelectionMode.OBody;
-        this.bChangeHeight = true;
-        this.OutputDataFolder = "";
-        this.PortableSettingsFolder = "";
-        this.bEnableConsistency = true;
-        this.ExcludePlayerCharacter = true;
-        this.ExcludePresets = true;
-        this.bLinkNPCsWithSameName = true;
-        this.LinkedNameExclusions = new ObservableCollection<VM_CollectionMemberString>();
-        this.LinkedNPCGroups = new ObservableCollection<VM_LinkedNPCGroup>();
-        this.patchFileName = "SynthEBD.esp";
-        this.bVerboseModeAssetsNoncompliant = false;
-        this.bVerboseModeAssetsAll = false;
-        this.verboseModeNPClist = new ObservableCollection<FormKey>();
-        this.VerboseModeDetailedAttributes = false;
-        this.bLoadSettingsFromDataFolder = false;
-        this.patchableRaces = new ObservableCollection<FormKey>();
-        this.raceAliases = new ObservableCollection<VM_raceAlias>();
-        this.RaceGroupings = new ObservableCollection<VM_RaceGrouping>();
-        AttributeGroupMenu = new VM_AttributeGroupMenu(null, false);
-        OverwritePluginAttGroups = true;
-        this.CustomGamePath = "";
 
         this.bLoadSettingsFromDataFolder = PatcherSettings.LoadFromDataFolder;
-
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
-        this.NPCPickerFormKeys = typeof(INpcGetter).AsEnumerable();
 
         this.PropertyChanged += ToggleTooltipVisibility;
 
@@ -187,41 +157,41 @@ public class VM_Settings_General : ViewModel, IHasAttributeGroupMenu
     }
 
     public MainWindow_ViewModel MainWindowVM { get; set; }
-    public bool bShowToolTips { get;  set;}
-    public bool bChangeMeshesOrTextures { get; set;  }
+    public bool bShowToolTips { get;  set;} = true;
+    public bool bChangeMeshesOrTextures { get; set;  } = true;
 
-    public BodyShapeSelectionMode BodySelectionMode { get; set;  }
-    public BodySlideSelectionMode BSSelectionMode { get; set; }
-    public bool ExcludePlayerCharacter { get; set; }
-    public bool ExcludePresets { get; set; }
-    public bool bChangeHeight { get; set;  }
-    public string OutputDataFolder { get; set; }
-    public string PortableSettingsFolder { get; set; }
-    public bool bEnableConsistency { get; set;  }
-    public bool bLinkNPCsWithSameName { get; set;  }
-    public ObservableCollection<VM_CollectionMemberString> LinkedNameExclusions { get; set; }
-    public ObservableCollection<VM_LinkedNPCGroup> LinkedNPCGroups { get; set; }
-    public string patchFileName { get; set;  }
-    public SkyrimRelease SkyrimVersion { get; set; }
-    public bool bVerboseModeAssetsNoncompliant { get; set;  }
-    public bool bVerboseModeAssetsAll { get; set;  }
-    public ObservableCollection<FormKey> verboseModeNPClist { get; set; }
-    public bool VerboseModeDetailedAttributes { get; set; }
-    public bool bLoadSettingsFromDataFolder { get; set;  }
-    public string CustomGamePath { get; set; }
-    public ObservableCollection<FormKey> patchableRaces { get; set; }
+    public BodyShapeSelectionMode BodySelectionMode { get; set;  } = BodyShapeSelectionMode.None;
+    public BodySlideSelectionMode BSSelectionMode { get; set; } = BodySlideSelectionMode.OBody;
+    public bool ExcludePlayerCharacter { get; set; } = true;
+    public bool ExcludePresets { get; set; } = true;
+    public bool bChangeHeight { get; set;  } = true;
+    public string OutputDataFolder { get; set; } = "";
+    public string PortableSettingsFolder { get; set; } = "";
+    public bool bEnableConsistency { get; set;  } = true;
+    public bool bLinkNPCsWithSameName { get; set;  } = true;
+    public ObservableCollection<VM_CollectionMemberString> LinkedNameExclusions { get; set; } = new();
+    public ObservableCollection<VM_LinkedNPCGroup> LinkedNPCGroups { get; set; } = new();
+    public string patchFileName { get; set;  } = "SynthEBD.esp";
+    public SkyrimRelease SkyrimVersion { get; set; } = PatcherSettings.SkyrimVersion;
+    public bool bVerboseModeAssetsNoncompliant { get; set;  } = false;
+    public bool bVerboseModeAssetsAll { get; set;  } = false;
+    public ObservableCollection<FormKey> verboseModeNPClist { get; set; } = new();
+    public bool VerboseModeDetailedAttributes { get; set; } = false;
+    public bool bLoadSettingsFromDataFolder { get; set;  } = false;
+    public string CustomGamePath { get; set; } = "";
+    public ObservableCollection<FormKey> patchableRaces { get; set; } = new();
 
-    public ObservableCollection<VM_raceAlias> raceAliases { get; set;  }
+    public ObservableCollection<VM_raceAlias> raceAliases { get; set;  } = new();
 
     public RelayCommand AddRaceAlias { get; }
 
-    public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
-    public bool OverwritePluginAttGroups { get; set; }
-    public ILinkCache lk { get; set; }
-    public IEnumerable<Type> RacePickerFormKeys { get; set; }
-    public IEnumerable<Type> NPCPickerFormKeys { get; set; }
+    public VM_AttributeGroupMenu AttributeGroupMenu { get; set; } = new(null, false);
+    public bool OverwritePluginAttGroups { get; set; } = true;
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
+    public IEnumerable<Type> NPCPickerFormKeys { get; set; } = typeof(INpcGetter).AsEnumerable();
 
-    public ObservableCollection<VM_RaceGrouping> RaceGroupings { get; set; }
+    public ObservableCollection<VM_RaceGrouping> RaceGroupings { get; set; } = new();
     public RelayCommand AddRaceGrouping { get; }
     public RelayCommand AddLinkedNPCNameExclusion { get; }
     public RelayCommand AddLinkedNPCGroup { get; }

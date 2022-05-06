@@ -12,12 +12,8 @@ namespace SynthEBD;
 // Each NPCAttribute within a HashSet<NPC> Attribute is treated with OR logic; i.e. if an NPC matches ANY of the NPCAttributes, the NPCAttribute's parent object can be assigned to the NPC
 public class NPCAttribute
 {
-    public NPCAttribute()
-    {
-        this.SubAttributes = new HashSet<ITypedNPCAttribute>(); // Each ITypedNPCAttribute is treated with AND logic; i.e. the NPC must match ALL of the SubAttributes for the parent object to be assigned to the NPC.
-    }
+    public HashSet<ITypedNPCAttribute> SubAttributes { get; set; } = new();
 
-    public HashSet<ITypedNPCAttribute> SubAttributes { get; set; }
     public bool Equals(NPCAttribute other)
     {
         var thisArray = this.SubAttributes.ToArray();
@@ -246,17 +242,11 @@ public enum CustomAttributeType // moved outside of NPCAttributeCustom so that i
 }
 public class NPCAttributeVoiceType : ITypedNPCAttribute
 {
-    public NPCAttributeVoiceType()
-    {
-        this.FormKeys = new HashSet<FormKey>();
-        this.Type = NPCAttributeType.VoiceType;
-        this.ForceIf = false;
-        this.Weighting = 1;
-    }
-    public HashSet<FormKey> FormKeys { get; set; }
-    public NPCAttributeType Type { get; set; }
-    public bool ForceIf { get; set; }
-    public int Weighting { get; set; }
+    public HashSet<FormKey> FormKeys { get; set; } = new();
+    public NPCAttributeType Type { get; set; } = NPCAttributeType.VoiceType;
+    public bool ForceIf { get; set; } = false;
+    public int Weighting { get; set; } = 1;
+
     public bool Equals(ITypedNPCAttribute other)
     {
         var otherTyped = (NPCAttributeVoiceType)other;
@@ -289,17 +279,10 @@ public class NPCAttributeVoiceType : ITypedNPCAttribute
 
 public class NPCAttributeClass : ITypedNPCAttribute
 {
-    public NPCAttributeClass()
-    {
-        this.FormKeys = new HashSet<FormKey>();
-        this.Type = NPCAttributeType.Class;
-        this.ForceIf = false;
-        this.Weighting = 1;
-    }
-    public HashSet<FormKey> FormKeys { get; set; }
-    public NPCAttributeType Type { get; set; }
-    public bool ForceIf { get; set; }
-    public int Weighting { get; set; }
+    public HashSet<FormKey> FormKeys { get; set; } = new();
+    public NPCAttributeType Type { get; set; } = NPCAttributeType.Class;
+    public bool ForceIf { get; set; } = false;
+    public int Weighting { get; set; } = 1;
 
     public bool Equals(ITypedNPCAttribute other)
     {
@@ -333,25 +316,14 @@ public class NPCAttributeClass : ITypedNPCAttribute
 
 public class NPCAttributeCustom : ITypedNPCAttribute
 {
-    public NPCAttributeCustom()
-    {
-        this.Path = "";
-        this.CustomType = CustomAttributeType.Text;
-        this.ValueStr = "";
-        this.ValueFKs = new HashSet<FormKey>();
-        this.Type = NPCAttributeType.Custom;
-        this.ForceIf = false;
-        this.Weighting = 1;
-    }
-
-    public string Path { get; set; }
-    public string ValueStr { get; set; }
-    public HashSet<FormKey> ValueFKs { get; set; }
-    public CustomAttributeType CustomType { get; set; }
+    public string Path { get; set; } = "";
+    public string ValueStr { get; set; } = "";
+    public HashSet<FormKey> ValueFKs { get; set; } = new();
+    public CustomAttributeType CustomType { get; set; } = CustomAttributeType.Text;
     public string Comparator { get; set; }
-    public NPCAttributeType Type { get; set; }
-    public bool ForceIf { get; set; }
-    public int Weighting { get; set; }
+    public NPCAttributeType Type { get; set; } = NPCAttributeType.Custom;
+    public bool ForceIf { get; set; } = false;
+    public int Weighting { get; set; } = 1;
     public FormKey ReferenceNPCFK { get; set; } // this is not used by the patcher but saving it avoids making the user reselect it in the UI
     public Type SelectedFormKeyType { get; set; } // this is not used by the patcher but saving it avoids making the user reselect it in the UI
 
@@ -412,21 +384,13 @@ public class NPCAttributeCustom : ITypedNPCAttribute
 
 public class NPCAttributeFactions : ITypedNPCAttribute
 {
-    public NPCAttributeFactions()
-    {
-        this.FormKeys = new HashSet<FormKey>();
-        this.RankMin = -1;
-        this.RankMax = 100;
-        this.Type = NPCAttributeType.Faction;
-        this.ForceIf = false;
-        this.Weighting = 1;
-    }
-    public HashSet<FormKey> FormKeys { get; set; }
-    public int RankMin { get; set; }
-    public int RankMax { get; set; }
-    public NPCAttributeType Type { get; set; }
-    public bool ForceIf { get; set; }
-    public int Weighting { get; set; }
+    public HashSet<FormKey> FormKeys { get; set; } = new();
+    public int RankMin { get; set; } = -1;
+    public int RankMax { get; set; } = 100;
+    public NPCAttributeType Type { get; set; } = NPCAttributeType.Faction;
+    public bool ForceIf { get; set; } = false;
+    public int Weighting { get; set; } = 1;
+
     public bool Equals(ITypedNPCAttribute other)
     {
         var otherTyped = (NPCAttributeFactions)other;
@@ -462,17 +426,11 @@ public class NPCAttributeFactions : ITypedNPCAttribute
 
 public class NPCAttributeFaceTexture : ITypedNPCAttribute
 {
-    public NPCAttributeFaceTexture()
-    {
-        this.FormKeys = new HashSet<FormKey>();
-        this.Type = NPCAttributeType.FaceTexture;
-        this.ForceIf = false;
-        this.Weighting = 1;
-    }
-    public HashSet<FormKey> FormKeys { get; set; }
-    public NPCAttributeType Type { get; set; }
-    public bool ForceIf { get; set; }
-    public int Weighting { get; set; }
+    public HashSet<FormKey> FormKeys { get; set; } = new();
+    public NPCAttributeType Type { get; set; } = NPCAttributeType.FaceTexture;
+    public bool ForceIf { get; set; } = false;
+    public int Weighting { get; set; } = 1;
+
     public bool Equals(ITypedNPCAttribute other)
     {
         var otherTyped = (NPCAttributeFaceTexture)other;
@@ -505,17 +463,11 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
 
 public class NPCAttributeRace : ITypedNPCAttribute
 {
-    public NPCAttributeRace()
-    {
-        this.FormKeys = new HashSet<FormKey>();
-        this.Type = NPCAttributeType.Race;
-        this.ForceIf = false;
-        this.Weighting = 1;
-    }
-    public HashSet<FormKey> FormKeys { get; set; }
-    public NPCAttributeType Type { get; set; }
-    public bool ForceIf { get; set; }
-    public int Weighting { get; set; }
+    public HashSet<FormKey> FormKeys { get; set; } = new();
+    public NPCAttributeType Type { get; set; } = NPCAttributeType.Race;
+    public bool ForceIf { get; set; } = false;
+    public int Weighting { get; set; } = 1;
+
     public bool Equals(ITypedNPCAttribute other)
     {
         var otherTyped = (NPCAttributeRace)other;
@@ -548,17 +500,11 @@ public class NPCAttributeRace : ITypedNPCAttribute
 
 public class NPCAttributeNPC : ITypedNPCAttribute
 {
-    public NPCAttributeNPC()
-    {
-        this.FormKeys = new HashSet<FormKey>();
-        this.Type = NPCAttributeType.NPC;
-        this.ForceIf = false;
-        this.Weighting = 1;
-    }
-    public HashSet<FormKey> FormKeys { get; set; }
-    public NPCAttributeType Type { get; set; }
-    public bool ForceIf { get; set; }
-    public int Weighting { get; set; }
+    public HashSet<FormKey> FormKeys { get; set; } = new();
+    public NPCAttributeType Type { get; set; } = NPCAttributeType.NPC;
+    public bool ForceIf { get; set; } = false;
+    public int Weighting { get; set; } = 1;
+
     public bool Equals(ITypedNPCAttribute other)
     {
         var otherTyped = (NPCAttributeNPC)other;
@@ -591,17 +537,11 @@ public class NPCAttributeNPC : ITypedNPCAttribute
 
 public class NPCAttributeGroup : ITypedNPCAttribute
 {
-    public NPCAttributeGroup()
-    {
-        this.SelectedLabels = new HashSet<string>();
-        this.Type = NPCAttributeType.Group;
-        this.ForceIf = false;
-        this.Weighting = 1;
-    }
-    public HashSet<string> SelectedLabels { get; set; }
-    public NPCAttributeType Type { get; set; }
-    public bool ForceIf { get; set; }
-    public int Weighting { get; set; }
+    public HashSet<string> SelectedLabels { get; set; } = new();
+    public NPCAttributeType Type { get; set; } = NPCAttributeType.Group;
+    public bool ForceIf { get; set; } = false;
+    public int Weighting { get; set; } = 1;
+
     public bool Equals(ITypedNPCAttribute other)
     {
         if (this.Type == other.Type)
@@ -651,12 +591,6 @@ public interface ITypedNPCAttribute
 
 public class AttributeGroup
 {
-    public AttributeGroup()
-    {
-        Label = "";
-        Attributes = new HashSet<NPCAttribute>();
-    }
-
-    public string Label { get; set; }
-    public HashSet<NPCAttribute> Attributes { get; set; }
+    public string Label { get; set; } = "";
+    public HashSet<NPCAttribute> Attributes { get; set; } = new();
 }

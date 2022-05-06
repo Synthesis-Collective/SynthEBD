@@ -10,7 +10,6 @@ public class VM_SettingsOBody : ViewModel, IHasAttributeGroupMenu
         DescriptorUI = new VM_BodyShapeDescriptorCreationMenu(raceGroupingVMs, this);
         BodySlidesUI = new VM_BodySlidesMenu(this, raceGroupingVMs);
         AttributeGroupMenu = new VM_AttributeGroupMenu(generalSettingsVM.AttributeGroupMenu, true);
-        MiscUI = new VM_OBodyMiscSettings();
 
         DisplayedUI = BodySlidesUI;
 
@@ -39,7 +38,7 @@ public class VM_SettingsOBody : ViewModel, IHasAttributeGroupMenu
     public VM_BodyShapeDescriptorCreationMenu DescriptorUI { get; set; }
     public VM_BodySlidesMenu BodySlidesUI { get; set; }
     public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
-    public VM_OBodyMiscSettings MiscUI { get; set; }
+    public VM_OBodyMiscSettings MiscUI { get; set; } = new();
     public RelayCommand ClickBodySlidesMenu { get; }
     public RelayCommand ClickDescriptorsMenu { get; }
     public RelayCommand ClickAttributeGroupsMenu { get; }

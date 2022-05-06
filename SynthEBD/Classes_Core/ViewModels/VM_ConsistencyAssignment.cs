@@ -9,15 +9,6 @@ public class VM_ConsistencyAssignment : ViewModel
 {
     public VM_ConsistencyAssignment()
     {
-        this.SubgroupIDs = new ObservableCollection<VM_CollectionMemberString>();
-        this.MixInAssignments = new ObservableCollection<VM_MixInConsistencyAssignment>();
-        this.AssetReplacements = new ObservableCollection<VM_AssetReplacementAssignment>();
-        this.BodyGenMorphNames = new ObservableCollection<VM_CollectionMemberString>();
-        this.BodySlidePreset = "";
-        this.AssetPackAssigned = false;
-        this.HeightAssigned = false;
-        this.BodySlideAssigned = false;
-
         this.WhenAnyValue(x => x.AssetPackName).Subscribe(x => AssetPackAssigned = AssetPackName != null && AssetPackName.Any());
         this.WhenAnyValue(x => x.BodySlidePreset).Subscribe(x => BodySlideAssigned = BodySlidePreset != null && BodySlidePreset.Any());
         this.WhenAnyValue(x => x.Height).Subscribe(x => HeightAssigned = Height != null && Height.Any());
@@ -43,11 +34,11 @@ public class VM_ConsistencyAssignment : ViewModel
     }
 
     public string AssetPackName { get; set; }
-    public ObservableCollection<VM_CollectionMemberString> SubgroupIDs { get; set; }
-    public ObservableCollection<VM_MixInConsistencyAssignment> MixInAssignments { get; set; }
-    public ObservableCollection<VM_AssetReplacementAssignment> AssetReplacements { get; set; }
-    public ObservableCollection<VM_CollectionMemberString> BodyGenMorphNames { get; set; }
-    public string BodySlidePreset { get; set; }
+    public ObservableCollection<VM_CollectionMemberString> SubgroupIDs { get; set; } = new();
+    public ObservableCollection<VM_MixInConsistencyAssignment> MixInAssignments { get; set; } = new();
+    public ObservableCollection<VM_AssetReplacementAssignment> AssetReplacements { get; set; } = new();
+    public ObservableCollection<VM_CollectionMemberString> BodyGenMorphNames { get; set; } = new();
+    public string BodySlidePreset { get; set; } = "";
     public string Height { get; set; }
     public string DispName { get; set; }
     public FormKey NPCFormKey { get; set; }
@@ -56,9 +47,9 @@ public class VM_ConsistencyAssignment : ViewModel
     public RelayCommand DeleteBodySlideCommand { get; set; }
     public RelayCommand DeleteHeightCommand { get; set; }
 
-    public bool AssetPackAssigned { get; set; }
-    public bool BodySlideAssigned { get; set; }
-    public bool HeightAssigned { get; set; }
+    public bool AssetPackAssigned { get; set; } = false;
+    public bool BodySlideAssigned { get; set; } = false;
+    public bool HeightAssigned { get; set; } = false;
 
     public static VM_ConsistencyAssignment GetViewModelFromModel(NPCAssignment model, ObservableCollection<VM_AssetPack> AssetPackVMs)
     {
@@ -153,7 +144,6 @@ public class VM_ConsistencyAssignment : ViewModel
     {
         public VM_MixInConsistencyAssignment(ObservableCollection<VM_MixInConsistencyAssignment> parentCollection)
         {
-            this.SubgroupIDs = new ObservableCollection<VM_CollectionMemberString>();
             ParentCollection = parentCollection;
 
             DeleteCommand = new SynthEBD.RelayCommand(
@@ -165,7 +155,7 @@ public class VM_ConsistencyAssignment : ViewModel
             );
         }
         public string AssetPackName { get; set; }
-        public ObservableCollection<VM_CollectionMemberString> SubgroupIDs { get; set; }
+        public ObservableCollection<VM_CollectionMemberString> SubgroupIDs { get; set; } = new();
         public ObservableCollection<VM_MixInConsistencyAssignment> ParentCollection { get; set; }
 
         public RelayCommand DeleteCommand { get; set; }

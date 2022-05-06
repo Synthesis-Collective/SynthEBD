@@ -13,22 +13,16 @@ public class VM_LinkedNPCGroup : ViewModel
 {
     public VM_LinkedNPCGroup()
     {
-        this.GroupName = "";
-        this.NPCFormKeys = new ObservableCollection<FormKey>();
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
-
-        this.PrimaryCandidates = new HashSet<string>();
         this.PropertyChanged += RefereshPrimaryAssignment;
         this.NPCFormKeys.CollectionChanged += RefereshPrimaryAssignment;
     }
 
-    public string GroupName { get; set; }
-    public ObservableCollection<FormKey> NPCFormKeys { get; set; }
-    public ILinkCache lk { get; set; }
-    public IEnumerable<Type> NPCFormKeyTypes { get; set; }
+    public string GroupName { get; set; } = "";
+    public ObservableCollection<FormKey> NPCFormKeys { get; set; } = new();
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public string Primary { get; set; }
-    public HashSet<string> PrimaryCandidates { get; set; }
+    public HashSet<string> PrimaryCandidates { get; set; } = new();
 
     public void RefereshPrimaryAssignment(object sender, PropertyChangedEventArgs e)
     {

@@ -11,13 +11,7 @@ public class VM_AdditionalRecordTemplate : ViewModel
 {
     public VM_AdditionalRecordTemplate(ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, ObservableCollection<VM_AdditionalRecordTemplate> parentCollection)
     {
-        this.RaceFormKeys = new ObservableCollection<FormKey>();
-        this.TemplateNPC = new FormKey();
-        this.AdditionalRacesPaths = new ObservableCollection<VM_CollectionMemberString>();
         this.RecordTemplateLinkCache = recordTemplateLinkCache;
-        this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.RacePickerTypes = typeof(IRaceGetter).AsEnumerable();
         this.ParentCollection = parentCollection;
 
         AddAdditionalRacesPath = new SynthEBD.RelayCommand(
@@ -36,16 +30,16 @@ public class VM_AdditionalRecordTemplate : ViewModel
         return new AdditionalRecordTemplate() { Races = viewModel.RaceFormKeys.ToHashSet(), TemplateNPC = viewModel.TemplateNPC, AdditionalRacesPaths = viewModel.AdditionalRacesPaths.Select(x => x.Content).ToHashSet() };
     }
 
-    public ObservableCollection<FormKey> RaceFormKeys { get; set; }
+    public ObservableCollection<FormKey> RaceFormKeys { get; set; } = new();
 
-    public ILinkCache lk { get; set; }
-    public IEnumerable<Type> RacePickerTypes { get; set; }
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> RacePickerTypes { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
-    public FormKey TemplateNPC { get; set; }
+    public FormKey TemplateNPC { get; set; } = new();
 
-    public ObservableCollection<VM_CollectionMemberString> AdditionalRacesPaths { get; set; }
+    public ObservableCollection<VM_CollectionMemberString> AdditionalRacesPaths { get; set; } = new();
 
-    public IEnumerable<Type> NPCFormKeyTypes { get; set; }
+    public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
 
     public ILinkCache<ISkyrimMod, ISkyrimModGetter> RecordTemplateLinkCache { get; set; }
 

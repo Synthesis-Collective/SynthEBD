@@ -7,13 +7,6 @@ public class VM_SettingsModManager : ViewModel
 {
     public VM_SettingsModManager()
     {
-        ModManagerType = ModManager.None;
-        MO2IntegrationVM = new VM_MO2Integration();
-        VortexIntegrationVM = new VM_VortexIntergation();
-        DisplayedSubVM = null;
-        TempFolder = "";
-        FilePathLimit = 260;
-
         SelectTempFolder = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -32,14 +25,14 @@ public class VM_SettingsModManager : ViewModel
         });
     }
 
-    public ModManager ModManagerType { get; set; }
-    public VM_MO2Integration MO2IntegrationVM { get; set; }
-    public VM_VortexIntergation VortexIntegrationVM { get; set; }
+    public ModManager ModManagerType { get; set; } = ModManager.None;
+    public VM_MO2Integration MO2IntegrationVM { get; set; } = new();
+    public VM_VortexIntergation VortexIntegrationVM { get; set; } = new();
 
-    public object DisplayedSubVM { get; set; }
+    public object DisplayedSubVM { get; set; } = null;
 
-    public string TempFolder { get; set; }
-    public int FilePathLimit { get; set; }
+    public string TempFolder { get; set; } = "";
+    public int FilePathLimit { get; set; } = 260;
     public RelayCommand SelectTempFolder { get; set; }
 
     public void UpdateDisplayedVM()
@@ -97,10 +90,6 @@ public class VM_MO2Integration : ViewModel
 {
     public VM_MO2Integration()
     {
-        this.ModFolderPath = "";
-        this.ExecutablePath = "";
-        this.FilePathLimit = 220;
-
         FindModFolder = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -123,9 +112,9 @@ public class VM_MO2Integration : ViewModel
             }
         );
     }
-    public string ModFolderPath { get; set; }
-    public string ExecutablePath { get; set; }
-    public int FilePathLimit { get; set; }
+    public string ModFolderPath { get; set; } = "";
+    public string ExecutablePath { get; set; } = "";
+    public int FilePathLimit { get; set; } = 220;
     public RelayCommand FindModFolder { get; set; }
     public RelayCommand FindExecutable { get; set; }
 
@@ -147,8 +136,6 @@ public class VM_VortexIntergation : ViewModel
 {
     public VM_VortexIntergation()
     {
-        this.StagingFolderPath = "";
-        this.FilePathLimit = 220;
         FindStagingFolder = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -160,8 +147,8 @@ public class VM_VortexIntergation : ViewModel
             }
         );
     }
-    public string StagingFolderPath { get; set; }
-    public int FilePathLimit { get; set; }
+    public string StagingFolderPath { get; set; } = "";
+    public int FilePathLimit { get; set; } = 220;
     public RelayCommand FindStagingFolder { get; set; }
 
     public static void GetViewModelFromModel(Settings_ModManager.Vortex model, VM_VortexIntergation viewModel)

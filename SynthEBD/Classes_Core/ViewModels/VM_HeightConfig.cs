@@ -11,12 +11,6 @@ public class VM_HeightConfig : ViewModel
 {
     public VM_HeightConfig()
     {
-        this.Label = "New Height Configuration";
-        this.HeightAssignments = new ObservableCollection<VM_HeightAssignment>();
-        this.SubscribedHeightConfig = new HeightConfig();
-        this.SourcePath = "";
-        this.GlobalDistMode = DistMode.uniform;
-
         AddHeightAssignment = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => this.HeightAssignments.Add(new VM_HeightAssignment(this.HeightAssignments))
@@ -51,11 +45,11 @@ public class VM_HeightConfig : ViewModel
         );
     }
 
-    public string Label { get; set; }
-    public ObservableCollection<VM_HeightAssignment> HeightAssignments { get; set; }
-    public DistMode GlobalDistMode { get; set; }
-    public HeightConfig SubscribedHeightConfig { get; set; }
-    public string SourcePath { get; set; }
+    public string Label { get; set; } = "New Height Configuration";
+    public ObservableCollection<VM_HeightAssignment> HeightAssignments { get; set; } = new();
+    public DistMode GlobalDistMode { get; set; } = DistMode.uniform;
+    public HeightConfig SubscribedHeightConfig { get; set; } = new();
+    public string SourcePath { get; set; } = "";
     public RelayCommand AddHeightAssignment { get; }
     public RelayCommand SetAllDistModes { get; }
     public RelayCommand Save { get; }
@@ -96,29 +90,19 @@ public class VM_HeightAssignment : ViewModel
 {
     public VM_HeightAssignment(ObservableCollection<VM_HeightAssignment> parentCollection)
     {
-        this.Label = "";
-        this.Races = new ObservableCollection<FormKey>();
-        this.DistributionMode = DistMode.uniform;
-        this.MaleHeightBase = "1.000000";
-        this.MaleHeightRange = "0.020000";
-        this.FemaleHeightBase = "1.000000";
-        this.FemaleHeightRange = "0.020000";
-
-        this.FormKeyPickerTypes = typeof(IRaceGetter).AsEnumerable();
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
     }
 
-    public string Label { get; set; }
-    public ObservableCollection<FormKey> Races { get; set; }
-    public DistMode DistributionMode { get; set; }
-    public string MaleHeightBase { get; set; }
-    public string MaleHeightRange { get; set; }
-    public string FemaleHeightBase { get; set; }
-    public string FemaleHeightRange { get; set; }
+    public string Label { get; set; } = "";
+    public ObservableCollection<FormKey> Races { get; set; } = new();
+    public DistMode DistributionMode { get; set; } = DistMode.uniform;
+    public string MaleHeightBase { get; set; } = "1.000000";
+    public string MaleHeightRange { get; set; } = "0.020000";
+    public string FemaleHeightBase { get; set; } = "1.000000";
+    public string FemaleHeightRange { get; set; } = "0.020000";
 
-    public IEnumerable<Type> FormKeyPickerTypes { get; set; }
-    public ILinkCache lk { get; set; }
+    public IEnumerable<Type> FormKeyPickerTypes { get; set; } = typeof(IRaceGetter).AsEnumerable();
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
     public RelayCommand DeleteCommand { get; }
 
     public static ObservableCollection<VM_HeightAssignment> GetViewModelsFromModels(HashSet<HeightAssignment> models)

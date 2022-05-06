@@ -8,14 +8,6 @@ public class VM_SettingsBodyGen : ViewModel
 {
     public VM_SettingsBodyGen(VM_Settings_General generalSettingsVM)
     {
-        this.MaleConfigs = new ObservableCollection<VM_BodyGenConfig>();
-        this.FemaleConfigs = new ObservableCollection<VM_BodyGenConfig>();
-        this.CurrentMaleConfig = null;
-        this.CurrentFemaleConfig = null;
-        this.CurrentlyDisplayedConfig = null;
-        this.DisplayedConfigIsFemale = true;
-        this.DisplayedConfigIsMale = false;
-
         DisplayMaleConfig = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -77,14 +69,14 @@ public class VM_SettingsBodyGen : ViewModel
         });
     }
 
-    public ObservableCollection<VM_BodyGenConfig> MaleConfigs { get; set; }
-    public ObservableCollection<VM_BodyGenConfig> FemaleConfigs { get; set; }
-    public VM_BodyGenConfig CurrentMaleConfig { get; set; }
-    public VM_BodyGenConfig CurrentFemaleConfig { get; set; }
-    public VM_BodyGenConfig CurrentlyDisplayedConfig { get; set; }
+    public ObservableCollection<VM_BodyGenConfig> MaleConfigs { get; set; } = new();
+    public ObservableCollection<VM_BodyGenConfig> FemaleConfigs { get; set; } = new();
+    public VM_BodyGenConfig CurrentMaleConfig { get; set; } = null;
+    public VM_BodyGenConfig CurrentFemaleConfig { get; set; } = null;
+    public VM_BodyGenConfig CurrentlyDisplayedConfig { get; set; } = null;
 
-    public bool DisplayedConfigIsFemale { get; set; }
-    public bool DisplayedConfigIsMale { get; set; }
+    public bool DisplayedConfigIsFemale { get; set; } = true;
+    public bool DisplayedConfigIsMale { get; set; } = false;
 
     public RelayCommand DisplayMaleConfig { get; }
     public RelayCommand AddNewMaleConfig { get; }

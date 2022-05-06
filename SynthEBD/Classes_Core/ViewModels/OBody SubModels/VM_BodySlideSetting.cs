@@ -13,31 +13,12 @@ public class VM_BodySlideSetting : ViewModel
 {
     public VM_BodySlideSetting(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection, VM_SettingsOBody parentConfig)
     {
-        this.Label = "";
-        this.Notes = "";
         this.DescriptorsSelectionMenu = new VM_BodyShapeDescriptorSelectionMenu(BodyShapeDescriptors, raceGroupingVMs, parentConfig);
-        this.AllowedRaces = new ObservableCollection<FormKey>();
         this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
-        this.DisallowedRaces = new ObservableCollection<FormKey>();
         this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
-        this.AllowedAttributes = new ObservableCollection<VM_NPCAttribute>();
-        this.DisallowedAttributes = new ObservableCollection<VM_NPCAttribute>();
-        this.bAllowUnique = true;
-        this.bAllowNonUnique = true;
-        this.bAllowRandom = true;
-        this.ProbabilityWeighting = 1;
-        this.WeightRange = new NPCWeightRange();
-
-        this.Caption_BodyShapeDescriptors = "";
-
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
 
         this.ParentConfig = parentConfig;
         this.ParentCollection = parentCollection;
-
-        this.IsHidden = false;
-        this.IsVisible = true;
 
         AddAllowedAttribute = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -53,8 +34,6 @@ public class VM_BodySlideSetting : ViewModel
             canExecute: _ => true,
             execute: _ => this.ParentCollection.Remove(this)
         );
-
-        HideButtonText = "Hide";
 
         ToggleHide = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -100,23 +79,23 @@ public class VM_BodySlideSetting : ViewModel
         DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => UpdateStatusDisplay());
     }
 
-    public string Label { get; set; }
-    public string Notes { get; set; }
+    public string Label { get; set; } = "";
+    public string Notes { get; set; } = "";
     public VM_BodyShapeDescriptorSelectionMenu DescriptorsSelectionMenu { get; set; }
-    public ObservableCollection<FormKey> AllowedRaces { get; set; }
-    public ObservableCollection<FormKey> DisallowedRaces { get; set; }
+    public ObservableCollection<FormKey> AllowedRaces { get; set; } = new();
+    public ObservableCollection<FormKey> DisallowedRaces { get; set; } = new();
     public VM_RaceGroupingCheckboxList AllowedRaceGroupings { get; set; }
     public VM_RaceGroupingCheckboxList DisallowedRaceGroupings { get; set; }
-    public ObservableCollection<VM_NPCAttribute> AllowedAttributes { get; set; } // keeping as array to allow deserialization of original zEBD settings files
-    public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; }
-    public bool bAllowUnique { get; set; }
-    public bool bAllowNonUnique { get; set; }
-    public bool bAllowRandom { get; set; }
-    public double ProbabilityWeighting { get; set; }
-    public NPCWeightRange WeightRange { get; set; }
-    public string Caption_BodyShapeDescriptors { get; set; }
-    public ILinkCache lk { get; set; }
-    public IEnumerable<Type> RacePickerFormKeys { get; set; }
+    public ObservableCollection<VM_NPCAttribute> AllowedAttributes { get; set; } = new(); // keeping as array to allow deserialization of original zEBD settings files
+    public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; } = new();
+    public bool bAllowUnique { get; set; } = true;
+    public bool bAllowNonUnique { get; set; } = true;
+    public bool bAllowRandom { get; set; } = true;
+    public double ProbabilityWeighting { get; set; } = 1;
+    public NPCWeightRange WeightRange { get; set; } = new();
+    public string Caption_BodyShapeDescriptors { get; set; } = "";
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
     public RelayCommand AddAllowedAttribute { get; }
     public RelayCommand AddDisallowedAttribute { get; }
@@ -127,9 +106,9 @@ public class VM_BodySlideSetting : ViewModel
     public ObservableCollection<VM_BodySlideSetting> ParentCollection { get; set; }
 
     public SolidColorBrush BorderColor { get; set; }
-    public bool IsVisible {  get; set; }
-    public bool IsHidden { get; set; } // not the same as IsVisible. IsVisible can be set true if the "show hidden" button is checked.
-    public string HideButtonText { get; set; }
+    public bool IsVisible {  get; set; } = true;
+    public bool IsHidden { get; set; } = false; // not the same as IsVisible. IsVisible can be set true if the "show hidden" button is checked.
+    public string HideButtonText { get; set; } = "Hide";
     public string StatusHeader { get; set; }
     public string StatusText { get; set; }
     public bool ShowStatus { get; set; }

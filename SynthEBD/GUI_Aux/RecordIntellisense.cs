@@ -14,7 +14,7 @@ public interface IImplementsRecordIntellisense
     public ObservableCollection<RecordIntellisense.PathSuggestion> PathSuggestions { get; set; }
     public FormKey ReferenceNPCFormKey { get; set; }
     public string IntellisensedPath { get; set; }
-    public ILinkCache LinkCache { get; set; }
+    public ILinkCache LinkCache { get; }
 }
 public class RecordIntellisense
 {
@@ -65,15 +65,9 @@ public class RecordIntellisense
 
     public class PathSuggestion
     {
-        public PathSuggestion()
-        {
-            SubPath = "";
-            DispString = "";
-            Type = PathType.Property;
-        }
-        public string SubPath { get; set; }
-        public string DispString { get; set; }
-        public PathType Type { get; set; }
+        public string SubPath { get; set; } = "";
+        public string DispString { get; set; } = "";
+        public PathType Type { get; set; } = PathType.Property;
         public PropertyInfo PropInfo { get; set; }
         public MethodInfo MethInfo { get; set; }
         public Type SubPathType { get; set; }

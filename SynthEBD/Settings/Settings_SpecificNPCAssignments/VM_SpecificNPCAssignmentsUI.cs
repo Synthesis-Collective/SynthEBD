@@ -7,8 +7,6 @@ public class VM_SpecificNPCAssignmentsUI : ViewModel
 {
     public VM_SpecificNPCAssignmentsUI(VM_SettingsTexMesh texMeshSettings, VM_SettingsBodyGen bodyGenSettings, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, MainWindow_ViewModel mainVM)
     {
-        this.Assignments = new ObservableCollection<VM_SpecificNPCAssignment>();
-        this.CurrentlyDisplayedAssignment = null;
         this.BodyGenSettings = bodyGenSettings;
         this.TexMeshSettings = texMeshSettings;
 
@@ -47,8 +45,8 @@ public class VM_SpecificNPCAssignmentsUI : ViewModel
         );
     }
 
-    public ObservableCollection<VM_SpecificNPCAssignment> Assignments { get; set; }
-    public VM_SpecificNPCAssignment CurrentlyDisplayedAssignment { get; set; }
+    public ObservableCollection<VM_SpecificNPCAssignment> Assignments { get; set; } = new();
+    public VM_SpecificNPCAssignment CurrentlyDisplayedAssignment { get; set; } = null;
 
     public VM_SettingsBodyGen BodyGenSettings { get; set; }
 

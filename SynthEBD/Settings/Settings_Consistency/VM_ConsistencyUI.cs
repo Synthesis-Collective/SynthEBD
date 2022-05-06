@@ -12,12 +12,6 @@ public class VM_ConsistencyUI : ViewModel
 {
     public VM_ConsistencyUI()
     {
-        this.Assignments = new ObservableCollection<VM_ConsistencyAssignment>();
-        this.CurrentlyDisplayedAssignment = null;
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.AllowedFormKeyTypes = typeof(INpcGetter).AsEnumerable();
-        this.SelectedNPCFormKey = new FormKey();
-
         this.PropertyChanged += RefereshCurrentAssignment;
 
         DeleteCurrentNPC = new SynthEBD.RelayCommand(
@@ -83,11 +77,11 @@ public class VM_ConsistencyUI : ViewModel
         );
     }
 
-    public ObservableCollection<VM_ConsistencyAssignment> Assignments { get; set; }
-    public VM_ConsistencyAssignment CurrentlyDisplayedAssignment { get; set; }
-    public ILinkCache lk { get; set; }
-    public IEnumerable<Type> AllowedFormKeyTypes { get; set; }
-    public FormKey SelectedNPCFormKey { get; set; }
+    public ObservableCollection<VM_ConsistencyAssignment> Assignments { get; set; } = new();
+    public VM_ConsistencyAssignment CurrentlyDisplayedAssignment { get; set; } = null;
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
+    public FormKey SelectedNPCFormKey { get; set; } = new();
 
     public RelayCommand DeleteCurrentNPC { get; set; }
 

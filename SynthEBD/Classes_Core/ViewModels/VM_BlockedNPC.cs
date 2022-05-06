@@ -12,24 +12,16 @@ public class VM_BlockedNPC : ViewModel
     public VM_BlockedNPC()
     {
         this.PropertyChanged += TriggerDispNameUpdate;
-        this.DispName = "New NPC";
-        this.FormKey = new FormKey();
-        this.Assets = true;
-        this.Height = false;
-        this.BodyShape = false;
-
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
     }
     // Caption
-    public string DispName { get; set; }
-    public FormKey FormKey { get; set; }
-    public bool Assets { get; set; }
-    public bool Height { get; set; }
-    public bool BodyShape { get; set; }
+    public string DispName { get; set; } = "New NPC";
+    public FormKey FormKey { get; set; } = new();
+    public bool Assets { get; set; } = true;
+    public bool Height { get; set; } = false;
+    public bool BodyShape { get; set; } = false;
 
-    public ILinkCache lk { get; set; }
-    public IEnumerable<Type> NPCFormKeyTypes { get; set; }
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
 
     public void TriggerDispNameUpdate(object sender, PropertyChangedEventArgs e)
     {

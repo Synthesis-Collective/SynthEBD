@@ -22,22 +22,8 @@ public class VM_Subgroup : ViewModel, ICloneable, IDropTarget, IHasSubgroupViewM
         SetExplicitReferenceNPC = setExplicitReferenceNPC;
         ParentAssetPack = parentAssetPack;
 
-        this.ID = "";
-        this.Name = "New";
-        this.Enabled = true;
-        this.DistributionEnabled = true;
-        this.AllowedRaces = new ObservableCollection<FormKey>();
         this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
-        this.DisallowedRaces = new ObservableCollection<FormKey>();
         this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
-        this.AllowedAttributes = new ObservableCollection<VM_NPCAttribute>();
-        this.DisallowedAttributes = new ObservableCollection<VM_NPCAttribute>();
-        this.AllowUnique = true;
-        this.AllowNonUnique = true;
-        this.RequiredSubgroups = new ObservableCollection<VM_Subgroup>();
-        this.ExcludedSubgroups = new ObservableCollection<VM_Subgroup>();
-        this.AddKeywords = new ObservableCollection<VM_CollectionMemberString>();
-        this.ProbabilityWeighting = 1;
         if (parentAssetPack.TrackedBodyGenConfig != null)
         {
             this.AllowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
@@ -46,16 +32,7 @@ public class VM_Subgroup : ViewModel, ICloneable, IDropTarget, IHasSubgroupViewM
         AllowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(SubscribedOBodyDescriptorMenu, SubscribedRaceGroupings, parentAssetPack);
         DisallowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(SubscribedOBodyDescriptorMenu, SubscribedRaceGroupings, parentAssetPack);
 
-        this.WeightRange = new NPCWeightRange();
-        this.Subgroups = new ObservableCollection<VM_Subgroup>();
-
         //UI-related
-        this.LinkCache = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
-        this.RequiredSubgroupIDs = new HashSet<string>();
-        this.ExcludedSubgroupIDs = new HashSet<string>();
-        RequiredSubgroupsLabel = "Drag subgroups here from the tree view";
-        ExcludedSubgroupsLabel = "Drag subgroups here from the tree view";
         this.ParentCollection = parentCollection;
 
         // must be set after Parent Asset Pack
@@ -69,7 +46,6 @@ public class VM_Subgroup : ViewModel, ICloneable, IDropTarget, IHasSubgroupViewM
             parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => this.PathsMenu.ReferenceLinkCache = parentAssetPack.RecordTemplateLinkCache);
         }
 
-        ImagePaths = new ObservableCollection<Graphics.ImagePathWithSource>();
         this.PathsMenu.WhenAnyValue(x => x.Paths).Subscribe(x => GetDDSPaths(this, this.ImagePaths));
 
         AddAllowedAttribute = new SynthEBD.RelayCommand(
@@ -113,33 +89,33 @@ public class VM_Subgroup : ViewModel, ICloneable, IDropTarget, IHasSubgroupViewM
         );
     }
 
-    public string ID { get; set; }
-    public string Name { get; set; }
-    public bool Enabled { get; set; }
-    public bool DistributionEnabled { get; set; }
-    public ObservableCollection<FormKey> AllowedRaces { get; set; }
+    public string ID { get; set; } = "";
+    public string Name { get; set; } = "New";
+    public bool Enabled { get; set; } = true;
+    public bool DistributionEnabled { get; set; } = true;
+    public ObservableCollection<FormKey> AllowedRaces { get; set; } = new();
     public VM_RaceGroupingCheckboxList AllowedRaceGroupings { get; set; }
-    public ObservableCollection<FormKey> DisallowedRaces { get; set; }
+    public ObservableCollection<FormKey> DisallowedRaces { get; set; } = new();
     public VM_RaceGroupingCheckboxList DisallowedRaceGroupings { get; set; }
-    public ObservableCollection<VM_NPCAttribute> AllowedAttributes { get; set; }
-    public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; }
-    public bool AllowUnique { get; set; }
-    public bool AllowNonUnique { get; set; }
-    public ObservableCollection<VM_Subgroup> RequiredSubgroups { get; set; }
-    public ObservableCollection<VM_Subgroup> ExcludedSubgroups { get; set; }
-    public ObservableCollection<VM_CollectionMemberString> AddKeywords { get; set; }
-    public double ProbabilityWeighting { get; set; }
+    public ObservableCollection<VM_NPCAttribute> AllowedAttributes { get; set; } = new();
+    public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; } = new();
+    public bool AllowUnique { get; set; } = true;
+    public bool AllowNonUnique { get; set; } = true;
+    public ObservableCollection<VM_Subgroup> RequiredSubgroups { get; set; } = new();
+    public ObservableCollection<VM_Subgroup> ExcludedSubgroups { get; set; } = new();
+    public ObservableCollection<VM_CollectionMemberString> AddKeywords { get; set; } = new();
+    public double ProbabilityWeighting { get; set; } = 1;
     public VM_FilePathReplacementMenu PathsMenu { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu AllowedBodyGenDescriptors { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu DisallowedBodyGenDescriptors { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu AllowedBodySlideDescriptors { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu DisallowedBodySlideDescriptors { get; set; }
-    public NPCWeightRange WeightRange { get; set; }
-    public ObservableCollection<VM_Subgroup> Subgroups { get; set; }
+    public NPCWeightRange WeightRange { get; set; } = new();
+    public ObservableCollection<VM_Subgroup> Subgroups { get; set; } = new();
 
     //UI-related
-    public ILinkCache LinkCache { get; set; }
-    public IEnumerable<Type> RacePickerFormKeys { get; set; }
+    public ILinkCache LinkCache => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
     public string TopLevelSubgroupID { get; set; }
 
@@ -152,16 +128,16 @@ public class VM_Subgroup : ViewModel, ICloneable, IDropTarget, IHasSubgroupViewM
     public RelayCommand DeleteRequiredSubgroup { get; }
     public RelayCommand DeleteExcludedSubgroup { get; }
     public bool SetExplicitReferenceNPC { get; set; }
-    public HashSet<string> RequiredSubgroupIDs { get; set; } // temporary placeholder for RequiredSubgroups until all subgroups are loaded in
-    public HashSet<string> ExcludedSubgroupIDs { get; set; } // temporary placeholder for ExcludedSubgroups until all subgroups are loaded in
-    public string RequiredSubgroupsLabel { get; set; }
-    public string ExcludedSubgroupsLabel { get; set; }
+    public HashSet<string> RequiredSubgroupIDs { get; set; } = new(); // temporary placeholder for RequiredSubgroups until all subgroups are loaded in
+    public HashSet<string> ExcludedSubgroupIDs { get; set; } = new(); // temporary placeholder for ExcludedSubgroups until all subgroups are loaded in
+    public string RequiredSubgroupsLabel { get; set; } = "Drag subgroups here from the tree view";
+    public string ExcludedSubgroupsLabel { get; set; } = "Drag subgroups here from the tree view";
 
     public ObservableCollection<VM_Subgroup> ParentCollection { get; set; }
     public VM_AssetPack ParentAssetPack { get; set; }
     public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
     public VM_BodyShapeDescriptorCreationMenu SubscribedOBodyDescriptorMenu { get; set; }
-    public ObservableCollection<Graphics.ImagePathWithSource> ImagePaths { get; set; }
+    public ObservableCollection<Graphics.ImagePathWithSource> ImagePaths { get; set; } = new();
 
     public static VM_Subgroup GetViewModelFromModel(AssetPack.Subgroup model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_Subgroup> parentCollection, VM_AssetPack parentAssetPack, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, bool setExplicitReferenceNPC)
     {

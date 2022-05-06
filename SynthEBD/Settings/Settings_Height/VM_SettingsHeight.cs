@@ -8,13 +8,6 @@ public class VM_SettingsHeight : ViewModel
 {
     public VM_SettingsHeight()
     {
-        this.bChangeNPCHeight = true;
-        this.bChangeRaceHeight = true;
-        this.bOverwriteNonDefaultNPCHeights = true;
-        this.SelectedHeightConfig = new VM_HeightConfig();
-        this.AvailableHeightConfigs = new ObservableCollection<VM_HeightConfig>();
-
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
         AddHeightConfig = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -40,15 +33,15 @@ public class VM_SettingsHeight : ViewModel
         );
     }
 
-    public bool bChangeNPCHeight { get; set; }
-    public bool bChangeRaceHeight { get; set; }
-    public bool bOverwriteNonDefaultNPCHeights { get; set; }
+    public bool bChangeNPCHeight { get; set; } = true;
+    public bool bChangeRaceHeight { get; set; } = true;
+    public bool bOverwriteNonDefaultNPCHeights { get; set; } = true;
 
-    public VM_HeightConfig SelectedHeightConfig { get; set; }
+    public VM_HeightConfig SelectedHeightConfig { get; set; } = new();
 
-    public ObservableCollection<VM_HeightConfig> AvailableHeightConfigs { get; set; }
+    public ObservableCollection<VM_HeightConfig> AvailableHeightConfigs { get; set; } = new();
 
-    public ILinkCache lk { get; set; }
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
 
     public RelayCommand AddHeightConfig { get; }
 

@@ -536,14 +536,8 @@ public class Patcher
 
     public class BodyGenAssignmentTracker
     {
-        public BodyGenAssignmentTracker()
-        {
-            NPCAssignments = new Dictionary<FormKey, List<string>>();
-            AllChosenMorphsMale = new Dictionary<string, HashSet<string>>();
-            AllChosenMorphsFemale = new Dictionary<string, HashSet<string>>();
-        }
-        public Dictionary<FormKey, List<string>> NPCAssignments;
-        public Dictionary<string, HashSet<string>> AllChosenMorphsMale;
-        public Dictionary<string, HashSet<string>> AllChosenMorphsFemale;
+        public Dictionary<FormKey, List<string>> NPCAssignments = new();
+        public Dictionary<string, HashSet<string>> AllChosenMorphsMale = new();
+        public Dictionary<string, HashSet<string>> AllChosenMorphsFemale = new();
     }
 }

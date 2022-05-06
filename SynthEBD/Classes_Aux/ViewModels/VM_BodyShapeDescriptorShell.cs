@@ -7,8 +7,6 @@ public class VM_BodyShapeDescriptorShell : ViewModel
 {
     public VM_BodyShapeDescriptorShell(ObservableCollection<VM_BodyShapeDescriptorShell> parentCollection, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig)
     {
-        this.Category = "";
-        this.Descriptors = new ObservableCollection<VM_BodyShapeDescriptor>();
         this.ParentCollection = parentCollection;
 
         AddTemplateDescriptorValue = new SynthEBD.RelayCommand(
@@ -17,8 +15,8 @@ public class VM_BodyShapeDescriptorShell : ViewModel
         );
     }
 
-    public string Category { get; set; }
-    public ObservableCollection<VM_BodyShapeDescriptor> Descriptors { get; set; }
+    public string Category { get; set; } = "";
+    public ObservableCollection<VM_BodyShapeDescriptor> Descriptors { get; set; } = new();
     public ObservableCollection<VM_BodyShapeDescriptorShell> ParentCollection { get; set; }
     public RelayCommand AddTemplateDescriptorValue { get; }
 

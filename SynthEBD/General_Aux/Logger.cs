@@ -27,26 +27,21 @@ public sealed class Logger : ViewModel
 
     public DateTime PatcherExecutionStart { get; set; }
 
-    System.Windows.Threading.DispatcherTimer UpdateTimer { get; set; }
-    System.Diagnostics.Stopwatch EllapsedTimer { get; set; }
+    System.Windows.Threading.DispatcherTimer UpdateTimer { get; set; } = new();
+    System.Diagnostics.Stopwatch EllapsedTimer { get; set; } = new();
 
     public class NPCReport
     {
         public NPCReport(NPCInfo npcInfo)
         {
             NameString = GetNPCLogReportingString(npcInfo.NPC);
-            LogCurrentNPC = false;
-            SaveCurrentNPCLog = false;
-            RootElement = null;
-            CurrentElement = null;
-            ReportElementHierarchy = new Dictionary<XElement, XElement>();
         }
         public string NameString { get; set; }
-        public bool LogCurrentNPC { get; set; }
-        public bool SaveCurrentNPCLog { get; set; }
-        public System.Xml.Linq.XElement RootElement { get; set; }
-        public System.Xml.Linq.XElement CurrentElement { get; set; }
-        public Dictionary<System.Xml.Linq.XElement, System.Xml.Linq.XElement> ReportElementHierarchy { get; set; }
+        public bool LogCurrentNPC { get; set; } = false;
+        public bool SaveCurrentNPCLog { get; set; } = false;
+        public System.Xml.Linq.XElement RootElement { get; set; } = null;
+        public System.Xml.Linq.XElement CurrentElement { get; set; } = null;
+        public Dictionary<System.Xml.Linq.XElement, System.Xml.Linq.XElement> ReportElementHierarchy { get; set; } = new();
         public int CurrentLayer;
     }
 
@@ -54,8 +49,6 @@ public sealed class Logger : ViewModel
     {
         this.StatusColor = this.ReadyColor;
         this.StatusString = this.ReadyString;
-        this.UpdateTimer = new System.Windows.Threading.DispatcherTimer();
-        this.EllapsedTimer = new System.Diagnostics.Stopwatch();
     }
 
     public static Logger Instance

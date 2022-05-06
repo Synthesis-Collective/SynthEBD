@@ -10,7 +10,6 @@ public class NPCInfo
         this.NPC = npc;
         this.LogIDstring = Logger.GetNPCLogNameString(npc);
         this.Gender = GetGender(npc);
-        this.LinkGroupMember = LinkGroupMemberType.None;
         AssetsRace = AliasHandler.GetAliasTexMesh(npc.Race.FormKey);
         BodyShapeRace = AliasHandler.GetAliasBodyGen(npc.Race.FormKey);
         HeightRace = AliasHandler.GetAliasHeight(npc.Race.FormKey);
@@ -71,7 +70,7 @@ public class NPCInfo
     public FormKey HeightRace { get; set; }
     public bool IsPatchable { get; set; }
     public LinkedNPCGroupInfo AssociatedLinkGroup { get; set; }
-    public LinkGroupMemberType LinkGroupMember { get; set; }
+    public LinkGroupMemberType LinkGroupMember { get; set; } = LinkGroupMemberType.None;
     public bool IsValidLinkedUnique { get; set; }
     public NPCAssignment SpecificNPCAssignment { get; set; }
     public NPCAssignment ConsistencyNPCAssignment { get; set; }

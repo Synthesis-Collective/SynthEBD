@@ -5,18 +5,15 @@ namespace SynthEBD;
 
 public class VM_LogDisplay : ViewModel
 {
-    private Logger SubscribedLogger { get; set; }
+    private Logger SubscribedLogger { get; set; } = Logger.Instance;
 
-    public string DispString { get; set; }
+    public string DispString { get; set; } = "";
 
     public RelayCommand Clear { get; set; }
     public RelayCommand ShowEnvironment { get; set; }
 
     public VM_LogDisplay()
     {
-        this.SubscribedLogger = Logger.Instance;
-        this.DispString = "";
-
         this.SubscribedLogger.PropertyChanged += RefreshDisp;
 
         Clear = new RelayCommand(

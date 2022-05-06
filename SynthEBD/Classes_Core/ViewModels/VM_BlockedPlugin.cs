@@ -10,23 +10,16 @@ public class VM_BlockedPlugin : ViewModel
     public VM_BlockedPlugin()
     {
         this.PropertyChanged += TriggerDispNameUpdate;
-        this.DispName = "New Plugin";
-        this.ModKey = new ModKey();
-        this.Assets = true;
-        this.Height = false;
-        this.BodyShape = false;
-
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
     }
 
     // Caption
-    public string DispName { get; set; }
-    public ModKey ModKey { get; set; }
-    public bool Assets { get; set; }
-    public bool Height { get; set; }
-    public bool BodyShape { get; set; }
+    public string DispName { get; set; } = "New Plugin";
+    public ModKey ModKey { get; set; } = new();
+    public bool Assets { get; set; } = true;
+    public bool Height { get; set; } = false;
+    public bool BodyShape { get; set; } = false;
 
-    public ILinkCache lk { get; set; }
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
 
     public void TriggerDispNameUpdate(object sender, PropertyChangedEventArgs e)
     {

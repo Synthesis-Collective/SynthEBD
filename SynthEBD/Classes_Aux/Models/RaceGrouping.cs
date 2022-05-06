@@ -4,14 +4,8 @@ namespace SynthEBD;
 
 public class RaceGrouping
 {
-    public RaceGrouping()
-    {
-        this.Label = "";
-        this.Races = new HashSet<FormKey>();
-    }
-
-    public string Label { get; set; }
-    public HashSet<FormKey> Races { get; set; }
+    public string Label { get; set; } = "";
+    public HashSet<FormKey> Races { get; set; } = new();
 
     public static HashSet<FormKey> MergeRaceAndGroupingList(HashSet<string> selectedGroupings, List<RaceGrouping> raceGroupingList, HashSet<FormKey> indivRaceList)
     {

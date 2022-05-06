@@ -4,15 +4,9 @@ public class AssetAndBodyShapeSelector
 {
     public class AssetAndBodyShapeAssignment
     {
-        public AssetAndBodyShapeAssignment()
-        {
-            this.AssignedCombination = null;
-            this.AssignedBodyGenMorphs = new List<BodyGenConfig.BodyGenTemplate>();
-            this.AssignedOBodyPreset = null;
-        }
-        public SubgroupCombination AssignedCombination { get; set; }
-        public List<BodyGenConfig.BodyGenTemplate> AssignedBodyGenMorphs { get; set; }
-        public BodySlideSetting AssignedOBodyPreset { get; set; }
+        public SubgroupCombination AssignedCombination { get; set; } = null;
+        public List<BodyGenConfig.BodyGenTemplate> AssignedBodyGenMorphs { get; set; } = new();
+        public BodySlideSetting AssignedOBodyPreset { get; set; } = null;
     }
 
     public enum AssetPackAssignmentMode

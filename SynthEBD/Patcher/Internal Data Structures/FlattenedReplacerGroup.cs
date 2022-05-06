@@ -5,19 +5,17 @@ public class FlattenedReplacerGroup
     public FlattenedReplacerGroup(AssetReplacerGroup source)
     {
         this.Name = source.Label;
-        this.Subgroups = new List<List<FlattenedSubgroup>>();
         this.Source = new AssetPack();
     }
 
     public FlattenedReplacerGroup(FlattenedReplacerGroup source)
     {
         this.Name = source.Name;
-        this.Subgroups = new List<List<FlattenedSubgroup>>();
         this.Source = source.Source;
     }
 
     public string Name { get; set; }
-    public List<List<FlattenedSubgroup>> Subgroups { get; set; }
+    public List<List<FlattenedSubgroup>> Subgroups { get; set; } = new();
     public AssetPack Source { get; set; }
 
     public static FlattenedReplacerGroup FlattenReplacerGroup(AssetReplacerGroup source, List<RaceGrouping> raceGroupingList, FlattenedAssetPack parentAssetPack)

@@ -8,17 +8,6 @@ public class VM_SettingsTexMesh : ViewModel
 {
     public VM_SettingsTexMesh(MainWindow_ViewModel mainViewModel)
     {
-        this.bChangeNPCTextures = true;
-        this.bChangeNPCMeshes = true;
-        this.bApplyToNPCsWithCustomSkins = true;
-        this.bApplyToNPCsWithCustomFaces = true;
-        this.bForceVanillaBodyMeshPath = false;
-        this.bDisplayPopupAlerts = true;
-        this.bGenerateAssignmentLog = true;
-        this.bShowPreviewImages = true;
-        this.TrimPaths = new ObservableCollection<TrimPath>();
-        this.AssetPacks = new ObservableCollection<VM_AssetPack>();
-
         List<string> installedConfigsInCurrentSession = new List<string>();
 
         ParentViewModel = mainViewModel;
@@ -97,17 +86,17 @@ public class VM_SettingsTexMesh : ViewModel
         );
     }
 
-    public bool bChangeNPCTextures { get; set; }
-    public bool bChangeNPCMeshes { get; set; }
-    public bool bApplyToNPCsWithCustomSkins { get; set; }
-    public bool bApplyToNPCsWithCustomFaces { get; set; }
-    public bool bForceVanillaBodyMeshPath { get; set; }
-    public bool bDisplayPopupAlerts { get; set; }
-    public bool bGenerateAssignmentLog { get; set; }
-    public bool bShowPreviewImages { get; set; }
-    public ObservableCollection<TrimPath> TrimPaths { get; set; }
+    public bool bChangeNPCTextures { get; set; } = true;
+    public bool bChangeNPCMeshes { get; set; } = true;
+    public bool bApplyToNPCsWithCustomSkins { get; set; } = true;
+    public bool bApplyToNPCsWithCustomFaces { get; set; } = true;
+    public bool bForceVanillaBodyMeshPath { get; set; } = false;
+    public bool bDisplayPopupAlerts { get; set; } = true;
+    public bool bGenerateAssignmentLog { get; set; } = true;
+    public bool bShowPreviewImages { get; set; } = true;
+    public ObservableCollection<TrimPath> TrimPaths { get; set; } = new();
 
-    public ObservableCollection<VM_AssetPack> AssetPacks { get; set; }
+    public ObservableCollection<VM_AssetPack> AssetPacks { get; set; } = new();
 
     public MainWindow_ViewModel ParentViewModel { get; set; }
 

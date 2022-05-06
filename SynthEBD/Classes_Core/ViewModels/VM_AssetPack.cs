@@ -19,20 +19,7 @@ public class VM_AssetPack : ViewModel, IHasAttributeGroupMenu, IDropTarget, IHas
 {
     public VM_AssetPack(MainWindow_ViewModel mainVM)
     {
-        this.GroupName = "";
-        this.ShortName = "";
-        this.Gender = Gender.Male;
-        this.DisplayAlerts = true;
-        this.UserAlert = "";
-        this.Subgroups = new ObservableCollection<VM_Subgroup>();
-
-        this.RaceGroupingList = new ObservableCollection<VM_RaceGrouping>();
-
-        this.IsSelected = true;
-
         this.ParentCollection = mainVM.TexMeshSettingsVM.AssetPacks;
-
-        this.SourcePath = "";
 
         this.CurrentBodyGenSettings = mainVM.BodyGenSettingsVM;
         switch (this.Gender)
@@ -44,12 +31,6 @@ public class VM_AssetPack : ViewModel, IHasAttributeGroupMenu, IDropTarget, IHas
         this.PropertyChanged += RefreshTrackedBodyGenConfig;
         this.CurrentBodyGenSettings.PropertyChanged += RefreshTrackedBodyGenConfig;
 
-        this.DefaultTemplateFK = new FormKey();
-        this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
-
-        this.AdditionalRecordTemplateAssignments = new ObservableCollection<VM_AdditionalRecordTemplate>();
-        this.DefaultRecordTemplateAdditionalRacesPaths = new ObservableCollection<VM_CollectionMemberString>();
-
         this.AttributeGroupMenu = new VM_AttributeGroupMenu(mainVM.GeneralSettingsVM.AttributeGroupMenu, true);
 
         this.ReplacersMenu = new VM_AssetPackDirectReplacerMenu(this, mainVM.OBodySettingsVM.DescriptorUI);
@@ -60,8 +41,6 @@ public class VM_AssetPack : ViewModel, IHasAttributeGroupMenu, IDropTarget, IHas
         mainVM.GeneralSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
 
         RecordTemplateLinkCache = mainVM.RecordTemplateLinkCache;
-
-        PreviewImages = new ObservableCollection<VM_PreviewImage>();
 
         ParentMenuVM = mainVM.TexMeshSettingsVM;
 
@@ -163,31 +142,31 @@ public class VM_AssetPack : ViewModel, IHasAttributeGroupMenu, IDropTarget, IHas
         );
     }
 
-    public string GroupName { get; set; }
-    public string ShortName { get; set; }
+    public string GroupName { get; set; } = "";
+    public string ShortName { get; set; } = "";
     public AssetPackType ConfigType { get; set; }
-    public Gender Gender { get; set; }
-    public bool DisplayAlerts { get; set; }
-    public string UserAlert { get; set; }
-    public ObservableCollection<VM_Subgroup> Subgroups { get; set; }
-    public ObservableCollection<VM_RaceGrouping> RaceGroupingList { get; set; }
+    public Gender Gender { get; set; } = Gender.Male;
+    public bool DisplayAlerts { get; set; } = true;
+    public string UserAlert { get; set; } = "";
+    public ObservableCollection<VM_Subgroup> Subgroups { get; set; } = new();
+    public ObservableCollection<VM_RaceGrouping> RaceGroupingList { get; set; } = new();
 
     public VM_BodyGenConfig TrackedBodyGenConfig { get; set; }
     public ObservableCollection<VM_BodyGenConfig> AvailableBodyGenConfigs { get; set; }
     public VM_SettingsBodyGen CurrentBodyGenSettings { get; set; }
-    public ObservableCollection<VM_CollectionMemberString> DefaultRecordTemplateAdditionalRacesPaths { get; set; }
-    public bool IsSelected { get; set; }
+    public ObservableCollection<VM_CollectionMemberString> DefaultRecordTemplateAdditionalRacesPaths { get; set; } = new();
+    public bool IsSelected { get; set; } = true;
 
-    public string SourcePath { get; set; }
+    public string SourcePath { get; set; } = "";
 
     public ILinkCache<ISkyrimMod, ISkyrimModGetter> RecordTemplateLinkCache { get; set; }
 
-    public FormKey DefaultTemplateFK { get; set; }
+    public FormKey DefaultTemplateFK { get; set; } = new();
     public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
 
-    public IEnumerable<Type> NPCFormKeyTypes { get; set; }
+    public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
 
-    public ObservableCollection<VM_AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
+    public ObservableCollection<VM_AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; } = new();
     public VM_AssetPackDirectReplacerMenu ReplacersMenu { get; set; }
     public VM_ConfigDistributionRules DistributionRules { get; set; }
 
@@ -206,7 +185,7 @@ public class VM_AssetPack : ViewModel, IHasAttributeGroupMenu, IDropTarget, IHas
     public RelayCommand SelectedSubgroupChanged { get; }
     public BodyShapeSelectionMode BodyShapeMode { get; set; }
     public bool ShowPreviewImages { get; set; }
-    public ObservableCollection<VM_PreviewImage> PreviewImages { get; set; }
+    public ObservableCollection<VM_PreviewImage> PreviewImages { get; set; } = new();
 
     public VM_SettingsTexMesh ParentMenuVM { get; set; }
     public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>() // referenced by xaml; don't trust VS reference count

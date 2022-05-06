@@ -13,14 +13,6 @@ public class VM_FilePathReplacement : ViewModel, IImplementsRecordIntellisense
 {
     public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu)
     {
-        this.Source = "";
-        this.IntellisensedPath = "";
-
-        this.SourceBorderColor = new SolidColorBrush(Colors.Red);
-        this.DestBorderColor = new SolidColorBrush(Colors.Red);
-
-        ChosenPathSuggestion = new RecordIntellisense.PathSuggestion();
-        PathSuggestions = new ObservableCollection<RecordIntellisense.PathSuggestion>();
         ReferenceNPCFormKey = parentMenu.ReferenceNPCFK;
         LinkCache = parentMenu.ReferenceLinkCache;
 
@@ -85,18 +77,18 @@ public class VM_FilePathReplacement : ViewModel, IImplementsRecordIntellisense
         return clone;
     }
 
-    public string Source { get; set; }
-    public string IntellisensedPath { get; set; }
+    public string Source { get; set; } = "";
+    public string IntellisensedPath { get; set; } = "";
 
-    public SolidColorBrush SourceBorderColor { get; set; }
-    public SolidColorBrush DestBorderColor { get; set; }
+    public SolidColorBrush SourceBorderColor { get; set; } = new(Colors.Red);
+    public SolidColorBrush DestBorderColor { get; set; } = new(Colors.Red);
 
     public RelayCommand DeleteCommand { get; }
     public RelayCommand FindPath { get; }
 
     public VM_FilePathReplacementMenu ParentMenu { get; set; }
-    public RecordIntellisense.PathSuggestion ChosenPathSuggestion { get; set; }
-    public ObservableCollection<RecordIntellisense.PathSuggestion> PathSuggestions { get; set; }
+    public RecordIntellisense.PathSuggestion ChosenPathSuggestion { get; set; } = new();
+    public ObservableCollection<RecordIntellisense.PathSuggestion> PathSuggestions { get; set; } = new();
     public FormKey ReferenceNPCFormKey { get; set; }
     public ILinkCache LinkCache { get; set; }
 

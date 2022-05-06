@@ -14,14 +14,13 @@ public class VM_RaceGrouping : ViewModel
     {
         this.Label = raceGrouping.Label;
         this.Races = new ObservableCollection<FormKey>(raceGrouping.Races);
-        this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
         this.lk = env.LinkCache;
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.RaceGroupings.Remove(this));
     }
     public string Label { get; set; }
     public ObservableCollection<FormKey> Races { get; set; }
-    public IEnumerable<Type> RacePickerFormKeys { get; set; }
+    public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
     public ILinkCache lk { get; set; }
     public VM_Settings_General ParentVM { get; set; }
     public RelayCommand DeleteCommand { get; }

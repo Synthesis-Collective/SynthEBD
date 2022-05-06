@@ -19,27 +19,9 @@ public class VM_SpecificNPCAssignment : ViewModel, IHasForcedAssets
         SubscribedOBodySettings = mainVM.OBodySettingsVM;
         SubscribedBodyGenSettings = mainVM.BodyGenSettingsVM;
 
-        this.DispName = "New Assignment";
-        this.NPCFormKey = new FormKey();
         this.ForcedAssetPack = new VM_AssetPack(mainVM);
-        this.ForcedSubgroups = new ObservableCollection<VM_Subgroup>();
-        this.ForcedMixIns = new ObservableCollection<VM_MixInSpecificAssignment>();
-        this.ForcedAssetReplacements = new ObservableCollection<VM_AssetReplacementAssignment>();
-        this.ForcedHeight = "";
-        this.ForcedBodyGenMorphs = new ObservableCollection<VM_BodyGenTemplate>();
-        this.ForcedBodySlide = "";
 
-        this.Gender = Gender.Female;
-        this.AvailableAssetPacks = new ObservableCollection<VM_AssetPack>(); // filtered by gender
-        this.AvailableMixInAssetPacks = new ObservableCollection<VM_AssetPack>(); // filtered by gender
         this.SubscribedAssetPacks = mainVM.TexMeshSettingsVM.AssetPacks;
-
-        this.AvailableSubgroups = new ObservableCollection<VM_Subgroup>();
-
-        this.AvailableMorphs = new ObservableCollection<VM_BodyGenTemplate>(); // filtered by gender
-
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
 
         this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => RefreshAll());
             
@@ -111,37 +93,37 @@ public class VM_SpecificNPCAssignment : ViewModel, IHasForcedAssets
     }
 
     // Caption
-    public string DispName { get; set; }
+    public string DispName { get; set; } = "New Assignment";
 
     //User-editable
-    public FormKey NPCFormKey { get; set; }
+    public FormKey NPCFormKey { get; set; } = new();
     public VM_AssetPack ForcedAssetPack { get; set; }
-    public ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; }
-    public ObservableCollection<VM_MixInSpecificAssignment> ForcedMixIns { get; set; }
-    public ObservableCollection<VM_AssetReplacementAssignment> ForcedAssetReplacements { get; set; }
-    public string ForcedHeight { get; set; }
-    public ObservableCollection<VM_BodyGenTemplate> ForcedBodyGenMorphs { get; set; }
-    public string ForcedBodySlide { get; set; }
+    public ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; } = new();
+    public ObservableCollection<VM_MixInSpecificAssignment> ForcedMixIns { get; set; } = new();
+    public ObservableCollection<VM_AssetReplacementAssignment> ForcedAssetReplacements { get; set; } = new();
+    public string ForcedHeight { get; set; } = "";
+    public ObservableCollection<VM_BodyGenTemplate> ForcedBodyGenMorphs { get; set; } = new();
+    public string ForcedBodySlide { get; set; } = "";
 
     //Needed by UI
-    public ObservableCollection<VM_AssetPack> AvailableAssetPacks { get; set; }
+    public ObservableCollection<VM_AssetPack> AvailableAssetPacks { get; set; } = new();
     public ObservableCollection<VM_AssetPack> SubscribedAssetPacks { get; set; }
 
-    public ObservableCollection<VM_Subgroup> AvailableSubgroups { get; set; }
+    public ObservableCollection<VM_Subgroup> AvailableSubgroups { get; set; } = new();
 
-    public ObservableCollection<VM_AssetPack> AvailableMixInAssetPacks { get; set; }
-    public ObservableCollection<VM_BodyGenTemplate> AvailableMorphs { get; set; }
+    public ObservableCollection<VM_AssetPack> AvailableMixInAssetPacks { get; set; } = new();
+    public ObservableCollection<VM_BodyGenTemplate> AvailableMorphs { get; set; } = new();
     public VM_SettingsBodyGen SubscribedBodyGenSettings { get; set; }
     public ObservableCollection<VM_BodySlideSetting> SubscribedBodySlides { get; set; }
     public ObservableCollection<VM_BodySlideSetting> AvailableBodySlides { get; set; }
     public VM_BodyGenTemplate SelectedTemplate { get; set; }
 
-    public Gender Gender;
+    public Gender Gender = Gender.Female;
 
     public VM_Settings_General SubscribedGeneralSettings { get; set; }
     public VM_SettingsOBody SubscribedOBodySettings { get; set; }
-    public ILinkCache lk { get; set; }
-    public IEnumerable<Type> NPCFormKeyTypes { get; set; }
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public RelayCommand DeleteForcedAssetPack { get; set; }
     public RelayCommand DeleteForcedSubgroup { get; set; }
     public RelayCommand DeleteForcedMorph { get; set; }
@@ -605,9 +587,6 @@ public class VM_SpecificNPCAssignment : ViewModel, IHasForcedAssets
 
             this.AvailableMixInAssetPacks = Parent.AvailableMixInAssetPacks;
             this.ForcedAssetPack = new VM_AssetPack(mainVM);
-            this.ForcedSubgroups = new ObservableCollection<VM_Subgroup>();
-            this.AvailableSubgroups = new ObservableCollection<VM_Subgroup>();
-            this.ForcedAssetReplacements = new ObservableCollection<VM_AssetReplacementAssignment>();
 
             this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x => UpdateAvailableSubgroups(this));
             this.ForcedSubgroups.CollectionChanged += TriggerAvailableSubgroupsUpdate;
@@ -640,9 +619,9 @@ public class VM_SpecificNPCAssignment : ViewModel, IHasForcedAssets
         }
         public VM_AssetPack ForcedAssetPack { get; set; }
         public ObservableCollection<VM_AssetPack> AvailableMixInAssetPacks { get; set; }
-        public ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; }
-        public ObservableCollection<VM_Subgroup> AvailableSubgroups { get; set; }
-        public ObservableCollection<VM_AssetReplacementAssignment> ForcedAssetReplacements { get; set; }
+        public ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; } = new();
+        public ObservableCollection<VM_Subgroup> AvailableSubgroups { get; set; } = new();
+        public ObservableCollection<VM_AssetReplacementAssignment> ForcedAssetReplacements { get; set; } = new();
         public ObservableCollection<VM_MixInSpecificAssignment> ParentCollection { get; set; }
         public VM_SpecificNPCAssignment Parent { get; set; }
 

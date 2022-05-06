@@ -15,7 +15,6 @@ public class VM_LinkZEBDAssetPackToBodyGen : ViewModel
             case Gender.Male: AvailableConfigs = availableConfigs.Male; break;
         }
 
-        this.SelectedConfig = null;
         if (AvailableConfigs.Count > 0) { this.SelectedConfig = this.AvailableConfigs.First(); }
 
         OKcommand = new SynthEBD.RelayCommand(
@@ -35,7 +34,7 @@ public class VM_LinkZEBDAssetPackToBodyGen : ViewModel
 
     public string DispString { get; set; }
     public HashSet<BodyGenConfig> AvailableConfigs { get; set; }
-    public BodyGenConfig SelectedConfig { get; set; }
+    public BodyGenConfig SelectedConfig { get; set; } = null;
     public Window_LinkZEBDAssetPackToBodyGen AssociatedWindow { get; set; }
     public RelayCommand OKcommand { get; }
     public RelayCommand ClearCommand { get; }

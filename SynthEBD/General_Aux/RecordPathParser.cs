@@ -12,22 +12,12 @@ namespace SynthEBD;
 
 public class ObjectInfo
 {
-    public ObjectInfo()
-    {
-        HasFormKey = false;
-        IsNullFormLink = false;
-        RecordType = null;
-        LoquiRegistration = null;
-        IndexInParentArray = null;
-        RecordFormKey = new FormKey();
-    }
-
-    public bool HasFormKey { get; set; }
-    public bool IsNullFormLink { get; set; }
-    public Type RecordType { get; set; }
-    public ILoquiRegistration LoquiRegistration { get; set; }
-    public FormKey RecordFormKey { get; set; }
-    public int? IndexInParentArray { get; set; }
+    public bool HasFormKey { get; set; } = false;
+    public bool IsNullFormLink { get; set; } = false;
+    public Type RecordType { get; set; } = null;
+    public ILoquiRegistration LoquiRegistration { get; set; } = null;
+    public FormKey RecordFormKey { get; set; } = new();
+    public int? IndexInParentArray { get; set; } = null;
 }
 public class RecordPathParser
 {

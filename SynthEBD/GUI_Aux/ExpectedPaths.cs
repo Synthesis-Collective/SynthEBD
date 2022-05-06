@@ -53,14 +53,12 @@ public class Paths
             Directory.CreateDirectory(recordTemplatesDirPath);
         }
 
-        LogFolderPath = Path.Combine(SynthEBDexeDirPath, "Logs");
-        ResourcesFolderPath = Path.Combine(SynthEBDexeDirPath, "Resources");
         UpdatePaths();
     }
 
     private string RelativePath { get; set; } 
-    public string LogFolderPath { get; set; }
-    public string ResourcesFolderPath { get; set; }
+    public string LogFolderPath { get; set; } = Path.Combine(SynthEBDexeDirPath, "Logs");
+    public string ResourcesFolderPath { get; set; } = Path.Combine(SynthEBDexeDirPath, "Resources");
     public string GeneralSettingsPath { get; set; }
     public string TexMeshSettingsPath { get; set; } // path of the Textures and Meshes settings file
     public string AssetPackDirPath { get; set; }

@@ -8,7 +8,6 @@ public class VM_DownloadCoordinator : ViewModel
 {
     public VM_DownloadCoordinator(HashSet<Manifest.DownloadInfoContainer> downloadInfo, Window_ConfigInstaller window, VM_ConfigInstaller parentVM)
     {
-        DownloadInfo = new ObservableCollection<VM_DownloadInfo>();
         foreach (var di in downloadInfo)
         {
             DownloadInfo.Add(VM_DownloadInfo.GetViewModelFromModel(di));
@@ -54,7 +53,7 @@ public class VM_DownloadCoordinator : ViewModel
         );
     }
 
-    public ObservableCollection<VM_DownloadInfo> DownloadInfo { get; set; }
+    public ObservableCollection<VM_DownloadInfo> DownloadInfo { get; set; } = new();
     public RelayCommand Cancel { get; }
     public RelayCommand OK { get; }
     Window_ConfigInstaller AssociatedWindow { get; set; }
@@ -63,10 +62,6 @@ public class VM_DownloadCoordinator : ViewModel
     {
         public VM_DownloadInfo()
         {
-            ModName = "";
-            URL = "";
-            ExpectedFileName = "";
-
             FindPath = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ =>
@@ -78,10 +73,10 @@ public class VM_DownloadCoordinator : ViewModel
                 }
             );
         }
-        public string ModName { get; set; }
+        public string ModName { get; set; } = "";
         public string ModDownloadName { get; set; }
-        public string URL { get; set; }
-        public string ExpectedFileName { get; set; }
+        public string URL { get; set; } = "";
+        public string ExpectedFileName { get; set; } = "";
         public string Path { get; set; }
         public RelayCommand FindPath { get; set; }
 

@@ -19,7 +19,6 @@ public class VM_raceAlias : ViewModel
         this.bApplyToAssets = alias.bApplyToAssets;
         this.bApplyToBodyGen = alias.bApplyToBodyGen;
         this.bApplyToHeight = alias.bApplyToHeight;
-        this.FormKeyPickerTypes = typeof(IRaceGetter).AsEnumerable();
         this.lk = env.LinkCache;
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.raceAliases.Remove(this));
@@ -34,7 +33,7 @@ public class VM_raceAlias : ViewModel
     public bool bApplyToBodyGen { get; set; }
     public bool bApplyToHeight { get; set; }
 
-    public IEnumerable<Type> FormKeyPickerTypes { get; set; }
+    public IEnumerable<Type> FormKeyPickerTypes { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
     public ILinkCache lk { get; set; }
 

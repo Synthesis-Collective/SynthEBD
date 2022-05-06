@@ -37,7 +37,6 @@ public class FlattenedSubgroup : IProbabilityWeighted
         this.ContainedSubgroupIDs = new List<string> { this.Id };
         this.ContainedSubgroupNames = new List<string> { this.Name };
         this.ParentAssetPack = parent;
-        this.ForceIfMatchCount = 0;
     }
     public string Id { get; set; }
     public string Name { get; set; }
@@ -65,7 +64,7 @@ public class FlattenedSubgroup : IProbabilityWeighted
 
     // used during combination generation
     public FlattenedAssetPack ParentAssetPack { get; set; }
-    public int ForceIfMatchCount { get; set; }
+    public int ForceIfMatchCount { get; set; } = 0;
 
     public static void FlattenSubgroups(Subgroup toFlatten, FlattenedSubgroup parent, List<FlattenedSubgroup> bottomLevelSubgroups, List<RaceGrouping> raceGroupingList, string parentAssetPackName, int topLevelIndex, List<Subgroup> subgroupHierarchy, FlattenedAssetPack parentAssetPack)
     {

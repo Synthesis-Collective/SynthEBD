@@ -7,8 +7,6 @@ public class VM_AttributeGroupMenu : ViewModel
 {
     public VM_AttributeGroupMenu(VM_AttributeGroupMenu generalSettingsAttributes, bool showImportFromGeneralOption)
     {
-        Groups = new ObservableCollection<VM_AttributeGroup>();
-        DisplayedGroup = null;
         GeneralSettingsAttributes = generalSettingsAttributes;
         ShowImportFromGeneralOption = showImportFromGeneralOption;
 
@@ -33,8 +31,8 @@ public class VM_AttributeGroupMenu : ViewModel
             }
         );
     }
-    public ObservableCollection<VM_AttributeGroup> Groups { get; set; }
-    public VM_AttributeGroup DisplayedGroup { get; set; }
+    public ObservableCollection<VM_AttributeGroup> Groups { get; set; } = new();
+    public VM_AttributeGroup DisplayedGroup { get; set; } = null;
     public VM_AttributeGroupMenu GeneralSettingsAttributes { get; set; }
     public bool ShowImportFromGeneralOption { get; set; }
     public RelayCommand AddGroup { get; }

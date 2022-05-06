@@ -63,13 +63,13 @@ public class PatcherEnvironment : IGameEnvironmentState<ISkyrimMod, ISkyrimModGe
     public ILoadOrder<IModListing<ISkyrimModGetter>> LoadOrder { get; private set; }
     public ILinkCache<ISkyrimMod, ISkyrimModGetter> LinkCache { get; private set; }
 
-    public DirectoryPath DataFolderPath { get; private set; }
+    public DirectoryPath DataFolderPath => OriginState.DataFolderPath;
 
-    public GameRelease GameRelease { get; private set; }
+    public GameRelease GameRelease => OriginState.GameRelease;
 
-    public FilePath LoadOrderFilePath { get; private set; }
+    public FilePath LoadOrderFilePath => OriginState.LoadOrderFilePath;
 
-    public FilePath? CreationClubListingsFilePath { get; private set; }
+    public FilePath? CreationClubListingsFilePath => OriginState.CreationClubListingsFilePath;
 
     ILinkCache<ISkyrimMod, ISkyrimModGetter> IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter>.LinkCache => LinkCache;
 
@@ -141,11 +141,6 @@ public class PatcherEnvironment : IGameEnvironmentState<ISkyrimMod, ISkyrimModGe
             LoadOrder = OriginState.LoadOrder;
         }
         LinkCache = LoadOrder.ToMutableLinkCache();
-
-        DataFolderPath = OriginState.DataFolderPath;
-        LoadOrderFilePath = OriginState.LoadOrderFilePath;
-        CreationClubListingsFilePath = OriginState.CreationClubListingsFilePath;
-        GameRelease = OriginState.GameRelease;
     }
     public void Refresh(string outputModName, bool verbose)
     {
@@ -185,9 +180,6 @@ public class PatcherEnvironment : IGameEnvironmentState<ISkyrimMod, ISkyrimModGe
 
         Refresh(outputModName, false);
         LinkCache = LoadOrder.ToMutableLinkCache();
-        DataFolderPath = OriginState.DataFolderPath;
-        LoadOrderFilePath = OriginState.LoadOrderFilePath;
-        CreationClubListingsFilePath = OriginState.CreationClubListingsFilePath;
     }
 
     public void SuspendEnvironment()

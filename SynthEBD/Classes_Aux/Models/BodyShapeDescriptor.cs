@@ -2,15 +2,9 @@
 
 public class BodyShapeDescriptor
 {
-    public BodyShapeDescriptor()
-    {
-        this.Category = "";
-        this.Value = "";
-        this.Signature = "";
-    }
-    public string Category { get; set; }
-    public string Value { get; set; }
-    public string Signature { get; set; }
+    public string Category { get; set; } = "";
+    public string Value { get; set; } = "";
+    public string Signature { get; set; } = "";
 
     public bool Equals(BodyShapeDescriptor other)
     {

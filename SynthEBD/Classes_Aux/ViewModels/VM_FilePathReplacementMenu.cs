@@ -14,14 +14,10 @@ public class VM_FilePathReplacementMenu : ViewModel
 {
     public VM_FilePathReplacementMenu(VM_Subgroup parent, bool setExplicitReferenceNPC, ILinkCache refLinkCache)
     {
-        this.Paths = new ObservableCollection<VM_FilePathReplacement>();
         this.ParentSubgroup = parent;
 
-        this.ReferenceNPCFK = new FormKey();
         this.ReferenceLinkCache = refLinkCache;
         this.SetExplicitReferenceNPC = setExplicitReferenceNPC;
-
-        this.NPCType = typeof(INpcGetter).AsEnumerable();
 
         Paths.ToObservableChangeSet().Subscribe(x => RefreshHasContents());
 
@@ -38,13 +34,13 @@ public class VM_FilePathReplacementMenu : ViewModel
             GetReferenceNPCFromRecordTemplates();
         }
     }
-    public ObservableCollection<VM_FilePathReplacement> Paths { get; set; }
+    public ObservableCollection<VM_FilePathReplacement> Paths { get; set; } = new();
 
     public VM_Subgroup ParentSubgroup { get; set; }
     public bool SetExplicitReferenceNPC { get; set; }
-    public FormKey ReferenceNPCFK { get; set; }
+    public FormKey ReferenceNPCFK { get; set; } = new();
     public ILinkCache ReferenceLinkCache { get; set; }
-    public IEnumerable<Type> NPCType { get; set; }
+    public IEnumerable<Type> NPCType { get; set; } = typeof(INpcGetter).AsEnumerable();
     public bool HasContents { get; set; }
 
     public VM_FilePathReplacementMenu Clone()

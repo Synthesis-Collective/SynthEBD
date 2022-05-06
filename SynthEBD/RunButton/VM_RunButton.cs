@@ -7,7 +7,6 @@ public class VM_RunButton : ViewModel
 {
     public VM_RunButton(MainWindow_ViewModel parentWindow)
     {
-        this.BackgroundColor = new SolidColorBrush(Colors.Green);
         this.ParentWindow = parentWindow;
 
         // synchronous version for debugging only
@@ -41,7 +40,7 @@ public class VM_RunButton : ViewModel
                 VM_ConsistencyUI.GetViewModelsFromModels(ParentWindow.Consistency, ParentWindow.ConsistencyUIVM.Assignments, ParentWindow.TexMeshSettingsVM.AssetPacks); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
             });
     }
-    public SolidColorBrush BackgroundColor { get; set; }
+    public SolidColorBrush BackgroundColor { get; set; } = new(Colors.Green);
 
     public MainWindow_ViewModel ParentWindow { get; set; }
 

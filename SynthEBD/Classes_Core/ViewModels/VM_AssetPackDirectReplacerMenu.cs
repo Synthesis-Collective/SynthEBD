@@ -12,7 +12,6 @@ public class VM_AssetPackDirectReplacerMenu : ViewModel
 {
     public VM_AssetPackDirectReplacerMenu(VM_AssetPack parent, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
     {
-        ReplacerGroups = new ObservableCollection<VM_AssetReplacerGroup>();
         ParentAssetPack = parent;
 
         AddGroup = new SynthEBD.RelayCommand(
@@ -20,7 +19,7 @@ public class VM_AssetPackDirectReplacerMenu : ViewModel
             execute: _ => this.ReplacerGroups.Add(new VM_AssetReplacerGroup(this, OBodyDescriptorMenu))
         );
     }
-    public ObservableCollection<VM_AssetReplacerGroup> ReplacerGroups { get; set; }
+    public ObservableCollection<VM_AssetReplacerGroup> ReplacerGroups { get; set; } = new();
     public VM_AssetReplacerGroup DisplayedGroup { get; set; }
     public VM_AssetPack ParentAssetPack { get; set; }
 
@@ -52,12 +51,7 @@ public class VM_AssetReplacerGroup : ViewModel
 {
     public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
     {
-        this.Label = "";
-        this.Subgroups = new ObservableCollection<VM_Subgroup>();
         this.ParentMenu = parent;
-
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.NPCType = typeof(INpcGetter).AsEnumerable();
 
         Remove = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -78,15 +72,15 @@ public class VM_AssetReplacerGroup : ViewModel
         });
     }
 
-    public string Label { get; set; }
-    public ObservableCollection<VM_Subgroup> Subgroups { get; set; }
+    public string Label { get; set; } = "";
+    public ObservableCollection<VM_Subgroup> Subgroups { get; set; } = new();
 
     public VM_AssetPackDirectReplacerMenu ParentMenu{ get; set; }
 
     public FormKey TemplateNPCFK { get; set; }
 
-    public ILinkCache lk { get; set; }
-    public IEnumerable<Type> NPCType { get; set; }
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> NPCType { get; set; } = typeof(INpcGetter).AsEnumerable();
 
     public RelayCommand Remove { get; }
 

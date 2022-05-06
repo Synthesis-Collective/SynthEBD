@@ -12,7 +12,6 @@ public class VM_BodyGenGroupMappingMenu : ViewModel
 {
     public VM_BodyGenGroupMappingMenu(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
-        this.RacialTemplateGroupMap = new ObservableCollection<VM_BodyGenRacialMapping>();
         this.DisplayedMapping = new VM_BodyGenRacialMapping(groupsMenu, raceGroupingVMs);
 
         AddMapping = new SynthEBD.RelayCommand(
@@ -25,7 +24,7 @@ public class VM_BodyGenGroupMappingMenu : ViewModel
             execute: x => this.RacialTemplateGroupMap.Remove((VM_BodyGenRacialMapping)x)
         );
     }
-    public ObservableCollection<VM_BodyGenRacialMapping> RacialTemplateGroupMap { get; set; }
+    public ObservableCollection<VM_BodyGenRacialMapping> RacialTemplateGroupMap { get; set; } = new();
     public VM_BodyGenRacialMapping DisplayedMapping { get; set; }
     public RelayCommand AddMapping { get; }
     public RelayCommand RemoveMapping { get; }
@@ -35,10 +34,7 @@ public class VM_BodyGenRacialMapping : ViewModel
 {
     public VM_BodyGenRacialMapping(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
-        this.Label = "";
-        this.Races = new ObservableCollection<FormKey>();
         this.RaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
-        this.Combinations = new ObservableCollection<VM_BodyGenCombination>();
         this.MonitoredGroupsMenu = groupsMenu;
 
         AddCombination = new SynthEBD.RelayCommand(
@@ -50,19 +46,16 @@ public class VM_BodyGenRacialMapping : ViewModel
             canExecute: _ => true,
             execute: x =>  this.Combinations.Remove((VM_BodyGenCombination)x)
         );
-
-        this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
-        this.RacePickerFormKeys = typeof(IRaceGetter).AsEnumerable();
     }
-    public string Label { get; set; }
-    public ObservableCollection<FormKey> Races { get; set; }
+    public string Label { get; set; } = "";
+    public ObservableCollection<FormKey> Races { get; set; } = new();
     public VM_RaceGroupingCheckboxList RaceGroupings { get; set; }
-    public ObservableCollection<VM_BodyGenCombination> Combinations { get; set; }
+    public ObservableCollection<VM_BodyGenCombination> Combinations { get; set; } = new();
 
     public VM_BodyGenGroupsMenu MonitoredGroupsMenu { get; set; }
 
-    public ILinkCache lk { get; set; }
-    public IEnumerable<Type> RacePickerFormKeys { get; set; }
+    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
     public RelayCommand AddCombination { get; }
     public RelayCommand RemoveCombination { get; }
 
@@ -97,9 +90,6 @@ public class VM_BodyGenCombination : ViewModel
 {
     public VM_BodyGenCombination(VM_BodyGenGroupsMenu groupsMenu, VM_BodyGenRacialMapping parent)
     {
-        this.Members = new ObservableCollection<string>();
-        this.ProbabilityWeighting = 1;
-
         this.MonitoredGroups = groupsMenu.TemplateGroups;
 
         this.Parent = parent;
@@ -116,8 +106,8 @@ public class VM_BodyGenCombination : ViewModel
 
         this.Members.CollectionChanged += CheckForEmptyCombination;
     }
-    public ObservableCollection<string> Members { get; set; }
-    public double ProbabilityWeighting { get; set; }
+    public ObservableCollection<string> Members { get; set; } = new();
+    public double ProbabilityWeighting { get; set; } = 1;
 
     public ObservableCollection<VM_CollectionMemberString> MonitoredGroups { get; set; }
 
