@@ -1,9 +1,10 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
 using Noggog.WPF;
+using ReactiveUI;
 
 namespace SynthEBD;
 
@@ -13,6 +14,10 @@ public class VM_AdditionalRecordTemplate : ViewModel
     {
         this.RecordTemplateLinkCache = recordTemplateLinkCache;
         this.ParentCollection = parentCollection;
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
 
         AddAdditionalRacesPath = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -32,7 +37,8 @@ public class VM_AdditionalRecordTemplate : ViewModel
 
     public ObservableCollection<FormKey> RaceFormKeys { get; set; } = new();
 
-    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
     public IEnumerable<Type> RacePickerTypes { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
     public FormKey TemplateNPC { get; set; } = new();

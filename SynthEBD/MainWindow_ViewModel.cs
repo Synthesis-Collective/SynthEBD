@@ -3,6 +3,7 @@ using Mutagen.Bethesda.Skyrim;
 using System.ComponentModel;
 using System.Windows;
 using Noggog.WPF;
+using ReactiveUI;
 
 namespace SynthEBD;
 
@@ -87,7 +88,8 @@ public class MainWindow_ViewModel : ViewModel
         VM_Settings_General.GetViewModelFromModel(GeneralSettingsVM);
 
         // Initialize patchable races from general settings (required by some UI elements)
-        Patcher.MainLinkCache = PatcherEnvironmentProvider.Environment.LinkCache;
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => Patcher.MainLinkCache = x);
         Patcher.ResolvePatchableRaces();
 
         // Load texture and mesh settings

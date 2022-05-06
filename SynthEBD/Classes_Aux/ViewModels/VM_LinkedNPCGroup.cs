@@ -6,6 +6,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using Noggog.WPF;
+using ReactiveUI;
 
 namespace SynthEBD;
 
@@ -13,16 +14,20 @@ public class VM_LinkedNPCGroup : ViewModel
 {
     public VM_LinkedNPCGroup()
     {
-        this.PropertyChanged += RefereshPrimaryAssignment;
         this.NPCFormKeys.CollectionChanged += RefereshPrimaryAssignment;
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
     }
 
     public string GroupName { get; set; } = "";
-    public ObservableCollection<FormKey> NPCFormKeys { get; set; } = new();
-    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    public ObservableCollection<FormKey> NPCFormKeys { get; } = new();
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
     public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public string Primary { get; set; }
-    public HashSet<string> PrimaryCandidates { get; set; } = new();
+    public HashSet<string> PrimaryCandidates { get; } = new();
 
     public void RefereshPrimaryAssignment(object sender, PropertyChangedEventArgs e)
     {
@@ -53,12 +58,12 @@ public class VM_LinkedNPCGroup : ViewModel
         {
             VM_LinkedNPCGroup vm = new VM_LinkedNPCGroup();
             vm.GroupName = m.GroupName;
-            vm.NPCFormKeys = new ObservableCollection<FormKey>(m.NPCFormKeys);
-            if ((m.Primary == null || m.Primary.IsNull) && PatcherEnvironmentProvider.Environment.LinkCache.TryResolve<INpcGetter>(m.NPCFormKeys.FirstOrDefault(), out var primaryNPC))
+            vm.NPCFormKeys.SetTo(m.NPCFormKeys, checkEquality: false);
+            if ((m.Primary == null || m.Primary.IsNull) && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<INpcGetter>(m.NPCFormKeys.FirstOrDefault(), out var primaryNPC))
             {
                 vm.Primary = Logger.GetNPCLogNameString(primaryNPC);
             }
-            else if (PatcherEnvironmentProvider.Environment.LinkCache.TryResolve<INpcGetter>(m.Primary, out var assignedPrimary))
+            else if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<INpcGetter>(m.Primary, out var assignedPrimary))
             {
                 vm.Primary = Logger.GetNPCLogNameString(assignedPrimary);
             }

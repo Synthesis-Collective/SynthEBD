@@ -1,237 +1,59 @@
-﻿using Mutagen.Bethesda;
+﻿using System.Reactive.Linq;
+using Mutagen.Bethesda;
 using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Plugins.Order;
 using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
+using Noggog.WPF;
+using ReactiveUI;
 
 namespace SynthEBD;
 
-public class PatcherEnvironmentProvider
+public class PatcherEnvironmentProvider : ViewModel
 {
     public static PatcherEnvironmentProvider Instance = new();
-
-    private static Lazy<PatcherEnvironment> _env = new(
-        () =>
-        {
-            return new PatcherEnvironment(PatcherSettings.SkyrimVersion);
-        });
-
-    public static PatcherEnvironment Environment => _env.Value;
-
-    public static IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> TryAllEnvironments()
+    
+    public string PatchFileName { get; set;  } = "SynthEBD.esp";
+    public SkyrimRelease SkyrimVersion { get; set; } = SkyrimRelease.SkyrimSE;
+    public PathPickerVM OutputDataFolder { get; } = new()
     {
-        SkyrimRelease[] releases = new SkyrimRelease[] { SkyrimRelease.SkyrimSE, SkyrimRelease.SkyrimVR, SkyrimRelease.SkyrimLE, SkyrimRelease.EnderalSE, SkyrimRelease.EnderalLE };
+        ExistCheckOption = PathPickerVM.CheckOptions.IfPathNotEmpty,
+        PathType = PathPickerVM.PathTypeOptions.Folder,
+        PromptTitle = "Data Folder Override"
+    };
+    
+    public IGameEnvironment<ISkyrimMod, ISkyrimModGetter> Environment { get; private set; }
 
-        foreach (var release in releases)
-        {
-            try
+    private PatcherEnvironmentProvider()
+    {
+        Observable.CombineLatest(
+                this.WhenAnyValue(x => x.PatchFileName),
+                this.WhenAnyValue(x => x.SkyrimVersion),
+                this.WhenAnyValue(x => x.OutputDataFolder.TargetPath),
+                (PatchFileName, Release, DataFolder) => (PatchFileName, Release, DataFolder))
+            .Select(inputs =>
             {
-                return GameEnvironment.Typical.Skyrim(release, LinkCachePreferences.OnlyIdentifiers());
-            }
-            catch { 
-                continue; 
-            }
-        }
-
-        var customEnvWindow = new Window_CustomEnvironment();
-        var customEnvVM = new VM_CustomEnvironment(customEnvWindow);
-        customEnvWindow.DataContext = customEnvVM;
-        customEnvWindow.ShowDialog();
-
-        if (customEnvVM.IsValidated)
-        {
-            PatcherSettings.SkyrimVersion = customEnvVM.SkyrimRelease;
-            PatcherSettings.CustomGamePath = customEnvVM.CustomGamePath;
-            return customEnvVM.Environment;
-        }
-        else
-        {
-            System.Windows.Application.Current.Shutdown();
-            System.Environment.Exit(1);
-        }
-           
-        return null;
-    }
-}
-
-public class PatcherEnvironment : IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter>
-{
-    private bool disposedValue;
-
-    public ILoadOrder<IModListing<ISkyrimModGetter>> LoadOrder { get; private set; }
-    public ILinkCache<ISkyrimMod, ISkyrimModGetter> LinkCache { get; private set; }
-
-    public DirectoryPath DataFolderPath => OriginState.DataFolderPath;
-
-    public GameRelease GameRelease => OriginState.GameRelease;
-
-    public FilePath LoadOrderFilePath => OriginState.LoadOrderFilePath;
-
-    public FilePath? CreationClubListingsFilePath => OriginState.CreationClubListingsFilePath;
-
-    ILinkCache<ISkyrimMod, ISkyrimModGetter> IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter>.LinkCache => LinkCache;
-
-    ILoadOrderGetter<IModListingGetter<IModGetter>> IGameEnvironmentState.LoadOrder => LoadOrder;
-
-    ILinkCache IGameEnvironmentState.LinkCache => LinkCache;
-
-    private static IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> OriginState { get; set; }
-
-    public static IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> BuildCustomEnvironment(string executablePath, SkyrimRelease skyrimRelease) // this function expects calling function to handle exceptions
-    {
-        var gameDir = System.IO.Path.GetDirectoryName(executablePath);
-        var dataDir = System.IO.Path.Combine(gameDir, "data");
-        return  GameEnvironment.Typical.Builder<ISkyrimMod, ISkyrimModGetter>(skyrimRelease.ToGameRelease()).WithTargetDataFolder(dataDir).Build();
-    }
-
-    public void GetOriginState(SkyrimRelease? gameType)
-    {
-        if (gameType is not null)
-        {
-            if (!string.IsNullOrWhiteSpace(PatcherSettings.CustomGamePath))
-            {
-                try
+                var builder = GameEnvironment.Typical.Builder<ISkyrimMod, ISkyrimModGetter>(inputs.Release.ToGameRelease());
+                if (!inputs.DataFolder.IsNullOrWhitespace())
                 {
-                    OriginState = BuildCustomEnvironment(PatcherSettings.CustomGamePath, gameType.Value);
-                    Logger.TimedNotifyStatusUpdate("Built environment from " + PatcherSettings.CustomGamePath, ErrorType.Warning, 3);
+                    builder = builder.WithTargetDataFolder(inputs.DataFolder);
                 }
-                catch
-                {
-                    Logger.TimedNotifyStatusUpdate("Could not build environment from " + PatcherSettings.CustomGamePath, ErrorType.Error, 5);
-                }
-            }
-            else
-            {
-                GetDefaultOriginState(gameType);
-            }
-        }
-        else
-        {
-            OriginState = PatcherEnvironmentProvider.TryAllEnvironments();
-        }
+                return builder
+                    .TransformModListings(x =>
+                        x.OnlyEnabledAndExisting().RemoveModAndDependents(inputs.PatchFileName + ".esp", verbose: true))
+                    .Build();
+            })
+            .Subscribe(x => Environment = x);
     }
-
-    public void GetDefaultOriginState(SkyrimRelease? gameType)
-    {
-        try
-        {
-            OriginState = GameEnvironment.Typical.Skyrim(gameType.Value, LinkCachePreferences.OnlyIdentifiers());
-        }
-        catch
-        {
-            OriginState = PatcherEnvironmentProvider.TryAllEnvironments();
-        }
-    }
-
-    public PatcherEnvironment(SkyrimRelease? gameType)
-    {
-        GetOriginState(gameType);
-
-        if (PatcherSettings.General != null)
-        {
-            LoadOrder = (ILoadOrder<IModListing<ISkyrimModGetter>>)OriginState.LoadOrder.ListedOrder
-                .OnlyEnabledAndExisting()
-                .RemoveModAndDependents(PatcherSettings.General.PatchFileName + ".esp", false) // remove the output plugin and any plugins mastered to previous versions of it
-                .ToLoadOrder();
-        }
-        else
-        {
-            LoadOrder = OriginState.LoadOrder;
-        }
-        LinkCache = LoadOrder.ToMutableLinkCache();
-    }
-    public void Refresh(string outputModName, bool verbose)
-    {
-        if (PatcherSettings.General != null)
-        {
-            LoadOrder = (ILoadOrder<IModListing<ISkyrimModGetter>>)OriginState.LoadOrder.ListedOrder
-                .OnlyEnabledAndExisting()
-                .RemoveModAndDependents(outputModName + ".esp", verbose) // remove the output plugin and any plugins mastered to previous versions of it
-                .ToLoadOrder();
-        }
-        else
-        {
-            LoadOrder = OriginState.LoadOrder;
-        }
-        // Note: Do not rebuild the linkcache from the new load order. Not necessary, and breaks FormKey picker UIs
-    }
-
-    public void Refresh(bool verbose)
-    {
-        if (PatcherSettings.General != null)
-        {
-            LoadOrder = (ILoadOrder<IModListing<ISkyrimModGetter>>)OriginState.LoadOrder.ListedOrder
-                .OnlyEnabledAndExisting()
-                .RemoveModAndDependents(PatcherSettings.General.PatchFileName + ".esp", verbose) // remove the output plugin and any plugins mastered to previous versions of it
-                .ToLoadOrder();
-        }
-        else
-        {
-            LoadOrder = OriginState.LoadOrder;
-        }
-        // Note: Do not rebuild the linkcache from the new load order. Not necessary, and breaks FormKey picker UIs
-    }
-
-    public void RefreshAndChangeGameType(SkyrimRelease gameType, string outputModName)
-    {
-        GetOriginState(gameType);
-
-        Refresh(outputModName, false);
-        LinkCache = LoadOrder.ToMutableLinkCache();
-    }
-
-    public void SuspendEnvironment()
-    {
-        if (OriginState != null)
-        {
-            OriginState.LoadOrder.Dispose(); // release outputMod.esp so that it can be written to even if it's in the load order
-        }
-    }
-    public void ResumeEnvironment()
-    {
-        OriginState = GameEnvironment.Typical.Skyrim(PatcherSettings.SkyrimVersion, LinkCachePreferences.OnlyIdentifiers());
-        Refresh(false);
-    }
-
-    public virtual void Dispose(bool disposing)
-    {
-        if (!disposedValue)
-        {
-            if (disposing)
-            {
-                // TODO: dispose managed state (managed objects)
-            }
-
-            // TODO: free unmanaged resources (unmanaged objects) and override finalizer
-            // TODO: set large fields to null
-            disposedValue = true;
-        }
-    }
-
-    // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
-    // ~PatcherEnvironment()
-    // {
-    //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-    //     Dispose(disposing: false);
-    // }
-
-    void IDisposable.Dispose()
-    {
-        // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
-    }
-
-    // ...
 }
 
 public static class LoadOrderExtensions
 {
-    public static IEnumerable<IModListing<ISkyrimModGetter>> RemoveModAndDependents(this IEnumerable<IModListing<ISkyrimModGetter>> listedOrder, string outputModName, bool verbose)
+    public static IEnumerable<IModListingGetter<ISkyrimModGetter>> RemoveModAndDependents(this IEnumerable<IModListingGetter<ISkyrimModGetter>> listedOrder, string outputModName, bool verbose)
     {
-        List<IModListing<ISkyrimModGetter>> filteredLoadOrder = new List<IModListing<ISkyrimModGetter>>();
+        List<IModListingGetter<ISkyrimModGetter>> filteredLoadOrder = new List<IModListingGetter<ISkyrimModGetter>>();
         HashSet<string> removedMods = new HashSet<string>();
         foreach (var mod in listedOrder)
         {

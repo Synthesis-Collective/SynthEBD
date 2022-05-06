@@ -32,6 +32,10 @@ public class VM_Subgroup : ViewModel, ICloneable, IDropTarget, IHasSubgroupViewM
         AllowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(SubscribedOBodyDescriptorMenu, SubscribedRaceGroupings, parentAssetPack);
         DisallowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(SubscribedOBodyDescriptorMenu, SubscribedRaceGroupings, parentAssetPack);
 
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToGuiProperty(this, nameof(LinkCache), default(ILinkCache))
+            .DisposeWith(this);
+        
         //UI-related
         this.ParentCollection = parentCollection;
 
@@ -114,7 +118,8 @@ public class VM_Subgroup : ViewModel, ICloneable, IDropTarget, IHasSubgroupViewM
     public ObservableCollection<VM_Subgroup> Subgroups { get; set; } = new();
 
     //UI-related
-    public ILinkCache LinkCache => PatcherEnvironmentProvider.Environment.LinkCache;
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache LinkCache => _linkCache.Value;
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
     public string TopLevelSubgroupID { get; set; }
@@ -210,9 +215,9 @@ public class VM_Subgroup : ViewModel, ICloneable, IDropTarget, IHasSubgroupViewM
     }
     public static void GetDDSPaths(VM_Subgroup viewModel, ObservableCollection<Graphics.ImagePathWithSource> paths)
     {
-        var ddsPaths = viewModel.PathsMenu.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, x.Source)))
+        var ddsPaths = viewModel.PathsMenu.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, x.Source)))
             .Select(x => x.Source)
-            .Select(x => System.IO.Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, x))
+            .Select(x => System.IO.Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, x))
             .ToHashSet();
         var source = Graphics.ImagePathWithSource.GetSource(viewModel);
         foreach (var path in ddsPaths)
@@ -223,7 +228,7 @@ public class VM_Subgroup : ViewModel, ICloneable, IDropTarget, IHasSubgroupViewM
                 paths.Add(imagePathWithSource);
             }
         }
-        //paths.UnionWith(ddsPaths.Select(x => System.IO.Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, x)));
+        //paths.UnionWith(ddsPaths.Select(x => System.IO.Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, x)));
         foreach (var subgroup in viewModel.Subgroups)
         {
             GetDDSPaths(subgroup, paths);

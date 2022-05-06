@@ -5,6 +5,7 @@ using Noggog;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using Noggog.WPF;
+using ReactiveUI;
 
 namespace SynthEBD;
 
@@ -36,6 +37,10 @@ public class VM_BodyGenRacialMapping : ViewModel
     {
         this.RaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         this.MonitoredGroupsMenu = groupsMenu;
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
 
         AddCombination = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -54,7 +59,8 @@ public class VM_BodyGenRacialMapping : ViewModel
 
     public VM_BodyGenGroupsMenu MonitoredGroupsMenu { get; set; }
 
-    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
     public RelayCommand AddCombination { get; }
     public RelayCommand RemoveCombination { get; }

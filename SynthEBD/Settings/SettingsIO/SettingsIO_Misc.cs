@@ -12,9 +12,9 @@ public class SettingsIO_Misc
             if (loadSuccess)
             {
                 PatcherSettings.LoadFromDataFolder = loadSource.LoadFromDataDir;
-                PatcherSettings.CustomGamePath = loadSource.GameEnvironmentDirectory;
+                PatcherEnvironmentProvider.Instance.OutputDataFolder.TargetPath = loadSource.GameEnvironmentDirectory;
                 PatcherSettings.PortableSettingsFolder = loadSource.PortableSettingsFolder;
-                PatcherSettings.SkyrimVersion = loadSource.SkyrimVersion;
+                PatcherEnvironmentProvider.Instance.SkyrimVersion = loadSource.SkyrimVersion;
             }
             else if (!loadSuccess)
             {
@@ -28,7 +28,13 @@ public class SettingsIO_Misc
 
     public static void SaveSettingsSource(out bool saveSuccess, out string exceptionStr)
     {
-        LoadSource source = new LoadSource() { GameEnvironmentDirectory = PatcherSettings.CustomGamePath, LoadFromDataDir = PatcherSettings.LoadFromDataFolder, PortableSettingsFolder = PatcherSettings.PortableSettingsFolder, SkyrimVersion = PatcherSettings.SkyrimVersion };
+        LoadSource source = new LoadSource()
+        {
+            GameEnvironmentDirectory = PatcherEnvironmentProvider.Instance.OutputDataFolder.TargetPath, 
+            LoadFromDataDir = PatcherSettings.LoadFromDataFolder,
+            PortableSettingsFolder = PatcherSettings.PortableSettingsFolder, 
+            SkyrimVersion = PatcherEnvironmentProvider.Instance.SkyrimVersion
+        };
         JSONhandler<LoadSource>.SaveJSONFile(source, Paths.SettingsSourcePath, out saveSuccess, out exceptionStr);
     }
 

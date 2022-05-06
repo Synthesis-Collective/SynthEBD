@@ -7,8 +7,8 @@ public class RaceMenuIniHandler
     public static List<string> GetRaceMenuIniContents(out bool success, out string fileName)
     {
         success = false;
-        string iniPath64 = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins", "skee64.ini");
-        string iniPathVR = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins", "skeevr.ini");
+        string iniPath64 = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "SKSE", "Plugins", "skee64.ini");
+        string iniPathVR = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "SKSE", "Plugins", "skeevr.ini");
 
         string iniPath = "";
         if (File.Exists(iniPathVR)) { iniPath = iniPathVR; fileName = "skeevr.ini"; }
@@ -261,7 +261,7 @@ public class RaceMenuIniHandler
 
     public static bool WriteRaceMenuIni(List<string> contents, string fileName)
     {
-        string iniPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins", fileName);
+        string iniPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "SKSE", "Plugins", fileName);
         try
         {
             File.WriteAllText(iniPath, string.Join(Environment.NewLine, contents));

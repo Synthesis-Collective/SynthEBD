@@ -23,7 +23,7 @@ class BlockListHandler
         
     public static BlockedPlugin GetCurrentPluginBlockStatus(BlockList blockList, FormKey npcFormKey)
     {
-        var contexts = PatcherEnvironmentProvider.Environment.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npcFormKey).ToList(); // [0] is winning override. [Last] is source plugin
+        var contexts = PatcherEnvironmentProvider.Instance.Environment.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npcFormKey).ToList(); // [0] is winning override. [Last] is source plugin
 
         var output = new BlockedPlugin();
         output.Assets = false;

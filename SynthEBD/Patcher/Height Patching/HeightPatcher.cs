@@ -128,7 +128,7 @@ public class HeightPatcher
         HeightAssignment heightRacialSetting = null;
         RaceAlias raceAlias = null;
 
-        foreach (var race in PatcherEnvironmentProvider.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
+        foreach (var race in PatcherEnvironmentProvider.Instance.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
         {
             patchedRace = null;
             raceAlias = PatcherSettings.General.RaceAliases.Where(x => x.Race == race.FormKey && x.bApplyToHeight).FirstOrDefault();

@@ -5,12 +5,13 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using Noggog.WPF;
+using ReactiveUI;
 
 namespace SynthEBD;
 
 public class VM_raceAlias : ViewModel
 {
-    public VM_raceAlias(RaceAlias alias, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env, VM_Settings_General parentVM)
+    public VM_raceAlias(RaceAlias alias, VM_Settings_General parentVM)
     {
         this.race = alias.Race;
         this.aliasRace = alias.AliasRace;
@@ -19,7 +20,9 @@ public class VM_raceAlias : ViewModel
         this.bApplyToAssets = alias.bApplyToAssets;
         this.bApplyToBodyGen = alias.bApplyToBodyGen;
         this.bApplyToHeight = alias.bApplyToHeight;
-        this.lk = env.LinkCache;
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.raceAliases.Remove(this));
     }
@@ -35,19 +38,20 @@ public class VM_raceAlias : ViewModel
 
     public IEnumerable<Type> FormKeyPickerTypes { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
-    public ILinkCache lk { get; set; }
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
 
     public VM_Settings_General ParentVM { get; set; }
 
     public RelayCommand DeleteCommand { get; }
 
-    public static ObservableCollection<VM_raceAlias> GetViewModelsFromModels(List<RaceAlias> models, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env, VM_Settings_General parentVM)
+    public static ObservableCollection<VM_raceAlias> GetViewModelsFromModels(List<RaceAlias> models, VM_Settings_General parentVM)
     {
         var RAVM = new ObservableCollection<VM_raceAlias>();
 
         foreach (var x in models)
         {
-            var y = new VM_raceAlias(x, env, parentVM);
+            var y = new VM_raceAlias(x, parentVM);
             RAVM.Add(y);
         }
 

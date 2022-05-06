@@ -50,21 +50,14 @@
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Column="0" Grid.Row="0" ToolTip="Name of output file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Output Name</TextBlock>
-            <TextBox Grid.Column="2" Grid.Row="0" Width="150" HorizontalAlignment="Left" Text="{Binding Path=patchFileName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+            <TextBox Grid.Column="2" Grid.Row="0" Width="150" HorizontalAlignment="Left" Text="{Binding Path=Environment.PatchFileName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
             <TextBlock Grid.Column="0" Grid.Row="1" ToolTip="Folder to which generated plugin and other files will be written" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Output Data Folder</TextBlock>
-            <wpf:PathPicker Grid.Column="2" Grid.Row="1" PickerVM="{Binding OutputDataFolder}" />
+            <wpf:PathPicker Grid.Column="2" Grid.Row="1" PickerVM="{Binding Environment.OutputDataFolder}" />
 
             <TextBlock Grid.Column="0" Grid.Row="2" ToolTip="Which Skyrim release is being patched">Skyrim Release</TextBlock>
-            <ComboBox Grid.Column="2" Grid.Row="2" Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding SkyrimVersion}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type Skyrim:SkyrimRelease}}}" IsSynchronizedWithCurrentItem="True"/>
+            <ComboBox Grid.Column="2" Grid.Row="2" Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding Environment.SkyrimVersion}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type Skyrim:SkyrimRelease}}}" IsSynchronizedWithCurrentItem="True"/>
 
-            <TextBlock Grid.Column="0" Grid.Row="3" ToolTip="Find your game executable if not in the default location (Steam Library)">Custom Game Path</TextBlock>
-            <StackPanel Grid.Column="2" Grid.Row="3" Orientation="Horizontal">
-                <Button VerticalAlignment="Center" Command="{Binding SelectCustomGameFolder}"  Foreground="LightGreen">Search</Button>
-                <TextBlock Text="{Binding CustomGamePath}" Margin="5 0 5 0" Background="Black"/>
-                <Button VerticalAlignment="Center" Command="{Binding ClearCustomGameFolder}" Foreground="Firebrick">Clear</Button>
-            </StackPanel>
-            
             <TextBlock Grid.Column="0" Grid.Row="4" ToolTip="Toggle visibility of helper tooltips like this one">Show Tooltips</TextBlock>
             <CheckBox Grid.Column="2" Grid.Row="4" IsChecked="{Binding Path=bShowToolTips, Mode=TwoWay}"></CheckBox>
 
@@ -178,7 +171,7 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                    <Button Grid.Row="1" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" x:Name="Button_AddRaceAlias" Command="{Binding AddRaceAlias}" Foreground="LightGreen">Add New</Button>
+                    <Button Grid.Row="1" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddRaceAlias}" Foreground="LightGreen">Add New</Button>
                 </Grid>
             </Expander>
 
@@ -196,7 +189,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                    <Button Grid.Row="1" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" x:Name="Button_AddRaceGrouping" Command="{Binding AddRaceGrouping}" Foreground="LightGreen">Add New</Button>
+                    <Button Grid.Row="1" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddRaceGrouping}" Foreground="LightGreen">Add New</Button>
                 </Grid>
             </Expander>
 

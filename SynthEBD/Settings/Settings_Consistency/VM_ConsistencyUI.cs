@@ -5,6 +5,7 @@ using Noggog;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using Noggog.WPF;
+using ReactiveUI;
 
 namespace SynthEBD;
 
@@ -13,6 +14,10 @@ public class VM_ConsistencyUI : ViewModel
     public VM_ConsistencyUI()
     {
         this.PropertyChanged += RefereshCurrentAssignment;
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
 
         DeleteCurrentNPC = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -79,7 +84,8 @@ public class VM_ConsistencyUI : ViewModel
 
     public ObservableCollection<VM_ConsistencyAssignment> Assignments { get; set; } = new();
     public VM_ConsistencyAssignment CurrentlyDisplayedAssignment { get; set; } = null;
-    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public FormKey SelectedNPCFormKey { get; set; } = new();
 

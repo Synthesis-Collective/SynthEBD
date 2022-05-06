@@ -15,7 +15,7 @@ public class VM_RunButton : ViewModel
             canExecute: _ => true,
             execute: _ =>
             {
-                PatcherEnvironmentProvider.Environment.Refresh(PatcherSettings.General.PatchFileName, true); // re-filter load order (in case of multiple runs in same session, to get rid of generated output plugin from link cache & load order)
+                PatcherEnvironmentProvider.Instance.Environment.Refresh(PatcherSettings.General.PatchFileName, true); // re-filter load order (in case of multiple runs in same session, to get rid of generated output plugin from link cache & load order)
                 ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
                 ParentWindow.DumpViewModelsToModels();
                 if (!PreRunValidation()) { return; }
@@ -30,7 +30,6 @@ public class VM_RunButton : ViewModel
                 
             execute: async _ =>
             {
-                PatcherEnvironmentProvider.Environment.Refresh(PatcherSettings.General.PatchFileName, true); // re-filter load order (in case of multiple runs in same session, to get rid of generated output plugin from link cache & load order)
                 ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
                 ParentWindow.DumpViewModelsToModels();
                 if (!PreRunValidation()) { return; }
@@ -49,6 +48,7 @@ public class VM_RunButton : ViewModel
     public bool PreRunValidation()
     {
         bool valid = true;
+        var env = PatcherEnvironmentProvider.Instance.Environment;
 
         if (PatcherSettings.General.bChangeMeshesOrTextures)
         {
@@ -67,7 +67,7 @@ public class VM_RunButton : ViewModel
 
         if (PatcherSettings.General.BodySelectionMode != BodyShapeSelectionMode.None)
         {
-            if (!MiscValidation.VerifyRaceMenuInstalled())
+            if (!MiscValidation.VerifyRaceMenuInstalled(env.DataFolderPath))
             {
                 valid = false;
             }
@@ -84,14 +84,14 @@ public class VM_RunButton : ViewModel
             {
                 if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.OBody)
                 {
-                    if (!MiscValidation.VerifyOBodyInstalled())
+                    if (!MiscValidation.VerifyOBodyInstalled(env.DataFolderPath))
                     {
                         valid = false;
                     }
                 }
                 else if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.AutoBody)
                 {
-                    if (!MiscValidation.VerifyAutoBodyInstalled())
+                    if (!MiscValidation.VerifyAutoBodyInstalled(env.DataFolderPath))
                     {
                         valid = false;
                     }
@@ -107,7 +107,7 @@ public class VM_RunButton : ViewModel
                     valid = false;
                 }
 
-                if (!MiscValidation.VerifySPIDInstalled())
+                if (!MiscValidation.VerifySPIDInstalled(env.DataFolderPath))
                 {
                     valid = false;
                 }

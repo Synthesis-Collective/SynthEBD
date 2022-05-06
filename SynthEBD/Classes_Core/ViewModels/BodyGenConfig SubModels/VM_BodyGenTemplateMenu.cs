@@ -6,6 +6,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using Noggog.WPF;
+using ReactiveUI;
 
 namespace SynthEBD;
 
@@ -47,6 +48,10 @@ public class VM_BodyGenTemplate : ViewModel
         parentCollection.CollectionChanged += UpdateOtherGroupsTemplateCollection;
         templateGroups.CollectionChanged += UpdateOtherGroupsTemplateCollection;
         this.GroupSelectionCheckList.PropertyChanged += UpdateOtherGroupsTemplateCollectionP;
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
 
         AddAllowedAttribute = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -88,7 +93,9 @@ public class VM_BodyGenTemplate : ViewModel
     public NPCWeightRange WeightRange { get; set; } = new();
     public string Caption_MemberOfTemplateGroups { get; set; } = "";
     public string Caption_BodyShapeDescriptors { get; set; } = "";
-    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
     public RelayCommand AddAllowedAttribute { get; }

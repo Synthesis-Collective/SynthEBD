@@ -19,6 +19,10 @@ public class VM_BodySlideSetting : ViewModel
 
         this.ParentConfig = parentConfig;
         this.ParentCollection = parentCollection;
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
 
         AddAllowedAttribute = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -94,7 +98,9 @@ public class VM_BodySlideSetting : ViewModel
     public double ProbabilityWeighting { get; set; } = 1;
     public NPCWeightRange WeightRange { get; set; } = new();
     public string Caption_BodyShapeDescriptors { get; set; } = "";
-    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
     public RelayCommand AddAllowedAttribute { get; }

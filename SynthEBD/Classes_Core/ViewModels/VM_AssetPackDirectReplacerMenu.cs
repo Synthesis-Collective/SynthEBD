@@ -52,6 +52,10 @@ public class VM_AssetReplacerGroup : ViewModel
     public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
     {
         this.ParentMenu = parent;
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
 
         Remove = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -79,7 +83,8 @@ public class VM_AssetReplacerGroup : ViewModel
 
     public FormKey TemplateNPCFK { get; set; }
 
-    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
     public IEnumerable<Type> NPCType { get; set; } = typeof(INpcGetter).AsEnumerable();
 
     public RelayCommand Remove { get; }

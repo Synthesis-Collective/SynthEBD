@@ -32,7 +32,7 @@ public class zEBDBlockList
     public static BlockList ToSynthEBD(zEBDBlockList zList)
     {
         BlockList sList = new BlockList();
-        var env = PatcherEnvironmentProvider.Environment;
+        var env = PatcherEnvironmentProvider.Instance.Environment;
 
         foreach (var npc in zList.blockedNPCs)
         {

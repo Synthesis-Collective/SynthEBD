@@ -104,7 +104,7 @@ public class Paths
                 }
                 else
                 {
-                    RelativePath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SynthEBD");
+                    RelativePath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "SynthEBD");
                 }
                 break;
         }

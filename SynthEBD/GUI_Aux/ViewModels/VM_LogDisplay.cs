@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using Mutagen.Bethesda.Environments;
 using Noggog.WPF;
 
 namespace SynthEBD;
@@ -23,7 +24,7 @@ public class VM_LogDisplay : ViewModel
 
         ShowEnvironment = new RelayCommand(
             canExecute: _ => true,
-            execute: x => PrintEnvironment()
+            execute: x => PrintEnvironment(PatcherEnvironmentProvider.Instance.Environment)
         );
     }
 
@@ -32,15 +33,15 @@ public class VM_LogDisplay : ViewModel
         this.DispString = SubscribedLogger.LogString;
     }
 
-    public void PrintEnvironment()
+    public void PrintEnvironment(IGameEnvironment environment)
     {
-        SubscribedLogger.LogString += "Data Folder: " + PatcherEnvironmentProvider.Environment.DataFolderPath + Environment.NewLine;
-        SubscribedLogger.LogString += "Load Order Source: " + PatcherEnvironmentProvider.Environment.LoadOrderFilePath + Environment.NewLine;
-        SubscribedLogger.LogString += "Creation Club Listings: " + PatcherEnvironmentProvider.Environment.CreationClubListingsFilePath + Environment.NewLine;
-        SubscribedLogger.LogString += "Game Release: " + PatcherEnvironmentProvider.Environment.GameRelease.ToString() + Environment.NewLine;
+        SubscribedLogger.LogString += "Data Folder: " + environment.DataFolderPath + Environment.NewLine;
+        SubscribedLogger.LogString += "Load Order Source: " + environment.LoadOrderFilePath + Environment.NewLine;
+        SubscribedLogger.LogString += "Creation Club Listings: " + environment.CreationClubListingsFilePath + Environment.NewLine;
+        SubscribedLogger.LogString += "Game Release: " + environment.GameRelease.ToString() + Environment.NewLine;
         SubscribedLogger.LogString += "Load Order: " + Environment.NewLine;
 
-        foreach (var mod in PatcherEnvironmentProvider.Environment.LoadOrder.ListedOrder)
+        foreach (var mod in environment.LoadOrder.ListedOrder)
         {
             var dispStr = "(";
             if (mod.Enabled)

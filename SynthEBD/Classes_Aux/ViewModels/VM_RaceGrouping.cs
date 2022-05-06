@@ -5,33 +5,39 @@ using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
 using Noggog.WPF;
+using ReactiveUI;
 
 namespace SynthEBD;
 
 public class VM_RaceGrouping : ViewModel
 {
-    public VM_RaceGrouping(RaceGrouping raceGrouping, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env, VM_Settings_General parentVM)
+    public VM_RaceGrouping(RaceGrouping raceGrouping, VM_Settings_General parentVM)
     {
         this.Label = raceGrouping.Label;
         this.Races = new ObservableCollection<FormKey>(raceGrouping.Races);
-        this.lk = env.LinkCache;
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.RaceGroupings.Remove(this));
     }
     public string Label { get; set; }
     public ObservableCollection<FormKey> Races { get; set; }
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
-    public ILinkCache lk { get; set; }
+
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
     public VM_Settings_General ParentVM { get; set; }
     public RelayCommand DeleteCommand { get; }
 
-    public static ObservableCollection<VM_RaceGrouping> GetViewModelsFromModels(List<RaceGrouping> models, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env, VM_Settings_General parentVM)
+    public static ObservableCollection<VM_RaceGrouping> GetViewModelsFromModels(List<RaceGrouping> models, VM_Settings_General parentVM)
     {
         var RGVM = new ObservableCollection<VM_RaceGrouping>();
 
         foreach (var x in models)
         {
-            var y = new VM_RaceGrouping(x, env, parentVM);
+            var y = new VM_RaceGrouping(x, parentVM);
             RGVM.Add(y);
         }
 

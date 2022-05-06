@@ -4,6 +4,7 @@ using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
 using Noggog.WPF;
+using ReactiveUI;
 
 namespace SynthEBD;
 
@@ -16,6 +17,10 @@ public class VM_BodyShapeDescriptorRules : ViewModel
         this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
         ParentConfig = parentConfig;
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
 
         AddAllowedAttribute = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -42,7 +47,10 @@ public class VM_BodyShapeDescriptorRules : ViewModel
     public NPCWeightRange WeightRange { get; set; } = new();
 
     IHasAttributeGroupMenu ParentConfig { get; set; }
-    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
+    
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
     public RelayCommand AddAllowedAttribute { get; }

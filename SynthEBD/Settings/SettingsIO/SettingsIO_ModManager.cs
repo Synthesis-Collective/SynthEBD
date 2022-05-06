@@ -15,7 +15,7 @@ public class SettingsIO_ModManager
             modManagerSettings = JSONhandler<Settings_ModManager>.LoadJSONFile(PatcherSettings.Paths.ModManagerSettingsPath, out loadSuccess, out string exceptionStr);
             if (loadSuccess && string.IsNullOrWhiteSpace(modManagerSettings.CurrentInstallationFolder))
             {
-                modManagerSettings.CurrentInstallationFolder = PatcherEnvironmentProvider.Environment.DataFolderPath;
+                modManagerSettings.CurrentInstallationFolder = PatcherEnvironmentProvider.Instance.Environment.DataFolderPath;
             }
             else if (!loadSuccess)
             {

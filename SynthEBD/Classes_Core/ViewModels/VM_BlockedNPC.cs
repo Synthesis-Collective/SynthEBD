@@ -4,6 +4,7 @@ using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.ComponentModel;
 using Noggog.WPF;
+using ReactiveUI;
 
 namespace SynthEBD;
 
@@ -12,6 +13,10 @@ public class VM_BlockedNPC : ViewModel
     public VM_BlockedNPC()
     {
         this.PropertyChanged += TriggerDispNameUpdate;
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
     }
     // Caption
     public string DispName { get; set; } = "New NPC";
@@ -20,7 +25,9 @@ public class VM_BlockedNPC : ViewModel
     public bool Height { get; set; } = false;
     public bool BodyShape { get; set; } = false;
 
-    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
     public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
 
     public void TriggerDispNameUpdate(object sender, PropertyChangedEventArgs e)

@@ -18,6 +18,10 @@ public class VM_SpecificNPCAssignment : ViewModel, IHasForcedAssets
         SubscribedGeneralSettings = mainVM.GeneralSettingsVM;
         SubscribedOBodySettings = mainVM.OBodySettingsVM;
         SubscribedBodyGenSettings = mainVM.BodyGenSettingsVM;
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
 
         this.ForcedAssetPack = new VM_AssetPack(mainVM);
 
@@ -122,7 +126,8 @@ public class VM_SpecificNPCAssignment : ViewModel, IHasForcedAssets
 
     public VM_Settings_General SubscribedGeneralSettings { get; set; }
     public VM_SettingsOBody SubscribedOBodySettings { get; set; }
-    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
     public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public RelayCommand DeleteForcedAssetPack { get; set; }
     public RelayCommand DeleteForcedSubgroup { get; set; }
@@ -144,7 +149,7 @@ public class VM_SpecificNPCAssignment : ViewModel, IHasForcedAssets
 
         var npcFormLink = new FormLink<INpcGetter>(viewModel.NPCFormKey);
 
-        if (!npcFormLink.TryResolve(PatcherEnvironmentProvider.Environment.LinkCache, out var npcRecord))
+        if (!npcFormLink.TryResolve(PatcherEnvironmentProvider.Instance.Environment.LinkCache, out var npcRecord))
         {
             Logger.LogMessage("Warning: the target NPC of the Specific NPC Assignment with FormKey " + viewModel.NPCFormKey.ToString() + " was not found in the current load order.");
             Logger.SwitchViewToLogDisplay();
@@ -558,7 +563,7 @@ public class VM_SpecificNPCAssignment : ViewModel, IHasForcedAssets
     {
         var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
 
-        if (npcFormLink.TryResolve(PatcherEnvironmentProvider.Environment.LinkCache, out var npcRecord))
+        if (npcFormLink.TryResolve(PatcherEnvironmentProvider.Instance.Environment.LinkCache, out var npcRecord))
         {
             if (npcRecord.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Female))
             {

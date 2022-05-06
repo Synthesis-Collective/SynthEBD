@@ -1,6 +1,8 @@
 ﻿using Mutagen.Bethesda.Plugins.Cache;
 using System.Collections.ObjectModel;
+using Noggog;
 using Noggog.WPF;
+using ReactiveUI;
 
 namespace SynthEBD;
 
@@ -8,6 +10,10 @@ public class VM_SettingsHeight : ViewModel
 {
     public VM_SettingsHeight()
     {
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
+        
         AddHeightConfig = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -41,7 +47,8 @@ public class VM_SettingsHeight : ViewModel
 
     public ObservableCollection<VM_HeightConfig> AvailableHeightConfigs { get; set; } = new();
 
-    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
 
     public RelayCommand AddHeightConfig { get; }
 

@@ -4,6 +4,7 @@ using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
 using Noggog.WPF;
+using ReactiveUI;
 
 namespace SynthEBD;
 
@@ -40,6 +41,10 @@ public class VM_ConfigDistributionRules : ViewModel, IProbabilityWeighted
             canExecute: _ => true,
             execute: _ => this.AddKeywords.Add(new VM_CollectionMemberString("", this.AddKeywords))
         );
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToGuiProperty(this, nameof(LinkCache), default(ILinkCache))
+            .DisposeWith(this);
     }
 
     public ObservableCollection<FormKey> AllowedRaces { get; set; } = new();
@@ -59,7 +64,8 @@ public class VM_ConfigDistributionRules : ViewModel, IProbabilityWeighted
     public NPCWeightRange WeightRange { get; set; } = new();
 
     //UI-related
-    public ILinkCache LinkCache => PatcherEnvironmentProvider.Environment.LinkCache;
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache LinkCache => _linkCache.Value;
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
     public RelayCommand AddAllowedAttribute { get; }

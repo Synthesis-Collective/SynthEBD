@@ -10,7 +10,7 @@ class Converters
 {
     public static FormKey RaceEDID2FormKey(string EDID)
     {
-        var env = PatcherEnvironmentProvider.Environment;
+        var env = PatcherEnvironmentProvider.Instance.Environment;
 
         foreach (var plugin in env.LoadOrder.ListedOrder)
         {
@@ -33,7 +33,7 @@ class Converters
     {
         var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
 
-        if (npcFormLink.TryResolve(PatcherEnvironmentProvider.Environment.LinkCache, out var npcRecord))
+        if (npcFormLink.TryResolve(PatcherEnvironmentProvider.Instance.Environment.LinkCache, out var npcRecord))
         {
             string subName = "";
             if (npcRecord.Name != null && !string.IsNullOrEmpty(npcRecord.Name.ToString()))
@@ -55,7 +55,7 @@ class Converters
     {
         HashSet<NPCAttribute> h = new HashSet<NPCAttribute>();
 
-        var env = PatcherEnvironmentProvider.Environment;
+        var env = PatcherEnvironmentProvider.Instance.Environment;
 
         //temporary storage lists for grouping attributes of same type
         HashSet<FormKey> classAttributes = new HashSet<FormKey>();
@@ -203,7 +203,7 @@ class Converters
         return h;
     }
 
-    public static FormKey GetFormKeyFromxEditFormIDString(string str, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env)
+    public static FormKey GetFormKeyFromxEditFormIDString(string str, IGameEnvironment<ISkyrimMod, ISkyrimModGetter> env)
     {
         FormKey output = new FormKey();
         var pattern = @"\[(.*?)\]"; // get text between square brackets - str will look like "Beggar \"Beggar\" [CLAS:0001327B]"
@@ -267,7 +267,7 @@ class Converters
         return output;
     }
 
-    public static FormKey zEBDSignatureToFormKey(string rootPlugin, string formID, IGameEnvironmentState<ISkyrimMod, ISkyrimModGetter> env)
+    public static FormKey zEBDSignatureToFormKey(string rootPlugin, string formID, IGameEnvironment<ISkyrimMod, ISkyrimModGetter> env)
     {
         string fkString = "";
         FormKey output = new FormKey();
@@ -383,13 +383,13 @@ class Converters
 
         if (split[1] == PatcherSettings.General.PatchFileName + ".esp")
         {
-            formIDstr = PatcherEnvironmentProvider.Environment.LoadOrder.ListedOrder.Count().ToString("X"); // format FormID assuming the generated patch will be last in the load order
+            formIDstr = PatcherEnvironmentProvider.Instance.Environment.LoadOrder.ListedOrder.Count().ToString("X"); // format FormID assuming the generated patch will be last in the load order
         }
         else
         {
-            for (int i = 0; i < PatcherEnvironmentProvider.Environment.LoadOrder.ListedOrder.Count(); i++)
+            for (int i = 0; i < PatcherEnvironmentProvider.Instance.Environment.LoadOrder.ListedOrder.Count(); i++)
             {
-                var currentListing = PatcherEnvironmentProvider.Environment.LoadOrder.ListedOrder.ElementAt(i);
+                var currentListing = PatcherEnvironmentProvider.Instance.Environment.LoadOrder.ListedOrder.ElementAt(i);
                 if (currentListing.ModKey.FileName == split[1])
                 {
                     formIDstr = i.ToString("X"); // https://www.delftstack.com/howto/csharp/integer-to-hexadecimal-in-csharp/

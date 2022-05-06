@@ -15,7 +15,7 @@ public class Patcher
     {
         ModKey.TryFromName(PatcherSettings.General.PatchFileName, ModType.Plugin, out var patchModKey);
         var outputMod = new SkyrimMod(patchModKey, SkyrimRelease.SkyrimSE);
-        MainLinkCache = PatcherEnvironmentProvider.Environment.LoadOrder.ToMutableLinkCache(outputMod);
+        MainLinkCache = PatcherEnvironmentProvider.Instance.Environment.LoadOrder.ToMutableLinkCache(outputMod);
         ResolvePatchableRaces();
         BodyGenTracker = new BodyGenAssignmentTracker();
         UniqueAssignmentsByName.Clear();
@@ -30,7 +30,7 @@ public class Patcher
         HashSet<LinkedNPCGroupInfo> generatedLinkGroups = new HashSet<LinkedNPCGroupInfo>();
         CategorizedFlattenedAssetPacks availableAssetPacks = null;
 
-        var allNPCs = PatcherEnvironmentProvider.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
+        var allNPCs = PatcherEnvironmentProvider.Instance.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
         HashSet<INpcGetter> skippedLinkedNPCs = new HashSet<INpcGetter>();
 
         Keyword EBDFaceKW = null;
@@ -161,10 +161,8 @@ public class Patcher
             }
         }
 
-        PatcherEnvironmentProvider.Environment.SuspendEnvironment(); // allow access to SynthEBD.esp if it is active in the load order
         string patchOutputPath = System.IO.Path.Combine(PatcherSettings.General.OutputDataFolder, PatcherSettings.General.PatchFileName + ".esp");
         PatcherIO.WritePatch(patchOutputPath, outputMod);
-        PatcherEnvironmentProvider.Environment.ResumeEnvironment();
 
         statusBar.IsPatching = false;
     }

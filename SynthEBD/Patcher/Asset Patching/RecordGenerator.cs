@@ -331,7 +331,7 @@ public class RecordGenerator
         copiedSubRecords.Add(copiedRecord);
 
         Dictionary<FormKey, FormKey> mapping = new Dictionary<FormKey, FormKey>();
-        foreach (var fl in copiedRecord.ContainedFormLinks)
+        foreach (var fl in copiedRecord.EnumerateFormLinks())
         {
             if (fl.FormKey.ModKey == sourceModKey && !fl.FormKey.IsNull && sourceLinkCache.TryResolve(fl.FormKey, fl.Type, out var subRecord))
             {
@@ -549,7 +549,7 @@ public class RecordGenerator
     public static void LogRecordAlongPaths(IGrouping<string, FilePathReplacementParsed> group, IMajorRecord record)
     {
         HashSet<GeneratedRecordInfo> assignedRecords = new HashSet<GeneratedRecordInfo>();
-        var recordEntry = new GeneratedRecordInfo() { FormKey = record.FormKey.ToString(), EditorID = record.EditorID, SubRecords = record.ContainedFormLinks.Where(x => x.FormKey.ModKey == record.FormKey.ModKey).ToHashSet() };
+        var recordEntry = new GeneratedRecordInfo() { FormKey = record.FormKey.ToString(), EditorID = record.EditorID, SubRecords = record.EnumerateFormLinks().Where(x => x.FormKey.ModKey == record.FormKey.ModKey).ToHashSet() };
 
         foreach (var entry in group)
         {

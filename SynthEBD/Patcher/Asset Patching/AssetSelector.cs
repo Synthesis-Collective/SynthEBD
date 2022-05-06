@@ -986,11 +986,11 @@ public class AssetSelector
 
     public static void SetVanillaBodyPath(NPCInfo npcInfo, SkyrimMod outputMod)
     {
-        if (npcInfo.NPC.WornArmor != null && !npcInfo.NPC.WornArmor.IsNull && PatcherEnvironmentProvider.Environment.LinkCache.TryResolve<IArmorGetter>(npcInfo.NPC.WornArmor.FormKey, out var skin))
+        if (npcInfo.NPC.WornArmor != null && !npcInfo.NPC.WornArmor.IsNull && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IArmorGetter>(npcInfo.NPC.WornArmor.FormKey, out var skin))
         {
             foreach (var armaGetter in skin.Armature)
             { 
-                if (PatcherEnvironmentProvider.Environment.LinkCache.TryResolve<IArmorAddonGetter>(armaGetter.FormKey, out var armature) && armature.BodyTemplate != null && armature.WorldModel != null && armature.BodyTemplate.FirstPersonFlags.HasFlag(BipedObjectFlag.Body) && Patcher.PatchableRaces.Contains(armature.Race))
+                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IArmorAddonGetter>(armaGetter.FormKey, out var armature) && armature.BodyTemplate != null && armature.WorldModel != null && armature.BodyTemplate.FirstPersonFlags.HasFlag(BipedObjectFlag.Body) && Patcher.PatchableRaces.Contains(armature.Race))
                 {
                     string vanillaPath;
                     switch(npcInfo.Gender)

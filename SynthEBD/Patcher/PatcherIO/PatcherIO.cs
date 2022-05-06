@@ -54,7 +54,7 @@ class PatcherIO
 
             var writeParams = new Mutagen.Bethesda.Plugins.Binary.Parameters.BinaryWriteParameters()
             {
-                MastersListOrdering = new Mutagen.Bethesda.Plugins.Binary.Parameters.MastersListOrderingByLoadOrder(PatcherEnvironmentProvider.Environment.LoadOrder)
+                MastersListOrdering = new Mutagen.Bethesda.Plugins.Binary.Parameters.MastersListOrderingByLoadOrder(PatcherEnvironmentProvider.Instance.Environment.LoadOrder)
             };
             outputMod.WriteToBinary(patchOutputPath, writeParams);
             Logger.LogMessage("Wrote output file at " + patchOutputPath + ".");

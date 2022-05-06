@@ -33,7 +33,7 @@ public class BSAHandler
             modName = modKeyStr;
         }
 
-        if (!PatcherEnvironmentProvider.Environment.LoadOrder.ListedOrder.Select(x => x.ModKey.ToString()).Contains(modKeyStr))
+        if (!PatcherEnvironmentProvider.Instance.Environment.LoadOrder.ListedOrder.Select(x => x.ModKey.ToString()).Contains(modKeyStr))
         {
             return false;
         }
@@ -69,7 +69,7 @@ public class BSAHandler
         }
         else
         {
-            foreach (var bsaFile in Archive.GetApplicableArchivePaths(GameRelease.SkyrimSE, PatcherEnvironmentProvider.Environment.DataFolderPath, modKey))
+            foreach (var bsaFile in Archive.GetApplicableArchivePaths(GameRelease.SkyrimSE, PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, modKey))
             {
                 try
                 {

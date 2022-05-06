@@ -181,7 +181,7 @@ public interface ISubAttributeViewModel
     IObservable<System.Reactive.Unit> NeedsRefresh { get; }
 }
 
-public class VM_NPCAttributeVoiceType : ISubAttributeViewModel
+public class VM_NPCAttributeVoiceType : ViewModel, ISubAttributeViewModel
 {
     public VM_NPCAttributeVoiceType(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
@@ -197,12 +197,17 @@ public class VM_NPCAttributeVoiceType : ISubAttributeViewModel
                     parentVM.ParentCollection.Remove(parentVM);
                 }
             }) ;
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
     }
     public ObservableCollection<FormKey> VoiceTypeFormKeys { get; set; } = new();
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
-    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IVoiceTypeGetter).AsEnumerable();
 
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
@@ -220,19 +225,25 @@ public class VM_NPCAttributeVoiceType : ISubAttributeViewModel
     }
 }
 
-public class VM_NPCAttributeClass : ISubAttributeViewModel
+public class VM_NPCAttributeClass : ViewModel, ISubAttributeViewModel
 {
     public VM_NPCAttributeClass(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
         this.ParentVM = parentVM;
         this.ParentShell = parentShell;
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
     }
     public ObservableCollection<FormKey> ClassFormKeys { get; set; } = new();
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
-    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IClassGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
 
@@ -275,6 +286,10 @@ public class VM_NPCAttributeCustom : ViewModel, ISubAttributeViewModel, IImpleme
         this.ValueFKs.CollectionChanged += Evaluate;
         this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => Evaluate());
         this.WhenAnyValue(x => x.ReferenceNPCFormKey).Subscribe(x => Evaluate());
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToGuiProperty(this, nameof(LinkCache), default(ILinkCache))
+            .DisposeWith(this);
     }
 
     public CustomAttributeType CustomType { get; set; } = CustomAttributeType.Text;
@@ -284,7 +299,8 @@ public class VM_NPCAttributeCustom : ViewModel, ISubAttributeViewModel, IImpleme
     public SortedDictionary<string, Type> ValueGetterTypes { get; set; } = new();
     public Type ValueFKtype { get; set; }
     public IEnumerable<Type> ValueFKtypeCollection { get; set; }
-    public ILinkCache LinkCache => PatcherEnvironmentProvider.Environment.LinkCache;
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache LinkCache => _linkCache.Value;
     public ObservableCollection<PathSuggestion> PathSuggestions { get; set; } = new();
     public PathSuggestion ChosenPathSuggestion { get; set; } = null;
     public FormKey ReferenceNPCFormKey { get; set; } = new();
@@ -372,7 +388,7 @@ public class VM_NPCAttributeCustom : ViewModel, ISubAttributeViewModel, IImpleme
         }
         else
         {
-            if (!PatcherEnvironmentProvider.Environment.LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC))
+            if (!PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC))
             {
                 EvalResult = "Error: can't resolve reference NPC.";
                 this.StatusFontColor = new SolidColorBrush(Colors.Red);
@@ -431,12 +447,16 @@ public class VM_NPCAttributeCustom : ViewModel, ISubAttributeViewModel, IImpleme
     }
 }
 
-public class VM_NPCAttributeFactions : ISubAttributeViewModel
+public class VM_NPCAttributeFactions : ViewModel, ISubAttributeViewModel
 {
     public VM_NPCAttributeFactions(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
         this.ParentVM = parentVM;
         this.ParentShell = parentShell;
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
     }
     public ObservableCollection<FormKey> FactionFormKeys { get; set; } = new();
@@ -445,7 +465,9 @@ public class VM_NPCAttributeFactions : ISubAttributeViewModel
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
-    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IFactionGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
 
@@ -464,19 +486,25 @@ public class VM_NPCAttributeFactions : ISubAttributeViewModel
     }
 }
 
-public class VM_NPCAttributeFaceTexture : ISubAttributeViewModel
+public class VM_NPCAttributeFaceTexture : ViewModel, ISubAttributeViewModel
 {
     public VM_NPCAttributeFaceTexture(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
         this.ParentVM = parentVM;
         this.ParentShell = parentShell;
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
     }
     public ObservableCollection<FormKey> FaceTextureFormKeys { get; set; } = new();
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
-    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(ITextureSetGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
 
@@ -494,19 +522,25 @@ public class VM_NPCAttributeFaceTexture : ISubAttributeViewModel
     }
 }
 
-public class VM_NPCAttributeRace : ISubAttributeViewModel
+public class VM_NPCAttributeRace : ViewModel, ISubAttributeViewModel
 {
     public VM_NPCAttributeRace(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
         this.ParentVM = parentVM;
         this.ParentShell = parentShell;
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
     }
     public ObservableCollection<FormKey> RaceFormKeys { get; set; } = new();
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
-    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IRaceGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
 
@@ -524,19 +558,24 @@ public class VM_NPCAttributeRace : ISubAttributeViewModel
     }
 }
 
-public class VM_NPCAttributeNPC : ISubAttributeViewModel
+public class VM_NPCAttributeNPC : ViewModel, ISubAttributeViewModel
 {
     public VM_NPCAttributeNPC(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
         this.ParentVM = parentVM;
         this.ParentShell = parentShell;
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
     }
     public ObservableCollection<FormKey> NPCFormKeys { get; set; } = new();
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
-    public ILinkCache lk => PatcherEnvironmentProvider.Environment.LinkCache;
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
 

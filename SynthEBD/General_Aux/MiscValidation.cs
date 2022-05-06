@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using Noggog;
 
 namespace SynthEBD;
 
@@ -8,14 +9,14 @@ public class MiscValidation
     {
         bool verified = true;
 
-        string helperScriptPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "Scripts", "EBDHelperScript.pex");
+        string helperScriptPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "Scripts", "EBDHelperScript.pex");
         if (!File.Exists(helperScriptPath))
         {
             Logger.LogMessage("Could not find EBDHelperScript.pex from EveryBody's Different Redone SSE at " + helperScriptPath);
             verified = false;
         }
 
-        string globalScriptPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "Scripts", "EBDGlobalFuncs.pex");
+        string globalScriptPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "Scripts", "EBDGlobalFuncs.pex");
         if (!File.Exists(globalScriptPath))
         {
             Logger.LogMessage("Could not find EBDGlobalFuncs.pex from EveryBody's Different Redone SSE at " + globalScriptPath);
@@ -30,23 +31,23 @@ public class MiscValidation
         return verified;
     }
 
-    public static bool VerifyRaceMenuInstalled()
+    public static bool VerifyRaceMenuInstalled(DirectoryPath dataFolderPath)
     {
         bool verified = true;
 
-        string dllPath64 = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins", "skee64.dll");
-        string dllPathVR = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins", "skeevr.dll");
+        string dllPath64 = Path.Combine(dataFolderPath, "SKSE", "Plugins", "skee64.dll");
+        string dllPathVR = Path.Combine(dataFolderPath, "SKSE", "Plugins", "skeevr.dll");
         if (!File.Exists(dllPath64) && !File.Exists(dllPathVR))
         {
-            Logger.LogMessage("Could not find skee64.dll from RaceMenu at " + Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins"));
+            Logger.LogMessage("Could not find skee64.dll from RaceMenu at " + Path.Combine(dataFolderPath, "SKSE", "Plugins"));
             verified = false;
         }
 
-        string iniPath64 = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins", "skee64.ini");
-        string iniPathVR = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins", "skeevr.ini");
+        string iniPath64 = Path.Combine(dataFolderPath, "SKSE", "Plugins", "skee64.ini");
+        string iniPathVR = Path.Combine(dataFolderPath, "SKSE", "Plugins", "skeevr.ini");
         if (!File.Exists(iniPath64) && !File.Exists(iniPathVR))
         {
-            Logger.LogMessage("Could not find skee64.ini from RaceMenu at " + Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins"));
+            Logger.LogMessage("Could not find skee64.ini from RaceMenu at " + Path.Combine(dataFolderPath, "SKSE", "Plugins"));
             verified = false;
         }
 
@@ -58,18 +59,18 @@ public class MiscValidation
         return verified;
     }
 
-    public static bool VerifyOBodyInstalled()
+    public static bool VerifyOBodyInstalled(DirectoryPath dataFolderPath)
     {
         bool verified = true;
 
-        string scriptPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "Scripts", "OBodyNative.pex");
+        string scriptPath = Path.Combine(dataFolderPath, "Scripts", "OBodyNative.pex");
         if (!File.Exists(scriptPath))
         {
             Logger.LogMessage("Could not find OBodyNative.pex from OBody at " + scriptPath);
             verified = false;
         }
 
-        string dllPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins", "OBody.dll");
+        string dllPath = Path.Combine(dataFolderPath, "SKSE", "Plugins", "OBody.dll");
         if (!File.Exists(dllPath))
         {
             Logger.LogMessage("Could not find OBody.dll from OBody at " + dllPath);
@@ -84,18 +85,18 @@ public class MiscValidation
         return verified;
     }
 
-    public static bool VerifyAutoBodyInstalled()
+    public static bool VerifyAutoBodyInstalled(DirectoryPath dataFolderPath)
     {
         bool verified = true;
 
-        string scriptPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "Scripts", "autoBodyUtils.pex");
+        string scriptPath = Path.Combine(dataFolderPath, "Scripts", "autoBodyUtils.pex");
         if (!File.Exists(scriptPath))
         {
             Logger.LogMessage("Could not find autoBodyUtils.pex from AutoBody at " + scriptPath);
             verified = false;
         }
 
-        string dllPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins", "autoBodyAE.dll");
+        string dllPath = Path.Combine(dataFolderPath, "SKSE", "Plugins", "autoBodyAE.dll");
         if (!File.Exists(dllPath))
         {
             Logger.LogMessage("Could not find autoBodyAE.dll from AutoBody at " + dllPath);
@@ -110,9 +111,9 @@ public class MiscValidation
         return verified;
     }
 
-    public static bool VerifySPIDInstalled()
+    public static bool VerifySPIDInstalled(DirectoryPath dataFolderPath)
     {
-        string dllPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "SKSE", "Plugins", "po3_SpellPerkItemDistributor.dll");
+        string dllPath = Path.Combine(dataFolderPath, "SKSE", "Plugins", "po3_SpellPerkItemDistributor.dll");
         if (!File.Exists(dllPath))
         {
             Logger.LogMessage("Could not find po3_SpellPerkItemDistributor.dll from Spell Perk Item Distributor at " + dllPath);
@@ -221,7 +222,7 @@ public class MiscValidation
         bool valid = true;
         if (oBodySettings.BodySlidesMale.Where(x => x.AllowRandom && oBodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).Any())
         {
-            string triPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
+            string triPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
             if (!File.Exists(triPath))
             {
                 valid = false;
@@ -231,7 +232,7 @@ public class MiscValidation
 
         if (oBodySettings.BodySlidesFemale.Where(x => x.AllowRandom && oBodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).Any())
         {
-            string triPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
+            string triPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
             if (!File.Exists(triPath))
             {
                 valid = false;
@@ -254,7 +255,7 @@ public class MiscValidation
 
         if (hasMaleConfigs)
         {
-            string triPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
+            string triPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
             if (!File.Exists(triPath))
             {
                 valid = false;
@@ -263,7 +264,7 @@ public class MiscValidation
         }
         if (hasFemaleConfigs)
         {
-            string triPath = Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
+            string triPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
             if (!File.Exists(triPath))
             {
                 valid = false;

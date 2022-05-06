@@ -282,7 +282,7 @@ public class AssetPack : IModelHasSubgroups
 
         foreach (var path in subgroup.Paths)
         {
-            var fullPath = System.IO.Path.Combine(PatcherEnvironmentProvider.Environment.DataFolderPath, path.Source);
+            var fullPath = System.IO.Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, path.Source);
             if (!System.IO.File.Exists(fullPath) && !BSAHandler.ReferencedPathExists(path.Source, out bool archiveExists, out string modName))
             {
                 string pathError = "No file exists at " + fullPath;
