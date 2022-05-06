@@ -3,8 +3,9 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.ComponentModel;
+using System.Reactive.Linq;
+using DynamicData;
+using DynamicData.Binding;
 using Noggog.WPF;
 using ReactiveUI;
 
@@ -14,11 +15,28 @@ public class VM_LinkedNPCGroup : ViewModel
 {
     public VM_LinkedNPCGroup()
     {
-        this.NPCFormKeys.CollectionChanged += RefereshPrimaryAssignment;
-        
         _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
             .ToProperty(this, nameof(lk), default(ILinkCache))
             .DisposeWith(this);
+
+        _primaryCandidates = Observable.CombineLatest(
+                this.NPCFormKeys.ToObservableChangeSet()
+                    .QueryWhenChanged(q => q),
+                this.WhenAnyValue(x => x.lk),
+            (formKeys, linkCache) =>
+            {
+                var ret = new HashSet<string>();
+                foreach (var fk in formKeys)
+                {
+                    if (linkCache.TryResolve<INpcGetter>(fk, out var npcGetter))
+                    {
+                        ret.Add(Logger.GetNPCLogNameString(npcGetter));
+                    }
+                }
+
+                return (IReadOnlyCollection<string>)ret;
+            })
+            .ToProperty(this, nameof(PrimaryCandidates), new HashSet<string>());
     }
 
     public string GroupName { get; set; } = "";
@@ -27,29 +45,9 @@ public class VM_LinkedNPCGroup : ViewModel
     public ILinkCache lk => _linkCache.Value;
     public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public string Primary { get; set; }
-    public HashSet<string> PrimaryCandidates { get; } = new();
 
-    public void RefereshPrimaryAssignment(object sender, PropertyChangedEventArgs e)
-    {
-        RefereshPrimaryAssignment();
-    }
-
-    public void RefereshPrimaryAssignment(object sender, NotifyCollectionChangedEventArgs e)
-    {
-        RefereshPrimaryAssignment();
-    }
-
-    public void RefereshPrimaryAssignment()
-    {
-        this.PrimaryCandidates.Clear();
-        foreach (var fk in this.NPCFormKeys)
-        {
-            if (lk.TryResolve<INpcGetter>(fk, out var npcGetter))
-            {
-                this.PrimaryCandidates.Add(Logger.GetNPCLogNameString(npcGetter));
-            }
-        }
-    }
+    private readonly ObservableAsPropertyHelper<IReadOnlyCollection<string>> _primaryCandidates;
+    public IReadOnlyCollection<string> PrimaryCandidates => _primaryCandidates.Value;
 
     public static ObservableCollection<VM_LinkedNPCGroup> GetViewModelsFromModels(HashSet<LinkedNPCGroup> models)
     {
