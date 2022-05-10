@@ -153,7 +153,7 @@ namespace SynthEBD
 
             RecordTemplatePlugins = SettingsIO_AssetPack.LoadRecordTemplates(out loadSuccess);
             if (!loadSuccess) { Logger.SwitchViewToLogDisplay(); }
-            RecordTemplateLinkCache = RecordTemplatePlugins.ToImmutableLinkCache();
+            RecordTemplateLinkCache = PatcherEnvironmentProvider.Environment.LoadOrder.ToMutableLinkCache(RecordTemplatePlugins.ToArray());
 
             // load asset packs
             AssetPacks = SettingsIO_AssetPack.LoadAssetPacks(PatcherSettings.General.RaceGroupings, RecordTemplatePlugins, BodyGenConfigs, out loadSuccess); // load asset pack models from json

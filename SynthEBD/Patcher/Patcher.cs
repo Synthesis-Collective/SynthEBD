@@ -23,7 +23,7 @@ namespace SynthEBD
         {
             ModKey.TryFromName(PatcherSettings.General.PatchFileName, ModType.Plugin, out var patchModKey);
             var outputMod = new SkyrimMod(patchModKey, SkyrimRelease.SkyrimSE);
-            MainLinkCache = PatcherEnvironmentProvider.Environment.LoadOrder.ToMutableLinkCache(outputMod);
+            MainLinkCache = PatcherEnvironmentProvider.Environment.LoadOrder.ToMutableLinkCache(recordTemplatePlugins.ToArray());
             ResolvePatchableRaces();
             BodyGenTracker = new BodyGenAssignmentTracker();
             UniqueAssignmentsByName.Clear();

@@ -398,6 +398,8 @@ namespace SynthEBD
             {
                 parsed = false;
 
+                strIndex = RemovePairedParens(strIndex);
+
                 if (strIndex.Contains("Invoke:") && !ReplaceUncomparedInvokeCalls(strIndex, out strIndex))
                 {
                     return;
@@ -495,6 +497,15 @@ namespace SynthEBD
                 replacedStr = argStr.Replace("invoke:", "Invoke:");
                 return true;
             }
+
+            private static string RemovePairedParens(string str)
+            {
+                while (str.StartsWith('(') && str.EndsWith(')'))
+                {
+                    str = str.Substring(1, str.Length - 2);
+                }
+                return str;
+            }
             private static bool GetFunctionArgsString(string subStr, out string parsedStr)
             {
                 parsedStr = "";
@@ -553,13 +564,20 @@ namespace SynthEBD
         private static string FormatMatchConditionString(string matchConditionStr, List<ArrayPathCondition> arrayMatchConditions)
         {
             int argIndex = 0;
+            char? previousChar = null;
+            HashSet<char> variablePredecessors = new HashSet<char>() { '&', '|', '(' };
+
             foreach (var condition in arrayMatchConditions)
             {
                 string argStr = '{' + argIndex.ToString() + '}';
 
                 for (int i = 0; i < matchConditionStr.Length - condition.ReplacerTemplate.Length; i++)
                 {
-                    if (matchConditionStr.Substring(i, condition.ReplacerTemplate.Length) == condition.ReplacerTemplate && (i == 0 || matchConditionStr[i - 1] == '(' || matchConditionStr[i - 1] == ' '))
+                    var currentSubStr = matchConditionStr.Substring(i, condition.ReplacerTemplate.Length);
+                    if (i > 0) { previousChar = matchConditionStr[i - 1]; }
+                    else { previousChar = null; }
+
+                    if (currentSubStr == condition.ReplacerTemplate && (i == 0 || variablePredecessors.Contains(previousChar.Value)))
                     {
                         matchConditionStr = matchConditionStr.Remove(i, condition.ReplacerTemplate.Length);
                         if (condition.SpecialHandling == ArrayPathCondition.SpecialHandlingType.Invoke)
@@ -570,6 +588,7 @@ namespace SynthEBD
                         {
                             matchConditionStr = matchConditionStr.Insert(i, argStr);
                         }
+                        break;
                     }
                 }
                 argIndex++;
@@ -582,6 +601,7 @@ namespace SynthEBD
             outputObj = null;
             indexInParent = null;
 
+            matchConditionStr = Regex.Replace(matchConditionStr, @"(""[^""\\]*(?:\\.[^""\\]*)*"")|\s+", "$1"); // https://stackoverflow.com/questions/34770292/remove-white-spaces-unless-within-quotes-ignoring-escaped-quotes // This should be done in preprocessing in final release
             var arrayMatchConditions = ArrayPathCondition.GetConditionsFromString(matchConditionStr, out bool parsed);
             if (!parsed)
             {
