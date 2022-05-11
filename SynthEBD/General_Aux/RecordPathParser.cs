@@ -70,6 +70,7 @@ namespace SynthEBD
                 
                 return true;
             }
+            if (!objectCache.ContainsKey("")) {  objectCache.Add("", rootObj); }
 
             string[] splitPath = SplitPath(relativePath);
             dynamic currentObj = rootObj;
@@ -396,9 +397,10 @@ namespace SynthEBD
         {
             private ArrayPathCondition(string strIndex, out bool parsed)
             {
-                parsed = false;
+                 parsed = false;
 
                 strIndex = RemovePairedParens(strIndex);
+                strIndex = TrimParens(strIndex);
 
                 if (strIndex.Contains("Invoke:") && !ReplaceUncomparedInvokeCalls(strIndex, out strIndex))
                 {
@@ -407,6 +409,9 @@ namespace SynthEBD
 
                 int sepIndex = -1;
                 Comparator = "";
+
+                strIndex = strIndex.Replace("=>", "{LAMBDA}"); // preserve lambda operator
+
                 foreach (var comparator in Comparators)
                 {
                     if (strIndex.Contains(comparator))
@@ -435,19 +440,9 @@ namespace SynthEBD
                     MatchCondition = Comparator + " " + split[split.Length - 1].Trim();
                 }
 
-
-
-                /*
-                if (Comparator == ".Invoke:")
-                {
-                    ReplacerTemplate += Comparator;
-                    MatchCondition = "." + split[split.Length - 1].Trim();
-                }
-                else
-                {
-                    MatchCondition = Comparator + " " + split[split.Length - 1].Trim();
-                }
-                */
+                Path = Path.Replace("{LAMBDA}", "=>");
+                ReplacerTemplate = ReplacerTemplate.Replace("{LAMBDA}", "=>");
+                MatchCondition = MatchCondition.Replace("{LAMBDA}", "=>");
 
                 if (Path.StartsWith('!'))
                 {
@@ -469,7 +464,8 @@ namespace SynthEBD
             {
                 None,
                 PatchableRaces,
-                Invoke
+                Invoke,
+                MatchRace
             }
 
             private static bool ReplaceUncomparedInvokeCalls(string argStr, out string replacedStr) // replaces Invoke calls, which are assumed to be boolean, with a corresponding comparison (== true)
@@ -506,6 +502,42 @@ namespace SynthEBD
                 }
                 return str;
             }
+
+            private static string TrimParens(string str)
+            {
+                if (str.StartsWith('('))
+                {
+                    bool capture = true;
+                    int depth = 0;
+                    foreach (char c in str)
+                    {
+                        if (capture && c == '"') {  capture = false; }
+                        else if (!capture && c == '"') {  capture = true; }
+                        else if (capture && c == '(') { depth++; }
+                        else if (capture && c == ')') {  depth--; }  
+                    }
+
+                    if (depth > 0) { str = str.Remove(0, 1); }
+                }
+
+                if (str.EndsWith(')'))
+                {
+                    bool capture = true;
+                    int depth = 0;
+                    foreach (char c in str)
+                    {
+                        if (capture && c == '"') { capture = false; }
+                        else if (!capture && c == '"') { capture = true; }
+                        else if (capture && c == '(') { depth++; }
+                        else if (capture && c == ')') { depth--; }
+                    }
+
+                    if (depth < 0) { str = str.Remove(str.Length - 1, 1); }
+                }
+
+                return str;
+            }
+
             private static bool GetFunctionArgsString(string subStr, out string parsedStr)
             {
                 parsedStr = "";
@@ -528,7 +560,6 @@ namespace SynthEBD
                 else { return false; }
             }
 
-            //public static HashSet<string> Comparators = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=", ".Invoke:" };
             public static HashSet<string> Comparators = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
 
             public static List<ArrayPathCondition> GetConditionsFromString(string input, out bool parsed)
@@ -547,6 +578,12 @@ namespace SynthEBD
                         var patchableRaceCondition = new ArrayPathCondition { Path = patchableRaceSubject.Substring(0, patchableRaceSubject.Length - 1), MatchCondition = patchableRaceMethod.Trim(), SpecialHandling = SpecialHandlingType.PatchableRaces};
                         patchableRaceCondition.ReplacerTemplate = patchableRaceCondition.Path;
                         output.Add(patchableRaceCondition);
+                        continue;
+                    }
+                    else if (conditionStr.Contains("MatchRace("))
+                    {
+                        var matchRaceCondition = new ArrayPathCondition { Path = conditionStr, MatchCondition = conditionStr, SpecialHandling = SpecialHandlingType.MatchRace, ReplacerTemplate = conditionStr };
+                        output.Add(matchRaceCondition);
                         continue;
                     }
                     var condition = new ArrayPathCondition(conditionStr, out bool conditionParsed);
@@ -631,6 +668,12 @@ namespace SynthEBD
 
                 foreach (var condition in arrayMatchConditions)
                 {
+                    if (condition.SpecialHandling == ArrayPathCondition.SpecialHandlingType.MatchRace)
+                    {
+                        var race = GetObjectAtPath(objectCache[""], "Race", new Dictionary<string, dynamic>(), linkCache, suppressMissingPathErrors, errorCaption, out dynamic npcRaceDyn);
+                        var raceGetter = (IRaceGetter)npcRaceDyn;
+                    }
+
                     dynamic comparisonObject;
                     
                     if (candidateObjIsResolved && candidateRecordGetter != null && GetObjectAtPath(candidateRecordGetter, condition.Path, variantObjectCache, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
