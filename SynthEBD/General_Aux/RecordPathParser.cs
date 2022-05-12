@@ -266,10 +266,12 @@ namespace SynthEBD
             dynamic currentObj = rootGetter;
             parentRecordGetter = null;
             relativePath = "";
+            var objectCache = new Dictionary<string, dynamic>();
+            objectCache.Add("", rootGetter);
 
             for (int i = 0; i < splitPath.Length; i++)
             {
-                if (GetObjectAtPath(currentObj, splitPath[i], new Dictionary<string, dynamic>(), linkCache, suppressMissingPathErrors, errorCaption, out currentObj, out ObjectInfo currentObjInfo))
+                if (GetObjectAtPath(currentObj, splitPath[i], objectCache, linkCache, suppressMissingPathErrors, errorCaption, out currentObj, out ObjectInfo currentObjInfo))
                 {
                     if (currentObjInfo.HasFormKey)
                     {
@@ -656,8 +658,11 @@ namespace SynthEBD
             return matchConditionStr;
         }
 
-        private static bool MatchRace(dynamic rootRecord, INpcGetter npc, string toMatchPathStr)
+        private static bool MatchRace(dynamic rootRecord, dynamic npcDyn, string toMatchPathStr)
         {
+            var npc = npcDyn as INpcGetter;
+            if (npc == null) { return false; }
+
             var toMatch = toMatchPathStr.Split(',').Select(x => x.Trim()).ToHashSet();
 
             bool matchDefault = false;
