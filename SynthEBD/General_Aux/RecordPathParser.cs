@@ -12,6 +12,7 @@ using Mutagen.Bethesda.Skyrim;
 using Mutagen.Bethesda.Plugins.Cache;
 using System.Linq.Expressions;
 using Loqui;
+using Mutagen.Bethesda.FormKeys.SkyrimSE;
 
 namespace SynthEBD
 {
@@ -582,9 +583,17 @@ namespace SynthEBD
                     }
                     else if (conditionStr.Contains("MatchRace("))
                     {
-                        var matchRaceCondition = new ArrayPathCondition { Path = conditionStr, MatchCondition = conditionStr, SpecialHandling = SpecialHandlingType.MatchRace, ReplacerTemplate = conditionStr };
-                        output.Add(matchRaceCondition);
-                        continue;
+                        if(GetMatchRaceArgStr(conditionStr, out string args))
+                        {
+                            var matchRaceCondition = new ArrayPathCondition { Path = conditionStr, MatchCondition = args, SpecialHandling = SpecialHandlingType.MatchRace, ReplacerTemplate = conditionStr };
+                            output.Add(matchRaceCondition);
+                            continue;
+                        }
+                        else
+                        {
+                            parsed = false;
+                            return output;
+                        }
                     }
                     var condition = new ArrayPathCondition(conditionStr, out bool conditionParsed);
                     if (conditionParsed) { output.Add(condition); }
@@ -595,6 +604,20 @@ namespace SynthEBD
                     }
                 }
                 return output;
+            }
+
+            private static bool GetMatchRaceArgStr(string conditionStr, out string args)
+            {
+                args = "";
+                int start = conditionStr.IndexOf('(');
+                int end = conditionStr.LastIndexOf(')');
+                if (start < 0 || end < 0)
+                {
+                    return false;
+                }
+
+                args = conditionStr.Substring(start + 1, end - start - 1);
+                return true;
             }
         }
 
@@ -633,12 +656,56 @@ namespace SynthEBD
             return matchConditionStr;
         }
 
+        private static bool MatchRace(dynamic rootRecord, INpcGetter npc, string toMatchPathStr)
+        {
+            var toMatch = toMatchPathStr.Split(',').Select(x => x.Trim()).ToHashSet();
+
+            bool matchDefault = false;
+            var defaultArg = toMatch.Where(x => x.Equals("MatchDefault", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+            if(defaultArg is not null)
+            {
+                matchDefault = true;
+                toMatch.Remove(defaultArg);
+            }
+
+            Dictionary<string, dynamic> subObjectCache = new Dictionary<string, dynamic>();
+
+            foreach (var matchPath in toMatch)
+            {
+                if (GetObjectAtPath(rootRecord, matchPath, subObjectCache, Patcher.MainLinkCache, true, "", out dynamic outputObj))
+                {
+                    var objCollection = outputObj as System.Collections.IEnumerable;
+                    
+                    if (objCollection is not null)
+                    {
+                        foreach (var candidateRaceDyn in objCollection)
+                        {
+                            var candidateRaceForm = candidateRaceDyn as IFormLinkIdentifier;
+                            if (candidateRaceForm is not null && (candidateRaceForm.FormKey.Equals(npc.Race.FormKey) || (matchDefault && candidateRaceForm.FormKey.Equals(Skyrim.Race.DefaultRace.FormKey))))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        var candidateRaceForm = outputObj as IFormLinkIdentifier;
+                        if (candidateRaceForm is not null && (candidateRaceForm.FormKey.Equals(npc.Race.FormKey) || (matchDefault && candidateRaceForm.FormKey.Equals(Skyrim.Race.DefaultRace.FormKey))))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
         private static bool ChooseWhichArrayObject(IReadOnlyList<dynamic> variants, string matchConditionStr, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out int? indexInParent)
         {
             outputObj = null;
             indexInParent = null;
 
-            matchConditionStr = Regex.Replace(matchConditionStr, @"(""[^""\\]*(?:\\.[^""\\]*)*"")|\s+", "$1"); // https://stackoverflow.com/questions/34770292/remove-white-spaces-unless-within-quotes-ignoring-escaped-quotes // This should be done in preprocessing in final release
             var arrayMatchConditions = ArrayPathCondition.GetConditionsFromString(matchConditionStr, out bool parsed);
             if (!parsed)
             {
@@ -670,8 +737,16 @@ namespace SynthEBD
                 {
                     if (condition.SpecialHandling == ArrayPathCondition.SpecialHandlingType.MatchRace)
                     {
-                        var race = GetObjectAtPath(objectCache[""], "Race", new Dictionary<string, dynamic>(), linkCache, suppressMissingPathErrors, errorCaption, out dynamic npcRaceDyn);
-                        var raceGetter = (IRaceGetter)npcRaceDyn;
+                        if (MatchRace(candidateRecordGetter, objectCache[""], condition.MatchCondition))
+                        {
+                            matchConditionStr = matchConditionStr.Replace(condition.ReplacerTemplate, " true");
+                            continue;
+                        }
+                        else
+                        {
+                            skipToNext = true;
+                            break;
+                        }
                     }
 
                     dynamic comparisonObject;
