@@ -3,12 +3,11 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_AssetPackDirectReplacerMenu : ViewModel
+public class VM_AssetPackDirectReplacerMenu : VM
 {
     public VM_AssetPackDirectReplacerMenu(VM_AssetPack parent, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
     {
@@ -47,14 +46,14 @@ public class VM_AssetPackDirectReplacerMenu : ViewModel
     }
 }
 
-public class VM_AssetReplacerGroup : ViewModel
+public class VM_AssetReplacerGroup : VM
 {
     public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
     {
         this.ParentMenu = parent;
         
-        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .ToProperty(this, nameof(lk), default(ILinkCache))
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => lk = x)
             .DisposeWith(this);
 
         Remove = new SynthEBD.RelayCommand(
@@ -82,9 +81,8 @@ public class VM_AssetReplacerGroup : ViewModel
     public VM_AssetPackDirectReplacerMenu ParentMenu{ get; set; }
 
     public FormKey TemplateNPCFK { get; set; }
-
-    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
-    public ILinkCache lk => _linkCache.Value;
+    
+    public ILinkCache lk { get; private set; }
     public IEnumerable<Type> NPCType { get; set; } = typeof(INpcGetter).AsEnumerable();
 
     public RelayCommand Remove { get; }

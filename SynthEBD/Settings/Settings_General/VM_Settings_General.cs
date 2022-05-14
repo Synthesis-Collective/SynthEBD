@@ -1,17 +1,15 @@
 ﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.IO;
 using System.Reactive.Linq;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_Settings_General : ViewModel, IHasAttributeGroupMenu
+public class VM_Settings_General : VM, IHasAttributeGroupMenu
 {
     public VM_Settings_General(MainWindow_ViewModel mainVM)
     {
@@ -23,8 +21,8 @@ public class VM_Settings_General : ViewModel, IHasAttributeGroupMenu
         this.WhenAnyValue(x => x.bShowToolTips)
             .Subscribe(x => TooltipController.Instance.DisplayToolTips = x);
         
-        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .ToProperty(this, nameof(lk), default(ILinkCache))
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => lk = x)
             .DisposeWith(this);
 
         AddRaceAlias = new SynthEBD.RelayCommand(
@@ -145,8 +143,7 @@ public class VM_Settings_General : ViewModel, IHasAttributeGroupMenu
 
     public VM_AttributeGroupMenu AttributeGroupMenu { get; set; } = new(null, false);
     public bool OverwritePluginAttGroups { get; set; } = true;
-    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
-    public ILinkCache lk => _linkCache.Value;
+    public ILinkCache lk { get; private set; }
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
     public IEnumerable<Type> NPCPickerFormKeys { get; set; } = typeof(INpcGetter).AsEnumerable();
 

@@ -1,9 +1,8 @@
 ﻿using System.Collections.ObjectModel;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_SpecificNPCAssignmentsUI : ViewModel
+public class VM_SpecificNPCAssignmentsUI : VM
 {
     public VM_SpecificNPCAssignmentsUI(VM_SettingsTexMesh texMeshSettings, VM_SettingsBodyGen bodyGenSettings, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, MainWindow_ViewModel mainVM)
     {

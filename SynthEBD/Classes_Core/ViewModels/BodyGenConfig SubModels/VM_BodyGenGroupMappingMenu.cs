@@ -4,12 +4,11 @@ using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_BodyGenGroupMappingMenu : ViewModel
+public class VM_BodyGenGroupMappingMenu : VM
 {
     public VM_BodyGenGroupMappingMenu(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
@@ -31,15 +30,15 @@ public class VM_BodyGenGroupMappingMenu : ViewModel
     public RelayCommand RemoveMapping { get; }
 }
 
-public class VM_BodyGenRacialMapping : ViewModel
+public class VM_BodyGenRacialMapping : VM
 {
     public VM_BodyGenRacialMapping(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
         this.RaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         this.MonitoredGroupsMenu = groupsMenu;
         
-        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .ToProperty(this, nameof(lk), default(ILinkCache))
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => lk = x)
             .DisposeWith(this);
 
         AddCombination = new SynthEBD.RelayCommand(
@@ -59,8 +58,8 @@ public class VM_BodyGenRacialMapping : ViewModel
 
     public VM_BodyGenGroupsMenu MonitoredGroupsMenu { get; set; }
 
-    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
-    public ILinkCache lk => _linkCache.Value;
+    
+    public ILinkCache lk { get; private set; }
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
     public RelayCommand AddCombination { get; }
     public RelayCommand RemoveCombination { get; }
@@ -92,7 +91,7 @@ public class VM_BodyGenRacialMapping : ViewModel
         return model;
     }
 }
-public class VM_BodyGenCombination : ViewModel
+public class VM_BodyGenCombination : VM
 {
     public VM_BodyGenCombination(VM_BodyGenGroupsMenu groupsMenu, VM_BodyGenRacialMapping parent)
     {

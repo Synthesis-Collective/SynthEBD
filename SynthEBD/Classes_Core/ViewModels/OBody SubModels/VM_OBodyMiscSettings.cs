@@ -1,9 +1,8 @@
 ﻿using System.Collections.ObjectModel;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_OBodyMiscSettings : ViewModel
+public class VM_OBodyMiscSettings : VM
 {
     public VM_OBodyMiscSettings()
     {

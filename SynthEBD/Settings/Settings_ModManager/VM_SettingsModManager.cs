@@ -1,9 +1,8 @@
-﻿using Noggog.WPF;
-using ReactiveUI;
+﻿using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_SettingsModManager : ViewModel
+public class VM_SettingsModManager : VM
 {
     public VM_SettingsModManager()
     {
@@ -86,7 +85,7 @@ public class VM_SettingsModManager : ViewModel
     }
 }
 
-public class VM_MO2Integration : ViewModel
+public class VM_MO2Integration : VM
 {
     public VM_MO2Integration()
     {
@@ -132,7 +131,7 @@ public class VM_MO2Integration : ViewModel
     }
 }
 
-public class VM_VortexIntergation : ViewModel
+public class VM_VortexIntergation : VM
 {
     public VM_VortexIntergation()
     {

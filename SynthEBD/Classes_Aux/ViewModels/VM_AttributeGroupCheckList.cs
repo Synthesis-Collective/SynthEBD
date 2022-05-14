@@ -1,11 +1,10 @@
 ﻿using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_AttributeGroupCheckList : ViewModel
+public class VM_AttributeGroupCheckList : VM
 {
     public VM_AttributeGroupCheckList(ObservableCollection<VM_AttributeGroup> AttributeVMs)
     {
@@ -28,7 +27,7 @@ public class VM_AttributeGroupCheckList : ViewModel
         this.AttributeSelections = newCheckList.AttributeSelections;
     }
 
-    public class AttributeSelection : ViewModel
+    public class AttributeSelection : VM
     {
         public AttributeSelection(VM_AttributeGroup attributeGroupVM, VM_AttributeGroupCheckList parent)
         {

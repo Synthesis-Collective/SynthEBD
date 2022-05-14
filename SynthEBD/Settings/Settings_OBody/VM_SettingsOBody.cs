@@ -1,9 +1,8 @@
 ﻿using System.Collections.ObjectModel;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_SettingsOBody : ViewModel, IHasAttributeGroupMenu
+public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 {
     public VM_SettingsOBody(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_General generalSettingsVM)
     {

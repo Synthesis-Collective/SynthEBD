@@ -6,20 +6,19 @@ using System.Collections.ObjectModel;
 using System.Reactive.Linq;
 using DynamicData;
 using DynamicData.Binding;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_LinkedNPCGroup : ViewModel
+public class VM_LinkedNPCGroup : VM
 {
     public VM_LinkedNPCGroup()
     {
-        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .ToProperty(this, nameof(lk), default(ILinkCache))
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-        _primaryCandidates = Observable.CombineLatest(
+        Observable.CombineLatest(
                 this.NPCFormKeys.ToObservableChangeSet()
                     .QueryWhenChanged(q => q),
                 this.WhenAnyValue(x => x.lk),
@@ -36,18 +35,18 @@ public class VM_LinkedNPCGroup : ViewModel
 
                 return (IReadOnlyCollection<string>)ret;
             })
-            .ToProperty(this, nameof(PrimaryCandidates), new HashSet<string>());
+            .Subscribe(x => PrimaryCandidates = x)
+            .DisposeWith(this);
     }
 
     public string GroupName { get; set; } = "";
     public ObservableCollection<FormKey> NPCFormKeys { get; } = new();
-    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
-    public ILinkCache lk => _linkCache.Value;
+    
+    public ILinkCache lk { get; private set; }
     public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public string Primary { get; set; }
 
-    private readonly ObservableAsPropertyHelper<IReadOnlyCollection<string>> _primaryCandidates;
-    public IReadOnlyCollection<string> PrimaryCandidates => _primaryCandidates.Value;
+    public IReadOnlyCollection<string> PrimaryCandidates { get; private set; }
 
     public static ObservableCollection<VM_LinkedNPCGroup> GetViewModelsFromModels(HashSet<LinkedNPCGroup> models)
     {

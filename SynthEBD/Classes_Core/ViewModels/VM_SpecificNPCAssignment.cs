@@ -7,11 +7,10 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using ReactiveUI;
 using DynamicData.Binding;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_SpecificNPCAssignment : ViewModel, IHasForcedAssets
+public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
 {
     public VM_SpecificNPCAssignment(MainWindow_ViewModel mainVM)
     {
@@ -19,8 +18,8 @@ public class VM_SpecificNPCAssignment : ViewModel, IHasForcedAssets
         SubscribedOBodySettings = mainVM.OBodySettingsVM;
         SubscribedBodyGenSettings = mainVM.BodyGenSettingsVM;
         
-        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .ToProperty(this, nameof(lk), default(ILinkCache))
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => lk = x)
             .DisposeWith(this);
 
         this.ForcedAssetPack = new VM_AssetPack(mainVM);
@@ -126,8 +125,7 @@ public class VM_SpecificNPCAssignment : ViewModel, IHasForcedAssets
 
     public VM_Settings_General SubscribedGeneralSettings { get; set; }
     public VM_SettingsOBody SubscribedOBodySettings { get; set; }
-    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
-    public ILinkCache lk => _linkCache.Value;
+    public ILinkCache lk { get; private set; }
     public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public RelayCommand DeleteForcedAssetPack { get; set; }
     public RelayCommand DeleteForcedSubgroup { get; set; }
@@ -583,7 +581,7 @@ public class VM_SpecificNPCAssignment : ViewModel, IHasForcedAssets
         return Gender.Male;
     }
 
-    public class VM_MixInSpecificAssignment : ViewModel, IHasForcedAssets
+    public class VM_MixInSpecificAssignment : VM, IHasForcedAssets
     {
         public VM_MixInSpecificAssignment(VM_SpecificNPCAssignment parent, MainWindow_ViewModel mainVM, ObservableCollection<VM_MixInSpecificAssignment> parentCollection)
         {

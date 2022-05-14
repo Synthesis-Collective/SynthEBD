@@ -6,11 +6,10 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Noggog;
 using DynamicData.Binding;
 using DynamicData;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_FilePathReplacementMenu : ViewModel
+public class VM_FilePathReplacementMenu : VM
 {
     public VM_FilePathReplacementMenu(VM_Subgroup parent, bool setExplicitReferenceNPC, ILinkCache refLinkCache)
     {

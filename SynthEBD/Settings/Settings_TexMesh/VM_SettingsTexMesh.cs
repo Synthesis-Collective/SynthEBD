@@ -1,10 +1,9 @@
 ﻿using System.Collections.ObjectModel;
 using System.Windows.Forms;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_SettingsTexMesh : ViewModel
+public class VM_SettingsTexMesh : VM
 {
     public VM_SettingsTexMesh(MainWindow_ViewModel mainViewModel)
     {

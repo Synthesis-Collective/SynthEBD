@@ -1,17 +1,14 @@
-﻿using System.ComponentModel;
-using System.Reactive.Linq;
+﻿using System.Reactive.Linq;
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Plugins.Order;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
-using Noggog.WPF;
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
 
 namespace SynthEBD;
 
-public class PatcherEnvironmentProvider : INotifyPropertyChanged
+public class PatcherEnvironmentProvider : VM
 {
     public static PatcherEnvironmentProvider Instance = new();
     public string PatchFileName { get; set; } = "SynthEBD.esp";
@@ -20,8 +17,6 @@ public class PatcherEnvironmentProvider : INotifyPropertyChanged
     public RelayCommand SelectOutputFolder { get; }
     
     public IGameEnvironment<ISkyrimMod, ISkyrimModGetter> Environment { get; private set; }
-
-    public event PropertyChangedEventHandler PropertyChanged;
 
     private PatcherEnvironmentProvider()
     {
@@ -53,7 +48,8 @@ public class PatcherEnvironmentProvider : INotifyPropertyChanged
                         x.OnlyEnabledAndExisting().RemoveModAndDependents(inputs.PatchFileName + ".esp", verbose: true))
                     .Build();
             })
-            .Subscribe(x => Environment = x);
+            .Subscribe(x => Environment = x)
+            .DisposeWith(this);
     }
 }
 

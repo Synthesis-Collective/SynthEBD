@@ -1,9 +1,8 @@
 ﻿using System.Collections.ObjectModel;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_BodyGenGroupsMenu : ViewModel
+public class VM_BodyGenGroupsMenu : VM
 {
     public VM_BodyGenGroupsMenu(VM_BodyGenConfig parentMenu)
     {

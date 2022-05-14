@@ -3,12 +3,11 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_BodyShapeDescriptorRules : ViewModel
+public class VM_BodyShapeDescriptorRules : VM
 {
     public VM_BodyShapeDescriptorRules(VM_BodyShapeDescriptor descriptor, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
     {
@@ -18,8 +17,8 @@ public class VM_BodyShapeDescriptorRules : ViewModel
 
         ParentConfig = parentConfig;
         
-        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .ToProperty(this, nameof(lk), default(ILinkCache))
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => lk = x)
             .DisposeWith(this);
 
         AddAllowedAttribute = new SynthEBD.RelayCommand(
@@ -48,8 +47,8 @@ public class VM_BodyShapeDescriptorRules : ViewModel
 
     IHasAttributeGroupMenu ParentConfig { get; set; }
 
-    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
-    public ILinkCache lk => _linkCache.Value;
+    
+    public ILinkCache lk { get; private set; }
     
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
 

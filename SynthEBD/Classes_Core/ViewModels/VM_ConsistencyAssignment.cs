@@ -1,11 +1,10 @@
 ﻿using Mutagen.Bethesda.Plugins;
 using System.Collections.ObjectModel;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_ConsistencyAssignment : ViewModel
+public class VM_ConsistencyAssignment : VM
 {
     public VM_ConsistencyAssignment()
     {

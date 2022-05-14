@@ -4,12 +4,11 @@ using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
 using System.Windows.Media;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_BodySlideSetting : ViewModel
+public class VM_BodySlideSetting : VM
 {
     public VM_BodySlideSetting(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection, VM_SettingsOBody parentConfig)
     {
@@ -20,8 +19,8 @@ public class VM_BodySlideSetting : ViewModel
         this.ParentConfig = parentConfig;
         this.ParentCollection = parentCollection;
         
-        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .ToProperty(this, nameof(lk), default(ILinkCache))
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => lk = x)
             .DisposeWith(this);
 
         AddAllowedAttribute = new SynthEBD.RelayCommand(
@@ -99,8 +98,7 @@ public class VM_BodySlideSetting : ViewModel
     public NPCWeightRange WeightRange { get; set; } = new();
     public string Caption_BodyShapeDescriptors { get; set; } = "";
 
-    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
-    public ILinkCache lk => _linkCache.Value;
+    public ILinkCache lk { get; private set; }
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
     public RelayCommand AddAllowedAttribute { get; }

@@ -1,15 +1,13 @@
 ﻿using System.Collections.ObjectModel;
-using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_raceAlias : ViewModel
+public class VM_raceAlias : VM
 {
     public VM_raceAlias(RaceAlias alias, VM_Settings_General parentVM)
     {
@@ -20,8 +18,8 @@ public class VM_raceAlias : ViewModel
         this.bApplyToAssets = alias.bApplyToAssets;
         this.bApplyToBodyGen = alias.bApplyToBodyGen;
         this.bApplyToHeight = alias.bApplyToHeight;
-        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .ToProperty(this, nameof(lk), default(ILinkCache))
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => lk = x)
             .DisposeWith(this);
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.raceAliases.Remove(this));
@@ -37,9 +35,7 @@ public class VM_raceAlias : ViewModel
     public bool bApplyToHeight { get; set; }
 
     public IEnumerable<Type> FormKeyPickerTypes { get; set; } = typeof(IRaceGetter).AsEnumerable();
-
-    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
-    public ILinkCache lk => _linkCache.Value;
+    public ILinkCache lk { get; private set; }
 
     public VM_Settings_General ParentVM { get; set; }
 

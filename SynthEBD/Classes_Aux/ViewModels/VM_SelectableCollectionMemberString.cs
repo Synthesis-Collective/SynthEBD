@@ -1,11 +1,10 @@
 ﻿using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_SelectableCollectionMemberString : ViewModel
+public class VM_SelectableCollectionMemberString : VM
 {
     public VM_SelectableCollectionMemberString(VM_CollectionMemberString subscribedString, ICollectionParent parentCollection)
     {
@@ -33,7 +32,7 @@ public interface ICollectionParent
     void RebuildHeader();
 }
 
-public class VM_CollectionMemberStringCheckboxList : ViewModel, ICollectionParent
+public class VM_CollectionMemberStringCheckboxList : VM, ICollectionParent
 {
     public VM_CollectionMemberStringCheckboxList(ObservableCollection<VM_CollectionMemberString> collectionMemberStrings)
     {

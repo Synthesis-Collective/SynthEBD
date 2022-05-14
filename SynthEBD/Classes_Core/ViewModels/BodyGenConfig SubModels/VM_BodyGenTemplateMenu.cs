@@ -5,12 +5,11 @@ using Noggog;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_BodyGenTemplateMenu : ViewModel
+public class VM_BodyGenTemplateMenu : VM
 {
     public VM_BodyGenTemplateMenu(VM_BodyGenConfig parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
@@ -34,7 +33,7 @@ public class VM_BodyGenTemplateMenu : ViewModel
 }
 
 
-public class VM_BodyGenTemplate : ViewModel
+public class VM_BodyGenTemplate : VM
 {
     public VM_BodyGenTemplate(ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodyGenTemplate> parentCollection, VM_BodyGenConfig parentConfig)
     {
@@ -49,8 +48,8 @@ public class VM_BodyGenTemplate : ViewModel
         templateGroups.CollectionChanged += UpdateOtherGroupsTemplateCollection;
         this.GroupSelectionCheckList.PropertyChanged += UpdateOtherGroupsTemplateCollectionP;
         
-        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .ToProperty(this, nameof(lk), default(ILinkCache))
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => lk = x)
             .DisposeWith(this);
 
         AddAllowedAttribute = new SynthEBD.RelayCommand(
@@ -94,8 +93,7 @@ public class VM_BodyGenTemplate : ViewModel
     public string Caption_MemberOfTemplateGroups { get; set; } = "";
     public string Caption_BodyShapeDescriptors { get; set; } = "";
 
-    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
-    public ILinkCache lk => _linkCache.Value;
+    public ILinkCache lk { get; private set; }
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
     public RelayCommand AddAllowedAttribute { get; }

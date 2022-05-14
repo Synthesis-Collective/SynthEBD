@@ -1,10 +1,9 @@
 ﻿using System.Collections.ObjectModel;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_ConfigSelector : ViewModel, IHasInstallerOptions
+public class VM_ConfigSelector : VM, IHasInstallerOptions
 {
     public VM_ConfigSelector(Manifest manifest, Window_ConfigInstaller window, VM_ConfigInstaller parentVM)
     {
@@ -146,7 +145,7 @@ public class VM_ConfigSelector : ViewModel, IHasInstallerOptions
 
     public Window_ConfigInstaller AssociatedWindow { get; set; }
 }
-public class VM_Option : ViewModel, IHasInstallerOptions
+public class VM_Option : VM, IHasInstallerOptions
 {
     public VM_Option(Manifest.Option option, IHasInstallerOptions parent, VM_ConfigSelector installer)
     {

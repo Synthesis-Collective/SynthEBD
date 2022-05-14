@@ -4,12 +4,11 @@ using System.ComponentModel;
 using System.Reactive.Linq;
 using DynamicData;
 using DynamicData.Binding;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_AttributeGroup : ViewModel
+public class VM_AttributeGroup : VM
 {
     public VM_AttributeGroup(VM_AttributeGroupMenu parent)
     {

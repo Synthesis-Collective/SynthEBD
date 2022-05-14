@@ -1,11 +1,10 @@
 ﻿using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_BodyShapeDescriptorSelectionMenu : ViewModel
+public class VM_BodyShapeDescriptorSelectionMenu : VM
 {
     public VM_BodyShapeDescriptorSelectionMenu(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
     {
@@ -164,7 +163,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : ViewModel
     }
 }
 
-public class VM_BodyShapeDescriptorShellSelector : ViewModel
+public class VM_BodyShapeDescriptorShellSelector : VM
 {
     public VM_BodyShapeDescriptorShellSelector(VM_BodyShapeDescriptorShell trackedShell, VM_BodyShapeDescriptorSelectionMenu parentMenu)
     {
@@ -221,7 +220,7 @@ public class VM_BodyShapeDescriptorShellSelector : ViewModel
     }
 }
 
-public class VM_BodyShapeDescriptorSelector : ViewModel
+public class VM_BodyShapeDescriptorSelector : VM
 {
     public VM_BodyShapeDescriptorSelector(VM_BodyShapeDescriptor trackedDescriptor, VM_BodyShapeDescriptorSelectionMenu parentMenu)
     {

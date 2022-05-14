@@ -1,10 +1,9 @@
 ﻿using System.Collections.ObjectModel;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_SettingsBodyGen : ViewModel
+public class VM_SettingsBodyGen : VM
 {
     public VM_SettingsBodyGen(VM_Settings_General generalSettingsVM)
     {
