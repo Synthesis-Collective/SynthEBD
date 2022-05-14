@@ -1,54 +1,48 @@
 ﻿using Mutagen.Bethesda.Plugins;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+public class AliasHandler
 {
-    public class AliasHandler
+    public static FormKey GetAliasTexMesh(FormKey npcRaceFormKey)
     {
-        public static FormKey GetAliasTexMesh(FormKey npcRaceFormKey)
-        {
-            var alias = PatcherSettings.General.RaceAliases.Where(x => x.bApplyToAssets && x.Race == npcRaceFormKey).Select(x => x.AliasRace).FirstOrDefault();
+        var alias = PatcherSettings.General.RaceAliases.Where(x => x.bApplyToAssets && x.Race == npcRaceFormKey).Select(x => x.AliasRace).FirstOrDefault();
 
-            if (!alias.IsNull)
-            {
-                return alias;
-            }
-            else
-            {
-                return npcRaceFormKey;
-            }
+        if (!alias.IsNull)
+        {
+            return alias;
         }
-
-        public static FormKey GetAliasBodyGen(FormKey npcRaceFormKey)
+        else
         {
-            var alias = PatcherSettings.General.RaceAliases.Where(x => x.bApplyToBodyGen && x.Race == npcRaceFormKey).Select(x => x.AliasRace).FirstOrDefault();
-
-            if (!alias.IsNull)
-            {
-                return alias;
-            }
-            else
-            {
-                return npcRaceFormKey;
-            }
+            return npcRaceFormKey;
         }
+    }
 
-        public static FormKey GetAliasHeight(FormKey npcRaceFormKey)
+    public static FormKey GetAliasBodyGen(FormKey npcRaceFormKey)
+    {
+        var alias = PatcherSettings.General.RaceAliases.Where(x => x.bApplyToBodyGen && x.Race == npcRaceFormKey).Select(x => x.AliasRace).FirstOrDefault();
+
+        if (!alias.IsNull)
         {
-            var alias = PatcherSettings.General.RaceAliases.Where(x => x.bApplyToHeight && x.Race == npcRaceFormKey).Select(x => x.AliasRace).FirstOrDefault();
+            return alias;
+        }
+        else
+        {
+            return npcRaceFormKey;
+        }
+    }
 
-            if (!alias.IsNull)
-            {
-                return alias;
-            }
-            else
-            {
-                return npcRaceFormKey;
-            }
+    public static FormKey GetAliasHeight(FormKey npcRaceFormKey)
+    {
+        var alias = PatcherSettings.General.RaceAliases.Where(x => x.bApplyToHeight && x.Race == npcRaceFormKey).Select(x => x.AliasRace).FirstOrDefault();
+
+        if (!alias.IsNull)
+        {
+            return alias;
+        }
+        else
+        {
+            return npcRaceFormKey;
         }
     }
 }

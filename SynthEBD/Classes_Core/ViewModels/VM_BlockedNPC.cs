@@ -2,68 +2,60 @@
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Noggog.WPF;
+using ReactiveUI;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+public class VM_BlockedNPC : ViewModel
 {
-    public class VM_BlockedNPC : INotifyPropertyChanged
+    public VM_BlockedNPC()
     {
-        public VM_BlockedNPC()
+        this.PropertyChanged += TriggerDispNameUpdate;
+        
+        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .ToProperty(this, nameof(lk), default(ILinkCache))
+            .DisposeWith(this);
+    }
+    // Caption
+    public string DispName { get; set; } = "New NPC";
+    public FormKey FormKey { get; set; } = new();
+    public bool Assets { get; set; } = true;
+    public bool Height { get; set; } = false;
+    public bool BodyShape { get; set; } = false;
+
+
+    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
+    public ILinkCache lk => _linkCache.Value;
+    public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
+
+    public void TriggerDispNameUpdate(object sender, PropertyChangedEventArgs e)
+    {
+        if (this.FormKey.IsNull == false)
         {
-            this.PropertyChanged += TriggerDispNameUpdate;
-            this.DispName = "New NPC";
-            this.FormKey = new FormKey();
-            this.Assets = true;
-            this.Height = false;
-            this.BodyShape = false;
-
-            this.lk = PatcherEnvironmentProvider.Environment.LinkCache;
-            this.NPCFormKeyTypes = typeof(INpcGetter).AsEnumerable();
+            this.DispName = Converters.CreateNPCDispNameFromFormKey(this.FormKey);
         }
-        // Caption
-        public string DispName { get; set; }
-        public FormKey FormKey { get; set; }
-        public bool Assets { get; set; }
-        public bool Height { get; set; }
-        public bool BodyShape { get; set; }
+    }
 
-        public ILinkCache lk { get; set; }
-        public IEnumerable<Type> NPCFormKeyTypes { get; set; }
+    public static VM_BlockedNPC GetViewModelFromModel(BlockedNPC model)
+    {
+        VM_BlockedNPC viewModel = new VM_BlockedNPC();
+        viewModel.DispName = Converters.CreateNPCDispNameFromFormKey(model.FormKey);
+        viewModel.FormKey = model.FormKey;
+        viewModel.Assets = model.Assets;
+        viewModel.Height = model.Height;
+        viewModel.BodyShape = model.BodyShape;
+        return viewModel;
+    }
 
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        public void TriggerDispNameUpdate(object sender, PropertyChangedEventArgs e)
-        {
-            if (this.FormKey.IsNull == false)
-            {
-                this.DispName = Converters.CreateNPCDispNameFromFormKey(this.FormKey);
-            }
-        }
-
-        public static VM_BlockedNPC GetViewModelFromModel(BlockedNPC model)
-        {
-            VM_BlockedNPC viewModel = new VM_BlockedNPC();
-            viewModel.DispName = Converters.CreateNPCDispNameFromFormKey(model.FormKey);
-            viewModel.FormKey = model.FormKey;
-            viewModel.Assets = model.Assets;
-            viewModel.Height = model.Height;
-            viewModel.BodyShape = model.BodyShape;
-            return viewModel;
-        }
-
-        public static BlockedNPC DumpViewModelToModel(VM_BlockedNPC viewModel)
-        {
-            BlockedNPC model = new BlockedNPC();
-            model.FormKey = viewModel.FormKey;
-            model.Assets = viewModel.Assets;
-            model.Height = viewModel.Height;
-            model.BodyShape = viewModel.BodyShape;
-            return model;
-        }
+    public static BlockedNPC DumpViewModelToModel(VM_BlockedNPC viewModel)
+    {
+        BlockedNPC model = new BlockedNPC();
+        model.FormKey = viewModel.FormKey;
+        model.Assets = viewModel.Assets;
+        model.Height = viewModel.Height;
+        model.BodyShape = viewModel.BodyShape;
+        return model;
     }
 }

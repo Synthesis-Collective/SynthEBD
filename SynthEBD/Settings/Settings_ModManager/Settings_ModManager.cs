@@ -1,60 +1,37 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace SynthEBD;
 
-namespace SynthEBD
+public class Settings_ModManager
 {
-    public class Settings_ModManager
+    public Settings_ModManager()
     {
-        public Settings_ModManager()
-        {
-            ModManagerType = ModManager.None;
-            DefaultInstallationFolder = PatcherEnvironmentProvider.Environment.DataFolderPath;
-            CurrentInstallationFolder = DefaultInstallationFolder;
-            MO2Settings = new MO2();
-            VortexSettings = new Vortex();
-            TempExtractionFolder = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location), "Temp");
-            FilePathLimit = 260;
-        }
-
-        public ModManager ModManagerType { get; set; }
-        public MO2 MO2Settings { get; set; }
-        public Vortex VortexSettings { get; set; }
-        public string DefaultInstallationFolder { get; set; }
-        public string CurrentInstallationFolder { get; set; }
-        public string TempExtractionFolder { get; set; }
-        public int FilePathLimit { get; set; }
-        public class MO2
-        {
-            public MO2()
-            {
-                ExecutablePath = "";
-                ModFolderPath = "";
-                FilePathLimit = 220;
-            }
-            public string ExecutablePath { get; set; }
-            public string ModFolderPath { get; set; }
-            public int FilePathLimit { get; set; }
-        }
-
-        public class Vortex
-        {
-            public Vortex()
-            {
-                StagingFolderPath = "";
-                FilePathLimit = 220;
-            }
-            public string StagingFolderPath { get; set; }
-            public int FilePathLimit { get; set; }
-        }
+        CurrentInstallationFolder = DefaultInstallationFolder;
     }
 
-    public enum ModManager
+    public ModManager ModManagerType { get; set; } = ModManager.None;
+    public MO2 MO2Settings { get; set; } = new();
+    public Vortex VortexSettings { get; set; } = new();
+    public string DefaultInstallationFolder { get; set; } = PatcherEnvironmentProvider.Instance.Environment.DataFolderPath;
+    public string CurrentInstallationFolder { get; set; }
+    public string TempExtractionFolder { get; set; } = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location), "Temp");
+    public int FilePathLimit { get; set; } = 260;
+
+    public class MO2
     {
-        None,
-        ModOrganizer2,
-        Vortex
+        public string ExecutablePath { get; set; } = "";
+        public string ModFolderPath { get; set; } = "";
+        public int FilePathLimit { get; set; } = 220;
     }
+
+    public class Vortex
+    {
+        public string StagingFolderPath { get; set; } = "";
+        public int FilePathLimit { get; set; } = 220;
+    }
+}
+
+public enum ModManager
+{
+    None,
+    ModOrganizer2,
+    Vortex
 }

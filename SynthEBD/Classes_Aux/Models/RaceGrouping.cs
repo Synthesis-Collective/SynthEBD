@@ -1,34 +1,22 @@
 ﻿using Mutagen.Bethesda.Plugins;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+public class RaceGrouping
 {
-    public class RaceGrouping
+    public string Label { get; set; } = "";
+    public HashSet<FormKey> Races { get; set; } = new();
+
+    public static HashSet<FormKey> MergeRaceAndGroupingList(HashSet<string> selectedGroupings, List<RaceGrouping> raceGroupingList, HashSet<FormKey> indivRaceList)
     {
-        public RaceGrouping()
+        // this might need to work - might need to convert to string. Be sure to validate.
+        var combinedRaceList = new HashSet<FormKey>(indivRaceList);
+        var appliedGroupings = raceGroupingList.Where(x => selectedGroupings.Contains(x.Label)).Select(x => x.Races).ToHashSet();
+        foreach (var appliedGrouping in appliedGroupings)
         {
-            this.Label = "";
-            this.Races = new HashSet<FormKey>();
+            combinedRaceList.UnionWith(appliedGrouping);
         }
 
-        public string Label { get; set; }
-        public HashSet<FormKey> Races { get; set; }
-
-        public static HashSet<FormKey> MergeRaceAndGroupingList(HashSet<string> selectedGroupings, List<RaceGrouping> raceGroupingList, HashSet<FormKey> indivRaceList)
-        {
-            // this might need to work - might need to convert to string. Be sure to validate.
-            var combinedRaceList = new HashSet<FormKey>(indivRaceList);
-            var appliedGroupings = raceGroupingList.Where(x => selectedGroupings.Contains(x.Label)).Select(x => x.Races).ToHashSet();
-            foreach (var appliedGrouping in appliedGroupings)
-            {
-                combinedRaceList.UnionWith(appliedGrouping);
-            }
-
-            return combinedRaceList;
-        }
+        return combinedRaceList;
     }
 }

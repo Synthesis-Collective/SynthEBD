@@ -1,21 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace SynthEBD;
 
-namespace SynthEBD
+public class IsNumeric
 {
-    public class IsNumeric
-    {
-        //https://stackoverflow.com/questions/894263/identify-if-a-string-is-a-number
+    //https://stackoverflow.com/questions/894263/identify-if-a-string-is-a-number
 
-        public static bool IsTextNumeric(System.Windows.Controls.TextBox currrentTextBox, string newText)
-        {
-            string str = string.Join("", new string[] { currrentTextBox.Text, newText });
-            double retNum;
-            bool isNum = Double.TryParse(str, System.Globalization.NumberStyles.Any, System.Globalization.NumberFormatInfo.InvariantInfo, out retNum);
-            return isNum;
-        }
+    public static bool IsTextNumeric(System.Windows.Controls.TextBox currrentTextBox, string newText)
+    {
+        string str = string.Join("", new string[] { currrentTextBox.Text, newText });
+        double retNum;
+        bool isNum = Double.TryParse(str, System.Globalization.NumberStyles.Any, System.Globalization.NumberFormatInfo.InvariantInfo, out retNum);
+        return isNum;
     }
 }

@@ -1,24 +1,15 @@
-﻿
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Controls;
+﻿using System.Windows.Controls;
+using Noggog.WPF;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+public class VM_PreviewImage : ViewModel
 {
-    public class VM_PreviewImage : INotifyPropertyChanged
+    public VM_PreviewImage(Image image, string source)
     {
-        public VM_PreviewImage(Image image, string source)
-        {
-            Image = image;
-            Source = source;
-        }
-        public Image Image { get; set; }
-        public string Source { get; set; }
-
-        public event PropertyChangedEventHandler PropertyChanged;
+        Image = image;
+        Source = source;
     }
+    public Image Image { get; set; }
+    public string Source { get; set; }
 }

@@ -1,14 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace SynthEBD;
 
-namespace SynthEBD
+public enum DistMode
 {
-    public enum DistMode
-    {
-        uniform,
-        bellCurve
-    }
+    uniform,
+    bellCurve
 }

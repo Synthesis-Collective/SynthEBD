@@ -1,36 +1,28 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
+﻿namespace SynthEBD;
 
-namespace SynthEBD
+class FileDialogs
 {
-    class FileDialogs
+    public static bool ConfirmFileDeletion(string path, string filetype)
     {
-        public static bool ConfirmFileDeletion(string path, string filetype)
+        if (CustomMessageBox.DisplayNotificationYesNo("Confirm Deletion", "Are you sure you want to permanently delete this " + filetype + "?"))
         {
-            if (CustomMessageBox.DisplayNotificationYesNo("Confirm Deletion", "Are you sure you want to permanently delete this " + filetype + "?"))
+            try
             {
-                try
+                if (!string.IsNullOrWhiteSpace(path) && System.IO.File.Exists(path))
                 {
-                    if (!string.IsNullOrWhiteSpace(path) && System.IO.File.Exists(path))
-                    {
-                        System.IO.File.Delete(path);
-                    }
-                    return true;
+                    System.IO.File.Delete(path);
                 }
-                catch
-                {
-                    Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not delete file at " + path, ErrorType.Warning, 5);
-                    return false;
-                }
+                return true;
             }
-            else
+            catch
             {
+                Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not delete file at " + path, ErrorType.Warning, 5);
                 return false;
             }
+        }
+        else
+        {
+            return false;
         }
     }
 }
