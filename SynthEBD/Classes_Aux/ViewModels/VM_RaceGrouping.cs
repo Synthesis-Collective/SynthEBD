@@ -1,23 +1,21 @@
-﻿using Mutagen.Bethesda.Environments;
-using Mutagen.Bethesda.Plugins;
+﻿using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_RaceGrouping : ViewModel
+public class VM_RaceGrouping : VM
 {
     public VM_RaceGrouping(RaceGrouping raceGrouping, VM_Settings_General parentVM)
     {
         this.Label = raceGrouping.Label;
         this.Races = new ObservableCollection<FormKey>(raceGrouping.Races);
         
-        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .ToProperty(this, nameof(lk), default(ILinkCache))
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => lk = x)
             .DisposeWith(this);
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.RaceGroupings.Remove(this));
@@ -25,9 +23,7 @@ public class VM_RaceGrouping : ViewModel
     public string Label { get; set; }
     public ObservableCollection<FormKey> Races { get; set; }
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
-
-    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
-    public ILinkCache lk => _linkCache.Value;
+    public ILinkCache lk { get; private set; }
     public VM_Settings_General ParentVM { get; set; }
     public RelayCommand DeleteCommand { get; }
 

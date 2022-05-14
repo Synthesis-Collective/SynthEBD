@@ -1,9 +1,8 @@
 ﻿using System.Windows.Controls;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_PreviewImage : ViewModel
+public class VM_PreviewImage : VM
 {
     public VM_PreviewImage(Image image, string source)
     {

@@ -1,10 +1,9 @@
 ﻿using System.Collections.ObjectModel;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_AssetReplacementAssignment : ViewModel
+public class VM_AssetReplacementAssignment : VM
 {
     public VM_AssetReplacementAssignment(VM_AssetPack parent, ObservableCollection<VM_AssetReplacementAssignment> parentCollection)
     {

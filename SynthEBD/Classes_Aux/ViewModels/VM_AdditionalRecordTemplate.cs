@@ -3,20 +3,19 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_AdditionalRecordTemplate : ViewModel
+public class VM_AdditionalRecordTemplate : VM
 {
     public VM_AdditionalRecordTemplate(ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, ObservableCollection<VM_AdditionalRecordTemplate> parentCollection)
     {
         this.RecordTemplateLinkCache = recordTemplateLinkCache;
         this.ParentCollection = parentCollection;
         
-        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .ToProperty(this, nameof(lk), default(ILinkCache))
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => lk = x)
             .DisposeWith(this);
 
         AddAdditionalRacesPath = new SynthEBD.RelayCommand(
@@ -36,9 +35,7 @@ public class VM_AdditionalRecordTemplate : ViewModel
     }
 
     public ObservableCollection<FormKey> RaceFormKeys { get; set; } = new();
-
-    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
-    public ILinkCache lk => _linkCache.Value;
+    public ILinkCache lk { get; private set; }
     public IEnumerable<Type> RacePickerTypes { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
     public FormKey TemplateNPC { get; set; } = new();

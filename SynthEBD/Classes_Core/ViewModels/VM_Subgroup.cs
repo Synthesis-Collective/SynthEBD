@@ -9,11 +9,10 @@ using System.Windows.Controls;
 using System.Collections.Specialized;
 using ReactiveUI;
 using GongSolutions.Wpf.DragDrop;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_Subgroup : ViewModel, ICloneable, IDropTarget, IHasSubgroupViewModels
+public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 {
     public VM_Subgroup(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_Subgroup> parentCollection, VM_AssetPack parentAssetPack, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, bool setExplicitReferenceNPC)
     {
@@ -32,8 +31,8 @@ public class VM_Subgroup : ViewModel, ICloneable, IDropTarget, IHasSubgroupViewM
         AllowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(SubscribedOBodyDescriptorMenu, SubscribedRaceGroupings, parentAssetPack);
         DisallowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(SubscribedOBodyDescriptorMenu, SubscribedRaceGroupings, parentAssetPack);
 
-        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .ToGuiProperty(this, nameof(LinkCache), default(ILinkCache))
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => LinkCache = x)
             .DisposeWith(this);
         
         //UI-related
@@ -118,8 +117,7 @@ public class VM_Subgroup : ViewModel, ICloneable, IDropTarget, IHasSubgroupViewM
     public ObservableCollection<VM_Subgroup> Subgroups { get; set; } = new();
 
     //UI-related
-    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
-    public ILinkCache LinkCache => _linkCache.Value;
+    public ILinkCache LinkCache { get; private set; }
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
     public string TopLevelSubgroupID { get; set; }

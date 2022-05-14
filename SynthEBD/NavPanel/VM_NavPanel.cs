@@ -1,9 +1,8 @@
 ﻿using System.Windows.Input;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_NavPanel : ViewModel
+public class VM_NavPanel : VM
 {
     public ICommand ClickSG { get; }
     public ICommand ClickTM { get; }

@@ -5,11 +5,10 @@ using ReactiveUI;
 using Mutagen.Bethesda.Skyrim;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_FilePathReplacement : ViewModel, IImplementsRecordIntellisense
+public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 {
     public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu)
     {

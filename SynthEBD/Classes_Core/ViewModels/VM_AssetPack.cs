@@ -11,11 +11,10 @@ using ReactiveUI;
 using System.Windows.Media;
 using GongSolutions.Wpf.DragDrop;
 using System.Windows.Controls;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_AssetPack : ViewModel, IHasAttributeGroupMenu, IDropTarget, IHasSubgroupViewModels
+public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgroupViewModels
 {
     public VM_AssetPack(MainWindow_ViewModel mainVM)
     {

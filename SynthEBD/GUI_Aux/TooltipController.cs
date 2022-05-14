@@ -1,8 +1,6 @@
-﻿using Noggog.WPF;
+﻿namespace SynthEBD;
 
-namespace SynthEBD;
-
-public sealed class TooltipController : ViewModel
+public sealed class TooltipController : VM
 {
     private static TooltipController instance;
     private static object lockObj = new();

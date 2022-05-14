@@ -1,11 +1,10 @@
 ﻿using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_RaceGroupingCheckboxList : ViewModel
+public class VM_RaceGroupingCheckboxList : VM
 {
     public VM_RaceGroupingCheckboxList(ObservableCollection<VM_RaceGrouping> RaceGroupingVMs)
     {
@@ -79,7 +78,7 @@ public class VM_RaceGroupingCheckboxList : ViewModel
         return checkBoxList;
     }
 
-    public class RaceGroupingSelection : ViewModel
+    public class RaceGroupingSelection : VM
     {
         public RaceGroupingSelection(VM_RaceGrouping raceGroupingVM, VM_RaceGroupingCheckboxList parent)
         {

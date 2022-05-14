@@ -4,19 +4,18 @@ using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_ConsistencyUI : ViewModel
+public class VM_ConsistencyUI : VM
 {
     public VM_ConsistencyUI()
     {
         this.PropertyChanged += RefereshCurrentAssignment;
         
-        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .ToProperty(this, nameof(lk), default(ILinkCache))
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => lk = x)
             .DisposeWith(this);
 
         DeleteCurrentNPC = new SynthEBD.RelayCommand(
@@ -84,8 +83,7 @@ public class VM_ConsistencyUI : ViewModel
 
     public ObservableCollection<VM_ConsistencyAssignment> Assignments { get; set; } = new();
     public VM_ConsistencyAssignment CurrentlyDisplayedAssignment { get; set; } = null;
-    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
-    public ILinkCache lk => _linkCache.Value;
+    public ILinkCache lk { get; private set; }
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public FormKey SelectedNPCFormKey { get; set; } = new();
 

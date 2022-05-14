@@ -1,9 +1,8 @@
 ﻿using System.Collections.ObjectModel;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_BlockListUI : ViewModel
+public class VM_BlockListUI : VM
 {
     public VM_BlockListUI()
     {

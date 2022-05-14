@@ -1,10 +1,9 @@
 ﻿using System.Collections.ObjectModel;
 using System.IO;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_DownloadCoordinator : ViewModel
+public class VM_DownloadCoordinator : VM
 {
     public VM_DownloadCoordinator(HashSet<Manifest.DownloadInfoContainer> downloadInfo, Window_ConfigInstaller window, VM_ConfigInstaller parentVM)
     {
@@ -58,7 +57,7 @@ public class VM_DownloadCoordinator : ViewModel
     public RelayCommand OK { get; }
     Window_ConfigInstaller AssociatedWindow { get; set; }
 
-    public class VM_DownloadInfo : ViewModel
+    public class VM_DownloadInfo : VM
     {
         public VM_DownloadInfo()
         {

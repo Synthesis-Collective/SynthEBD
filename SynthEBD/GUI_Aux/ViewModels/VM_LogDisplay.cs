@@ -1,10 +1,9 @@
 ﻿using System.ComponentModel;
 using Mutagen.Bethesda.Environments;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_LogDisplay : ViewModel
+public class VM_LogDisplay : VM
 {
     private Logger SubscribedLogger { get; set; } = Logger.Instance;
 

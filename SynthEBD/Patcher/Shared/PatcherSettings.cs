@@ -1,6 +1,4 @@
-﻿using Mutagen.Bethesda.Skyrim;
-
-namespace SynthEBD;
+﻿namespace SynthEBD;
 
 public static class PatcherSettings
 {

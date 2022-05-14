@@ -1,10 +1,9 @@
 ﻿using System.Collections.ObjectModel;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_BodySlidesMenu : ViewModel
+public class VM_BodySlidesMenu : VM
 {
     public VM_BodySlidesMenu(VM_SettingsOBody parentVM, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {

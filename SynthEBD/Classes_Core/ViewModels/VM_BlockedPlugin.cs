@@ -2,19 +2,18 @@
 using Mutagen.Bethesda.Plugins.Cache;
 using System.ComponentModel;
 using Noggog;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_BlockedPlugin : ViewModel
+public class VM_BlockedPlugin : VM
 {
     public VM_BlockedPlugin()
     {
         this.PropertyChanged += TriggerDispNameUpdate;
         
-        _linkCache = PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .ToProperty(this, nameof(lk), default(ILinkCache))
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => lk = x)
             .DisposeWith(this);
     }
 
@@ -25,8 +24,7 @@ public class VM_BlockedPlugin : ViewModel
     public bool Height { get; set; } = false;
     public bool BodyShape { get; set; } = false;
 
-    private readonly ObservableAsPropertyHelper<ILinkCache> _linkCache;
-    public ILinkCache lk => _linkCache.Value;
+    public ILinkCache lk { get; private set; }
 
     public void TriggerDispNameUpdate(object sender, PropertyChangedEventArgs e)
     {

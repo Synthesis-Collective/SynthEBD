@@ -1,9 +1,8 @@
 ﻿using System.Windows.Media;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_RunButton : ViewModel
+public class VM_RunButton : VM
 {
     public VM_RunButton(MainWindow_ViewModel parentWindow)
     {

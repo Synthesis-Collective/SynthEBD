@@ -1,8 +1,6 @@
-﻿using Noggog.WPF;
+﻿namespace SynthEBD;
 
-namespace SynthEBD;
-
-public class VM_LinkZEBDAssetPackToBodyGen : ViewModel
+public class VM_LinkZEBDAssetPackToBodyGen : VM
 {
     public VM_LinkZEBDAssetPackToBodyGen(BodyGenConfigs availableConfigs, Gender gender, string assetPackLabel, Window_LinkZEBDAssetPackToBodyGen associatedWindow)
     {

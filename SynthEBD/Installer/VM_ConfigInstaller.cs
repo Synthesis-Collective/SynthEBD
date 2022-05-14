@@ -1,8 +1,6 @@
-﻿using Noggog.WPF;
+﻿namespace SynthEBD;
 
-namespace SynthEBD;
-
-public class VM_ConfigInstaller : ViewModel
+public class VM_ConfigInstaller : VM
 {
     public VM_ConfigInstaller(Manifest manifest, Window_ConfigInstaller window)
     {

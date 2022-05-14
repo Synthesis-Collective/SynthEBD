@@ -2,11 +2,10 @@
 using System.Text;
 using System.Windows.Media;
 using System.Xml.Linq;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public sealed class Logger : ViewModel
+public sealed class Logger : VM
 {
     private static Logger instance;
     private static object lockObj = new();

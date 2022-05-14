@@ -1,10 +1,9 @@
 ﻿using System.Collections.ObjectModel;
 using System.Windows.Input;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_BodyGenConfig : ViewModel, IHasAttributeGroupMenu
+public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
 {
     public VM_BodyGenConfig(VM_Settings_General generalSettingsVM, ObservableCollection<VM_BodyGenConfig> parentCollection, VM_SettingsBodyGen bodyGenSettingsVM)
     {

@@ -6,7 +6,6 @@
              xmlns:local="clr-namespace:SynthEBD" d:DataContext="{d:DesignInstance Type=local:VM_Settings_General}"
              xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
              xmlns:Skyrim="clr-namespace:Mutagen.Bethesda.Skyrim;assembly=Mutagen.Bethesda.Skyrim"
-             xmlns:wpf="clr-namespace:Noggog.WPF;assembly=Noggog.WPF"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
 
@@ -53,7 +52,10 @@
             <TextBox Grid.Column="2" Grid.Row="0" Width="150" HorizontalAlignment="Left" Text="{Binding Path=Environment.PatchFileName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
             <TextBlock Grid.Column="0" Grid.Row="1" ToolTip="Folder to which generated plugin and other files will be written" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Output Data Folder</TextBlock>
-            <wpf:PathPicker Grid.Column="2" Grid.Row="1" PickerVM="{Binding Environment.OutputDataFolder}" />
+            <StackPanel Grid.Column="2" Grid.Row="1" Orientation="Horizontal">
+                <Button VerticalAlignment="Center" Command="{Binding Environment.SelectOutputFolder}" Foreground="LightGreen">Select</Button>
+                <TextBox HorizontalAlignment="Left" Text="{Binding Path=Environment.OutputDataFolder, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+            </StackPanel>
 
             <TextBlock Grid.Column="0" Grid.Row="2" ToolTip="Which Skyrim release is being patched">Skyrim Release</TextBlock>
             <ComboBox Grid.Column="2" Grid.Row="2" Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding Environment.SkyrimVersion}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type Skyrim:SkyrimRelease}}}" IsSynchronizedWithCurrentItem="True"/>

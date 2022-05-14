@@ -1,9 +1,8 @@
 ﻿using System.Collections.ObjectModel;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_BodyShapeDescriptorCreationMenu : ViewModel
+public class VM_BodyShapeDescriptorCreationMenu : VM
 {
     public VM_BodyShapeDescriptorCreationMenu(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
     {

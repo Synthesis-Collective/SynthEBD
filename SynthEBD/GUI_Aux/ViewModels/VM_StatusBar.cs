@@ -1,10 +1,9 @@
 ﻿using System.ComponentModel;
 using System.Windows.Media;
-using Noggog.WPF;
 
 namespace SynthEBD;
 
-public class VM_StatusBar : ViewModel
+public class VM_StatusBar : VM
 {
     public VM_StatusBar()
     {

@@ -2,12 +2,11 @@
 using Mutagen.Bethesda.Skyrim;
 using System.ComponentModel;
 using System.Windows;
-using Noggog.WPF;
 using ReactiveUI;
 
 namespace SynthEBD;
 
-public class MainWindow_ViewModel : ViewModel
+public class MainWindow_ViewModel : VM
 {
     public VM_Settings_General GeneralSettingsVM { get; }
     public VM_SettingsTexMesh TexMeshSettingsVM { get; }
