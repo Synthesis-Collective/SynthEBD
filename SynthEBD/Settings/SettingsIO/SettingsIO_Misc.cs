@@ -12,7 +12,7 @@ public class SettingsIO_Misc
             if (loadSuccess)
             {
                 PatcherSettings.LoadFromDataFolder = loadSource.LoadFromDataDir;
-                PatcherEnvironmentProvider.Instance.OutputDataFolder.TargetPath = loadSource.GameEnvironmentDirectory;
+                PatcherEnvironmentProvider.Instance.OutputDataFolder = loadSource.GameEnvironmentDirectory;
                 PatcherSettings.PortableSettingsFolder = loadSource.PortableSettingsFolder;
                 PatcherEnvironmentProvider.Instance.SkyrimVersion = loadSource.SkyrimVersion;
             }
@@ -30,7 +30,7 @@ public class SettingsIO_Misc
     {
         LoadSource source = new LoadSource()
         {
-            GameEnvironmentDirectory = PatcherEnvironmentProvider.Instance.OutputDataFolder.TargetPath, 
+            GameEnvironmentDirectory = PatcherEnvironmentProvider.Instance.OutputDataFolder, 
             LoadFromDataDir = PatcherSettings.LoadFromDataFolder,
             PortableSettingsFolder = PatcherSettings.PortableSettingsFolder, 
             SkyrimVersion = PatcherEnvironmentProvider.Instance.SkyrimVersion

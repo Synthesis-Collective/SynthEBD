@@ -165,7 +165,7 @@ public class VM_Settings_General : ViewModel, IHasAttributeGroupMenu
         viewModel.BodySelectionMode = model.BodySelectionMode;
         viewModel.BSSelectionMode = model.BSSelectionMode;
         viewModel.bChangeHeight = model.bChangeHeight;
-        viewModel.Environment.OutputDataFolder.TargetPath = model.OutputDataFolder;
+        viewModel.Environment.OutputDataFolder = model.OutputDataFolder;
         viewModel.bEnableConsistency = model.bEnableConsistency;
         viewModel.ExcludePlayerCharacter = model.ExcludePlayerCharacter;
         viewModel.ExcludePresets = model.ExcludePresets;
@@ -191,7 +191,7 @@ public class VM_Settings_General : ViewModel, IHasAttributeGroupMenu
         model.BodySelectionMode = viewModel.BodySelectionMode;
         model.BSSelectionMode = viewModel.BSSelectionMode;
         model.bChangeHeight = viewModel.bChangeHeight;
-        model.OutputDataFolder = viewModel.Environment.OutputDataFolder.TargetPath;
+        model.OutputDataFolder = viewModel.Environment.OutputDataFolder;
         model.bEnableConsistency = viewModel.bEnableConsistency;
         model.ExcludePlayerCharacter = viewModel.ExcludePlayerCharacter;
         model.ExcludePresets = viewModel.ExcludePresets;

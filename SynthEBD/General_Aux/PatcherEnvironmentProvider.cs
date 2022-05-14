@@ -1,37 +1,45 @@
-﻿using System.Reactive.Linq;
+﻿using System.ComponentModel;
+using System.Reactive.Linq;
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Environments;
-using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Plugins.Order;
-using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using Noggog.WPF;
 using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 
 namespace SynthEBD;
 
-public class PatcherEnvironmentProvider : ViewModel
+public class PatcherEnvironmentProvider : INotifyPropertyChanged
 {
     public static PatcherEnvironmentProvider Instance = new();
-    
-    public string PatchFileName { get; set;  } = "SynthEBD.esp";
+    public string PatchFileName { get; set; } = "SynthEBD.esp";
     public SkyrimRelease SkyrimVersion { get; set; } = SkyrimRelease.SkyrimSE;
-    public PathPickerVM OutputDataFolder { get; } = new()
-    {
-        ExistCheckOption = PathPickerVM.CheckOptions.IfPathNotEmpty,
-        PathType = PathPickerVM.PathTypeOptions.Folder,
-        PromptTitle = "Data Folder Override"
-    };
+    public string OutputDataFolder { get; set; } = "";
+    public RelayCommand SelectOutputFolder { get; }
     
     public IGameEnvironment<ISkyrimMod, ISkyrimModGetter> Environment { get; private set; }
 
+    public event PropertyChangedEventHandler PropertyChanged;
+
     private PatcherEnvironmentProvider()
     {
+        SelectOutputFolder = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                if (IO_Aux.SelectFolder(Environment.DataFolderPath, out var tmpFolder))
+                {
+                    OutputDataFolder = tmpFolder;
+                }
+            }
+        );
+        
         Observable.CombineLatest(
                 this.WhenAnyValue(x => x.PatchFileName),
                 this.WhenAnyValue(x => x.SkyrimVersion),
-                this.WhenAnyValue(x => x.OutputDataFolder.TargetPath),
+                this.WhenAnyValue(x => x.OutputDataFolder),
                 (PatchFileName, Release, DataFolder) => (PatchFileName, Release, DataFolder))
             .Select(inputs =>
             {
