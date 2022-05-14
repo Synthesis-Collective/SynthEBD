@@ -53,9 +53,10 @@ public class RecordPathParser
                     outputObjInfo.RecordType = loquiType;
                 }
             }
-                
+
             return true;
         }
+        if (!objectCache.ContainsKey("")) { objectCache.Add("", rootObj); }
 
         string[] splitPath = SplitPath(relativePath);
         dynamic currentObj = rootObj;
@@ -81,7 +82,6 @@ public class RecordPathParser
                 currentObj = objectCache[concatPath];
                 continue;
             }
-            if (!objectCache.ContainsKey("")) {  objectCache.Add("", rootObj); }
 
             // otherwise search for the given value via Reflection
             string currentSubPath = splitPath[i];
@@ -195,14 +195,14 @@ public class RecordPathParser
                 var tmpCollection = new List<dynamic>();
                 var subPath = relativePath.Remove(0, concatPath.Length);
 
-                if (subPath.StartsWith('.')) 
-                { 
-                    subPath = subPath.Remove(0, 1); 
+                if (subPath.StartsWith('.'))
+                {
+                    subPath = subPath.Remove(0, 1);
                 }
 
-                if (!subPath.Any()) 
-                { 
-                    return true; 
+                if (!subPath.Any())
+                {
+                    return true;
                 }
 
                 foreach (var obj in outputObjectCollection)
@@ -238,12 +238,8 @@ public class RecordPathParser
 
         if (!objectCache.ContainsKey(relativePath))
         {
-            string[] splitPath = SplitPath(path);
-            dynamic currentObj = rootGetter;
-            parentRecordGetter = null;
-            relativePath = "";
-            var objectCache = new Dictionary<string, dynamic>();
-            objectCache.Add("", rootGetter);
+            objectCache.Add(relativePath, currentObj);
+        }
 
         outputObjectCollection.Add(currentObj);
         return outputObjectCollection.Any();
@@ -255,12 +251,14 @@ public class RecordPathParser
         dynamic currentObj = rootGetter;
         parentRecordGetter = null;
         relativePath = "";
+        var objectCache = new Dictionary<string, dynamic>();
+        objectCache.Add("", rootGetter);
 
         for (int i = 0; i < splitPath.Length; i++)
         {
-            if (GetObjectAtPath(currentObj, splitPath[i], new Dictionary<string, dynamic>(), linkCache, suppressMissingPathErrors, errorCaption, out currentObj, out ObjectInfo currentObjInfo))
+            if (GetObjectAtPath(currentObj, splitPath[i], objectCache, linkCache, suppressMissingPathErrors, errorCaption, out currentObj, out ObjectInfo currentObjInfo))
             {
-                if (GetObjectAtPath(currentObj, splitPath[i], objectCache, linkCache, suppressMissingPathErrors, errorCaption, out currentObj, out ObjectInfo currentObjInfo))
+                if (currentObjInfo.HasFormKey)
                 {
                     parentRecordGetter = currentObj;
                     relativePath = "";
@@ -389,14 +387,22 @@ public class RecordPathParser
         {
             parsed = false;
 
+            strIndex = RemovePairedParens(strIndex);
+            strIndex = TrimParens(strIndex);
+
             if (strIndex.Contains("Invoke:") && !ReplaceUncomparedInvokeCalls(strIndex, out strIndex))
             {
-                 parsed = false;
+                return;
+            }
 
-                strIndex = RemovePairedParens(strIndex);
-                strIndex = TrimParens(strIndex);
+            int sepIndex = -1;
+            Comparator = "";
 
-                if (strIndex.Contains("Invoke:") && !ReplaceUncomparedInvokeCalls(strIndex, out strIndex))
+            strIndex = strIndex.Replace("=>", "{LAMBDA}"); // preserve lambda operator
+
+            foreach (var comparator in Comparators)
+            {
+                if (strIndex.Contains(comparator))
                 {
                     sepIndex = strIndex.LastIndexOf(comparator);
                     Comparator = comparator;
@@ -405,21 +411,7 @@ public class RecordPathParser
             }
             if (sepIndex == -1) { return; }
 
-                int sepIndex = -1;
-                Comparator = "";
-
-                strIndex = strIndex.Replace("=>", "{LAMBDA}"); // preserve lambda operator
-
-                foreach (var comparator in Comparators)
-                {
-                    if (strIndex.Contains(comparator))
-                    {
-                        sepIndex = strIndex.LastIndexOf(comparator);
-                        Comparator = comparator;
-                        break;
-                    }
-                }
-                if (sepIndex == -1) { return; }
+            var split = strIndex.Split(Comparator);
 
             if (strIndex.Contains(".Invoke:"))
             {
@@ -436,29 +428,13 @@ public class RecordPathParser
                 MatchCondition = Comparator + " " + split[split.Length - 1].Trim();
             }
 
-
-                Path = Path.Replace("{LAMBDA}", "=>");
-                ReplacerTemplate = ReplacerTemplate.Replace("{LAMBDA}", "=>");
-                MatchCondition = MatchCondition.Replace("{LAMBDA}", "=>");
-
-                if (Path.StartsWith('!'))
-                {
-                    Path = Path.Remove(0, 1).Trim();
-                }
-                parsed = true;
-            }
-            else
-            {
-                MatchCondition = Comparator + " " + split[split.Length - 1].Trim();
-            }
-            */
+            Path = Path.Replace("{LAMBDA}", "=>");
+            ReplacerTemplate = ReplacerTemplate.Replace("{LAMBDA}", "=>");
+            MatchCondition = MatchCondition.Replace("{LAMBDA}", "=>");
 
             if (Path.StartsWith('!'))
             {
-                None,
-                PatchableRaces,
-                Invoke,
-                MatchRace
+                Path = Path.Remove(0, 1).Trim();
             }
             parsed = true;
         }
@@ -476,7 +452,8 @@ public class RecordPathParser
         {
             None,
             PatchableRaces,
-            Invoke
+            Invoke,
+            MatchRace
         }
 
         private static bool ReplaceUncomparedInvokeCalls(string argStr, out string replacedStr) // replaces Invoke calls, which are assumed to be boolean, with a corresponding comparison (== true)
@@ -492,7 +469,7 @@ public class RecordPathParser
                     if (split.Length > 2)
                     {
                         List<string> additionalText = new List<string>();
-                        for(int i = 2; i < split.Length; i++)
+                        for (int i = 2; i < split.Length; i++)
                         {
                             additionalText.Add(split[i]);
                         }
@@ -501,134 +478,84 @@ public class RecordPathParser
                 }
             }
 
-            private static string RemovePairedParens(string str)
-            {
-                while (str.StartsWith('(') && str.EndsWith(')'))
-                {
-                    str = str.Substring(1, str.Length - 2);
-                }
-                return str;
-            }
-
-            private static string TrimParens(string str)
-            {
-                if (str.StartsWith('('))
-                {
-                    bool capture = true;
-                    int depth = 0;
-                    foreach (char c in str)
-                    {
-                        if (capture && c == '"') {  capture = false; }
-                        else if (!capture && c == '"') {  capture = true; }
-                        else if (capture && c == '(') { depth++; }
-                        else if (capture && c == ')') {  depth--; }  
-                    }
-
-                    if (depth > 0) { str = str.Remove(0, 1); }
-                }
-
-                if (str.EndsWith(')'))
-                {
-                    bool capture = true;
-                    int depth = 0;
-                    foreach (char c in str)
-                    {
-                        if (capture && c == '"') { capture = false; }
-                        else if (!capture && c == '"') { capture = true; }
-                        else if (capture && c == '(') { depth++; }
-                        else if (capture && c == ')') { depth--; }
-                    }
-
-                    if (depth < 0) { str = str.Remove(str.Length - 1, 1); }
-                }
-
-                return str;
-            }
-
-            private static bool GetFunctionArgsString(string subStr, out string parsedStr)
-            {
-                parsedStr = "";
-                int bracketCount = 0;
-                bool bracketsOpened = false;
-                for (int i = 0; i < subStr.Length; i++)
-                {
-                    char current = subStr[i];
-                    if (current == '(') {  bracketCount++; bracketsOpened = true; }
-                    else if (current == ')') { bracketCount--; }
-
-                    parsedStr += current;
-                    if (bracketsOpened && bracketCount == 0)
-                    {
-                        break;
-                    }
-                }
-
-                if (bracketsOpened && bracketCount == 0) { return true; }
-                else { return false; }
-            }
-
-            public static HashSet<string> Comparators = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
-
-            public static List<ArrayPathCondition> GetConditionsFromString(string input, out bool parsed)
-            {
-                char current = subStr[i];
-                if (current == '(') {  bracketCount++; bracketsOpened = true; }
-                else if (current == ')') { bracketCount--; }
-
-                        var patchableRaceCondition = new ArrayPathCondition { Path = patchableRaceSubject.Substring(0, patchableRaceSubject.Length - 1), MatchCondition = patchableRaceMethod.Trim(), SpecialHandling = SpecialHandlingType.PatchableRaces};
-                        patchableRaceCondition.ReplacerTemplate = patchableRaceCondition.Path;
-                        output.Add(patchableRaceCondition);
-                        continue;
-                    }
-                    else if (conditionStr.Contains("MatchRace("))
-                    {
-                        if(GetMatchRaceArgStr(conditionStr, out string args))
-                        {
-                            var matchRaceCondition = new ArrayPathCondition { Path = conditionStr, MatchCondition = args, SpecialHandling = SpecialHandlingType.MatchRace, ReplacerTemplate = conditionStr };
-                            output.Add(matchRaceCondition);
-                            continue;
-                        }
-                        else
-                        {
-                            parsed = false;
-                            return output;
-                        }
-                    }
-                    var condition = new ArrayPathCondition(conditionStr, out bool conditionParsed);
-                    if (conditionParsed) { output.Add(condition); }
-                    else
-                    {
-                        parsed = false;
-                        return new List<ArrayPathCondition>();
-                    }
-                }
-            }
-
-            private static bool GetMatchRaceArgStr(string conditionStr, out string args)
-            {
-                args = "";
-                int start = conditionStr.IndexOf('(');
-                int end = conditionStr.LastIndexOf(')');
-                if (start < 0 || end < 0)
-                {
-                    return false;
-                }
-
-                args = conditionStr.Substring(start + 1, end - start - 1);
-                return true;
-            }
+            replacedStr = argStr.Replace("invoke:", "Invoke:");
+            return true;
         }
 
-        //public static HashSet<string> Comparators = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=", ".Invoke:" };
+        private static string RemovePairedParens(string str)
+        {
+            while (str.StartsWith('(') && str.EndsWith(')'))
+            {
+                str = str.Substring(1, str.Length - 2);
+            }
+            return str;
+        }
+
+        private static string TrimParens(string str)
+        {
+            if (str.StartsWith('('))
+            {
+                bool capture = true;
+                int depth = 0;
+                foreach (char c in str)
+                {
+                    if (capture && c == '"') { capture = false; }
+                    else if (!capture && c == '"') { capture = true; }
+                    else if (capture && c == '(') { depth++; }
+                    else if (capture && c == ')') { depth--; }
+                }
+
+                if (depth > 0) { str = str.Remove(0, 1); }
+            }
+
+            if (str.EndsWith(')'))
+            {
+                bool capture = true;
+                int depth = 0;
+                foreach (char c in str)
+                {
+                    if (capture && c == '"') { capture = false; }
+                    else if (!capture && c == '"') { capture = true; }
+                    else if (capture && c == '(') { depth++; }
+                    else if (capture && c == ')') { depth--; }
+                }
+
+                if (depth < 0) { str = str.Remove(str.Length - 1, 1); }
+            }
+
+            return str;
+        }
+
+        private static bool GetFunctionArgsString(string subStr, out string parsedStr)
+        {
+            parsedStr = "";
+            int bracketCount = 0;
+            bool bracketsOpened = false;
+            for (int i = 0; i < subStr.Length; i++)
+            {
+                char current = subStr[i];
+                if (current == '(') { bracketCount++; bracketsOpened = true; }
+                else if (current == ')') { bracketCount--; }
+
+                parsedStr += current;
+                if (bracketsOpened && bracketCount == 0)
+                {
+                    break;
+                }
+            }
+
+            if (bracketsOpened && bracketCount == 0) { return true; }
+            else { return false; }
+        }
+
         public static HashSet<string> Comparators = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
 
         public static List<ArrayPathCondition> GetConditionsFromString(string input, out bool parsed)
         {
-            int argIndex = 0;
-            char? previousChar = null;
-            HashSet<char> variablePredecessors = new HashSet<char>() { '&', '|', '(' };
-
-            foreach (var condition in arrayMatchConditions)
+            parsed = true;
+            String[] result = input.Split(new Char[] { '|', '&' }, StringSplitOptions.RemoveEmptyEntries); // split on logical operators
+            List<ArrayPathCondition> output = new List<ArrayPathCondition>();
+            foreach (var conditionStr in result)
             {
                 if (conditionStr.Contains("PatchableRaces")) // special command
                 {
@@ -636,111 +563,71 @@ public class RecordPathParser
                     var patchableRaceSubject = patchableRaceArgs[1].Trim();
                     var patchableRaceMethod = patchableRaceArgs[0].Replace("PatchableRaces.", "");
 
-                    var patchableRaceCondition = new ArrayPathCondition { Path = patchableRaceSubject.Substring(0, patchableRaceSubject.Length - 1), MatchCondition = patchableRaceMethod.Trim(), SpecialHandling = SpecialHandlingType.PatchableRaces};
+                    var patchableRaceCondition = new ArrayPathCondition { Path = patchableRaceSubject.Substring(0, patchableRaceSubject.Length - 1), MatchCondition = patchableRaceMethod.Trim(), SpecialHandling = SpecialHandlingType.PatchableRaces };
                     patchableRaceCondition.ReplacerTemplate = patchableRaceCondition.Path;
                     output.Add(patchableRaceCondition);
                     continue;
+                }
+                else if (conditionStr.Contains("MatchRace("))
+                {
+                    if (GetMatchRaceArgStr(conditionStr, out string args))
+                    {
+                        var matchRaceCondition = new ArrayPathCondition { Path = conditionStr, MatchCondition = args, SpecialHandling = SpecialHandlingType.MatchRace, ReplacerTemplate = conditionStr };
+                        output.Add(matchRaceCondition);
+                        continue;
+                    }
+                    else
+                    {
+                        parsed = false;
+                        return output;
+                    }
                 }
                 var condition = new ArrayPathCondition(conditionStr, out bool conditionParsed);
                 if (conditionParsed) { output.Add(condition); }
                 else
                 {
-                    var currentSubStr = matchConditionStr.Substring(i, condition.ReplacerTemplate.Length);
-                    if (i > 0) { previousChar = matchConditionStr[i - 1]; }
-                    else { previousChar = null; }
-
-                    if (currentSubStr == condition.ReplacerTemplate && (i == 0 || variablePredecessors.Contains(previousChar.Value)))
-                    {
-                        matchConditionStr = matchConditionStr.Remove(i, condition.ReplacerTemplate.Length);
-                        if (condition.SpecialHandling == ArrayPathCondition.SpecialHandlingType.Invoke)
-                        {
-                            matchConditionStr = matchConditionStr.Insert(i, argStr + ".");
-                        }
-                        else
-                        {
-                            matchConditionStr = matchConditionStr.Insert(i, argStr);
-                        }
-                        break;
-                    }
+                    parsed = false;
+                    return new List<ArrayPathCondition>();
                 }
             }
             return output;
         }
+
+        private static bool GetMatchRaceArgStr(string conditionStr, out string args)
+        {
+            args = "";
+            int start = conditionStr.IndexOf('(');
+            int end = conditionStr.LastIndexOf(')');
+            if (start < 0 || end < 0)
+            {
+                return false;
+            }
+
+            args = conditionStr.Substring(start + 1, end - start - 1);
+            return true;
+        }
     }
 
-        private static bool MatchRace(dynamic rootRecord, dynamic npcDyn, string toMatchPathStr)
-        {
-            var npc = npcDyn as INpcGetter;
-            if (npc == null) { return false; }
+    private static string FormatMatchConditionString(string matchConditionStr, List<ArrayPathCondition> arrayMatchConditions)
+    {
+        int argIndex = 0;
+        char? previousChar = null;
+        HashSet<char> variablePredecessors = new HashSet<char>() { '&', '|', '(' };
 
-            var toMatch = toMatchPathStr.Split(',').Select(x => x.Trim()).ToHashSet();
-
-            bool matchDefault = false;
-            var defaultArg = toMatch.Where(x => x.Equals("MatchDefault", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
-            if(defaultArg is not null)
-            {
-                matchDefault = true;
-                toMatch.Remove(defaultArg);
-            }
-
-            Dictionary<string, dynamic> subObjectCache = new Dictionary<string, dynamic>();
-
-            foreach (var matchPath in toMatch)
-            {
-                if (GetObjectAtPath(rootRecord, matchPath, subObjectCache, Patcher.MainLinkCache, true, "", out dynamic outputObj))
-                {
-                    var objCollection = outputObj as System.Collections.IEnumerable;
-                    
-                    if (objCollection is not null)
-                    {
-                        foreach (var candidateRaceDyn in objCollection)
-                        {
-                            var candidateRaceForm = candidateRaceDyn as IFormLinkIdentifier;
-                            if (candidateRaceForm is not null && (candidateRaceForm.FormKey.Equals(npc.Race.FormKey) || (matchDefault && candidateRaceForm.FormKey.Equals(Skyrim.Race.DefaultRace.FormKey))))
-                            {
-                                return true;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        var candidateRaceForm = outputObj as IFormLinkIdentifier;
-                        if (candidateRaceForm is not null && (candidateRaceForm.FormKey.Equals(npc.Race.FormKey) || (matchDefault && candidateRaceForm.FormKey.Equals(Skyrim.Race.DefaultRace.FormKey))))
-                        {
-                            return true;
-                        }
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        private static bool ChooseWhichArrayObject(IReadOnlyList<dynamic> variants, string matchConditionStr, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out int? indexInParent)
+        foreach (var condition in arrayMatchConditions)
         {
             string argStr = '{' + argIndex.ToString() + '}';
 
             for (int i = 0; i < matchConditionStr.Length - condition.ReplacerTemplate.Length; i++)
             {
-                if (matchConditionStr.Substring(i, condition.ReplacerTemplate.Length) == condition.ReplacerTemplate && (i == 0 || matchConditionStr[i - 1] == '(' || matchConditionStr[i - 1] == ' '))
-                {
-                    if (condition.SpecialHandling == ArrayPathCondition.SpecialHandlingType.MatchRace)
-                    {
-                        if (MatchRace(candidateRecordGetter, objectCache[""], condition.MatchCondition))
-                        {
-                            matchConditionStr = matchConditionStr.Replace(condition.ReplacerTemplate, " true");
-                            continue;
-                        }
-                        else
-                        {
-                            skipToNext = true;
-                            break;
-                        }
-                    }
+                var currentSubStr = matchConditionStr.Substring(i, condition.ReplacerTemplate.Length);
+                if (i > 0) { previousChar = matchConditionStr[i - 1]; }
+                else { previousChar = null; }
 
-                    dynamic comparisonObject;
-                    
-                    if (candidateObjIsResolved && candidateRecordGetter != null && GetObjectAtPath(candidateRecordGetter, condition.Path, variantObjectCache, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
+                if (currentSubStr == condition.ReplacerTemplate && (i == 0 || variablePredecessors.Contains(previousChar.Value)))
+                {
+                    matchConditionStr = matchConditionStr.Remove(i, condition.ReplacerTemplate.Length);
+                    if (condition.SpecialHandling == ArrayPathCondition.SpecialHandlingType.Invoke)
                     {
                         matchConditionStr = matchConditionStr.Insert(i, argStr + ".");
                     }
@@ -748,11 +635,60 @@ public class RecordPathParser
                     {
                         matchConditionStr = matchConditionStr.Insert(i, argStr);
                     }
+                    break;
                 }
             }
             argIndex++;
         }
         return matchConditionStr;
+    }
+
+    private static bool MatchRace(dynamic rootRecord, dynamic npcDyn, string toMatchPathStr)
+    {
+        var npc = npcDyn as INpcGetter;
+        if (npc == null) { return false; }
+
+        var toMatch = toMatchPathStr.Split(',').Select(x => x.Trim()).ToHashSet();
+
+        bool matchDefault = false;
+        var defaultArg = toMatch.Where(x => x.Equals("MatchDefault", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+        if (defaultArg is not null)
+        {
+            matchDefault = true;
+            toMatch.Remove(defaultArg);
+        }
+
+        Dictionary<string, dynamic> subObjectCache = new Dictionary<string, dynamic>();
+
+        foreach (var matchPath in toMatch)
+        {
+            if (GetObjectAtPath(rootRecord, matchPath, subObjectCache, Patcher.MainLinkCache, true, "", out dynamic outputObj))
+            {
+                var objCollection = outputObj as System.Collections.IEnumerable;
+
+                if (objCollection is not null)
+                {
+                    foreach (var candidateRaceDyn in objCollection)
+                    {
+                        var candidateRaceForm = candidateRaceDyn as IFormLinkIdentifier;
+                        if (candidateRaceForm is not null && (candidateRaceForm.FormKey.Equals(npc.Race.FormKey) || (matchDefault && candidateRaceForm.FormKey.Equals(Skyrim.Race.DefaultRace.FormKey))))
+                        {
+                            return true;
+                        }
+                    }
+                }
+                else
+                {
+                    var candidateRaceForm = outputObj as IFormLinkIdentifier;
+                    if (candidateRaceForm is not null && (candidateRaceForm.FormKey.Equals(npc.Race.FormKey) || (matchDefault && candidateRaceForm.FormKey.Equals(Skyrim.Race.DefaultRace.FormKey))))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     private static bool ChooseWhichArrayObject(IReadOnlyList<dynamic> variants, string matchConditionStr, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out int? indexInParent)
@@ -789,8 +725,22 @@ public class RecordPathParser
 
             foreach (var condition in arrayMatchConditions)
             {
+                if (condition.SpecialHandling == ArrayPathCondition.SpecialHandlingType.MatchRace)
+                {
+                    if (MatchRace(candidateRecordGetter, objectCache[""], condition.MatchCondition))
+                    {
+                        matchConditionStr = matchConditionStr.Replace(condition.ReplacerTemplate, " true");
+                        continue;
+                    }
+                    else
+                    {
+                        skipToNext = true;
+                        break;
+                    }
+                }
+
                 dynamic comparisonObject;
-                    
+
                 if (candidateObjIsResolved && candidateRecordGetter != null && GetObjectAtPath(candidateRecordGetter, condition.Path, variantObjectCache, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
                 {
                     evalParameters.Add(comparisonObject);
@@ -806,7 +756,7 @@ public class RecordPathParser
                 }
                 else
                 {
-                    return false; 
+                    return false;
                 }
                 argIndex++;
 
@@ -818,12 +768,12 @@ public class RecordPathParser
                     evalParameters[evalParameters.Count - 1] = raceGetter.FormKey.AsLinkGetter<IRaceGetter>();
                 }
             }
-            if(skipToNext) { continue; }
-                
+            if (skipToNext) { continue; }
+
             // reference PatchableRaces if necessary
-            if (addPatchableRaceArg) 
+            if (addPatchableRaceArg)
             {
-                evalParameters.Add(Patcher.PatchableRaces); 
+                evalParameters.Add(Patcher.PatchableRaces);
             }
 
             try
@@ -1177,7 +1127,7 @@ public class RecordPathParser
 
         if (obj == null) { return false; }
 
-        switch(accessorType)
+        switch (accessorType)
         {
             case AccessorType.Getter: cache = GetterEmbassy; break;
             case AccessorType.Setter: cache = SetterEmbassy; break;
@@ -1193,12 +1143,12 @@ public class RecordPathParser
             }
             else if (GetPropertyInfo(obj, propertyName, out property))
             {
-                switch(accessorType)
+                switch (accessorType)
                 {
                     case AccessorType.Getter: accessor = CreateDelegateGetter(property); break;
                     case AccessorType.Setter: accessor = CreateDelegateSetter(property); break;
                 }
-                    
+
                 cache[type].Add(propertyName, accessor);
             }
         }
