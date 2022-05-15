@@ -49,7 +49,7 @@ public class PatcherEnvironmentProvider : VM
                 (PatchFileName, Release, DataFolder) => (PatchFileName, Release, DataFolder))
             .Select(inputs =>
             {
-                ModKey outputModKey = new ModKey(PatchFileName, ModType.Plugin);
+                ModKey.TryFromName(PatchFileName, ModType.Plugin, out var outputModKey);
                 OutputMod = new SkyrimMod(outputModKey, SkyrimVersion);
 
                 var builder = GameEnvironment.Typical.Builder<ISkyrimMod, ISkyrimModGetter>(inputs.Release.ToGameRelease());

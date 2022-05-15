@@ -82,7 +82,7 @@ public class CombinationLog
     {
         foreach (var containedFormLink in recordInfo.SubRecords)
         {
-            if (Patcher.MainLinkCache.TryResolve(containedFormLink.FormKey, containedFormLink.Type, out var resolvedSubRecord))
+            if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve(containedFormLink.FormKey, containedFormLink.Type, out var resolvedSubRecord))
             {
                 var loggedSubRecord = new GeneratedRecordInfo() { EditorID = resolvedSubRecord.EditorID, FormKey = resolvedSubRecord.FormKey.ToString(), SubRecords = resolvedSubRecord.EnumerateFormLinks().Where(x => x.FormKey.ModKey == resolvedSubRecord.FormKey.ModKey).ToHashSet() };
                     

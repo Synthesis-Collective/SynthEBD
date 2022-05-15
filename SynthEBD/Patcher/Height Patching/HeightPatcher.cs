@@ -133,7 +133,7 @@ public class HeightPatcher
             patchedRace = null;
             raceAlias = PatcherSettings.General.RaceAliases.Where(x => x.Race == race.FormKey && x.bApplyToHeight).FirstOrDefault();
                
-            if (raceAlias != null && PatcherSettings.General.PatchableRaces.Contains(raceAlias.AliasRace) && Patcher.MainLinkCache.TryResolve<IRaceGetter>(raceAlias.AliasRace, out var raceAliasGetter))
+            if (raceAlias != null && PatcherSettings.General.PatchableRaces.Contains(raceAlias.AliasRace) && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(raceAlias.AliasRace, out var raceAliasGetter))
             {
                 heightRacialSetting = heightConfig.HeightAssignments.Where(x => x.Races.Contains(raceAlias.AliasRace)).FirstOrDefault();
 

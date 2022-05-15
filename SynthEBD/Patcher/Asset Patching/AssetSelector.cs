@@ -813,7 +813,7 @@ public class AssetSelector
             {
                 foreach (string destPath in targetPaths)
                 {
-                    if (!(RecordPathParser.GetObjectAtPath(npcInfo.NPC, destPath, new Dictionary<string, dynamic>(), Patcher.MainLinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out dynamic objAtPath) && objAtPath is not null))
+                    if (!(RecordPathParser.GetObjectAtPath(npcInfo.NPC, destPath, new Dictionary<string, dynamic>(), PatcherEnvironmentProvider.Instance.Environment.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out dynamic objAtPath) && objAtPath is not null))
                     {
                         assignReplacer = false;
                         break;
@@ -876,7 +876,7 @@ public class AssetSelector
     {
         foreach (var part in npc.HeadParts)
         {
-            if (Patcher.MainLinkCache.TryResolve<IHeadPartGetter>(part.FormKey, out var headPartGetter) && Patcher.MainLinkCache.TryResolve<ITextureSetGetter>(headPartGetter.TextureSet.FormKey, out var headPartTextureSetGetter) && headPartTextureSetGetter.Diffuse.Equals(diffusePath, StringComparison.OrdinalIgnoreCase))
+            if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(part.FormKey, out var headPartGetter) && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<ITextureSetGetter>(headPartGetter.TextureSet.FormKey, out var headPartTextureSetGetter) && headPartTextureSetGetter.Diffuse.Equals(diffusePath, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }

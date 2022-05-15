@@ -13,9 +13,7 @@ public class Patcher
     //public static void RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins, VM_StatusBar statusBar)
     public static async Task RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins, VM_StatusBar statusBar)
     {
-        ModKey.TryFromName(PatcherSettings.General.PatchFileName, ModType.Plugin, out var patchModKey);
-        var outputMod = new SkyrimMod(patchModKey, SkyrimRelease.SkyrimSE);
-        MainLinkCache = PatcherEnvironmentProvider.Instance.Environment.LoadOrder.ToMutableLinkCache(outputMod);
+        var outputMod = PatcherEnvironmentProvider.Instance.OutputMod;
         ResolvePatchableRaces();
         BodyGenTracker = new BodyGenAssignmentTracker();
         UniqueAssignmentsByName.Clear();
@@ -166,8 +164,6 @@ public class Patcher
 
         statusBar.IsPatching = false;
     }
-
-    public static ILinkCache<ISkyrimMod, ISkyrimModGetter> MainLinkCache;
 
     public static HashSet<IFormLinkGetter<IRaceGetter>> PatchableRaces;
 
@@ -511,9 +507,9 @@ public class Patcher
 
     public static void ResolvePatchableRaces()
     {
-        if (Patcher.MainLinkCache is null)
+        if (PatcherEnvironmentProvider.Instance.Environment.LinkCache is null)
         {
-            Logger.LogError("Error: Main link cache is null.");
+            Logger.LogError("Error: Link cache is null.");
             Logger.SwitchViewToLogDisplay();
             return;
         }
@@ -521,12 +517,12 @@ public class Patcher
         PatchableRaces = new HashSet<IFormLinkGetter<IRaceGetter>>();
         foreach (var raceFK in PatcherSettings.General.PatchableRaces)
         {
-            if (MainLinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
+            if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
             {
                 PatchableRaces.Add(raceGetter.ToLinkGetter());
             }
         }
-        PatchableRaces.Add(Skyrim.Race.DefaultRace.Resolve(MainLinkCache).ToLinkGetter());
+        PatchableRaces.Add(Skyrim.Race.DefaultRace.Resolve(PatcherEnvironmentProvider.Instance.Environment.LinkCache).ToLinkGetter());
     }
 
     public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker(); // tracks unique selected morphs so that only assigned morphs are written to the generated templates.ini

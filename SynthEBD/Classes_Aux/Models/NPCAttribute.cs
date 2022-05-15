@@ -196,7 +196,7 @@ public class NPCAttribute
     public static string FormKeyToLogStringNamed<T>(FormKey fk) where T: class, IMajorRecordGetter, INamedGetter
     {
         string output = fk.ToString();
-        if (Patcher.MainLinkCache.TryResolve<T>(fk, out var getter))
+        if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<T>(fk, out var getter))
         {
             if (getter.Name != null && !string.IsNullOrWhiteSpace(getter.Name.ToString()))
             {
@@ -213,7 +213,7 @@ public class NPCAttribute
     public static string FormKeyToLogStringUnnamed<T>(FormKey fk) where T : class, IMajorRecordGetter
     {
         string output = fk.ToString();
-        if (Patcher.MainLinkCache.TryResolve<T>(fk, out var getter) && getter.EditorID != null && !string.IsNullOrWhiteSpace(getter.EditorID))
+        if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<T>(fk, out var getter) && getter.EditorID != null && !string.IsNullOrWhiteSpace(getter.EditorID))
         {
             output = getter.EditorID;
         }

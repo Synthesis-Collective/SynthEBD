@@ -47,11 +47,6 @@ public class MainWindow_ViewModel : VM
         // initialize paths
         SettingsIO_Misc.GetSettingsSource();
 
-        // Synchronize patcher link cache to environment link cache
-        Patcher.MainLinkCache = PatcherEnvironmentProvider.Instance.Environment.LinkCache;
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .Subscribe(x => Patcher.MainLinkCache = x);
-
         // Load settings
         GeneralSettingsVM = new VM_Settings_General(this);
         BodyGenSettingsVM = new VM_SettingsBodyGen(GeneralSettingsVM);
