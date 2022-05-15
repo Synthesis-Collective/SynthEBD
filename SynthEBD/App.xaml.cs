@@ -36,7 +36,7 @@ public partial class App : Application
         var path = System.IO.Path.Combine(PatcherSettings.Paths.LogFolderPath, "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
         PatcherIO.WriteTextFile(path, ExceptionLogger.GetExceptionStack(e.Exception, ""));
 
-        e.Handled = true;
+        //e.Handled = true;
     }
 
 }

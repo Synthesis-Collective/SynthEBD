@@ -9,13 +9,13 @@ namespace SynthEBD;
 
 public class VM_AdditionalRecordTemplate : VM
 {
-    public VM_AdditionalRecordTemplate(ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, ObservableCollection<VM_AdditionalRecordTemplate> parentCollection)
+    public VM_AdditionalRecordTemplate(ObservableCollection<VM_AdditionalRecordTemplate> parentCollection)
     {
-        this.RecordTemplateLinkCache = recordTemplateLinkCache;
+        this.LinkCache = Patcher.GetCurrentLinkCache();
         this.ParentCollection = parentCollection;
         
         PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .Subscribe(x => lk = x)
+            .Subscribe(x => LinkCache = Patcher.GetCurrentLinkCache())
             .DisposeWith(this);
 
         AddAdditionalRacesPath = new SynthEBD.RelayCommand(
@@ -35,7 +35,6 @@ public class VM_AdditionalRecordTemplate : VM
     }
 
     public ObservableCollection<FormKey> RaceFormKeys { get; set; } = new();
-    public ILinkCache lk { get; private set; }
     public IEnumerable<Type> RacePickerTypes { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
     public FormKey TemplateNPC { get; set; } = new();
@@ -44,7 +43,7 @@ public class VM_AdditionalRecordTemplate : VM
 
     public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
 
-    public ILinkCache<ISkyrimMod, ISkyrimModGetter> RecordTemplateLinkCache { get; set; }
+    public ILinkCache<ISkyrimMod, ISkyrimModGetter> LinkCache { get; set; }
 
     public ObservableCollection<VM_AdditionalRecordTemplate> ParentCollection { get; set; }
     public RelayCommand AddAdditionalRacesPath { get; }

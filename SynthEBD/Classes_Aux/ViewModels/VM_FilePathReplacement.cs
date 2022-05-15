@@ -13,11 +13,11 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
     public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu)
     {
         ReferenceNPCFormKey = parentMenu.ReferenceNPCFK;
-        LinkCache = parentMenu.ReferenceLinkCache;
+        LinkCache = parentMenu.LinkCache;
 
         RecordIntellisense.InitializeSubscriptions(this);
         parentMenu.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => SyncReferenceWithParent()); // can be changed from record templates without the user modifying parentMenu.NPCFK, so need an explicit watch
-        parentMenu.WhenAnyValue(x => x.ReferenceLinkCache).Subscribe(x => LinkCache = parentMenu.ReferenceLinkCache);
+        parentMenu.WhenAnyValue(x => x.LinkCache).Subscribe(x => LinkCache = parentMenu.LinkCache);
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentMenu.Paths.Remove(this));
         FindPath = new SynthEBD.RelayCommand(
@@ -115,7 +115,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 
     public void RefreshDestColor()
     {
-        if(LinkCache != null && ReferenceNPCFormKey != null && LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC) && RecordPathParser.GetObjectAtPath(refNPC, this.IntellisensedPath, new Dictionary<string, dynamic>(), ParentMenu.ReferenceLinkCache, true, Logger.GetNPCLogNameString(refNPC), out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
+        if(LinkCache != null && ReferenceNPCFormKey != null && LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC) && RecordPathParser.GetObjectAtPath(refNPC, this.IntellisensedPath, new Dictionary<string, dynamic>(), ParentMenu.LinkCache, true, Logger.GetNPCLogNameString(refNPC), out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
         {
             this.DestBorderColor = new SolidColorBrush(Colors.LightGreen);
         }

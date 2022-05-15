@@ -31,22 +31,23 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         AllowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(SubscribedOBodyDescriptorMenu, SubscribedRaceGroupings, parentAssetPack);
         DisallowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(SubscribedOBodyDescriptorMenu, SubscribedRaceGroupings, parentAssetPack);
 
+        this.LinkCache = Patcher.GetCurrentLinkCache();
+
         PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .Subscribe(x => LinkCache = x)
+            .Subscribe(x => LinkCache = Patcher.GetCurrentLinkCache())
             .DisposeWith(this);
-        
+
         //UI-related
         this.ParentCollection = parentCollection;
 
         // must be set after Parent Asset Pack
         if (SetExplicitReferenceNPC)
         {
-            this.PathsMenu = new VM_FilePathReplacementMenu(this, SetExplicitReferenceNPC, this.LinkCache);
+            this.PathsMenu = new VM_FilePathReplacementMenu(this, SetExplicitReferenceNPC);
         }
         else
         {
-            this.PathsMenu = new VM_FilePathReplacementMenu(this, SetExplicitReferenceNPC, parentAssetPack.RecordTemplateLinkCache);
-            parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => this.PathsMenu.ReferenceLinkCache = parentAssetPack.RecordTemplateLinkCache);
+            this.PathsMenu = new VM_FilePathReplacementMenu(this, SetExplicitReferenceNPC);
         }
 
         this.PathsMenu.WhenAnyValue(x => x.Paths).Subscribe(x => GetDDSPaths(this, this.ImagePaths));

@@ -10,8 +10,8 @@ namespace SynthEBD;
 public class Patcher
 {
     //Synchronous version for debugging only
-    //public static void RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins, VM_StatusBar statusBar)
-    public static async Task RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins, VM_StatusBar statusBar)
+    public static void RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, VM_StatusBar statusBar)
+    //public static async Task RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, VM_StatusBar statusBar)
     {
         ModKey.TryFromName(PatcherSettings.General.PatchFileName, ModType.Plugin, out var patchModKey);
         var outputMod = new SkyrimMod(patchModKey, SkyrimRelease.SkyrimSE);
@@ -43,7 +43,7 @@ public class Patcher
 
         if (PatcherSettings.General.bChangeMeshesOrTextures)
         {
-            UpdateRecordTemplateAdditonalRaces(assetPacks, recordTemplateLinkCache, recordTemplatePlugins);
+            UpdateRecordTemplateAdditonalRaces(assetPacks, RecordTemplatePlugins);
             HashSet<FlattenedAssetPack> flattenedAssetPacks = new HashSet<FlattenedAssetPack>();
             flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x)).ToHashSet();
             PathTrimmer.TrimFlattenedAssetPacks(flattenedAssetPacks, PatcherSettings.TexMesh.TrimPaths);
@@ -123,9 +123,9 @@ public class Patcher
         statusBar.ProgressBarCurrent = 0;
         statusBar.ProgressBarDisp = "Patched " + statusBar.ProgressBarCurrent + " NPCs";
         // Patch main NPCs
-        MainLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCGroups,  recordTemplateLinkCache, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, statusBar, headPartNPCs);
+        MainLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCGroups, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, statusBar, headPartNPCs);
         // Finish assigning non-primary linked NPCs
-        MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCGroups, recordTemplateLinkCache, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, statusBar, headPartNPCs);
+        MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCGroups, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, statusBar, headPartNPCs);
 
         // Perform headpart functionality if any headparts were patched
         if (headPartNPCs.Any())
@@ -193,7 +193,7 @@ public class Patcher
         public HashSet<FlattenedAssetPack> MixInFemale { get; set; }
     }
 
-    private static void MainLoop(IEnumerable<INpcGetter> npcCollection, bool skipLinkedSecondaryNPCs, SkyrimMod outputMod, CategorizedFlattenedAssetPacks sortedAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, HeightConfig currentHeightConfig, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<LinkedNPCGroup> linkedNPCGroups, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, int npcCounter, HashSet<LinkedNPCGroupInfo> generatedLinkGroups, HashSet<INpcGetter> skippedLinkedNPCs, Keyword EBDFaceKW, Keyword EBDScriptKW, Spell bodySlideAssignmentSpell, VM_StatusBar statusBar, HashSet<Npc> headPartNPCs)
+    private static void MainLoop(IEnumerable<INpcGetter> npcCollection, bool skipLinkedSecondaryNPCs, SkyrimMod outputMod, CategorizedFlattenedAssetPacks sortedAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, HeightConfig currentHeightConfig, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<LinkedNPCGroup> linkedNPCGroups, int npcCounter, HashSet<LinkedNPCGroupInfo> generatedLinkGroups, HashSet<INpcGetter> skippedLinkedNPCs, Keyword EBDFaceKW, Keyword EBDScriptKW, Spell bodySlideAssignmentSpell, VM_StatusBar statusBar, HashSet<Npc> headPartNPCs)
     {
         bool blockAssets;
         bool blockBodyShape;
@@ -409,7 +409,7 @@ public class Patcher
                     var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
                     var npcObjectMap = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", npcRecord } };
                     var assignedPaths = new List<FilePathReplacementParsed>(); // for logging only
-                    RecordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, recordTemplateLinkCache, npcObjectMap, objectCaches, outputMod, assignedPaths);
+                    RecordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, npcObjectMap, objectCaches, outputMod, assignedPaths);
                     CombinationLog.LogAssignment(currentNPCInfo, assignedCombinations, assignedPaths);
                     if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
                     npcRecord.Keywords.Add(EBDFaceKW);
@@ -440,7 +440,7 @@ public class Patcher
         }
     }
 
-    private static void UpdateRecordTemplateAdditonalRaces(List<AssetPack> assetPacks, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins)
+    private static void UpdateRecordTemplateAdditonalRaces(List<AssetPack> assetPacks, List<SkyrimMod> recordTemplatePlugins)
     {
         Dictionary<string, HashSet<string>> patchedTemplates = new Dictionary<string, HashSet<string>>();
 
@@ -448,16 +448,16 @@ public class Patcher
         {
             var exclusions = assetPack.AdditionalRecordTemplateAssignments.SelectMany(x => x.Races).ToHashSet(); // don't include races that get their own record template in the default template's patching
             var racesToAdd = PatcherSettings.General.PatchableRaces.Where(x => !FormKeyHashSetComparer.Contains(exclusions, x)).ToHashSet();
-            SetRecordTemplateAdditionalRaces(assetPack.DefaultRecordTemplateAdditionalRacesPaths, assetPack.DefaultRecordTemplate, racesToAdd, patchedTemplates, recordTemplateLinkCache, recordTemplatePlugins);
+            SetRecordTemplateAdditionalRaces(assetPack.DefaultRecordTemplateAdditionalRacesPaths, assetPack.DefaultRecordTemplate, racesToAdd, patchedTemplates, recordTemplatePlugins);
 
             foreach (var additionalTemplateEntry in assetPack.AdditionalRecordTemplateAssignments)
             {
-                SetRecordTemplateAdditionalRaces(additionalTemplateEntry.AdditionalRacesPaths, additionalTemplateEntry.TemplateNPC, additionalTemplateEntry.Races, patchedTemplates, recordTemplateLinkCache, recordTemplatePlugins);
+                SetRecordTemplateAdditionalRaces(additionalTemplateEntry.AdditionalRacesPaths, additionalTemplateEntry.TemplateNPC, additionalTemplateEntry.Races, patchedTemplates, recordTemplatePlugins);
             }
         }
     }
 
-    private static void SetRecordTemplateAdditionalRaces(HashSet<string> additionalRacesPaths, FormKey templateFK, HashSet<FormKey> racesToAdd, Dictionary<string, HashSet<string>> alreadyPatchedTemplates, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins)
+    private static void SetRecordTemplateAdditionalRaces(HashSet<string> additionalRacesPaths, FormKey templateFK, HashSet<FormKey> racesToAdd, Dictionary<string, HashSet<string>> alreadyPatchedTemplates, List<SkyrimMod> recordTemplatePlugins)
     {
         foreach (var path in additionalRacesPaths)
         {
@@ -472,18 +472,18 @@ public class Patcher
                 Logger.LogError("Could not find record template plugin " + templateFK.ToString());
             }
 
-            if (recordTemplateLinkCache.TryResolve<INpcGetter>(templateFK, out var template))
+            if (MainLinkCache.TryResolve<INpcGetter>(templateFK, out var template))
             {
                 try
                 {
-                    if (!RecordPathParser.GetNearestParentGetter(template, path, recordTemplateLinkCache, false, Logger.GetNPCLogNameString(template), out IMajorRecordGetter parentRecordGetter, out string relativePath))
+                    if (!RecordPathParser.GetNearestParentGetter(template, path, MainLinkCache, false, Logger.GetNPCLogNameString(template), out IMajorRecordGetter parentRecordGetter, out string relativePath))
                     {
                         continue;
                     }
 
                     var parentRecord = RecordGenerator.GetOrAddGenericRecordAsOverride(parentRecordGetter, templateMod);
 
-                    if (RecordPathParser.GetObjectAtPath(parentRecord, relativePath, new Dictionary<string, dynamic>(), recordTemplateLinkCache, false, Logger.GetNPCLogNameString(template), out dynamic additionalRaces))
+                    if (RecordPathParser.GetObjectAtPath(parentRecord, relativePath, new Dictionary<string, dynamic>(), MainLinkCache, false, Logger.GetNPCLogNameString(template), out dynamic additionalRaces))
                     {
                         foreach (var race in racesToAdd)
                         {
@@ -537,5 +537,11 @@ public class Patcher
         public Dictionary<FormKey, List<string>> NPCAssignments = new();
         public Dictionary<string, HashSet<string>> AllChosenMorphsMale = new();
         public Dictionary<string, HashSet<string>> AllChosenMorphsFemale = new();
+    }
+
+    public static List<SkyrimMod> RecordTemplatePlugins { get; set; } = new ();
+    public static ILinkCache<ISkyrimMod, ISkyrimModGetter> GetCurrentLinkCache()
+    {
+        return PatcherEnvironmentProvider.Instance.Environment.LoadOrder.ToMutableLinkCache(RecordTemplatePlugins.ToArray());
     }
 }

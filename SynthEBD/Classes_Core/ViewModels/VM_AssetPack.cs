@@ -39,8 +39,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         this.BodyShapeMode = mainVM.GeneralSettingsVM.BodySelectionMode;
         mainVM.GeneralSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
 
-        RecordTemplateLinkCache = mainVM.RecordTemplateLinkCache;
-
         ParentMenuVM = mainVM.TexMeshSettingsVM;
 
         this.WhenAnyValue(x => x.DisplayedSubgroup).Subscribe(x => UpdatePreviewImages());
@@ -64,7 +62,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         AddAdditionalRecordTemplateAssignment = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => { this.AdditionalRecordTemplateAssignments.Add(new VM_AdditionalRecordTemplate(this.RecordTemplateLinkCache, this.AdditionalRecordTemplateAssignments)); }
+            execute: _ => { this.AdditionalRecordTemplateAssignments.Add(new VM_AdditionalRecordTemplate(this.AdditionalRecordTemplateAssignments)); }
         );
 
         AddRecordTemplateAdditionalRacesPath = new SynthEBD.RelayCommand(
@@ -110,7 +108,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         DiscardButton = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => {
-                var reloaded = SettingsIO_AssetPack.LoadAssetPack(SourcePath, PatcherSettings.General.RaceGroupings, mainVM.RecordTemplatePlugins, mainVM.BodyGenConfigs, out bool success);
+                var reloaded = SettingsIO_AssetPack.LoadAssetPack(SourcePath, PatcherSettings.General.RaceGroupings, Patcher.RecordTemplatePlugins, mainVM.BodyGenConfigs, out bool success);
                 if (!success)
                 {
                     Logger.CallTimedLogErrorWithStatusUpdateAsync(GroupName + " could not be reloaded from drive.", ErrorType.Error, 3);
@@ -157,8 +155,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public bool IsSelected { get; set; } = true;
 
     public string SourcePath { get; set; } = "";
-
-    public ILinkCache<ISkyrimMod, ISkyrimModGetter> RecordTemplateLinkCache { get; set; }
 
     public FormKey DefaultTemplateFK { get; set; } = new();
     public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
@@ -268,7 +264,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         viewModel.DefaultTemplateFK = model.DefaultRecordTemplate;
         foreach(var additionalTemplateAssignment in model.AdditionalRecordTemplateAssignments)
         {
-            var assignmentVM = new VM_AdditionalRecordTemplate(mainVM.RecordTemplateLinkCache, viewModel.AdditionalRecordTemplateAssignments);
+            var assignmentVM = new VM_AdditionalRecordTemplate(viewModel.AdditionalRecordTemplateAssignments);
             assignmentVM.RaceFormKeys = new ObservableCollection<FormKey>(additionalTemplateAssignment.Races);
             assignmentVM.TemplateNPC = additionalTemplateAssignment.TemplateNPC;
             assignmentVM.AdditionalRacesPaths = VM_CollectionMemberString.InitializeCollectionFromHashSet(additionalTemplateAssignment.AdditionalRacesPaths);
@@ -430,7 +426,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         if (IO_Aux.SelectFile(PatcherSettings.Paths.AssetPackDirPath, "Config files (*.json)|*.json", "Select config file to merge in", out string path))
         {
-            var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, mainVM.RecordTemplatePlugins, mainVM.BodyGenConfigs, out bool loadSuccess);
+            var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, Patcher.RecordTemplatePlugins, mainVM.BodyGenConfigs, out bool loadSuccess);
             if (loadSuccess)
             {
                 var newAssetPackVM = VM_AssetPack.GetViewModelFromModel(newAssetPack, mainVM);
@@ -495,13 +491,13 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         switch(Gender)
         {
             case Gender.Male:
-                if (RecordTemplateLinkCache.TryResolve("DefaultMale", out var defaultMaleRec))
+                if (Patcher.MainLinkCache.TryResolve<INpcGetter>("DefaultMale", out var defaultMaleRec))
                 {
                     DefaultTemplateFK = defaultMaleRec.FormKey;
                 }
                 break;
             case Gender.Female:
-                if (RecordTemplateLinkCache.TryResolve("DefaultFemale", out var defaultFemaleRec))
+                if (Patcher.MainLinkCache.TryResolve<INpcGetter>("DefaultFemale", out var defaultFemaleRec))
                 {
                     DefaultTemplateFK = defaultFemaleRec.FormKey;
                 }

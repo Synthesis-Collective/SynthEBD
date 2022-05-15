@@ -36,9 +36,6 @@ public class MainWindow_ViewModel : VM
     public HashSet<string> LinkedNPCNameExclusions { get; set; }
     public HashSet<LinkedNPCGroup> LinkedNPCGroups { get; set; }
 
-    public List<SkyrimMod> RecordTemplatePlugins { get; set; }
-    public ILinkCache<ISkyrimMod, ISkyrimModGetter> RecordTemplateLinkCache { get; set; }
-
     public MainWindow_ViewModel()
     {
         // initialize logger
@@ -48,9 +45,10 @@ public class MainWindow_ViewModel : VM
         SettingsIO_Misc.GetSettingsSource();
 
         // Synchronize patcher link cache to environment link cache
-        Patcher.MainLinkCache = PatcherEnvironmentProvider.Instance.Environment.LinkCache;
+        Patcher.MainLinkCache = Patcher.GetCurrentLinkCache();
         PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .Subscribe(x => Patcher.MainLinkCache = x);
+            .Subscribe(x => Patcher.MainLinkCache = Patcher.GetCurrentLinkCache()
+        );
 
         // Load settings
         GeneralSettingsVM = new VM_Settings_General(this);
@@ -143,12 +141,15 @@ public class MainWindow_ViewModel : VM
 
         VM_SettingsOBody.GetViewModelFromModel(PatcherSettings.OBody, OBodySettingsVM, GeneralSettingsVM.RaceGroupings);
 
-        RecordTemplatePlugins = SettingsIO_AssetPack.LoadRecordTemplates(out loadSuccess);
+        Patcher.RecordTemplatePlugins = SettingsIO_AssetPack.LoadRecordTemplates(out loadSuccess);
         if (!loadSuccess) { Logger.SwitchViewToLogDisplay(); }
-        RecordTemplateLinkCache = PatcherEnvironmentProvider.Instance.Environment.LoadOrder.ToMutableLinkCache(RecordTemplatePlugins.ToArray());
+        else
+        {
+            Patcher.MainLinkCache = Patcher.GetCurrentLinkCache();
+        }
 
         // load asset packs
-        AssetPacks = SettingsIO_AssetPack.LoadAssetPacks(PatcherSettings.General.RaceGroupings, RecordTemplatePlugins, BodyGenConfigs, out loadSuccess); // load asset pack models from json
+        AssetPacks = SettingsIO_AssetPack.LoadAssetPacks(PatcherSettings.General.RaceGroupings, Patcher.RecordTemplatePlugins, BodyGenConfigs, out loadSuccess); // load asset pack models from json
         if (!loadSuccess) { Logger.SwitchViewToLogDisplay(); }
         VM_AssetPack.GetViewModelsFromModels(AssetPacks, PatcherSettings.TexMesh, this); // add asset pack view models to TexMesh shell view model here
 

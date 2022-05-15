@@ -72,7 +72,7 @@ public class VM_SettingsTexMesh : VM
             {
                 if (IO_Aux.SelectFile(PatcherSettings.Paths.AssetPackDirPath, "Config files (*.json)|*.json", "Select the config json file", out string path))
                 {
-                    var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, ParentViewModel.RecordTemplatePlugins, ParentViewModel.BodyGenConfigs, out bool loadSuccess);
+                    var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, Patcher.RecordTemplatePlugins, ParentViewModel.BodyGenConfigs, out bool loadSuccess);
                     if (loadSuccess)
                     {
                         newAssetPack.FilePath = System.IO.Path.Combine(PatcherSettings.Paths.AssetPackDirPath, System.IO.Path.GetFileName(newAssetPack.FilePath)); // overwrite existing filepath so it doesn't get deleted from source

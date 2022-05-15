@@ -11,11 +11,16 @@ namespace SynthEBD;
 
 public class VM_FilePathReplacementMenu : VM
 {
-    public VM_FilePathReplacementMenu(VM_Subgroup parent, bool setExplicitReferenceNPC, ILinkCache refLinkCache)
+    public VM_FilePathReplacementMenu(VM_Subgroup parent, bool setExplicitReferenceNPC)
     {
         this.ParentSubgroup = parent;
 
-        this.ReferenceLinkCache = refLinkCache;
+        this.LinkCache = Patcher.GetCurrentLinkCache();
+
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => LinkCache = Patcher.GetCurrentLinkCache())
+            .DisposeWith(this);
+
         this.SetExplicitReferenceNPC = setExplicitReferenceNPC;
 
         Paths.ToObservableChangeSet().Subscribe(x => RefreshHasContents());
@@ -28,8 +33,6 @@ public class VM_FilePathReplacementMenu : VM
             ParentSubgroup.DisallowedRaceGroupings.WhenAnyValue(x => x.HeaderCaption).Subscribe(x => RefreshReferenceNPC());
             ParentSubgroup.ParentAssetPack.WhenAnyValue(x => x.DefaultTemplateFK).Subscribe(x => RefreshReferenceNPC());
             ParentSubgroup.ParentAssetPack.AdditionalRecordTemplateAssignments.ToObservableChangeSet().Subscribe(x => RefreshReferenceNPC());
-            ParentSubgroup.ParentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => this.ReferenceLinkCache = this.ParentSubgroup.ParentAssetPack.RecordTemplateLinkCache);
-            ParentSubgroup.ParentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => RefreshReferenceNPC());
             GetReferenceNPCFromRecordTemplates();
         }
     }
@@ -38,13 +41,13 @@ public class VM_FilePathReplacementMenu : VM
     public VM_Subgroup ParentSubgroup { get; set; }
     public bool SetExplicitReferenceNPC { get; set; }
     public FormKey ReferenceNPCFK { get; set; } = new();
-    public ILinkCache ReferenceLinkCache { get; set; }
+    public ILinkCache LinkCache { get; set; }
     public IEnumerable<Type> NPCType { get; set; } = typeof(INpcGetter).AsEnumerable();
     public bool HasContents { get; set; }
 
     public VM_FilePathReplacementMenu Clone()
     {
-        VM_FilePathReplacementMenu clone = new VM_FilePathReplacementMenu(ParentSubgroup, ParentSubgroup.SetExplicitReferenceNPC, ReferenceLinkCache);
+        VM_FilePathReplacementMenu clone = new VM_FilePathReplacementMenu(ParentSubgroup, ParentSubgroup.SetExplicitReferenceNPC);
         clone.HasContents = this.HasContents;
         clone.Paths = new ObservableCollection<VM_FilePathReplacement>() { this.Paths.Select(x => x.Clone(clone)) };
         return clone;
@@ -56,11 +59,11 @@ public class VM_FilePathReplacementMenu : VM
 
         if (setExplicitReferenceNPC)
         {
-            viewModel = new VM_FilePathReplacementMenu(parentSubgroup, setExplicitReferenceNPC, parentSubgroup.LinkCache);
+            viewModel = new VM_FilePathReplacementMenu(parentSubgroup, setExplicitReferenceNPC);
         }
         else
         {
-            viewModel = new VM_FilePathReplacementMenu(parentSubgroup, setExplicitReferenceNPC, parentSubgroup.ParentAssetPack.RecordTemplateLinkCache);
+            viewModel = new VM_FilePathReplacementMenu(parentSubgroup, setExplicitReferenceNPC);
         }
 
         foreach (var model in models)
@@ -118,7 +121,7 @@ public class VM_FilePathReplacementMenu : VM
             templateFormKey = ParentSubgroup.ParentAssetPack.DefaultTemplateFK;
         }
 
-        if (!templateFormKey.IsNull && ReferenceLinkCache != null && ReferenceLinkCache.TryResolve<INpcGetter>(templateFormKey, out _))
+        if (!templateFormKey.IsNull && LinkCache != null && LinkCache.TryResolve<INpcGetter>(templateFormKey, out _))
         {
             ReferenceNPCFK = templateFormKey;
         }

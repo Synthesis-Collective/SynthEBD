@@ -23,10 +23,10 @@
 
         <Button Grid.Row="0" Grid.Column="0" VerticalAlignment="Top" VerticalContentAlignment="Bottom" HorizontalContentAlignment="Left" Command="{Binding DeleteCommand}" Foreground="FireBrick">X</Button>
         <TextBlock Grid.Row="0" Grid.Column="0"  HorizontalAlignment="Center">Races</TextBlock>
-        <plugins:FormKeyMultiPicker Grid.Row="1" Grid.Column="0" MaxHeight="500" FormKeys="{Binding RaceFormKeys}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerTypes}"  />
+        <plugins:FormKeyMultiPicker Grid.Row="1" Grid.Column="0" MaxHeight="500" FormKeys="{Binding RaceFormKeys}" LinkCache="{Binding LinkCache}" ScopedTypes="{Binding RacePickerTypes}"  />
 
         <TextBlock Grid.Row="0" Grid.Column="2"  HorizontalAlignment="Center">Template NPC</TextBlock>
-        <plugins:FormKeyPicker Grid.Row="1" Grid.Column="2" FormKey="{Binding TemplateNPC}" LinkCache="{Binding RecordTemplateLinkCache}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
+        <plugins:FormKeyPicker Grid.Row="1" Grid.Column="2" FormKey="{Binding TemplateNPC}" LinkCache="{Binding LinkCache}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
 
         <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="0">
             <TextBlock  Margin="0 0 15 0" VerticalAlignment="Top">Additional Races Paths</TextBlock>

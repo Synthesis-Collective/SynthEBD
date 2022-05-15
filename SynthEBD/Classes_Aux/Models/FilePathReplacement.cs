@@ -12,12 +12,12 @@ public class FilePathReplacement
     
 public class FilePathReplacementParsed
 {
-    public FilePathReplacementParsed(FilePathReplacement pathTemplate, NPCInfo npcInfo, FlattenedAssetPack sourceAssetPack, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SubgroupCombination parentCombination)
+    public FilePathReplacementParsed(FilePathReplacement pathTemplate, NPCInfo npcInfo, FlattenedAssetPack sourceAssetPack, SubgroupCombination parentCombination)
     {
         this.Source = pathTemplate.Source;
         this.Destination = RecordPathParser.SplitPath(pathTemplate.Destination);
         this.DestinationStr = pathTemplate.Destination;
-        this.TemplateNPC = GetTemplateNPC(npcInfo, sourceAssetPack, recordTemplateLinkCache);
+        this.TemplateNPC = GetTemplateNPC(npcInfo, sourceAssetPack);
         this.ParentCombination = parentCombination;
     }
 
@@ -28,7 +28,7 @@ public class FilePathReplacementParsed
     public SubgroupCombination ParentCombination { get; set; } // for logging only
     public HashSet<GeneratedRecordInfo> TraversedRecords { get; set; } = new(); // for logging only
 
-    private static INpcGetter GetTemplateNPC(NPCInfo npcInfo, FlattenedAssetPack chosenAssetPack, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
+    private static INpcGetter GetTemplateNPC(NPCInfo npcInfo, FlattenedAssetPack chosenAssetPack)
     {
         FormKey templateFK = new FormKey();
         foreach (var additionalTemplate in chosenAssetPack.AdditionalRecordTemplateAssignments)
@@ -44,7 +44,7 @@ public class FilePathReplacementParsed
             templateFK = chosenAssetPack.DefaultRecordTemplate;
         }
             
-        if (!recordTemplateLinkCache.TryResolve<INpcGetter>(templateFK, out var templateNPC) && chosenAssetPack.Type != FlattenedAssetPack.AssetPackType.ReplacerVirtual)
+        if (!Patcher.MainLinkCache.TryResolve<INpcGetter>(templateFK, out var templateNPC) && chosenAssetPack.Type != FlattenedAssetPack.AssetPackType.ReplacerVirtual)
         {
             Logger.LogError("Error: Cannot resolve template NPC with FormKey " + templateFK.ToString());
             Logger.SwitchViewToLogDisplay();
