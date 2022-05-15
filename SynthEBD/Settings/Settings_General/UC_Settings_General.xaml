@@ -53,12 +53,20 @@
 
             <TextBlock Grid.Column="0" Grid.Row="1" ToolTip="Folder to which generated plugin and other files will be written" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Output Data Folder</TextBlock>
             <StackPanel Grid.Column="2" Grid.Row="1" Orientation="Horizontal">
-                <Button VerticalAlignment="Center" Command="{Binding Environment.SelectOutputFolder}" Foreground="LightGreen">Select</Button>
-                <TextBox HorizontalAlignment="Left" Text="{Binding Path=Environment.OutputDataFolder, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+                <Button VerticalAlignment="Center" Command="{Binding SelectOutputFolder}" Foreground="LightGreen">Select</Button>
+                <TextBlock Background="Black" HorizontalAlignment="Left" Text="{Binding Path=OutputDataFolder, UpdateSourceTrigger=PropertyChanged}"></TextBlock>
+                <Button VerticalAlignment="Center" Command="{Binding ClearOutputFolder}" Foreground="Firebrick">Clear</Button>
             </StackPanel>
 
             <TextBlock Grid.Column="0" Grid.Row="2" ToolTip="Which Skyrim release is being patched">Skyrim Release</TextBlock>
             <ComboBox Grid.Column="2" Grid.Row="2" Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding Environment.SkyrimVersion}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type Skyrim:SkyrimRelease}}}" IsSynchronizedWithCurrentItem="True"/>
+
+            <TextBlock Grid.Column="0" Grid.Row="3" ToolTip="Find your game data folder if not in the default location (Steam Library\steamapps\common\Skyrim\Data)">Custom Game Data Directory</TextBlock>
+            <StackPanel Grid.Column="2" Grid.Row="3" Orientation="Horizontal">
+                <Button VerticalAlignment="Center" Command="{Binding Environment.SelectGameDataFolder}" Foreground="LightGreen">Select</Button>
+                <TextBlock Background="Black" HorizontalAlignment="Left" Text="{Binding Path=Environment.GameDataFolder, UpdateSourceTrigger=PropertyChanged}"></TextBlock>
+                <Button VerticalAlignment="Center" Command="{Binding Environment.ClearGameDataFolder}" Foreground="Firebrick">Clear</Button>
+            </StackPanel>
 
             <TextBlock Grid.Column="0" Grid.Row="4" ToolTip="Toggle visibility of helper tooltips like this one">Show Tooltips</TextBlock>
             <CheckBox Grid.Column="2" Grid.Row="4" IsChecked="{Binding Path=bShowToolTips, Mode=TwoWay}"></CheckBox>

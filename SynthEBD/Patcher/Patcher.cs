@@ -523,10 +523,10 @@ public class Patcher
         {
             if (MainLinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
             {
-                PatchableRaces.Add(raceGetter.AsLinkGetter());
+                PatchableRaces.Add(raceGetter.ToLinkGetter());
             }
         }
-        PatchableRaces.Add(Skyrim.Race.DefaultRace.TryResolve(MainLinkCache).AsLinkGetter());
+        PatchableRaces.Add(Skyrim.Race.DefaultRace.Resolve(MainLinkCache).ToLinkGetter());
     }
 
     public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker(); // tracks unique selected morphs so that only assigned morphs are written to the generated templates.ini

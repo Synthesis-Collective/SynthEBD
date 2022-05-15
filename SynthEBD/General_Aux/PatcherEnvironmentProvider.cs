@@ -13,28 +13,37 @@ public class PatcherEnvironmentProvider : VM
     public static PatcherEnvironmentProvider Instance = new();
     public string PatchFileName { get; set; } = "SynthEBD.esp";
     public SkyrimRelease SkyrimVersion { get; set; } = SkyrimRelease.SkyrimSE;
-    public string OutputDataFolder { get; set; } = "";
-    public RelayCommand SelectOutputFolder { get; }
-    
+    public string GameDataFolder { get; set; } = "";
+    public RelayCommand SelectGameDataFolder { get; }
+    public RelayCommand ClearGameDataFolder { get; }
+
     public IGameEnvironment<ISkyrimMod, ISkyrimModGetter> Environment { get; private set; }
 
     private PatcherEnvironmentProvider()
     {
-        SelectOutputFolder = new SynthEBD.RelayCommand(
+        SelectGameDataFolder = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
                 if (IO_Aux.SelectFolder(Environment.DataFolderPath, out var tmpFolder))
                 {
-                    OutputDataFolder = tmpFolder;
+                    GameDataFolder = tmpFolder;
                 }
             }
         );
-        
+
+        ClearGameDataFolder = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                GameDataFolder = String.Empty;
+            }
+        );
+
         Observable.CombineLatest(
                 this.WhenAnyValue(x => x.PatchFileName),
                 this.WhenAnyValue(x => x.SkyrimVersion),
-                this.WhenAnyValue(x => x.OutputDataFolder),
+                this.WhenAnyValue(x => x.GameDataFolder),
                 (PatchFileName, Release, DataFolder) => (PatchFileName, Release, DataFolder))
             .Select(inputs =>
             {

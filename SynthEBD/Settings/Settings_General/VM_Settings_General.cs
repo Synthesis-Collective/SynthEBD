@@ -62,6 +62,25 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
             System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.Default;
         });
 
+        SelectOutputFolder = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    if (IO_Aux.SelectFolder(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, out var tmpFolder))
+                    {
+                        OutputDataFolder = tmpFolder;
+                    }
+                }
+                );
+
+        ClearOutputFolder = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    OutputDataFolder = "";
+                }
+                );
+
         SelectPortableSettingsFolder = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -117,6 +136,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     }
 
     public MainWindow_ViewModel MainWindowVM { get; set; }
+    public string OutputDataFolder { get; set; } = "";
     public bool bShowToolTips { get;  set;} = true;
     public bool bChangeMeshesOrTextures { get; set;  } = true;
     public PatcherEnvironmentProvider Environment { get; }
@@ -152,17 +172,19 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     public RelayCommand AddLinkedNPCNameExclusion { get; }
     public RelayCommand AddLinkedNPCGroup { get; }
     public RelayCommand RemoveLinkedNPCGroup { get; }
+    public RelayCommand SelectOutputFolder { get; }
+    public RelayCommand ClearOutputFolder { get; }
     public RelayCommand SelectPortableSettingsFolder { get; }
     public RelayCommand ClearPortableSettingsFolder { get; }
     public static void GetViewModelFromModel(VM_Settings_General viewModel)
     {
         var model = PatcherSettings.General;
+        viewModel.OutputDataFolder = model.OutputDataFolder;
         viewModel.bShowToolTips = model.bShowToolTips;
         viewModel.bChangeMeshesOrTextures = model.bChangeMeshesOrTextures;
         viewModel.BodySelectionMode = model.BodySelectionMode;
         viewModel.BSSelectionMode = model.BSSelectionMode;
-        viewModel.bChangeHeight = model.bChangeHeight;
-        viewModel.Environment.OutputDataFolder = model.OutputDataFolder;
+        viewModel.bChangeHeight = model.bChangeHeight;       
         viewModel.bEnableConsistency = model.bEnableConsistency;
         viewModel.ExcludePlayerCharacter = model.ExcludePlayerCharacter;
         viewModel.ExcludePresets = model.ExcludePresets;
@@ -176,19 +198,19 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         viewModel.raceAliases = VM_raceAlias.GetViewModelsFromModels(model.RaceAliases, viewModel);
         viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, viewModel);
         VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu);
-        viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;            
-
+        viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;
         viewModel.bLoadSettingsFromDataFolder = PatcherSettings.LoadFromDataFolder;
         viewModel.PortableSettingsFolder = PatcherSettings.PortableSettingsFolder;
     }
     public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
     {
+        model.OutputDataFolder = viewModel.OutputDataFolder;
         model.bShowToolTips = viewModel.bShowToolTips;
         model.bChangeMeshesOrTextures = viewModel.bChangeMeshesOrTextures;
         model.BodySelectionMode = viewModel.BodySelectionMode;
         model.BSSelectionMode = viewModel.BSSelectionMode;
         model.bChangeHeight = viewModel.bChangeHeight;
-        model.OutputDataFolder = viewModel.Environment.OutputDataFolder;
+        model.OutputDataFolder = viewModel.OutputDataFolder;
         model.bEnableConsistency = viewModel.bEnableConsistency;
         model.ExcludePlayerCharacter = viewModel.ExcludePlayerCharacter;
         model.ExcludePresets = viewModel.ExcludePresets;

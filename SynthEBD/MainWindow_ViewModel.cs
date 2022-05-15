@@ -3,6 +3,7 @@ using Mutagen.Bethesda.Skyrim;
 using System.ComponentModel;
 using System.Windows;
 using ReactiveUI;
+using System.Reactive.Linq;
 
 namespace SynthEBD;
 
@@ -46,6 +47,11 @@ public class MainWindow_ViewModel : VM
         // initialize paths
         SettingsIO_Misc.GetSettingsSource();
 
+        // Synchronize patcher link cache to environment link cache
+        Patcher.MainLinkCache = PatcherEnvironmentProvider.Instance.Environment.LinkCache;
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => Patcher.MainLinkCache = x);
+
         // Load settings
         GeneralSettingsVM = new VM_Settings_General(this);
         BodyGenSettingsVM = new VM_SettingsBodyGen(GeneralSettingsVM);
@@ -87,8 +93,6 @@ public class MainWindow_ViewModel : VM
         VM_Settings_General.GetViewModelFromModel(GeneralSettingsVM);
 
         // Initialize patchable races from general settings (required by some UI elements)
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
-            .Subscribe(x => Patcher.MainLinkCache = x);
         Patcher.ResolvePatchableRaces();
 
         // Load texture and mesh settings
