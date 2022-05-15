@@ -30,15 +30,15 @@ namespace SynthEBD
                     {
                         CustomGamePath = gamePath;
                         var gameDir = System.IO.Path.GetDirectoryName(CustomGamePath);
-                        var testDir = System.IO.Path.Combine(gameDir, "data");
+                        var dataDir = System.IO.Path.Combine(gameDir, "data");
                         Cursor.Current = Cursors.WaitCursor;
                         try
                         {
                             IsValidated = false;
                             var builder = GameEnvironment.Typical.Builder<ISkyrimMod, ISkyrimModGetter>(SkyrimRelease.ToGameRelease());
-                            if (!String.IsNullOrWhiteSpace(gameDir))
+                            if (!String.IsNullOrWhiteSpace(dataDir))
                             {
-                                builder = builder.WithTargetDataFolder(gameDir);
+                                builder = builder.WithTargetDataFolder(dataDir);
                             }
                             Environment = builder
                                 .TransformModListings(x =>
