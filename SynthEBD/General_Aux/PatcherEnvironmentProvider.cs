@@ -12,7 +12,7 @@ namespace SynthEBD;
 public class PatcherEnvironmentProvider : VM
 {
     public static PatcherEnvironmentProvider Instance = new();
-    public string PatchFileName { get; set; } = "SynthEBD.esp";
+    public string PatchFileName { get; set; } = "SynthEBD";
     public SkyrimRelease SkyrimVersion { get; set; } = SkyrimRelease.SkyrimSE;
     public string GameDataFolder { get; set; } = "";
     public RelayCommand SelectGameDataFolder { get; }
@@ -57,12 +57,35 @@ public class PatcherEnvironmentProvider : VM
                 {
                     builder = builder.WithTargetDataFolder(inputs.DataFolder);
                 }
-                return builder
+
+                var build = builder
                     .TransformModListings(x =>
                         x.OnlyEnabledAndExisting().
-                        RemoveModAndDependents(inputs.PatchFileName + ".esp", verbose: true))
+                        RemoveModAndDependents(inputs.PatchFileName, verbose: true))
                         .WithOutputMod(OutputMod)
                     .Build();
+
+                if (build.LinkCache.ListedOrder.Count == 1) // invalid environment directory (ListedOrder only contains output mod)
+                {
+                    var customEnvWindow = new Window_CustomEnvironment();
+                    var customEnvVM = new VM_CustomEnvironment(customEnvWindow);
+                    customEnvWindow.DataContext = customEnvVM;
+                    customEnvWindow.ShowDialog();
+
+                    if (customEnvVM.IsValidated)
+                    {
+                        SkyrimVersion = customEnvVM.SkyrimRelease;
+                        GameDataFolder = customEnvVM.CustomGamePath;
+                        return customEnvVM.Environment;
+                    }
+                    else
+                    {
+                        System.Windows.Application.Current.Shutdown();
+                        System.Environment.Exit(1);
+                    }
+                }
+
+                return build;
             })
             .Subscribe(x => Environment = x)
             .DisposeWith(this);

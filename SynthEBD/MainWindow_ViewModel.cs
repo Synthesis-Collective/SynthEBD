@@ -140,7 +140,7 @@ public class MainWindow_ViewModel : VM
 
         RecordTemplatePlugins = SettingsIO_AssetPack.LoadRecordTemplates(out loadSuccess);
         if (!loadSuccess) { Logger.SwitchViewToLogDisplay(); }
-        RecordTemplateLinkCache = PatcherEnvironmentProvider.Instance.Environment.LoadOrder.ToMutableLinkCache(RecordTemplatePlugins.ToArray());
+        RecordTemplateLinkCache = RecordTemplatePlugins.ToImmutableLinkCache();
 
         // load asset packs
         AssetPacks = SettingsIO_AssetPack.LoadAssetPacks(PatcherSettings.General.RaceGroupings, RecordTemplatePlugins, BodyGenConfigs, out loadSuccess); // load asset pack models from json
