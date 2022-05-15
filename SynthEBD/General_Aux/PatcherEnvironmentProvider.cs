@@ -1,6 +1,7 @@
 ﻿using System.Reactive.Linq;
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Environments;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Order;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
@@ -16,6 +17,7 @@ public class PatcherEnvironmentProvider : VM
     public string GameDataFolder { get; set; } = "";
     public RelayCommand SelectGameDataFolder { get; }
     public RelayCommand ClearGameDataFolder { get; }
+    public SkyrimMod OutputMod { get; set; }
 
     public IGameEnvironment<ISkyrimMod, ISkyrimModGetter> Environment { get; private set; }
 
@@ -47,6 +49,9 @@ public class PatcherEnvironmentProvider : VM
                 (PatchFileName, Release, DataFolder) => (PatchFileName, Release, DataFolder))
             .Select(inputs =>
             {
+                ModKey outputModKey = new ModKey(PatchFileName, ModType.Plugin);
+                OutputMod = new SkyrimMod(outputModKey, SkyrimVersion);
+
                 var builder = GameEnvironment.Typical.Builder<ISkyrimMod, ISkyrimModGetter>(inputs.Release.ToGameRelease());
                 if (!inputs.DataFolder.IsNullOrWhitespace())
                 {
@@ -54,7 +59,9 @@ public class PatcherEnvironmentProvider : VM
                 }
                 return builder
                     .TransformModListings(x =>
-                        x.OnlyEnabledAndExisting().RemoveModAndDependents(inputs.PatchFileName + ".esp", verbose: true))
+                        x.OnlyEnabledAndExisting().
+                        RemoveModAndDependents(inputs.PatchFileName + ".esp", verbose: true))
+                        .WithOutputMod(OutputMod)
                     .Build();
             })
             .Subscribe(x => Environment = x)
