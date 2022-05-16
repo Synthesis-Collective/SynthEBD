@@ -59,6 +59,16 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
             }
         );
 
+        SetDestinationPath = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: x => { 
+                var selectedItem = (VM_MenuItem)x;
+                if (selectedItem != null && !string.IsNullOrWhiteSpace(selectedItem.Alias))
+                {
+                    IntellisensedPath = GetPathFromTypeString(selectedItem.Alias);
+                }           
+            }
+        );
 
         ParentMenu = parentMenu;
 
@@ -79,12 +89,14 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
     public string Source { get; set; } = "";
     public string IntellisensedPath { get; set; } = "";
 
+    public string DestinationAlias { get; set; } = "";
+
     public SolidColorBrush SourceBorderColor { get; set; } = new(Colors.Red);
     public SolidColorBrush DestBorderColor { get; set; } = new(Colors.Red);
 
     public RelayCommand DeleteCommand { get; }
     public RelayCommand FindPath { get; }
-
+    public RelayCommand SetDestinationPath { get; }
     public VM_FilePathReplacementMenu ParentMenu { get; set; }
     public RecordIntellisense.PathSuggestion ChosenPathSuggestion { get; set; } = new();
     public ObservableCollection<RecordIntellisense.PathSuggestion> PathSuggestions { get; set; } = new();
@@ -145,5 +157,122 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         {
             this.ReferenceNPCFormKey = ParentMenu.ReferenceNPCFK;
         }
+    }
+
+    public ObservableCollection<VM_MenuItem> DestinationOptions
+    {
+        get
+        {
+            var menu = new ObservableCollection<VM_MenuItem>();
+            var main = new VM_MenuItem { Header = "Set Destination" };
+            menu.Add(main);
+
+            var head = new VM_MenuItem { Header = "Head" };
+            head.Children.Add(new VM_MenuItem() { Header = "Diffuse", Alias = "Head Diffuse", Command = SetDestinationPath });
+            head.Children.Add(new VM_MenuItem() { Header = "Normal", Alias = "Head Normal", Command = SetDestinationPath });
+            head.Children.Add(new VM_MenuItem() { Header = "Subsurface", Alias = "Head Subsurface", Command = SetDestinationPath });
+            head.Children.Add(new VM_MenuItem() { Header = "Specular", Alias = "Head Specular", Command = SetDestinationPath });
+            head.Children.Add(new VM_MenuItem() { Header = "Detail", Alias = "Head Detail", Command = SetDestinationPath });
+            main.Add(head);
+
+            var body = new VM_MenuItem { Header = "Body" };
+
+            var male = new VM_MenuItem { Header = "Male" };
+
+            var torsoMale = new VM_MenuItem { Header = "Torso" };
+            torsoMale.Children.Add(new VM_MenuItem() { Header = "Diffuse", Alias = "Torso Diffuse Male", Command = SetDestinationPath });
+            torsoMale.Children.Add(new VM_MenuItem() { Header = "Normal", Alias = "Torso Normal Male", Command = SetDestinationPath });
+            torsoMale.Children.Add(new VM_MenuItem() { Header = "Subsurface", Alias = "Torso Subsurface Male", Command = SetDestinationPath });
+            torsoMale.Children.Add(new VM_MenuItem() { Header = "Specular", Alias = "Torso Specular Male", Command = SetDestinationPath });
+            male.Add(torsoMale);
+
+            var handsMale = new VM_MenuItem { Header = "Hands" };
+            handsMale.Children.Add(new VM_MenuItem() { Header = "Diffuse", Alias = "Hands Diffuse Male", Command = SetDestinationPath });
+            handsMale.Children.Add(new VM_MenuItem() { Header = "Normal", Alias = "Hands Normal Male", Command = SetDestinationPath });
+            handsMale.Children.Add(new VM_MenuItem() { Header = "Subsurface", Alias = "Hands Subsurface Male", Command = SetDestinationPath });
+            handsMale.Children.Add(new VM_MenuItem() { Header = "Specular", Alias = "Hands Specular Male", Command = SetDestinationPath });
+            male.Add(handsMale);
+
+            var feetMale = new VM_MenuItem { Header = "Feet" };
+            feetMale.Children.Add(new VM_MenuItem() { Header = "Diffuse", Alias = "Feet Diffuse Male", Command = SetDestinationPath });
+            feetMale.Children.Add(new VM_MenuItem() { Header = "Normal", Alias = "Feet Normal Male", Command = SetDestinationPath });
+            feetMale.Children.Add(new VM_MenuItem() { Header = "Subsurface", Alias = "Feet Subsurface Male", Command = SetDestinationPath });
+            feetMale.Children.Add(new VM_MenuItem() { Header = "Specular", Alias = "Feet Specular Male", Command = SetDestinationPath });
+            male.Add(feetMale);
+
+            body.Add(male);
+
+            var female = new VM_MenuItem { Header = "Female" };
+
+            var torsoFemale = new VM_MenuItem { Header = "Torso" };
+            torsoFemale.Children.Add(new VM_MenuItem() { Header = "Diffuse", Alias = "Torso Diffuse Female", Command = SetDestinationPath });
+            torsoFemale.Children.Add(new VM_MenuItem() { Header = "Normal", Alias = "Torso Normal Female", Command = SetDestinationPath });
+            torsoFemale.Children.Add(new VM_MenuItem() { Header = "Subsurface", Alias = "Torso Subsurface Female", Command = SetDestinationPath });
+            torsoFemale.Children.Add(new VM_MenuItem() { Header = "Specular", Alias = "Torso Specular Female", Command = SetDestinationPath });
+            female.Add(torsoFemale);
+
+            var handsFemale = new VM_MenuItem { Header = "Hands" };
+            handsFemale.Children.Add(new VM_MenuItem() { Header = "Diffuse", Alias = "Hands Diffuse Female", Command = SetDestinationPath });
+            handsFemale.Children.Add(new VM_MenuItem() { Header = "Normal", Alias = "Hands Normal Female", Command = SetDestinationPath });
+            handsFemale.Children.Add(new VM_MenuItem() { Header = "Subsurface", Alias = "Hands Subsurface Female", Command = SetDestinationPath });
+            handsFemale.Children.Add(new VM_MenuItem() { Header = "Specular", Alias = "Hands Specular Female", Command = SetDestinationPath });
+            female.Add(handsFemale);
+
+            var feetFemale = new VM_MenuItem { Header = "Feet" };
+            feetFemale.Children.Add(new VM_MenuItem() { Header = "Diffuse", Alias = "Feet Diffuse Female", Command = SetDestinationPath });
+            feetFemale.Children.Add(new VM_MenuItem() { Header = "Normal", Alias = "Feet Normal Female", Command = SetDestinationPath });
+            feetFemale.Children.Add(new VM_MenuItem() { Header = "Subsurface", Alias = "Feet Subsurface Female", Command = SetDestinationPath });
+            feetFemale.Children.Add(new VM_MenuItem() { Header = "Specular", Alias = "Feet Specular Female", Command = SetDestinationPath });
+            female.Add(feetFemale);
+
+            body.Add(female);
+
+            main.Add(body);
+
+            return menu;
+        }
+    }
+
+    public static string GetPathFromTypeString(string typeString)
+    {
+        switch(typeString)
+        {
+            case "Head Diffuse": return "HeadTexture.Diffuse";
+            case "Head Normal": return "HeadTexture.NormalOrGloss";
+            case "Head Subsurface": return "HeadTexture.GlowOrDetailMap";
+            case "Head Specular": return "HeadTexture.BacklightMaskOrSpecular";
+            case "Head Detail": return "HeadTexture.Height";
+
+            case "Torso Diffuse Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse";
+            case "Torso Normal Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss";
+            case "Torso Subsurface Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap";
+            case "Torso Specular Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular";
+
+            case "Hands Diffuse Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse";
+            case "Hands Normal Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss";
+            case "Hands Subsurface Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap";
+            case "Hands Specular Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular";
+
+            case "Feet Diffuse Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse";
+            case "Feet Normal Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss";
+            case "Feet Subsurface Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap";
+            case "Feet Specular Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular";
+
+            case "Torso Diffuse Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse";
+            case "Torso Normal Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss";
+            case "Torso Subsurface Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap";
+            case "Torso Specular Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular";
+
+            case "Hands Diffuse Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse";
+            case "Hands Normal Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss";
+            case "Hands Subsurface Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap";
+            case "Hands Specular Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular";
+
+            case "Feet Diffuse Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse";
+            case "Feet Normal Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss";
+            case "Feet Subsurface Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap";
+            case "Feet Specular Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular";
+        }
+        return "";
     }
 }
