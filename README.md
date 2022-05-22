@@ -1,4 +1,4 @@
-# SynthEBD
+<img src="https://user-images.githubusercontent.com/63175798/169685064-9f7dd9e1-0e94-4772-aea3-7a97f9737c97.png" width="500" />
 
 ### NPC Appearance Customization and Randomization
 
