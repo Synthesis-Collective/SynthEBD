@@ -77,6 +77,11 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             execute: _ => { MergeInAssetPack(mainVM); }
         );
 
+        SetDefaultTargetDestPaths = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: _ => { SetDefaultTargetPaths(); }
+        );
+
         ValidateButton = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => {
@@ -182,6 +187,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public RelayCommand SaveButton { get; }
     public RelayCommand DiscardButton { get; }
     public RelayCommand SelectedSubgroupChanged { get; }
+    public RelayCommand SetDefaultTargetDestPaths { get; }
     public BodyShapeSelectionMode BodyShapeMode { get; set; }
     public bool ShowPreviewImages { get; set; }
     public ObservableCollection<VM_PreviewImage> PreviewImages { get; set; } = new();
@@ -495,19 +501,223 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         switch(Gender)
         {
             case Gender.Male:
-                if (RecordTemplateLinkCache.TryResolve("DefaultMale", out var defaultMaleRec))
+                if (RecordTemplateLinkCache.TryResolve<INpcGetter>("DefaultMale", out var defaultMaleRec))
                 {
                     DefaultTemplateFK = defaultMaleRec.FormKey;
                 }
                 break;
             case Gender.Female:
-                if (RecordTemplateLinkCache.TryResolve("DefaultFemale", out var defaultFemaleRec))
+                if (RecordTemplateLinkCache.TryResolve<INpcGetter>("DefaultFemale", out var defaultFemaleRec))
                 {
                     DefaultTemplateFK = defaultFemaleRec.FormKey;
                 }
                 break;
         }
-            
+    }
+
+    public void SetDefaultTargetPaths()
+    {
+        //first collect changed paths to warn user
+        List<string> filePathWarnings = new List<string>();
+        foreach (var subgroup in Subgroups)
+        {
+            GenerateFilePathWarningString(subgroup, filePathWarnings);
+        }
+
+        string warnStr = string.Join(Environment.NewLine, filePathWarnings);
+
+        if (string.IsNullOrWhiteSpace(warnStr) || CustomMessageBox.DisplayNotificationYesNo("Replace Destination Paths?", "The following destinations will be modified:" + Environment.NewLine + warnStr))
+        {
+            foreach (var subgroup in Subgroups)
+            {
+                SetDefaultSubgroupFilePaths(subgroup);
+            }
+
+            bool hasBodyPath = false;
+            bool hasFeetPath = false;
+            foreach (var subgroup in Subgroups)
+            {
+                if (SubgroupHasDestinationPath(subgroup, "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body)"))
+                {
+                    hasBodyPath = true;
+                    break;
+                }
+            }
+            foreach (var subgroup in Subgroups)
+            {
+                if (SubgroupHasDestinationPath(subgroup, "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet)"))
+                {
+                    hasFeetPath = true;
+                    break;
+                }
+            }
+
+            if (hasBodyPath && !hasFeetPath) // duplicate body paths as feet
+            {
+                foreach (var subgroup in Subgroups)
+                {
+                    DuplicateBodyPathsAsFeet(subgroup);
+                }
+            }
+
+            bool hasBeastTailPath = false;
+            foreach (var subgroup in Subgroups)
+            {
+                if (SubgroupHasDestinationPath(subgroup, "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail)"))
+                {
+                    hasBeastTailPath = true;
+                    break;
+                }
+            }
+
+            if (!hasBeastTailPath)
+            {
+                foreach (var subgroup in Subgroups)
+                {
+                    DuplicateBodyPathsAsTail(subgroup);
+                }
+            }
+        }
+    }
+
+    public static void DuplicateBodyPathsAsFeet(VM_Subgroup subgroup)
+    {
+        var newFeetPaths = new HashSet<VM_FilePathReplacement>();
+        foreach (var path in subgroup.PathsMenu.Paths.Where(x => x.IntellisensedPath.Contains("WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body)")))
+        {
+            var newPath = new VM_FilePathReplacement(path.ParentMenu);
+            newPath.Source = path.Source;
+            newPath.IntellisensedPath = path.IntellisensedPath.Replace("WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body)", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet)");
+            newFeetPaths.Add(newPath);
+        }
+
+        foreach (var path in newFeetPaths)
+        {
+            subgroup.PathsMenu.Paths.Add(path);
+        }
+
+        foreach (var sg in subgroup.Subgroups)
+        {
+            DuplicateBodyPathsAsFeet(sg);
+        }
+    }
+
+    public static void DuplicateBodyPathsAsTail(VM_Subgroup subgroup)
+    {
+        var newTailPaths = new HashSet<VM_FilePathReplacement>();
+        var pathsNeedingTails = new HashSet<string>()
+        {
+            //male khajiit
+            "bodymale.dds",
+            "bodymale_msn.dds",
+            "bodymale_s.dds",
+            //male argonian
+            "argonianmalebody.dds",
+            "argonianmalebody_msn.dds", 
+            "argonianmalebody_s.dds",
+            //female khajiit
+            "femalebody.dds", 
+            "femalebody_msn.dds", 
+            "femalebody_s.dds",
+            //female argonian
+            "argonianfemalebody.dds", 
+            "argonianfemalebody_msn.dds",
+            "argonianfemalebody_s.dds",
+        };
+
+        foreach (var path in subgroup.PathsMenu.Paths.Where(x => pathsNeedingTails.Contains(Path.GetFileName(x.Source), StringComparer.OrdinalIgnoreCase)))
+        {
+            var newPath = new VM_FilePathReplacement(path.ParentMenu);
+            newPath.Source = path.Source;
+            newPath.IntellisensedPath = path.IntellisensedPath.Replace("WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body)", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail)");
+            newTailPaths.Add(newPath);
+        }
+
+        foreach (var path in newTailPaths)
+        {
+            subgroup.PathsMenu.Paths.Add(path);
+        }
+
+        foreach (var sg in subgroup.Subgroups)
+        {
+            DuplicateBodyPathsAsTail(sg);
+        }
+    }
+
+    public static bool SubgroupHasDestinationPath(VM_Subgroup subgroup, string destinationPath)
+    {
+        if (subgroup.PathsMenu.Paths.Where(x => x.IntellisensedPath.Contains(destinationPath)).Any())
+        {
+            return true;
+        }
+
+        foreach (var sg in subgroup.Subgroups)
+        {
+            if (SubgroupHasDestinationPath(sg, destinationPath))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static void SetDefaultSubgroupFilePaths(VM_Subgroup subgroup)
+    {
+        foreach (var path in subgroup.PathsMenu.Paths.Where(x => !string.IsNullOrWhiteSpace(x.Source)))
+        {
+            var fileName = Path.GetFileName(path.Source);
+
+            if (FilePathDestinationMap.FileNameToDestMap.ContainsKey(fileName) && path.IntellisensedPath != FilePathDestinationMap.FileNameToDestMap[fileName])
+            {
+                path.IntellisensedPath = FilePathDestinationMap.FileNameToDestMap[fileName];
+            }
+        }
+
+        foreach (var sg in subgroup.Subgroups)
+        {
+            SetDefaultSubgroupFilePaths(sg);
+        }
+    }
+
+    public static bool SubgroupHasSourcePath(VM_Subgroup subgroup, string destinationPath)
+    {
+        if (subgroup.PathsMenu.Paths.Where(x => Path.GetFileName(x.Source).Equals(destinationPath, StringComparison.OrdinalIgnoreCase)).Any())
+        {
+            return true;
+        }
+
+        foreach (var sg in subgroup.Subgroups)
+        {
+            if (SubgroupHasDestinationPath(sg, destinationPath))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static void GenerateFilePathWarningString(VM_Subgroup subgroup, List<string> warnStrs)
+    {
+        string currentSubgroupWarnStr = "";
+        foreach (var path in subgroup.PathsMenu.Paths.Where(x => !string.IsNullOrWhiteSpace(x.Source) && !string.IsNullOrWhiteSpace(x.IntellisensedPath)))
+        {
+            var fileName = Path.GetFileName(path.Source);
+
+            if (FilePathDestinationMap.FileNameToDestMap.ContainsKey(fileName) && path.IntellisensedPath != FilePathDestinationMap.FileNameToDestMap[fileName])
+            {
+                currentSubgroupWarnStr += Environment.NewLine + fileName + ": " + path.IntellisensedPath + " -> " + FilePathDestinationMap.FileNameToDestMap[fileName];
+            }
+        }
+
+        if(!string.IsNullOrWhiteSpace(currentSubgroupWarnStr))
+        {
+            warnStrs.Add(subgroup.ID + " (" + subgroup.Name + "):" + Environment.NewLine + currentSubgroupWarnStr);
+        }
+
+        foreach (var sg in subgroup.Subgroups)
+        {
+            GenerateFilePathWarningString(sg, warnStrs);
+        }
     }
 
     public void DragOver(IDropInfo dropInfo)
