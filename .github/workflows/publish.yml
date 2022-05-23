@@ -1,0 +1,38 @@
+name: Publish
+
+on:
+  release:
+    types: [published]
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 6.0.*
+    - name: Install dependencies
+      run: dotnet restore SynthEBD.sln
+      
+    - name: Build
+      run: dotnet build SynthEBD.sln -c Release --no-restore
+      
+    - name: Test
+      run: dotnet test SynthEBD.sln -c Release --no-build
+      
+    - name: Publish
+      #run: dotnet publish "SynthEBD/SynthEBD.csproj" --configuration Release -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true
+      run: dotnet publish "SynthEBD/SynthEBD.csproj" --configuration Release -p:PublishSingleFile=false
+      
+    - name: Archive Release
+      run: |
+        powershell Compress-Archive SynthEBD/bin/Release/net6.0-windows/publish/* "SynthEBD_${{ github.event.release.tag_name }}.zip"
+    - name: Publish SynthEBD to Github
+      uses: svenstaro/upload-release-action@v2
+      with:
+        file: "SynthEBD_${{ github.event.release.tag_name }}.zip"
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ github.event.release.tag_name }}
