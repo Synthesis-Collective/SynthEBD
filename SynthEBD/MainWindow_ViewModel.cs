@@ -262,14 +262,19 @@ public class MainWindow_ViewModel : VM
 
     void ValidateEval() // users should never see this but this will remind developer to update the Eval-Expression NuGet when the monthly trial expires
     {
+        bool trueVar = false;
         try
         {
-            Z.Expressions.Eval.Execute<bool>("true");
+           trueVar = Z.Expressions.Eval.Execute<bool>("true == true");
         }
         catch
         {
-            Logger.LogError("Update the Eval-Expression NuGet to renew the license!");
-            Logger.SwitchViewToLogDisplay();
+            //pass
+        }
+
+        if (!trueVar)
+        {
+            CustomMessageBox.DisplayNotificationOK("Eval-Expression License Expired", "SynthEBD's asset distribution functionality depends on a month-to-month license of Eval-Expression.NET, and it appears this license has expired for the current build of SynthEBD. Please contact Piranha91 or another member of the Synthesis Collective to refresh this license by updating the Eval-Expression NuGet package. In the meantime, BodyGen, BodySlide, and Height distribution remain fully functional.");
         }
     }
 }
