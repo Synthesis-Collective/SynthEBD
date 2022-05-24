@@ -2,7 +2,7 @@
 
 namespace SynthEBD;
 
-public class VM_CollectionMemberString
+public class VM_CollectionMemberString : VM
 {
     public VM_CollectionMemberString(string content, ObservableCollection<VM_CollectionMemberString> parentCollection)
     {
