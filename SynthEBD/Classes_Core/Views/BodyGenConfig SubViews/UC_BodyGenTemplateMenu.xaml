@@ -26,15 +26,17 @@
                 <ListBox SelectedValue="{Binding CurrentlyDisplayedTemplate}" ItemsSource="{Binding Templates}" IsSynchronizedWithCurrentItem="True" >
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="auto"/>
-                                </Grid.ColumnDefinitions>
+                            <Border BorderThickness="1" BorderBrush="{Binding BorderColor}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="auto"/>
+                                    </Grid.ColumnDefinitions>
 
-                                <TextBox Grid.Column="0" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}" MinWidth="100" />
-                                <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveTemplate}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
-                            </Grid>
+                                    <TextBox Grid.Column="0" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}" MinWidth="100" />
+                                    <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveTemplate}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
+                                </Grid>
+                            </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
 

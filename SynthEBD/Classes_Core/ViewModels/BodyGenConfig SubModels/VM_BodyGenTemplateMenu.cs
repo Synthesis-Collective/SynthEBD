@@ -6,6 +6,8 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using ReactiveUI;
+using System.Windows.Media;
+using DynamicData.Binding;
 
 namespace SynthEBD;
 
@@ -70,10 +72,15 @@ public class VM_BodyGenTemplate : VM
         parentCollection.CollectionChanged += UpdateOtherGroupsTemplateCollection;
         templateGroups.CollectionChanged += UpdateOtherGroupsTemplateCollection;
         this.GroupSelectionCheckList.PropertyChanged += UpdateOtherGroupsTemplateCollectionP;
-        
+
+        this.WhenAnyValue(x => x.DescriptorsSelectionMenu.Header).Subscribe(x => UpdateStatusDisplay());
+        this.WhenAnyValue(x => x.GroupSelectionCheckList.Header).Subscribe(x => UpdateStatusDisplay());
+
         PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
+
+        UpdateStatusDisplay();
 
         AddAllowedAttribute = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -127,6 +134,10 @@ public class VM_BodyGenTemplate : VM
     public VM_BodyGenConfig ParentConfig { get; set; }
     public ObservableCollection<VM_BodyGenTemplate> ParentCollection {get; set;}
     public ObservableCollection<VM_BodyGenTemplate> OtherGroupsTemplateCollection { get; set; } = new();
+    public SolidColorBrush BorderColor { get; set; }
+    public string StatusHeader { get; set; }
+    public string StatusText { get; set; }
+    public bool ShowStatus { get; set; }
 
     public static void GetViewModelFromModel(BodyGenConfig.BodyGenTemplate model, VM_BodyGenTemplate viewModel, VM_BodyShapeDescriptorCreationMenu descriptorMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
@@ -167,6 +178,8 @@ public class VM_BodyGenTemplate : VM
         viewModel.ProbabilityWeighting = model.ProbabilityWeighting;
         viewModel.RequiredTemplates = VM_CollectionMemberString.InitializeCollectionFromHashSet(model.RequiredTemplates);
         viewModel.WeightRange = model.WeightRange;
+
+        viewModel.UpdateStatusDisplay();
     }
 
     public static BodyGenConfig.BodyGenTemplate DumpViewModelToModel(VM_BodyGenTemplate viewModel)
@@ -248,5 +261,40 @@ public class VM_BodyGenTemplate : VM
         this.OtherGroupsTemplateCollection = updatedCollection;
 
         return excludedCollection;
+    }
+
+    public void UpdateStatusDisplay()
+    {
+        var belongsToGroup = false;
+        foreach (var group in this.GroupSelectionCheckList.CollectionMemberStrings)
+        {
+            if (group.IsSelected)
+            {
+                belongsToGroup = true;
+                break;
+            }
+        }
+
+        if (!belongsToGroup)
+        {
+            BorderColor = new SolidColorBrush(Colors.Red);
+            StatusHeader = "Warning:";
+            StatusText = "Morph does not belong to any Morph Groups. Will not be assigned.";
+            ShowStatus = true;
+        }
+        else if (!DescriptorsSelectionMenu.IsAnnotated())
+        {
+            BorderColor = new SolidColorBrush(Colors.Yellow);
+            StatusHeader = "Warning:";
+            StatusText = "Bodyslide has not been annotated with descriptors. May not pair correctly with textures.";
+            ShowStatus = true;
+        }
+        else
+        {
+            BorderColor = new SolidColorBrush(Colors.LightGreen);
+            StatusHeader = string.Empty;
+            StatusText = string.Empty;
+            ShowStatus = false;
+        }
     }
 }
