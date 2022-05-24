@@ -1,6 +1,8 @@
-﻿using System.Collections.ObjectModel;
+﻿using ReactiveUI;
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Reactive.Linq;
 
 namespace SynthEBD;
 
@@ -36,13 +38,18 @@ public class VM_CollectionMemberStringCheckboxList : VM, ICollectionParent
 {
     public VM_CollectionMemberStringCheckboxList(ObservableCollection<VM_CollectionMemberString> collectionMemberStrings)
     {
-        foreach (var cms in collectionMemberStrings)
+        this.SubscribedMasterList = collectionMemberStrings;
+        foreach (var cms in SubscribedMasterList)
         {
             this.CollectionMemberStrings.Add(new VM_SelectableCollectionMemberString(cms, this));
         }
 
-        RebuildHeader();
-        this.SubscribedMasterList = collectionMemberStrings;
+        //this.WhenAnyValue(x => x.SubscribedMasterList).Subscribe(x => RefreshCheckList(SubscribedMasterList));
+        //SubscribedMasterList.Select(x => x.WhenAnyValue(x => x.Content)).Merge().Subscribe(x => { RefreshCheckList(SubscribedMasterList); });
+        //CollectionMemberStrings.Select(x => x.WhenAnyValue(x => x.IsSelected)).Merge().Subscribe(x => { RebuildHeader(); });
+
+        //RebuildHeader();
+        
         this.SubscribedMasterList.CollectionChanged += RefreshCheckList;
     }
 
@@ -51,6 +58,11 @@ public class VM_CollectionMemberStringCheckboxList : VM, ICollectionParent
     void RefreshCheckList(object sender, NotifyCollectionChangedEventArgs e)
     {
         var updatedMasterList = (ObservableCollection<VM_CollectionMemberString>)sender;
+        RefreshCheckList(updatedMasterList);
+    }
+
+    void RefreshCheckList(ObservableCollection<VM_CollectionMemberString> updatedMasterList)
+    {
         var newCheckList = new VM_CollectionMemberStringCheckboxList(updatedMasterList);
 
         foreach (var originalItem in this.CollectionMemberStrings)

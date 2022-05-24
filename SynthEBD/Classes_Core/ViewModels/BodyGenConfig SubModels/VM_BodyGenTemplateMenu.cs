@@ -62,7 +62,8 @@ public class VM_BodyGenTemplate : VM
 {
     public VM_BodyGenTemplate(ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodyGenTemplate> parentCollection, VM_BodyGenConfig parentConfig)
     {
-        this.GroupSelectionCheckList = new VM_CollectionMemberStringCheckboxList(templateGroups);
+        this.SubscribedTemplateGroups = templateGroups;
+        this.GroupSelectionCheckList = new VM_CollectionMemberStringCheckboxList(SubscribedTemplateGroups);
         this.DescriptorsSelectionMenu = new VM_BodyShapeDescriptorSelectionMenu(BodyShapeDescriptors, raceGroupingVMs, parentConfig);
         this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
@@ -70,7 +71,7 @@ public class VM_BodyGenTemplate : VM
         this.ParentConfig = parentConfig;
         this.ParentCollection = parentCollection;
         parentCollection.CollectionChanged += UpdateOtherGroupsTemplateCollection;
-        templateGroups.CollectionChanged += UpdateOtherGroupsTemplateCollection;
+        SubscribedTemplateGroups.CollectionChanged += UpdateOtherGroupsTemplateCollection;
         this.GroupSelectionCheckList.PropertyChanged += UpdateOtherGroupsTemplateCollectionP;
 
         this.WhenAnyValue(x => x.DescriptorsSelectionMenu.Header).Subscribe(x => UpdateStatusDisplay());
@@ -132,7 +133,8 @@ public class VM_BodyGenTemplate : VM
     public RelayCommand DeleteMe { get; }
 
     public VM_BodyGenConfig ParentConfig { get; set; }
-    public ObservableCollection<VM_BodyGenTemplate> ParentCollection {get; set;}
+    public ObservableCollection<VM_CollectionMemberString> SubscribedTemplateGroups { get; set;}
+    public ObservableCollection<VM_BodyGenTemplate> ParentCollection { get; set;}
     public ObservableCollection<VM_BodyGenTemplate> OtherGroupsTemplateCollection { get; set; } = new();
     public SolidColorBrush BorderColor { get; set; }
     public string StatusHeader { get; set; }
