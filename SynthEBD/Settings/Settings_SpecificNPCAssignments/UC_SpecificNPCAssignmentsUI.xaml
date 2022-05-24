@@ -7,6 +7,11 @@
              mc:Ignorable="d" 
              d:DataContext="{d:DesignInstance Type=local:VM_SpecificNPCAssignmentsUI}"
              d:DesignHeight="450" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <local:BodyGenVisibilityConverter x:Key="BGVisibilityConverter" />
+    </UserControl.Resources>
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -16,6 +21,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
@@ -48,7 +54,8 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <Button Grid.Column="0" Grid.Row="3" Command="{Binding ImportFromZEBDcommand}" Foreground="BlueViolet" ToolTip="Import SpecificNPCAssignments.json from zEBD" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Import from zEBD</Button>
-        <Button Grid.Column="0" Grid.Row="4" Command="{Binding Save}" Foreground="BlueViolet">Save</Button>
+        <Button Grid.Row="3" Grid.Column="0" Command="{Binding ImportFromZEBDcommand}" Foreground="BlueViolet" ToolTip="Import SpecificNPCAssignments.json from zEBD" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Import from zEBD</Button>
+        <Button Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Command="{Binding ImportBodyGenMorphsIni}" Foreground="MediumPurple" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Import BodyGen Morphs.ini</Button>
+        <Button Grid.Row="5" Grid.Column="0" Command="{Binding Save}" Foreground="BlueViolet">Save</Button>
     </Grid>
 </UserControl>

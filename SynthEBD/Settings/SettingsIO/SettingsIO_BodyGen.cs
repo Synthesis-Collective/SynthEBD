@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Mutagen.Bethesda.Plugins;
+using Newtonsoft.Json;
 using System.IO;
 
 namespace SynthEBD;
@@ -251,7 +252,7 @@ class SettingsIO_BodyGen
             var fileLines = IO_Aux.ReadFileToList(loadPath, out bool wasRead);
             if (wasRead)
             {
-                foreach (var line in fileLines)
+                foreach (var line in fileLines.Where(x => !x.StartsWith('#')))
                 {
                     var split = line.Split('=');
                     if (split.Length == 2)
@@ -265,5 +266,33 @@ class SettingsIO_BodyGen
             }
         }
         return newTemplates;
+    }
+
+    public static HashSet<Tuple<FormKey, string>> LoadMorphsINI(string loadPath)
+    {
+        var loadedAssignments = new HashSet<Tuple<FormKey, string>>();
+        if (File.Exists(loadPath))
+        {
+            var fileLines = IO_Aux.ReadFileToList(loadPath, out bool wasRead);
+            if (wasRead)
+            {
+                foreach (var line in fileLines.Where(x => !x.StartsWith('#')))
+                {
+                    var split = line.Split('=');
+                    if (split.Length == 2)
+                    {
+                        var formSplit = split[0].Trim().Split('|');
+                        var plugin = formSplit[0].Trim();
+                        var id = formSplit[1].Trim().PadLeft(6, '0');
+                        var npcFormKey = FormKey.TryFactory(id + ':' + plugin);
+                        if (npcFormKey is not null)
+                        {
+                            loadedAssignments.Add(new Tuple<FormKey, string>(npcFormKey.Value, split[1].Trim()));
+                        }
+                    }
+                }
+            }
+        }
+        return loadedAssignments;
     }
 }

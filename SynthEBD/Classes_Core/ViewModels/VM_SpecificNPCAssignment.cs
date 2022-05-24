@@ -132,7 +132,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
     public RelayCommand DeleteForcedMorph { get; set; }
     public RelayCommand AddForcedMixIn { get; set; }
     public RelayCommand AddForcedReplacer { get; set; }
-
     public RelayCommand DeleteForcedMixInSubgroup { get; set; }
 
     public static VM_SpecificNPCAssignment GetViewModelFromModel(NPCAssignment model, MainWindow_ViewModel mainVM)

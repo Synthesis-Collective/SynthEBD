@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using Mutagen.Bethesda.Skyrim;
+using System.Collections.ObjectModel;
 
 namespace SynthEBD;
 
@@ -8,6 +9,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
     {
         this.BodyGenSettings = bodyGenSettings;
         this.TexMeshSettings = texMeshSettings;
+        this.SubscribedGeneralSettings = mainVM.GeneralSettingsVM;
 
         AddAssignment = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -22,6 +24,66 @@ public class VM_SpecificNPCAssignmentsUI : VM
         ImportFromZEBDcommand = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => ImportFromZEBD(oBodySettings, generalSettingsVM, mainVM)
+        );
+
+        ImportBodyGenMorphsIni = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: x =>
+            {
+                if (IO_Aux.SelectFile("", "INI files (*.ini)|*.ini", "Select the Morphs.ini file", out string morphsPath))
+                {
+                    if (System.IO.Path.GetFileName(morphsPath).Equals("templates.ini", StringComparison.OrdinalIgnoreCase) && !CustomMessageBox.DisplayNotificationYesNo("Confirm File Name", "Expecting morphs.ini but this file is templates.ini, which should be imported in the BodyGen Menu. Are you sure you want to continue?"))
+                    {
+                        return;
+                    }
+
+                    var assignmentTuples = SettingsIO_BodyGen.LoadMorphsINI(morphsPath);
+                    foreach (var assignment in assignmentTuples)
+                    {
+                        if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<INpcGetter>(assignment.Item1, out var npcGetter))
+                        {
+                            var morphNames = assignment.Item2.Split('|').Select(s => s.Trim());
+                            var morphs = new List<VM_BodyGenTemplate>();
+                            var gender = NPCInfo.GetGender(npcGetter);
+                            switch(gender)
+                            {
+                                case Gender.Male:
+                                    foreach (var name in morphNames)
+                                    {
+                                        var morph = BodyGenSettings.CurrentMaleConfig.TemplateMorphUI.Templates.Where(x => x.Label == name).FirstOrDefault();
+                                        if (morph != null)
+                                        {
+                                            morphs.Add(morph);
+                                        }
+                                    }
+                                    break;
+                                case Gender.Female:
+                                    foreach (var name in morphNames)
+                                    {
+                                        var morph = BodyGenSettings.CurrentFemaleConfig.TemplateMorphUI.Templates.Where(x => x.Label == name).FirstOrDefault();
+                                        if (morph != null)
+                                        {
+                                            morphs.Add(morph);
+                                        }
+                                    }
+                                    break;
+                            }
+
+                            if (morphs.Any())
+                            {
+                                var specificAssignment = this.Assignments.FirstOrDefault(x => x.NPCFormKey.Equals(assignment.Item1));
+                                if (specificAssignment == null)
+                                {
+                                    specificAssignment = new VM_SpecificNPCAssignment(mainVM) { NPCFormKey = assignment.Item1 };
+                                    specificAssignment.DispName = Converters.CreateNPCDispNameFromFormKey(assignment.Item1);
+                                    Assignments.Add(specificAssignment);
+                                }
+                                foreach (var morph in morphs) { specificAssignment.ForcedBodyGenMorphs.Add(morph); }
+                            }
+                        }
+                    }
+                }
+            }
         );
 
         Save = new SynthEBD.RelayCommand(
@@ -50,11 +112,13 @@ public class VM_SpecificNPCAssignmentsUI : VM
     public VM_SettingsBodyGen BodyGenSettings { get; set; }
 
     public VM_SettingsTexMesh TexMeshSettings { get; set; }
+    public VM_Settings_General SubscribedGeneralSettings { get; set; }
 
     public RelayCommand AddAssignment { get; set; }
     public RelayCommand RemoveAssignment { get; set; }
 
     public RelayCommand ImportFromZEBDcommand { get; set; }
+    public RelayCommand ImportBodyGenMorphsIni { get; set; }
     public RelayCommand Save { get; }
 
     public static void GetViewModelFromModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<NPCAssignment> models, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, MainWindow_ViewModel mainVM)
