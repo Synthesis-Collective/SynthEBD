@@ -242,4 +242,28 @@ class SettingsIO_BodyGen
             }
         }
     }
+
+    public static HashSet<BodyGenConfig.BodyGenTemplate> LoadTemplatesINI(string loadPath)
+    {
+        var newTemplates = new HashSet<BodyGenConfig.BodyGenTemplate>();
+        if (File.Exists(loadPath))
+        {
+            var fileLines = IO_Aux.ReadFileToList(loadPath, out bool wasRead);
+            if (wasRead)
+            {
+                foreach (var line in fileLines)
+                {
+                    var split = line.Split('=');
+                    if (split.Length == 2)
+                    {
+                        BodyGenConfig.BodyGenTemplate template = new BodyGenConfig.BodyGenTemplate();
+                        template.Label = split[0];
+                        template.Specs = split[1];
+                        newTemplates.Add(template);
+                    }
+                }
+            }
+        }
+        return newTemplates;
+    }
 }

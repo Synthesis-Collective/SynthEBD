@@ -23,6 +23,28 @@ public class VM_BodyGenTemplateMenu : VM
             canExecute: _ => true,
             execute: x => this.Templates.Remove((VM_BodyGenTemplate)x)
         );
+
+        ImportBodyGen = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: x =>
+            {
+                if(IO_Aux.SelectFile("", "INI files (*.ini)|*.ini", "Select the Templates.ini file", out string templatePath))
+                {
+                    if (System.IO.Path.GetFileName(templatePath).Equals("morphs.ini", StringComparison.OrdinalIgnoreCase) && !CustomMessageBox.DisplayNotificationYesNo("Confirm File Name", "Expecting templates.ini but this file is morphs.ini, which should be imported in the Specific NPC Assignments Menu. Are you sure you want to continue?"))
+                    {
+                        return;
+                    }
+
+                    var newTemplates = SettingsIO_BodyGen.LoadTemplatesINI(templatePath);
+                    foreach(var template in newTemplates.Where(x => !Templates.Select(x => x.Label).Contains(x.Label)))
+                    {
+                        var templateVM = new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, Templates, parentConfig);
+                        VM_BodyGenTemplate.GetViewModelFromModel(template, templateVM, parentConfig.DescriptorUI, raceGroupingVMs);
+                        Templates.Add(templateVM);
+                    }
+                }
+            }
+        );
     }
     public ObservableCollection<VM_BodyGenTemplate> Templates { get; set; } = new();
 
@@ -30,6 +52,7 @@ public class VM_BodyGenTemplateMenu : VM
 
     public RelayCommand AddTemplate { get; }
     public RelayCommand RemoveTemplate { get; }
+    public RelayCommand ImportBodyGen { get; }
 }
 
 

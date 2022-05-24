@@ -65,6 +65,21 @@ public class IO_Aux
             return false;
         }
     }
+
+    public static List<string> ReadFileToList(string path, out bool wasRead)
+    {
+        wasRead = false;
+        List<string> lines = new List<string>();
+        if (File.Exists(path))
+        {
+            foreach (string line in File.ReadLines(path))
+            {
+                lines.Add(line);
+            }
+            wasRead = true;
+        }
+        return lines;
+    }
         
     public static void DeleteDirectoryAF(string dir)
     {

@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD"
              mc:Ignorable="d" 
+             d:DataContext="{d:DesignInstance Type=local:VM_BodyGenTemplateMenu}"
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
         <Grid.ColumnDefinitions>
@@ -56,6 +57,7 @@
                 </ListBox>
             </StackPanel>
         </ScrollViewer>
+        <Button Grid.Column="0" Grid.Row="3" Command="{Binding ImportBodyGen}" Foreground="MediumPurple">Import Templates.ini</Button>
         
         <ContentPresenter Grid.Row="0" Grid.Column="1" Grid.RowSpan="4" Content="{Binding CurrentlyDisplayedTemplate}">
             <ContentPresenter.Resources>
