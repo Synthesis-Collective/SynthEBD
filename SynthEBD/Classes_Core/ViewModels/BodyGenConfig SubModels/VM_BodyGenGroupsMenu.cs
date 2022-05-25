@@ -6,7 +6,6 @@ public class VM_BodyGenGroupsMenu : VM
 {
     public VM_BodyGenGroupsMenu(VM_BodyGenConfig parentMenu)
     {
-        this.TemplateGroupsCheckList = new VM_CollectionMemberStringCheckboxList(this.TemplateGroups);
         this.ParentMenu = parentMenu;
 
         AddTemplateGroup = new SynthEBD.RelayCommand(
@@ -16,7 +15,6 @@ public class VM_BodyGenGroupsMenu : VM
     }
 
     public ObservableCollection<VM_CollectionMemberString> TemplateGroups { get; set; } = new();
-    public VM_CollectionMemberStringCheckboxList TemplateGroupsCheckList { get; set; }
     public VM_BodyGenConfig ParentMenu { get; set; }
 
     public RelayCommand AddTemplateGroup { get; }
