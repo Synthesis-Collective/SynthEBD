@@ -48,7 +48,10 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
                 {
                     try
                     {
-                        System.IO.File.Delete(this.SourcePath);
+                        if (System.IO.File.Exists(this.SourcePath))
+                        {
+                            System.IO.File.Delete(this.SourcePath);
+                        }
                         if (ParentCollection.Contains(this)) // false if user tries to delete a new blank view model
                         {
                             ParentCollection.Remove(this);
