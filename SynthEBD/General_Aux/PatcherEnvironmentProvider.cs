@@ -61,14 +61,24 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
                         builder = builder.WithTargetDataFolder(inputs.GameDataFolder);
                     }
 
-                    var build = builder
-                        .TransformModListings(x =>
-                            x.OnlyEnabledAndExisting().
-                            RemoveModAndDependents(inputs.PatchFileName, verbose: true))
-                            .WithOutputMod(OutputMod)
-                        .Build();
+                    IGameEnvironment<ISkyrimMod, ISkyrimModGetter> build = null;
+                    var built = false;
+                    try
+                    {
+                        build = builder
+                            .TransformModListings(x =>
+                                x.OnlyEnabledAndExisting().
+                                RemoveModAndDependents(inputs.PatchFileName, verbose: true))
+                                .WithOutputMod(OutputMod)
+                            .Build();
+                        built = true;
+                    }
+                    catch
+                    {
+                        built = false;
+                    }
 
-                    if (build.LinkCache.ListedOrder.Count == 1) // invalid environment directory (ListedOrder only contains output mod)
+                    if (build.LinkCache.ListedOrder.Count == 1 || !built) // invalid environment directory (ListedOrder only contains output mod)
                     {
                         var customEnvWindow = new Window_CustomEnvironment();
                         var customEnvVM = new VM_CustomEnvironment(customEnvWindow);
