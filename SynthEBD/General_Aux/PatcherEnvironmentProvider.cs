@@ -19,20 +19,25 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
     public RelayCommand SelectGameDataFolder { get; }
     public RelayCommand ClearGameDataFolder { get; }
     public SkyrimMod OutputMod { get; set; }
-    private EnvironmnentParams PreviousEnvParams { get; set; } = new(); 
-
     public IGameEnvironment<ISkyrimMod, ISkyrimModGetter> Environment { get; private set; }
 
     private PatcherEnvironmentProvider()
     {
+        // initialize paths
+        SettingsIO_Misc.GetSettingsSource();
+        if (!string.IsNullOrWhiteSpace(PatcherSettings.InitGameDataFolder))
+        {
+            GameDataFolder = PatcherSettings.InitGameDataFolder;
+        }
+        SkyrimVersion = PatcherSettings.InitSkyrimVersion;
+
+        UpdateEnvironment(); // create an initial environment
+
         SelectGameDataFolder = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
-                if (IO_Aux.SelectFolder(Environment.DataFolderPath, out var tmpFolder))
-                {
-                    GameDataFolder = tmpFolder;
-                }
+                SelectUserSpecifiedGameEnvironment(String.Empty);
             }
         );
 
@@ -43,98 +48,61 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
                 GameDataFolder = String.Empty;
             }
         );
-
-        Observable.CombineLatest(
-                this.WhenAnyValue(x => x.PatchFileName),
-                this.WhenAnyValue(x => x.SkyrimVersion),
-                this.WhenAnyValue(x => x.GameDataFolder),
-                (_, _, _) => (PatchFileName, SkyrimVersion, GameDataFolder))
-            .DistinctUntilChanged()
-            .Select(inputs =>
-            {
-                if (!PreviousEnvParams.Matches(this))
-                {
-                    using (this.DelayChangeNotifications())
-                    {
-                        OutputMod = new SkyrimMod(ModKey.FromName(PatchFileName, ModType.Plugin), SkyrimVersion);
-
-                        var builder = GameEnvironment.Typical.Builder<ISkyrimMod, ISkyrimModGetter>(inputs.SkyrimVersion.ToGameRelease());
-                        if (!inputs.GameDataFolder.IsNullOrWhitespace())
-                        {
-                            builder = builder.WithTargetDataFolder(inputs.GameDataFolder);
-                        }
-
-                        IGameEnvironment<ISkyrimMod, ISkyrimModGetter> build = null;
-                        var built = false;
-                        try
-                        {
-                            build = builder
-                                .TransformModListings(x =>
-                                    x.OnlyEnabledAndExisting().
-                                    RemoveModAndDependents(inputs.PatchFileName, verbose: true))
-                                    .WithOutputMod(OutputMod)
-                                .Build();
-                            built = true;
-                        }
-                        catch
-                        {
-                            built = false;
-                        }
-
-                        if (build.LinkCache.ListedOrder.Count == 1 || !built) // invalid environment directory (ListedOrder only contains output mod)
-                        {
-                            var customEnvWindow = new Window_CustomEnvironment();
-                            var customEnvVM = new VM_CustomEnvironment(customEnvWindow);
-                            customEnvWindow.DataContext = customEnvVM;
-                            customEnvWindow.ShowDialog();
-
-                            if (customEnvVM.IsValidated)
-                            {
-                                PreviousEnvParams.Update(customEnvVM.SkyrimRelease, customEnvVM.CustomGamePath);
-                                SkyrimVersion = customEnvVM.SkyrimRelease;
-                                GameDataFolder = customEnvVM.CustomGameDataDir;
-                                return customEnvVM.Environment;
-                            }
-                            else
-                            {
-                                System.Windows.Application.Current.Shutdown();
-                                System.Environment.Exit(1);
-                            }
-                        }
-
-                        return build;
-                    }
-                }
-                else
-                {
-                    return this.Environment;
-                }
-            })
-            .Subscribe(x => {
-                Environment = x;
-            })
-            .DisposeWith(this);
     }
 
-    private class EnvironmnentParams
+    public void UpdateEnvironment()
     {
-        public SkyrimRelease SkyrimVersion { get; set; }
-        public string GameDataFolder { get; set; }
-
-        public bool Matches(PatcherEnvironmentProvider p)
+        OutputMod = new SkyrimMod(ModKey.FromName(PatchFileName, ModType.Plugin), SkyrimVersion);
+        var builder = GameEnvironment.Typical.Builder<ISkyrimMod, ISkyrimModGetter>(SkyrimVersion.ToGameRelease());
+        if (!GameDataFolder.IsNullOrWhitespace())
         {
-            if (!p.SkyrimVersion.Equals(SkyrimVersion)) { return false; }
-            if (p.GameDataFolder != GameDataFolder) { return false; }
-            return true;
+            builder = builder.WithTargetDataFolder(GameDataFolder);
         }
 
-        public void Update(SkyrimRelease skyrimVersion, string gameDataFolder)
+        var built = false;
+
+        try
         {
-            SkyrimVersion = skyrimVersion;
-            GameDataFolder = gameDataFolder;
-            return;
+            Environment = builder
+                .TransformModListings(x =>
+                    x.OnlyEnabledAndExisting().
+                    RemoveModAndDependents(PatchFileName, verbose: true))
+                    .WithOutputMod(OutputMod)
+                .Build();
+            built = true;
+        }
+        catch
+        {
+            built = false;
+        }
+
+        if (!built || Environment.LinkCache.ListedOrder.Count == 1) // invalid environment directory (ListedOrder only contains output mod)
+        {
+            SelectUserSpecifiedGameEnvironment("SynthEBD was unable to create an environment from any default installation directory. This can occur if your game is installed in a non-default location.");
         }
     }
+
+    private void SelectUserSpecifiedGameEnvironment(string message)
+    {
+        var customEnvWindow = new Window_CustomEnvironment();
+        var customEnvVM = new VM_CustomEnvironment(customEnvWindow, message);
+        customEnvWindow.DataContext = customEnvVM;
+        customEnvWindow.ShowDialog();
+
+        if (customEnvVM.IsValidated)
+        {
+            SkyrimVersion = customEnvVM.SkyrimRelease;
+            GameDataFolder = customEnvVM.CustomGameDataDir;
+            Environment = customEnvVM.Environment;
+        }
+        else
+        {
+            System.Windows.Application.Current.Shutdown();
+            System.Environment.Exit(1);
+        }
+    }
+
+   
 }
 
 public static class LoadOrderExtensions

@@ -12,9 +12,9 @@ public class SettingsIO_Misc
             if (loadSuccess)
             {
                 PatcherSettings.LoadFromDataFolder = loadSource.LoadFromDataDir;
-                PatcherEnvironmentProvider.Instance.GameDataFolder = loadSource.GameEnvironmentDirectory;
                 PatcherSettings.PortableSettingsFolder = loadSource.PortableSettingsFolder;
-                PatcherEnvironmentProvider.Instance.SkyrimVersion = loadSource.SkyrimVersion;
+                PatcherSettings.InitGameDataFolder = loadSource.GameEnvironmentDirectory;
+                PatcherSettings.InitSkyrimVersion = loadSource.SkyrimVersion;
             }
             else if (!loadSuccess)
             {

@@ -24,8 +24,7 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="3" Foreground="White">SynthEBD was unable to create an environment from any default installation directory</TextBlock>
-        <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="3" Foreground="White">This can occur if your game is installed in a non-default location</TextBlock>
+        <TextBlock Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="3" Foreground="White" Text="{Binding Message}"/>
         <TextBlock Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="3" Foreground="White">Please select your game type and game.exe folder below</TextBlock>
 
         <TextBlock Grid.Column="0" Grid.Row="3" ToolTip="Which Skyrim release is being patched" Foreground="White" VerticalAlignment="Center">Skyrim Release</TextBlock>

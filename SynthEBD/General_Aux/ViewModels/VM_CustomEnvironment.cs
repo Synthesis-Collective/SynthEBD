@@ -16,8 +16,9 @@ namespace SynthEBD
 {
     public class VM_CustomEnvironment : INotifyPropertyChanged
     {
-        public VM_CustomEnvironment(Window_CustomEnvironment window)
+        public VM_CustomEnvironment(Window_CustomEnvironment window, string message)
         {
+            Message = message;
             IsValidated = false;
             CustomGamePath = "";
             SkyrimRelease = SkyrimRelease.SkyrimSE;
@@ -75,6 +76,7 @@ namespace SynthEBD
                 }
                 );
         }
+        public string Message { get; set; }
         public string CustomGamePath { get; set; }
         public string CustomGameDataDir { get; set; }
         public bool IsValidated { get; set; }

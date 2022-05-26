@@ -44,9 +44,6 @@ public class MainWindow_ViewModel : VM
         // initialize logger
         Logger.Instance.MainVM = this;
 
-        // initialize paths
-        SettingsIO_Misc.GetSettingsSource();
-
         // Load settings
         GeneralSettingsVM = new VM_Settings_General(this);
         BodyGenSettingsVM = new VM_SettingsBodyGen(GeneralSettingsVM);
