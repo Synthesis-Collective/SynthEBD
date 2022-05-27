@@ -40,14 +40,6 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
                 SelectUserSpecifiedGameEnvironment(String.Empty);
             }
         );
-
-        ClearGameDataFolder = new SynthEBD.RelayCommand(
-            canExecute: _ => true,
-            execute: _ =>
-            {
-                GameDataFolder = String.Empty;
-            }
-        );
     }
 
     public void UpdateEnvironment()
@@ -85,7 +77,7 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
     private void SelectUserSpecifiedGameEnvironment(string message)
     {
         var customEnvWindow = new Window_CustomEnvironment();
-        var customEnvVM = new VM_CustomEnvironment(customEnvWindow, message);
+        var customEnvVM = new VM_CustomEnvironment(customEnvWindow, message, SkyrimVersion, GameDataFolder);
         customEnvWindow.DataContext = customEnvVM;
         customEnvWindow.ShowDialog();
 
@@ -93,7 +85,10 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
         {
             SkyrimVersion = customEnvVM.SkyrimRelease;
             GameDataFolder = customEnvVM.CustomGameDataDir;
-            Environment = customEnvVM.Environment;
+            customEnvVM.TrialEnvironment.LoadOrder.Dispose();
+            customEnvVM.TrialEnvironment.LinkCache.Dispose();
+            customEnvVM.TrialEnvironment.Dispose(); // free up the output file if it is active in the load order
+            UpdateEnvironment();
         }
         else
         {
@@ -101,8 +96,6 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
             System.Environment.Exit(1);
         }
     }
-
-   
 }
 
 public static class LoadOrderExtensions

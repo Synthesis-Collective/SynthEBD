@@ -18,10 +18,12 @@ public class VM_RunButton : VM
                 ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
                 ParentWindow.DumpViewModelsToModels();
                 if (!PreRunValidation()) { return; }
+                if (HasBeenRun) { PatcherEnvironmentProvider.Instance.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.
                 Patcher.RunPatcher(
                     ParentWindow.AssetPacks.Where(x => PatcherSettings.TexMesh.SelectedAssetPacks.Contains(x.GroupName)).ToList(), ParentWindow.BodyGenConfigs, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
                     ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.RecordTemplateLinkCache, ParentWindow.RecordTemplatePlugins, ParentWindow.StatusBarVM);
                 VM_ConsistencyUI.GetViewModelsFromModels(ParentWindow.Consistency, ParentWindow.CUIVM.Assignments, ParentWindow.TMVM.AssetPacks); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
+                HasBeenRun = true;
             }
             );
         */
@@ -32,16 +34,18 @@ public class VM_RunButton : VM
                 ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
                 ParentWindow.DumpViewModelsToModels();
                 if (!PreRunValidation()) { return; }
+                if (HasBeenRun) { PatcherEnvironmentProvider.Instance.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.
                 await Task.Run(() => Patcher.RunPatcher(
                     ParentWindow.AssetPacks.Where(x => PatcherSettings.TexMesh.SelectedAssetPacks.Contains(x.GroupName)).ToList(), ParentWindow.BodyGenConfigs, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
                     ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.RecordTemplateLinkCache, ParentWindow.RecordTemplatePlugins, ParentWindow.StatusBarVM));
                 VM_ConsistencyUI.GetViewModelsFromModels(ParentWindow.Consistency, ParentWindow.ConsistencyUIVM.Assignments, ParentWindow.TexMeshSettingsVM.AssetPacks); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
+                HasBeenRun = true;
             });
     }
     public SolidColorBrush BackgroundColor { get; set; } = new(Colors.Green);
 
     public MainWindow_ViewModel ParentWindow { get; set; }
-
+    public bool HasBeenRun { get; set; } = false;
     public ReactiveUI.IReactiveCommand ClickRun { get; }
 
     public bool PreRunValidation()

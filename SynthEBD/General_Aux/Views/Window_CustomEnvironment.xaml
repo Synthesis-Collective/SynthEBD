@@ -7,13 +7,19 @@
         xmlns:local="clr-namespace:SynthEBD"
         d:DataContext="{d:DesignInstance Type=local:VM_CustomEnvironment}"
         mc:Ignorable="d"
-        Title="Custom Game Installation" Height="200" Width="600">
+        Title="Custom Game Installation" Height="250" Width="800">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
 
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
             <ColumnDefinition Width="10"/>
             <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="10"/>
+            <ColumnDefinition Width="auto"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
@@ -21,25 +27,44 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="3" Foreground="White" Text="{Binding Message}"/>
-        <TextBlock Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="3" Foreground="White">Please select your game type and game.exe folder below</TextBlock>
+        <TextBlock Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="3" Foreground="White" Text="{Binding InstructionMessage}"/>
+        <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="3" Foreground="White">Please select your game type and game.exe folder below</TextBlock>
 
-        <TextBlock Grid.Column="0" Grid.Row="3" ToolTip="Which Skyrim release is being patched" Foreground="White" VerticalAlignment="Center">Skyrim Release</TextBlock>
-        <ComboBox Grid.Column="2" Grid.Row="3" Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding SkyrimRelease}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type Skyrim:SkyrimRelease}}}" IsSynchronizedWithCurrentItem="True"/>
+        <TextBlock Grid.Column="0" Grid.Row="2" ToolTip="Which Skyrim release is being patched" Foreground="White" VerticalAlignment="Center">Skyrim Release</TextBlock>
+        <ComboBox Grid.Column="2" Grid.Row="2" Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding SkyrimRelease}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type Skyrim:SkyrimRelease}}}" IsSynchronizedWithCurrentItem="True"/>
 
-        <TextBlock Grid.Column="0" Grid.Row="4" ToolTip="Find your game executable if not in the default location (Steam Library)" Foreground="White">Custom Game Path</TextBlock>
-        <StackPanel Grid.Column="2" Grid.Row="4" Orientation="Horizontal">
+        <TextBlock Grid.Column="0" Grid.Row="3" ToolTip="Find your game executable if not in the default location (Steam Library)" Foreground="White">Custom Game Path</TextBlock>
+        <StackPanel Grid.Column="2" Grid.Row="3" Orientation="Horizontal">
             <Button VerticalAlignment="Center" Command="{Binding SelectCustomGameFolder}"  Foreground="LightGreen">Search</Button>
-            <TextBlock Text="{Binding CustomGamePath}" Foreground="White" Margin="5 0 5 0" Background="Black"/>
+            <TextBlock Text="{Binding CustomGamePath}" Foreground="White" Margin="5 0 5 0" Background="Black" VerticalAlignment="Center"/>
+            <Button VerticalAlignment="Center" Command="{Binding ClearCustomGameFolder}"  Foreground="Red">Clear</Button>
         </StackPanel>
-        
-        <StackPanel Grid.Column="0" Grid.Row="5" Orientation="Horizontal">
+
+        <StackPanel Grid.Column="2" Grid.Row="4" Orientation="Horizontal">
+            <TextBlock Text="{Binding StatusStr}" Foreground="{Binding StatusFontColor}" Margin="5 0 5 0"/>
+            <Button VerticalAlignment="Center" Command="{Binding DisplayCurrentEnvironmentError}"  Foreground="MediumPurple" Visibility="{Binding ShowErrorExplanationButton, Converter={StaticResource BoolToVis}}">Why?</Button>
+        </StackPanel>
+
+        <StackPanel Grid.Column="0" Grid.Row="5" Orientation="Horizontal" VerticalAlignment="Bottom">
             <Button VerticalAlignment="Center" Command="{Binding OK}" Foreground="LightGreen">OK</Button>
             <Button VerticalAlignment="Center" Command="{Binding Exit}"  Foreground="Firebrick" Margin="10 0 0 0">Exit</Button>
         </StackPanel>
-        
+
+        <!-- Load order display-->
+        <TextBlock Grid.Column="4" Grid.Row="1" ToolTip="The load order that SynthEBD is seeing" Foreground="White" Visibility="{Binding IsValidated, Converter={StaticResource BoolToVis}}">Load Order</TextBlock>
+        <Border Grid.Column="4" Grid.Row="2" Grid.RowSpan="5" BorderBrush="White" BorderThickness="1" Visibility="{Binding IsValidated, Converter={StaticResource BoolToVis}}">
+            <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding LoadOrderMods}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding .}" Foreground="White"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
     </Grid>
 </Window>
