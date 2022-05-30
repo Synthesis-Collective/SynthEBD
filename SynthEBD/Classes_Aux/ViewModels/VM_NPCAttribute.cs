@@ -1,4 +1,6 @@
-﻿using Mutagen.Bethesda.Plugins;
+﻿using DynamicData;
+using DynamicData.Binding;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
@@ -586,39 +588,65 @@ public class VM_NPCAttributeNPC : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
 {
-    public VM_NPCAttributeGroup(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> attributeGroups)
+    public VM_NPCAttributeGroup(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> sourceAttributeGroups)
     {
-        this.AttributeCheckList = new VM_AttributeGroupCheckList(attributeGroups);
         this.ParentVM = parentVM;
         this.ParentShell = parentShell;
-        this.SubscribedAttributeGroupCollection = attributeGroups;
-
-        SubscribedAttributeGroupCollection.CollectionChanged += RebuildCheckList; // this is needed because the Subscription set in this constructor will not follow other attribute groups added to the parent collection after the current one is loaded
-
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
 
-        NeedsRefresh = this.AttributeCheckList.SelectableAttributeGroups.Select(x => x.WhenAnyValue(x => x.IsSelected)).Merge().Unit();
+        SubscribedAttributeGroups = sourceAttributeGroups;
+        foreach (var attributeGroupVM in sourceAttributeGroups)
+        {
+            SelectableAttributeGroups.Add(new AttributeGroupSelection(attributeGroupVM));
+        }
+
+        SubscribedAttributeGroups.ToObservableChangeSet()
+            .QueryWhenChanged(currentList => currentList)
+            .Subscribe(x =>
+            {
+                RefreshCheckList();
+            }
+            );
+
+        NeedsRefresh = SelectableAttributeGroups.Select(x => x.WhenAnyValue(x => x.IsSelected)).Merge().Unit();
     }
-    public VM_AttributeGroupCheckList AttributeCheckList { get; set; }
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
-
-    public ObservableCollection<VM_AttributeGroup> SubscribedAttributeGroupCollection { get; set; }
-
     public IObservable<Unit> NeedsRefresh { get; set; }
-
-    public void RebuildCheckList(object sender, NotifyCollectionChangedEventArgs e)
+    public ObservableCollection<VM_AttributeGroup> SubscribedAttributeGroups { get; set; }
+    public ObservableCollection<AttributeGroupSelection> SelectableAttributeGroups { get; set; } = new();
+    void RefreshCheckList()
     {
-        AttributeCheckList = new VM_AttributeGroupCheckList(SubscribedAttributeGroupCollection);
-        NeedsRefresh = this.AttributeCheckList.SelectableAttributeGroups.Select(x => x.WhenAnyValue(x => x.IsSelected)).Merge().Unit();
+        var currentSelections = SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label).ToList();
+
+        SelectableAttributeGroups.Clear();
+        foreach (var attributeGroupVM in SubscribedAttributeGroups)
+        {
+            var newSelection = new AttributeGroupSelection(attributeGroupVM);
+            if (currentSelections.Contains(attributeGroupVM.Label))
+            {
+                newSelection.IsSelected = true;
+            }
+            SelectableAttributeGroups.Add(newSelection);
+        }
+    }
+    public class AttributeGroupSelection : VM
+    {
+        public AttributeGroupSelection(VM_AttributeGroup attributeGroupVM)
+        {
+            SubscribedAttributeGroup = attributeGroupVM;
+        }
+
+        public bool IsSelected { get; set; } = false;
+        public VM_AttributeGroup SubscribedAttributeGroup { get; set; }
     }
 
     public static VM_NPCAttributeGroup GetViewModelFromModel(NPCAttributeGroup model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> attributeGroups)
     {
         var newAtt = new VM_NPCAttributeGroup(parentVM, parentShell, attributeGroups);
             
-        foreach (var group in newAtt.AttributeCheckList.SelectableAttributeGroups.Where(x => model.SelectedLabels.Contains(x.SubscribedAttributeGroup.Label)))
+        foreach (var group in newAtt.SelectableAttributeGroups.Where(x => model.SelectedLabels.Contains(x.SubscribedAttributeGroup.Label)))
         {
             group.IsSelected = true;
         }
@@ -629,7 +657,7 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
     }
     public static NPCAttributeGroup DumpViewModelToModel(VM_NPCAttributeGroup viewModel, bool forceIf)
     {
-        return new NPCAttributeGroup() { Type = NPCAttributeType.Group, SelectedLabels = viewModel.AttributeCheckList.SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label).ToHashSet(), ForceIf = forceIf, Weighting = viewModel.ParentShell.ForceIfWeight };
+        return new NPCAttributeGroup() { Type = NPCAttributeType.Group, SelectedLabels = viewModel.SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label).ToHashSet(), ForceIf = forceIf, Weighting = viewModel.ParentShell.ForceIfWeight };
     }
 }
 
