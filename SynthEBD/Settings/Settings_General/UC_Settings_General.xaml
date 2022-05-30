@@ -58,6 +58,9 @@
                 <Button VerticalAlignment="Center" Command="{Binding ClearOutputFolder}" Foreground="Firebrick">Clear</Button>
             </StackPanel>
 
+            <TextBlock Grid.Column="0" Grid.Row="2" ToolTip="Which Skyrim release is being patched">Skyrim Release</TextBlock>
+            <ComboBox Grid.Column="2" Grid.Row="2" Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding Environment.SkyrimVersion}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type Skyrim:SkyrimRelease}}}" IsSynchronizedWithCurrentItem="True"/>
+
             <TextBlock Grid.Column="0" Grid.Row="3" ToolTip="Find your game data folder if not in the default location (Steam Library\steamapps\common\Skyrim\Data)">Custom Game Data Directory</TextBlock>
             <StackPanel Grid.Column="2" Grid.Row="3" Orientation="Horizontal">
                 <Button VerticalAlignment="Center" Command="{Binding Environment.SelectGameDataFolder}" Foreground="LightGreen">Select</Button>
