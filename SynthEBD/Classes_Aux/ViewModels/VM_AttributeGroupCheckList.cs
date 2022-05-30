@@ -1,52 +1,59 @@
-﻿using System.Collections.ObjectModel;
+﻿using DynamicData;
+using DynamicData.Binding;
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using ReactiveUI;
 
 namespace SynthEBD;
 
 public class VM_AttributeGroupCheckList : VM
 {
-    public VM_AttributeGroupCheckList(ObservableCollection<VM_AttributeGroup> AttributeVMs)
+    public VM_AttributeGroupCheckList(ObservableCollection<VM_AttributeGroup> sourceAttributeGroups)
     {
-        foreach (var avm in AttributeVMs)
+        SubscribedAttributeGroups = sourceAttributeGroups;
+        foreach (var attributeGroupVM in sourceAttributeGroups)
         {
-            this.AttributeSelections.Add(new AttributeSelection(avm, this));
+            SelectableAttributeGroups.Add(new AttributeGroupSelection(attributeGroupVM));
         }
 
-        this.SubscribedMasterList = AttributeVMs;
-        this.SubscribedMasterList.CollectionChanged += RefreshCheckList;
+        SubscribedAttributeGroups.ToObservableChangeSet()
+            .QueryWhenChanged(currentList => currentList)
+            .Subscribe(x =>
+            {
+                RefreshCheckList();
+                int debugPauseHere = 0;
+                }
+            );
     }
 
-    public ObservableCollection<VM_AttributeGroup> SubscribedMasterList { get; set; } // to fire the CollectionChanged event
-    public ObservableCollection<AttributeSelection> AttributeSelections { get; set; } = new();
+    public ObservableCollection<VM_AttributeGroup> SubscribedAttributeGroups { get; set; }
+    public ObservableCollection<AttributeGroupSelection> SelectableAttributeGroups { get; set; } = new();
 
-    void RefreshCheckList(object sender, NotifyCollectionChangedEventArgs e)
+    void RefreshCheckList()
     {
-        var updatedMasterList = (ObservableCollection<VM_AttributeGroup>)sender;
-        var newCheckList = new VM_AttributeGroupCheckList(updatedMasterList);
-        this.AttributeSelections = newCheckList.AttributeSelections;
-    }
+        var currentSelections = SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label).ToList();
 
-    public class AttributeSelection : VM
-    {
-        public AttributeSelection(VM_AttributeGroup attributeGroupVM, VM_AttributeGroupCheckList parent)
+        SelectableAttributeGroups.Clear();
+        foreach (var attributeGroupVM in SubscribedAttributeGroups)
         {
-            this.Label = attributeGroupVM.Label;
-            this.SubscribedMasterAttributeGroup = attributeGroupVM;
-            this.SubscribedMasterAttributeGroup.PropertyChanged += RefreshName;
-
-            this.ParentCheckList = parent;
+            var newSelection = new AttributeGroupSelection(attributeGroupVM);
+            if (currentSelections.Contains(attributeGroupVM.Label)) 
+            { 
+                newSelection.IsSelected = true; 
+            }
+            SelectableAttributeGroups.Add(newSelection);
         }
+    }
+
+    public class AttributeGroupSelection : VM
+    {
+        public AttributeGroupSelection(VM_AttributeGroup attributeGroupVM)
+        {
+            SubscribedAttributeGroup = attributeGroupVM;
+        }
+        
         public bool IsSelected { get; set; } = false;
-
-        public VM_AttributeGroup SubscribedMasterAttributeGroup { get; set; } // to fire the PropertyChanged event
-        public void RefreshName(object sender, PropertyChangedEventArgs e)
-        {
-            VM_AttributeGroup updatedMasterAttributeGroup = (VM_AttributeGroup)sender;
-            this.Label = updatedMasterAttributeGroup.Label;
-        }
-
-        public VM_AttributeGroupCheckList ParentCheckList { get; set; }
-        public string Label { get; set; }
+        public VM_AttributeGroup SubscribedAttributeGroup { get; set; }
     }
 }

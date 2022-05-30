@@ -8,12 +8,12 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
-        <ListBox ItemsSource="{Binding AttributeCheckList.AttributeSelections}">
+        <ListBox ItemsSource="{Binding AttributeCheckList.SelectableAttributeGroups}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal">
-                        <CheckBox IsChecked="{Binding IsSelected}"/>
-                        <TextBlock Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}"></TextBlock>
+                        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"/>
+                        <TextBlock Text="{Binding SubscribedAttributeGroup.Label, UpdateSourceTrigger=PropertyChanged}"></TextBlock>
                     </StackPanel>
                 </DataTemplate>
             </ListBox.ItemTemplate>

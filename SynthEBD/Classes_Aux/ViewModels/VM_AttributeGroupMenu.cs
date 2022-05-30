@@ -62,7 +62,7 @@ public class VM_AttributeGroupMenu : VM
                             foreach (var groupAtt in groupAttributes)
                             {
                                 var castGroupAtt = (VM_NPCAttributeGroup)groupAtt.Attribute;
-                                var checkListEntries = castGroupAtt.AttributeCheckList.AttributeSelections.Where(x => subAttModel.SelectedLabels.Contains(x.Label)).ToHashSet();
+                                var checkListEntries = castGroupAtt.AttributeCheckList.SelectableAttributeGroups.Where(x => subAttModel.SelectedLabels.Contains(x.SubscribedAttributeGroup.Label)).ToHashSet();
                                 foreach (var toSelect in checkListEntries)
                                 {
                                     toSelect.IsSelected = true;

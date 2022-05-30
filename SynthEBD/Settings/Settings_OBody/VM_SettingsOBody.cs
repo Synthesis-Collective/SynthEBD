@@ -45,6 +45,8 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
     public static void GetViewModelFromModel(Settings_OBody model, VM_SettingsOBody viewModel, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
+        VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu); // get this first so other properties can reference it
+
         viewModel.DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, raceGroupingVMs, viewModel, model);
 
         viewModel.DescriptorUI.TemplateDescriptorList.Clear();
@@ -71,8 +73,6 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
             VM_BodySlideSetting.GetViewModelFromModel(preset, presetVM, viewModel.DescriptorUI, raceGroupingVMs, viewModel);
             viewModel.BodySlidesUI.BodySlidesFemale.Add(presetVM);
         }
-
-        VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu);
 
         viewModel.MiscUI = VM_OBodyMiscSettings.GetViewModelFromModel(model);
     }

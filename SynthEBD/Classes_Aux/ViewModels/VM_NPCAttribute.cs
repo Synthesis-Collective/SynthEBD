@@ -597,7 +597,7 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
 
-        NeedsRefresh = this.AttributeCheckList.AttributeSelections.Select(x => x.WhenAnyValue(x => x.IsSelected)).Merge().Unit();
+        NeedsRefresh = this.AttributeCheckList.SelectableAttributeGroups.Select(x => x.WhenAnyValue(x => x.IsSelected)).Merge().Unit();
     }
     public VM_AttributeGroupCheckList AttributeCheckList { get; set; }
     public VM_NPCAttribute ParentVM { get; set; }
@@ -611,14 +611,14 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
     public void RebuildCheckList(object sender, NotifyCollectionChangedEventArgs e)
     {
         AttributeCheckList = new VM_AttributeGroupCheckList(SubscribedAttributeGroupCollection);
-        NeedsRefresh = this.AttributeCheckList.AttributeSelections.Select(x => x.WhenAnyValue(x => x.IsSelected)).Merge().Unit();
+        NeedsRefresh = this.AttributeCheckList.SelectableAttributeGroups.Select(x => x.WhenAnyValue(x => x.IsSelected)).Merge().Unit();
     }
 
     public static VM_NPCAttributeGroup GetViewModelFromModel(NPCAttributeGroup model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> attributeGroups)
     {
         var newAtt = new VM_NPCAttributeGroup(parentVM, parentShell, attributeGroups);
             
-        foreach (var group in newAtt.AttributeCheckList.AttributeSelections.Where(x => model.SelectedLabels.Contains(x.Label)))
+        foreach (var group in newAtt.AttributeCheckList.SelectableAttributeGroups.Where(x => model.SelectedLabels.Contains(x.SubscribedAttributeGroup.Label)))
         {
             group.IsSelected = true;
         }
@@ -629,7 +629,7 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
     }
     public static NPCAttributeGroup DumpViewModelToModel(VM_NPCAttributeGroup viewModel, bool forceIf)
     {
-        return new NPCAttributeGroup() { Type = NPCAttributeType.Group, SelectedLabels = viewModel.AttributeCheckList.AttributeSelections.Where(x => x.IsSelected).Select(x => x.Label).ToHashSet(), ForceIf = forceIf, Weighting = viewModel.ParentShell.ForceIfWeight };
+        return new NPCAttributeGroup() { Type = NPCAttributeType.Group, SelectedLabels = viewModel.AttributeCheckList.SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label).ToHashSet(), ForceIf = forceIf, Weighting = viewModel.ParentShell.ForceIfWeight };
     }
 }
 
