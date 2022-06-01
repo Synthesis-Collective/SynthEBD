@@ -25,6 +25,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.SkyrimVersion).Skip(1).Subscribe(_ => PatcherEnvironmentProvider.Instance.GameDataFolder = String.Empty);
+
         AddRaceAlias = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => this.raceAliases.Add(new VM_raceAlias(new RaceAlias(), this))

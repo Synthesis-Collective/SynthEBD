@@ -40,6 +40,8 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
                 SelectUserSpecifiedGameEnvironment(String.Empty);
             }
         );
+
+        this.WhenAnyValue(x => x.SkyrimVersion).Subscribe(_ => UpdateEnvironment());
     }
 
     public void UpdateEnvironment()

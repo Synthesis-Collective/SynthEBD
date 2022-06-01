@@ -139,7 +139,7 @@ public class VM_AttributeGroup : VM
             {
                 var groupAttribute = (VM_NPCAttributeGroup)subAttributeShell.Attribute;
 
-                foreach (var label in groupAttribute.AttributeCheckList.AttributeSelections.Where(x => x.IsSelected).Select(x => x.Label))
+                foreach (var label in groupAttribute.SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label))
                 {
                     var subGroup = allGroups.Where(x => x.Label == label).FirstOrDefault();
                     if (subGroup != null)
@@ -147,7 +147,7 @@ public class VM_AttributeGroup : VM
                         if (referencedGroups.Contains(subGroup.Label))
                         {
                             //test
-                            var toUnSet = groupAttribute.AttributeCheckList.AttributeSelections.Where(x => x.Label == label).First();
+                            var toUnSet = groupAttribute.SelectableAttributeGroups.Where(x => x.SubscribedAttributeGroup.Label == label).First();
                             toUnSet.IsSelected = false;
                             //
                             return true;
