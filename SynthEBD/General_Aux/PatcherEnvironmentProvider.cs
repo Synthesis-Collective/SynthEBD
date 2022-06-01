@@ -74,6 +74,8 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
         {
             SelectUserSpecifiedGameEnvironment("SynthEBD was unable to create an environment from any default installation directory. This can occur if your game is installed in a non-default location.");
         }
+
+        PatcherSettings.Paths = new Paths(); // update paths now that the environment has been created (environment is needed to set data path if an explicit one has not been set)
     }
 
     private void SelectUserSpecifiedGameEnvironment(string message)

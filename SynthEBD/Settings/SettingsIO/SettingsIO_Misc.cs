@@ -22,8 +22,6 @@ public class SettingsIO_Misc
                 PatcherSettings.LoadFromDataFolder = false;
             }
         }
-
-        PatcherSettings.Paths = new Paths();
     }
 
     public static void SaveSettingsSource(out bool saveSuccess, out string exceptionStr)
