@@ -148,7 +148,7 @@ public class Patcher
         }
         else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
         {
-            if (PatcherSettings.OBody.AutoBodySelectionMode == AutoBodySelectionMode.INI)
+            if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.AutoBody && PatcherSettings.OBody.AutoBodySelectionMode == AutoBodySelectionMode.INI)
             {
                 OBodyWriter.WriteAssignmentIni();
             }
