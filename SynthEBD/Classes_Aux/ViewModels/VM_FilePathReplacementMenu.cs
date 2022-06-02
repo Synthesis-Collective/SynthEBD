@@ -19,19 +19,6 @@ public class VM_FilePathReplacementMenu : VM
         this.SetExplicitReferenceNPC = setExplicitReferenceNPC;
 
         Paths.ToObservableChangeSet().Subscribe(x => RefreshHasContents());
-
-        if (!setExplicitReferenceNPC)
-        {
-            ParentSubgroup.AllowedRaces.ToObservableChangeSet().Subscribe(x => RefreshReferenceNPC());
-            ParentSubgroup.AllowedRaceGroupings.WhenAnyValue(x => x.HeaderCaption).Subscribe(x => RefreshReferenceNPC());
-            ParentSubgroup.DisallowedRaces.ToObservableChangeSet().Subscribe(x => RefreshReferenceNPC());
-            ParentSubgroup.DisallowedRaceGroupings.WhenAnyValue(x => x.HeaderCaption).Subscribe(x => RefreshReferenceNPC());
-            ParentSubgroup.ParentAssetPack.WhenAnyValue(x => x.DefaultTemplateFK).Subscribe(x => RefreshReferenceNPC());
-            ParentSubgroup.ParentAssetPack.AdditionalRecordTemplateAssignments.ToObservableChangeSet().Subscribe(x => RefreshReferenceNPC());
-            ParentSubgroup.ParentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => this.ReferenceLinkCache = this.ParentSubgroup.ParentAssetPack.RecordTemplateLinkCache);
-            ParentSubgroup.ParentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => RefreshReferenceNPC());
-            GetReferenceNPCFromRecordTemplates();
-        }
     }
     public ObservableCollection<VM_FilePathReplacement> Paths { get; set; } = new();
 
@@ -79,48 +66,5 @@ public class VM_FilePathReplacementMenu : VM
     {
         if (Paths.Any()) { HasContents = true; }
         else { HasContents = false; }
-    }
-
-    public void RefreshReferenceNPC()
-    {
-        if (SetExplicitReferenceNPC) { return; }
-        else
-        {
-            GetReferenceNPCFromRecordTemplates();
-        }
-    }
-
-    public void GetReferenceNPCFromRecordTemplates()
-    {
-        var templateFormKey = new FormKey();
-        bool raceMatched = false;
-
-        var disallowedRaces = RaceGrouping.MergeRaceAndGroupingList(ParentSubgroup.DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.Label).ToHashSet(), PatcherSettings.General.RaceGroupings, ParentSubgroup.DisallowedRaces.ToHashSet());
-        var allowedRaces = RaceGrouping.MergeRaceAndGroupingList(ParentSubgroup.AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.Label).ToHashSet(), PatcherSettings.General.RaceGroupings, ParentSubgroup.AllowedRaces.ToHashSet());
-        allowedRaces = AllowedDisallowedCombiners.TrimDisallowedRacesFromAllowed(allowedRaces, disallowedRaces);
-
-        foreach (var allowedRace in allowedRaces)
-        {
-            if (FormKeyHashSetComparer.Contains(disallowedRaces, allowedRace)) { continue; }
-            foreach (var templateRace in ParentSubgroup.ParentAssetPack.AdditionalRecordTemplateAssignments)
-            {
-                if (FormKeyHashSetComparer.Contains(templateRace.RaceFormKeys.ToHashSet(), allowedRace))
-                {
-                    raceMatched = true;
-                    templateFormKey = templateRace.TemplateNPC;
-                    break;
-                }
-            }
-            if (raceMatched) { break; }
-        }
-        if (!raceMatched)
-        {
-            templateFormKey = ParentSubgroup.ParentAssetPack.DefaultTemplateFK;
-        }
-
-        if (!templateFormKey.IsNull && ReferenceLinkCache != null && ReferenceLinkCache.TryResolve<INpcGetter>(templateFormKey, out _))
-        {
-            ReferenceNPCFK = templateFormKey;
-        }
     }
 }

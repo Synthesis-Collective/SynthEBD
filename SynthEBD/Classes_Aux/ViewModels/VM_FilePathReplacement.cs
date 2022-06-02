@@ -5,6 +5,7 @@ using ReactiveUI;
 using Mutagen.Bethesda.Skyrim;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
+using Noggog;
 
 namespace SynthEBD;
 
@@ -12,6 +13,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 {
     public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu)
     {
+        
         ReferenceNPCFormKey = parentMenu.ReferenceNPCFK;
         LinkCache = parentMenu.ReferenceLinkCache;
 
@@ -78,8 +80,8 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         ParentMenu = parentMenu;
 
         this.WhenAnyValue(x => x.Source).Subscribe(x => RefreshSourceColor());
-        this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => RefreshDestColor());
-        this.WhenAnyValue(x => x.ReferenceNPCFormKey).Subscribe(x => RefreshDestColor());
+        this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => RefreshReferenceNPC());
+        this.WhenAnyValue(x => x.ParentMenu.ReferenceNPCFK).Subscribe(x => RefreshReferenceNPC());
     }
 
     public VM_FilePathReplacement Clone(VM_FilePathReplacementMenu parentMenu)
@@ -115,6 +117,27 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         viewModel.IntellisensedPath = model.Destination;
 
         return viewModel;
+    }
+
+    public void RefreshReferenceNPC()
+    {
+        if (ParentMenu.SetExplicitReferenceNPC)
+        {
+            ReferenceNPCFormKey = ParentMenu.ReferenceNPCFK;
+        }
+        else
+        {
+            var references = ParentMenu.ParentSubgroup.ParentAssetPack.AdditionalRecordTemplateAssignments.Select(x => x.TemplateNPC).And(ParentMenu.ParentSubgroup.ParentAssetPack.DefaultTemplateFK);
+            foreach (var referenceNPCformKey in references)
+            {
+                if (ParentMenu.ReferenceLinkCache.TryResolve<INpcGetter>(referenceNPCformKey, out var referenceNPCgetter) && RecordPathParser.GetObjectAtPath(referenceNPCgetter, IntellisensedPath, new Dictionary<string, dynamic>(), ParentMenu.ReferenceLinkCache, true, "", out _))
+                {
+                    ReferenceNPCFormKey = referenceNPCformKey;
+                    break;
+                }
+            }
+        }
+        RefreshDestColor();
     }
 
     public void RefreshSourceColor()
