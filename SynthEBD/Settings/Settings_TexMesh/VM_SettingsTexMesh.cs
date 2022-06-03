@@ -5,11 +5,13 @@ namespace SynthEBD;
 
 public class VM_SettingsTexMesh : VM
 {
-    public VM_SettingsTexMesh(MainWindow_ViewModel mainViewModel, MainState state)
+    public VM_SettingsTexMesh(
+        MainState state,
+        SaveLoader saveLoader,
+        VM_SettingsModManager modManager,
+        VM_AssetPack.Factory assetPackFactory)
     {
         List<string> installedConfigsInCurrentSession = new List<string>();
-
-        ParentViewModel = mainViewModel;
 
         AddTrimPath = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -34,20 +36,20 @@ public class VM_SettingsTexMesh : VM
                 else
                 {
                     Logger.LogMessage(String.Join(Environment.NewLine, errors));
-                    mainViewModel.DisplayedViewModel = mainViewModel.LogDisplayVM;
+                    Logger.SwitchViewToLogDisplay();
                 }
             }
         );
         AddNewAssetPackConfigFile = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.AssetPacks.Add(new VM_AssetPack(ParentViewModel, state))
+            execute: _ => this.AssetPacks.Add(assetPackFactory())
         );
 
         InstallFromArchive = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
-                ParentViewModel.ModManagerSettingsVM.UpdatePatcherSettings(); // make sure mod manager integration is synced w/ latest settings
+                modManager.UpdatePatcherSettings(); // make sure mod manager integration is synced w/ latest settings
                 var installedConfigs = ConfigInstaller.InstallConfigFile();
                 if (installedConfigs.Any())
                 {
@@ -55,9 +57,9 @@ public class VM_SettingsTexMesh : VM
                     //Logger.ArchiveStatus();
                     //Task.Run(() => Logger.UpdateStatusAsync("Refreshing loaded settings - please wait.", false));
                     Cursor.Current = Cursors.WaitCursor;
-                    mainViewModel.SaveAndRefreshPlugins();
+                    saveLoader.SaveAndRefreshPlugins();
                     //Logger.UnarchiveStatus();
-                    foreach (var newConfig in mainViewModel.TexMeshSettingsVM.AssetPacks.Where(x => installedConfigsInCurrentSession.Contains(x.GroupName)))
+                    foreach (var newConfig in AssetPacks.Where(x => installedConfigsInCurrentSession.Contains(x.GroupName)))
                     {
                         newConfig.IsSelected = true;
                     }
@@ -76,8 +78,8 @@ public class VM_SettingsTexMesh : VM
                     if (loadSuccess)
                     {
                         newAssetPack.FilePath = System.IO.Path.Combine(PatcherSettings.Paths.AssetPackDirPath, System.IO.Path.GetFileName(newAssetPack.FilePath)); // overwrite existing filepath so it doesn't get deleted from source
-                        var newAssetPackVM = new VM_AssetPack(mainViewModel, state);
-                        newAssetPackVM.CopyInViewModelFromModel(newAssetPack, ParentViewModel);
+                        var newAssetPackVM = assetPackFactory();
+                        newAssetPackVM.CopyInViewModelFromModel(newAssetPack);
                         newAssetPackVM.IsSelected = true;
                         AssetPacks.Add(newAssetPackVM);
                     }
@@ -97,8 +99,6 @@ public class VM_SettingsTexMesh : VM
     public ObservableCollection<TrimPath> TrimPaths { get; set; } = new();
 
     public ObservableCollection<VM_AssetPack> AssetPacks { get; set; } = new();
-
-    public MainWindow_ViewModel ParentViewModel { get; set; }
 
     public RelayCommand AddTrimPath { get; }
     public RelayCommand RemoveTrimPath { get; }

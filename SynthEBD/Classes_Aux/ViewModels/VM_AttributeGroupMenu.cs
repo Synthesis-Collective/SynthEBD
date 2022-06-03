@@ -4,6 +4,8 @@ namespace SynthEBD;
 
 public class VM_AttributeGroupMenu : VM
 {
+    public delegate VM_AttributeGroupMenu Factory(bool showImportFromGeneralOption);
+    
     public VM_AttributeGroupMenu(VM_AttributeGroupMenu generalSettingsAttributes, bool showImportFromGeneralOption)
     {
         GeneralSettingsAttributes = generalSettingsAttributes;
@@ -33,7 +35,7 @@ public class VM_AttributeGroupMenu : VM
     public ObservableCollection<VM_AttributeGroup> Groups { get; set; } = new();
     public VM_AttributeGroup DisplayedGroup { get; set; } = null;
     public VM_AttributeGroupMenu GeneralSettingsAttributes { get; set; }
-    public bool ShowImportFromGeneralOption { get; set; }
+    public bool ShowImportFromGeneralOption { get; }
     public RelayCommand AddGroup { get; }
     public RelayCommand ImportAttributeGroups { get; }
 
@@ -93,5 +95,5 @@ public class VM_AttributeGroupMenu : VM
 
 public interface IHasAttributeGroupMenu
 {
-    public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
+    public VM_AttributeGroupMenu AttributeGroupMenu { get; }
 }

@@ -7,11 +7,9 @@ namespace SynthEBD;
 
 public sealed class Logger : VM
 {
+    private readonly DisplayedItemVm _displayedItemVm;
+    private readonly VM_LogDisplay _logDisplay;
     private static Logger instance;
-    private static object lockObj = new();
-
-    public VM_RunButton RunButton { get; set; }
-    public MainWindow_ViewModel MainVM { get; set; }
     public string StatusString { get; set; }
     public string BackupStatusString { get; set; }
     public string LogString { get; set; }
@@ -44,26 +42,17 @@ public sealed class Logger : VM
         public int CurrentLayer;
     }
 
-    private Logger()
+    public Logger(
+        DisplayedItemVm displayedItemVm, 
+        VM_LogDisplay logDisplay)
     {
+        _displayedItemVm = displayedItemVm;
+        _logDisplay = logDisplay;
         this.StatusColor = this.ReadyColor;
         this.StatusString = this.ReadyString;
     }
 
-    public static Logger Instance
-    {
-        get
-        {
-            lock (lockObj)
-            {
-                if (instance == null)
-                {
-                    instance = new Logger();
-                }
-            }
-            return instance;
-        }
-    }
+    public static Logger Instance;
 
     public static void LogMessage(string message)
     {
@@ -444,7 +433,7 @@ public sealed class Logger : VM
 
     public static void SwitchViewToLogDisplay()
     {
-        Instance.MainVM.DisplayedViewModel = Instance.MainVM.LogDisplayVM;
+        Instance._displayedItemVm.DisplayedViewModel = Instance._logDisplay;
     }
 }
 

@@ -11,9 +11,8 @@ namespace SynthEBD;
 
 public class VM_Settings_General : VM, IHasAttributeGroupMenu
 {
-    public VM_Settings_General(MainWindow_ViewModel mainVM)
+    public VM_Settings_General(SaveLoader saveLoader, VM_SettingsModManager modManagerSettings)
     {
-        MainWindowVM = mainVM;
         Environment = PatcherEnvironmentProvider.Instance;
 
         this.bLoadSettingsFromDataFolder = PatcherSettings.LoadFromDataFolder;
@@ -58,9 +57,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
             PatcherSettings.LoadFromDataFolder = bLoadSettingsFromDataFolder;
             PatcherSettings.Paths.UpdatePaths();
             Patcher.ResolvePatchableRaces();
-            MainWindowVM.LoadInitialSettingsViewModels();
-            MainWindowVM.LoadPluginViewModels();
-            MainWindowVM.LoadFinalSettingsViewModels();
+            saveLoader.LoadInitialSettingsViewModels();
+            saveLoader.LoadPluginViewModels();
+            saveLoader.LoadFinalSettingsViewModels();
             System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.Default;
         });
 
@@ -88,18 +87,18 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
             execute: _ =>
             {
                 string initDir = "";
-                if (mainVM.ModManagerSettingsVM.ModManagerType == ModManager.ModOrganizer2)
+                if (modManagerSettings.ModManagerType == ModManager.ModOrganizer2)
                 {
-                    if (!string.IsNullOrEmpty(mainVM.ModManagerSettingsVM.MO2IntegrationVM.ModFolderPath) && Directory.Exists(mainVM.ModManagerSettingsVM.MO2IntegrationVM.ModFolderPath))
+                    if (!string.IsNullOrEmpty(modManagerSettings.MO2IntegrationVM.ModFolderPath) && Directory.Exists(modManagerSettings.MO2IntegrationVM.ModFolderPath))
                     {
-                        initDir = mainVM.ModManagerSettingsVM.MO2IntegrationVM.ModFolderPath;
+                        initDir = modManagerSettings.MO2IntegrationVM.ModFolderPath;
                     }
                 }
-                else if (mainVM.ModManagerSettingsVM.ModManagerType == ModManager.Vortex)
+                else if (modManagerSettings.ModManagerType == ModManager.Vortex)
                 {
-                    if (!string.IsNullOrEmpty(mainVM.ModManagerSettingsVM.VortexIntegrationVM.StagingFolderPath) && Directory.Exists(mainVM.ModManagerSettingsVM.VortexIntegrationVM.StagingFolderPath))
+                    if (!string.IsNullOrEmpty(modManagerSettings.VortexIntegrationVM.StagingFolderPath) && Directory.Exists(modManagerSettings.VortexIntegrationVM.StagingFolderPath))
                     {
-                        initDir = mainVM.ModManagerSettingsVM.VortexIntegrationVM.StagingFolderPath;
+                        initDir = modManagerSettings.VortexIntegrationVM.StagingFolderPath;
                     }
                 }
 
@@ -114,7 +113,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
                         PortableSettingsFolder = selectedPath;
                         PatcherSettings.PortableSettingsFolder = PortableSettingsFolder;
                         PatcherSettings.Paths.UpdatePaths();
-                        mainVM.SaveAndRefreshPlugins();
+                        saveLoader.SaveAndRefreshPlugins();
                     }
                 }
             }
@@ -132,12 +131,11 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
                 PortableSettingsFolder = "";
                 PatcherSettings.PortableSettingsFolder = "";
                 PatcherSettings.Paths.UpdatePaths();
-                mainVM.SaveAndRefreshPlugins();
+                saveLoader.SaveAndRefreshPlugins();
             }
         );
     }
 
-    public MainWindow_ViewModel MainWindowVM { get; set; }
     public string OutputDataFolder { get; set; } = "";
     public bool bShowToolTips { get;  set;} = true;
     public bool bChangeMeshesOrTextures { get; set;  } = true;
@@ -163,7 +161,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
 
     public RelayCommand AddRaceAlias { get; }
 
-    public VM_AttributeGroupMenu AttributeGroupMenu { get; set; } = new(null, false);
+    public VM_AttributeGroupMenu AttributeGroupMenu { get; }
     public bool OverwritePluginAttGroups { get; set; } = true;
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
@@ -178,6 +176,12 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     public RelayCommand ClearOutputFolder { get; }
     public RelayCommand SelectPortableSettingsFolder { get; }
     public RelayCommand ClearPortableSettingsFolder { get; }
+
+    public VM_Settings_General(VM_AttributeGroupMenu.Factory attributeGroupFactory)
+    {
+        AttributeGroupMenu = attributeGroupFactory(false);
+    }
+    
     public static void GetViewModelFromModel(VM_Settings_General viewModel)
     {
         var model = PatcherSettings.General;

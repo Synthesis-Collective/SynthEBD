@@ -13,4 +13,6 @@ public class MainState
     public BlockList BlockList { get; set; }
     public List<SkyrimMod> RecordTemplatePlugins { get; set; }
     public HashSet<NPCAssignment> SpecificNPCAssignments { get; set; }
+    public HashSet<string> LinkedNPCNameExclusions { get; set; }
+    public HashSet<LinkedNPCGroup> LinkedNPCGroups { get; set; }
 }

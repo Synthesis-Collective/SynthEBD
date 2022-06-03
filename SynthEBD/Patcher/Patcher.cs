@@ -11,13 +11,17 @@ public class Patcher
 {
     //Synchronous version for debugging only
     //public static void RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins, VM_StatusBar statusBar)
-    public static async Task RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins, VM_StatusBar statusBar)
+    public static async Task RunPatcher(
+        MainState state, 
+        VM_StatusBar statusBar)
     {
+        var assetPacks = state.AssetPacks.Where(x => PatcherSettings.TexMesh.SelectedAssetPacks.Contains(x.GroupName))
+            .ToList();
         var outputMod = PatcherEnvironmentProvider.Instance.OutputMod;
         ResolvePatchableRaces();
         BodyGenTracker = new BodyGenAssignmentTracker();
         UniqueAssignmentsByName.Clear();
-        UniqueNPCData.UniqueNameExclusions = linkedNPCNameExclusions;
+        UniqueNPCData.UniqueNameExclusions = state.LinkedNPCNameExclusions;
 
         Logger.UpdateStatus("Patching", false);
         Logger.StartTimer();
@@ -41,7 +45,7 @@ public class Patcher
 
         if (PatcherSettings.General.bChangeMeshesOrTextures)
         {
-            UpdateRecordTemplateAdditonalRaces(assetPacks, recordTemplateLinkCache, recordTemplatePlugins);
+            UpdateRecordTemplateAdditonalRaces(assetPacks, state.RecordTemplateLinkCache, state.RecordTemplatePlugins);
             HashSet<FlattenedAssetPack> flattenedAssetPacks = new HashSet<FlattenedAssetPack>();
             flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x)).ToHashSet();
             PathTrimmer.TrimFlattenedAssetPacks(flattenedAssetPacks, PatcherSettings.TexMesh.TrimPaths);
@@ -58,7 +62,7 @@ public class Patcher
         bool serializationSuccess, deserializationSuccess;
         string serializatonException, deserializationException;
 
-        BodyGenConfigs copiedBodyGenConfigs = JSONhandler<BodyGenConfigs>.Deserialize(JSONhandler<BodyGenConfigs>.Serialize(bodyGenConfigs, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
+        BodyGenConfigs copiedBodyGenConfigs = JSONhandler<BodyGenConfigs>.Deserialize(JSONhandler<BodyGenConfigs>.Serialize(state.BodyGenConfigs, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
         if (!serializationSuccess) { Logger.LogMessage("Error serializing BodyGen configs. Exception: " + serializatonException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
         if (!deserializationSuccess) { Logger.LogMessage("Error deserializing BodyGen configs. Exception: " + deserializationException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
         Settings_OBody copiedOBodySettings = JSONhandler<Settings_OBody>.Deserialize(JSONhandler<Settings_OBody>.Serialize(PatcherSettings.OBody, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
@@ -104,7 +108,7 @@ public class Patcher
 
         if (PatcherSettings.General.bChangeHeight)
         {
-            currentHeightConfig = heightConfigs.Where(x => x.Label == PatcherSettings.Height.SelectedHeightConfig).FirstOrDefault();
+            currentHeightConfig = state.HeightConfigs.Where(x => x.Label == PatcherSettings.Height.SelectedHeightConfig).FirstOrDefault();
             if (currentHeightConfig == null)
             {
                 Logger.LogError("Could not find selected Height Config:" + PatcherSettings.Height.SelectedHeightConfig + ". Heights will not be assigned.");
@@ -121,9 +125,9 @@ public class Patcher
         statusBar.ProgressBarCurrent = 0;
         statusBar.ProgressBarDisp = "Patched " + statusBar.ProgressBarCurrent + " NPCs";
         // Patch main NPCs
-        MainLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCGroups,  recordTemplateLinkCache, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, statusBar, headPartNPCs);
+        MainLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, state.Consistency, state.SpecificNPCAssignments, state.BlockList, state.LinkedNPCGroups,  state.RecordTemplateLinkCache, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, statusBar, headPartNPCs);
         // Finish assigning non-primary linked NPCs
-        MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, consistency, specificNPCAssignments, blockList, linkedNPCGroups, recordTemplateLinkCache, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, statusBar, headPartNPCs);
+        MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, state.Consistency, state.SpecificNPCAssignments, state.BlockList, state.LinkedNPCGroups, state.RecordTemplateLinkCache, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, statusBar, headPartNPCs);
 
         // Perform headpart functionality if any headparts were patched
         if (headPartNPCs.Any())
