@@ -5,7 +5,7 @@ namespace SynthEBD;
 
 public class VM_SettingsTexMesh : VM
 {
-    public VM_SettingsTexMesh(MainWindow_ViewModel mainViewModel)
+    public VM_SettingsTexMesh(MainWindow_ViewModel mainViewModel, MainState state)
     {
         List<string> installedConfigsInCurrentSession = new List<string>();
 
@@ -27,7 +27,7 @@ public class VM_SettingsTexMesh : VM
                 {
                     CustomMessageBox.DisplayNotificationOK("", "There are no Asset Pack Config Files installed.");
                 }
-                else if (ValidateAllConfigs(mainViewModel.BodyGenConfigs, out List<string> errors))
+                else if (ValidateAllConfigs(state.BodyGenConfigs, out List<string> errors))
                 {
                     CustomMessageBox.DisplayNotificationOK("", "No errors found.");
                 }
@@ -40,7 +40,7 @@ public class VM_SettingsTexMesh : VM
         );
         AddNewAssetPackConfigFile = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.AssetPacks.Add(new VM_AssetPack(ParentViewModel))
+            execute: _ => this.AssetPacks.Add(new VM_AssetPack(ParentViewModel, state))
         );
 
         InstallFromArchive = new SynthEBD.RelayCommand(
@@ -72,11 +72,11 @@ public class VM_SettingsTexMesh : VM
             {
                 if (IO_Aux.SelectFile(PatcherSettings.Paths.AssetPackDirPath, "Config files (*.json)|*.json", "Select the config json file", out string path))
                 {
-                    var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, ParentViewModel.RecordTemplatePlugins, ParentViewModel.BodyGenConfigs, out bool loadSuccess);
+                    var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, state.RecordTemplatePlugins, state.BodyGenConfigs, out bool loadSuccess);
                     if (loadSuccess)
                     {
                         newAssetPack.FilePath = System.IO.Path.Combine(PatcherSettings.Paths.AssetPackDirPath, System.IO.Path.GetFileName(newAssetPack.FilePath)); // overwrite existing filepath so it doesn't get deleted from source
-                        var newAssetPackVM = new VM_AssetPack(mainViewModel);
+                        var newAssetPackVM = new VM_AssetPack(mainViewModel, state);
                         newAssetPackVM.CopyInViewModelFromModel(newAssetPack, ParentViewModel);
                         newAssetPackVM.IsSelected = true;
                         AssetPacks.Add(newAssetPackVM);

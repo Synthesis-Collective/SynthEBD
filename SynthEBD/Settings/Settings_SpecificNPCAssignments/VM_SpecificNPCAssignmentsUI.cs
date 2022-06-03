@@ -13,7 +13,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
 
         AddAssignment = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.Assignments.Add(new VM_SpecificNPCAssignment(mainVM))
+            execute: _ => this.Assignments.Add(new VM_SpecificNPCAssignment(mainVM, mainVM.State))
         );
 
         RemoveAssignment = new SynthEBD.RelayCommand(
@@ -74,7 +74,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
                                 var specificAssignment = this.Assignments.FirstOrDefault(x => x.NPCFormKey.Equals(assignment.Item1));
                                 if (specificAssignment == null)
                                 {
-                                    specificAssignment = new VM_SpecificNPCAssignment(mainVM) { NPCFormKey = assignment.Item1 };
+                                    specificAssignment = new VM_SpecificNPCAssignment(mainVM, mainVM.State) { NPCFormKey = assignment.Item1 };
                                     specificAssignment.DispName = Converters.CreateNPCDispNameFromFormKey(assignment.Item1);
                                     Assignments.Add(specificAssignment);
                                 }

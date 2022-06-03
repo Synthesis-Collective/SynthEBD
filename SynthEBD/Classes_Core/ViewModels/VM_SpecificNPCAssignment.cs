@@ -12,7 +12,7 @@ namespace SynthEBD;
 
 public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
 {
-    public VM_SpecificNPCAssignment(MainWindow_ViewModel mainVM)
+    public VM_SpecificNPCAssignment(MainWindow_ViewModel mainVM, MainState state)
     {
         SubscribedGeneralSettings = mainVM.GeneralSettingsVM;
         SubscribedOBodySettings = mainVM.OBodySettingsVM;
@@ -22,7 +22,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-        this.ForcedAssetPack = new VM_AssetPack(mainVM);
+        this.ForcedAssetPack = new VM_AssetPack(mainVM, state);
 
         this.SubscribedAssetPacks = mainVM.TexMeshSettingsVM.AssetPacks;
 
@@ -53,7 +53,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
             execute: x =>
             {
                 this.ForcedSubgroups.Clear();
-                this.ForcedAssetPack = new VM_AssetPack(mainVM);
+                this.ForcedAssetPack = new VM_AssetPack(mainVM, state);
             }
         );
         DeleteForcedSubgroup = new SynthEBD.RelayCommand(
@@ -136,7 +136,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
 
     public static VM_SpecificNPCAssignment GetViewModelFromModel(NPCAssignment model, MainWindow_ViewModel mainVM)
     {
-        var viewModel = new VM_SpecificNPCAssignment(mainVM);
+        var viewModel = new VM_SpecificNPCAssignment(mainVM, mainVM.State);
         viewModel.NPCFormKey = model.NPCFormKey;
 
         if (viewModel.NPCFormKey.IsNull)
@@ -590,7 +590,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
             Parent = parent;
 
             this.AvailableMixInAssetPacks = Parent.AvailableMixInAssetPacks;
-            this.ForcedAssetPack = new VM_AssetPack(mainVM);
+            this.ForcedAssetPack = new VM_AssetPack(mainVM, mainVM.State);
 
             this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x => UpdateAvailableSubgroups(this));
             this.ForcedSubgroups.CollectionChanged += TriggerAvailableSubgroupsUpdate;

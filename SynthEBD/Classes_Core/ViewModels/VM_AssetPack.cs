@@ -16,8 +16,13 @@ namespace SynthEBD;
 
 public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgroupViewModels
 {
-    public VM_AssetPack(MainWindow_ViewModel mainVM)
+    private readonly MainWindow_ViewModel _mainVm;
+    private readonly MainState _state;
+
+    public VM_AssetPack(MainWindow_ViewModel mainVM, MainState state)
     {
+        _mainVm = mainVM;
+        _state = state;
         this.ParentCollection = mainVM.TexMeshSettingsVM.AssetPacks;
 
         this.CurrentBodyGenSettings = mainVM.BodyGenSettingsVM;
@@ -39,7 +44,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         this.BodyShapeMode = mainVM.GeneralSettingsVM.BodySelectionMode;
         mainVM.GeneralSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
 
-        RecordTemplateLinkCache = mainVM.RecordTemplateLinkCache;
+        RecordTemplateLinkCache = state.RecordTemplateLinkCache;
 
         ParentMenuVM = mainVM.TexMeshSettingsVM;
 
@@ -74,7 +79,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         MergeWithAssetPack = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => { MergeInAssetPack(mainVM); }
+            execute: _ => MergeInAssetPack()
         );
 
         SetDefaultTargetDestPaths = new SynthEBD.RelayCommand(
@@ -85,7 +90,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         ValidateButton = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => {
-                if (Validate(mainVM.BodyGenConfigs, out List<string> errors))
+                if (Validate(state.BodyGenConfigs, out List<string> errors))
                 {
                     CustomMessageBox.DisplayNotificationOK("Validation", "No errors found.");
                 }
@@ -115,13 +120,13 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         DiscardButton = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => {
-                var reloaded = SettingsIO_AssetPack.LoadAssetPack(SourcePath, PatcherSettings.General.RaceGroupings, mainVM.RecordTemplatePlugins, mainVM.BodyGenConfigs, out bool success);
+                var reloaded = SettingsIO_AssetPack.LoadAssetPack(SourcePath, PatcherSettings.General.RaceGroupings, state.RecordTemplatePlugins, state.BodyGenConfigs, out bool success);
                 if (!success)
                 {
                     Logger.CallTimedLogErrorWithStatusUpdateAsync(GroupName + " could not be reloaded from drive.", ErrorType.Error, 3);
                 }
 
-                var reloadedVM = new VM_AssetPack(mainVM);
+                var reloadedVM = new VM_AssetPack(mainVM, state);
                 reloadedVM.CopyInViewModelFromModel(reloaded, mainVM);
                 this.IsSelected = reloadedVM.IsSelected;
                 this.AttributeGroupMenu = reloadedVM.AttributeGroupMenu;
@@ -235,7 +240,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         mainVM.TexMeshSettingsVM.AssetPacks.Clear();
         for (int i = 0; i < assetPacks.Count; i++)
         {
-            var viewModel = new VM_AssetPack(mainVM);
+            var viewModel = new VM_AssetPack(mainVM, mainVM.State);
             viewModel.CopyInViewModelFromModel(assetPacks[i], mainVM);
             viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].GroupName);
             mainVM.TexMeshSettingsVM.AssetPacks.Add(viewModel);
@@ -276,7 +281,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         DefaultTemplateFK = model.DefaultRecordTemplate;
         foreach(var additionalTemplateAssignment in model.AdditionalRecordTemplateAssignments)
         {
-            var assignmentVM = new VM_AdditionalRecordTemplate(mainVM.RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
+            var assignmentVM = new VM_AdditionalRecordTemplate(mainVM.State.RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
             assignmentVM.RaceFormKeys = new ObservableCollection<FormKey>(additionalTemplateAssignment.Races);
             assignmentVM.TemplateNPC = additionalTemplateAssignment.TemplateNPC;
             assignmentVM.AdditionalRacesPaths = VM_CollectionMemberString.InitializeCollectionFromHashSet(additionalTemplateAssignment.AdditionalRacesPaths);
@@ -431,17 +436,17 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
     }
 
-    public void MergeInAssetPack(MainWindow_ViewModel mainVM)
+    public void MergeInAssetPack()
     {
         List<string> newSubgroupNames = new List<string>();
 
         if (IO_Aux.SelectFile(PatcherSettings.Paths.AssetPackDirPath, "Config files (*.json)|*.json", "Select config file to merge in", out string path))
         {
-            var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, mainVM.RecordTemplatePlugins, mainVM.BodyGenConfigs, out bool loadSuccess);
+            var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, _mainVm.State.RecordTemplatePlugins, _state.BodyGenConfigs, out bool loadSuccess);
             if (loadSuccess)
             {
-                var newAssetPackVM = new VM_AssetPack(mainVM);
-                newAssetPackVM.CopyInViewModelFromModel(newAssetPack, mainVM);
+                var newAssetPackVM = new VM_AssetPack(_mainVm, _state);
+                newAssetPackVM.CopyInViewModelFromModel(newAssetPack, _mainVm);
                     
                 // first add completely new top-level subgroups if necessary
                 foreach (var subgroup in newAssetPackVM.Subgroups)

@@ -36,9 +36,9 @@ public class VM_RunButton : VM
                 if (!PreRunValidation()) { return; }
                 if (HasBeenRun) { PatcherEnvironmentProvider.Instance.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.
                 await Task.Run(() => Patcher.RunPatcher(
-                    ParentWindow.AssetPacks.Where(x => PatcherSettings.TexMesh.SelectedAssetPacks.Contains(x.GroupName)).ToList(), ParentWindow.BodyGenConfigs, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
-                    ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.RecordTemplateLinkCache, ParentWindow.RecordTemplatePlugins, ParentWindow.StatusBarVM));
-                VM_ConsistencyUI.GetViewModelsFromModels(ParentWindow.Consistency, ParentWindow.ConsistencyUIVM.Assignments, ParentWindow.TexMeshSettingsVM.AssetPacks); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
+                    ParentWindow.State.AssetPacks.Where(x => PatcherSettings.TexMesh.SelectedAssetPacks.Contains(x.GroupName)).ToList(), ParentWindow.State.BodyGenConfigs, ParentWindow.State.HeightConfigs, ParentWindow.State.Consistency, ParentWindow.State.SpecificNPCAssignments,
+                    ParentWindow.State.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.State.RecordTemplateLinkCache, ParentWindow.State.RecordTemplatePlugins, ParentWindow.StatusBarVM));
+                VM_ConsistencyUI.GetViewModelsFromModels(ParentWindow.State.Consistency, ParentWindow.ConsistencyUIVM.Assignments, ParentWindow.TexMeshSettingsVM.AssetPacks); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
                 HasBeenRun = true;
             });
     }
@@ -60,7 +60,7 @@ public class VM_RunButton : VM
                 valid = false;
             }
 
-            if (!ParentWindow.TexMeshSettingsVM.ValidateAllConfigs(ParentWindow.BodyGenConfigs, out var configErrors)) // check config files for errors
+            if (!ParentWindow.TexMeshSettingsVM.ValidateAllConfigs(ParentWindow.State.BodyGenConfigs, out var configErrors)) // check config files for errors
             {
                 Logger.LogMessage(configErrors);
                 valid = false;
@@ -117,12 +117,12 @@ public class VM_RunButton : VM
             }
             else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
             {
-                if (!MiscValidation.VerifyBodyGenAnnotations(ParentWindow.AssetPacks, ParentWindow.BodyGenConfigs))
+                if (!MiscValidation.VerifyBodyGenAnnotations(ParentWindow.State.AssetPacks, ParentWindow.State.BodyGenConfigs))
                 {
                     valid = false;
                 }
 
-                if (!MiscValidation.VerifyGeneratedTriFilesForBodyGen(ParentWindow.AssetPacks, ParentWindow.BodyGenConfigs))
+                if (!MiscValidation.VerifyGeneratedTriFilesForBodyGen(ParentWindow.State.AssetPacks, ParentWindow.State.BodyGenConfigs))
                 {
                     valid = false;
                 }
