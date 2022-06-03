@@ -76,7 +76,8 @@ public class VM_SettingsTexMesh : VM
                     if (loadSuccess)
                     {
                         newAssetPack.FilePath = System.IO.Path.Combine(PatcherSettings.Paths.AssetPackDirPath, System.IO.Path.GetFileName(newAssetPack.FilePath)); // overwrite existing filepath so it doesn't get deleted from source
-                        var newAssetPackVM = VM_AssetPack.GetViewModelFromModel(newAssetPack, ParentViewModel);
+                        var newAssetPackVM = new VM_AssetPack(mainViewModel);
+                        newAssetPackVM.CopyInViewModelFromModel(newAssetPack, ParentViewModel);
                         newAssetPackVM.IsSelected = true;
                         AssetPacks.Add(newAssetPackVM);
                     }

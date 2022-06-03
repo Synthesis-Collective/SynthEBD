@@ -86,12 +86,16 @@ public class VM_SettingsBodyGen : VM
     {
         foreach(var config in configModels.Female)
         {
-            viewModel.FemaleConfigs.Add(VM_BodyGenConfig.GetViewModelFromModel(config, generalSettingsVM, viewModel.FemaleConfigs, viewModel));
+            var subConfig = new VM_BodyGenConfig(generalSettingsVM, viewModel.FemaleConfigs, viewModel);
+            subConfig.CopyInViewModelFromModel(config, generalSettingsVM);
+            viewModel.FemaleConfigs.Add(subConfig);
         }
 
         foreach(var config in configModels.Male)
         {
-            viewModel.MaleConfigs.Add(VM_BodyGenConfig.GetViewModelFromModel(config, generalSettingsVM, viewModel.MaleConfigs, viewModel));
+            var subConfig = new VM_BodyGenConfig(generalSettingsVM, viewModel.MaleConfigs, viewModel);
+            subConfig.CopyInViewModelFromModel(config, generalSettingsVM);
+            viewModel.MaleConfigs.Add(subConfig);
         }
 
         viewModel.CurrentMaleConfig = GetConfigByLabel(model.CurrentMaleConfig, viewModel.MaleConfigs);

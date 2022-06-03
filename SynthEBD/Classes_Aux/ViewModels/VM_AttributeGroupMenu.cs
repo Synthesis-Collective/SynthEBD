@@ -37,13 +37,15 @@ public class VM_AttributeGroupMenu : VM
     public RelayCommand AddGroup { get; }
     public RelayCommand ImportAttributeGroups { get; }
 
-    public static void GetViewModelFromModels(HashSet<AttributeGroup> models, VM_AttributeGroupMenu viewModel)
+    public void CopyInViewModelFromModels(HashSet<AttributeGroup> models)
     {
-        viewModel.Groups.Clear();
+        Groups.Clear();
         // first add each group to the menu
         foreach (var model in models)
         {
-            viewModel.Groups.Add(VM_AttributeGroup.GetViewModelFromModel(model, viewModel));
+            var attrGroup = new VM_AttributeGroup(this);
+            attrGroup.CopyInViewModelFromModel(model, this);
+            Groups.Add(attrGroup);
         }
         // then set IsSelected once all the groups are populated (VM_AttributeGroup.GetViewModelFromModel can't do this because if model[i] references model[i+1], the correposndoing viewModel[i] can't have that selection checked because viewModel[i+1] hasn't been built yet.
         foreach (var model in models)
@@ -55,7 +57,7 @@ public class VM_AttributeGroupMenu : VM
                     if (subAtt.Type == NPCAttributeType.Group)
                     {
                         var subAttModel = (NPCAttributeGroup)subAtt;
-                        var correspondingVM = viewModel.Groups.Where(x => x.Label == model.Label).First();
+                        var correspondingVM = Groups.Where(x => x.Label == model.Label).First();
                         foreach (var groupAttribute in correspondingVM.Attributes)
                         {
                             var groupAttributes = groupAttribute.GroupedSubAttributes.Where(x => x.Type == NPCAttributeType.Group);

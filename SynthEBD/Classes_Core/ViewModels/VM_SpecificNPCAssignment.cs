@@ -225,7 +225,9 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
             var parentAssetPack = mainVM.TexMeshSettingsVM.AssetPacks.Where(x => x.GroupName == replacer.AssetPackName).FirstOrDefault();
             if (parentAssetPack != null)
             {
-                viewModel.ForcedAssetReplacements.Add(VM_AssetReplacementAssignment.GetViewModelFromModel(replacer, parentAssetPack, viewModel.ForcedAssetReplacements));
+                VM_AssetReplacementAssignment subVm = new VM_AssetReplacementAssignment(parentAssetPack, viewModel.ForcedAssetReplacements);
+                subVm.CopyInViewModelFromModel(replacer);
+                viewModel.ForcedAssetReplacements.Add(subVm);
             }
             else
             {

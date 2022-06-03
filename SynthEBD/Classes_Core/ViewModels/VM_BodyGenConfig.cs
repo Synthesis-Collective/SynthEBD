@@ -139,42 +139,45 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
     public string Label { get; set; } = "";
     public Gender Gender { get; set; } = Gender.Female;
 
-    public static VM_BodyGenConfig GetViewModelFromModel(BodyGenConfig model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_BodyGenConfig> parentCollection, VM_SettingsBodyGen bodyGenSettingsVM)
+    public void CopyInViewModelFromModel(BodyGenConfig model, VM_Settings_General generalSettingsVM)
     {
-        VM_BodyGenConfig viewModel = new VM_BodyGenConfig(generalSettingsVM, parentCollection, bodyGenSettingsVM);
-        viewModel.Label = model.Label;
-        viewModel.Gender = model.Gender;
+        Label = model.Label;
+        Gender = model.Gender;
 
-        viewModel.GroupUI.TemplateGroups = new ObservableCollection<VM_CollectionMemberString>();
+        GroupUI.TemplateGroups = new ObservableCollection<VM_CollectionMemberString>();
         foreach (string group in model.TemplateGroups)
         {
-            viewModel.GroupUI.TemplateGroups.Add(new VM_CollectionMemberString(group, viewModel.GroupUI.TemplateGroups));
+            GroupUI.TemplateGroups.Add(new VM_CollectionMemberString(group, GroupUI.TemplateGroups));
         }
 
         foreach (var RTG in model.RacialTemplateGroupMap)
         {
-            viewModel.GroupMappingUI.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.GetViewModelFromModel(RTG, viewModel.GroupUI, generalSettingsVM.RaceGroupings));
+            GroupMappingUI.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.GetViewModelFromModel(RTG, GroupUI, generalSettingsVM.RaceGroupings));
         }
 
-        viewModel.DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, generalSettingsVM.RaceGroupings, viewModel, model);
+        DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, generalSettingsVM.RaceGroupings, this, model);
 
         foreach (var descriptor in model.TemplateDescriptors)
         {
-            viewModel.DescriptorUI.TemplateDescriptorList.Add(VM_BodyShapeDescriptor.GetViewModelFromModel(descriptor, generalSettingsVM.RaceGroupings, viewModel, model));
+            var subVm = new VM_BodyShapeDescriptor(
+                new VM_BodyShapeDescriptorShell(
+                    new ObservableCollection<VM_BodyShapeDescriptorShell>(), generalSettingsVM.RaceGroupings, this),
+                generalSettingsVM.RaceGroupings, 
+                this);
+            subVm.CopyInViewModelFromModel(descriptor, generalSettingsVM.RaceGroupings, this, model);
+            DescriptorUI.TemplateDescriptorList.Add(subVm);
         }
 
         foreach (var template in model.Templates)
         {
-            var templateVM = new VM_BodyGenTemplate(viewModel.GroupUI.TemplateGroups, viewModel.DescriptorUI, generalSettingsVM.RaceGroupings, viewModel.TemplateMorphUI.Templates, viewModel);
-            VM_BodyGenTemplate.GetViewModelFromModel(template, templateVM, viewModel.DescriptorUI, generalSettingsVM.RaceGroupings);
-            viewModel.TemplateMorphUI.Templates.Add(templateVM);
+            var templateVM = new VM_BodyGenTemplate(GroupUI.TemplateGroups, DescriptorUI, generalSettingsVM.RaceGroupings, TemplateMorphUI.Templates, this);
+            templateVM.CopyInViewModelFromModel(template, DescriptorUI, generalSettingsVM.RaceGroupings);
+            TemplateMorphUI.Templates.Add(templateVM);
         }
 
-        VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu);
+        AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
 
-        viewModel.SourcePath = model.FilePath;
-
-        return viewModel;
+        SourcePath = model.FilePath;
     }
 
     public static BodyGenConfig DumpViewModelToModel(VM_BodyGenConfig viewModel)

@@ -45,15 +45,13 @@ public class VM_AssetReplacementAssignment : VM
     public RelayCommand DeleteCommand { get; set; }
     public RelayCommand AddSubgroupCommand { get; set; }
 
-    public static VM_AssetReplacementAssignment GetViewModelFromModel(NPCAssignment.AssetReplacerAssignment model, VM_AssetPack parentAssetPack, ObservableCollection<VM_AssetReplacementAssignment> parentCollection)
+    public void CopyInViewModelFromModel(NPCAssignment.AssetReplacerAssignment model)
     {
-        VM_AssetReplacementAssignment viewModel = new VM_AssetReplacementAssignment(parentAssetPack, parentCollection);
-        viewModel.ReplacerName = model.ReplacerName;
+        this.ReplacerName = model.ReplacerName;
         foreach (var id in model.SubgroupIDs)
         {
-            viewModel.SubgroupIDs.Add(new VM_CollectionMemberString(id, viewModel.SubgroupIDs));
+            this.SubgroupIDs.Add(new VM_CollectionMemberString(id, this.SubgroupIDs));
         }
-        return viewModel;
     }
 
     public static NPCAssignment.AssetReplacerAssignment DumpViewModelToModel(VM_AssetReplacementAssignment viewModel)

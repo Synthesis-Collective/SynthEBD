@@ -199,7 +199,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         viewModel.patchableRaces = new ObservableCollection<FormKey>(model.PatchableRaces);
         viewModel.raceAliases = VM_raceAlias.GetViewModelsFromModels(model.RaceAliases, viewModel);
         viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, viewModel);
-        VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu);
+        viewModel.AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
         viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;
         viewModel.bLoadSettingsFromDataFolder = PatcherSettings.LoadFromDataFolder;
         viewModel.PortableSettingsFolder = PatcherSettings.PortableSettingsFolder;
