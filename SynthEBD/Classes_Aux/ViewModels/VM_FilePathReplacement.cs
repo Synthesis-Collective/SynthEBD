@@ -110,13 +110,10 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
     public FormKey ReferenceNPCFormKey { get; set; }
     public ILinkCache LinkCache { get; set; }
 
-    public static VM_FilePathReplacement GetViewModelFromModel(FilePathReplacement model, VM_FilePathReplacementMenu parentMenu)
+    public void CopyInViewModelFromModel(FilePathReplacement model)
     {
-        VM_FilePathReplacement viewModel = new VM_FilePathReplacement(parentMenu);
-        viewModel.Source = model.Source;
-        viewModel.IntellisensedPath = model.Destination;
-
-        return viewModel;
+        Source = model.Source;
+        IntellisensedPath = model.Destination;
     }
 
     public void RefreshReferenceNPC()

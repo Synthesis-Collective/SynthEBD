@@ -52,7 +52,9 @@ public class VM_FilePathReplacementMenu : VM
 
         foreach (var model in models)
         {
-            viewModel.Paths.Add(VM_FilePathReplacement.GetViewModelFromModel(model, viewModel));
+            var subVm = new VM_FilePathReplacement(viewModel);
+            subVm.CopyInViewModelFromModel(model);
+            viewModel.Paths.Add(subVm);
         }
         return viewModel;
     }
