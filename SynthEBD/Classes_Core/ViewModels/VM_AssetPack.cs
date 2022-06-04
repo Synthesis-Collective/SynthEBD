@@ -19,6 +19,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     private readonly VM_SettingsOBody _oBody;
     private readonly VM_Settings_General _general;
     private readonly VM_BodyGenConfig.Factory _bodyGenConfigFactory;
+    private readonly AssetPackValidator _assetPackValidator;
     private readonly Factory _selfFactory;
 
     public delegate VM_AssetPack Factory();
@@ -30,12 +31,14 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         VM_SettingsTexMesh texMesh,
         VM_Settings_General general,
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
+        AssetPackValidator assetPackValidator,
         Factory selfFactory)
     {
         _state = state;
         _oBody = oBody;
         _general = general;
         _bodyGenConfigFactory = bodyGenConfigFactory;
+        _assetPackValidator = assetPackValidator;
         _selfFactory = selfFactory;
         this.ParentCollection = texMesh.AssetPacks;
 
@@ -223,7 +226,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     {
         var model = DumpViewModelToModel(this);
         errors = new List<string>();
-        return model.Validate(errors, bodyGenConfigs);
+        return _assetPackValidator.Validate(model, errors, bodyGenConfigs);
     }
 
     public async void UpdatePreviewImages()

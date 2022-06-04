@@ -33,5 +33,6 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_SpecificNPCAssignment>().AsSelf();
         builder.RegisterType<VM_AttributeGroupMenu>().AsSelf();
         builder.RegisterType<VM_BodyGenConfig>().AsSelf();
+        builder.RegisterType<AssetPackValidator>().AsSelf();
     }
 }
