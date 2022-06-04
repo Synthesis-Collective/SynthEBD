@@ -12,12 +12,14 @@ public class Patcher
     private readonly MainState _state;
     private readonly VM_StatusBar _statusBar;
     private readonly CombinationLog _combinationLog;
+    private readonly PatcherEnvironmentProvider _environmentProvider;
 
-    public Patcher(MainState state, VM_StatusBar statusBar, CombinationLog combinationLog)
+    public Patcher(MainState state, VM_StatusBar statusBar, CombinationLog combinationLog, PatcherEnvironmentProvider environmentProvider)
     {
         _state = state;
         _statusBar = statusBar;
         _combinationLog = combinationLog;
+        _environmentProvider = environmentProvider;
     }
     
     //Synchronous version for debugging only
@@ -26,7 +28,7 @@ public class Patcher
     {
         var assetPacks = _state.AssetPacks.Where(x => PatcherSettings.TexMesh.SelectedAssetPacks.Contains(x.GroupName))
             .ToList();
-        var outputMod = PatcherEnvironmentProvider.Instance.OutputMod;
+        var outputMod = _environmentProvider.OutputMod;
         ResolvePatchableRaces();
         BodyGenTracker = new BodyGenAssignmentTracker();
         UniqueAssignmentsByName.Clear();

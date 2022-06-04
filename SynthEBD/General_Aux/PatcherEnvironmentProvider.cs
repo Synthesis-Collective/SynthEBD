@@ -1,5 +1,4 @@
-﻿using System.Reactive.Linq;
-using Mutagen.Bethesda;
+﻿using Mutagen.Bethesda;
 using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Order;
@@ -12,7 +11,7 @@ namespace SynthEBD;
 
 public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
 {
-    public static PatcherEnvironmentProvider Instance = new();
+    public static PatcherEnvironmentProvider Instance;
     [Reactive] public string PatchFileName { get; set; } = "SynthEBD";
     [Reactive] public SkyrimRelease SkyrimVersion { get; set; } = SkyrimRelease.SkyrimSE;
     [Reactive] public string GameDataFolder { get; set; } = "";
@@ -21,7 +20,7 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
     public SkyrimMod OutputMod { get; set; }
     public IGameEnvironment<ISkyrimMod, ISkyrimModGetter> Environment { get; private set; }
 
-    private PatcherEnvironmentProvider()
+    public PatcherEnvironmentProvider()
     {
         // initialize paths
         SettingsIO_Misc.GetSettingsSource();

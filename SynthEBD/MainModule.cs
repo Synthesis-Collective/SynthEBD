@@ -27,6 +27,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<MainState>().AsSelf().SingleInstance();
         builder.RegisterType<SaveLoader>().AsSelf().SingleInstance()
             .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
+        builder.RegisterType<PatcherEnvironmentProvider>().AsSelf().SingleInstance();
         builder.RegisterType<BSAHandler>().AsSelf().SingleInstance();
         
         // Other

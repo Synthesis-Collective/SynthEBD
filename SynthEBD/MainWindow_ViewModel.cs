@@ -21,7 +21,8 @@ public class MainWindow_ViewModel : VM
         DisplayedItemVm display,
         VM_StatusBar statusBar,
         VM_NavPanel navPanel,
-        VM_RunButton runButton)
+        VM_RunButton runButton,
+        PatcherEnvironmentProvider patcherEnvironmentProvider)
     {
         _saveLoader = saveLoader;
         _settingsGeneral = settingsGeneral;
@@ -31,6 +32,7 @@ public class MainWindow_ViewModel : VM
         StatusBarVM = statusBar;
         RunButtonVM = runButton;
         NavViewModel = _navPanel;
+        PatcherEnvironmentProvider.Instance = patcherEnvironmentProvider;
 
         // Start on the settings VM
         Display.DisplayedViewModel = _settingsGeneral;

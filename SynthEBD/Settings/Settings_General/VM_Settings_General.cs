@@ -11,12 +11,13 @@ namespace SynthEBD;
 
 public class VM_Settings_General : VM, IHasAttributeGroupMenu
 {
-    public SaveLoader SaveLoader { get; set;  }
+    public SaveLoader SaveLoader { get; set; }
 
     public VM_Settings_General(
+        PatcherEnvironmentProvider environment,
         VM_SettingsModManager modManagerSettings)
     {
-        Environment = PatcherEnvironmentProvider.Instance;
+        Environment = environment;
         AttributeGroupMenu = new VM_AttributeGroupMenu(null, false);
 
         this.bLoadSettingsFromDataFolder = PatcherSettings.LoadFromDataFolder;
