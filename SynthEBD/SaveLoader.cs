@@ -208,7 +208,7 @@ public class SaveLoader
         JSONhandler<Settings_ModManager>.SaveJSONFile(PatcherSettings.ModManagerIntegration, PatcherSettings.Paths.ModManagerSettingsPath, out saveSuccess, out exceptionStr);
         if (!saveSuccess) { Logger.LogMessage("Error saving Mod Manager Integration Settings: " + exceptionStr); allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
 
-        SettingsIO_Misc.SaveSettingsSource(out saveSuccess, out exceptionStr);
+        SettingsIO_Misc.SaveSettingsSource(General, out saveSuccess, out exceptionStr);
         if (!saveSuccess) { allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
 
         if (showFinalExceptions)

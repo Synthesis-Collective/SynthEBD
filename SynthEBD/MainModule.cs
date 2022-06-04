@@ -29,6 +29,7 @@ public class MainModule : Autofac.Module
             .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
         builder.RegisterType<PatcherEnvironmentProvider>().AsSelf().SingleInstance();
         builder.RegisterType<BSAHandler>().AsSelf().SingleInstance();
+        builder.RegisterType<PatcherSettingsProvider>().AsSelf().SingleInstance();
         
         // Other
         builder.RegisterType<VM_AssetPack>().AsSelf();

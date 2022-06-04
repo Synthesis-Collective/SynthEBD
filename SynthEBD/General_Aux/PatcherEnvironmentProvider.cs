@@ -11,6 +11,7 @@ namespace SynthEBD;
 
 public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
 {
+    private readonly VM_Settings_General _generalSettings;
     public static PatcherEnvironmentProvider Instance;
     [Reactive] public string PatchFileName { get; set; } = "SynthEBD";
     [Reactive] public SkyrimRelease SkyrimVersion { get; set; }
@@ -20,8 +21,9 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
     public SkyrimMod OutputMod { get; set; }
     public IGameEnvironment<ISkyrimMod, ISkyrimModGetter> Environment { get; private set; }
 
-    public PatcherEnvironmentProvider()
+    public PatcherEnvironmentProvider(VM_Settings_General generalSettings)
     {
+        _generalSettings = generalSettings;
         // initialize paths
         var sourceSettings = SettingsIO_Misc.GetSettingsSource();
         if (!string.IsNullOrWhiteSpace(sourceSettings?.GameEnvironmentDirectory))
@@ -74,7 +76,7 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
             SelectUserSpecifiedGameEnvironment("SynthEBD was unable to create an environment from any default installation directory. This can occur if your game is installed in a non-default location.");
         }
 
-        PatcherSettings.Paths = new Paths(); // update paths now that the environment has been created (environment is needed to set data path if an explicit one has not been set)
+        PatcherSettings.Paths = new Paths(_generalSettings); // update paths now that the environment has been created (environment is needed to set data path if an explicit one has not been set)
     }
 
     private void SelectUserSpecifiedGameEnvironment(string message)

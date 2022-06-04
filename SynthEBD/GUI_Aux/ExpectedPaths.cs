@@ -5,6 +5,7 @@ namespace SynthEBD;
 
 public class Paths
 {
+    private readonly VM_Settings_General _generalSettings;
     private static readonly string SynthEBDexeDirPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
     public static readonly string SettingsSourcePath = Path.Combine(SynthEBDexeDirPath, "Settings", "SettingsSource.json");
 
@@ -17,8 +18,9 @@ public class Paths
 
     private static readonly string settingsDirPath = Path.Combine(SynthEBDexeDirPath, settingsDirRelPath);
 
-    public Paths()
+    public Paths(VM_Settings_General generalSettings)
     {
+        _generalSettings = generalSettings;
         // create relevant paths if necessary - only in the "home" directory. To avoid inadvertent clutter in the data folder, user must create these directories manually in their data folder
 
         string settingsDirPath = Path.Combine(SynthEBDexeDirPath, settingsDirRelPath);
@@ -92,7 +94,7 @@ public class Paths
     
     private void RefreshRelativePath()
     {
-        if (PatcherSettings.LoadFromDataFolder)
+        if (_generalSettings.bLoadSettingsFromDataFolder)
         {
             if (!string.IsNullOrWhiteSpace(PatcherSettings.PortableSettingsFolder) && Directory.Exists(PatcherSettings.PortableSettingsFolder))
             {

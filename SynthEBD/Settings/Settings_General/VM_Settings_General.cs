@@ -15,12 +15,13 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
 
     public VM_Settings_General(
         PatcherEnvironmentProvider environment,
-        VM_SettingsModManager modManagerSettings)
+        VM_SettingsModManager modManagerSettings,
+        PatcherSettingsProvider settingsProvider)
     {
         Environment = environment;
         AttributeGroupMenu = new VM_AttributeGroupMenu(null, false);
 
-        this.bLoadSettingsFromDataFolder = PatcherSettings.LoadFromDataFolder;
+        this.bLoadSettingsFromDataFolder = settingsProvider.SourceSettings.Value?.LoadFromDataDir ?? false;
 
         this.WhenAnyValue(x => x.bShowToolTips)
             .Subscribe(x => TooltipController.Instance.DisplayToolTips = x);
@@ -59,7 +60,6 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         this.WhenAnyValue(x => x.bLoadSettingsFromDataFolder).Skip(1).Subscribe(x =>
         {
             System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;
-            PatcherSettings.LoadFromDataFolder = bLoadSettingsFromDataFolder;
             PatcherSettings.Paths.UpdatePaths();
             Patcher.ResolvePatchableRaces();
             SaveLoader.LoadInitialSettingsViewModels();
@@ -205,7 +205,6 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, viewModel);
         viewModel.AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
         viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;
-        viewModel.bLoadSettingsFromDataFolder = PatcherSettings.LoadFromDataFolder;
         viewModel.PortableSettingsFolder = PatcherSettings.PortableSettingsFolder;
     }
     public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
@@ -245,7 +244,6 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
 
         PatcherSettings.General = model;
 
-        PatcherSettings.LoadFromDataFolder = viewModel.bLoadSettingsFromDataFolder;
         PatcherSettings.PortableSettingsFolder = viewModel.PortableSettingsFolder;
     }
 }

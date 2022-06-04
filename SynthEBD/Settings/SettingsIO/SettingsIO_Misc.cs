@@ -11,26 +11,24 @@ public class SettingsIO_Misc
             LoadSource loadSource = JSONhandler<LoadSource>.LoadJSONFile(Paths.SettingsSourcePath, out bool loadSuccess, out string exceptionStr);
             if (loadSuccess)
             {
-                PatcherSettings.LoadFromDataFolder = loadSource.LoadFromDataDir;
                 PatcherSettings.PortableSettingsFolder = loadSource.PortableSettingsFolder;
                 return loadSource;
             }
             else if (!loadSuccess)
             {
                 Logger.LogError("Could not load Settings Source. Error: " + exceptionStr);
-                PatcherSettings.LoadFromDataFolder = false;
                 return null;
             }
         }
         return null;
     }
 
-    public static void SaveSettingsSource(out bool saveSuccess, out string exceptionStr)
+    public static void SaveSettingsSource(VM_Settings_General generalSettings, out bool saveSuccess, out string exceptionStr)
     {
         LoadSource source = new LoadSource()
         {
             GameEnvironmentDirectory = PatcherEnvironmentProvider.Instance.GameDataFolder, 
-            LoadFromDataDir = PatcherSettings.LoadFromDataFolder,
+            LoadFromDataDir = generalSettings.bLoadSettingsFromDataFolder,
             PortableSettingsFolder = PatcherSettings.PortableSettingsFolder, 
             SkyrimVersion = PatcherEnvironmentProvider.Instance.SkyrimVersion
         };
