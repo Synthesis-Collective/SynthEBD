@@ -1,11 +1,12 @@
 ﻿using System.IO;
+using System.Reactive.Linq;
 using System.Reflection;
+using ReactiveUI;
 
 namespace SynthEBD;
 
 public class Paths
 {
-    private readonly VM_Settings_General _generalSettings;
     private static readonly string SynthEBDexeDirPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
     public static readonly string SettingsSourcePath = Path.Combine(SynthEBDexeDirPath, "Settings", "SettingsSource.json");
 
@@ -18,9 +19,10 @@ public class Paths
 
     private static readonly string settingsDirPath = Path.Combine(SynthEBDexeDirPath, settingsDirRelPath);
 
-    public Paths(VM_Settings_General generalSettings)
+    public Paths(
+        PatcherEnvironmentProvider environmentProvider,
+        VM_Settings_General generalSettings)
     {
-        _generalSettings = generalSettings;
         // create relevant paths if necessary - only in the "home" directory. To avoid inadvertent clutter in the data folder, user must create these directories manually in their data folder
 
         string settingsDirPath = Path.Combine(SynthEBDexeDirPath, settingsDirRelPath);
@@ -55,7 +57,30 @@ public class Paths
             Directory.CreateDirectory(recordTemplatesDirPath);
         }
 
-        UpdatePaths();
+        Observable.CombineLatest(
+                generalSettings.WhenAnyValue(x => x.bLoadSettingsFromDataFolder),
+                generalSettings.WhenAnyValue(x => x.PortableSettingsFolder),
+                environmentProvider.WhenAnyValue(x => x.Environment.DataFolderPath),
+                (load, settingsFolder, dataPath) =>
+                {
+                    if (load)
+                    {
+                        if (!string.IsNullOrWhiteSpace(settingsFolder)
+                            && Directory.Exists(settingsFolder))
+                        {
+                            return settingsFolder;
+                        }
+                        else
+                        {
+                            return Path.Combine(dataPath, "SynthEBD");
+                        }
+                    }
+                    else
+                    {
+                        return SynthEBDexeDirPath;
+                    }
+                })
+            .Subscribe(x => RelativePath = x);
     }
 
     private string RelativePath { get; set; } 
@@ -85,29 +110,5 @@ public class Paths
     {
         var suffix = path.Remove(0, RelativePath.Length).Trim(Path.PathSeparator);
         return Path.Join(SynthEBDexeDirPath, suffix);
-    }
-
-    public void UpdatePaths()
-    {
-        RefreshRelativePath();
-    }
-    
-    private void RefreshRelativePath()
-    {
-        if (_generalSettings.bLoadSettingsFromDataFolder)
-        {
-            if (!string.IsNullOrWhiteSpace(_generalSettings.PortableSettingsFolder) && Directory.Exists(_generalSettings.PortableSettingsFolder))
-            {
-                RelativePath = _generalSettings.PortableSettingsFolder;
-            }
-            else
-            {
-                RelativePath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "SynthEBD");
-            }
-        }
-        else
-        {
-            RelativePath = SynthEBDexeDirPath;
-        }
     }
 }

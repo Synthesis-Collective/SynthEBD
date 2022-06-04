@@ -58,7 +58,6 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         this.WhenAnyValue(x => x.bLoadSettingsFromDataFolder).Skip(1).Subscribe(x =>
         {
             System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;
-            PatcherSettings.Paths.UpdatePaths();
             Patcher.ResolvePatchableRaces();
             SaveLoader.LoadInitialSettingsViewModels();
             SaveLoader.LoadPluginViewModels();
@@ -114,7 +113,6 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
                     else
                     {
                         PortableSettingsFolder = selectedPath;
-                        PatcherSettings.Paths.UpdatePaths();
                         SaveLoader.SaveAndRefreshPlugins();
                     }
                 }
@@ -131,7 +129,6 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
                     return;
                 }
                 PortableSettingsFolder = "";
-                PatcherSettings.Paths.UpdatePaths();
                 SaveLoader.SaveAndRefreshPlugins();
             }
         );

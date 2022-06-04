@@ -30,6 +30,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<PatcherEnvironmentProvider>().AsSelf().SingleInstance();
         builder.RegisterType<BSAHandler>().AsSelf().SingleInstance();
         builder.RegisterType<PatcherSettingsProvider>().AsSelf().SingleInstance();
+        builder.RegisterType<Paths>().AsSelf().SingleInstance();
         
         // Other
         builder.RegisterType<VM_AssetPack>().AsSelf();
