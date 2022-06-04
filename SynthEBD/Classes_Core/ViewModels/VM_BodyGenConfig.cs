@@ -11,11 +11,12 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
         ObservableCollection<VM_BodyGenConfig> parentCollection,
         VM_Settings_General generalSettingsVM,
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
+        VM_BodyShapeDescriptorCreationMenu.Factory bodyShapeDescriptorCreationMenuFactory,
         VM_SettingsBodyGen bodyGenSettingsVM)
     {
         this.GroupMappingUI = new VM_BodyGenGroupMappingMenu(this.GroupUI, generalSettingsVM.RaceGroupings);
         this.GroupUI = new VM_BodyGenGroupsMenu(this);
-        this.DescriptorUI = new VM_BodyShapeDescriptorCreationMenu(generalSettingsVM.RaceGroupings, this);
+        this.DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this);
         this.TemplateMorphUI = new VM_BodyGenTemplateMenu(this, generalSettingsVM.RaceGroupings);
         this.DisplayedUI = this.TemplateMorphUI;
         this.AttributeGroupMenu = new VM_AttributeGroupMenu(generalSettingsVM.AttributeGroupMenu, true);

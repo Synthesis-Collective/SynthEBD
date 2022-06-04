@@ -4,13 +4,15 @@ namespace SynthEBD;
 
 public class VM_BodyShapeDescriptorCreationMenu : VM
 {
-    public VM_BodyShapeDescriptorCreationMenu(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
+    public delegate VM_BodyShapeDescriptorCreationMenu Factory(IHasAttributeGroupMenu parentConfig);
+    
+    public VM_BodyShapeDescriptorCreationMenu(IHasAttributeGroupMenu parentConfig, VM_Settings_General generalSettings)
     {
-        this.CurrentlyDisplayedTemplateDescriptorShell = new VM_BodyShapeDescriptorShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), raceGroupingVMs, parentConfig);
+        this.CurrentlyDisplayedTemplateDescriptorShell = new VM_BodyShapeDescriptorShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), generalSettings.RaceGroupings, parentConfig);
 
         AddTemplateDescriptorShell = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.TemplateDescriptors.Add(new VM_BodyShapeDescriptorShell(this.TemplateDescriptors, raceGroupingVMs, parentConfig))
+            execute: _ => this.TemplateDescriptors.Add(new VM_BodyShapeDescriptorShell(this.TemplateDescriptors, generalSettings.RaceGroupings, parentConfig))
         );
 
         RemoveTemplateDescriptorShell = new SynthEBD.RelayCommand(

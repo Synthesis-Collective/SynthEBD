@@ -5,9 +5,10 @@ namespace SynthEBD;
 public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 {
     public VM_SettingsOBody(
-        VM_Settings_General generalSettingsVM)
+        VM_Settings_General generalSettingsVM,
+        VM_BodyShapeDescriptorCreationMenu.Factory bodyShapeDescriptorCreationMenuFactory)
     {
-        DescriptorUI = new VM_BodyShapeDescriptorCreationMenu(generalSettingsVM.RaceGroupings, this);
+        DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this);
         BodySlidesUI = new VM_BodySlidesMenu(this, generalSettingsVM.RaceGroupings);
         AttributeGroupMenu = new(generalSettingsVM.AttributeGroupMenu, true);
 
