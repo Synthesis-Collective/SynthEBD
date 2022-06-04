@@ -4,6 +4,13 @@ namespace SynthEBD;
 
 public class AssetPackValidator
 {
+    private readonly BSAHandler _bsaHandler;
+
+    public AssetPackValidator(BSAHandler bsaHandler)
+    {
+        _bsaHandler = bsaHandler;
+    }
+    
     public bool Validate(AssetPack assetPack, List<string> errors, BodyGenConfigs bodyGenConfigs)
     {
         bool isValidated = true;
@@ -192,7 +199,7 @@ public class AssetPackValidator
         foreach (var path in subgroup.Paths)
         {
             var fullPath = System.IO.Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, path.Source);
-            if (!System.IO.File.Exists(fullPath) && !BSAHandler.ReferencedPathExists(path.Source, out bool archiveExists, out string modName))
+            if (!System.IO.File.Exists(fullPath) && !_bsaHandler.ReferencedPathExists(path.Source, out bool archiveExists, out string modName))
             {
                 string pathError = "No file exists at " + fullPath;
                 if (archiveExists)

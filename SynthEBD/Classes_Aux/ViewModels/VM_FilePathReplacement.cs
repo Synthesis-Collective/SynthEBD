@@ -11,9 +11,15 @@ namespace SynthEBD;
 
 public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 {
-    public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu)
+    private readonly BSAHandler _bsaHandler;
+    private readonly Factory _selfFactory;
+
+    public delegate VM_FilePathReplacement Factory(VM_FilePathReplacementMenu parentMenu);
+    
+    public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu, BSAHandler bsaHandler, Factory selfFactory)
     {
-        
+        _bsaHandler = bsaHandler;
+        _selfFactory = selfFactory;
         ReferenceNPCFormKey = parentMenu.ReferenceNPCFK;
         LinkCache = parentMenu.ReferenceLinkCache;
 
@@ -86,7 +92,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 
     public VM_FilePathReplacement Clone(VM_FilePathReplacementMenu parentMenu)
     {
-        VM_FilePathReplacement clone = new VM_FilePathReplacement(parentMenu);
+        VM_FilePathReplacement clone = _selfFactory(parentMenu);
         clone.Source = Source;
         clone.IntellisensedPath = this.IntellisensedPath;
         clone.ReferenceNPCFormKey = this.ReferenceNPCFormKey.DeepCopyByExpressionTree();
@@ -140,7 +146,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
     public void RefreshSourceColor()
     {
         var searchStr = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, this.Source);
-        if (LongPathHandler.PathExists(searchStr) || BSAHandler.ReferencedPathExists(this.Source, out _, out _))
+        if (LongPathHandler.PathExists(searchStr) || _bsaHandler.ReferencedPathExists(this.Source, out _, out _))
         {
             this.SourceBorderColor = new SolidColorBrush(Colors.LightGreen);
         }

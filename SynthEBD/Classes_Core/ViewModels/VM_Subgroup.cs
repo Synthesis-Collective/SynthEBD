@@ -16,6 +16,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 {
     private readonly VM_SettingsOBody _oBody;
     private readonly Factory _selfFactory;
+    private readonly VM_FilePathReplacement.Factory _filePathReplacementFactory;
 
     public delegate VM_Subgroup Factory(
         ObservableCollection<VM_RaceGrouping> raceGroupingVMs,
@@ -29,10 +30,12 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         VM_AssetPack parentAssetPack, 
         bool setExplicitReferenceNPC,
         VM_SettingsOBody oBody,
-        Factory selfFactory)
+        Factory selfFactory,
+        VM_FilePathReplacement.Factory filePathReplacementFactory)
     {
         _oBody = oBody;
         _selfFactory = selfFactory;
+        _filePathReplacementFactory = filePathReplacementFactory;
         SubscribedRaceGroupings = raceGroupingVMs;
         SetExplicitReferenceNPC = setExplicitReferenceNPC;
         ParentAssetPack = parentAssetPack;
@@ -84,7 +87,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 
         AddPath = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.PathsMenu.Paths.Add(new VM_FilePathReplacement(this.PathsMenu))
+            execute: _ => this.PathsMenu.Paths.Add(filePathReplacementFactory(this.PathsMenu))
         );
 
         AddSubgroup = new SynthEBD.RelayCommand(
@@ -180,7 +183,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         ExcludedSubgroups = new ObservableCollection<VM_Subgroup>();
         AddKeywords = VM_CollectionMemberString.InitializeCollectionFromHashSet(model.AddKeywords);
         ProbabilityWeighting = model.ProbabilityWeighting;
-        PathsMenu = VM_FilePathReplacementMenu.GetViewModelFromModels(model.Paths, this, SetExplicitReferenceNPC);
+        PathsMenu = VM_FilePathReplacementMenu.GetViewModelFromModels(model.Paths, this, SetExplicitReferenceNPC, _filePathReplacementFactory);
         WeightRange = model.WeightRange;
 
         if (ParentAssetPack.TrackedBodyGenConfig != null)

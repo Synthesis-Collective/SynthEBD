@@ -37,7 +37,7 @@ public class VM_FilePathReplacementMenu : VM
         return clone;
     }
 
-    public static VM_FilePathReplacementMenu GetViewModelFromModels(HashSet<FilePathReplacement> models, VM_Subgroup parentSubgroup, bool setExplicitReferenceNPC)
+    public static VM_FilePathReplacementMenu GetViewModelFromModels(HashSet<FilePathReplacement> models, VM_Subgroup parentSubgroup, bool setExplicitReferenceNPC, VM_FilePathReplacement.Factory filePathReplacementFactory)
     {
         VM_FilePathReplacementMenu viewModel = null;
 
@@ -52,7 +52,7 @@ public class VM_FilePathReplacementMenu : VM
 
         foreach (var model in models)
         {
-            var subVm = new VM_FilePathReplacement(viewModel);
+            var subVm = filePathReplacementFactory(viewModel);
             subVm.CopyInViewModelFromModel(model);
             viewModel.Paths.Add(subVm);
         }

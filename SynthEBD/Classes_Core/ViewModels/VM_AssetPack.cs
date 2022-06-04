@@ -21,6 +21,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     private readonly VM_BodyGenConfig.Factory _bodyGenConfigFactory;
     private readonly VM_AssetPackDirectReplacerMenu.Factory _assetPackDirectReplacerMenuFactory;
     private readonly VM_Subgroup.Factory _subgroupFactory;
+    private readonly VM_FilePathReplacement.Factory _filePathReplacementFactory;
     private readonly AssetPackValidator _assetPackValidator;
     private readonly Factory _selfFactory;
 
@@ -35,6 +36,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
         VM_AssetPackDirectReplacerMenu.Factory assetPackDirectReplacerMenuFactory,
         VM_Subgroup.Factory subgroupFactory,
+        VM_FilePathReplacement.Factory filePathReplacementFactory,
         AssetPackValidator assetPackValidator,
         Factory selfFactory)
     {
@@ -44,6 +46,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         _bodyGenConfigFactory = bodyGenConfigFactory;
         _assetPackDirectReplacerMenuFactory = assetPackDirectReplacerMenuFactory;
         _subgroupFactory = subgroupFactory;
+        _filePathReplacementFactory = filePathReplacementFactory;
         _assetPackValidator = assetPackValidator;
         _selfFactory = selfFactory;
         this.ParentCollection = texMesh.AssetPacks;
@@ -617,12 +620,12 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
     }
 
-    public static void DuplicateBodyPathsAsFeet(VM_Subgroup subgroup)
+    public void DuplicateBodyPathsAsFeet(VM_Subgroup subgroup)
     {
         var newFeetPaths = new HashSet<VM_FilePathReplacement>();
         foreach (var path in subgroup.PathsMenu.Paths.Where(x => x.IntellisensedPath.Contains("WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body)")))
         {
-            var newPath = new VM_FilePathReplacement(path.ParentMenu);
+            var newPath = _filePathReplacementFactory(path.ParentMenu);
             newPath.Source = path.Source;
             newPath.IntellisensedPath = path.IntellisensedPath.Replace("WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body)", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet)");
             newFeetPaths.Add(newPath);
@@ -639,7 +642,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
     }
 
-    public static void DuplicateBodyPathsAsTail(VM_Subgroup subgroup)
+    public void DuplicateBodyPathsAsTail(VM_Subgroup subgroup)
     {
         var newTailPaths = new HashSet<VM_FilePathReplacement>();
         var pathsNeedingTails = new HashSet<string>()
@@ -664,7 +667,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         foreach (var path in subgroup.PathsMenu.Paths.Where(x => pathsNeedingTails.Contains(Path.GetFileName(x.Source), StringComparer.OrdinalIgnoreCase)))
         {
-            var newPath = new VM_FilePathReplacement(path.ParentMenu);
+            var newPath = _filePathReplacementFactory(path.ParentMenu);
             newPath.Source = path.Source;
             newPath.IntellisensedPath = path.IntellisensedPath.Replace("WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body)", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail)");
             newTailPaths.Add(newPath);
