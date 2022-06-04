@@ -212,7 +212,6 @@ class Converters
         if (matches.Count == 0)
         {
             Logger.LogError("Could not parse " + str + " as a FormID");
-            Logger.SwitchViewToLogDisplay();
             return output;
         }
 
@@ -222,7 +221,6 @@ class Converters
         if (split.Length != 2)
         {
             Logger.LogError("Could not parse " + str + " as a FormID");
-            Logger.SwitchViewToLogDisplay();
             return output;
         }
 
@@ -231,7 +229,6 @@ class Converters
         if (formID.Length != 8)
         {
             Logger.LogError("Could not parse " + str + " as a FormID");
-            Logger.SwitchViewToLogDisplay();
             return output;
         }
 
@@ -260,7 +257,6 @@ class Converters
         catch
         {
             Logger.LogError("Could not create FormKey " + fkString + " from FormID " + str);
-            Logger.SwitchViewToLogDisplay();
             return output;
         }
 
@@ -282,7 +278,6 @@ class Converters
                     case 8: fkString = formID.Substring(2, 6) + ":" + plugin.ModKey.FileName; break;
                     default:
                         Logger.LogError("Could not convert zEBD FormKey Signature " + fkString + " to FormKey");
-                        Logger.SwitchViewToLogDisplay();
                         break;
                 }
             }
@@ -295,7 +290,6 @@ class Converters
         catch
         {
             Logger.LogError("Could not convert zEBD FormKey Signature " + fkString + " to FormKey");
-            Logger.SwitchViewToLogDisplay();
         }
 
         return output;
@@ -335,7 +329,6 @@ class Converters
         catch
         {
             Logger.LogError("Could not convert \"" + s + "\" into a Body Shape Descriptor");
-            Logger.SwitchViewToLogDisplay();
         }
         return newDescriptor;
     }

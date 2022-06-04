@@ -5,10 +5,12 @@ namespace SynthEBD;
 
 public class VM_SettingsTexMesh : VM
 {
+    public SaveLoader SaveLoader { get; set; }
+
     public VM_SettingsTexMesh(
         MainState state,
-        SaveLoader saveLoader,
         VM_SettingsModManager modManager,
+        VM_BodyGenConfig.Factory bodyGenConfigFactory,
         VM_AssetPack.Factory assetPackFactory)
     {
         List<string> installedConfigsInCurrentSession = new List<string>();
@@ -35,8 +37,7 @@ public class VM_SettingsTexMesh : VM
                 }
                 else
                 {
-                    Logger.LogMessage(String.Join(Environment.NewLine, errors));
-                    Logger.SwitchViewToLogDisplay();
+                    Logger.LogError(String.Join(Environment.NewLine, errors));
                 }
             }
         );
@@ -57,7 +58,7 @@ public class VM_SettingsTexMesh : VM
                     //Logger.ArchiveStatus();
                     //Task.Run(() => Logger.UpdateStatusAsync("Refreshing loaded settings - please wait.", false));
                     Cursor.Current = Cursors.WaitCursor;
-                    saveLoader.SaveAndRefreshPlugins();
+                    SaveLoader.SaveAndRefreshPlugins();
                     //Logger.UnarchiveStatus();
                     foreach (var newConfig in AssetPacks.Where(x => installedConfigsInCurrentSession.Contains(x.GroupName)))
                     {
@@ -79,7 +80,7 @@ public class VM_SettingsTexMesh : VM
                     {
                         newAssetPack.FilePath = System.IO.Path.Combine(PatcherSettings.Paths.AssetPackDirPath, System.IO.Path.GetFileName(newAssetPack.FilePath)); // overwrite existing filepath so it doesn't get deleted from source
                         var newAssetPackVM = assetPackFactory();
-                        newAssetPackVM.CopyInViewModelFromModel(newAssetPack);
+                        newAssetPackVM.CopyInViewModelFromModel(newAssetPack, bodyGenConfigFactory);
                         newAssetPackVM.IsSelected = true;
                         AssetPacks.Add(newAssetPackVM);
                     }

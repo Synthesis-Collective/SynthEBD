@@ -5,7 +5,9 @@ namespace SynthEBD;
 
 public class VM_SettingsBodyGen : VM
 {
-    public VM_SettingsBodyGen(VM_Settings_General generalSettingsVM)
+    public VM_SettingsBodyGen(
+        VM_BodyGenConfig.Factory bodyGenConfigFactory,
+        VM_Settings_General generalSettingsVM)
     {
         DisplayMaleConfig = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -31,7 +33,8 @@ public class VM_SettingsBodyGen : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                var newConfig = new VM_BodyGenConfig(generalSettingsVM, this.MaleConfigs, this) { Gender = Gender.Male};
+                var newConfig = bodyGenConfigFactory(this.MaleConfigs);
+                newConfig.Gender = Gender.Male;
                 this.MaleConfigs.Add(newConfig);
                 this.CurrentMaleConfig = newConfig;
                 this.CurrentlyDisplayedConfig = newConfig;
@@ -43,7 +46,8 @@ public class VM_SettingsBodyGen : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                var newConfig = new VM_BodyGenConfig(generalSettingsVM, this.FemaleConfigs, this) { Gender = Gender.Female};
+                var newConfig = bodyGenConfigFactory(this.FemaleConfigs);
+                newConfig.Gender = Gender.Female;
                 this.FemaleConfigs.Add(newConfig);
                 this.CurrentFemaleConfig = newConfig;
                 this.CurrentlyDisplayedConfig = newConfig;
@@ -82,18 +86,23 @@ public class VM_SettingsBodyGen : VM
     public RelayCommand DisplayFemaleConfig { get; }
     public RelayCommand AddNewFemaleConfig { get; }
 
-    public static void GetViewModelFromModel(BodyGenConfigs configModels, Settings_BodyGen model, VM_SettingsBodyGen viewModel, VM_Settings_General generalSettingsVM)
+    public static void GetViewModelFromModel(
+        BodyGenConfigs configModels,
+        Settings_BodyGen model,
+        VM_SettingsBodyGen viewModel,
+        VM_BodyGenConfig.Factory bodyGenConfigFactory,
+        VM_Settings_General generalSettingsVM)
     {
         foreach(var config in configModels.Female)
         {
-            var subConfig = new VM_BodyGenConfig(generalSettingsVM, viewModel.FemaleConfigs, viewModel);
+            var subConfig = bodyGenConfigFactory(viewModel.FemaleConfigs);
             subConfig.CopyInViewModelFromModel(config, generalSettingsVM);
             viewModel.FemaleConfigs.Add(subConfig);
         }
 
         foreach(var config in configModels.Male)
         {
-            var subConfig = new VM_BodyGenConfig(generalSettingsVM, viewModel.MaleConfigs, viewModel);
+            var subConfig = bodyGenConfigFactory(viewModel.MaleConfigs);
             subConfig.CopyInViewModelFromModel(config, generalSettingsVM);
             viewModel.MaleConfigs.Add(subConfig);
         }

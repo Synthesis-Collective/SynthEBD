@@ -1,4 +1,6 @@
-﻿using Mutagen.Bethesda.Skyrim;
+﻿using System.Reactive;
+using System.Reactive.Subjects;
+using Mutagen.Bethesda.Skyrim;
 using System.Text;
 using System.Windows.Media;
 using System.Xml.Linq;
@@ -22,6 +24,9 @@ public sealed class Logger : VM
     public SolidColorBrush ErrorColor = new SolidColorBrush(Colors.Red);
     public string ReadyString = "Ready To Patch";
 
+    private readonly Subject<Unit> _loggedError = new();
+    public IObservable<Unit> LoggedError => _loggedError;
+
     public DateTime PatcherExecutionStart { get; set; }
 
     System.Windows.Threading.DispatcherTimer UpdateTimer { get; set; } = new();
@@ -42,12 +47,8 @@ public sealed class Logger : VM
         public int CurrentLayer;
     }
 
-    public Logger(
-        DisplayedItemVm displayedItemVm, 
-        VM_LogDisplay logDisplay)
+    public Logger()
     {
-        _displayedItemVm = displayedItemVm;
-        _logDisplay = logDisplay;
         this.StatusColor = this.ReadyColor;
         this.StatusString = this.ReadyString;
     }
@@ -240,6 +241,7 @@ public sealed class Logger : VM
     public static void LogError(string error)
     {
         Instance.LogString += error + Environment.NewLine;
+        Instance._loggedError.OnNext(Unit.Default);
     }
     public static string SpreadFlattenedAssetPack(FlattenedAssetPack ap, int index, bool indentAtIndex)
     {
@@ -258,8 +260,13 @@ public sealed class Logger : VM
         Instance.StatusString = error;
         switch (type)
         {
-            case ErrorType.Warning: Instance.StatusColor = Instance.WarningColor; break;
-            case ErrorType.Error: Instance.StatusColor = Instance.ErrorColor; break;
+            case ErrorType.Warning:
+                Instance.StatusColor = Instance.WarningColor;
+                break;
+            case ErrorType.Error:
+                Instance._loggedError.OnNext(Unit.Default);
+                Instance.StatusColor = Instance.ErrorColor; 
+                break;
         }
     }
 
@@ -429,11 +436,6 @@ public sealed class Logger : VM
     public static string GetNPCLogReportingString(INpcGetter npc)
     {
         return npc.Name?.String + " (" + npc.EditorID + ") " + npc.FormKey.ToString().Replace(':', '-');
-    }
-
-    public static void SwitchViewToLogDisplay()
-    {
-        Instance._displayedItemVm.DisplayedViewModel = Instance._logDisplay;
     }
 }
 

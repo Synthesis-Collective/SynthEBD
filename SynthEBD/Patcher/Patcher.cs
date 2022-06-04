@@ -514,7 +514,6 @@ public class Patcher
         if (PatcherEnvironmentProvider.Instance.Environment.LinkCache is null)
         {
             Logger.LogError("Error: Link cache is null.");
-            Logger.SwitchViewToLogDisplay();
             return;
         }
 

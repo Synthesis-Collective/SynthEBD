@@ -12,6 +12,7 @@ public class VM_RunButton : VM
         VM_ConsistencyUI consistencyUi,
         MainState state,
         SaveLoader saveLoader, 
+        VM_LogDisplay logDisplay,
         VM_StatusBar statusBar)
     {
         _texMeshSettingsVm = texMeshSettingsVM;
@@ -39,7 +40,7 @@ public class VM_RunButton : VM
                 
             execute: async _ =>
             {
-                Logger.SwitchViewToLogDisplay();
+                logDisplay.SwitchViewToLogDisplay();
                 saveLoader.DumpViewModelsToModels();
                 if (!PreRunValidation()) { return; }
                 if (HasBeenRun) { PatcherEnvironmentProvider.Instance.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.

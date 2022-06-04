@@ -5,7 +5,13 @@ namespace SynthEBD;
 
 public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
 {
-    public VM_BodyGenConfig(VM_Settings_General generalSettingsVM, ObservableCollection<VM_BodyGenConfig> parentCollection, VM_SettingsBodyGen bodyGenSettingsVM)
+    public delegate VM_BodyGenConfig Factory(ObservableCollection<VM_BodyGenConfig> parentCollection);
+    
+    public VM_BodyGenConfig(
+        ObservableCollection<VM_BodyGenConfig> parentCollection,
+        VM_Settings_General generalSettingsVM,
+        VM_BodyGenConfig.Factory bodyGenConfigFactory,
+        VM_SettingsBodyGen bodyGenSettingsVM)
     {
         this.GroupMappingUI = new VM_BodyGenGroupMappingMenu(this.GroupUI, generalSettingsVM.RaceGroupings);
         this.GroupUI = new VM_BodyGenGroupsMenu(this);
@@ -66,7 +72,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
                                 }
                                 else
                                 {
-                                    bodyGenSettingsVM.CurrentMaleConfig = new VM_BodyGenConfig(generalSettingsVM, ParentCollection, bodyGenSettingsVM);
+                                    bodyGenSettingsVM.CurrentMaleConfig = bodyGenConfigFactory(ParentCollection);
                                 }
 
                                 if (updateDisplayedConfig) {  bodyGenSettingsVM.CurrentlyDisplayedConfig = bodyGenSettingsVM.CurrentMaleConfig; }
@@ -81,7 +87,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
                                 }
                                 else
                                 {
-                                    bodyGenSettingsVM.CurrentFemaleConfig = new VM_BodyGenConfig(generalSettingsVM, ParentCollection, bodyGenSettingsVM);
+                                    bodyGenSettingsVM.CurrentFemaleConfig = bodyGenConfigFactory(ParentCollection);
                                 }
 
                                 if (updateDisplayedConfig) { bodyGenSettingsVM.CurrentlyDisplayedConfig = bodyGenSettingsVM.CurrentFemaleConfig; }
@@ -109,7 +115,6 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
                 else
                 {
                     Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save " + Label + ".", ErrorType.Error, 5);
-                    Logger.SwitchViewToLogDisplay();
                 }
             }
         );

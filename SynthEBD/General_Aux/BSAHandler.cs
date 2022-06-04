@@ -82,7 +82,6 @@ public class BSAHandler
                 catch
                 {
                     Logger.LogError("Unable to open archive reader to BSA file " + bsaFile.Path);
-                    Logger.SwitchViewToLogDisplay();
                 }
             }
             if (archiveReaders.Any())
@@ -116,7 +115,6 @@ public class BSAHandler
             catch
             {
                 Logger.LogError("Could not open archive " + bsaFile.Path);
-                Logger.SwitchViewToLogDisplay();
             }
         }
         return readers;
@@ -136,7 +134,6 @@ public class BSAHandler
                 catch
                 {
                     Logger.LogError("Could not create directory at " + dirPath + ". Check path length and permissions.");
-                    Logger.SwitchViewToLogDisplay();
                 }
             }
             try
@@ -147,7 +144,6 @@ public class BSAHandler
             catch
             {
                 Logger.LogError("Could not extract file from BSA: " + file.Path + " to " + destPath + ". Check path length and permissions.");
-                Logger.SwitchViewToLogDisplay();
             }
         }
         else

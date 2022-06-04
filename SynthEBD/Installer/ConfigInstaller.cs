@@ -60,8 +60,7 @@ public class ConfigInstaller
         if (!parsed)
         {
             CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse Manifest.json in " + tempFolderPath + ". Installation aborted.");
-            Logger.LogMessage(exceptionStr);
-            Logger.SwitchViewToLogDisplay();
+            Logger.LogError(exceptionStr);
             return installedConfigs;
         }
         else if (!ValidateManifest(manifest))
@@ -328,7 +327,6 @@ public class ConfigInstaller
         if (assetPathCopyErrors)
         {
             CustomMessageBox.DisplayNotificationOK("Installation warning", "Some installation errors occurred. Please see the Status Log.");
-            Logger.SwitchViewToLogDisplay();
         }
 
         /*

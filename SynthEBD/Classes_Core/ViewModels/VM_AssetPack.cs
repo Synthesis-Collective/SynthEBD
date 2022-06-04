@@ -18,6 +18,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     private readonly MainState _state;
     private readonly VM_SettingsOBody _oBody;
     private readonly VM_Settings_General _general;
+    private readonly VM_BodyGenConfig.Factory _bodyGenConfigFactory;
     private readonly Factory _selfFactory;
 
     public delegate VM_AssetPack Factory();
@@ -28,11 +29,13 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         VM_SettingsOBody oBody,
         VM_SettingsTexMesh texMesh,
         VM_Settings_General general,
+        VM_BodyGenConfig.Factory bodyGenConfigFactory,
         Factory selfFactory)
     {
         _state = state;
         _oBody = oBody;
         _general = general;
+        _bodyGenConfigFactory = bodyGenConfigFactory;
         _selfFactory = selfFactory;
         this.ParentCollection = texMesh.AssetPacks;
 
@@ -46,7 +49,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         this.PropertyChanged += RefreshTrackedBodyGenConfig;
         this.CurrentBodyGenSettings.PropertyChanged += RefreshTrackedBodyGenConfig;
 
-        this.AttributeGroupMenu = new VM_AttributeGroupMenu(general.AttributeGroupMenu, true);
+        this.AttributeGroupMenu = new(general.AttributeGroupMenu, true);
 
         this.ReplacersMenu = new VM_AssetPackDirectReplacerMenu(this, oBody.DescriptorUI);
 
@@ -107,8 +110,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 }
                 else
                 {
-                    Logger.LogMessage(String.Join(Environment.NewLine, errors));
-                    Logger.SwitchViewToLogDisplay();
+                    Logger.LogError(String.Join(Environment.NewLine, errors));
                 }
             }
         );
@@ -138,7 +140,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 }
 
                 var reloadedVM = _selfFactory();
-                reloadedVM.CopyInViewModelFromModel(reloaded);
+                reloadedVM.CopyInViewModelFromModel(reloaded, bodyGenConfigFactory);
                 this.IsSelected = reloadedVM.IsSelected;
                 this.AttributeGroupMenu = reloadedVM.AttributeGroupMenu;
                 this.AvailableBodyGenConfigs = reloadedVM.AvailableBodyGenConfigs;
@@ -249,20 +251,21 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public static void GetViewModelsFromModels(
         List<AssetPack> assetPacks,
         VM_SettingsTexMesh texMesh,
-        Settings_TexMesh texMeshSettings,
+        Settings_TexMesh texMeshSettings, 
+        VM_BodyGenConfig.Factory bodyGenConfigFactory,
         Factory assetPackFactory)
     {
         texMesh.AssetPacks.Clear();
         for (int i = 0; i < assetPacks.Count; i++)
         {
             var viewModel = assetPackFactory();
-            viewModel.CopyInViewModelFromModel(assetPacks[i]);
+            viewModel.CopyInViewModelFromModel(assetPacks[i], bodyGenConfigFactory);
             viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].GroupName);
             texMesh.AssetPacks.Add(viewModel);
         }
     }
     
-    public void CopyInViewModelFromModel(AssetPack model)
+    public void CopyInViewModelFromModel(AssetPack model, VM_BodyGenConfig.Factory bodyGenConfigFactory)
     {
         GroupName = model.GroupName;
         ShortName = model.ShortName;
@@ -287,7 +290,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
         else
         {
-            TrackedBodyGenConfig = new VM_BodyGenConfig(_general, new ObservableCollection<VM_BodyGenConfig>(), CurrentBodyGenSettings);
+            TrackedBodyGenConfig = bodyGenConfigFactory(new ObservableCollection<VM_BodyGenConfig>());
         }
 
         AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
@@ -462,7 +465,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             if (loadSuccess)
             {
                 var newAssetPackVM = _selfFactory();
-                newAssetPackVM.CopyInViewModelFromModel(newAssetPack);
+                newAssetPackVM.CopyInViewModelFromModel(newAssetPack, _bodyGenConfigFactory);
                     
                 // first add completely new top-level subgroups if necessary
                 foreach (var subgroup in newAssetPackVM.Subgroups)

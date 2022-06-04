@@ -11,9 +11,13 @@ namespace SynthEBD;
 
 public class VM_Settings_General : VM, IHasAttributeGroupMenu
 {
-    public VM_Settings_General(SaveLoader saveLoader, VM_SettingsModManager modManagerSettings)
+    public SaveLoader SaveLoader { get; set;  }
+
+    public VM_Settings_General(
+        VM_SettingsModManager modManagerSettings)
     {
         Environment = PatcherEnvironmentProvider.Instance;
+        AttributeGroupMenu = new VM_AttributeGroupMenu(null, false);
 
         this.bLoadSettingsFromDataFolder = PatcherSettings.LoadFromDataFolder;
 
@@ -57,9 +61,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
             PatcherSettings.LoadFromDataFolder = bLoadSettingsFromDataFolder;
             PatcherSettings.Paths.UpdatePaths();
             Patcher.ResolvePatchableRaces();
-            saveLoader.LoadInitialSettingsViewModels();
-            saveLoader.LoadPluginViewModels();
-            saveLoader.LoadFinalSettingsViewModels();
+            SaveLoader.LoadInitialSettingsViewModels();
+            SaveLoader.LoadPluginViewModels();
+            SaveLoader.LoadFinalSettingsViewModels();
             System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.Default;
         });
 
@@ -113,7 +117,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
                         PortableSettingsFolder = selectedPath;
                         PatcherSettings.PortableSettingsFolder = PortableSettingsFolder;
                         PatcherSettings.Paths.UpdatePaths();
-                        saveLoader.SaveAndRefreshPlugins();
+                        SaveLoader.SaveAndRefreshPlugins();
                     }
                 }
             }
@@ -131,7 +135,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
                 PortableSettingsFolder = "";
                 PatcherSettings.PortableSettingsFolder = "";
                 PatcherSettings.Paths.UpdatePaths();
-                saveLoader.SaveAndRefreshPlugins();
+                SaveLoader.SaveAndRefreshPlugins();
             }
         );
     }
@@ -176,11 +180,6 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     public RelayCommand ClearOutputFolder { get; }
     public RelayCommand SelectPortableSettingsFolder { get; }
     public RelayCommand ClearPortableSettingsFolder { get; }
-
-    public VM_Settings_General(VM_AttributeGroupMenu.Factory attributeGroupFactory)
-    {
-        AttributeGroupMenu = attributeGroupFactory(false);
-    }
     
     public static void GetViewModelFromModel(VM_Settings_General viewModel)
     {

@@ -22,7 +22,9 @@ public partial class MainWindow : MahApps.Metro.Controls.MetroWindow
         var builder = new ContainerBuilder();
         builder.RegisterModule<MainModule>();
         var container = builder.Build();
-        
-        this.DataContext = container.Resolve<MainWindow_ViewModel>(); // attach ViewModel to View
+
+        var mvm = container.Resolve<MainWindow_ViewModel>();
+        this.DataContext = mvm;
+        mvm.Init();
     }
 }

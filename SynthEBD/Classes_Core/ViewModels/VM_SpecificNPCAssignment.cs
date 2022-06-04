@@ -160,8 +160,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
 
         if (!npcFormLink.TryResolve(PatcherEnvironmentProvider.Instance.Environment.LinkCache, out var npcRecord))
         {
-            Logger.LogMessage("Warning: the target NPC of the Specific NPC Assignment with FormKey " + viewModel.NPCFormKey.ToString() + " was not found in the current load order.");
-            Logger.SwitchViewToLogDisplay();
+            Logger.LogError("Warning: the target NPC of the Specific NPC Assignment with FormKey " + viewModel.NPCFormKey.ToString() + " was not found in the current load order.");
         }
 
         viewModel.Gender = GetGender(viewModel.NPCFormKey);
@@ -227,7 +226,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
             if (morphFound == false)
             {
                 Logger.LogError("Warning: The forced BodyGen morph " + forcedMorph + " for NPC " + viewModel.DispName + " no longer exists.");
-                Logger.SwitchViewToLogDisplay();
             }
         }
 
@@ -244,7 +242,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
             else
             {
                 Logger.LogError("Warning: The forced Asset Replacer " + replacer.AssetPackName + " for NPC " + viewModel.DispName + " no longer exists.");
-                Logger.SwitchViewToLogDisplay();
             }
         }
 
@@ -276,7 +273,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
                     else
                     {
                         Logger.LogError("Warning: The forced Subgroup " + id + " for NPC " + model.DispName + " no longer exists.");
-                        Logger.SwitchViewToLogDisplay();
                     }
                 }
             }
@@ -285,7 +281,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
         if (!assetPackFound)
         {
             Logger.LogError("Warning: The forced Asset Pack " + assetPackName + " for NPC " + model.DispName + " no longer exists.");
-            Logger.SwitchViewToLogDisplay();
         }
 
         return assetPackFound;
@@ -312,7 +307,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
                     else
                     {
                         Logger.LogError("Warning: The forced Subgroup " + id + " for NPC " + npcName + " no longer exists.");
-                        Logger.SwitchViewToLogDisplay();
                     }
                 }
             }
@@ -321,7 +315,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
         if (!assetPackFound)
         {
             Logger.LogError("Warning: The forced Asset Pack " + assetPackName + " for NPC " + npcName + " no longer exists.");
-            Logger.SwitchViewToLogDisplay();
         }
 
         return assetPackFound;
@@ -589,7 +582,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
         if (!NPCFormKey.IsNull)
         {
             Logger.LogError("Could not resolve gender of NPC with FormKey " + NPCFormKey.ToString() + " because it does not exist in the current load order.");
-            Logger.SwitchViewToLogDisplay();
         }
         return Gender.Male;
     }

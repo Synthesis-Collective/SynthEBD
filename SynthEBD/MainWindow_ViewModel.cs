@@ -6,7 +6,9 @@ namespace SynthEBD;
 public class MainWindow_ViewModel : VM
 {
     private readonly SaveLoader _saveLoader;
-    
+    private readonly VM_Settings_General _settingsGeneral;
+    private readonly VM_NavPanel _navPanel;
+
     public DisplayedItemVm Display { get; }
     public VM_RunButton RunButtonVM { get; }
     public object NavViewModel { get; }
@@ -22,19 +24,24 @@ public class MainWindow_ViewModel : VM
         VM_RunButton runButton)
     {
         _saveLoader = saveLoader;
+        _settingsGeneral = settingsGeneral;
+        _navPanel = navPanel;
         Logger.Instance = logger;
         Display = display;
         StatusBarVM = statusBar;
         RunButtonVM = runButton;
-
-        // Load settings
-        saveLoader.LoadInitialSettingsViewModels();
-        saveLoader.LoadPluginViewModels();
-        saveLoader.LoadFinalSettingsViewModels();
+        NavViewModel = _navPanel;
 
         // Start on the settings VM
-        display.DisplayedViewModel = settingsGeneral;
-        NavViewModel = navPanel;
+        Display.DisplayedViewModel = _settingsGeneral;
+    }
+
+    public void Init()
+    {
+        // Load settings
+        _saveLoader.LoadInitialSettingsViewModels();
+        _saveLoader.LoadPluginViewModels();
+        _saveLoader.LoadFinalSettingsViewModels();
 
         Application.Current.MainWindow.Closing += new CancelEventHandler(MainWindow_Closing);
 

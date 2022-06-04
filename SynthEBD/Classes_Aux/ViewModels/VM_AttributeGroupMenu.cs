@@ -4,8 +4,6 @@ namespace SynthEBD;
 
 public class VM_AttributeGroupMenu : VM
 {
-    public delegate VM_AttributeGroupMenu Factory(bool showImportFromGeneralOption);
-    
     public VM_AttributeGroupMenu(VM_AttributeGroupMenu generalSettingsAttributes, bool showImportFromGeneralOption)
     {
         GeneralSettingsAttributes = generalSettingsAttributes;

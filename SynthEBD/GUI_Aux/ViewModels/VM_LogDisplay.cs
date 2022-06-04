@@ -5,20 +5,30 @@ namespace SynthEBD;
 
 public class VM_LogDisplay : VM
 {
-    private Logger SubscribedLogger { get; set; } = Logger.Instance;
-
+    private readonly Logger _logger;
+    private readonly DisplayedItemVm _displayedItemVm;
     public string DispString { get; set; } = "";
 
     public RelayCommand Clear { get; set; }
     public RelayCommand ShowEnvironment { get; set; }
 
-    public VM_LogDisplay()
+    public VM_LogDisplay(
+        Logger logger,
+        DisplayedItemVm displayedItemVm)
     {
-        this.SubscribedLogger.PropertyChanged += RefreshDisp;
+        _logger = logger;
+        _displayedItemVm = displayedItemVm;
+        logger.PropertyChanged += RefreshDisp;
+        
+        // Switch to log display if any errors
+        logger.LoggedError.Subscribe(_ =>
+        {
+            SwitchViewToLogDisplay();
+        });
 
         Clear = new RelayCommand(
             canExecute: _ => true,
-            execute: x => SubscribedLogger.LogString = ""
+            execute: x => logger.LogString = ""
         );
 
         ShowEnvironment = new RelayCommand(
@@ -29,16 +39,16 @@ public class VM_LogDisplay : VM
 
     public void RefreshDisp(object sender, PropertyChangedEventArgs e)
     {
-        this.DispString = SubscribedLogger.LogString;
+        this.DispString = _logger.LogString;
     }
 
     public void PrintEnvironment(IGameEnvironment environment)
     {
-        SubscribedLogger.LogString += "Data Folder: " + environment.DataFolderPath + Environment.NewLine;
-        SubscribedLogger.LogString += "Load Order Source: " + environment.LoadOrderFilePath + Environment.NewLine;
-        SubscribedLogger.LogString += "Creation Club Listings: " + environment.CreationClubListingsFilePath + Environment.NewLine;
-        SubscribedLogger.LogString += "Game Release: " + environment.GameRelease.ToString() + Environment.NewLine;
-        SubscribedLogger.LogString += "Load Order: " + Environment.NewLine;
+        _logger.LogString += "Data Folder: " + environment.DataFolderPath + Environment.NewLine;
+        _logger.LogString += "Load Order Source: " + environment.LoadOrderFilePath + Environment.NewLine;
+        _logger.LogString += "Creation Club Listings: " + environment.CreationClubListingsFilePath + Environment.NewLine;
+        _logger.LogString += "Game Release: " + environment.GameRelease.ToString() + Environment.NewLine;
+        _logger.LogString += "Load Order: " + Environment.NewLine;
 
         foreach (var mod in environment.LoadOrder.ListedOrder)
         {
@@ -52,8 +62,13 @@ public class VM_LogDisplay : VM
                 dispStr += "-) ";
             }
             dispStr += mod.ModKey.FileName;
-            SubscribedLogger.LogString += dispStr + Environment.NewLine;
+            _logger.LogString += dispStr + Environment.NewLine;
         }
-        DispString = SubscribedLogger.LogString;
+        DispString = _logger.LogString;
+    }
+
+    public void SwitchViewToLogDisplay()
+    {
+        _displayedItemVm.DisplayedViewModel = this;
     }
 }

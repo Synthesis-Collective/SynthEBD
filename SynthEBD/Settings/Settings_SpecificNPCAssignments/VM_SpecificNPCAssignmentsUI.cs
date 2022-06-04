@@ -106,7 +106,6 @@ public class VM_SpecificNPCAssignmentsUI : VM
                 else
                 {
                     Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Specific NPC Assignments.", ErrorType.Error, 5);
-                    Logger.SwitchViewToLogDisplay();
                 }
             }
         );

@@ -5,13 +5,15 @@ namespace SynthEBD;
 
 public class VM_StatusBar : VM
 {
-    public VM_StatusBar()
+    private readonly Logger _logger;
+
+    public VM_StatusBar(Logger logger)
     {
-        this.SubscribedLogger.PropertyChanged += RefreshDisp;
+        _logger = logger;
+        logger.PropertyChanged += RefreshDisp;
     }
 
     public string DispString { get; set; } = "";
-    private Logger SubscribedLogger { get; set; } = Logger.Instance;
     public SolidColorBrush FontColor { get; set; } = new(Colors.Green);
 
     public int ProgressBarMax { get; set; } = 100;
@@ -21,7 +23,7 @@ public class VM_StatusBar : VM
 
     public void RefreshDisp(object sender, PropertyChangedEventArgs e)
     {
-        this.DispString = SubscribedLogger.StatusString;
-        this.FontColor = SubscribedLogger.StatusColor;
+        this.DispString = _logger.StatusString;
+        this.FontColor = _logger.StatusColor;
     }
 }

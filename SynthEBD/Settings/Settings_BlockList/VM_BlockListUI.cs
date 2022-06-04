@@ -45,7 +45,6 @@ public class VM_BlockListUI : VM
                 else
                 {
                     Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Block List.", ErrorType.Error, 5);
-                    Logger.SwitchViewToLogDisplay();
                 }
             }
         );
@@ -118,8 +117,7 @@ public class VM_BlockListUI : VM
             }
             else
             {
-                Logger.LogMessage("Block list parsing failed with the following exception: " + exceptionStr);
-                Logger.SwitchViewToLogDisplay();
+                Logger.LogError("Block list parsing failed with the following exception: " + exceptionStr);
             }
         }
     }
