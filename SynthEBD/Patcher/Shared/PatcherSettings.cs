@@ -9,5 +9,4 @@ public static class PatcherSettings
     public static Settings_Height Height { get; set; }
     public static Settings_ModManager ModManagerIntegration { get; set; }
     public static Paths Paths { get; set; }
-    public static string PortableSettingsFolder { get; set; }
 }

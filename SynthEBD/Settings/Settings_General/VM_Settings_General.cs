@@ -14,11 +14,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     public SaveLoader SaveLoader { get; set; }
 
     public VM_Settings_General(
-        PatcherEnvironmentProvider environment,
         VM_SettingsModManager modManagerSettings,
         PatcherSettingsProvider settingsProvider)
     {
-        Environment = environment;
         AttributeGroupMenu = new VM_AttributeGroupMenu(null, false);
 
         this.bLoadSettingsFromDataFolder = settingsProvider.SourceSettings.Value?.LoadFromDataDir ?? false;
@@ -116,7 +114,6 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
                     else
                     {
                         PortableSettingsFolder = selectedPath;
-                        PatcherSettings.PortableSettingsFolder = PortableSettingsFolder;
                         PatcherSettings.Paths.UpdatePaths();
                         SaveLoader.SaveAndRefreshPlugins();
                     }
@@ -128,13 +125,12 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
             canExecute: _ => true,
             execute: _ =>
             {
-                if (string.IsNullOrWhiteSpace(PatcherSettings.PortableSettingsFolder))
+                if (string.IsNullOrWhiteSpace(PortableSettingsFolder))
                 {
                     CustomMessageBox.DisplayNotificationOK("", "There is no settings folder path to clear.");
                     return;
                 }
                 PortableSettingsFolder = "";
-                PatcherSettings.PortableSettingsFolder = "";
                 PatcherSettings.Paths.UpdatePaths();
                 SaveLoader.SaveAndRefreshPlugins();
             }
@@ -144,7 +140,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     public string OutputDataFolder { get; set; } = "";
     public bool bShowToolTips { get;  set;} = true;
     public bool bChangeMeshesOrTextures { get; set;  } = true;
-    public PatcherEnvironmentProvider Environment { get; }
+    public PatcherEnvironmentProvider Environment { get; set; }
     public BodyShapeSelectionMode BodySelectionMode { get; set;  } = BodyShapeSelectionMode.None;
     public BodySlideSelectionMode BSSelectionMode { get; set; } = BodySlideSelectionMode.OBody;
     public bool ExcludePlayerCharacter { get; set; } = true;
@@ -205,7 +201,6 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, viewModel);
         viewModel.AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
         viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;
-        viewModel.PortableSettingsFolder = PatcherSettings.PortableSettingsFolder;
     }
     public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
     {
@@ -243,7 +238,5 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         model.OverwritePluginAttGroups = viewModel.OverwritePluginAttGroups;
 
         PatcherSettings.General = model;
-
-        PatcherSettings.PortableSettingsFolder = viewModel.PortableSettingsFolder;
     }
 }

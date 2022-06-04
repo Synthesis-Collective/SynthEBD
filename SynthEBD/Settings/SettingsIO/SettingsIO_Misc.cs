@@ -4,32 +4,13 @@ namespace SynthEBD;
 
 public class SettingsIO_Misc
 {
-    public static LoadSource? GetSettingsSource()
-    {
-        if (File.Exists(Paths.SettingsSourcePath))
-        {
-            LoadSource loadSource = JSONhandler<LoadSource>.LoadJSONFile(Paths.SettingsSourcePath, out bool loadSuccess, out string exceptionStr);
-            if (loadSuccess)
-            {
-                PatcherSettings.PortableSettingsFolder = loadSource.PortableSettingsFolder;
-                return loadSource;
-            }
-            else if (!loadSuccess)
-            {
-                Logger.LogError("Could not load Settings Source. Error: " + exceptionStr);
-                return null;
-            }
-        }
-        return null;
-    }
-
     public static void SaveSettingsSource(VM_Settings_General generalSettings, out bool saveSuccess, out string exceptionStr)
     {
         LoadSource source = new LoadSource()
         {
             GameEnvironmentDirectory = PatcherEnvironmentProvider.Instance.GameDataFolder, 
             LoadFromDataDir = generalSettings.bLoadSettingsFromDataFolder,
-            PortableSettingsFolder = PatcherSettings.PortableSettingsFolder, 
+            PortableSettingsFolder = generalSettings.PortableSettingsFolder, 
             SkyrimVersion = PatcherEnvironmentProvider.Instance.SkyrimVersion
         };
         JSONhandler<LoadSource>.SaveJSONFile(source, Paths.SettingsSourcePath, out saveSuccess, out exceptionStr);

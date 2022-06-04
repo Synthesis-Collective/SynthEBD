@@ -96,9 +96,9 @@ public class Paths
     {
         if (_generalSettings.bLoadSettingsFromDataFolder)
         {
-            if (!string.IsNullOrWhiteSpace(PatcherSettings.PortableSettingsFolder) && Directory.Exists(PatcherSettings.PortableSettingsFolder))
+            if (!string.IsNullOrWhiteSpace(_generalSettings.PortableSettingsFolder) && Directory.Exists(_generalSettings.PortableSettingsFolder))
             {
-                RelativePath = PatcherSettings.PortableSettingsFolder;
+                RelativePath = _generalSettings.PortableSettingsFolder;
             }
             else
             {

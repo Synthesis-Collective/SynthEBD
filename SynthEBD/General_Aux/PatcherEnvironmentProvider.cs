@@ -21,11 +21,13 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
     public SkyrimMod OutputMod { get; set; }
     public IGameEnvironment<ISkyrimMod, ISkyrimModGetter> Environment { get; private set; }
 
-    public PatcherEnvironmentProvider(VM_Settings_General generalSettings)
+    public PatcherEnvironmentProvider(
+        PatcherSettingsProvider settingsProvider,
+        VM_Settings_General generalSettings)
     {
         _generalSettings = generalSettings;
         // initialize paths
-        var sourceSettings = SettingsIO_Misc.GetSettingsSource();
+        var sourceSettings = settingsProvider.SourceSettings.Value;
         if (!string.IsNullOrWhiteSpace(sourceSettings?.GameEnvironmentDirectory))
         {
             GameDataFolder = sourceSettings.GameEnvironmentDirectory;
