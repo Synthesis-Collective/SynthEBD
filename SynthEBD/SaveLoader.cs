@@ -60,10 +60,8 @@ public class SaveLoader
     
     public void LoadInitialSettingsViewModels() // view models that should be loaded before plugin VMs
     {
-        bool loadSuccess;
-
         // Load general settings
-        SettingsIO_General.LoadGeneralSettings(out loadSuccess);
+        SettingsIO_General.LoadGeneralSettings(out var loadSuccess);
         VM_Settings_General.GetViewModelFromModel(General);
 
         // Initialize patchable races from general settings (required by some UI elements)
@@ -100,10 +98,8 @@ public class SaveLoader
 
     public void LoadPluginViewModels()
     {
-        bool loadSuccess;
-
         // load bodygen configs before asset packs - asset packs depend on BodyGen but not vice versa
-        _state.BodyGenConfigs = SettingsIO_BodyGen.LoadBodyGenConfigs(PatcherSettings.General.RaceGroupings, out loadSuccess);
+        _state.BodyGenConfigs = SettingsIO_BodyGen.LoadBodyGenConfigs(PatcherSettings.General.RaceGroupings, out var loadSuccess);
         VM_SettingsBodyGen.GetViewModelFromModel(_state.BodyGenConfigs, PatcherSettings.BodyGen, BodyGen, _bodyGenConfigFactory, General);
 
         VM_SettingsOBody.GetViewModelFromModel(PatcherSettings.OBody, _oBody, General.RaceGroupings);
@@ -124,20 +120,19 @@ public class SaveLoader
 
     public void LoadFinalSettingsViewModels() // view models that should be loaded after plugin VMs because they depend on the loaded plugins
     {
-        bool loadSuccess;
         // load specific assignments (must load after plugin view models)
-        var specificNPCAssignments = SettingsIO_SpecificNPCAssignments.LoadAssignments(out loadSuccess);
+        _state.SpecificNPCAssignments = SettingsIO_SpecificNPCAssignments.LoadAssignments(out var loadSuccess);
         VM_SpecificNPCAssignmentsUI.GetViewModelFromModels(
             _assetPackFactory,
             TexMesh,
             BodyGen,
             _specificNpcAssignmentFactory,
             _npcAssignmentsUi,
-            specificNPCAssignments);
+            _state.SpecificNPCAssignments);
 
         // Load Consistency (must load after plugin view models)
-        var consistency = SettingsIO_Misc.LoadConsistency(out loadSuccess);
-        VM_ConsistencyUI.GetViewModelsFromModels(consistency, _consistencyUi.Assignments, TexMesh.AssetPacks);
+        _state.Consistency = SettingsIO_Misc.LoadConsistency(out loadSuccess);
+        VM_ConsistencyUI.GetViewModelsFromModels(_state.Consistency, _consistencyUi.Assignments, TexMesh.AssetPacks);
     }
 
     public void DumpViewModelsToModels()

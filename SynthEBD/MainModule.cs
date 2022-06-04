@@ -36,6 +36,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_BodyGenConfig>().AsSelf();
         builder.RegisterType<AssetPackValidator>().AsSelf();
         builder.RegisterType<VM_Subgroup>().AsSelf();
+        builder.RegisterType<Patcher>().AsSelf();
         builder.RegisterType<VM_BodyShapeDescriptorCreationMenu>().AsSelf();
+        builder.RegisterType<CombinationLog>().AsSelf();
     }
 }

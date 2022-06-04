@@ -9,25 +9,34 @@ namespace SynthEBD;
 
 public class Patcher
 {
+    private readonly MainState _state;
+    private readonly VM_StatusBar _statusBar;
+    private readonly CombinationLog _combinationLog;
+
+    public Patcher(MainState state, VM_StatusBar statusBar, CombinationLog combinationLog)
+    {
+        _state = state;
+        _statusBar = statusBar;
+        _combinationLog = combinationLog;
+    }
+    
     //Synchronous version for debugging only
     //public static void RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins, VM_StatusBar statusBar)
-    public static async Task RunPatcher(
-        MainState state, 
-        VM_StatusBar statusBar)
+    public async Task RunPatcher()
     {
-        var assetPacks = state.AssetPacks.Where(x => PatcherSettings.TexMesh.SelectedAssetPacks.Contains(x.GroupName))
+        var assetPacks = _state.AssetPacks.Where(x => PatcherSettings.TexMesh.SelectedAssetPacks.Contains(x.GroupName))
             .ToList();
         var outputMod = PatcherEnvironmentProvider.Instance.OutputMod;
         ResolvePatchableRaces();
         BodyGenTracker = new BodyGenAssignmentTracker();
         UniqueAssignmentsByName.Clear();
-        UniqueNPCData.UniqueNameExclusions = state.LinkedNPCNameExclusions;
+        UniqueNPCData.UniqueNameExclusions = _state.LinkedNPCNameExclusions;
 
         Logger.UpdateStatus("Patching", false);
         Logger.StartTimer();
         Logger.Instance.PatcherExecutionStart = DateTime.Now;
 
-        statusBar.IsPatching = true;
+        _statusBar.IsPatching = true;
 
         HashSet<LinkedNPCGroupInfo> generatedLinkGroups = new HashSet<LinkedNPCGroupInfo>();
         CategorizedFlattenedAssetPacks availableAssetPacks = null;
@@ -45,7 +54,7 @@ public class Patcher
 
         if (PatcherSettings.General.bChangeMeshesOrTextures)
         {
-            UpdateRecordTemplateAdditonalRaces(assetPacks, state.RecordTemplateLinkCache, state.RecordTemplatePlugins);
+            UpdateRecordTemplateAdditonalRaces(assetPacks, _state.RecordTemplateLinkCache, _state.RecordTemplatePlugins);
             HashSet<FlattenedAssetPack> flattenedAssetPacks = new HashSet<FlattenedAssetPack>();
             flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x)).ToHashSet();
             PathTrimmer.TrimFlattenedAssetPacks(flattenedAssetPacks, PatcherSettings.TexMesh.TrimPaths);
@@ -55,14 +64,14 @@ public class Patcher
             EBDCoreRecords.ApplyHelperSpell(outputMod, EBDHelperSpell);
 
             RecordGenerator.Reinitialize();
-            CombinationLog.Reinitialize();
+            _combinationLog.Reinitialize();
         }
 
         // Several operations are performed that mutate the input settings. For Asset Packs this does not affect saved settings because the operations are performed on the derived FlattenedAssetPacks, but for BodyGen configs and OBody settings these are made directly to the settings files. Therefore, create a deep copy of the configs and operate on those to avoid altering the user's saved settings upon exiting the program
         bool serializationSuccess, deserializationSuccess;
         string serializatonException, deserializationException;
 
-        BodyGenConfigs copiedBodyGenConfigs = JSONhandler<BodyGenConfigs>.Deserialize(JSONhandler<BodyGenConfigs>.Serialize(state.BodyGenConfigs, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
+        BodyGenConfigs copiedBodyGenConfigs = JSONhandler<BodyGenConfigs>.Deserialize(JSONhandler<BodyGenConfigs>.Serialize(_state.BodyGenConfigs, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
         if (!serializationSuccess) { Logger.LogMessage("Error serializing BodyGen configs. Exception: " + serializatonException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
         if (!deserializationSuccess) { Logger.LogMessage("Error deserializing BodyGen configs. Exception: " + deserializationException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
         Settings_OBody copiedOBodySettings = JSONhandler<Settings_OBody>.Deserialize(JSONhandler<Settings_OBody>.Serialize(PatcherSettings.OBody, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
@@ -108,7 +117,7 @@ public class Patcher
 
         if (PatcherSettings.General.bChangeHeight)
         {
-            currentHeightConfig = state.HeightConfigs.Where(x => x.Label == PatcherSettings.Height.SelectedHeightConfig).FirstOrDefault();
+            currentHeightConfig = _state.HeightConfigs.Where(x => x.Label == PatcherSettings.Height.SelectedHeightConfig).FirstOrDefault();
             if (currentHeightConfig == null)
             {
                 Logger.LogError("Could not find selected Height Config:" + PatcherSettings.Height.SelectedHeightConfig + ". Heights will not be assigned.");
@@ -121,13 +130,13 @@ public class Patcher
 
         int npcCounter = 0;
         HashSet<Npc> headPartNPCs = new HashSet<Npc>();
-        statusBar.ProgressBarMax = allNPCs.Count();
-        statusBar.ProgressBarCurrent = 0;
-        statusBar.ProgressBarDisp = "Patched " + statusBar.ProgressBarCurrent + " NPCs";
+        _statusBar.ProgressBarMax = allNPCs.Count();
+        _statusBar.ProgressBarCurrent = 0;
+        _statusBar.ProgressBarDisp = "Patched " + _statusBar.ProgressBarCurrent + " NPCs";
         // Patch main NPCs
-        MainLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, state.Consistency, state.SpecificNPCAssignments, state.BlockList, state.LinkedNPCGroups,  state.RecordTemplateLinkCache, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, statusBar, headPartNPCs);
+        MainLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, headPartNPCs);
         // Finish assigning non-primary linked NPCs
-        MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, state.Consistency, state.SpecificNPCAssignments, state.BlockList, state.LinkedNPCGroups, state.RecordTemplateLinkCache, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, statusBar, headPartNPCs);
+        MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, headPartNPCs);
 
         // Perform headpart functionality if any headparts were patched
         if (headPartNPCs.Any())
@@ -143,7 +152,7 @@ public class Patcher
 
         if (PatcherSettings.General.bChangeMeshesOrTextures)
         {
-            CombinationLog.WriteToFile();
+            _combinationLog.WriteToFile();
         }
 
         if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
@@ -166,7 +175,7 @@ public class Patcher
         string patchOutputPath = System.IO.Path.Combine(PatcherSettings.General.OutputDataFolder, PatcherSettings.General.PatchFileName + ".esp");
         PatcherIO.WritePatch(patchOutputPath, outputMod);
 
-        statusBar.IsPatching = false;
+        _statusBar.IsPatching = false;
     }
 
     public static HashSet<IFormLinkGetter<IRaceGetter>> PatchableRaces;
@@ -193,7 +202,13 @@ public class Patcher
         public HashSet<FlattenedAssetPack> MixInFemale { get; set; }
     }
 
-    private static void MainLoop(IEnumerable<INpcGetter> npcCollection, bool skipLinkedSecondaryNPCs, SkyrimMod outputMod, CategorizedFlattenedAssetPacks sortedAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, HeightConfig currentHeightConfig, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<LinkedNPCGroup> linkedNPCGroups, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, int npcCounter, HashSet<LinkedNPCGroupInfo> generatedLinkGroups, HashSet<INpcGetter> skippedLinkedNPCs, Keyword EBDFaceKW, Keyword EBDScriptKW, Spell bodySlideAssignmentSpell, VM_StatusBar statusBar, HashSet<Npc> headPartNPCs)
+    private void MainLoop(
+        IEnumerable<INpcGetter> npcCollection, bool skipLinkedSecondaryNPCs, SkyrimMod outputMod, 
+        CategorizedFlattenedAssetPacks sortedAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, 
+        HeightConfig currentHeightConfig, int npcCounter,
+        HashSet<LinkedNPCGroupInfo> generatedLinkGroups, HashSet<INpcGetter> skippedLinkedNPCs,
+        Keyword EBDFaceKW, Keyword EBDScriptKW, Spell bodySlideAssignmentSpell,
+        HashSet<Npc> headPartNPCs)
     {
         bool blockAssets;
         bool blockBodyShape;
@@ -213,7 +228,7 @@ public class Patcher
         {
             npcCounter++;
 
-            var currentNPCInfo = new NPCInfo(npc, linkedNPCGroups, generatedLinkGroups, specificNPCAssignments, consistency);
+            var currentNPCInfo = new NPCInfo(npc, _state.LinkedNPCGroups, generatedLinkGroups, _state.SpecificNPCAssignments, _state.Consistency);
             if (!currentNPCInfo.IsPatchable)
             {
                 continue;
@@ -230,13 +245,13 @@ public class Patcher
             }
             else
             {
-                statusBar.ProgressBarCurrent++;
+                _statusBar.ProgressBarCurrent++;
             }
             #endregion
 
-            if (statusBar.ProgressBarCurrent % 1000 == 0)
+            if (_statusBar.ProgressBarCurrent % 1000 == 0)
             {
-                statusBar.ProgressBarDisp = "Patched " + statusBar.ProgressBarCurrent + " NPCs";
+                _statusBar.ProgressBarDisp = "Patched " + _statusBar.ProgressBarCurrent + " NPCs";
             }
 
             #region link by name
@@ -260,8 +275,8 @@ public class Patcher
             #endregion
 
             #region Block List
-            blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(blockList, npc.FormKey);
-            blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey);
+            blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(_state.BlockList, npc.FormKey);
+            blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(_state.BlockList, npc.FormKey);
 
             if (blockListNPCEntry.Assets || blockListPluginEntry.Assets || AssetSelector.BlockAssetDistributionByExistingAssets(currentNPCInfo)) { blockAssets = true; }
             else { blockAssets = false; }
@@ -409,8 +424,8 @@ public class Patcher
                     var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
                     var npcObjectMap = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", npcRecord } };
                     var assignedPaths = new List<FilePathReplacementParsed>(); // for logging only
-                    RecordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, recordTemplateLinkCache, npcObjectMap, objectCaches, outputMod, assignedPaths);
-                    CombinationLog.LogAssignment(currentNPCInfo, assignedCombinations, assignedPaths);
+                    RecordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, _state.RecordTemplateLinkCache, npcObjectMap, objectCaches, outputMod, assignedPaths);
+                    _combinationLog.LogAssignment(currentNPCInfo, assignedCombinations, assignedPaths);
                     if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
                     npcRecord.Keywords.Add(EBDFaceKW);
                     npcRecord.Keywords.Add(EBDScriptKW);
