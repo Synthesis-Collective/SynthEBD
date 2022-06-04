@@ -52,15 +52,15 @@ public class VM_AssetPackDirectReplacerMenu : VM
 
 public class VM_AssetReplacerGroup : VM
 {
-    private readonly VM_SettingsOBody _oBody;
     private readonly VM_Settings_General _generalSettingsVm;
+    private readonly VM_Subgroup.Factory _subGroupFactory;
 
     public delegate VM_AssetReplacerGroup Factory(VM_AssetPackDirectReplacerMenu parent);
     
-    public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, VM_SettingsOBody oBody, VM_Settings_General generalSettingsVM)
+    public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, VM_SettingsOBody oBody, VM_Settings_General generalSettingsVM, VM_Subgroup.Factory subGroupFactory)
     {
-        _oBody = oBody;
         _generalSettingsVm = generalSettingsVM;
+        _subGroupFactory = subGroupFactory;
         this.ParentMenu = parent;
         
         PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
@@ -74,7 +74,7 @@ public class VM_AssetReplacerGroup : VM
 
         AddTopLevelSubgroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.Subgroups.Add(new VM_Subgroup(parent.ParentAssetPack.RaceGroupingList, Subgroups, parent.ParentAssetPack, oBody.DescriptorUI, true))
+            execute: _ => this.Subgroups.Add(subGroupFactory(parent.ParentAssetPack.RaceGroupingList, Subgroups, parent.ParentAssetPack, true))
         );
             
         this.WhenAnyValue(x => x.TemplateNPCFK).Subscribe(x =>
@@ -106,11 +106,10 @@ public class VM_AssetReplacerGroup : VM
         TemplateNPCFK = model.TemplateNPCFormKey;
         foreach (var sg in model.Subgroups)
         {
-            var sgVM = new VM_Subgroup(
+            var sgVM = _subGroupFactory(
                 _generalSettingsVm.RaceGroupings,
                 Subgroups, 
                 ParentMenu.ParentAssetPack,
-                _oBody.DescriptorUI,
                 true);
             sgVM.CopyInViewModelFromModel(sg, _generalSettingsVm);
             SetTemplates(sgVM, TemplateNPCFK);

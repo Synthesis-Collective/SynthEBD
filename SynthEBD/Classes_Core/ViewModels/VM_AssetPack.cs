@@ -20,6 +20,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     private readonly VM_Settings_General _general;
     private readonly VM_BodyGenConfig.Factory _bodyGenConfigFactory;
     private readonly VM_AssetPackDirectReplacerMenu.Factory _assetPackDirectReplacerMenuFactory;
+    private readonly VM_Subgroup.Factory _subgroupFactory;
     private readonly AssetPackValidator _assetPackValidator;
     private readonly Factory _selfFactory;
 
@@ -33,6 +34,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         VM_Settings_General general,
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
         VM_AssetPackDirectReplacerMenu.Factory assetPackDirectReplacerMenuFactory,
+        VM_Subgroup.Factory subgroupFactory,
         AssetPackValidator assetPackValidator,
         Factory selfFactory)
     {
@@ -41,6 +43,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         _general = general;
         _bodyGenConfigFactory = bodyGenConfigFactory;
         _assetPackDirectReplacerMenuFactory = assetPackDirectReplacerMenuFactory;
+        _subgroupFactory = subgroupFactory;
         _assetPackValidator = assetPackValidator;
         _selfFactory = selfFactory;
         this.ParentCollection = texMesh.AssetPacks;
@@ -74,7 +77,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         AddSubgroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => { Subgroups.Add(new VM_Subgroup(general.RaceGroupings, Subgroups, this, oBody.DescriptorUI, false)); }
+            execute: _ => { Subgroups.Add(subgroupFactory(general.RaceGroupings, Subgroups, this, false)); }
         );
 
         RemoveAssetPackConfigFile = new SynthEBD.RelayCommand(
@@ -320,7 +323,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         foreach (var sg in model.Subgroups)
         {
-            var subVm = new VM_Subgroup(_general.RaceGroupings, Subgroups, this, _oBody.DescriptorUI, false);
+            var subVm = _subgroupFactory(_general.RaceGroupings, Subgroups, this, false);
             subVm.CopyInViewModelFromModel(sg, _general);
             Subgroups.Add(subVm);
         }
