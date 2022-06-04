@@ -14,7 +14,12 @@ namespace SynthEBD;
 
 public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 {
-    public VM_Subgroup(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_Subgroup> parentCollection, VM_AssetPack parentAssetPack, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, bool setExplicitReferenceNPC)
+    public VM_Subgroup(
+        ObservableCollection<VM_RaceGrouping> raceGroupingVMs,
+        ObservableCollection<VM_Subgroup> parentCollection,
+        VM_AssetPack parentAssetPack, 
+        VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, 
+        bool setExplicitReferenceNPC)
     {
         SubscribedRaceGroupings = raceGroupingVMs;
         SubscribedOBodyDescriptorMenu = OBodyDescriptorMenu;
@@ -142,50 +147,55 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
     public VM_BodyShapeDescriptorCreationMenu SubscribedOBodyDescriptorMenu { get; set; }
     public ObservableCollection<Graphics.ImagePathWithSource> ImagePaths { get; set; } = new();
 
-    public static VM_Subgroup GetViewModelFromModel(AssetPack.Subgroup model, VM_Settings_General generalSettingsVM, ObservableCollection<VM_Subgroup> parentCollection, VM_AssetPack parentAssetPack, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, bool setExplicitReferenceNPC)
+    public void CopyInViewModelFromModel(
+        AssetPack.Subgroup model,
+        VM_Settings_General generalSettingsVM)
     {
-        var viewModel = new VM_Subgroup(generalSettingsVM.RaceGroupings, parentCollection, parentAssetPack, OBodyDescriptorMenu, setExplicitReferenceNPC);
+        ID = model.ID;
+        Name = model.Name;
+        Enabled = model.Enabled;
+        DistributionEnabled = model.DistributionEnabled;
+        AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
+        AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, generalSettingsVM.RaceGroupings);
+        DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
+        DisallowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.DisallowedRaceGroupings, generalSettingsVM.RaceGroupings);
+        AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, true, null);
+        DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, false, null);
+        foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
+        AllowUnique = model.AllowUnique;
+        AllowNonUnique = model.AllowNonUnique;
+        RequiredSubgroupIDs = model.RequiredSubgroups;
+        RequiredSubgroups = new ObservableCollection<VM_Subgroup>();
+        ExcludedSubgroupIDs = model.ExcludedSubgroups;
+        ExcludedSubgroups = new ObservableCollection<VM_Subgroup>();
+        AddKeywords = VM_CollectionMemberString.InitializeCollectionFromHashSet(model.AddKeywords);
+        ProbabilityWeighting = model.ProbabilityWeighting;
+        PathsMenu = VM_FilePathReplacementMenu.GetViewModelFromModels(model.Paths, this, SetExplicitReferenceNPC);
+        WeightRange = model.WeightRange;
 
-        viewModel.ID = model.ID;
-        viewModel.Name = model.Name;
-        viewModel.Enabled = model.Enabled;
-        viewModel.DistributionEnabled = model.DistributionEnabled;
-        viewModel.AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
-        viewModel.AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, generalSettingsVM.RaceGroupings);
-        viewModel.DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
-        viewModel.DisallowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.DisallowedRaceGroupings, generalSettingsVM.RaceGroupings);
-        viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, true, null);
-        viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, false, null);
-        foreach (var x in viewModel.DisallowedAttributes) { x.DisplayForceIfOption = false; }
-        viewModel.AllowUnique = model.AllowUnique;
-        viewModel.AllowNonUnique = model.AllowNonUnique;
-        viewModel.RequiredSubgroupIDs = model.RequiredSubgroups;
-        viewModel.RequiredSubgroups = new ObservableCollection<VM_Subgroup>();
-        viewModel.ExcludedSubgroupIDs = model.ExcludedSubgroups;
-        viewModel.ExcludedSubgroups = new ObservableCollection<VM_Subgroup>();
-        viewModel.AddKeywords = VM_CollectionMemberString.InitializeCollectionFromHashSet(model.AddKeywords);
-        viewModel.ProbabilityWeighting = model.ProbabilityWeighting;
-        viewModel.PathsMenu = VM_FilePathReplacementMenu.GetViewModelFromModels(model.Paths, viewModel, setExplicitReferenceNPC);
-        viewModel.WeightRange = model.WeightRange;
-
-        if (parentAssetPack.TrackedBodyGenConfig != null)
+        if (ParentAssetPack.TrackedBodyGenConfig != null)
         {
-            viewModel.AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, viewModel.SubscribedRaceGroupings, parentAssetPack);
-            viewModel.DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, viewModel.SubscribedRaceGroupings, parentAssetPack);
+            AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodyGenDescriptors, ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
+            DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodyGenDescriptors, ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
         }
 
-        viewModel.AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, OBodyDescriptorMenu, viewModel.SubscribedRaceGroupings, parentAssetPack);
-        viewModel.DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, OBodyDescriptorMenu, viewModel.SubscribedRaceGroupings, parentAssetPack);
+        AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, SubscribedOBodyDescriptorMenu, SubscribedRaceGroupings, ParentAssetPack);
+        DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, SubscribedOBodyDescriptorMenu, SubscribedRaceGroupings, ParentAssetPack);
 
         foreach (var sg in model.Subgroups)
         {
-            viewModel.Subgroups.Add(GetViewModelFromModel(sg, generalSettingsVM, viewModel.Subgroups, parentAssetPack, OBodyDescriptorMenu, setExplicitReferenceNPC));
+            var subVm = new VM_Subgroup(
+                generalSettingsVM.RaceGroupings,
+                Subgroups,
+                ParentAssetPack, 
+                SubscribedOBodyDescriptorMenu,
+                SetExplicitReferenceNPC);
+            subVm.CopyInViewModelFromModel(sg, generalSettingsVM);
+            Subgroups.Add(subVm);
         }
 
         //dds preview
-        GetDDSPaths(viewModel, viewModel.ImagePaths);
-
-        return viewModel;
+        GetDDSPaths(this, ImagePaths);
     }
 
     private void RefreshListBoxLabel(ObservableCollection<VM_Subgroup> listSource, SubgroupListBox whichBox)

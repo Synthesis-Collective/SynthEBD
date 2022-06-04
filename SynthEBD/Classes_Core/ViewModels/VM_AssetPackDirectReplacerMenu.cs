@@ -96,7 +96,13 @@ public class VM_AssetReplacerGroup : VM
         viewModel.TemplateNPCFK = model.TemplateNPCFormKey;
         foreach (var sg in model.Subgroups)
         {
-            var sgVM = VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM, viewModel.Subgroups, viewModel.ParentMenu.ParentAssetPack, OBodyDescriptorMenu, true);
+            var sgVM = new VM_Subgroup(
+                generalSettingsVM.RaceGroupings,
+                viewModel.Subgroups, 
+                viewModel.ParentMenu.ParentAssetPack,
+                OBodyDescriptorMenu,
+                true);
+            sgVM.CopyInViewModelFromModel(sg, generalSettingsVM);
             SetTemplates(sgVM, viewModel.TemplateNPCFK);
             viewModel.Subgroups.Add(sgVM);
         }

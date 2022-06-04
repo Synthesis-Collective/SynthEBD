@@ -317,7 +317,9 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         foreach (var sg in model.Subgroups)
         {
-            Subgroups.Add(VM_Subgroup.GetViewModelFromModel(sg, _general, Subgroups, this, _oBody.DescriptorUI, false));
+            var subVm = new VM_Subgroup(_general.RaceGroupings, Subgroups, this, _oBody.DescriptorUI, false);
+            subVm.CopyInViewModelFromModel(sg, _general);
+            Subgroups.Add(subVm);
         }
 
         // go back through now that all subgroups have corresponding view models, and link the required and excluded subgroups
