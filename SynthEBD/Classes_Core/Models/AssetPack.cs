@@ -157,7 +157,7 @@ public class AssetPack : IModelHasSubgroups
         public string TopLevelSubgroupID { get; set; } = "";
     }
 
-    private static bool ValidateSubgroups(List<AssetPack.Subgroup> subgroups, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig)
+    private bool ValidateSubgroups(List<AssetPack.Subgroup> subgroups, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig)
     {
         bool isValid = true;
         for (int i = 0; i < subgroups.Count; i++)
@@ -170,7 +170,7 @@ public class AssetPack : IModelHasSubgroups
         return isValid;
     }
 
-    private static bool ValidateSubgroup(Subgroup subgroup, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, int topLevelIndex)
+    private bool ValidateSubgroup(Subgroup subgroup, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, int topLevelIndex)
     {
         if (!subgroup.Enabled) { return true; }
 
@@ -312,7 +312,7 @@ public class AssetPack : IModelHasSubgroups
         return isValid;
     }
 
-    private static bool ValidateID(string id)
+    private bool ValidateID(string id)
     {
         string tmp = id.Replace(".", "");
         if (tmp.All(char.IsLetterOrDigit))
@@ -323,7 +323,7 @@ public class AssetPack : IModelHasSubgroups
         { return false; }
     }
 
-    private static bool ValidateReplacer(AssetReplacerGroup group, BodyGenConfig bodyGenConfig, List<string> errors)
+    private bool ValidateReplacer(AssetReplacerGroup group, BodyGenConfig bodyGenConfig, List<string> errors)
     {
         bool isValid = true;
         if (string.IsNullOrWhiteSpace(group.Label))
@@ -336,7 +336,7 @@ public class AssetPack : IModelHasSubgroups
         return isValid;
     }
 
-    private static bool HasDuplicateSubgroupIDs(IModelHasSubgroups model, List<string> errors)
+    private bool HasDuplicateSubgroupIDs(IModelHasSubgroups model, List<string> errors)
     {
         List<string> ids = new List<string>();
         List<string> duplicates = new List<string>();
@@ -360,7 +360,7 @@ public class AssetPack : IModelHasSubgroups
         }
     }
 
-    private static void GetIDDuplicates(IModelHasSubgroups model, List<string> searched, List<string> duplicates)
+    private void GetIDDuplicates(IModelHasSubgroups model, List<string> searched, List<string> duplicates)
     {
         foreach (var subgroup in model.Subgroups)
         {
@@ -380,7 +380,7 @@ public class AssetPack : IModelHasSubgroups
         }
     }
 
-    private static Subgroup GetSubgroupByID(string id, IModelHasSubgroups model, out bool foundMultiple, List<int> topLevelSubgroupsToSearch)
+    private Subgroup GetSubgroupByID(string id, IModelHasSubgroups model, out bool foundMultiple, List<int> topLevelSubgroupsToSearch)
     {
         List<Subgroup> matched = new List<Subgroup>();
 
@@ -403,7 +403,7 @@ public class AssetPack : IModelHasSubgroups
         return matched.FirstOrDefault();
     }
 
-    private static void GetSubgroupByID(string id, IModelHasSubgroups model, List<Subgroup> matched)
+    private void GetSubgroupByID(string id, IModelHasSubgroups model, List<Subgroup> matched)
     {
         for (int i = 0; i < model.Subgroups.Count; i++)
         {
