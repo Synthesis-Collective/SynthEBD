@@ -19,6 +19,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     private readonly VM_SettingsOBody _oBody;
     private readonly VM_Settings_General _general;
     private readonly VM_BodyGenConfig.Factory _bodyGenConfigFactory;
+    private readonly VM_AssetPackDirectReplacerMenu.Factory _assetPackDirectReplacerMenuFactory;
     private readonly AssetPackValidator _assetPackValidator;
     private readonly Factory _selfFactory;
 
@@ -31,6 +32,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         VM_SettingsTexMesh texMesh,
         VM_Settings_General general,
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
+        VM_AssetPackDirectReplacerMenu.Factory assetPackDirectReplacerMenuFactory,
         AssetPackValidator assetPackValidator,
         Factory selfFactory)
     {
@@ -38,6 +40,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         _oBody = oBody;
         _general = general;
         _bodyGenConfigFactory = bodyGenConfigFactory;
+        _assetPackDirectReplacerMenuFactory = assetPackDirectReplacerMenuFactory;
         _assetPackValidator = assetPackValidator;
         _selfFactory = selfFactory;
         this.ParentCollection = texMesh.AssetPacks;
@@ -54,7 +57,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         this.AttributeGroupMenu = new(general.AttributeGroupMenu, true);
 
-        this.ReplacersMenu = new VM_AssetPackDirectReplacerMenu(this, oBody.DescriptorUI);
+        this.ReplacersMenu = assetPackDirectReplacerMenuFactory(this);
 
         this.DistributionRules = new VM_ConfigDistributionRules(general.RaceGroupings, this, oBody.DescriptorUI);
 
@@ -143,7 +146,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 }
 
                 var reloadedVM = _selfFactory();
-                reloadedVM.CopyInViewModelFromModel(reloaded, bodyGenConfigFactory);
+                reloadedVM.CopyInViewModelFromModel(reloaded);
                 this.IsSelected = reloadedVM.IsSelected;
                 this.AttributeGroupMenu = reloadedVM.AttributeGroupMenu;
                 this.AvailableBodyGenConfigs = reloadedVM.AvailableBodyGenConfigs;
@@ -255,20 +258,19 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         List<AssetPack> assetPacks,
         VM_SettingsTexMesh texMesh,
         Settings_TexMesh texMeshSettings, 
-        VM_BodyGenConfig.Factory bodyGenConfigFactory,
         Factory assetPackFactory)
     {
         texMesh.AssetPacks.Clear();
         for (int i = 0; i < assetPacks.Count; i++)
         {
             var viewModel = assetPackFactory();
-            viewModel.CopyInViewModelFromModel(assetPacks[i], bodyGenConfigFactory);
+            viewModel.CopyInViewModelFromModel(assetPacks[i]);
             viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].GroupName);
             texMesh.AssetPacks.Add(viewModel);
         }
     }
     
-    public void CopyInViewModelFromModel(AssetPack model, VM_BodyGenConfig.Factory bodyGenConfigFactory)
+    public void CopyInViewModelFromModel(AssetPack model)
     {
         GroupName = model.GroupName;
         ShortName = model.ShortName;
@@ -293,12 +295,13 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
         else
         {
-            TrackedBodyGenConfig = bodyGenConfigFactory(new ObservableCollection<VM_BodyGenConfig>());
+            TrackedBodyGenConfig = _bodyGenConfigFactory(new ObservableCollection<VM_BodyGenConfig>());
         }
 
         AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
 
-        ReplacersMenu = VM_AssetPackDirectReplacerMenu.GetViewModelFromModels(model.ReplacerGroups, this, _general, _oBody.DescriptorUI);
+        ReplacersMenu = _assetPackDirectReplacerMenuFactory(this);
+        ReplacersMenu.CopyInViewModelFromModels(model.ReplacerGroups);
 
         DefaultTemplateFK = model.DefaultRecordTemplate;
         foreach(var additionalTemplateAssignment in model.AdditionalRecordTemplateAssignments)
@@ -470,7 +473,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             if (loadSuccess)
             {
                 var newAssetPackVM = _selfFactory();
-                newAssetPackVM.CopyInViewModelFromModel(newAssetPack, _bodyGenConfigFactory);
+                newAssetPackVM.CopyInViewModelFromModel(newAssetPack);
                     
                 // first add completely new top-level subgroups if necessary
                 foreach (var subgroup in newAssetPackVM.Subgroups)

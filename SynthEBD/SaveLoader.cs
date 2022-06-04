@@ -113,7 +113,7 @@ public class SaveLoader
 
         // load asset packs
         _state.AssetPacks = SettingsIO_AssetPack.LoadAssetPacks(PatcherSettings.General.RaceGroupings, _state.RecordTemplatePlugins, _state.BodyGenConfigs, out loadSuccess); // load asset pack models from json
-        VM_AssetPack.GetViewModelsFromModels(_state.AssetPacks, TexMesh, PatcherSettings.TexMesh, _bodyGenConfigFactory, _assetPackFactory); // add asset pack view models to TexMesh shell view model here
+        VM_AssetPack.GetViewModelsFromModels(_state.AssetPacks, TexMesh, PatcherSettings.TexMesh, _assetPackFactory); // add asset pack view models to TexMesh shell view model here
 
         // load heights
         _state.HeightConfigs = SettingsIO_Height.LoadHeightConfigs(out loadSuccess);

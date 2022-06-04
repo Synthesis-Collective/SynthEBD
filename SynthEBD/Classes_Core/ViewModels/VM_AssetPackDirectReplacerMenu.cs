@@ -9,13 +9,20 @@ namespace SynthEBD;
 
 public class VM_AssetPackDirectReplacerMenu : VM
 {
-    public VM_AssetPackDirectReplacerMenu(VM_AssetPack parent, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
+    private readonly VM_SettingsOBody _oBody;
+    private readonly VM_Settings_General _generalSettingsVm;
+
+    public delegate VM_AssetPackDirectReplacerMenu Factory(VM_AssetPack parent);
+    
+    public VM_AssetPackDirectReplacerMenu(VM_AssetPack parent, VM_SettingsOBody oBody, VM_Settings_General generalSettingsVM)
     {
+        _oBody = oBody;
+        _generalSettingsVm = generalSettingsVM;
         ParentAssetPack = parent;
 
         AddGroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.ReplacerGroups.Add(new VM_AssetReplacerGroup(this, OBodyDescriptorMenu))
+            execute: _ => this.ReplacerGroups.Add(new VM_AssetReplacerGroup(this, oBody.DescriptorUI))
         );
     }
     public ObservableCollection<VM_AssetReplacerGroup> ReplacerGroups { get; set; } = new();
@@ -24,15 +31,12 @@ public class VM_AssetPackDirectReplacerMenu : VM
 
     public RelayCommand AddGroup { get; }
 
-    public static VM_AssetPackDirectReplacerMenu GetViewModelFromModels(List<AssetReplacerGroup> models, VM_AssetPack parentAssetPack, VM_Settings_General generalSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
+    public void CopyInViewModelFromModels(List<AssetReplacerGroup> models)
     {
-        VM_AssetPackDirectReplacerMenu viewModel = new VM_AssetPackDirectReplacerMenu(parentAssetPack, OBodyDescriptorMenu);
         foreach(var model in models)
         {
-            viewModel.ReplacerGroups.Add(VM_AssetReplacerGroup.GetViewModelFromModel(model, viewModel, generalSettingsVM, OBodyDescriptorMenu));
+            ReplacerGroups.Add(VM_AssetReplacerGroup.GetViewModelFromModel(model, this, _generalSettingsVm, _oBody.DescriptorUI));
         }
-
-        return viewModel;
     }
 
     public static List<AssetReplacerGroup> DumpViewModelToModels(VM_AssetPackDirectReplacerMenu viewModel)
