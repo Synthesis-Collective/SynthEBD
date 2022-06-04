@@ -57,7 +57,7 @@ public class VM_AssetReplacerGroup : VM
 
     public delegate VM_AssetReplacerGroup Factory(VM_AssetPackDirectReplacerMenu parent);
     
-    public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, VM_SettingsOBody oBody, VM_Settings_General generalSettingsVM, VM_Subgroup.Factory subGroupFactory)
+    public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, VM_Settings_General generalSettingsVM, VM_Subgroup.Factory subGroupFactory)
     {
         _generalSettingsVm = generalSettingsVM;
         _subGroupFactory = subGroupFactory;
