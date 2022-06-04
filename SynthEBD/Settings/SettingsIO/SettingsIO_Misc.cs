@@ -4,7 +4,7 @@ namespace SynthEBD;
 
 public class SettingsIO_Misc
 {
-    public static void GetSettingsSource()
+    public static LoadSource? GetSettingsSource()
     {
         if (File.Exists(Paths.SettingsSourcePath))
         {
@@ -13,15 +13,16 @@ public class SettingsIO_Misc
             {
                 PatcherSettings.LoadFromDataFolder = loadSource.LoadFromDataDir;
                 PatcherSettings.PortableSettingsFolder = loadSource.PortableSettingsFolder;
-                PatcherSettings.InitGameDataFolder = loadSource.GameEnvironmentDirectory;
-                PatcherSettings.InitSkyrimVersion = loadSource.SkyrimVersion;
+                return loadSource;
             }
             else if (!loadSuccess)
             {
                 Logger.LogError("Could not load Settings Source. Error: " + exceptionStr);
                 PatcherSettings.LoadFromDataFolder = false;
+                return null;
             }
         }
+        return null;
     }
 
     public static void SaveSettingsSource(out bool saveSuccess, out string exceptionStr)
