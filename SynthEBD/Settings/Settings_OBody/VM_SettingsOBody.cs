@@ -4,11 +4,13 @@ namespace SynthEBD;
 
 public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 {
-    public VM_SettingsOBody(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_General generalSettingsVM)
+    public VM_SettingsOBody(
+        VM_Settings_General generalSettingsVM,
+        VM_BodyShapeDescriptorCreationMenu.Factory bodyShapeDescriptorCreationMenuFactory)
     {
-        DescriptorUI = new VM_BodyShapeDescriptorCreationMenu(raceGroupingVMs, this);
-        BodySlidesUI = new VM_BodySlidesMenu(this, raceGroupingVMs);
-        AttributeGroupMenu = new VM_AttributeGroupMenu(generalSettingsVM.AttributeGroupMenu, true);
+        DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this);
+        BodySlidesUI = new VM_BodySlidesMenu(this, generalSettingsVM.RaceGroupings);
+        AttributeGroupMenu = new(generalSettingsVM.AttributeGroupMenu, true);
 
         DisplayedUI = BodySlidesUI;
 
@@ -45,14 +47,20 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
     public static void GetViewModelFromModel(Settings_OBody model, VM_SettingsOBody viewModel, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
-        VM_AttributeGroupMenu.GetViewModelFromModels(model.AttributeGroups, viewModel.AttributeGroupMenu); // get this first so other properties can reference it
+        viewModel.AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups); // get this first so other properties can reference it
 
         viewModel.DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, raceGroupingVMs, viewModel, model);
 
         viewModel.DescriptorUI.TemplateDescriptorList.Clear();
         foreach (var descriptor in model.TemplateDescriptors)
         {
-            viewModel.DescriptorUI.TemplateDescriptorList.Add(VM_BodyShapeDescriptor.GetViewModelFromModel(descriptor, raceGroupingVMs, viewModel, model));
+            var subVm = new VM_BodyShapeDescriptor(new VM_BodyShapeDescriptorShell(
+                new ObservableCollection<VM_BodyShapeDescriptorShell>(), 
+                raceGroupingVMs, viewModel),
+                raceGroupingVMs, 
+                viewModel);
+            subVm.CopyInViewModelFromModel(descriptor, raceGroupingVMs, viewModel, model);
+            viewModel.DescriptorUI.TemplateDescriptorList.Add(subVm);
         }
 
         viewModel.BodySlidesUI.CurrentlyExistingBodySlides = model.CurrentlyExistingBodySlides; // must load before presets

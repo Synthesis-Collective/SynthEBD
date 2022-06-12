@@ -76,7 +76,9 @@ public class VM_ConsistencyAssignment : VM
             var parentAssetPack = AssetPackVMs.Where(x => x.GroupName == replacer.AssetPackName).FirstOrDefault();
             if (parentAssetPack != null)
             {
-                viewModel.AssetReplacements.Add(VM_AssetReplacementAssignment.GetViewModelFromModel(replacer, parentAssetPack, viewModel.AssetReplacements));
+                VM_AssetReplacementAssignment subVm = new VM_AssetReplacementAssignment(parentAssetPack, viewModel.AssetReplacements);
+                subVm.CopyInViewModelFromModel(replacer);
+                viewModel.AssetReplacements.Add(subVm);
             }
         }
         viewModel.BodyGenMorphNames = new ObservableCollection<VM_CollectionMemberString>();

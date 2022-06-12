@@ -1,5 +1,4 @@
-﻿using System.Reactive.Linq;
-using Mutagen.Bethesda;
+﻿using Mutagen.Bethesda;
 using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Order;
@@ -12,24 +11,24 @@ namespace SynthEBD;
 
 public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
 {
-    public static PatcherEnvironmentProvider Instance = new();
+    public static PatcherEnvironmentProvider Instance;
     [Reactive] public string PatchFileName { get; set; } = "SynthEBD";
-    [Reactive] public SkyrimRelease SkyrimVersion { get; set; } = SkyrimRelease.SkyrimSE;
+    [Reactive] public SkyrimRelease SkyrimVersion { get; set; }
     [Reactive] public string GameDataFolder { get; set; } = "";
     public RelayCommand SelectGameDataFolder { get; }
     public RelayCommand ClearGameDataFolder { get; }
     public SkyrimMod OutputMod { get; set; }
     public IGameEnvironment<ISkyrimMod, ISkyrimModGetter> Environment { get; private set; }
 
-    private PatcherEnvironmentProvider()
+    public PatcherEnvironmentProvider(PatcherSettingsProvider settingsProvider)
     {
         // initialize paths
-        SettingsIO_Misc.GetSettingsSource();
-        if (!string.IsNullOrWhiteSpace(PatcherSettings.InitGameDataFolder))
+        var sourceSettings = settingsProvider.SourceSettings.Value;
+        if (!string.IsNullOrWhiteSpace(sourceSettings?.GameEnvironmentDirectory))
         {
-            GameDataFolder = PatcherSettings.InitGameDataFolder;
+            GameDataFolder = sourceSettings.GameEnvironmentDirectory;
         }
-        SkyrimVersion = PatcherSettings.InitSkyrimVersion;
+        SkyrimVersion = sourceSettings?.SkyrimVersion ?? SkyrimRelease.SkyrimSE;
 
         UpdateEnvironment(); // create an initial environment
 
@@ -74,8 +73,6 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
         {
             SelectUserSpecifiedGameEnvironment("SynthEBD was unable to create an environment from any default installation directory. This can occur if your game is installed in a non-default location.");
         }
-
-        PatcherSettings.Paths = new Paths(); // update paths now that the environment has been created (environment is needed to set data path if an explicit one has not been set)
     }
 
     private void SelectUserSpecifiedGameEnvironment(string message)

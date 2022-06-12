@@ -5,24 +5,27 @@ namespace SynthEBD;
 
 public class CombinationLog
 {
-    public CombinationLog()
+    private readonly PatcherEnvironmentProvider _environmentProvider;
+
+    public CombinationLog(PatcherEnvironmentProvider environmentProvider)
+    {
+        _environmentProvider = environmentProvider;
+        AssignedPrimaryCombinations = new Dictionary<string, List<CombinationInfo>>();
+        AssignedMixInCombinations = new Dictionary<string, List<CombinationInfo>>();
+        AssignedReplacerCombinations = new Dictionary<string, List<CombinationInfo>>();
+    }
+    public Dictionary<string, List<CombinationInfo>> AssignedPrimaryCombinations { get; set; }
+    public Dictionary<string, List<CombinationInfo>> AssignedMixInCombinations { get; set; }
+    public Dictionary<string, List<CombinationInfo>> AssignedReplacerCombinations { get; set; }
+
+    public void Reinitialize() 
     {
         AssignedPrimaryCombinations = new Dictionary<string, List<CombinationInfo>>();
         AssignedMixInCombinations = new Dictionary<string, List<CombinationInfo>>();
         AssignedReplacerCombinations = new Dictionary<string, List<CombinationInfo>>();
     }
-    public static Dictionary<string, List<CombinationInfo>> AssignedPrimaryCombinations { get; set; }
-    public static Dictionary<string, List<CombinationInfo>> AssignedMixInCombinations { get; set; }
-    public static Dictionary<string, List<CombinationInfo>> AssignedReplacerCombinations { get; set; }
 
-    public static void Reinitialize() 
-    {
-        AssignedPrimaryCombinations = new Dictionary<string, List<CombinationInfo>>();
-        AssignedMixInCombinations = new Dictionary<string, List<CombinationInfo>>();
-        AssignedReplacerCombinations = new Dictionary<string, List<CombinationInfo>>();
-    }
-
-    public static void WriteToFile()
+    public void WriteToFile()
     {
         if (!PatcherSettings.TexMesh.bGenerateAssignmentLog) { return; }
         string outputFile = System.IO.Path.Combine(PatcherSettings.Paths.LogFolderPath, Logger.Instance.PatcherExecutionStart.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture), "Generated Combinations.txt");
@@ -41,7 +44,7 @@ public class CombinationLog
         Task.Run(() => PatcherIO.WriteTextFile(outputFile, output));
     }
 
-    public static void FormatCombinationInfoOutput(Dictionary<string, List<CombinationInfo>> combinationInfo, List<string> fileContents)
+    public void FormatCombinationInfoOutput(Dictionary<string, List<CombinationInfo>> combinationInfo, List<string> fileContents)
     {
         foreach (var entry in combinationInfo)
         {
@@ -78,11 +81,11 @@ public class CombinationLog
         }
     }
 
-    public static void ResolveSubRecords(GeneratedRecordInfo recordInfo, HashSet<GeneratedRecordInfo> subRecords)
+    public void ResolveSubRecords(GeneratedRecordInfo recordInfo, HashSet<GeneratedRecordInfo> subRecords)
     {
         foreach (var containedFormLink in recordInfo.SubRecords)
         {
-            if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve(containedFormLink.FormKey, containedFormLink.Type, out var resolvedSubRecord))
+            if (_environmentProvider.Environment.LinkCache.TryResolve(containedFormLink.FormKey, containedFormLink.Type, out var resolvedSubRecord))
             {
                 var loggedSubRecord = new GeneratedRecordInfo() { EditorID = resolvedSubRecord.EditorID, FormKey = resolvedSubRecord.FormKey.ToString(), SubRecords = resolvedSubRecord.EnumerateFormLinks().Where(x => x.FormKey.ModKey == resolvedSubRecord.FormKey.ModKey).ToHashSet() };
                     
@@ -96,7 +99,7 @@ public class CombinationLog
         }
     }
 
-    public static void LogAssignment(NPCInfo npcInfo, List<SubgroupCombination> combinations, List<FilePathReplacementParsed> assignedPaths)
+    public void LogAssignment(NPCInfo npcInfo, List<SubgroupCombination> combinations, List<FilePathReplacementParsed> assignedPaths)
     {
         if (!PatcherSettings.TexMesh.bGenerateAssignmentLog) { return; }
 
@@ -106,9 +109,9 @@ public class CombinationLog
         {
             switch (combination.AssetPack.Type)
             {
-                case FlattenedAssetPack.AssetPackType.Primary: combinationDict = CombinationLog.AssignedPrimaryCombinations; break;
-                case FlattenedAssetPack.AssetPackType.MixIn: combinationDict = CombinationLog.AssignedMixInCombinations; break;
-                case FlattenedAssetPack.AssetPackType.ReplacerVirtual: combinationDict = CombinationLog.AssignedReplacerCombinations; break;
+                case FlattenedAssetPack.AssetPackType.Primary: combinationDict = AssignedPrimaryCombinations; break;
+                case FlattenedAssetPack.AssetPackType.MixIn: combinationDict = AssignedMixInCombinations; break;
+                case FlattenedAssetPack.AssetPackType.ReplacerVirtual: combinationDict = AssignedReplacerCombinations; break;
             }
 
             List<CombinationInfo> currentAssetPackCombinations = null;

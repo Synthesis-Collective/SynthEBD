@@ -83,7 +83,6 @@ class SettingsIO_AssetPack
             else
             {
                 Logger.LogError("Could not parse " + path + " as SynthEBD or zEBD Asset Config File. Error: " + exceptionStr);
-                Logger.SwitchViewToLogDisplay();
                 loadSuccess = false;
                 return synthEBDconfig;
             }

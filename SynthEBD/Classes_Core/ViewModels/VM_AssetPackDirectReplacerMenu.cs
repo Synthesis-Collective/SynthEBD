@@ -9,13 +9,18 @@ namespace SynthEBD;
 
 public class VM_AssetPackDirectReplacerMenu : VM
 {
-    public VM_AssetPackDirectReplacerMenu(VM_AssetPack parent, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
+    private readonly VM_AssetReplacerGroup.Factory _assetReplaceGroupFactory;
+
+    public delegate VM_AssetPackDirectReplacerMenu Factory(VM_AssetPack parent);
+    
+    public VM_AssetPackDirectReplacerMenu(VM_AssetPack parent, VM_AssetReplacerGroup.Factory assetReplaceGroupFactory)
     {
+        _assetReplaceGroupFactory = assetReplaceGroupFactory;
         ParentAssetPack = parent;
 
         AddGroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.ReplacerGroups.Add(new VM_AssetReplacerGroup(this, OBodyDescriptorMenu))
+            execute: _ => this.ReplacerGroups.Add(assetReplaceGroupFactory(this))
         );
     }
     public ObservableCollection<VM_AssetReplacerGroup> ReplacerGroups { get; set; } = new();
@@ -24,15 +29,14 @@ public class VM_AssetPackDirectReplacerMenu : VM
 
     public RelayCommand AddGroup { get; }
 
-    public static VM_AssetPackDirectReplacerMenu GetViewModelFromModels(List<AssetReplacerGroup> models, VM_AssetPack parentAssetPack, VM_Settings_General generalSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
+    public void CopyInViewModelFromModels(List<AssetReplacerGroup> models)
     {
-        VM_AssetPackDirectReplacerMenu viewModel = new VM_AssetPackDirectReplacerMenu(parentAssetPack, OBodyDescriptorMenu);
         foreach(var model in models)
         {
-            viewModel.ReplacerGroups.Add(VM_AssetReplacerGroup.GetViewModelFromModel(model, viewModel, generalSettingsVM, OBodyDescriptorMenu));
+            var subVm = _assetReplaceGroupFactory(this);
+            subVm.CopyInViewModelFromModel(model);
+            ReplacerGroups.Add(subVm);
         }
-
-        return viewModel;
     }
 
     public static List<AssetReplacerGroup> DumpViewModelToModels(VM_AssetPackDirectReplacerMenu viewModel)
@@ -48,8 +52,15 @@ public class VM_AssetPackDirectReplacerMenu : VM
 
 public class VM_AssetReplacerGroup : VM
 {
-    public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
+    private readonly VM_Settings_General _generalSettingsVm;
+    private readonly VM_Subgroup.Factory _subGroupFactory;
+
+    public delegate VM_AssetReplacerGroup Factory(VM_AssetPackDirectReplacerMenu parent);
+    
+    public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, VM_Settings_General generalSettingsVM, VM_Subgroup.Factory subGroupFactory)
     {
+        _generalSettingsVm = generalSettingsVM;
+        _subGroupFactory = subGroupFactory;
         this.ParentMenu = parent;
         
         PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
@@ -63,7 +74,7 @@ public class VM_AssetReplacerGroup : VM
 
         AddTopLevelSubgroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.Subgroups.Add(new VM_Subgroup(parent.ParentAssetPack.RaceGroupingList, Subgroups, parent.ParentAssetPack, OBodyDescriptorMenu, true))
+            execute: _ => this.Subgroups.Add(subGroupFactory(parent.ParentAssetPack.RaceGroupingList, Subgroups, parent.ParentAssetPack, true))
         );
             
         this.WhenAnyValue(x => x.TemplateNPCFK).Subscribe(x =>
@@ -89,22 +100,24 @@ public class VM_AssetReplacerGroup : VM
 
     public RelayCommand AddTopLevelSubgroup { get; }
 
-    public static VM_AssetReplacerGroup GetViewModelFromModel(AssetReplacerGroup model, VM_AssetPackDirectReplacerMenu parentMenu, VM_Settings_General generalSettingsVM, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
+    public void CopyInViewModelFromModel(AssetReplacerGroup model)
     {
-        VM_AssetReplacerGroup viewModel = new VM_AssetReplacerGroup(parentMenu, OBodyDescriptorMenu);
-        viewModel.Label = model.Label;
-        viewModel.TemplateNPCFK = model.TemplateNPCFormKey;
+        Label = model.Label;
+        TemplateNPCFK = model.TemplateNPCFormKey;
         foreach (var sg in model.Subgroups)
         {
-            var sgVM = VM_Subgroup.GetViewModelFromModel(sg, generalSettingsVM, viewModel.Subgroups, viewModel.ParentMenu.ParentAssetPack, OBodyDescriptorMenu, true);
-            SetTemplates(sgVM, viewModel.TemplateNPCFK);
-            viewModel.Subgroups.Add(sgVM);
+            var sgVM = _subGroupFactory(
+                _generalSettingsVm.RaceGroupings,
+                Subgroups, 
+                ParentMenu.ParentAssetPack,
+                true);
+            sgVM.CopyInViewModelFromModel(sg, _generalSettingsVm);
+            SetTemplates(sgVM, TemplateNPCFK);
+            Subgroups.Add(sgVM);
         }
-        ObservableCollection<VM_Subgroup> flattenedSubgroupList = VM_AssetPack.FlattenSubgroupVMs(viewModel.Subgroups, new ObservableCollection<VM_Subgroup>());
+        ObservableCollection<VM_Subgroup> flattenedSubgroupList = VM_AssetPack.FlattenSubgroupVMs(Subgroups, new ObservableCollection<VM_Subgroup>());
         VM_AssetPack.LinkRequiredSubgroups(flattenedSubgroupList);
         VM_AssetPack.LinkExcludedSubgroups(flattenedSubgroupList);
-
-        return viewModel;
     }
 
     public static AssetReplacerGroup DumpViewModelToModel(VM_AssetReplacerGroup viewModel)

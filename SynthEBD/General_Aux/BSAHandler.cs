@@ -10,9 +10,10 @@ public class PathedArchiveReader
     public IArchiveReader? Reader { get; set; }
     public Noggog.FilePath FilePath { get; set; }
 }
+
 public class BSAHandler
 {
-    public static bool ReferencedPathExists(string expectedFilePath, out bool archiveExists, out string modName)
+    public bool ReferencedPathExists(string expectedFilePath, out bool archiveExists, out string modName)
     {
         archiveExists = false;
         modName = "";
@@ -59,7 +60,7 @@ public class BSAHandler
         }
     }
 
-    public static bool TryOpenCorrespondingArchiveReaders(ModKey modKey, out HashSet<IArchiveReader> archiveReaders)
+    public bool TryOpenCorrespondingArchiveReaders(ModKey modKey, out HashSet<IArchiveReader> archiveReaders)
     {
         archiveReaders = new HashSet<IArchiveReader>();
         if (OpenReaders.ContainsKey(modKey))
@@ -82,7 +83,6 @@ public class BSAHandler
                 catch
                 {
                     Logger.LogError("Unable to open archive reader to BSA file " + bsaFile.Path);
-                    Logger.SwitchViewToLogDisplay();
                 }
             }
             if (archiveReaders.Any())
@@ -95,7 +95,7 @@ public class BSAHandler
         return false;
     }
 
-    public static List<PathedArchiveReader> OpenBSAArchiveReaders(string currentDataDir, ModKey currentPlugin)
+    public List<PathedArchiveReader> OpenBSAArchiveReaders(string currentDataDir, ModKey currentPlugin)
     {
         if (currentPlugin == null || currentPlugin.IsNull) { return new List<PathedArchiveReader>(); }
         if (!Directory.Exists(currentDataDir))
@@ -116,13 +116,12 @@ public class BSAHandler
             catch
             {
                 Logger.LogError("Could not open archive " + bsaFile.Path);
-                Logger.SwitchViewToLogDisplay();
             }
         }
         return readers;
     }
 
-    public static void ExtractFileFromBSA(IArchiveFile file, string destPath)
+    public void ExtractFileFromBSA(IArchiveFile file, string destPath)
     {
         string? dirPath = Path.GetDirectoryName(destPath);
         if (dirPath != null)
@@ -136,7 +135,6 @@ public class BSAHandler
                 catch
                 {
                     Logger.LogError("Could not create directory at " + dirPath + ". Check path length and permissions.");
-                    Logger.SwitchViewToLogDisplay();
                 }
             }
             try
@@ -147,7 +145,6 @@ public class BSAHandler
             catch
             {
                 Logger.LogError("Could not extract file from BSA: " + file.Path + " to " + destPath + ". Check path length and permissions.");
-                Logger.SwitchViewToLogDisplay();
             }
         }
         else
@@ -156,7 +153,7 @@ public class BSAHandler
         }
     }
 
-    public static bool TryGetFile(string subpath, IArchiveReader bsaReader, out IArchiveFile file)
+    public bool TryGetFile(string subpath, IArchiveReader bsaReader, out IArchiveFile file)
     {
         file = null;
         if (bsaReader == null) { return false; }
@@ -172,7 +169,7 @@ public class BSAHandler
         }
     }
 
-    public static bool ReadersHaveFile(string subpath, HashSet<IArchiveReader> bsaReaders, out IArchiveFile archiveFile)
+    public bool ReadersHaveFile(string subpath, HashSet<IArchiveReader> bsaReaders, out IArchiveFile archiveFile)
     {
         foreach (var reader in bsaReaders)
         {
@@ -186,5 +183,5 @@ public class BSAHandler
         return false;
     }
 
-    public static Dictionary<ModKey, HashSet<IArchiveReader>> OpenReaders = new Dictionary<ModKey, HashSet<IArchiveReader>>();
+    public Dictionary<ModKey, HashSet<IArchiveReader>> OpenReaders = new Dictionary<ModKey, HashSet<IArchiveReader>>();
 }

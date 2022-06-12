@@ -47,7 +47,6 @@ public class FilePathReplacementParsed
         if (!recordTemplateLinkCache.TryResolve<INpcGetter>(templateFK, out var templateNPC) && chosenAssetPack.Type != FlattenedAssetPack.AssetPackType.ReplacerVirtual)
         {
             Logger.LogError("Error: Cannot resolve template NPC with FormKey " + templateFK.ToString());
-            Logger.SwitchViewToLogDisplay();
             return null;
         }
         else

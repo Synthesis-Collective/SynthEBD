@@ -5,15 +5,20 @@ namespace SynthEBD;
 
 public class VM_SpecificNPCAssignmentsUI : VM
 {
-    public VM_SpecificNPCAssignmentsUI(VM_SettingsTexMesh texMeshSettings, VM_SettingsBodyGen bodyGenSettings, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, MainWindow_ViewModel mainVM)
+    public VM_SpecificNPCAssignmentsUI(
+        VM_SettingsTexMesh texMeshSettings,
+        VM_SettingsBodyGen bodyGenSettings, 
+        VM_Settings_General generalSettingsVM,
+        VM_AssetPack.Factory assetPackFactory, 
+        VM_SpecificNPCAssignment.Factory specificNpcAssignmentFactory)
     {
         this.BodyGenSettings = bodyGenSettings;
         this.TexMeshSettings = texMeshSettings;
-        this.SubscribedGeneralSettings = mainVM.GeneralSettingsVM;
+        this.SubscribedGeneralSettings = generalSettingsVM;
 
         AddAssignment = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.Assignments.Add(new VM_SpecificNPCAssignment(mainVM))
+            execute: _ => this.Assignments.Add(specificNpcAssignmentFactory())
         );
 
         RemoveAssignment = new SynthEBD.RelayCommand(
@@ -23,7 +28,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
 
         ImportFromZEBDcommand = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => ImportFromZEBD(oBodySettings, generalSettingsVM, mainVM)
+            execute: _ => ImportFromZEBD(assetPackFactory, texMeshSettings, bodyGenSettings, specificNpcAssignmentFactory)
         );
 
         ImportBodyGenMorphsIni = new SynthEBD.RelayCommand(
@@ -74,7 +79,8 @@ public class VM_SpecificNPCAssignmentsUI : VM
                                 var specificAssignment = this.Assignments.FirstOrDefault(x => x.NPCFormKey.Equals(assignment.Item1));
                                 if (specificAssignment == null)
                                 {
-                                    specificAssignment = new VM_SpecificNPCAssignment(mainVM) { NPCFormKey = assignment.Item1 };
+                                    specificAssignment = specificNpcAssignmentFactory();
+                                    specificAssignment.NPCFormKey = assignment.Item1;
                                     specificAssignment.DispName = Converters.CreateNPCDispNameFromFormKey(assignment.Item1);
                                     Assignments.Add(specificAssignment);
                                 }
@@ -100,7 +106,6 @@ public class VM_SpecificNPCAssignmentsUI : VM
                 else
                 {
                     Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Specific NPC Assignments.", ErrorType.Error, 5);
-                    Logger.SwitchViewToLogDisplay();
                 }
             }
         );
@@ -121,12 +126,19 @@ public class VM_SpecificNPCAssignmentsUI : VM
     public RelayCommand ImportBodyGenMorphsIni { get; set; }
     public RelayCommand Save { get; }
 
-    public static void GetViewModelFromModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<NPCAssignment> models, VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, MainWindow_ViewModel mainVM)
+    public static void GetViewModelFromModels(
+        VM_AssetPack.Factory assetPackFactory, 
+        VM_SettingsTexMesh texMesh,
+        VM_SettingsBodyGen bodyGen,
+        VM_SpecificNPCAssignment.Factory specificNpcAssignmentFactory,
+        VM_SpecificNPCAssignmentsUI viewModel, 
+        HashSet<NPCAssignment> models)
     {
         viewModel.Assignments.Clear();
         foreach (var assignment in models)
         {
-            viewModel.Assignments.Add(VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, mainVM));
+            viewModel.Assignments.Add(
+                VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, assetPackFactory, texMesh, bodyGen, specificNpcAssignmentFactory));
         }
     }
 
@@ -139,7 +151,11 @@ public class VM_SpecificNPCAssignmentsUI : VM
         }
     }
 
-    public void ImportFromZEBD(VM_SettingsOBody oBodySettings, VM_Settings_General generalSettingsVM, MainWindow_ViewModel mainVM)
+    public void ImportFromZEBD(
+        VM_AssetPack.Factory assetPackFactory, 
+        VM_SettingsTexMesh texMesh,
+        VM_SettingsBodyGen bodyGen,
+        VM_SpecificNPCAssignment.Factory specificNpcAssignmentFactory)
     {
         // Configure open file dialog box
         var dialog = new Microsoft.Win32.OpenFileDialog();
@@ -163,7 +179,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
 
                 foreach (var model in newModels)
                 {
-                    var assignmentVM = VM_SpecificNPCAssignment.GetViewModelFromModel(model, mainVM);
+                    var assignmentVM = VM_SpecificNPCAssignment.GetViewModelFromModel(model, assetPackFactory, texMesh, bodyGen, specificNpcAssignmentFactory);
                     if (assignmentVM != null) // null if the imported NPC doesn't exist in the current load order
                     {
                         this.Assignments.Add(assignmentVM);

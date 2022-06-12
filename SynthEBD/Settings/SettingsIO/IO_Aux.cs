@@ -159,11 +159,6 @@ public class IO_Aux
             exceedsPathLimit=true;
         }
 
-        if (error)
-        {
-            Logger.SwitchViewToLogDisplay();
-        }
-
         if (exceedsPathLimit && !isInner)
         {
             CustomMessageBox.DisplayNotificationOK("Deletion Warning", "Some file/folder paths in " + target_dir + " exceed 260 characters and cannot be deleted automatically. You may delete them manually after SynthEBD closes.");

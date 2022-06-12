@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using Autofac;
 
 namespace SynthEBD;
 
@@ -18,6 +19,12 @@ public partial class MainWindow : MahApps.Metro.Controls.MetroWindow
         this.Height = (System.Windows.SystemParameters.FullPrimaryScreenHeight) + SystemParameters.WindowCaptionHeight;
         this.Width = (System.Windows.SystemParameters.MaximizedPrimaryScreenWidth * 0.5);
 
-        this.DataContext = new MainWindow_ViewModel(); // attach ViewModel to View
+        var builder = new ContainerBuilder();
+        builder.RegisterModule<MainModule>();
+        var container = builder.Build();
+
+        var mvm = container.Resolve<MainWindow_ViewModel>();
+        this.DataContext = mvm;
+        mvm.Init();
     }
 }

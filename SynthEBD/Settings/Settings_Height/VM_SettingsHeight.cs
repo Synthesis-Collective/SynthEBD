@@ -7,9 +7,9 @@ namespace SynthEBD;
 
 public class VM_SettingsHeight : VM
 {
-    public VM_SettingsHeight()
+    public VM_SettingsHeight(PatcherEnvironmentProvider environmentProvider)
     {
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        environmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
         

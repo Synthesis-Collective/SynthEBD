@@ -41,7 +41,7 @@ public class VM_BodyGenTemplateMenu : VM
                     foreach(var template in newTemplates.Where(x => !Templates.Select(x => x.Label).Contains(x.Label)))
                     {
                         var templateVM = new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, Templates, parentConfig);
-                        VM_BodyGenTemplate.GetViewModelFromModel(template, templateVM, parentConfig.DescriptorUI, raceGroupingVMs);
+                        templateVM.CopyInViewModelFromModel(template, parentConfig.DescriptorUI, raceGroupingVMs);
                         Templates.Add(templateVM);
                     }
                 }
@@ -141,16 +141,16 @@ public class VM_BodyGenTemplate : VM
     public string StatusText { get; set; }
     public bool ShowStatus { get; set; }
 
-    public static void GetViewModelFromModel(BodyGenConfig.BodyGenTemplate model, VM_BodyGenTemplate viewModel, VM_BodyShapeDescriptorCreationMenu descriptorMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
+    public void CopyInViewModelFromModel(BodyGenConfig.BodyGenTemplate model, VM_BodyShapeDescriptorCreationMenu descriptorMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
-        viewModel.Label = model.Label;
-        viewModel.Notes = model.Notes;
-        viewModel.Specs = model.Specs;
-        viewModel.GroupSelectionCheckList.InitializeFromHashSet(model.MemberOfTemplateGroups);
-        viewModel.DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.BodyShapeDescriptors, descriptorMenu, raceGroupingVMs, viewModel.ParentConfig);
-        viewModel.AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
-        viewModel.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
-        foreach (var grouping in viewModel.AllowedRaceGroupings.RaceGroupingSelections)
+        Label = model.Label;
+        Notes = model.Notes;
+        Specs = model.Specs;
+        GroupSelectionCheckList.InitializeFromHashSet(model.MemberOfTemplateGroups);
+        DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.BodyShapeDescriptors, descriptorMenu, raceGroupingVMs, ParentConfig);
+        AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
+        AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+        foreach (var grouping in AllowedRaceGroupings.RaceGroupingSelections)
         {
             if (model.AllowedRaceGroupings.Contains(grouping.Label))
             {
@@ -159,10 +159,10 @@ public class VM_BodyGenTemplate : VM
             else { grouping.IsSelected = false; }
         }
 
-        viewModel.DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
-        viewModel.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+        DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
+        DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
             
-        foreach (var grouping in viewModel.DisallowedRaceGroupings.RaceGroupingSelections)
+        foreach (var grouping in DisallowedRaceGroupings.RaceGroupingSelections)
         {
             if (model.DisallowedRaceGroupings.Contains(grouping.Label))
             {
@@ -171,17 +171,17 @@ public class VM_BodyGenTemplate : VM
             else { grouping.IsSelected = false; }
         }
 
-        viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, viewModel.ParentConfig.AttributeGroupMenu.Groups, true, null);
-        viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, viewModel.ParentConfig.AttributeGroupMenu.Groups, false, null);
-        foreach (var x in viewModel.DisallowedAttributes) { x.DisplayForceIfOption = false; }
-        viewModel.bAllowUnique = model.AllowUnique;
-        viewModel.bAllowNonUnique = model.AllowNonUnique;
-        viewModel.bAllowRandom = model.AllowRandom;
-        viewModel.ProbabilityWeighting = model.ProbabilityWeighting;
-        viewModel.RequiredTemplates = VM_CollectionMemberString.InitializeCollectionFromHashSet(model.RequiredTemplates);
-        viewModel.WeightRange = model.WeightRange;
+        AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null);
+        DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null);
+        foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
+        bAllowUnique = model.AllowUnique;
+        bAllowNonUnique = model.AllowNonUnique;
+        bAllowRandom = model.AllowRandom;
+        ProbabilityWeighting = model.ProbabilityWeighting;
+        RequiredTemplates = VM_CollectionMemberString.InitializeCollectionFromHashSet(model.RequiredTemplates);
+        WeightRange = model.WeightRange;
 
-        viewModel.UpdateStatusDisplay();
+        UpdateStatusDisplay();
     }
 
     public static BodyGenConfig.BodyGenTemplate DumpViewModelToModel(VM_BodyGenTemplate viewModel)

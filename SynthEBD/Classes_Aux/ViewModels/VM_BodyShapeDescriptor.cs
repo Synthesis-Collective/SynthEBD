@@ -22,23 +22,22 @@ public class VM_BodyShapeDescriptor : VM
 
     public RelayCommand RemoveDescriptorValue { get; }
 
-    public static VM_BodyShapeDescriptor GetViewModelFromModel(BodyShapeDescriptor model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, IHasDescriptorRules parentDescriptorConfig)
+    public void CopyInViewModelFromModel(BodyShapeDescriptor model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, IHasDescriptorRules parentDescriptorConfig)
     {
-        VM_BodyShapeDescriptor viewModel = new VM_BodyShapeDescriptor(new VM_BodyShapeDescriptorShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), raceGroupingVMs, parentConfig), raceGroupingVMs, parentConfig);
-        viewModel.Value = model.Value;
-        viewModel.Signature = model.Category + ": " + model.Value;
+        Value = model.Value;
+        Signature = model.Category + ": " + model.Value;
 
-        var descriptorRules = parentDescriptorConfig.DescriptorRules.Where(x => x.DescriptorSignature == viewModel.Signature).FirstOrDefault();
+        var descriptorRules = parentDescriptorConfig.DescriptorRules.Where(x => x.DescriptorSignature == Signature).FirstOrDefault();
         if (descriptorRules != null)
         {
-            viewModel.AssociatedRules = VM_BodyShapeDescriptorRules.GetViewModelFromModel(descriptorRules, viewModel, parentConfig, raceGroupingVMs);
+            var subVm = new VM_BodyShapeDescriptorRules(this, raceGroupingVMs, parentConfig);
+            subVm.CopyInViewModelFromModel(descriptorRules, raceGroupingVMs);
+            AssociatedRules = subVm;
         }
         else
         {
-            viewModel.AssociatedRules = new VM_BodyShapeDescriptorRules(viewModel, raceGroupingVMs, parentConfig);
+            AssociatedRules = new VM_BodyShapeDescriptorRules(this, raceGroupingVMs, parentConfig);
         }
-
-        return viewModel;
     }
 
     public static BodyShapeDescriptor DumpViewModeltoModel(VM_BodyShapeDescriptor viewModel, HashSet<BodyShapeDescriptorRules> descriptorRules)

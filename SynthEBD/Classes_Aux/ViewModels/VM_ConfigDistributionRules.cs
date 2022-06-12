@@ -72,33 +72,29 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
     public VM_AssetPack ParentAssetPack { get; set; }
     public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
 
-    public static VM_ConfigDistributionRules GetViewModelFromModel(AssetPack.ConfigDistributionRules model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
+    public void CopyInViewModelFromModel(AssetPack.ConfigDistributionRules model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack)
     {
-        VM_ConfigDistributionRules viewModel = new VM_ConfigDistributionRules(raceGroupingVMs, parentAssetPack, OBodyDescriptorMenu);
-
         if (model != null)
         {
-
-            viewModel.AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
-            viewModel.AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, raceGroupingVMs);
-            viewModel.DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
-            viewModel.DisallowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.DisallowedRaceGroupings, raceGroupingVMs);
-            viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, true, null);
-            viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, false, null);
-            foreach (var x in viewModel.DisallowedAttributes) { x.DisplayForceIfOption = false; }
-            viewModel.AllowUnique = model.AllowUnique;
-            viewModel.AllowNonUnique = model.AllowNonUnique;
-            viewModel.AddKeywords = VM_CollectionMemberString.InitializeCollectionFromHashSet(model.AddKeywords);
-            viewModel.ProbabilityWeighting = model.ProbabilityWeighting;
-            viewModel.WeightRange = model.WeightRange;
+            AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
+            AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, raceGroupingVMs);
+            DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
+            DisallowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.DisallowedRaceGroupings, raceGroupingVMs);
+            AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, true, null);
+            DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, false, null);
+            foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
+            AllowUnique = model.AllowUnique;
+            AllowNonUnique = model.AllowNonUnique;
+            AddKeywords = VM_CollectionMemberString.InitializeCollectionFromHashSet(model.AddKeywords);
+            ProbabilityWeighting = model.ProbabilityWeighting;
+            WeightRange = model.WeightRange;
 
             if (parentAssetPack.TrackedBodyGenConfig != null)
             {
-                viewModel.AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, viewModel.SubscribedRaceGroupings, parentAssetPack);
-                viewModel.DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, viewModel.SubscribedRaceGroupings, parentAssetPack);
+                AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
+                DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
             }
         }
-        return viewModel;
     }
 
     public static AssetPack.ConfigDistributionRules DumpViewModelToModel(VM_ConfigDistributionRules viewModel)

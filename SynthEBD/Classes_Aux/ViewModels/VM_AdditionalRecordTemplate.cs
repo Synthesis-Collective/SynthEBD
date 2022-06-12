@@ -9,7 +9,9 @@ namespace SynthEBD;
 
 public class VM_AdditionalRecordTemplate : VM
 {
-    public VM_AdditionalRecordTemplate(ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, ObservableCollection<VM_AdditionalRecordTemplate> parentCollection)
+    public VM_AdditionalRecordTemplate(
+        ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, 
+        ObservableCollection<VM_AdditionalRecordTemplate> parentCollection)
     {
         this.RecordTemplateLinkCache = recordTemplateLinkCache;
         this.ParentCollection = parentCollection;

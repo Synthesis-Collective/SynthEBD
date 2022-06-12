@@ -134,7 +134,6 @@ public class DictionaryMapper
         }
 
         Logger.LogError("Error: DictionaryMapper.GetSubgroupTopLevelIndex() could not find the top-level subgroup of the subgroup with ID " + subgroupID + ". Please report this issue.");
-        Logger.SwitchViewToLogDisplay();
         return -1;
     }
 

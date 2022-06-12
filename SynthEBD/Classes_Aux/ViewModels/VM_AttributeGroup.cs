@@ -68,13 +68,11 @@ public class VM_AttributeGroup : VM
         }
     }
 
-    public static VM_AttributeGroup GetViewModelFromModel(AttributeGroup model, VM_AttributeGroupMenu parentMenu)
+    public void CopyInViewModelFromModel(AttributeGroup model, VM_AttributeGroupMenu parentMenu)
     {
-        VM_AttributeGroup vm = new VM_AttributeGroup(parentMenu);
-        vm.Label = model.Label;
-        vm.Attributes = VM_NPCAttribute.GetViewModelsFromModels(model.Attributes, parentMenu.Groups, false, true);
-        vm.Attributes_Bak = new ObservableCollection<VM_NPCAttribute>(vm.Attributes);
-        return vm;
+        this.Label = model.Label;
+        this.Attributes = VM_NPCAttribute.GetViewModelsFromModels(model.Attributes, parentMenu.Groups, false, true);
+        this.Attributes_Bak = new ObservableCollection<VM_NPCAttribute>(this.Attributes);
     }
 
     public static AttributeGroup DumpViewModelToModel(VM_AttributeGroup viewModel)
@@ -88,7 +86,8 @@ public class VM_AttributeGroup : VM
     public static VM_AttributeGroup Copy(VM_AttributeGroup toCopy, VM_AttributeGroupMenu newParentMenu)
     {
         var model = DumpViewModelToModel(toCopy);
-        var copy = GetViewModelFromModel(model, newParentMenu);
+        var copy = new VM_AttributeGroup(newParentMenu);
+        copy.CopyInViewModelFromModel(model, newParentMenu);
         return copy;
     }
       

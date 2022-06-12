@@ -55,13 +55,12 @@ public class VM_BodyShapeDescriptorRules : VM
     public RelayCommand AddAllowedAttribute { get; }
     public RelayCommand AddDisallowedAttribute { get; }
 
-    public static VM_BodyShapeDescriptorRules GetViewModelFromModel(BodyShapeDescriptorRules model, VM_BodyShapeDescriptor parentVM, IHasAttributeGroupMenu parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
+    public void CopyInViewModelFromModel(BodyShapeDescriptorRules model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
-        VM_BodyShapeDescriptorRules viewModel = new VM_BodyShapeDescriptorRules(parentVM, raceGroupingVMs, parentConfig);
-        viewModel.DescriptorSignature = model.DescriptorSignature;
-        viewModel.AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
-        viewModel.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
-        foreach (var grouping in viewModel.AllowedRaceGroupings.RaceGroupingSelections)
+        DescriptorSignature = model.DescriptorSignature;
+        AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
+        AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+        foreach (var grouping in AllowedRaceGroupings.RaceGroupingSelections)
         {
             if (model.AllowedRaceGroupings.Contains(grouping.Label))
             {
@@ -70,10 +69,10 @@ public class VM_BodyShapeDescriptorRules : VM
             else { grouping.IsSelected = false; }
         }
 
-        viewModel.DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
-        viewModel.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+        DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
+        DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
-        foreach (var grouping in viewModel.DisallowedRaceGroupings.RaceGroupingSelections)
+        foreach (var grouping in DisallowedRaceGroupings.RaceGroupingSelections)
         {
             if (model.DisallowedRaceGroupings.Contains(grouping.Label))
             {
@@ -82,16 +81,14 @@ public class VM_BodyShapeDescriptorRules : VM
             else { grouping.IsSelected = false; }
         }
 
-        viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, viewModel.ParentConfig.AttributeGroupMenu.Groups, true, null);
-        viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, viewModel.ParentConfig.AttributeGroupMenu.Groups, false, null);
-        foreach (var x in viewModel.DisallowedAttributes) { x.DisplayForceIfOption = false; }
-        viewModel.bAllowUnique = model.AllowUnique;
-        viewModel.bAllowNonUnique = model.AllowNonUnique;
-        viewModel.bAllowRandom = model.AllowRandom;
-        viewModel.ProbabilityWeighting = model.ProbabilityWeighting;
-        viewModel.WeightRange = model.WeightRange;
-
-        return viewModel;
+        AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null);
+        DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null);
+        foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
+        bAllowUnique = model.AllowUnique;
+        bAllowNonUnique = model.AllowNonUnique;
+        bAllowRandom = model.AllowRandom;
+        ProbabilityWeighting = model.ProbabilityWeighting;
+        WeightRange = model.WeightRange;
     }
 
     public static BodyShapeDescriptorRules DumpViewModelToModel(VM_BodyShapeDescriptorRules viewModel)

@@ -1,4 +1,6 @@
-﻿using Mutagen.Bethesda.Skyrim;
+﻿using System.Reactive;
+using System.Reactive.Subjects;
+using Mutagen.Bethesda.Skyrim;
 using System.Text;
 using System.Windows.Media;
 using System.Xml.Linq;
@@ -7,11 +9,9 @@ namespace SynthEBD;
 
 public sealed class Logger : VM
 {
+    private readonly DisplayedItemVm _displayedItemVm;
+    private readonly VM_LogDisplay _logDisplay;
     private static Logger instance;
-    private static object lockObj = new();
-
-    public VM_RunButton RunButton { get; set; }
-    public MainWindow_ViewModel MainVM { get; set; }
     public string StatusString { get; set; }
     public string BackupStatusString { get; set; }
     public string LogString { get; set; }
@@ -23,6 +23,9 @@ public sealed class Logger : VM
     public SolidColorBrush WarningColor = new SolidColorBrush(Colors.Yellow);
     public SolidColorBrush ErrorColor = new SolidColorBrush(Colors.Red);
     public string ReadyString = "Ready To Patch";
+
+    private readonly Subject<Unit> _loggedError = new();
+    public IObservable<Unit> LoggedError => _loggedError;
 
     public DateTime PatcherExecutionStart { get; set; }
 
@@ -44,26 +47,13 @@ public sealed class Logger : VM
         public int CurrentLayer;
     }
 
-    private Logger()
+    public Logger()
     {
         this.StatusColor = this.ReadyColor;
         this.StatusString = this.ReadyString;
     }
 
-    public static Logger Instance
-    {
-        get
-        {
-            lock (lockObj)
-            {
-                if (instance == null)
-                {
-                    instance = new Logger();
-                }
-            }
-            return instance;
-        }
-    }
+    public static Logger Instance;
 
     public static void LogMessage(string message)
     {
@@ -251,6 +241,7 @@ public sealed class Logger : VM
     public static void LogError(string error)
     {
         Instance.LogString += error + Environment.NewLine;
+        Instance._loggedError.OnNext(Unit.Default);
     }
     public static string SpreadFlattenedAssetPack(FlattenedAssetPack ap, int index, bool indentAtIndex)
     {
@@ -269,8 +260,13 @@ public sealed class Logger : VM
         Instance.StatusString = error;
         switch (type)
         {
-            case ErrorType.Warning: Instance.StatusColor = Instance.WarningColor; break;
-            case ErrorType.Error: Instance.StatusColor = Instance.ErrorColor; break;
+            case ErrorType.Warning:
+                Instance.StatusColor = Instance.WarningColor;
+                break;
+            case ErrorType.Error:
+                Instance._loggedError.OnNext(Unit.Default);
+                Instance.StatusColor = Instance.ErrorColor; 
+                break;
         }
     }
 
@@ -440,11 +436,6 @@ public sealed class Logger : VM
     public static string GetNPCLogReportingString(INpcGetter npc)
     {
         return npc.Name?.String + " (" + npc.EditorID + ") " + npc.FormKey.ToString().Replace(':', '-');
-    }
-
-    public static void SwitchViewToLogDisplay()
-    {
-        Instance.MainVM.DisplayedViewModel = Instance.MainVM.LogDisplayVM;
     }
 }
 

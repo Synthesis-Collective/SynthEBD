@@ -5,11 +5,14 @@ namespace SynthEBD;
 
 public class VM_SettingsTexMesh : VM
 {
-    public VM_SettingsTexMesh(MainWindow_ViewModel mainViewModel)
+    public SaveLoader SaveLoader { get; set; }
+
+    public VM_SettingsTexMesh(
+        MainState state,
+        VM_SettingsModManager modManager,
+        VM_AssetPack.Factory assetPackFactory)
     {
         List<string> installedConfigsInCurrentSession = new List<string>();
-
-        ParentViewModel = mainViewModel;
 
         AddTrimPath = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -27,27 +30,26 @@ public class VM_SettingsTexMesh : VM
                 {
                     CustomMessageBox.DisplayNotificationOK("", "There are no Asset Pack Config Files installed.");
                 }
-                else if (ValidateAllConfigs(mainViewModel.BodyGenConfigs, out List<string> errors))
+                else if (ValidateAllConfigs(state.BodyGenConfigs, out List<string> errors))
                 {
                     CustomMessageBox.DisplayNotificationOK("", "No errors found.");
                 }
                 else
                 {
-                    Logger.LogMessage(String.Join(Environment.NewLine, errors));
-                    mainViewModel.DisplayedViewModel = mainViewModel.LogDisplayVM;
+                    Logger.LogError(String.Join(Environment.NewLine, errors));
                 }
             }
         );
         AddNewAssetPackConfigFile = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.AssetPacks.Add(new VM_AssetPack(ParentViewModel))
+            execute: _ => this.AssetPacks.Add(assetPackFactory())
         );
 
         InstallFromArchive = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
-                ParentViewModel.ModManagerSettingsVM.UpdatePatcherSettings(); // make sure mod manager integration is synced w/ latest settings
+                modManager.UpdatePatcherSettings(); // make sure mod manager integration is synced w/ latest settings
                 var installedConfigs = ConfigInstaller.InstallConfigFile();
                 if (installedConfigs.Any())
                 {
@@ -55,9 +57,9 @@ public class VM_SettingsTexMesh : VM
                     //Logger.ArchiveStatus();
                     //Task.Run(() => Logger.UpdateStatusAsync("Refreshing loaded settings - please wait.", false));
                     Cursor.Current = Cursors.WaitCursor;
-                    mainViewModel.SaveAndRefreshPlugins();
+                    SaveLoader.SaveAndRefreshPlugins();
                     //Logger.UnarchiveStatus();
-                    foreach (var newConfig in mainViewModel.TexMeshSettingsVM.AssetPacks.Where(x => installedConfigsInCurrentSession.Contains(x.GroupName)))
+                    foreach (var newConfig in AssetPacks.Where(x => installedConfigsInCurrentSession.Contains(x.GroupName)))
                     {
                         newConfig.IsSelected = true;
                     }
@@ -72,11 +74,12 @@ public class VM_SettingsTexMesh : VM
             {
                 if (IO_Aux.SelectFile(PatcherSettings.Paths.AssetPackDirPath, "Config files (*.json)|*.json", "Select the config json file", out string path))
                 {
-                    var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, ParentViewModel.RecordTemplatePlugins, ParentViewModel.BodyGenConfigs, out bool loadSuccess);
+                    var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, state.RecordTemplatePlugins, state.BodyGenConfigs, out bool loadSuccess);
                     if (loadSuccess)
                     {
                         newAssetPack.FilePath = System.IO.Path.Combine(PatcherSettings.Paths.AssetPackDirPath, System.IO.Path.GetFileName(newAssetPack.FilePath)); // overwrite existing filepath so it doesn't get deleted from source
-                        var newAssetPackVM = VM_AssetPack.GetViewModelFromModel(newAssetPack, ParentViewModel);
+                        var newAssetPackVM = assetPackFactory();
+                        newAssetPackVM.CopyInViewModelFromModel(newAssetPack);
                         newAssetPackVM.IsSelected = true;
                         AssetPacks.Add(newAssetPackVM);
                     }
@@ -96,8 +99,6 @@ public class VM_SettingsTexMesh : VM
     public ObservableCollection<TrimPath> TrimPaths { get; set; } = new();
 
     public ObservableCollection<VM_AssetPack> AssetPacks { get; set; } = new();
-
-    public MainWindow_ViewModel ParentViewModel { get; set; }
 
     public RelayCommand AddTrimPath { get; }
     public RelayCommand RemoveTrimPath { get; }

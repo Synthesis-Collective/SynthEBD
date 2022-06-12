@@ -32,7 +32,6 @@ public class VM_OBodyMiscSettings : VM
             else
             {
                 Logger.LogErrorWithStatusUpdate("Error encountered trying to set RaceMenu's ini.", ErrorType.Error);
-                Logger.SwitchViewToLogDisplay();
             }
         }
     );

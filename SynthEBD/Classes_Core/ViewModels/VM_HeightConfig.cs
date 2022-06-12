@@ -39,7 +39,6 @@ public class VM_HeightConfig : VM
                 else
                 {
                     Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save " + Label + ".", ErrorType.Error, 5);
-                    Logger.SwitchViewToLogDisplay();
                 }
             }
         );

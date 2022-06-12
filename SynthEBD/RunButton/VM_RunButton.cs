@@ -4,10 +4,19 @@ namespace SynthEBD;
 
 public class VM_RunButton : VM
 {
-    public VM_RunButton(MainWindow_ViewModel parentWindow)
-    {
-        this.ParentWindow = parentWindow;
+    private readonly VM_SettingsTexMesh _texMeshSettingsVm;
+    private readonly MainState _state;
 
+    public VM_RunButton(
+        VM_SettingsTexMesh texMeshSettingsVM, 
+        VM_ConsistencyUI consistencyUi,
+        MainState state,
+        SaveLoader saveLoader, 
+        VM_LogDisplay logDisplay,
+        Func<Patcher> getPatcher)
+    {
+        _texMeshSettingsVm = texMeshSettingsVM;
+        _state = state;
         // synchronous version for debugging only
         /*
         ClickRun = new SynthEBD.RelayCommand(
@@ -31,20 +40,16 @@ public class VM_RunButton : VM
                 
             execute: async _ =>
             {
-                ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
-                ParentWindow.DumpViewModelsToModels();
+                logDisplay.SwitchViewToLogDisplay();
+                saveLoader.DumpViewModelsToModels();
                 if (!PreRunValidation()) { return; }
                 if (HasBeenRun) { PatcherEnvironmentProvider.Instance.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.
-                await Task.Run(() => Patcher.RunPatcher(
-                    ParentWindow.AssetPacks.Where(x => PatcherSettings.TexMesh.SelectedAssetPacks.Contains(x.GroupName)).ToList(), ParentWindow.BodyGenConfigs, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
-                    ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.RecordTemplateLinkCache, ParentWindow.RecordTemplatePlugins, ParentWindow.StatusBarVM));
-                VM_ConsistencyUI.GetViewModelsFromModels(ParentWindow.Consistency, ParentWindow.ConsistencyUIVM.Assignments, ParentWindow.TexMeshSettingsVM.AssetPacks); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
+                await Task.Run(() => getPatcher().RunPatcher());
+                VM_ConsistencyUI.GetViewModelsFromModels(state.Consistency, consistencyUi.Assignments, texMeshSettingsVM.AssetPacks); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
                 HasBeenRun = true;
             });
     }
     public SolidColorBrush BackgroundColor { get; set; } = new(Colors.Green);
-
-    public MainWindow_ViewModel ParentWindow { get; set; }
     public bool HasBeenRun { get; set; } = false;
     public ReactiveUI.IReactiveCommand ClickRun { get; }
 
@@ -60,7 +65,7 @@ public class VM_RunButton : VM
                 valid = false;
             }
 
-            if (!ParentWindow.TexMeshSettingsVM.ValidateAllConfigs(ParentWindow.BodyGenConfigs, out var configErrors)) // check config files for errors
+            if (!_texMeshSettingsVm.ValidateAllConfigs(_state.BodyGenConfigs, out var configErrors)) // check config files for errors
             {
                 Logger.LogMessage(configErrors);
                 valid = false;
@@ -117,12 +122,12 @@ public class VM_RunButton : VM
             }
             else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
             {
-                if (!MiscValidation.VerifyBodyGenAnnotations(ParentWindow.AssetPacks, ParentWindow.BodyGenConfigs))
+                if (!MiscValidation.VerifyBodyGenAnnotations(_state.AssetPacks, _state.BodyGenConfigs))
                 {
                     valid = false;
                 }
 
-                if (!MiscValidation.VerifyGeneratedTriFilesForBodyGen(ParentWindow.AssetPacks, ParentWindow.BodyGenConfigs))
+                if (!MiscValidation.VerifyGeneratedTriFilesForBodyGen(_state.AssetPacks, _state.BodyGenConfigs))
                 {
                     valid = false;
                 }

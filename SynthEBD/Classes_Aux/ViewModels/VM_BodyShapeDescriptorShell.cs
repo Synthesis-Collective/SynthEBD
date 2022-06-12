@@ -24,27 +24,33 @@ public class VM_BodyShapeDescriptorShell : VM
     {
         ObservableCollection<VM_BodyShapeDescriptorShell> viewModels = new ObservableCollection<VM_BodyShapeDescriptorShell>();
         VM_BodyShapeDescriptorShell shellViewModel = new VM_BodyShapeDescriptorShell(viewModels, raceGroupings, parentConfig);
-        VM_BodyShapeDescriptor viewModel = new VM_BodyShapeDescriptor(shellViewModel, raceGroupings, parentConfig);
         List<string> usedCategories = new List<string>();
 
         foreach (var model in models)
         {
-            viewModel = VM_BodyShapeDescriptor.GetViewModelFromModel(model, raceGroupings, parentConfig, parentDescriptorConfig);
+            VM_BodyShapeDescriptor subVm = new VM_BodyShapeDescriptor(
+                new VM_BodyShapeDescriptorShell(
+                    new ObservableCollection<VM_BodyShapeDescriptorShell>(),
+                    raceGroupings, parentConfig), 
+                raceGroupings, 
+                parentConfig);
+
+            subVm.CopyInViewModelFromModel(model, raceGroupings, parentConfig, parentDescriptorConfig);
 
             if (!usedCategories.Contains(model.Category))
             {
                 shellViewModel = new VM_BodyShapeDescriptorShell(viewModels, raceGroupings, parentConfig);
                 shellViewModel.Category = model.Category;
-                viewModel.ParentShell = shellViewModel;
-                shellViewModel.Descriptors.Add(viewModel);
+                subVm.ParentShell = shellViewModel;
+                shellViewModel.Descriptors.Add(subVm);
                 viewModels.Add(shellViewModel);
                 usedCategories.Add(model.Category);
             }
             else
             {
                 int index = usedCategories.IndexOf(model.Category);
-                viewModel.ParentShell = viewModels[index];
-                viewModels[index].Descriptors.Add(viewModel);
+                subVm.ParentShell = viewModels[index];
+                viewModels[index].Descriptors.Add(subVm);
             }
         }
 

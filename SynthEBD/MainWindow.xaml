@@ -44,7 +44,7 @@
             </Rectangle.Fill>
         </Rectangle>
 
-        <ContentPresenter Content="{Binding DisplayedViewModel}" Grid.Column="3" Grid.Row="0" Margin="10, 0, 0, 0">
+        <ContentPresenter Content="{Binding Display.DisplayedViewModel}" Grid.Column="3" Grid.Row="0" Margin="10, 0, 0, 0">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_Settings_General}">
                     <local:UC_Settings_General/>
