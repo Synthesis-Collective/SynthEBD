@@ -42,5 +42,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<Patcher>().AsSelf();
         builder.RegisterType<VM_BodyShapeDescriptorCreationMenu>().AsSelf();
         builder.RegisterType<CombinationLog>().AsSelf();
+        builder.RegisterType<VM_AssetPackDirectReplacerMenu>().AsSelf();
+        builder.RegisterType<VM_AssetReplacerGroup>().AsSelf();
+        builder.RegisterType<VM_FilePathReplacement>().AsSelf();
     }
 }
