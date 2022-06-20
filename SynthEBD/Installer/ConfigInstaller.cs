@@ -545,7 +545,7 @@ public class ConfigInstaller
 
         if (PatcherSettings.ModManagerIntegration.ModManagerType == ModManager.None)
         {
-            return Path.Combine(_patcherEnvironmentProvider.Environment.DataFolderPath, extensionFolder, manifest.ConfigPrefix, extractedPath);
+            return Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, extensionFolder, manifest.ConfigPrefix, extractedPath);
         }
         else
         {

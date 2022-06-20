@@ -114,7 +114,7 @@ public class EBDCoreRecords
 
     public static void ApplyHelperSpell(SkyrimMod outputMod, Spell EBDHelperSpell)
     {
-        foreach (var raceGetter in _patcherEnvironmentProvider.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
+        foreach (var raceGetter in PatcherEnvironmentProvider.Instance.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
         {
             if (PatcherSettings.General.PatchableRaces.Contains(raceGetter.FormKey))
             {

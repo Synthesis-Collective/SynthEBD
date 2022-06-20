@@ -13,19 +13,7 @@ namespace SynthEBD;
 public class NPCAttribute
 {
     public HashSet<ITypedNPCAttribute> SubAttributes { get; set; } = new();
-    private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
-    private readonly Factory _selfFactory;
 
-    public delegate NPCAttribute Factory();
-    public NPCAttribute(Factory selfFactory, PatcherEnvironmentProvider patcherEnvironmentProvider) // new constructor
-    {
-        _selfFactory = selfFactory;
-        _patcherEnvironmentProvider = patcherEnvironmentProvider;
-    }
-    public NPCAttribute(PatcherEnvironmentProvider patcherEnvironmentProvider) // original constructor
-    {
-        _patcherEnvironmentProvider = patcherEnvironmentProvider;
-    }
     public bool Equals(NPCAttribute other)
     {
         var thisArray = this.SubAttributes.ToArray();
@@ -43,7 +31,7 @@ public class NPCAttribute
     }
 
     #region Group-Type Attribute Manipulation
-    public HashSet<NPCAttribute> SpreadGroupTypeAttributes(HashSet<NPCAttribute> attributeList, HashSet<AttributeGroup> groupDefinitions)
+    public static HashSet<NPCAttribute> SpreadGroupTypeAttributes(HashSet<NPCAttribute> attributeList, HashSet<AttributeGroup> groupDefinitions)
     {
         HashSet<NPCAttribute> output = new HashSet<NPCAttribute>();
 
@@ -66,8 +54,7 @@ public class NPCAttribute
 
                     foreach (var subAtt in subattributesFromGroup)
                     {
-                        var newAttribute = _selfFactory();
-                        var newAttributeAlt = new NPCAttribute(_patcherEnvironmentProvider);
+                        var newAttribute = new NPCAttribute();
                         newAttribute.SubAttributes.UnionWith(additionalSubAttributes);
                         newAttribute.SubAttributes.Add(subAtt);
                         output.Add(newAttribute);
@@ -116,7 +103,7 @@ public class NPCAttribute
                 }
                 else
                 {
-                    var clonedSubAttribute = subAttribute.CloneAsNew();
+                    var clonedSubAttribute = CloneAsNew(subAttribute);
                     if (groupForceIf)
                     {
                         clonedSubAttribute.ForceIf = true;
@@ -133,12 +120,12 @@ public class NPCAttribute
     }
     #endregion
 
-    public NPCAttribute CloneAsNew()
+    public static NPCAttribute CloneAsNew(NPCAttribute input)
     {
-        NPCAttribute output = new NPCAttribute(_patcherEnvironmentProvider);
-        foreach (var subAttribute in SubAttributes)
+        NPCAttribute output = new NPCAttribute();
+        foreach (var subAttribute in input.SubAttributes)
         {
-            output.SubAttributes.Add(subAttribute.CloneAsNew());
+            output.SubAttributes.Add(CloneAsNew(subAttribute));
         }
         return output;
     }
@@ -148,11 +135,27 @@ public class NPCAttribute
         return "{" + string.Join(" AND ", SubAttributes.Select(x => x.ToLogString())) + "}";
     }
 
+    public static ITypedNPCAttribute CloneAsNew(ITypedNPCAttribute inputInterface)
+    {
+        switch(inputInterface.Type)
+        {
+            case NPCAttributeType.Class: return NPCAttributeClass.CloneAsNew((NPCAttributeClass)inputInterface);
+            case NPCAttributeType.Custom: return NPCAttributeCustom.CloneAsNew((NPCAttributeCustom)inputInterface);
+            case NPCAttributeType.FaceTexture: return NPCAttributeFaceTexture.CloneAsNew((NPCAttributeFaceTexture)inputInterface);
+            case NPCAttributeType.Faction: return NPCAttributeFactions.CloneAsNew((NPCAttributeFactions)inputInterface);
+            case NPCAttributeType.Group: return NPCAttributeGroup.CloneAsNew((NPCAttributeGroup)inputInterface);
+            case NPCAttributeType.NPC: return NPCAttributeNPC.CloneAsNew((NPCAttributeNPC)inputInterface);
+            case NPCAttributeType.Race: return NPCAttributeRace.CloneAsNew((NPCAttributeRace)inputInterface);
+            case NPCAttributeType.VoiceType: return NPCAttributeVoiceType.CloneAsNew((NPCAttributeVoiceType)inputInterface);
+            default: return null;
+        }
+    }
+
     // Grouped Sub Attributes get merged together. E.g:
     // Parent has attributes (A && B) || (C && D)
     // Child has attributes (E && F) || (G && H)
     // After inheriting, child will have attributes (A && B && E && F) || (A && B && G && H) || (C && D && E && F) || (C && D && G && H)
-    public static HashSet<NPCAttribute> InheritAttributes(HashSet<NPCAttribute> inheritFrom, HashSet<NPCAttribute> inherits, PatcherEnvironmentProvider patcherEnvironmentProvider)
+    public static HashSet<NPCAttribute> InheritAttributes(HashSet<NPCAttribute> inheritFrom, HashSet<NPCAttribute> inherits)
     {
         var mergedAttributes = new HashSet<NPCAttribute>();
 
@@ -170,7 +173,7 @@ public class NPCAttribute
             {
                 foreach (var parentAttribute in inheritFrom)
                 {
-                    var combinedAttribute = new NPCAttribute(patcherEnvironmentProvider);
+                    var combinedAttribute = new NPCAttribute();
 
                     foreach (var subParentAttribute in parentAttribute.SubAttributes)
                     {
@@ -190,10 +193,10 @@ public class NPCAttribute
         return mergedAttributes;
     }
 
-    public static string FormKeyToLogStringNamed<T>(FormKey fk, PatcherEnvironmentProvider patcherEnvironmentProvider) where T: class, IMajorRecordGetter, INamedGetter
+    public static string FormKeyToLogStringNamed<T>(FormKey fk) where T: class, IMajorRecordGetter, INamedGetter
     {
         string output = fk.ToString();
-        if (patcherEnvironmentProvider.Environment.LinkCache.TryResolve<T>(fk, out var getter))
+        if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<T>(fk, out var getter))
         {
             if (getter.Name != null && !string.IsNullOrWhiteSpace(getter.Name.ToString()))
             {
@@ -207,10 +210,10 @@ public class NPCAttribute
         return output;
     }
 
-    public static string FormKeyToLogStringUnnamed<T>(FormKey fk, PatcherEnvironmentProvider patcherEnvironmentProvider) where T : class, IMajorRecordGetter
+    public static string FormKeyToLogStringUnnamed<T>(FormKey fk) where T : class, IMajorRecordGetter
     {
         string output = fk.ToString();
-        if (patcherEnvironmentProvider.Environment.LinkCache.TryResolve<T>(fk, out var getter) && getter.EditorID != null && !string.IsNullOrWhiteSpace(getter.EditorID))
+        if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<T>(fk, out var getter) && getter.EditorID != null && !string.IsNullOrWhiteSpace(getter.EditorID))
         {
             output = getter.EditorID;
         }
@@ -239,15 +242,11 @@ public enum CustomAttributeType // moved outside of NPCAttributeCustom so that i
 }
 public class NPCAttributeVoiceType : ITypedNPCAttribute
 {
-    private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
     public HashSet<FormKey> FormKeys { get; set; } = new();
     public NPCAttributeType Type { get; set; } = NPCAttributeType.VoiceType;
     public bool ForceIf { get; set; } = false;
     public int Weighting { get; set; } = 1;
-    public NPCAttributeVoiceType(PatcherEnvironmentProvider patcherEnvironmentProvider)
-    {
-        _patcherEnvironmentProvider = patcherEnvironmentProvider;
-    }
+
     public bool Equals(ITypedNPCAttribute other)
     {
         var otherTyped = (NPCAttributeVoiceType)other;
@@ -255,13 +254,13 @@ public class NPCAttributeVoiceType : ITypedNPCAttribute
         return false;
     }
 
-    public NPCAttributeVoiceType CloneAsNew()
+    public static NPCAttributeVoiceType CloneAsNew(NPCAttributeVoiceType input)
     {
-        var output = new NPCAttributeVoiceType(_patcherEnvironmentProvider);
-        output.ForceIf = ForceIf;
-        output.Type = Type;
-        output.FormKeys = new HashSet<FormKey>(FormKeys);
-        output.Weighting = Weighting;
+        var output = new NPCAttributeVoiceType();
+        output.ForceIf = input.ForceIf;
+        output.Type = input.Type;
+        output.FormKeys = input.FormKeys;
+        output.Weighting = input.Weighting;
         return output;
     }
 
@@ -269,7 +268,7 @@ public class NPCAttributeVoiceType : ITypedNPCAttribute
     {
         if (PatcherSettings.General.VerboseModeDetailedAttributes)
         {
-            return "VoiceType: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<IVoiceTypeGetter>(x, _patcherEnvironmentProvider))) + "]";
+            return "VoiceType: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<IVoiceTypeGetter>(x))) + "]";
         }
         else
         {
@@ -280,15 +279,11 @@ public class NPCAttributeVoiceType : ITypedNPCAttribute
 
 public class NPCAttributeClass : ITypedNPCAttribute
 {
-    private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
     public HashSet<FormKey> FormKeys { get; set; } = new();
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Class;
     public bool ForceIf { get; set; } = false;
     public int Weighting { get; set; } = 1;
-    public NPCAttributeClass(PatcherEnvironmentProvider patcherEnvironmentProvider)
-    {
-        _patcherEnvironmentProvider = patcherEnvironmentProvider;
-    }
+
     public bool Equals(ITypedNPCAttribute other)
     {
         var otherTyped = (NPCAttributeClass)other;
@@ -296,13 +291,13 @@ public class NPCAttributeClass : ITypedNPCAttribute
         return false;
     }
 
-    public NPCAttributeClass CloneAsNew()
+    public static NPCAttributeClass CloneAsNew(NPCAttributeClass input)
     {
-        var output = new NPCAttributeClass(_patcherEnvironmentProvider);
-        output.ForceIf = ForceIf;
-        output.Type = Type;
-        output.FormKeys = new HashSet<FormKey>(FormKeys);
-        output.Weighting = Weighting;
+        var output = new NPCAttributeClass();
+        output.ForceIf = input.ForceIf;
+        output.Type = input.Type;
+        output.FormKeys = input.FormKeys;
+        output.Weighting = input.Weighting;
         return output;
     }
 
@@ -310,7 +305,7 @@ public class NPCAttributeClass : ITypedNPCAttribute
     {
         if (PatcherSettings.General.VerboseModeDetailedAttributes)
         {
-            return "Class: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<IClassGetter>(x, _patcherEnvironmentProvider))) + "]";
+            return "Class: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<IClassGetter>(x))) + "]";
         }
         else
         {
@@ -321,7 +316,6 @@ public class NPCAttributeClass : ITypedNPCAttribute
 
 public class NPCAttributeCustom : ITypedNPCAttribute
 {
-    private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
     public string Path { get; set; } = "";
     public string ValueStr { get; set; } = "";
     public HashSet<FormKey> ValueFKs { get; set; } = new();
@@ -333,10 +327,6 @@ public class NPCAttributeCustom : ITypedNPCAttribute
     public FormKey ReferenceNPCFK { get; set; } // this is not used by the patcher but saving it avoids making the user reselect it in the UI
     public Type SelectedFormKeyType { get; set; } // this is not used by the patcher but saving it avoids making the user reselect it in the UI
 
-    public NPCAttributeCustom(PatcherEnvironmentProvider patcherEnvironmentProvider)
-    {
-        _patcherEnvironmentProvider = patcherEnvironmentProvider;
-    }
     public bool Equals(ITypedNPCAttribute other)
     {
         var otherTyped = (NPCAttributeCustom)other;
@@ -353,27 +343,27 @@ public class NPCAttributeCustom : ITypedNPCAttribute
         return true;
     }
 
-    public NPCAttributeCustom CloneAsNew()
+    public static NPCAttributeCustom CloneAsNew(NPCAttributeCustom input)
     {
-        var output = new NPCAttributeCustom(_patcherEnvironmentProvider);
-        output.CustomType = CustomType;
-        output.ForceIf = ForceIf;
-        output.Path = Path;
-        output.Type = Type;
-        if (CustomType == CustomAttributeType.Record)
+        var output = new NPCAttributeCustom();
+        output.CustomType = input.CustomType;
+        output.ForceIf = input.ForceIf;
+        output.Path = input.Path;
+        output.Type = input.Type;
+        if (input.CustomType == CustomAttributeType.Record)
         {
             output.ValueFKs = new HashSet<FormKey>();
-            foreach (var fk in ValueFKs)
+            foreach (var fk in input.ValueFKs)
             {
                 output.ValueFKs.Add(new FormKey(fk.ModKey, fk.ID));
             }
         }
         else
         {
-            output.ValueStr = ValueStr;
+            output.ValueStr = input.ValueStr;
         }
-        output.Comparator = Comparator;
-        output.Weighting = Weighting;
+        output.Comparator = input.Comparator;
+        output.Weighting = input.Weighting;
         return output;
     }
 
@@ -394,17 +384,12 @@ public class NPCAttributeCustom : ITypedNPCAttribute
 
 public class NPCAttributeFactions : ITypedNPCAttribute
 {
-    private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
     public HashSet<FormKey> FormKeys { get; set; } = new();
     public int RankMin { get; set; } = -1;
     public int RankMax { get; set; } = 100;
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Faction;
     public bool ForceIf { get; set; } = false;
     public int Weighting { get; set; } = 1;
-    public NPCAttributeFactions(PatcherEnvironmentProvider patcherEnvironmentProvider)
-    {
-        _patcherEnvironmentProvider = patcherEnvironmentProvider;
-    }
 
     public bool Equals(ITypedNPCAttribute other)
     {
@@ -414,15 +399,15 @@ public class NPCAttributeFactions : ITypedNPCAttribute
         return false;
     }
 
-    public NPCAttributeFactions CloneAsNew()
+    public static NPCAttributeFactions CloneAsNew(NPCAttributeFactions input)
     {
-        var output = new NPCAttributeFactions(_patcherEnvironmentProvider);
-        output.ForceIf = ForceIf;
-        output.Type = Type;
-        output.FormKeys = new HashSet<FormKey>(FormKeys);
-        output.RankMin = RankMin;
-        output.RankMax = RankMax;
-        output.Weighting = Weighting;
+        var output = new NPCAttributeFactions();
+        output.ForceIf = input.ForceIf;
+        output.Type = input.Type;
+        output.FormKeys = input.FormKeys;
+        output.RankMin = input.RankMin;
+        output.RankMax = input.RankMax;
+        output.Weighting = input.Weighting;
         return output;
     }
 
@@ -430,7 +415,7 @@ public class NPCAttributeFactions : ITypedNPCAttribute
     {
         if (PatcherSettings.General.VerboseModeDetailedAttributes)
         {
-            return "Factions: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<IFactionGetter>(x, _patcherEnvironmentProvider))) + "] Rank: " + RankMin + " - " + RankMax;
+            return "Factions: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<IFactionGetter>(x))) + "] Rank: " + RankMin + " - " + RankMax;
         }
         else
         {
@@ -441,15 +426,10 @@ public class NPCAttributeFactions : ITypedNPCAttribute
 
 public class NPCAttributeFaceTexture : ITypedNPCAttribute
 {
-    private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
     public HashSet<FormKey> FormKeys { get; set; } = new();
     public NPCAttributeType Type { get; set; } = NPCAttributeType.FaceTexture;
     public bool ForceIf { get; set; } = false;
     public int Weighting { get; set; } = 1;
-    public NPCAttributeFaceTexture(PatcherEnvironmentProvider patcherEnvironmentProvider)
-    {
-        _patcherEnvironmentProvider = patcherEnvironmentProvider;
-    }
 
     public bool Equals(ITypedNPCAttribute other)
     {
@@ -458,13 +438,13 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
         return false;
     }
 
-    public NPCAttributeFaceTexture CloneAsNew()
+    public static NPCAttributeFaceTexture CloneAsNew(NPCAttributeFaceTexture input)
     {
-        var output = new NPCAttributeFaceTexture(_patcherEnvironmentProvider);
-        output.ForceIf = ForceIf;
-        output.Type = Type;
-        output.FormKeys = new HashSet<FormKey>(FormKeys);
-        output.Weighting = Weighting;
+        var output = new NPCAttributeFaceTexture();
+        output.ForceIf = input.ForceIf;
+        output.Type = input.Type;
+        output.FormKeys = input.FormKeys;
+        output.Weighting = input.Weighting;
         return output;
     }
 
@@ -472,7 +452,7 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
     {
         if (PatcherSettings.General.VerboseModeDetailedAttributes)
         {
-            return "Face Texture: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<ITextureSetGetter>(x, _patcherEnvironmentProvider))) + "]";
+            return "Face Texture: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<ITextureSetGetter>(x))) + "]";
         }
         else
         {
@@ -483,16 +463,10 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
 
 public class NPCAttributeRace : ITypedNPCAttribute
 {
-    private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
     public HashSet<FormKey> FormKeys { get; set; } = new();
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Race;
     public bool ForceIf { get; set; } = false;
     public int Weighting { get; set; } = 1;
-
-    public NPCAttributeRace(PatcherEnvironmentProvider patcherEnvironmentProvider)
-    {
-        _patcherEnvironmentProvider = patcherEnvironmentProvider;
-    }
 
     public bool Equals(ITypedNPCAttribute other)
     {
@@ -501,13 +475,13 @@ public class NPCAttributeRace : ITypedNPCAttribute
         return false;
     }
 
-    public NPCAttributeRace CloneAsNew()
+    public static NPCAttributeRace CloneAsNew(NPCAttributeRace input)
     {
-        var output = new NPCAttributeRace(_patcherEnvironmentProvider);
-        output.ForceIf = ForceIf;
-        output.Type = Type;
-        output.FormKeys = new HashSet<FormKey>(FormKeys);
-        output.Weighting = Weighting;
+        var output = new NPCAttributeRace();
+        output.ForceIf = input.ForceIf;
+        output.Type = input.Type;
+        output.FormKeys = input.FormKeys;
+        output.Weighting = input.Weighting;
         return output;
     }
 
@@ -515,7 +489,7 @@ public class NPCAttributeRace : ITypedNPCAttribute
     {
         if (PatcherSettings.General.VerboseModeDetailedAttributes)
         {
-            return "Race: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<IRaceGetter>(x, _patcherEnvironmentProvider))) + "]";
+            return "Race: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<IRaceGetter>(x))) + "]";
         }
         else
         {
@@ -526,16 +500,10 @@ public class NPCAttributeRace : ITypedNPCAttribute
 
 public class NPCAttributeNPC : ITypedNPCAttribute
 {
-    private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
     public HashSet<FormKey> FormKeys { get; set; } = new();
     public NPCAttributeType Type { get; set; } = NPCAttributeType.NPC;
     public bool ForceIf { get; set; } = false;
     public int Weighting { get; set; } = 1;
-
-    public NPCAttributeNPC(PatcherEnvironmentProvider patcherEnvironmentProvider)
-    {
-        _patcherEnvironmentProvider = patcherEnvironmentProvider;
-    }
 
     public bool Equals(ITypedNPCAttribute other)
     {
@@ -544,13 +512,13 @@ public class NPCAttributeNPC : ITypedNPCAttribute
         return false;
     }
 
-    public NPCAttributeNPC CloneAsNew()
+    public static NPCAttributeNPC CloneAsNew(NPCAttributeNPC input)
     {
-        var output = new NPCAttributeNPC(_patcherEnvironmentProvider);
-        output.ForceIf = ForceIf;
-        output.Type = Type;
-        output.FormKeys = new HashSet<FormKey>(FormKeys);
-        output.Weighting = Weighting;
+        var output = new NPCAttributeNPC();
+        output.ForceIf = input.ForceIf;
+        output.Type = input.Type;
+        output.FormKeys = input.FormKeys;
+        output.Weighting = input.Weighting;
         return output;
     }
 
@@ -558,7 +526,7 @@ public class NPCAttributeNPC : ITypedNPCAttribute
     {
         if (PatcherSettings.General.VerboseModeDetailedAttributes)
         {
-            return "NPC: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<INpcGetter>(x, _patcherEnvironmentProvider))) + "]";
+            return "NPC: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<INpcGetter>(x))) + "]";
         }
         else
         {
@@ -601,7 +569,7 @@ public class NPCAttributeGroup : ITypedNPCAttribute
         var output = new NPCAttributeGroup();
         output.ForceIf = input.ForceIf;
         output.Type = input.Type;
-        output.SelectedLabels = new HashSet<string>(input.SelectedLabels);
+        output.SelectedLabels = input.SelectedLabels;
         output.Weighting = input.Weighting;
         return output;
     }
@@ -619,7 +587,6 @@ public interface ITypedNPCAttribute
     public bool ForceIf { get; set; }
     public int Weighting { get; set; }
     public string ToLogString();
-    public ITypedNPCAttribute CloneAsNew();
 }
 
 public class AttributeGroup

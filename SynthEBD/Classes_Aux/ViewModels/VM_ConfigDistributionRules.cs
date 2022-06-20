@@ -9,7 +9,7 @@ namespace SynthEBD;
 
 public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
 {
-    public VM_ConfigDistributionRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu, PatcherEnvironmentProvider patcherEnvironmentProvider)
+    public VM_ConfigDistributionRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack, VM_BodyShapeDescriptorCreationMenu OBodyDescriptorMenu)
     {
         SubscribedRaceGroupings = raceGroupingVMs;
         ParentAssetPack = parentAssetPack;
@@ -41,7 +41,7 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
             execute: _ => this.AddKeywords.Add(new VM_CollectionMemberString("", this.AddKeywords))
         );
         
-        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => LinkCache = x)
             .DisposeWith(this);
     }

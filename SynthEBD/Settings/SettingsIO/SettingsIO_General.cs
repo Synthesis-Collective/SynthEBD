@@ -11,7 +11,7 @@ public class SettingsIO_General
             PatcherSettings.General = JSONhandler<Settings_General>.LoadJSONFile(PatcherSettings.Paths.GeneralSettingsPath, out loadSuccess, out string exceptionStr);
             if(loadSuccess && string.IsNullOrWhiteSpace(PatcherSettings.General.OutputDataFolder))
             {
-                PatcherSettings.General.OutputDataFolder = _patcherEnvironmentProvider.Environment.DataFolderPath;
+                PatcherSettings.General.OutputDataFolder = PatcherEnvironmentProvider.Instance.Environment.DataFolderPath;
             }
             else if (!loadSuccess)
             {
@@ -21,7 +21,7 @@ public class SettingsIO_General
         else
         {
             PatcherSettings.General = new Settings_General();
-            PatcherSettings.General.OutputDataFolder = _patcherEnvironmentProvider.Environment.DataFolderPath;
+            PatcherSettings.General.OutputDataFolder = PatcherEnvironmentProvider.Instance.Environment.DataFolderPath;
             loadSuccess = true;
         }
     }

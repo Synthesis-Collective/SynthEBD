@@ -6,30 +6,28 @@ public class VM_RunButton : VM
 {
     private readonly VM_SettingsTexMesh _texMeshSettingsVm;
     private readonly MainState _state;
-    private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
+
     public VM_RunButton(
         VM_SettingsTexMesh texMeshSettingsVM, 
         VM_ConsistencyUI consistencyUi,
         MainState state,
         SaveLoader saveLoader, 
         VM_LogDisplay logDisplay,
-        Func<Patcher> getPatcher,
-        PatcherEnvironmentProvider patcherEnvironmentProvider)
+        Func<Patcher> getPatcher)
     {
         _texMeshSettingsVm = texMeshSettingsVM;
         _state = state;
-        _patcherEnvironmentProvider = patcherEnvironmentProvider;
         // synchronous version for debugging only
         /*
         ClickRun = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
-                _patcherEnvironmentProvider.Environment.Refresh(PatcherSettings.General.PatchFileName, true); // re-filter load order (in case of multiple runs in same session, to get rid of generated output plugin from link cache & load order)
+                PatcherEnvironmentProvider.Instance.Environment.Refresh(PatcherSettings.General.PatchFileName, true); // re-filter load order (in case of multiple runs in same session, to get rid of generated output plugin from link cache & load order)
                 ParentWindow.DisplayedViewModel = ParentWindow.LogDisplayVM;
                 ParentWindow.DumpViewModelsToModels();
                 if (!PreRunValidation()) { return; }
-                if (HasBeenRun) { _patcherEnvironmentProvider.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.
+                if (HasBeenRun) { PatcherEnvironmentProvider.Instance.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.
                 Patcher.RunPatcher(
                     ParentWindow.AssetPacks.Where(x => PatcherSettings.TexMesh.SelectedAssetPacks.Contains(x.GroupName)).ToList(), ParentWindow.BodyGenConfigs, ParentWindow.HeightConfigs, ParentWindow.Consistency, ParentWindow.SpecificNPCAssignments,
                     ParentWindow.BlockList, ParentWindow.LinkedNPCNameExclusions, ParentWindow.LinkedNPCGroups, ParentWindow.RecordTemplateLinkCache, ParentWindow.RecordTemplatePlugins, ParentWindow.StatusBarVM);
@@ -45,7 +43,7 @@ public class VM_RunButton : VM
                 logDisplay.SwitchViewToLogDisplay();
                 saveLoader.DumpViewModelsToModels();
                 if (!PreRunValidation()) { return; }
-                if (HasBeenRun) { _patcherEnvironmentProvider.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.
+                if (HasBeenRun) { PatcherEnvironmentProvider.Instance.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.
                 await Task.Run(() => getPatcher().RunPatcher());
                 VM_ConsistencyUI.GetViewModelsFromModels(state.Consistency, consistencyUi.Assignments, texMeshSettingsVM.AssetPacks); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
                 HasBeenRun = true;
@@ -58,7 +56,7 @@ public class VM_RunButton : VM
     public bool PreRunValidation()
     {
         bool valid = true;
-        var env = _patcherEnvironmentProvider.Environment;
+        var env = PatcherEnvironmentProvider.Instance.Environment;
 
         if (PatcherSettings.General.bChangeMeshesOrTextures)
         {

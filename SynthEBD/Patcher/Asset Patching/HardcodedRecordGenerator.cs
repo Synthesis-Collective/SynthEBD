@@ -69,11 +69,11 @@ public class HardcodedRecordGenerator
     {
         if (headtexPaths.Any())
         {
-            AssignHeadTexture(npcInfo, outputMod, _patcherEnvironmentProvider.Environment.LinkCache, recordTemplateLinkCache, headtexPaths, npcObjectMap, objectCaches);
+            AssignHeadTexture(npcInfo, outputMod, PatcherEnvironmentProvider.Instance.Environment.LinkCache, recordTemplateLinkCache, headtexPaths, npcObjectMap, objectCaches);
         }
         if (wnamPaths.Any())
         {
-            AssignBodyTextures(npcInfo, outputMod, _patcherEnvironmentProvider.Environment.LinkCache, recordTemplateLinkCache, wnamPaths, npcObjectMap, objectCaches);
+            AssignBodyTextures(npcInfo, outputMod, PatcherEnvironmentProvider.Instance.Environment.LinkCache, recordTemplateLinkCache, wnamPaths, npcObjectMap, objectCaches);
         }
     }
 
@@ -289,7 +289,7 @@ public class HardcodedRecordGenerator
         {
             foreach (var armatureLink in newSkin.Armature)
             {
-                if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IArmorAddonGetter>(armatureLink.FormKey, out var armaGetter) && outputMod.ArmorAddons.ContainsKey(armatureLink.FormKey) && !armaGetter.AdditionalRaces.Select(x => x.FormKey.ToString()).Contains(npcInfo.NPC.Race.FormKey.ToString())) // 
+                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IArmorAddonGetter>(armatureLink.FormKey, out var armaGetter) && outputMod.ArmorAddons.ContainsKey(armatureLink.FormKey) && !armaGetter.AdditionalRaces.Select(x => x.FormKey.ToString()).Contains(npcInfo.NPC.Race.FormKey.ToString())) // 
                 {
                     var armature = outputMod.ArmorAddons.GetOrAddAsOverride(armaGetter);
                     armature.AdditionalRaces.Add(npcInfo.NPC.Race);
@@ -629,7 +629,7 @@ public class HardcodedRecordGenerator
                 {
                     npc.HeadParts[i] = existingReplacer.AsLinkGetter();
                 }
-                else if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IHeadPartGetter>(npc.HeadParts[i].FormKey, out var hpGetter) && _patcherEnvironmentProvider.Environment.LinkCache.TryResolve<ITextureSetGetter>(hpGetter.TextureSet.FormKey, out var tsGetter))
+                else if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(npc.HeadParts[i].FormKey, out var hpGetter) && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<ITextureSetGetter>(hpGetter.TextureSet.FormKey, out var tsGetter))
                 {
                     var copiedHP = outputMod.HeadParts.AddNew();
                     copiedHP.DeepCopyIn(hpGetter);
@@ -692,7 +692,7 @@ public class HardcodedRecordGenerator
             {
                 npc.HeadParts[i] = existingReplacer.AsLinkGetter();
             }
-            else if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IHeadPartGetter>(npc.HeadParts[i].FormKey, out var hpGetter) && _patcherEnvironmentProvider.Environment.LinkCache.TryResolve<ITextureSetGetter>(hpGetter.TextureSet.FormKey, out var tsGetter) && tsGetter.Diffuse == diffusePath)
+            else if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(npc.HeadParts[i].FormKey, out var hpGetter) && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<ITextureSetGetter>(hpGetter.TextureSet.FormKey, out var tsGetter) && tsGetter.Diffuse == diffusePath)
             {
                 var copiedHP = outputMod.HeadParts.AddNew();
                 copiedHP.DeepCopyIn(hpGetter);

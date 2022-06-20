@@ -8,7 +8,7 @@ public class MainWindow_ViewModel : VM
     private readonly SaveLoader _saveLoader;
     private readonly VM_Settings_General _settingsGeneral;
     private readonly VM_NavPanel _navPanel;
-    private readonly PatcherEnvironmentProvider _environmentProvider;
+
     public DisplayedItemVm Display { get; }
     public VM_RunButton RunButtonVM { get; }
     public object NavViewModel { get; }
@@ -33,7 +33,7 @@ public class MainWindow_ViewModel : VM
         StatusBarVM = statusBar;
         RunButtonVM = runButton;
         NavViewModel = _navPanel;
-        _environmentProvider = patcherEnvironmentProvider;
+        PatcherEnvironmentProvider.Instance = patcherEnvironmentProvider;
         PatcherSettings.Paths = paths;
 
         // Start on the settings VM

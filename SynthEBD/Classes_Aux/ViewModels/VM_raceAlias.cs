@@ -9,7 +9,7 @@ namespace SynthEBD;
 
 public class VM_raceAlias : VM
 {
-    public VM_raceAlias(RaceAlias alias, VM_Settings_General parentVM, PatcherEnvironmentProvider patcherEnvironmentProvider)
+    public VM_raceAlias(RaceAlias alias, VM_Settings_General parentVM)
     {
         this.race = alias.Race;
         this.aliasRace = alias.AliasRace;
@@ -18,7 +18,7 @@ public class VM_raceAlias : VM
         this.bApplyToAssets = alias.bApplyToAssets;
         this.bApplyToBodyGen = alias.bApplyToBodyGen;
         this.bApplyToHeight = alias.bApplyToHeight;
-        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 

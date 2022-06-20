@@ -97,7 +97,7 @@ public class RecordGenerator
                 }
                 #endregion
                 #region Traverse if NPC Setter record already has object at the current subpath but it has not yet been added to NPC object linkage map
-                else if (RecordPathParser.GetObjectAtPath(rootNPC, group.Key, npcObjectMap, _patcherEnvironmentProvider.Environment.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC) + " (Generated Override)", out currentObj, out currentObjInfo) && !currentObjInfo.IsNullFormLink) // if the current object is a sub-object of a template-derived record, it will not yet have been added to npcObjectMap in a previous iteration (note that it is added during this GetObjectAtPath() call so no need to add it again)
+                else if (RecordPathParser.GetObjectAtPath(rootNPC, group.Key, npcObjectMap, PatcherEnvironmentProvider.Instance.Environment.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC) + " (Generated Override)", out currentObj, out currentObjInfo) && !currentObjInfo.IsNullFormLink) // if the current object is a sub-object of a template-derived record, it will not yet have been added to npcObjectMap in a previous iteration (note that it is added during this GetObjectAtPath() call so no need to add it again)
                 {
                     npcSetterHasObject = true;
                     if (currentObjInfo.HasFormKey) // else does not need handling - if the NPC setter already has a given non-record object along the path, no further action is needed at this path segment.
@@ -120,7 +120,7 @@ public class RecordGenerator
                 }
                 #endregion
                 #region Get object and traverse if the corresponding NPC Getter has an object at the curent subpath
-                else if (RecordPathParser.GetObjectAtPath(npcInfo.NPC, group.Key, objectCaches[npcInfo.NPC.FormKey], _patcherEnvironmentProvider.Environment.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out currentObj, out currentObjInfo) && !currentObjInfo.IsNullFormLink)
+                else if (RecordPathParser.GetObjectAtPath(npcInfo.NPC, group.Key, objectCaches[npcInfo.NPC.FormKey], PatcherEnvironmentProvider.Instance.Environment.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out currentObj, out currentObjInfo) && !currentObjInfo.IsNullFormLink)
                 {
                     if (currentObjInfo.HasFormKey)  // if the current object is a record, resolve it
                     {
@@ -289,7 +289,7 @@ public class RecordGenerator
     {
         if (RecordPathParser.PathIsArray(currentSubPath))
         {
-            if (RecordPathParser.GetObjectAtPath(root, currentSubPath, new Dictionary<string, dynamic>(), _patcherEnvironmentProvider.Environment.LinkCache, true, "", out dynamic _, out ObjectInfo arrayObjInfo))
+            if (RecordPathParser.GetObjectAtPath(root, currentSubPath, new Dictionary<string, dynamic>(), PatcherEnvironmentProvider.Instance.Environment.LinkCache, true, "", out dynamic _, out ObjectInfo arrayObjInfo))
             {
                 SetRecordInArray(root, arrayObjInfo.IndexInParentArray.Value, record);
             }

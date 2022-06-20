@@ -10,7 +10,7 @@ public class HeadPartFunctions
         {
             if (npc.HeadTexture == null || npc.HeadTexture.IsNull)
             {
-                if (npc.Race != null && _patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npc.Race.FormKey, out var raceGetter))
+                if (npc.Race != null && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(npc.Race.FormKey, out var raceGetter))
                 {
                     var gender = NPCInfo.GetGender(npc);
                     switch (gender)
@@ -51,7 +51,7 @@ public class HeadPartFunctions
 
         Logger.LogMessage("Reverting headparts of NPC " + npcString + "because no face texture was assigned by SynthEBD and no default face texture exists in its RACE record.");
 
-        var allContexts = _patcherEnvironmentProvider.Environment.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npc.FormKey); // [0] is winning override. [Last] is source plugin
+        var allContexts = PatcherEnvironmentProvider.Instance.Environment.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npc.FormKey); // [0] is winning override. [Last] is source plugin
 
         // at this point the current override is [0], so the previous winner should be [1]
         if (allContexts != null && allContexts.Count() > 1)

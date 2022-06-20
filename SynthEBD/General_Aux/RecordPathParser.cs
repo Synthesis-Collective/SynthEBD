@@ -662,7 +662,7 @@ public class RecordPathParser
 
         foreach (var matchPath in toMatch)
         {
-            if (GetObjectAtPath(rootRecord, matchPath, subObjectCache, _patcherEnvironmentProvider.Environment.LinkCache, true, "", out dynamic outputObj))
+            if (GetObjectAtPath(rootRecord, matchPath, subObjectCache, PatcherEnvironmentProvider.Instance.Environment.LinkCache, true, "", out dynamic outputObj))
             {
                 var objCollection = outputObj as System.Collections.IEnumerable;
 

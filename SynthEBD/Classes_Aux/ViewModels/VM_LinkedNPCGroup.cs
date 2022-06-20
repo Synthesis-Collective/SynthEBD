@@ -12,9 +12,9 @@ namespace SynthEBD;
 
 public class VM_LinkedNPCGroup : VM
 {
-    public VM_LinkedNPCGroup(PatcherEnvironmentProvider patcherEnvironmentProvider)
+    public VM_LinkedNPCGroup()
     {
-        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
@@ -48,7 +48,7 @@ public class VM_LinkedNPCGroup : VM
 
     public IReadOnlyCollection<string> PrimaryCandidates { get; private set; }
 
-    public static ObservableCollection<VM_LinkedNPCGroup> GetViewModelsFromModels(HashSet<LinkedNPCGroup> models, PatcherEnvironmentProvider patcherEnvironmentProvider)
+    public static ObservableCollection<VM_LinkedNPCGroup> GetViewModelsFromModels(HashSet<LinkedNPCGroup> models)
     {
         var viewModels = new ObservableCollection<VM_LinkedNPCGroup>();
         foreach (var m in models)
@@ -56,11 +56,11 @@ public class VM_LinkedNPCGroup : VM
             VM_LinkedNPCGroup vm = new VM_LinkedNPCGroup();
             vm.GroupName = m.GroupName;
             vm.NPCFormKeys.SetTo(m.NPCFormKeys, checkEquality: false);
-            if ((m.Primary == null || m.Primary.IsNull) && _patcherEnvironmentProvider.Environment.LinkCache.TryResolve<INpcGetter>(m.NPCFormKeys.FirstOrDefault(), out var primaryNPC))
+            if ((m.Primary == null || m.Primary.IsNull) && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<INpcGetter>(m.NPCFormKeys.FirstOrDefault(), out var primaryNPC))
             {
                 vm.Primary = Logger.GetNPCLogNameString(primaryNPC);
             }
-            else if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<INpcGetter>(m.Primary, out var assignedPrimary))
+            else if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<INpcGetter>(m.Primary, out var assignedPrimary))
             {
                 vm.Primary = Logger.GetNPCLogNameString(assignedPrimary);
             }

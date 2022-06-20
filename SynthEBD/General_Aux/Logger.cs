@@ -91,15 +91,15 @@ public sealed class Logger : VM
 
             LogReport("Patching NPC " + npcInfo.Report.NameString, false, npcInfo);
 
-            if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.AssetsRace, out var assetsRaceGetter))
+            if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.AssetsRace, out var assetsRaceGetter))
             {
                 LogReport("Assets race: " + assetsRaceGetter.EditorID, false, npcInfo);
             }
-            if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.BodyShapeRace, out var bodyRaceGetter))
+            if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.BodyShapeRace, out var bodyRaceGetter))
             {
                 LogReport("Body Shape race: " + bodyRaceGetter.EditorID, false, npcInfo);
             }
-            if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.HeightRace, out var heightRaceGetter))
+            if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.HeightRace, out var heightRaceGetter))
             {
                 LogReport("Height race: " + heightRaceGetter.EditorID, false, npcInfo);
             }

@@ -9,16 +9,12 @@ namespace SynthEBD;
 
 public class VM_RaceGrouping : VM
 {
-    public VM_RaceGrouping(PatcherEnvironmentProvider patcherEnvironmentProvider)
-    {
-        _patcherEnvironmentProvider = patcherEnvironmentProvider;
-    }
     public VM_RaceGrouping(RaceGrouping raceGrouping, VM_Settings_General parentVM)
     {
         this.Label = raceGrouping.Label;
         this.Races = new ObservableCollection<FormKey>(raceGrouping.Races);
         
-        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
@@ -30,7 +26,6 @@ public class VM_RaceGrouping : VM
     public ILinkCache lk { get; private set; }
     public VM_Settings_General ParentVM { get; set; }
     public RelayCommand DeleteCommand { get; }
-    private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
 
     public static ObservableCollection<VM_RaceGrouping> GetViewModelsFromModels(List<RaceGrouping> models, VM_Settings_General parentVM)
     {

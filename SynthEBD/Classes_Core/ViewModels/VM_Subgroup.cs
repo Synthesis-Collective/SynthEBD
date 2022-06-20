@@ -50,7 +50,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         AllowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
         DisallowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
 
-        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => LinkCache = x)
             .DisposeWith(this);
         
@@ -235,9 +235,9 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
     }
     public static void GetDDSPaths(VM_Subgroup viewModel, ObservableCollection<Graphics.ImagePathWithSource> paths)
     {
-        var ddsPaths = viewModel.PathsMenu.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(_patcherEnvironmentProvider.Environment.DataFolderPath, x.Source)))
+        var ddsPaths = viewModel.PathsMenu.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, x.Source)))
             .Select(x => x.Source)
-            .Select(x => System.IO.Path.Combine(_patcherEnvironmentProvider.Environment.DataFolderPath, x))
+            .Select(x => System.IO.Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, x))
             .ToHashSet();
         var source = Graphics.ImagePathWithSource.GetSource(viewModel);
         foreach (var path in ddsPaths)
@@ -248,7 +248,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
                 paths.Add(imagePathWithSource);
             }
         }
-        //paths.UnionWith(ddsPaths.Select(x => System.IO.Path.Combine(_patcherEnvironmentProvider.Environment.DataFolderPath, x)));
+        //paths.UnionWith(ddsPaths.Select(x => System.IO.Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, x)));
         foreach (var subgroup in viewModel.Subgroups)
         {
             GetDDSPaths(subgroup, paths);

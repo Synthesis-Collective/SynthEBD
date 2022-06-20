@@ -19,7 +19,7 @@ public class VM_BodySlideSetting : VM
         this.ParentConfig = parentConfig;
         this.ParentCollection = parentCollection;
         
-        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
