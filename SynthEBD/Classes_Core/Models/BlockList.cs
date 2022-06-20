@@ -4,6 +4,11 @@ namespace SynthEBD;
 
 public class BlockList
 {
+    private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
+    public BlockList(PatcherEnvironmentProvider patcherEnvironmentProvider)
+    {
+        _patcherEnvironmentProvider = patcherEnvironmentProvider;
+    }
     public HashSet<BlockedNPC> NPCs { get; set; } = new();
     public HashSet<BlockedPlugin> Plugins { get; set; } = new();
 }
@@ -32,7 +37,7 @@ public class zEBDBlockList
     public static BlockList ToSynthEBD(zEBDBlockList zList)
     {
         BlockList sList = new BlockList();
-        var env = PatcherEnvironmentProvider.Instance.Environment;
+        var env = _patcherEnvironmentProvider.Environment;
 
         foreach (var npc in zList.blockedNPCs)
         {

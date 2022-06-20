@@ -33,7 +33,7 @@ public class VM_LogDisplay : VM
 
         ShowEnvironment = new RelayCommand(
             canExecute: _ => true,
-            execute: x => PrintEnvironment(PatcherEnvironmentProvider.Instance.Environment)
+            execute: x => PrintEnvironment(_patcherEnvironmentProvider.Environment)
         );
     }
 

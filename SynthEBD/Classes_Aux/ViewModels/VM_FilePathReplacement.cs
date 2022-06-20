@@ -13,13 +13,15 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 {
     private readonly BSAHandler _bsaHandler;
     private readonly Factory _selfFactory;
+    private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
 
     public delegate VM_FilePathReplacement Factory(VM_FilePathReplacementMenu parentMenu);
     
-    public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu, BSAHandler bsaHandler, Factory selfFactory)
+    public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu, BSAHandler bsaHandler, Factory selfFactory, PatcherEnvironmentProvider patcherEnvironmentProvider)
     {
         _bsaHandler = bsaHandler;
         _selfFactory = selfFactory;
+        _patcherEnvironmentProvider = patcherEnvironmentProvider;
         ReferenceNPCFormKey = parentMenu.ReferenceNPCFK;
         LinkCache = parentMenu.ReferenceLinkCache;
 
@@ -35,7 +37,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
                 System.Windows.Forms.OpenFileDialog dialog = LongPathHandler.CreateLongPathOpenFileDialog();
                 if (Source != "")
                 {
-                    var initDir = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, Path.GetDirectoryName(Source));
+                    var initDir = Path.Combine(_patcherEnvironmentProvider.Environment.DataFolderPath, Path.GetDirectoryName(Source));
                     if (Directory.Exists(initDir))
                     {
                         dialog.InitialDirectory = initDir;
@@ -45,9 +47,9 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
                 if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 {
                     // try to figure out the root directory
-                    if (dialog.FileName.Contains(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath))
+                    if (dialog.FileName.Contains(_patcherEnvironmentProvider.Environment.DataFolderPath))
                     {
-                        Source = dialog.FileName.Replace(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "").TrimStart(Path.DirectorySeparatorChar);
+                        Source = dialog.FileName.Replace(_patcherEnvironmentProvider.Environment.DataFolderPath, "").TrimStart(Path.DirectorySeparatorChar);
                     }
                     else if (TrimKnownPrefix(dialog.FileName, out var sourceTrimmed))
                     {
@@ -145,7 +147,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 
     public void RefreshSourceColor()
     {
-        var searchStr = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, this.Source);
+        var searchStr = Path.Combine(_patcherEnvironmentProvider.Environment.DataFolderPath, this.Source);
         if (LongPathHandler.PathExists(searchStr) || _bsaHandler.ReferencedPathExists(this.Source, out _, out _))
         {
             this.SourceBorderColor = new SolidColorBrush(Colors.LightGreen);

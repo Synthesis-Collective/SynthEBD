@@ -24,11 +24,11 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         this.WhenAnyValue(x => x.bShowToolTips)
             .Subscribe(x => TooltipController.Instance.DisplayToolTips = x);
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.SkyrimVersion).Skip(1).Subscribe(_ => PatcherEnvironmentProvider.Instance.GameDataFolder = String.Empty);
+        _patcherEnvironmentProvider.WhenAnyValue(x => x.SkyrimVersion).Skip(1).Subscribe(_ => _patcherEnvironmentProvider.GameDataFolder = String.Empty);
 
         AddRaceAlias = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -69,7 +69,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    if (IO_Aux.SelectFolder(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, out var tmpFolder))
+                    if (IO_Aux.SelectFolder(_patcherEnvironmentProvider.Environment.DataFolderPath, out var tmpFolder))
                     {
                         OutputDataFolder = tmpFolder;
                     }

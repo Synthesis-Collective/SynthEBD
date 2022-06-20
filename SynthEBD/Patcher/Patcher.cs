@@ -43,7 +43,7 @@ public class Patcher
         HashSet<LinkedNPCGroupInfo> generatedLinkGroups = new HashSet<LinkedNPCGroupInfo>();
         CategorizedFlattenedAssetPacks availableAssetPacks = null;
 
-        var allNPCs = PatcherEnvironmentProvider.Instance.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
+        var allNPCs = _patcherEnvironmentProvider.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
         HashSet<INpcGetter> skippedLinkedNPCs = new HashSet<INpcGetter>();
 
         Keyword EBDFaceKW = null;
@@ -528,7 +528,7 @@ public class Patcher
 
     public static void ResolvePatchableRaces()
     {
-        if (PatcherEnvironmentProvider.Instance.Environment.LinkCache is null)
+        if (_patcherEnvironmentProvider.Environment.LinkCache is null)
         {
             Logger.LogError("Error: Link cache is null.");
             return;
@@ -537,12 +537,12 @@ public class Patcher
         PatchableRaces = new HashSet<IFormLinkGetter<IRaceGetter>>();
         foreach (var raceFK in PatcherSettings.General.PatchableRaces)
         {
-            if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
+            if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
             {
                 PatchableRaces.Add(raceGetter.ToLinkGetter());
             }
         }
-        PatchableRaces.Add(Skyrim.Race.DefaultRace.Resolve(PatcherEnvironmentProvider.Instance.Environment.LinkCache).ToLinkGetter());
+        PatchableRaces.Add(Skyrim.Race.DefaultRace.Resolve(_patcherEnvironmentProvider.Environment.LinkCache).ToLinkGetter());
     }
 
     public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker(); // tracks unique selected morphs so that only assigned morphs are written to the generated templates.ini

@@ -9,14 +9,14 @@ public class MiscValidation
     {
         bool verified = true;
 
-        string helperScriptPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "Scripts", "EBDHelperScript.pex");
+        string helperScriptPath = Path.Combine(_patcherEnvironmentProvider.Environment.DataFolderPath, "Scripts", "EBDHelperScript.pex");
         if (!File.Exists(helperScriptPath))
         {
             Logger.LogMessage("Could not find EBDHelperScript.pex from EveryBody's Different Redone SSE at " + helperScriptPath);
             verified = false;
         }
 
-        string globalScriptPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "Scripts", "EBDGlobalFuncs.pex");
+        string globalScriptPath = Path.Combine(_patcherEnvironmentProvider.Environment.DataFolderPath, "Scripts", "EBDGlobalFuncs.pex");
         if (!File.Exists(globalScriptPath))
         {
             Logger.LogMessage("Could not find EBDGlobalFuncs.pex from EveryBody's Different Redone SSE at " + globalScriptPath);
@@ -222,7 +222,7 @@ public class MiscValidation
         bool valid = true;
         if (oBodySettings.BodySlidesMale.Where(x => x.AllowRandom && oBodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).Any())
         {
-            string triPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
+            string triPath = Path.Combine(_patcherEnvironmentProvider.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
             if (!File.Exists(triPath))
             {
                 valid = false;
@@ -232,7 +232,7 @@ public class MiscValidation
 
         if (oBodySettings.BodySlidesFemale.Where(x => x.AllowRandom && oBodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).Any())
         {
-            string triPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
+            string triPath = Path.Combine(_patcherEnvironmentProvider.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
             if (!File.Exists(triPath))
             {
                 valid = false;
@@ -255,7 +255,7 @@ public class MiscValidation
 
         if (hasMaleConfigs)
         {
-            string triPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
+            string triPath = Path.Combine(_patcherEnvironmentProvider.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
             if (!File.Exists(triPath))
             {
                 valid = false;
@@ -264,7 +264,7 @@ public class MiscValidation
         }
         if (hasFemaleConfigs)
         {
-            string triPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
+            string triPath = Path.Combine(_patcherEnvironmentProvider.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
             if (!File.Exists(triPath))
             {
                 valid = false;

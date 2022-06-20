@@ -12,7 +12,7 @@ public class VM_BlockedPlugin : VM
     {
         this.PropertyChanged += TriggerDispNameUpdate;
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
     }

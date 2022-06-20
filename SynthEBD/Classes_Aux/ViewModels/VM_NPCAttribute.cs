@@ -186,7 +186,7 @@ public interface ISubAttributeViewModel
 
 public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
 {
-    public VM_NPCAttributeVoiceType(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+    public VM_NPCAttributeVoiceType(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, PatcherEnvironmentProvider patcherEnvironmentProvider)
     {
         this.ParentVM = parentVM;
         this.ParentShell = parentShell;
@@ -201,7 +201,7 @@ public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
                 }
             }) ;
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
     }
@@ -235,7 +235,7 @@ public class VM_NPCAttributeClass : VM, ISubAttributeViewModel
         this.ParentVM = parentVM;
         this.ParentShell = parentShell;
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
@@ -288,7 +288,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => Evaluate());
         this.WhenAnyValue(x => x.ReferenceNPCFormKey).Subscribe(x => Evaluate());
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => LinkCache = x)
             .DisposeWith(this);
     }
@@ -388,7 +388,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         }
         else
         {
-            if (!PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC))
+            if (!_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC))
             {
                 EvalResult = "Error: can't resolve reference NPC.";
                 this.StatusFontColor = new SolidColorBrush(Colors.Red);
@@ -449,12 +449,12 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
 
 public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
 {
-    public VM_NPCAttributeFactions(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+    public VM_NPCAttributeFactions(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, PatcherEnvironmentProvider patcherEnvironmentProvider)
     {
         this.ParentVM = parentVM;
         this.ParentShell = parentShell;
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
@@ -487,12 +487,12 @@ public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
 {
-    public VM_NPCAttributeFaceTexture(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+    public VM_NPCAttributeFaceTexture(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, PatcherEnvironmentProvider patcherEnvironmentProvider)
     {
         this.ParentVM = parentVM;
         this.ParentShell = parentShell;
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
@@ -506,7 +506,7 @@ public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(ITextureSetGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
 
-    public static VM_NPCAttributeFaceTexture GetViewModelFromModel(NPCAttributeFaceTexture model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+    public static VM_NPCAttributeFaceTexture GetViewModelFromModel(NPCAttributeFaceTexture model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, PatcherEnvironmentProvider patcherEnvironmentProvider)
     {
         var newAtt = new VM_NPCAttributeFaceTexture(parentVM, parentShell);
         newAtt.FaceTextureFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
@@ -522,12 +522,12 @@ public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
 {
-    public VM_NPCAttributeRace(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+    public VM_NPCAttributeRace(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, PatcherEnvironmentProvider patcherEnvironmentProvider)
     {
         this.ParentVM = parentVM;
         this.ParentShell = parentShell;
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
@@ -562,7 +562,7 @@ public class VM_NPCAttributeNPC : VM, ISubAttributeViewModel
         this.ParentVM = parentVM;
         this.ParentShell = parentShell;
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));

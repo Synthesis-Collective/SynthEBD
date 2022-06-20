@@ -37,7 +37,7 @@ public class VM_BodyGenRacialMapping : VM
         this.RaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         this.MonitoredGroupsMenu = groupsMenu;
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 

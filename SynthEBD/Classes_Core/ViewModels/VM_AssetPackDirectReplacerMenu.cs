@@ -63,7 +63,7 @@ public class VM_AssetReplacerGroup : VM
         _subGroupFactory = subGroupFactory;
         this.ParentMenu = parent;
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 

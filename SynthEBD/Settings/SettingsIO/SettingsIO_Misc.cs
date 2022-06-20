@@ -8,10 +8,10 @@ public class SettingsIO_Misc
     {
         LoadSource source = new LoadSource()
         {
-            GameEnvironmentDirectory = PatcherEnvironmentProvider.Instance.GameDataFolder, 
+            GameEnvironmentDirectory = _patcherEnvironmentProvider.GameDataFolder, 
             LoadFromDataDir = generalSettings.bLoadSettingsFromDataFolder,
             PortableSettingsFolder = generalSettings.PortableSettingsFolder, 
-            SkyrimVersion = PatcherEnvironmentProvider.Instance.SkyrimVersion
+            SkyrimVersion = _patcherEnvironmentProvider.SkyrimVersion
         };
         JSONhandler<LoadSource>.SaveJSONFile(source, Paths.SettingsSourcePath, out saveSuccess, out exceptionStr);
     }

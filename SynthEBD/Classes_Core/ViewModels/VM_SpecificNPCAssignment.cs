@@ -25,7 +25,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
         SubscribedOBodySettings = oBody;
         SubscribedBodyGenSettings = bodyGen;
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
@@ -158,7 +158,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
 
         var npcFormLink = new FormLink<INpcGetter>(viewModel.NPCFormKey);
 
-        if (!npcFormLink.TryResolve(PatcherEnvironmentProvider.Instance.Environment.LinkCache, out var npcRecord))
+        if (!npcFormLink.TryResolve(_patcherEnvironmentProvider.Environment.LinkCache, out var npcRecord))
         {
             Logger.LogError("Warning: the target NPC of the Specific NPC Assignment with FormKey " + viewModel.NPCFormKey.ToString() + " was not found in the current load order.");
         }
@@ -567,7 +567,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
     {
         var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
 
-        if (npcFormLink.TryResolve(PatcherEnvironmentProvider.Instance.Environment.LinkCache, out var npcRecord))
+        if (npcFormLink.TryResolve(_patcherEnvironmentProvider.Environment.LinkCache, out var npcRecord))
         {
             if (npcRecord.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Female))
             {

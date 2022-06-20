@@ -9,7 +9,7 @@ namespace SynthEBD;
 
 public class VM_BodyShapeDescriptorRules : VM
 {
-    public VM_BodyShapeDescriptorRules(VM_BodyShapeDescriptor descriptor, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
+    public VM_BodyShapeDescriptorRules(VM_BodyShapeDescriptor descriptor, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, PatcherEnvironmentProvider patcherEnvironmentProvider)
     {
         DescriptorSignature = descriptor.Signature;
         this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
@@ -17,7 +17,7 @@ public class VM_BodyShapeDescriptorRules : VM
 
         ParentConfig = parentConfig;
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 

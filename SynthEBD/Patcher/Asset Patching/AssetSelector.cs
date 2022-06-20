@@ -6,6 +6,11 @@ namespace SynthEBD;
 
 public class AssetSelector
 {
+    private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
+    public AssetSelector(PatcherEnvironmentProvider patcherEnvironmentProvider)
+    {
+        _patcherEnvironmentProvider = patcherEnvironmentProvider;
+    }
     public static SubgroupCombination GenerateCombination(HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo, AssignmentIteration iterationInfo)
     {
         SubgroupCombination generatedCombination = new SubgroupCombination();
@@ -813,7 +818,7 @@ public class AssetSelector
             {
                 foreach (string destPath in targetPaths)
                 {
-                    if (!(RecordPathParser.GetObjectAtPath(npcInfo.NPC, destPath, new Dictionary<string, dynamic>(), PatcherEnvironmentProvider.Instance.Environment.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out dynamic objAtPath) && objAtPath is not null))
+                    if (!(RecordPathParser.GetObjectAtPath(npcInfo.NPC, destPath, new Dictionary<string, dynamic>(), _patcherEnvironmentProvider.Environment.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out dynamic objAtPath) && objAtPath is not null))
                     {
                         assignReplacer = false;
                         break;
@@ -876,7 +881,7 @@ public class AssetSelector
     {
         foreach (var part in npc.HeadParts)
         {
-            if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(part.FormKey, out var headPartGetter) && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<ITextureSetGetter>(headPartGetter.TextureSet.FormKey, out var headPartTextureSetGetter) && headPartTextureSetGetter.Diffuse.Equals(diffusePath, StringComparison.OrdinalIgnoreCase))
+            if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IHeadPartGetter>(part.FormKey, out var headPartGetter) && _patcherEnvironmentProvider.Environment.LinkCache.TryResolve<ITextureSetGetter>(headPartGetter.TextureSet.FormKey, out var headPartTextureSetGetter) && headPartTextureSetGetter.Diffuse.Equals(diffusePath, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -986,11 +991,11 @@ public class AssetSelector
 
     public static void SetVanillaBodyPath(NPCInfo npcInfo, SkyrimMod outputMod)
     {
-        if (npcInfo.NPC.WornArmor != null && !npcInfo.NPC.WornArmor.IsNull && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IArmorGetter>(npcInfo.NPC.WornArmor.FormKey, out var skin))
+        if (npcInfo.NPC.WornArmor != null && !npcInfo.NPC.WornArmor.IsNull && _patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IArmorGetter>(npcInfo.NPC.WornArmor.FormKey, out var skin))
         {
             foreach (var armaGetter in skin.Armature)
             { 
-                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IArmorAddonGetter>(armaGetter.FormKey, out var armature) && armature.BodyTemplate != null && armature.WorldModel != null && armature.BodyTemplate.FirstPersonFlags.HasFlag(BipedObjectFlag.Body) && Patcher.PatchableRaces.Contains(armature.Race))
+                if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IArmorAddonGetter>(armaGetter.FormKey, out var armature) && armature.BodyTemplate != null && armature.WorldModel != null && armature.BodyTemplate.FirstPersonFlags.HasFlag(BipedObjectFlag.Body) && Patcher.PatchableRaces.Contains(armature.Race))
                 {
                     string vanillaPath;
                     switch(npcInfo.Gender)

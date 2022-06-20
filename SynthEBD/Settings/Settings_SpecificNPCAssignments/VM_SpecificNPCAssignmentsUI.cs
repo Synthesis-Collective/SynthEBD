@@ -45,7 +45,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
                     var assignmentTuples = SettingsIO_BodyGen.LoadMorphsINI(morphsPath);
                     foreach (var assignment in assignmentTuples)
                     {
-                        if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<INpcGetter>(assignment.Item1, out var npcGetter))
+                        if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<INpcGetter>(assignment.Item1, out var npcGetter))
                         {
                             var morphNames = assignment.Item2.Split('|').Select(s => s.Trim());
                             var morphs = new List<VM_BodyGenTemplate>();

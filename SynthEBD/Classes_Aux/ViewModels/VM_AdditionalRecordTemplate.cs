@@ -11,12 +11,13 @@ public class VM_AdditionalRecordTemplate : VM
 {
     public VM_AdditionalRecordTemplate(
         ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, 
-        ObservableCollection<VM_AdditionalRecordTemplate> parentCollection)
+        ObservableCollection<VM_AdditionalRecordTemplate> parentCollection, 
+        PatcherEnvironmentProvider patcherEnvironmentProvider)
     {
         this.RecordTemplateLinkCache = recordTemplateLinkCache;
         this.ParentCollection = parentCollection;
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 

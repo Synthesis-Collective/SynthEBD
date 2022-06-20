@@ -10,7 +10,7 @@ class Converters
 {
     public static FormKey RaceEDID2FormKey(string EDID)
     {
-        var env = PatcherEnvironmentProvider.Instance.Environment;
+        var env = _patcherEnvironmentProvider.Environment;
 
         foreach (var plugin in env.LoadOrder.ListedOrder)
         {
@@ -33,7 +33,7 @@ class Converters
     {
         var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
 
-        if (npcFormLink.TryResolve(PatcherEnvironmentProvider.Instance.Environment.LinkCache, out var npcRecord))
+        if (npcFormLink.TryResolve(_patcherEnvironmentProvider.Environment.LinkCache, out var npcRecord))
         {
             string subName = "";
             if (npcRecord.Name != null && !string.IsNullOrEmpty(npcRecord.Name.ToString()))
@@ -55,7 +55,7 @@ class Converters
     {
         HashSet<NPCAttribute> h = new HashSet<NPCAttribute>();
 
-        var env = PatcherEnvironmentProvider.Instance.Environment;
+        var env = _patcherEnvironmentProvider.Environment;
 
         //temporary storage lists for grouping attributes of same type
         HashSet<FormKey> classAttributes = new HashSet<FormKey>();
@@ -376,13 +376,13 @@ class Converters
 
         if (split[1] == PatcherSettings.General.PatchFileName + ".esp")
         {
-            formIDstr = PatcherEnvironmentProvider.Instance.Environment.LoadOrder.ListedOrder.Count().ToString("X"); // format FormID assuming the generated patch will be last in the load order
+            formIDstr = _patcherEnvironmentProvider.Environment.LoadOrder.ListedOrder.Count().ToString("X"); // format FormID assuming the generated patch will be last in the load order
         }
         else
         {
-            for (int i = 0; i < PatcherEnvironmentProvider.Instance.Environment.LoadOrder.ListedOrder.Count(); i++)
+            for (int i = 0; i < _patcherEnvironmentProvider.Environment.LoadOrder.ListedOrder.Count(); i++)
             {
-                var currentListing = PatcherEnvironmentProvider.Instance.Environment.LoadOrder.ListedOrder.ElementAt(i);
+                var currentListing = _patcherEnvironmentProvider.Environment.LoadOrder.ListedOrder.ElementAt(i);
                 if (currentListing.ModKey.FileName == split[1])
                 {
                     formIDstr = i.ToString("X"); // https://www.delftstack.com/howto/csharp/integer-to-hexadecimal-in-csharp/

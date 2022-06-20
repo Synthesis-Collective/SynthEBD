@@ -53,7 +53,7 @@ public class zEBDSpecificNPCAssignment
     public static HashSet<NPCAssignment> ToSynthEBDNPCAssignments(HashSet<zEBDSpecificNPCAssignment> inputSet)
     {
         var outputSet = new HashSet<NPCAssignment>();
-        var env = PatcherEnvironmentProvider.Instance.Environment;
+        var env = _patcherEnvironmentProvider.Environment;
 
         foreach (var z in inputSet)
         {

@@ -11,7 +11,6 @@ namespace SynthEBD;
 
 public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
 {
-    public static PatcherEnvironmentProvider Instance;
     [Reactive] public string PatchFileName { get; set; } = "SynthEBD";
     [Reactive] public SkyrimRelease SkyrimVersion { get; set; }
     [Reactive] public string GameDataFolder { get; set; } = "";

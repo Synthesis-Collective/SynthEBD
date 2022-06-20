@@ -13,7 +13,7 @@ public class VM_BlockedNPC : VM
     {
         this.PropertyChanged += TriggerDispNameUpdate;
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
     }

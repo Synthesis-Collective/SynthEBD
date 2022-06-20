@@ -14,7 +14,7 @@ public class VM_ConsistencyUI : VM
     {
         this.PropertyChanged += RefereshCurrentAssignment;
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _patcherEnvironmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 

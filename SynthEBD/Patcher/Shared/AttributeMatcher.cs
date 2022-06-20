@@ -55,7 +55,7 @@ public class AttributeMatcher
 
                     case NPCAttributeType.Custom:
                         var customAttribute = (NPCAttributeCustom)subAttribute;
-                        if (!EvaluateCustomAttribute(npc, customAttribute, PatcherEnvironmentProvider.Instance.Environment.LinkCache, out _))
+                        if (!EvaluateCustomAttribute(npc, customAttribute, _patcherEnvironmentProvider.Environment.LinkCache, out _))
                         {
                             subAttributeMatched = false;
                         }

@@ -41,46 +41,46 @@ public class BodyGenPreprocessing
         }
     }
 
-    public static void ImplementDescriptorRules(BodyGenConfigs bodyGenConfigs)
+    public static void ImplementDescriptorRules(BodyGenConfigs bodyGenConfigs, PatcherEnvironmentProvider patcherEnvironmentProvider)
     {
         foreach (var bodyGenConfig in bodyGenConfigs.Male)
         {
-            ImplementDescriptorRules(bodyGenConfig);
+            ImplementDescriptorRules(bodyGenConfig, patcherEnvironmentProvider);
         }
         foreach (var bodyGenConfig in bodyGenConfigs.Female)
         {
-            ImplementDescriptorRules(bodyGenConfig);
+            ImplementDescriptorRules(bodyGenConfig, patcherEnvironmentProvider);
         }
     }
 
-    public static void FlattenGroupAttributes(BodyGenConfigs bodyGenConfigs)
+    public static void FlattenGroupAttributes(BodyGenConfigs bodyGenConfigs, PatcherEnvironmentProvider patcherEnvironmentProvider)
     {
         foreach (var config in bodyGenConfigs.Male)
         {
-            FlattenGroupSubAttributes(config);
+            FlattenGroupSubAttributes(config, patcherEnvironmentProvider);
         }
         foreach (var config in bodyGenConfigs.Female)
         {
-            FlattenGroupSubAttributes(config);
+            FlattenGroupSubAttributes(config, patcherEnvironmentProvider);
         }
     }
 
-    private static void FlattenGroupSubAttributes(BodyGenConfig bodyGenConfig)
+    private static void FlattenGroupSubAttributes(BodyGenConfig bodyGenConfig, PatcherEnvironmentProvider patcherEnvironmentProvider)
     {
         foreach (var template in bodyGenConfig.Templates)
         {
-            template.AllowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(template.AllowedAttributes, bodyGenConfig.AttributeGroups);
-            template.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(template.DisallowedAttributes, bodyGenConfig.AttributeGroups);
+            template.AllowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(template.AllowedAttributes, bodyGenConfig.AttributeGroups, patcherEnvironmentProvider);
+            template.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(template.DisallowedAttributes, bodyGenConfig.AttributeGroups, patcherEnvironmentProvider);
         }
 
         foreach (var rule in bodyGenConfig.DescriptorRules)
         {
-            rule.AllowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(rule.AllowedAttributes, bodyGenConfig.AttributeGroups);
-            rule.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(rule.DisallowedAttributes, bodyGenConfig.AttributeGroups);
+            rule.AllowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(rule.AllowedAttributes, bodyGenConfig.AttributeGroups, patcherEnvironmentProvider);
+            rule.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(rule.DisallowedAttributes, bodyGenConfig.AttributeGroups, patcherEnvironmentProvider);
         }
     }
 
-    private static void ImplementDescriptorRules(BodyGenConfig bodyGenConfig)
+    private static void ImplementDescriptorRules(BodyGenConfig bodyGenConfig, PatcherEnvironmentProvider patcherEnvironmentProvider)
     {
         foreach (var template in bodyGenConfig.Templates)
         {
@@ -89,13 +89,13 @@ public class BodyGenPreprocessing
                 var rules = bodyGenConfig.DescriptorRules.Where(x => x.DescriptorSignature == descriptor.Signature).FirstOrDefault();
                 if (rules != null)
                 {
-                    InsertDescriptorRules(template, rules);
+                    InsertDescriptorRules(template, rules, patcherEnvironmentProvider);
                 }
             }
         }
     }
 
-    private static void InsertDescriptorRules(BodyGenConfig.BodyGenTemplate template, BodyShapeDescriptorRules rules)
+    private static void InsertDescriptorRules(BodyGenConfig.BodyGenTemplate template, BodyShapeDescriptorRules rules, PatcherEnvironmentProvider patcherEnvironmentProvider)
     {
         // merge properties between current subgroup and rules
         if (rules.AllowRandom == false) { template.AllowRandom = false; }
@@ -124,8 +124,8 @@ public class BodyGenPreprocessing
         }
 
         // Attribute Merging
-        template.AllowedAttributes = NPCAttribute.InheritAttributes(rules.AllowedAttributes, template.AllowedAttributes);
-        template.DisallowedAttributes = NPCAttribute.InheritAttributes(rules.DisallowedAttributes, template.DisallowedAttributes);
+        template.AllowedAttributes = NPCAttribute.InheritAttributes(rules.AllowedAttributes, template.AllowedAttributes, patcherEnvironmentProvider);
+        template.DisallowedAttributes = NPCAttribute.InheritAttributes(rules.DisallowedAttributes, template.DisallowedAttributes, patcherEnvironmentProvider);
 
         // Weight Range
         if (rules.WeightRange.Lower > template.WeightRange.Lower) { template.WeightRange.Lower = rules.WeightRange.Lower; }
