@@ -54,10 +54,14 @@ public class Settings_OBody: IHasDescriptorRules
             {
                 XDocument presetFile = XDocument.Load(xmlFilePath);
                 var presets = presetFile.Element("SliderPresets");
+                if (presets == null) { continue; }
+
                 var presetName = "";
                 foreach (var preset in presets.Elements())
                 {
                     var groups = preset.Elements("Group");
+                    if (groups == null) { continue; }
+
                     bool genderFound = false;
                     foreach (var group in groups)
                     {

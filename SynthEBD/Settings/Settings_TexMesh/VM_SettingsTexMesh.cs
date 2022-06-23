@@ -6,13 +6,14 @@ namespace SynthEBD;
 public class VM_SettingsTexMesh : VM
 {
     public SaveLoader SaveLoader { get; set; }
+    private List<string> InstalledConfigsInCurrentSession = new List<string>();
 
     public VM_SettingsTexMesh(
         MainState state,
         VM_SettingsModManager modManager,
         VM_AssetPack.Factory assetPackFactory)
     {
-        List<string> installedConfigsInCurrentSession = new List<string>();
+
 
         AddTrimPath = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -53,17 +54,7 @@ public class VM_SettingsTexMesh : VM
                 var installedConfigs = ConfigInstaller.InstallConfigFile();
                 if (installedConfigs.Any())
                 {
-                    installedConfigsInCurrentSession.AddRange(installedConfigs);
-                    //Logger.ArchiveStatus();
-                    //Task.Run(() => Logger.UpdateStatusAsync("Refreshing loaded settings - please wait.", false));
-                    Cursor.Current = Cursors.WaitCursor;
-                    SaveLoader.SaveAndRefreshPlugins();
-                    //Logger.UnarchiveStatus();
-                    foreach (var newConfig in AssetPacks.Where(x => installedConfigsInCurrentSession.Contains(x.GroupName)))
-                    {
-                        newConfig.IsSelected = true;
-                    }
-                    Cursor.Current = Cursors.Default;
+                    RefreshInstalledConfigs(installedConfigs);
                 }
             }
         );
@@ -149,4 +140,18 @@ public class VM_SettingsTexMesh : VM
         model.SelectedAssetPacks = viewModel.AssetPacks.Where(x => x.IsSelected).Select(x => x.GroupName).ToHashSet();
     }
 
+    public void RefreshInstalledConfigs(List<string> installedConfigs)
+    {
+        InstalledConfigsInCurrentSession.AddRange(installedConfigs);
+        //Logger.ArchiveStatus();
+        //Task.Run(() => Logger.UpdateStatusAsync("Refreshing loaded settings - please wait.", false));
+        Cursor.Current = Cursors.WaitCursor;
+        SaveLoader.SaveAndRefreshPlugins();
+        //Logger.UnarchiveStatus();
+        foreach (var newConfig in AssetPacks.Where(x => InstalledConfigsInCurrentSession.Contains(x.GroupName)))
+        {
+            newConfig.IsSelected = true;
+        }
+        Cursor.Current = Cursors.Default;
+    }
 }

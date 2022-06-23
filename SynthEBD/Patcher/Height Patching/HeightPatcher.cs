@@ -16,7 +16,7 @@ public class HeightPatcher
         if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.Height != null)
         {
             npc = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
-            npc.Height = npcInfo.SpecificNPCAssignment.Height.Value;
+            assignedHeight = npcInfo.SpecificNPCAssignment.Height.Value;
         }
         else
         {

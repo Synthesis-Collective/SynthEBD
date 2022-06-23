@@ -104,8 +104,8 @@ public class SaveLoader
 
         VM_SettingsOBody.GetViewModelFromModel(PatcherSettings.OBody, _oBody, General.RaceGroupings);
 
-        var recordTemplatePlugins = SettingsIO_AssetPack.LoadRecordTemplates(out loadSuccess);
-        _state.RecordTemplateLinkCache = recordTemplatePlugins.ToImmutableLinkCache();
+        _state.RecordTemplatePlugins = SettingsIO_AssetPack.LoadRecordTemplates(out loadSuccess);
+        _state.RecordTemplateLinkCache = _state.RecordTemplatePlugins.ToImmutableLinkCache();
 
         // load asset packs
         _state.AssetPacks = SettingsIO_AssetPack.LoadAssetPacks(PatcherSettings.General.RaceGroupings, _state.RecordTemplatePlugins, _state.BodyGenConfigs, out loadSuccess); // load asset pack models from json

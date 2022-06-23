@@ -13,7 +13,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_StatusBar>().AsSelf().SingleInstance();
         builder.RegisterType<VM_NavPanel>().AsSelf().SingleInstance();
         builder.RegisterType<VM_RunButton>().AsSelf().SingleInstance();
-        builder.RegisterType<VM_SettingsTexMesh>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_SettingsTexMesh>().AsSelf().SingleInstance()
+            .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
         builder.RegisterType<VM_SettingsHeight>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsModManager>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BlockListUI>().AsSelf().SingleInstance();
