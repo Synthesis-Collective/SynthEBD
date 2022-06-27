@@ -148,7 +148,7 @@ public class AttributeMatcher
     public static bool EvaluateCustomAttribute(INpcGetter npc, NPCAttributeCustom attribute, ILinkCache linkCache, out string dispMessage)
     {
         var resolvedObjects = new List<dynamic>();
-        bool success = RecordPathParser.GetObjectCollectionAtPath(npc, attribute.Path, new Dictionary<string, dynamic>(), linkCache, true, Logger.GetNPCLogNameString(npc), resolvedObjects);
+        bool success = RecordPathParser.GetObjectCollectionAtPath(npc, npc, attribute.Path, new Dictionary<string, dynamic>(), linkCache, true, Logger.GetNPCLogNameString(npc), resolvedObjects);
         dispMessage = "";
 
         bool currentTypeMatched = false;

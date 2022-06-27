@@ -97,7 +97,7 @@ public class RecordGenerator
                 }
                 #endregion
                 #region Traverse if NPC Setter record already has object at the current subpath but it has not yet been added to NPC object linkage map
-                else if (RecordPathParser.GetObjectAtPath(rootNPC, group.Key, npcObjectMap, PatcherEnvironmentProvider.Instance.Environment.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC) + " (Generated Override)", out currentObj, out currentObjInfo) && !currentObjInfo.IsNullFormLink) // if the current object is a sub-object of a template-derived record, it will not yet have been added to npcObjectMap in a previous iteration (note that it is added during this GetObjectAtPath() call so no need to add it again)
+                else if (RecordPathParser.GetObjectAtPath(rootNPC, rootNPC, group.Key, npcObjectMap, PatcherEnvironmentProvider.Instance.Environment.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC) + " (Generated Override)", out currentObj, out currentObjInfo) && !currentObjInfo.IsNullFormLink) // if the current object is a sub-object of a template-derived record, it will not yet have been added to npcObjectMap in a previous iteration (note that it is added during this GetObjectAtPath() call so no need to add it again)
                 {
                     npcSetterHasObject = true;
                     if (currentObjInfo.HasFormKey) // else does not need handling - if the NPC setter already has a given non-record object along the path, no further action is needed at this path segment.
@@ -120,7 +120,7 @@ public class RecordGenerator
                 }
                 #endregion
                 #region Get object and traverse if the corresponding NPC Getter has an object at the curent subpath
-                else if (RecordPathParser.GetObjectAtPath(npcInfo.NPC, group.Key, objectCaches[npcInfo.NPC.FormKey], PatcherEnvironmentProvider.Instance.Environment.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out currentObj, out currentObjInfo) && !currentObjInfo.IsNullFormLink)
+                else if (RecordPathParser.GetObjectAtPath(npcInfo.NPC, npcInfo.NPC, group.Key, objectCaches[npcInfo.NPC.FormKey], PatcherEnvironmentProvider.Instance.Environment.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out currentObj, out currentObjInfo) && !currentObjInfo.IsNullFormLink)
                 {
                     if (currentObjInfo.HasFormKey)  // if the current object is a record, resolve it
                     {
@@ -144,7 +144,7 @@ public class RecordGenerator
                     {
                         if (RecordPathParser.ObjectHasFormKey(currentObj, out FormKey? _))
                         {
-                            SetViaFormKeyReplacement(currentObj, rootObj, currentSubPath);
+                            SetViaFormKeyReplacement(currentObj, rootObj, currentSubPath, rootNPC);
                             LogRecordAlongPaths(group, currentObj);
                         }
                         else
@@ -159,7 +159,7 @@ public class RecordGenerator
                     {
                         if (currentObjInfo.HasFormKey)
                         {
-                            if (!TraverseRecordFromTemplate(rootObj, currentSubPath, currentObj, currentObjInfo, recordTemplateLinkCache, nonHardcodedPaths, group, templateSignature, templateSubRecords, outputMod, out currentObj))
+                            if (!TraverseRecordFromTemplate(rootObj, currentSubPath, currentObj, currentObjInfo, recordTemplateLinkCache, nonHardcodedPaths, group, templateSignature, templateSubRecords, outputMod, rootNPC, out currentObj))
                             {
                                 continue;
                             }
@@ -216,14 +216,14 @@ public class RecordGenerator
             return false;
         }
 
-        SetViaFormKeyReplacement(copiedRecord, rootObj, currentSubPath);
+        SetViaFormKeyReplacement(copiedRecord, rootObj, currentSubPath, npcInfo.NPC);
         AddModifiedRecordToDictionary(pathSignature, currentObjInfo.RecordFormKey, copiedRecord);
         outputObj = copiedRecord;
         LogRecordAlongPaths(group, copiedRecord);
         return true;
     }
 
-    private static bool TraverseRecordFromTemplate(dynamic rootObj, string currentSubPath, dynamic recordToCopy, ObjectInfo recordObjectInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<FilePathReplacementParsed> allPaths, IGrouping<string, FilePathReplacementParsed> group, HashSet<INpcGetter> templateSignature, HashSet<TemplateSignatureRecordPair> templateDerivedRecords, SkyrimMod outputMod, out dynamic currentObj)
+    private static bool TraverseRecordFromTemplate(dynamic rootObj, string currentSubPath, dynamic recordToCopy, ObjectInfo recordObjectInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<FilePathReplacementParsed> allPaths, IGrouping<string, FilePathReplacementParsed> group, HashSet<INpcGetter> templateSignature, HashSet<TemplateSignatureRecordPair> templateDerivedRecords, SkyrimMod outputMod, IMajorRecordGetter rootRecord, out dynamic currentObj)
     {
         IMajorRecord newRecord = null;
         HashSet<IMajorRecord> copiedRecords = new HashSet<IMajorRecord>(); // includes current record and its subrecords
@@ -245,7 +245,7 @@ public class RecordGenerator
 
         IncrementEditorID(copiedRecords);
 
-        SetViaFormKeyReplacement(newRecord, rootObj, currentSubPath);
+        SetViaFormKeyReplacement(newRecord, rootObj, currentSubPath, rootRecord);
 
         currentObj = newRecord;
         LogRecordAlongPaths(group, newRecord);
@@ -261,7 +261,7 @@ public class RecordGenerator
                 objectCaches.Add(templateNPC.FormKey, new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase));
             }
 
-            if (RecordPathParser.GetObjectAtPath(templateNPC, currentSubPath, objectCaches[templateNPC.FormKey], recordTemplateLinkCache, suppressMissingPathErrors, Logger.GetNPCLogNameString(templateNPC), out outputObj, out outputObjInfo))
+            if (RecordPathParser.GetObjectAtPath(templateNPC, templateNPC, currentSubPath, objectCaches[templateNPC.FormKey], recordTemplateLinkCache, suppressMissingPathErrors, Logger.GetNPCLogNameString(templateNPC), out outputObj, out outputObjInfo))
             {
                 return true;
             }
@@ -285,20 +285,20 @@ public class RecordGenerator
         }
     }
 
-    public static void SetViaFormKeyReplacement(IMajorRecord record, dynamic root, string currentSubPath)
+    public static void SetViaFormKeyReplacement(IMajorRecord record, dynamic rootObj, string currentSubPath, IMajorRecordGetter rootRecord)
     {
         if (RecordPathParser.PathIsArray(currentSubPath))
         {
-            if (RecordPathParser.GetObjectAtPath(root, currentSubPath, new Dictionary<string, dynamic>(), PatcherEnvironmentProvider.Instance.Environment.LinkCache, true, "", out dynamic _, out ObjectInfo arrayObjInfo))
+            if (RecordPathParser.GetObjectAtPath(rootObj, rootRecord, currentSubPath, new Dictionary<string, dynamic>(), PatcherEnvironmentProvider.Instance.Environment.LinkCache, true, "", out dynamic _, out ObjectInfo arrayObjInfo))
             {
-                SetRecordInArray(root, arrayObjInfo.IndexInParentArray.Value, record);
+                SetRecordInArray(rootObj, arrayObjInfo.IndexInParentArray.Value, record);
             }
             else
             {
-                AddToFormLinkList(root, record);
+                AddToFormLinkList(rootObj, record);
             }
         }
-        else if (RecordPathParser.GetSubObject(root, currentSubPath, out dynamic formLinkToSet))
+        else if (RecordPathParser.GetSubObject(rootObj, currentSubPath, out dynamic formLinkToSet))
         {
             formLinkToSet.SetTo(record.FormKey);
         }

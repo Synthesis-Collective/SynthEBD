@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Collections.Specialized;
 using ReactiveUI;
 using GongSolutions.Wpf.DragDrop;
+using DynamicData.Binding;
 
 namespace SynthEBD;
 
@@ -56,6 +57,9 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         
         //UI-related
         this.ParentCollection = parentCollection;
+
+        this.RequiredSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(RequiredSubgroups, SubgroupListBox.Required));
+        this.ExcludedSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(ExcludedSubgroups, SubgroupListBox.Excluded));
 
         // must be set after Parent Asset Pack
         if (SetExplicitReferenceNPC)
@@ -209,7 +213,6 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         //dds preview
         GetDDSPaths(this, ImagePaths);
     }
-
     private void RefreshListBoxLabel(ObservableCollection<VM_Subgroup> listSource, SubgroupListBox whichBox)
     {
         string label = "";

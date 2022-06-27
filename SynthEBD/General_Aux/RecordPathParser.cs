@@ -22,11 +22,11 @@ public class ObjectInfo
 }
 public class RecordPathParser
 {
-    public static bool GetObjectAtPath(dynamic rootObj, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj)
+    public static bool GetObjectAtPath(dynamic rootObj, IMajorRecordGetter rootRecord, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj) // rootObj is the object relative to which the path is to be traversed. rootRecord is the parent record of the entire tree - this may be the same as rootObj, but rootObj may be a sub-object of rootRecord
     {
-        return GetObjectAtPath(rootObj, relativePath, objectCache, linkCache, suppressMissingPathErrors, errorCaption, out outputObj, out ObjectInfo _);
+        return GetObjectAtPath(rootObj, rootRecord, relativePath, objectCache, linkCache, suppressMissingPathErrors, errorCaption, out outputObj, out ObjectInfo _);
     }
-    public static bool GetObjectAtPath(dynamic rootObj, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out ObjectInfo outputObjInfo)
+    public static bool GetObjectAtPath(dynamic rootObj, IMajorRecordGetter rootRecord, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out ObjectInfo outputObjInfo) // rootObj is the object relative to which the path is to be traversed. rootRecord is the parent record of the entire tree - this may be the same as rootObj, but rootObj may be a sub-object of rootRecord
     {
         outputObj = null;
         outputObjInfo = new ObjectInfo();
@@ -92,7 +92,7 @@ public class RecordPathParser
                 // special case of UI transition where user deletes the array index
                 if (currentSubPath == "[]") { return false; }
 
-                if (!GetArrayObjectAtIndex(currentObj, arrIndex, objectCache, linkCache, suppressMissingPathErrors, errorCaption, out currentObj, out indexInParentArray))
+                if (!GetArrayObjectAtIndex(currentObj, arrIndex, rootRecord, linkCache, suppressMissingPathErrors, errorCaption, out currentObj, out indexInParentArray))
                 {
                     return false;
                 }
@@ -139,7 +139,7 @@ public class RecordPathParser
         return true;
     }
 
-    public static bool GetObjectCollectionAtPath(dynamic rootObj, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> outputObjectCollection)
+    public static bool GetObjectCollectionAtPath(dynamic rootObj, IMajorRecordGetter rootRecord, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> outputObjectCollection)
     {
         if (rootObj == null)
         {
@@ -179,7 +179,7 @@ public class RecordPathParser
                 // special case of UI transition where user deletes the array index
                 if (currentSubPath == "[]") { return false; }
 
-                if (!GetArrayObjectCollectionAtIndex(currentObj, arrIndex, objectCache, linkCache, suppressMissingPathErrors, errorCaption, outputObjectCollection) || !outputObjectCollection.Any())
+                if (!GetArrayObjectCollectionAtIndex(currentObj, arrIndex, rootRecord, linkCache, suppressMissingPathErrors, errorCaption, outputObjectCollection) || !outputObjectCollection.Any())
                 {
                     return false;
                 }
@@ -208,7 +208,7 @@ public class RecordPathParser
                 foreach (var obj in outputObjectCollection)
                 {
                     List<dynamic> collectionSubObjects = new List<dynamic>();
-                    if (GetObjectCollectionAtPath(obj, subPath, new Dictionary<string, dynamic>(), linkCache, suppressMissingPathErrors, errorCaption, collectionSubObjects))
+                    if (GetObjectCollectionAtPath(obj, rootRecord, subPath, new Dictionary<string, dynamic>(), linkCache, suppressMissingPathErrors, errorCaption, collectionSubObjects))
                     {
                         foreach (var subObj in collectionSubObjects)
                         {
@@ -256,7 +256,7 @@ public class RecordPathParser
 
         for (int i = 0; i < splitPath.Length; i++)
         {
-            if (GetObjectAtPath(currentObj, splitPath[i], objectCache, linkCache, suppressMissingPathErrors, errorCaption, out currentObj, out ObjectInfo currentObjInfo))
+            if (GetObjectAtPath(currentObj, rootGetter, splitPath[i], objectCache, linkCache, suppressMissingPathErrors, errorCaption, out currentObj, out ObjectInfo currentObjInfo))
             {
                 if (currentObjInfo.HasFormKey)
                 {
@@ -280,11 +280,11 @@ public class RecordPathParser
 
         return true;
     }
-    private static bool GetArrayObjectAtSpecifier(dynamic currentObj, string arrIndex, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj)
+    private static bool GetArrayObjectAtSpecifier(dynamic currentObj, string arrIndex, IMajorRecordGetter rootRecord, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj)
     {
-        return GetArrayObjectAtIndex(currentObj, arrIndex, objectCache, linkCache, suppressMissingPathErrors, errorCaption, out outputObj, out int? _);
+        return GetArrayObjectAtIndex(currentObj, arrIndex, rootRecord, linkCache, suppressMissingPathErrors, errorCaption, out outputObj, out int? _);
     }
-    private static bool GetArrayObjectAtIndex(dynamic currentObj, string arrIndex, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out int? indexInParent)
+    private static bool GetArrayObjectAtIndex(dynamic currentObj, string arrIndex, IMajorRecordGetter rootRecord, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out int? indexInParent)
     {
         outputObj = null;
         indexInParent = null;
@@ -317,7 +317,7 @@ public class RecordPathParser
         // if array index specifies object by property, figure out which index is the right one
         else
         {
-            if (!ChooseWhichArrayObject(collectionObj, arrIndex, objectCache, linkCache, suppressMissingPathErrors, errorCaption, out outputObj, out indexInParent))
+            if (!ChooseWhichArrayObject(collectionObj, arrIndex, rootRecord, linkCache, suppressMissingPathErrors, errorCaption, out outputObj, out indexInParent))
             {
                 if (!suppressMissingPathErrors)
                 {
@@ -330,7 +330,7 @@ public class RecordPathParser
         return true;
     }
 
-    private static bool GetArrayObjectCollectionAtIndex(dynamic currentObj, string arrIndex, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> outputObjectCollection)
+    private static bool GetArrayObjectCollectionAtIndex(dynamic currentObj, string arrIndex, IMajorRecordGetter rootRecord, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> outputObjectCollection)
     {
         outputObjectCollection.Clear();
 
@@ -368,7 +368,7 @@ public class RecordPathParser
         // if array index specifies object by property, figure out which index is the right one
         else
         {
-            if (ChooseSelectedArrayObjects(collectionObj, arrIndex, objectCache, linkCache, suppressMissingPathErrors, errorCaption, outputObjectCollection))
+            if (ChooseSelectedArrayObjects(collectionObj, rootRecord, arrIndex, linkCache, suppressMissingPathErrors, errorCaption, outputObjectCollection))
             {
                 return true;
             }
@@ -662,7 +662,7 @@ public class RecordPathParser
 
         foreach (var matchPath in toMatch)
         {
-            if (GetObjectAtPath(rootRecord, matchPath, subObjectCache, PatcherEnvironmentProvider.Instance.Environment.LinkCache, true, "", out dynamic outputObj))
+            if (GetObjectAtPath(rootRecord, npc, matchPath, subObjectCache, PatcherEnvironmentProvider.Instance.Environment.LinkCache, true, "", out dynamic outputObj))
             {
                 var objCollection = outputObj as System.Collections.IEnumerable;
 
@@ -691,7 +691,7 @@ public class RecordPathParser
         return false;
     }
 
-    private static bool ChooseWhichArrayObject(IReadOnlyList<dynamic> variants, string matchConditionStr, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out int? indexInParent)
+    private static bool ChooseWhichArrayObject(IReadOnlyList<dynamic> variants, string matchConditionStr, IMajorRecordGetter rootRecord, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out int? indexInParent)
     {
         outputObj = null;
         indexInParent = null;
@@ -727,7 +727,7 @@ public class RecordPathParser
             {
                 if (condition.SpecialHandling == ArrayPathCondition.SpecialHandlingType.MatchRace)
                 {
-                    if (MatchRace(candidateRecordGetter, objectCache[""], condition.MatchCondition))
+                    if (MatchRace(candidateRecordGetter, rootRecord, condition.MatchCondition))
                     {
                         matchConditionStr = matchConditionStr.Replace(condition.ReplacerTemplate, " true");
                         continue;
@@ -741,7 +741,7 @@ public class RecordPathParser
 
                 dynamic comparisonObject;
 
-                if (candidateObjIsResolved && candidateRecordGetter != null && GetObjectAtPath(candidateRecordGetter, condition.Path, variantObjectCache, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
+                if (candidateObjIsResolved && candidateRecordGetter != null && GetObjectAtPath(candidateRecordGetter, rootRecord, condition.Path, variantObjectCache, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
                 {
                     evalParameters.Add(comparisonObject);
                 }
@@ -750,7 +750,7 @@ public class RecordPathParser
                     skipToNext = true;
                     break;
                 }
-                else if (GetObjectAtPath(candidateObj, condition.Path, variantObjectCache, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
+                else if (GetObjectAtPath(candidateObj, rootRecord, condition.Path, variantObjectCache, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
                 {
                     evalParameters.Add(comparisonObject);
                 }
@@ -793,7 +793,7 @@ public class RecordPathParser
         return false;
     }
 
-    private static bool ChooseSelectedArrayObjects(IReadOnlyList<dynamic> variants, string matchConditionStr, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> matchedObjects)
+    private static bool ChooseSelectedArrayObjects(IReadOnlyList<dynamic> variants, IMajorRecordGetter rootRecord, string matchConditionStr, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> matchedObjects)
     {
         var arrayMatchConditions = ArrayPathCondition.GetConditionsFromString(matchConditionStr, out bool parsed);
         if (!parsed)
@@ -812,6 +812,7 @@ public class RecordPathParser
             List<dynamic> evalParameters = new List<dynamic>();
             int argIndex = 0;
             bool skipToNext = false;
+            Dictionary<string, dynamic> variantObjectCache = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase);
 
             IMajorRecordGetter candidateRecordGetter = null;
 
@@ -820,9 +821,23 @@ public class RecordPathParser
 
             foreach (var condition in arrayMatchConditions)
             {
+                if (condition.SpecialHandling == ArrayPathCondition.SpecialHandlingType.MatchRace)
+                {
+                    if (MatchRace(candidateRecordGetter, rootRecord, condition.MatchCondition))
+                    {
+                        matchConditionStr = matchConditionStr.Replace(condition.ReplacerTemplate, " true");
+                        continue;
+                    }
+                    else
+                    {
+                        skipToNext = true;
+                        break;
+                    }
+                }
+
                 dynamic comparisonObject;
 
-                if (candidateObjIsResolved && candidateRecordGetter != null && GetObjectAtPath(candidateRecordGetter, condition.Path, objectCache, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
+                if (candidateObjIsResolved && candidateRecordGetter != null && GetObjectAtPath(candidateRecordGetter, rootRecord, condition.Path, variantObjectCache, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
                 {
                     evalParameters.Add(comparisonObject);
                 }
@@ -832,7 +847,7 @@ public class RecordPathParser
                     skipToNext = true;
                     break;
                 }
-                else if (GetObjectAtPath(candidateObj, condition.Path, objectCache, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
+                else if (GetObjectAtPath(candidateObj, rootRecord, condition.Path, variantObjectCache, linkCache, suppressMissingPathErrors, errorCaption, out comparisonObject))
                 {
                     evalParameters.Add(comparisonObject);
                 }

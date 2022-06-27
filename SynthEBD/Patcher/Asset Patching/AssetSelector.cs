@@ -813,7 +813,7 @@ public class AssetSelector
             {
                 foreach (string destPath in targetPaths)
                 {
-                    if (!(RecordPathParser.GetObjectAtPath(npcInfo.NPC, destPath, new Dictionary<string, dynamic>(), PatcherEnvironmentProvider.Instance.Environment.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out dynamic objAtPath) && objAtPath is not null))
+                    if (!(RecordPathParser.GetObjectAtPath(npcInfo.NPC, npcInfo.NPC, destPath, new Dictionary<string, dynamic>(), PatcherEnvironmentProvider.Instance.Environment.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out dynamic objAtPath) && objAtPath is not null))
                     {
                         assignReplacer = false;
                         break;
