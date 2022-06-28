@@ -213,7 +213,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         //dds preview
         GetDDSPaths(this, ImagePaths);
     }
-    private void RefreshListBoxLabel(ObservableCollection<VM_Subgroup> listSource, SubgroupListBox whichBox)
+    public void RefreshListBoxLabel(ObservableCollection<VM_Subgroup> listSource, SubgroupListBox whichBox)
     {
         string label = "";
         if (listSource.Any())
@@ -231,7 +231,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
             case SubgroupListBox.Excluded: ExcludedSubgroupsLabel = label; break;
         }
     }
-    private enum SubgroupListBox
+    public enum SubgroupListBox
     {
         Required,
         Excluded

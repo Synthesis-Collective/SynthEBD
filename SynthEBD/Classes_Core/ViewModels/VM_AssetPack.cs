@@ -412,6 +412,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                     }
                 }
             }
+            sg.RefreshListBoxLabel(sg.RequiredSubgroups, VM_Subgroup.SubgroupListBox.Required);
         }
     }
 
@@ -430,6 +431,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                     }
                 }
             }
+            sg.RefreshListBoxLabel(sg.ExcludedSubgroups, VM_Subgroup.SubgroupListBox.Excluded);
         }
     }
 
