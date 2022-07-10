@@ -357,12 +357,12 @@ class Converters
             {
                 foreach (var match in matches)
                 {
-                    match.SubAttributes.FirstOrDefault().ForceIf = true;
+                    match.SubAttributes.FirstOrDefault().ForceMode = AttributeForcing.ForceIf;
                 }
             }
             else
             {
-                ofa.SubAttributes.FirstOrDefault().ForceIf = true;
+                ofa.SubAttributes.FirstOrDefault().ForceMode = AttributeForcing.ForceIf;
                 allowedAttributes.Add(ofa);
             }
         }

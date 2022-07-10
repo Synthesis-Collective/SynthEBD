@@ -189,17 +189,28 @@ public class OBodySelector
             return false;
         }
 
-        // Allowed Attributes
-        if (candidatePreset.AllowedAttributes.Any() && !AttributeMatcher.HasMatchedAttributes(candidatePreset.AllowedAttributes, npcInfo.NPC, LogMatchType.Unmatched, out string unmatchedAttributes))
+        // Allowed and Forced Attributes
+        AttributeMatcher.MatchNPCtoAttributeList(candidatePreset.AllowedAttributes, npcInfo.NPC, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog);
+        if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
-            Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedAttributes, false, npcInfo);
+            Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedLog, false, npcInfo);
             return false;
+        }
+        else
+        {
+            candidatePreset.MatchedForceIfCount = matchedForceIfWeightedCount;
+        }
+
+        if (candidatePreset.MatchedForceIfCount > 0)
+        {
+            Logger.LogReport("Preset " + candidatePreset.Label + " Current NPC matches the following forced attributes: " + forceIfLog, false, npcInfo);
         }
 
         // Disallowed Attributes
-        if (AttributeMatcher.HasMatchedAttributes(candidatePreset.DisallowedAttributes, npcInfo.NPC, LogMatchType.Matched, out string matchedAttributes))
+        AttributeMatcher.MatchNPCtoAttributeList(candidatePreset.DisallowedAttributes, npcInfo.NPC, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _);
+        if (hasAttributeRestrictions && matchesAttributeRestrictions)
         {
-            Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because the NPC matches one of its disallowed attributes: " + matchedAttributes, false, npcInfo);
+            Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog, false, npcInfo);
             return false;
         }
 
@@ -224,13 +235,7 @@ public class OBodySelector
             }
         }
 
-        // if the current subgroup's forceIf attributes match the current NPC, skip the checks for Distribution Enabled
-
-        candidatePreset.MatchedForceIfCount = AttributeMatcher.GetForceIfAttributeCount(candidatePreset.AllowedAttributes, npcInfo.NPC, out string forceIfAttributes);
-        if (candidatePreset.MatchedForceIfCount > 0)
-        {
-            Logger.LogReport("Preset " + candidatePreset.Label + ": current NPC matches the following ForceIf attributes: " + forceIfAttributes, false, npcInfo);
-        }
+        // if the current Preset's forceIf attributes match the current NPC, skip the checks for Distribution Enabled
 
         if (!candidatePreset.AllowRandom && candidatePreset.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above
         {

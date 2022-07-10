@@ -50,7 +50,7 @@ public class NPCAttribute
                 var group = (NPCAttributeGroup)IGroup;
                 foreach (var label in group.SelectedLabels)
                 {
-                    var subattributesFromGroup = GetGroupedAttributesByLabel(label, groupDefinitions, group.ForceIf);
+                    var subattributesFromGroup = GetGroupedAttributesByLabel(label, groupDefinitions, group.ForceMode);
 
                     foreach (var subAtt in subattributesFromGroup)
                     {
@@ -66,14 +66,14 @@ public class NPCAttribute
         return output;
     }
 
-    public static HashSet<ITypedNPCAttribute> GetGroupedAttributesByLabel(string label, HashSet<AttributeGroup> groupDefinitions, bool groupForceIf)
+    public static HashSet<ITypedNPCAttribute> GetGroupedAttributesByLabel(string label, HashSet<AttributeGroup> groupDefinitions, AttributeForcing groupForceMode)
     {
         if (PatcherSettings.General.OverwritePluginAttGroups)
         {
             var matchedMainGroup = PatcherSettings.General.AttributeGroups.Where(x => x.Label == label).FirstOrDefault();
             if (matchedMainGroup != null)
             {
-                return GetGroupedAttributesFromGroup(matchedMainGroup, groupDefinitions, groupForceIf);
+                return GetGroupedAttributesFromGroup(matchedMainGroup, groupDefinitions, groupForceMode);
             }
         }
 
@@ -81,12 +81,12 @@ public class NPCAttribute
         var matchedPluginGroup = groupDefinitions.Where(x => x.Label == label).FirstOrDefault();
         if (matchedPluginGroup != null)
         {
-            return GetGroupedAttributesFromGroup(matchedPluginGroup, groupDefinitions, groupForceIf);
+            return GetGroupedAttributesFromGroup(matchedPluginGroup, groupDefinitions, groupForceMode);
         }
         return new HashSet<ITypedNPCAttribute>();
     }
 
-    public static HashSet<ITypedNPCAttribute> GetGroupedAttributesFromGroup(AttributeGroup group, HashSet<AttributeGroup> groupDefinitions,  bool groupForceIf)
+    public static HashSet<ITypedNPCAttribute> GetGroupedAttributesFromGroup(AttributeGroup group, HashSet<AttributeGroup> groupDefinitions, AttributeForcing groupForceMode)
     {
         HashSet<ITypedNPCAttribute> outputs = new HashSet<ITypedNPCAttribute>();
         foreach (var attribute in group.Attributes)
@@ -98,20 +98,13 @@ public class NPCAttribute
                     var subGroup = (NPCAttributeGroup)subAttribute;
                     foreach (var subLabel in subGroup.SelectedLabels)
                     {
-                        outputs.UnionWith(GetGroupedAttributesByLabel(subLabel, groupDefinitions, groupForceIf));
+                        outputs.UnionWith(GetGroupedAttributesByLabel(subLabel, groupDefinitions, groupForceMode));
                     }
                 }
                 else
                 {
                     var clonedSubAttribute = CloneAsNew(subAttribute);
-                    if (groupForceIf)
-                    {
-                        clonedSubAttribute.ForceIf = true;
-                    }
-                    else
-                    {
-                        clonedSubAttribute.ForceIf = false;
-                    }
+                    clonedSubAttribute.ForceMode = groupForceMode;
                     outputs.Add(clonedSubAttribute);
                 }
             }
@@ -240,11 +233,19 @@ public enum CustomAttributeType // moved outside of NPCAttributeCustom so that i
     Boolean,
     Record
 }
+
+public enum AttributeForcing
+{
+    Restrict,
+    ForceIf,
+    ForceIfAndRestrict
+}
+
 public class NPCAttributeVoiceType : ITypedNPCAttribute
 {
     public HashSet<FormKey> FormKeys { get; set; } = new();
     public NPCAttributeType Type { get; set; } = NPCAttributeType.VoiceType;
-    public bool ForceIf { get; set; } = false;
+    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
 
     public bool Equals(ITypedNPCAttribute other)
@@ -257,7 +258,7 @@ public class NPCAttributeVoiceType : ITypedNPCAttribute
     public static NPCAttributeVoiceType CloneAsNew(NPCAttributeVoiceType input)
     {
         var output = new NPCAttributeVoiceType();
-        output.ForceIf = input.ForceIf;
+        output.ForceMode = input.ForceMode;
         output.Type = input.Type;
         output.FormKeys = input.FormKeys;
         output.Weighting = input.Weighting;
@@ -281,7 +282,7 @@ public class NPCAttributeClass : ITypedNPCAttribute
 {
     public HashSet<FormKey> FormKeys { get; set; } = new();
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Class;
-    public bool ForceIf { get; set; } = false;
+    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
 
     public bool Equals(ITypedNPCAttribute other)
@@ -294,7 +295,7 @@ public class NPCAttributeClass : ITypedNPCAttribute
     public static NPCAttributeClass CloneAsNew(NPCAttributeClass input)
     {
         var output = new NPCAttributeClass();
-        output.ForceIf = input.ForceIf;
+        output.ForceMode = input.ForceMode;
         output.Type = input.Type;
         output.FormKeys = input.FormKeys;
         output.Weighting = input.Weighting;
@@ -322,7 +323,7 @@ public class NPCAttributeCustom : ITypedNPCAttribute
     public CustomAttributeType CustomType { get; set; } = CustomAttributeType.Text;
     public string Comparator { get; set; }
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Custom;
-    public bool ForceIf { get; set; } = false;
+    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
     public FormKey ReferenceNPCFK { get; set; } // this is not used by the patcher but saving it avoids making the user reselect it in the UI
     public Type SelectedFormKeyType { get; set; } // this is not used by the patcher but saving it avoids making the user reselect it in the UI
@@ -347,7 +348,7 @@ public class NPCAttributeCustom : ITypedNPCAttribute
     {
         var output = new NPCAttributeCustom();
         output.CustomType = input.CustomType;
-        output.ForceIf = input.ForceIf;
+        output.ForceMode = input.ForceMode;
         output.Path = input.Path;
         output.Type = input.Type;
         if (input.CustomType == CustomAttributeType.Record)
@@ -388,7 +389,7 @@ public class NPCAttributeFactions : ITypedNPCAttribute
     public int RankMin { get; set; } = -1;
     public int RankMax { get; set; } = 100;
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Faction;
-    public bool ForceIf { get; set; } = false;
+    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
 
     public bool Equals(ITypedNPCAttribute other)
@@ -402,7 +403,7 @@ public class NPCAttributeFactions : ITypedNPCAttribute
     public static NPCAttributeFactions CloneAsNew(NPCAttributeFactions input)
     {
         var output = new NPCAttributeFactions();
-        output.ForceIf = input.ForceIf;
+        output.ForceMode = input.ForceMode;
         output.Type = input.Type;
         output.FormKeys = input.FormKeys;
         output.RankMin = input.RankMin;
@@ -428,7 +429,7 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
 {
     public HashSet<FormKey> FormKeys { get; set; } = new();
     public NPCAttributeType Type { get; set; } = NPCAttributeType.FaceTexture;
-    public bool ForceIf { get; set; } = false;
+    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
 
     public bool Equals(ITypedNPCAttribute other)
@@ -441,7 +442,7 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
     public static NPCAttributeFaceTexture CloneAsNew(NPCAttributeFaceTexture input)
     {
         var output = new NPCAttributeFaceTexture();
-        output.ForceIf = input.ForceIf;
+        output.ForceMode = input.ForceMode;
         output.Type = input.Type;
         output.FormKeys = input.FormKeys;
         output.Weighting = input.Weighting;
@@ -465,7 +466,7 @@ public class NPCAttributeRace : ITypedNPCAttribute
 {
     public HashSet<FormKey> FormKeys { get; set; } = new();
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Race;
-    public bool ForceIf { get; set; } = false;
+    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
 
     public bool Equals(ITypedNPCAttribute other)
@@ -478,7 +479,7 @@ public class NPCAttributeRace : ITypedNPCAttribute
     public static NPCAttributeRace CloneAsNew(NPCAttributeRace input)
     {
         var output = new NPCAttributeRace();
-        output.ForceIf = input.ForceIf;
+        output.ForceMode = input.ForceMode;
         output.Type = input.Type;
         output.FormKeys = input.FormKeys;
         output.Weighting = input.Weighting;
@@ -502,7 +503,7 @@ public class NPCAttributeNPC : ITypedNPCAttribute
 {
     public HashSet<FormKey> FormKeys { get; set; } = new();
     public NPCAttributeType Type { get; set; } = NPCAttributeType.NPC;
-    public bool ForceIf { get; set; } = false;
+    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
 
     public bool Equals(ITypedNPCAttribute other)
@@ -515,7 +516,7 @@ public class NPCAttributeNPC : ITypedNPCAttribute
     public static NPCAttributeNPC CloneAsNew(NPCAttributeNPC input)
     {
         var output = new NPCAttributeNPC();
-        output.ForceIf = input.ForceIf;
+        output.ForceMode = input.ForceMode;
         output.Type = input.Type;
         output.FormKeys = input.FormKeys;
         output.Weighting = input.Weighting;
@@ -539,7 +540,7 @@ public class NPCAttributeGroup : ITypedNPCAttribute
 {
     public HashSet<string> SelectedLabels { get; set; } = new();
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Group;
-    public bool ForceIf { get; set; } = false;
+    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
 
     public bool Equals(ITypedNPCAttribute other)
@@ -567,7 +568,7 @@ public class NPCAttributeGroup : ITypedNPCAttribute
     public static NPCAttributeGroup CloneAsNew(NPCAttributeGroup input)
     {
         var output = new NPCAttributeGroup();
-        output.ForceIf = input.ForceIf;
+        output.ForceMode = input.ForceMode;
         output.Type = input.Type;
         output.SelectedLabels = input.SelectedLabels;
         output.Weighting = input.Weighting;
@@ -584,7 +585,7 @@ public interface ITypedNPCAttribute
 {
     NPCAttributeType Type { get; set; }
     bool Equals(ITypedNPCAttribute other);
-    public bool ForceIf { get; set; }
+    public AttributeForcing ForceMode { get; set; }
     public int Weighting { get; set; }
     public string ToLogString();
 }

@@ -614,27 +614,32 @@ public class AssetSelector
             return false;
         }
 
-        // Allowed Attributes
-        if (subgroup.AllowedAttributes.Any() && !AttributeMatcher.HasMatchedAttributes(subgroup.AllowedAttributes, npcInfo.NPC, LogMatchType.Unmatched, out string unmatchedAttributes))
+        // Allowed and Forced Attributes
+        AttributeMatcher.MatchNPCtoAttributeList(subgroup.AllowedAttributes, npcInfo.NPC, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog);
+        if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
-            Logger.LogReport(reportString + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedAttributes, false, npcInfo);
+            Logger.LogReport(reportString + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedLog, false, npcInfo);
             return false;
+        }
+        else
+        {
+            subgroup.ForceIfMatchCount = matchedForceIfWeightedCount;
+        }
+
+        if (subgroup.ForceIfMatchCount > 0)
+        {
+            Logger.LogReport(reportString + " Current NPC matches the following forced attributes: " + forceIfLog, false, npcInfo);
         }
 
         // Disallowed Attributes
-        if (AttributeMatcher.HasMatchedAttributes(subgroup.DisallowedAttributes, npcInfo.NPC, LogMatchType.Matched, out string matchedAttributes))
+        AttributeMatcher.MatchNPCtoAttributeList(subgroup.DisallowedAttributes, npcInfo.NPC, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _);
+        if (hasAttributeRestrictions && matchesAttributeRestrictions)
         {
-            Logger.LogReport(reportString + " is invalid because the NPC matches one of its disallowed attributes: " + matchedAttributes, false, npcInfo);
+            Logger.LogReport(reportString + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog, false, npcInfo);
             return false;
         }
 
         // if the current subgroup's forceIf attributes match the current NPC, skip the checks for Distribution Enabled
-
-        subgroup.ForceIfMatchCount = AttributeMatcher.GetForceIfAttributeCount(subgroup.AllowedAttributes, npcInfo.NPC, out string forceIfAttributes);
-        if (subgroup.ForceIfMatchCount > 0)
-        {
-            Logger.LogReport(reportString + ": current NPC matches the following ForceIf attributes: " + forceIfAttributes, false, npcInfo);
-        }
 
         // Distribution Enabled
         if (subgroup.ForceIfMatchCount == 0 && !subgroup.DistributionEnabled)

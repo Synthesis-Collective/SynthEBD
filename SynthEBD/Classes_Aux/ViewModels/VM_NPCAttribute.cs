@@ -86,7 +86,7 @@ public class VM_NPCAttribute : VM
                     Logger.LogError("Could not determine attribute type of NPC Attribute " + attributeShellModel.Type.ToString() + ". Ignoring this attribute.");
                     break;
             }
-            shellVM.ForceIf = attributeShellModel.ForceIf;
+            shellVM.ForceModeStr = VM_NPCAttributeShell.ForceModeEnumToStrDict[attributeShellModel.ForceMode];
             shellVM.DisplayForceIfOption = displayForceIfOption;
             shellVM.DisplayForceIfWeight = displayForceIfWeight ?? false;
             viewModel.GroupedSubAttributes.Add(shellVM);
@@ -112,14 +112,14 @@ public class VM_NPCAttribute : VM
         {
             switch(subAttVM.Type)
             {
-                case NPCAttributeType.Class: model.SubAttributes.Add(VM_NPCAttributeClass.DumpViewModelToModel((VM_NPCAttributeClass)subAttVM.Attribute, subAttVM.ForceIf)); break;
-                case NPCAttributeType.Custom: model.SubAttributes.Add(VM_NPCAttributeCustom.DumpViewModelToModel((VM_NPCAttributeCustom)subAttVM.Attribute, subAttVM.ForceIf)); break;
-                case NPCAttributeType.Faction: model.SubAttributes.Add(VM_NPCAttributeFactions.DumpViewModelToModel((VM_NPCAttributeFactions)subAttVM.Attribute, subAttVM.ForceIf)); break;
-                case NPCAttributeType.FaceTexture: model.SubAttributes.Add(VM_NPCAttributeFaceTexture.DumpViewModelToModel((VM_NPCAttributeFaceTexture)subAttVM.Attribute, subAttVM.ForceIf)); break;
-                case NPCAttributeType.Group: model.SubAttributes.Add(VM_NPCAttributeGroup.DumpViewModelToModel((VM_NPCAttributeGroup)subAttVM.Attribute, subAttVM.ForceIf)); break;
-                case NPCAttributeType.Race: model.SubAttributes.Add(VM_NPCAttributeRace.DumpViewModelToModel((VM_NPCAttributeRace)subAttVM.Attribute, subAttVM.ForceIf)); break;
-                case NPCAttributeType.NPC: model.SubAttributes.Add(VM_NPCAttributeNPC.DumpViewModelToModel((VM_NPCAttributeNPC)subAttVM.Attribute, subAttVM.ForceIf)); break;
-                case NPCAttributeType.VoiceType: model.SubAttributes.Add(VM_NPCAttributeVoiceType.DumpViewModelToModel((VM_NPCAttributeVoiceType)subAttVM.Attribute, subAttVM.ForceIf)); break;
+                case NPCAttributeType.Class: model.SubAttributes.Add(VM_NPCAttributeClass.DumpViewModelToModel((VM_NPCAttributeClass)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
+                case NPCAttributeType.Custom: model.SubAttributes.Add(VM_NPCAttributeCustom.DumpViewModelToModel((VM_NPCAttributeCustom)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
+                case NPCAttributeType.Faction: model.SubAttributes.Add(VM_NPCAttributeFactions.DumpViewModelToModel((VM_NPCAttributeFactions)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
+                case NPCAttributeType.FaceTexture: model.SubAttributes.Add(VM_NPCAttributeFaceTexture.DumpViewModelToModel((VM_NPCAttributeFaceTexture)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
+                case NPCAttributeType.Group: model.SubAttributes.Add(VM_NPCAttributeGroup.DumpViewModelToModel((VM_NPCAttributeGroup)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
+                case NPCAttributeType.Race: model.SubAttributes.Add(VM_NPCAttributeRace.DumpViewModelToModel((VM_NPCAttributeRace)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
+                case NPCAttributeType.NPC: model.SubAttributes.Add(VM_NPCAttributeNPC.DumpViewModelToModel((VM_NPCAttributeNPC)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
+                case NPCAttributeType.VoiceType: model.SubAttributes.Add(VM_NPCAttributeVoiceType.DumpViewModelToModel((VM_NPCAttributeVoiceType)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
             }
         }
         return model;
@@ -167,7 +167,7 @@ public class VM_NPCAttributeShell : VM
     }
     public ISubAttributeViewModel Attribute { get; set; }
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Class;
-    public bool ForceIf { get; set; } = false;
+    public string ForceModeStr { get; set; } = ForceModeOptions.FirstOrDefault();
     public int ForceIfWeight { get; set; } = 1;
     public bool DisplayForceIfOption { get; set; }
     public bool DisplayForceIfWeight { get; set; }
@@ -176,6 +176,25 @@ public class VM_NPCAttributeShell : VM
     public RelayCommand DeleteCommand { get; }
 
     public RelayCommand ChangeType { get; }
+
+    public static string AttributeAllowStr { get; } = "Allow";
+    public static string AttributeForceIfStr { get; } = "Force If";
+    public static string AttributeForceIfandRestrictStr { get; } = "Force If and Restrict";
+    public static List<string> ForceModeOptions = new() { AttributeAllowStr, AttributeForceIfStr, AttributeForceIfandRestrictStr };
+
+    public static Dictionary<string, AttributeForcing> ForceModeStrToEnumDict = new()
+    {
+        { AttributeAllowStr, AttributeForcing.Restrict },
+        { AttributeForceIfStr, AttributeForcing.ForceIf },
+        { AttributeForceIfandRestrictStr, AttributeForcing.ForceIf }
+    };
+
+    public static Dictionary<AttributeForcing, string> ForceModeEnumToStrDict = new()
+    {
+        { AttributeForcing.Restrict, AttributeAllowStr },
+        { AttributeForcing.ForceIf, AttributeForceIfStr },
+        { AttributeForcing.ForceIfAndRestrict, AttributeForceIfandRestrictStr }
+    };
 }
 
 public interface ISubAttributeViewModel
@@ -222,9 +241,9 @@ public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
         parentShell.ForceIfWeight = model.Weighting;
         return newAtt;
     }
-    public static NPCAttributeVoiceType DumpViewModelToModel(VM_NPCAttributeVoiceType viewModel, bool forceIf)
+    public static NPCAttributeVoiceType DumpViewModelToModel(VM_NPCAttributeVoiceType viewModel, string forceModeStr)
     {
-        return new NPCAttributeVoiceType() { Type = NPCAttributeType.VoiceType, FormKeys = viewModel.VoiceTypeFormKeys.ToHashSet(), ForceIf = forceIf, Weighting = viewModel.ParentShell.ForceIfWeight};
+        return new NPCAttributeVoiceType() { Type = NPCAttributeType.VoiceType, FormKeys = viewModel.VoiceTypeFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight};
     }
 }
 
@@ -256,9 +275,9 @@ public class VM_NPCAttributeClass : VM, ISubAttributeViewModel
         return newAtt;
     }
 
-    public static NPCAttributeClass DumpViewModelToModel(VM_NPCAttributeClass viewModel, bool forceIf)
+    public static NPCAttributeClass DumpViewModelToModel(VM_NPCAttributeClass viewModel, string forceModeStr)
     {
-        return new NPCAttributeClass() { Type = NPCAttributeType.Class, FormKeys = viewModel.ClassFormKeys.ToHashSet(), ForceIf = forceIf, Weighting = viewModel.ParentShell.ForceIfWeight };
+        return new NPCAttributeClass() { Type = NPCAttributeType.Class, FormKeys = viewModel.ClassFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
     }
 }
 
@@ -334,7 +353,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         return viewModel;
     }
 
-    public static NPCAttributeCustom DumpViewModelToModel(VM_NPCAttributeCustom viewModel, bool forceIf)
+    public static NPCAttributeCustom DumpViewModelToModel(VM_NPCAttributeCustom viewModel, string forceModeStr)
     {
         var model = new NPCAttributeCustom();
         model.Type = NPCAttributeType.Custom;
@@ -343,7 +362,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         model.Path = viewModel.IntellisensedPath;
         model.ValueStr = viewModel.ValueStr;
         model.ValueFKs = viewModel.ValueFKs.ToHashSet();
-        model.ForceIf = forceIf;
+        model.ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr];
         model.Weighting = viewModel.ParentShell.ForceIfWeight;
         model.ReferenceNPCFK = viewModel.ReferenceNPCFormKey;
         model.SelectedFormKeyType = viewModel.ValueFKtype;
@@ -393,7 +412,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
                 EvalResult = "Error: can't resolve reference NPC.";
                 this.StatusFontColor = new SolidColorBrush(Colors.Red);
             }
-            bool matched = AttributeMatcher.EvaluateCustomAttribute(refNPC, DumpViewModelToModel(this, false), LinkCache, out string dispMessage);
+            bool matched = AttributeMatcher.EvaluateCustomAttribute(refNPC, DumpViewModelToModel(this, VM_NPCAttributeShell.AttributeAllowStr), LinkCache, out string dispMessage);
             if (matched)
             {
                 EvalResult = "Matched!";
@@ -479,9 +498,9 @@ public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
         parentShell.ForceIfWeight = model.Weighting;
         return newAtt;
     }
-    public static NPCAttributeFactions DumpViewModelToModel(VM_NPCAttributeFactions viewModel, bool forceIf)
+    public static NPCAttributeFactions DumpViewModelToModel(VM_NPCAttributeFactions viewModel, string forceModeStr)
     {
-        return new NPCAttributeFactions() { Type = NPCAttributeType.Faction, FormKeys = viewModel.FactionFormKeys.ToHashSet(), RankMin = viewModel.RankMin, RankMax = viewModel.RankMax, ForceIf = forceIf, Weighting = viewModel.ParentShell.ForceIfWeight };
+        return new NPCAttributeFactions() { Type = NPCAttributeType.Faction, FormKeys = viewModel.FactionFormKeys.ToHashSet(), RankMin = viewModel.RankMin, RankMax = viewModel.RankMax, ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
     }
 }
 
@@ -514,9 +533,9 @@ public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
         return newAtt;
     }
 
-    public static NPCAttributeFaceTexture DumpViewModelToModel(VM_NPCAttributeFaceTexture viewModel, bool forceIf)
+    public static NPCAttributeFaceTexture DumpViewModelToModel(VM_NPCAttributeFaceTexture viewModel, string forceModeStr)
     {
-        return new NPCAttributeFaceTexture() { Type = NPCAttributeType.FaceTexture, FormKeys = viewModel.FaceTextureFormKeys.ToHashSet(), ForceIf = forceIf, Weighting = viewModel.ParentShell.ForceIfWeight };
+        return new NPCAttributeFaceTexture() { Type = NPCAttributeType.FaceTexture, FormKeys = viewModel.FaceTextureFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
     }
 }
 
@@ -549,9 +568,9 @@ public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
         return newAtt;
     }
 
-    public static NPCAttributeRace DumpViewModelToModel(VM_NPCAttributeRace viewModel, bool forceIf)
+    public static NPCAttributeRace DumpViewModelToModel(VM_NPCAttributeRace viewModel, string forceModeStr)
     {
-        return new NPCAttributeRace() { Type = NPCAttributeType.Race, FormKeys = viewModel.RaceFormKeys.ToHashSet(), ForceIf = forceIf, Weighting = viewModel.ParentShell.ForceIfWeight };
+        return new NPCAttributeRace() { Type = NPCAttributeType.Race, FormKeys = viewModel.RaceFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
     }
 }
 
@@ -582,9 +601,9 @@ public class VM_NPCAttributeNPC : VM, ISubAttributeViewModel
         parentShell.ForceIfWeight = model.Weighting;
         return newAtt;
     }
-    public static NPCAttributeNPC DumpViewModelToModel(VM_NPCAttributeNPC viewModel, bool forceIf)
+    public static NPCAttributeNPC DumpViewModelToModel(VM_NPCAttributeNPC viewModel, string forceModeStr)
     {
-        return new NPCAttributeNPC() { Type = NPCAttributeType.NPC, FormKeys = viewModel.NPCFormKeys.ToHashSet(), ForceIf = forceIf, Weighting = viewModel.ParentShell.ForceIfWeight };
+        return new NPCAttributeNPC() { Type = NPCAttributeType.NPC, FormKeys = viewModel.NPCFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
     }
 }
 
@@ -657,9 +676,9 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
 
         return newAtt;
     }
-    public static NPCAttributeGroup DumpViewModelToModel(VM_NPCAttributeGroup viewModel, bool forceIf)
+    public static NPCAttributeGroup DumpViewModelToModel(VM_NPCAttributeGroup viewModel, string forceModeStr)
     {
-        return new NPCAttributeGroup() { Type = NPCAttributeType.Group, SelectedLabels = viewModel.SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label).ToHashSet(), ForceIf = forceIf, Weighting = viewModel.ParentShell.ForceIfWeight };
+        return new NPCAttributeGroup() { Type = NPCAttributeType.Group, SelectedLabels = viewModel.SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label).ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
     }
 }
 

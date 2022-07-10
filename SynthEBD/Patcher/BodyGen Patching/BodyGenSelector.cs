@@ -326,11 +326,6 @@ public class BodyGenSelector
         {
             if (MorphIsValid(candidateMorph, npcInfo, ignoredFactors, assignedAssetCombination))
             {
-                candidateMorph.MatchedForceIfCount = AttributeMatcher.GetForceIfAttributeCount(candidateMorph.AllowedAttributes, npcInfo.NPC, out string forceIfAttributes);
-                if (candidateMorph.MatchedForceIfCount > 0)
-                {
-                    Logger.LogReport("Morph " + candidateMorph.Label + ": current NPC matches the following ForceIf attributes: " + forceIfAttributes, false, npcInfo);
-                }
                 outputMorphs.Add(candidateMorph);
             }
         }
@@ -394,17 +389,28 @@ public class BodyGenSelector
             return false;
         }
 
-        // Allowed Attributes
-        if (candidateMorph.AllowedAttributes.Any() && !AttributeMatcher.HasMatchedAttributes(candidateMorph.AllowedAttributes, npcInfo.NPC, LogMatchType.Unmatched, out string unmatchedAttributes))
+        // Allowed and Forced Attributes
+        AttributeMatcher.MatchNPCtoAttributeList(candidateMorph.AllowedAttributes, npcInfo.NPC, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog);
+        if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
-            Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedAttributes, false, npcInfo);
+            Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedLog, false, npcInfo);
             return false;
+        }
+        else
+        {
+            candidateMorph.MatchedForceIfCount = matchedForceIfWeightedCount;
+        }
+
+        if (candidateMorph.MatchedForceIfCount > 0)
+        {
+            Logger.LogReport("Morph " + candidateMorph.Label + " Current NPC matches the following forced attributes: " + forceIfLog, false, npcInfo);
         }
 
         // Disallowed Attributes
-        if (AttributeMatcher.HasMatchedAttributes(candidateMorph.DisallowedAttributes, npcInfo.NPC, LogMatchType.Matched, out string matchedAttributes))
+        AttributeMatcher.MatchNPCtoAttributeList(candidateMorph.DisallowedAttributes, npcInfo.NPC, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _);
+        if (hasAttributeRestrictions && matchesAttributeRestrictions)
         {
-            Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the NPC matches one of its disallowed attributes: " + matchedAttributes, false, npcInfo);
+            Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog, false, npcInfo);
             return false;
         }
 

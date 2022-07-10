@@ -3,46 +3,36 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
-public enum LogMatchType
-{
-    None,
-    Matched,
-    Unmatched,
-    ForceIf
-}
 public class AttributeMatcher
 {
-    public static bool HasMatchedAttributes(HashSet<NPCAttribute> attributeList, INpcGetter npc, LogMatchType logType, out string matchLog)
-    {
-        return MatchNPCtoAttributeList(attributeList, npc, false, logType, out int unused, out matchLog);
-    }
-    public static int GetForceIfAttributeCount(HashSet<NPCAttribute> attributeList, INpcGetter npc, out string matchLog)
-    {
-        MatchNPCtoAttributeList(attributeList, npc, true, LogMatchType.ForceIf, out int count, out matchLog);
-        return count;
-    }
-
     /// <summary>
-    /// Evaluates a list of NPCAttributes to determine if the given NPC 
+    ///  Evaluates a list of NPCAttributes to determine if the given NPC matches any. Note that attributes of ForceType "Restrict" or "ForceIfAndRestrict" must be matched, while ForceType "ForceIf" does not need to be matched
     /// </summary>
-    /// <param name="attributeList"></param>
-    /// <param name="npc"></param>
-    /// <param name="getForceIfCount"></param>
-    /// <param name="matchedForceIfAttributeWeightedCount"></param>
-    /// <returns></returns>
-    private static bool MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, bool getForceIfCount, LogMatchType logType, out int matchedForceIfAttributeWeightedCount, out string matchLog)
+    /// <param name="attributeList">List to attributes against which the NPC is to be compared</param>
+    /// <param name="npc">NPC to be compared</param>
+    /// <param name="logType">Determines if matched or unmatched attributes should be logged</param>
+    /// <param name="hasAttributeRestrictions">Output: Does the attribute list contain attributes of type "Restrict" or "ForceIfAndRestrict" </param>
+    /// <param name="matchesAttributeRestrictions">Output: Does the NPC match any attributes of type "Restrict" or "ForceIfAndRestrict"</param>
+    /// <param name="matchedForceIfAttributeWeightedCount">"Output: Cumulative weighting of matched ForceIf attributes"</param>
+    /// <param name="matchLog">"Output: Log of Matched/Unmatched Attributes (depending on logType)</param>
+    public static void MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog)
     {
-        bool matched = false;
+        hasAttributeRestrictions = false;
+        matchesAttributeRestrictions = false;
         matchedForceIfAttributeWeightedCount = 0;
         matchLog = string.Empty;
-        if (attributeList.Count == 0) { return false; }
+        unmatchedLog = string.Empty;
+        forceIfLog = string.Empty;
+        if (attributeList.Count == 0) { return; }
 
         foreach (var attribute in attributeList)
         {
             bool subAttributeMatched = true;
-            int currentAttributeForceIfWeight = 0; // for logging only
+            int currentAttributeForceIfWeight = 0;
             foreach (var subAttribute in attribute.SubAttributes)
             {
+                if (subAttribute.ForceMode != AttributeForcing.ForceIf) { hasAttributeRestrictions = true; }
+
                 switch(subAttribute.Type)
                 {
                     case NPCAttributeType.Class:
@@ -110,39 +100,39 @@ public class AttributeMatcher
                         break;
                 }
 
-                if (!subAttributeMatched) 
+                if (!subAttributeMatched && subAttribute.ForceMode != AttributeForcing.ForceIf) //  "ForceIf" mode does not cause attribute to fail matching because it implies the user does not want this sub-attribute to restrict distribute (otherwise it would be ForceIfAndRestrict) 
                 {
-                    if (logType == LogMatchType.Unmatched)
-                    {
-                        matchLog += subAttribute.ToLogString();
-                    }
+                    if (unmatchedLog.Any()) { unmatchedLog += " | "; }
+                    unmatchedLog += subAttribute.ToLogString();
                     break; 
                 }
-                else if (subAttribute.ForceIf) { matchedForceIfAttributeWeightedCount += subAttribute.Weighting; currentAttributeForceIfWeight += subAttribute.Weighting; }
+                else if (subAttribute.ForceMode == AttributeForcing.ForceIf || subAttribute.ForceMode == AttributeForcing.ForceIfAndRestrict) { currentAttributeForceIfWeight += subAttribute.Weighting; }
             }
-            if (!subAttributeMatched) // sub attributes are treated as AND, so as soon as one isn't matched return false
+
+            //finished evaluating all sub-attributes
+
+            if (hasAttributeRestrictions && subAttributeMatched) // if the last subAttribute was matched, then all subAttributes were matched. (!hasAttributeRestrictions && subAttributeMatched) means that the only matched attribute was a ForceIf, in which case the restricted attributes were not matched
             {
-                continue; // evaluate the next attribute - the current attribute is not matched because one of the sub-attributes is not matched
+                matchesAttributeRestrictions = true;
             }
-            else if (!getForceIfCount) // if the calling function only wants to know if any attributes are matched, and does not care how many of the matched attributes are ForceIf, then return true as soon as the first attribute is matched
+
+            if (!hasAttributeRestrictions || matchesAttributeRestrictions) // compute the total forceIf weight for this attribute if all sub-attributes were matched (matchesAttributeRestrictions), or if all of the listed sub-attributes were non-restricted of ForceMode "ForceIf" (!hasAttributeRestrictions) 
             {
-                if (logType == LogMatchType.Matched)
-                {
-                    matchLog = attribute.ToLogString();
-                }
-                return true;
+                matchedForceIfAttributeWeightedCount += currentAttributeForceIfWeight;
             }
-            else
+
+            if (matchesAttributeRestrictions)
             {
-                if (logType == LogMatchType.ForceIf)
-                {
-                    matchLog += "\n" + attribute.ToLogString() + " (Weighting: " + currentAttributeForceIfWeight + ")";
-                }
-                matched = true;
+                matchLog += "\n" + attribute.ToLogString();
+            }
+
+            if (currentAttributeForceIfWeight > 0)
+            {
+                forceIfLog += "\n" + attribute.ToLogString() + " (Weighting: " + currentAttributeForceIfWeight + ")";
             }
         }
 
-        return matched;
+        return;
     }
 
     public static bool EvaluateCustomAttribute(INpcGetter npc, NPCAttributeCustom attribute, ILinkCache linkCache, out string dispMessage)
