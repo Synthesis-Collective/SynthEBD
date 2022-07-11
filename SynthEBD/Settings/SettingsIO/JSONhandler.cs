@@ -25,7 +25,7 @@ public class JSONhandler<T>
         {
             success = true;
             exception = "";
-            return JsonConvert.DeserializeObject<T>(jsonInputStr, GetSynthEBDJSONSettings());
+            return JsonConvert.DeserializeObject<T>(SettingsUpgrader.UpgradeDeprecatedSettings(jsonInputStr), GetSynthEBDJSONSettings());
         }
         catch (Exception ex)
         {

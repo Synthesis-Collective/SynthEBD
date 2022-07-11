@@ -87,8 +87,6 @@ public class VM_NPCAttribute : VM
                     break;
             }
             shellVM.ForceModeStr = VM_NPCAttributeShell.ForceModeEnumToStrDict[attributeShellModel.ForceMode];
-            shellVM.DisplayForceIfOption = displayForceIfOption;
-            shellVM.DisplayForceIfWeight = displayForceIfWeight ?? false;
             viewModel.GroupedSubAttributes.Add(shellVM);
         }
 
@@ -132,14 +130,20 @@ public class VM_NPCAttributeShell : VM
     {
         this.Attribute = new VM_NPCAttributeClass(parentVM, this);
         this.DisplayForceIfOption = displayForceIfOption;
-        if (displayForceIfWeight is not null)
+
+        this.WhenAnyValue(x => x.ForceModeStr).Subscribe(x =>
         {
-            this.DisplayForceIfWeight = displayForceIfWeight.Value;
+            if (DisplayForceIfOption == true && (ForceModeStr == AttributeForceIfStr || ForceModeStr == AttributeForceIfandRestrictStr))
+            {
+                DisplayForceIfWeight = true;
+            }
+            else
+            {
+                DisplayForceIfWeight = false;
+            }
         }
-        else
-        {
-            this.DisplayForceIfWeight = displayForceIfOption;
-        }
+        );
+       
 
         AddAdditionalSubAttributeToParent = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -177,7 +181,7 @@ public class VM_NPCAttributeShell : VM
 
     public RelayCommand ChangeType { get; }
 
-    public static string AttributeAllowStr { get; } = "Allow";
+    public static string AttributeAllowStr { get; } = "Restrict";
     public static string AttributeForceIfStr { get; } = "Force If";
     public static string AttributeForceIfandRestrictStr { get; } = "Force If and Restrict";
     public static List<string> ForceModeOptions = new() { AttributeAllowStr, AttributeForceIfStr, AttributeForceIfandRestrictStr };
