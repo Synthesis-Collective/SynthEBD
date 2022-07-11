@@ -21,7 +21,7 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0"  HorizontalAlignment="Center" ToolTip="Select the plugin to block" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Plugin</TextBlock>
-        <plugins:ModKeyPicker ModKey="{Binding ModKey}" Grid.Row="0" Grid.Column="1"  SearchableMods="{Binding lk}" />
+        <plugins:ModKeyPicker ModKey="{Binding ModKey}" Grid.Row="0" Grid.Column="1"  SearchableMods="{Binding LoadOrder}" />
         <TextBlock Grid.Row="1" Grid.Column="0"  HorizontalAlignment="Center" ToolTip="Block NPCs modified by this plugin from receiving asset assignments" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Block Assets (Textures and Meshes)</TextBlock>
         <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding Path=Assets, Mode=TwoWay}"></CheckBox>
         <TextBlock Grid.Row="2" Grid.Column="0"  HorizontalAlignment="Center" ToolTip="Block NPCs modified by this plugin from receiving a height assignment" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Block Height</TextBlock>

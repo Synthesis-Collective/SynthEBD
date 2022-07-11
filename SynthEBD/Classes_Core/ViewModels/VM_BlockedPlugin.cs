@@ -3,6 +3,7 @@ using Mutagen.Bethesda.Plugins.Cache;
 using System.ComponentModel;
 using Noggog;
 using ReactiveUI;
+using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
@@ -15,6 +16,10 @@ public class VM_BlockedPlugin : VM
         PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
+
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LoadOrder)
+            .Subscribe(x => LoadOrder = x)
+            .DisposeWith(this);
     }
 
     // Caption
@@ -25,7 +30,7 @@ public class VM_BlockedPlugin : VM
     public bool BodyShape { get; set; } = false;
 
     public ILinkCache lk { get; private set; }
-
+    public Mutagen.Bethesda.Plugins.Order.ILoadOrder<Mutagen.Bethesda.Plugins.Order.IModListing<ISkyrimModGetter>> LoadOrder { get; private set; }
     public void TriggerDispNameUpdate(object sender, PropertyChangedEventArgs e)
     {
         if (this.ModKey.IsNull == false)
