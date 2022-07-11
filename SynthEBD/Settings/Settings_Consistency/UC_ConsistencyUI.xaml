@@ -28,7 +28,7 @@
         </StackPanel>
 
         <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 10 0 0" ToolTip="Select the NPC whose consistency you wish to view" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Search NPC</TextBlock>
-        <plugins:FormKeyPicker Grid.Row="1"  Grid.Column="1" VerticalAlignment="Top" Margin="0 10 0 0"  FormKey="{Binding SelectedNPCFormKey}" LinkCache="{Binding lk}" ScopedTypes="{Binding AllowedFormKeyTypes}" MaxHeight="250"  />
+        <plugins:FormKeyPicker Grid.Row="1"  Grid.Column="1" VerticalAlignment="Top" Margin="0 10 0 0"  FormKey="{Binding SelectedNPCFormKey}" LinkCache="{Binding lk}" ScopedTypes="{Binding AllowedFormKeyTypes, Mode=OneWay}" MaxHeight="250"  />
 
         <ContentPresenter Grid.Row="2" Grid.Column="2" Content="{Binding CurrentlyDisplayedAssignment}">
             <ContentPresenter.Resources>

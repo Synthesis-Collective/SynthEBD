@@ -162,8 +162,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     public VM_AttributeGroupMenu AttributeGroupMenu { get; }
     public bool OverwritePluginAttGroups { get; set; } = true;
     public ILinkCache lk { get; private set; }
-    public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
-    public IEnumerable<Type> NPCPickerFormKeys { get; set; } = typeof(INpcGetter).AsEnumerable();
+    public IEnumerable<Type> RacePickerFormKeys { get; } = typeof(IRaceGetter).AsEnumerable();
+    public IEnumerable<Type> NPCPickerFormKeys { get; } = typeof(INpcGetter).AsEnumerable();
 
     public ObservableCollection<VM_RaceGrouping> RaceGroupings { get; set; } = new();
     public RelayCommand AddRaceGrouping { get; }

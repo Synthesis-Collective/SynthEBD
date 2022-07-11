@@ -84,7 +84,7 @@ public class VM_ConsistencyUI : VM
     public ObservableCollection<VM_ConsistencyAssignment> Assignments { get; set; } = new();
     public VM_ConsistencyAssignment CurrentlyDisplayedAssignment { get; set; } = null;
     public ILinkCache lk { get; private set; }
-    public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
+    public IEnumerable<Type> AllowedFormKeyTypes { get; } = typeof(INpcGetter).AsEnumerable();
     public FormKey SelectedNPCFormKey { get; set; } = new();
 
     public RelayCommand DeleteCurrentNPC { get; set; }
