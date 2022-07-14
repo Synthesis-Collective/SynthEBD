@@ -407,25 +407,17 @@ public class AssetSelector
                 }
                 else
                 {
-
-                    if (mode != AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual && i == candidatePack.Subgroups.Count - 1 && ap.Subgroups[i].Count > 0) // record forceIf count for whole config file from the "fake" distribution rules subgroup
+                    candidatePack.Subgroups[i] = candidatePack.Subgroups[i].OrderByDescending(x => x.ForceIfMatchCount).ToList();
+                    // remove subgroups with less than maximal forceIf counts
+                    if (candidatePack.Subgroups[i][0].ForceIfMatchCount > 0)
                     {
-                        ap.MatchedWholeConfigForceIfs = ap.Subgroups[i][0].ForceIfMatchCount;
-                    }
-                    else
-                    {
-                        candidatePack.Subgroups[i] = candidatePack.Subgroups[i].OrderByDescending(x => x.ForceIfMatchCount).ToList();
-                        // remove subgroups with less than maximal forceIf counts
-                        if (candidatePack.Subgroups[i][0].ForceIfMatchCount > 0)
+                        for (int j = 1; j < candidatePack.Subgroups[i].Count; j++)
                         {
-                            for (int j = 1; j < candidatePack.Subgroups[i].Count; j++)
+                            if (candidatePack.Subgroups[i][j].ForceIfMatchCount < candidatePack.Subgroups[i][0].ForceIfMatchCount)
                             {
-                                if (candidatePack.Subgroups[i][j].ForceIfMatchCount < candidatePack.Subgroups[i][0].ForceIfMatchCount)
-                                {
-                                    Logger.LogReport("Subgroup: " + candidatePack.Subgroups[i][j].Id + "(" + candidatePack.Subgroups[i][j].Name + ") was removed because another subgroup in position " + (i + 1).ToString() + " had more matched ForceIf attributes.", false, npcInfo);
-                                    candidatePack.Subgroups[i].RemoveAt(j);
-                                    j--;
-                                }
+                                Logger.LogReport("Subgroup: " + candidatePack.Subgroups[i][j].Id + "(" + candidatePack.Subgroups[i][j].Name + ") was removed because another subgroup in position " + (i + 1).ToString() + " had more matched ForceIf attributes.", false, npcInfo);
+                                candidatePack.Subgroups[i].RemoveAt(j);
+                                j--;
                             }
                         }
                     }

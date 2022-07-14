@@ -106,7 +106,10 @@ public class AttributeMatcher
                     unmatchedLog += subAttribute.ToLogString();
                     break; 
                 }
-                else if (subAttribute.ForceMode == AttributeForcing.ForceIf || subAttribute.ForceMode == AttributeForcing.ForceIfAndRestrict) { currentAttributeForceIfWeight += subAttribute.Weighting; }
+                else if (subAttributeMatched && (subAttribute.ForceMode == AttributeForcing.ForceIf || subAttribute.ForceMode == AttributeForcing.ForceIfAndRestrict)) 
+                { 
+                    currentAttributeForceIfWeight += subAttribute.Weighting; 
+                }
             }
 
             //finished evaluating all sub-attributes
@@ -116,7 +119,7 @@ public class AttributeMatcher
                 matchesAttributeRestrictions = true;
             }
 
-            if (!hasAttributeRestrictions || matchesAttributeRestrictions) // compute the total forceIf weight for this attribute if all sub-attributes were matched (matchesAttributeRestrictions), or if all of the listed sub-attributes were non-restricted of ForceMode "ForceIf" (!hasAttributeRestrictions) 
+            if (subAttributeMatched) // compute the total forceIf weight for this attribute if all sub-attributes were matched
             {
                 matchedForceIfAttributeWeightedCount += currentAttributeForceIfWeight;
             }

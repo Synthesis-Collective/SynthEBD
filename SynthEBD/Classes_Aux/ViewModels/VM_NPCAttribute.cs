@@ -190,7 +190,7 @@ public class VM_NPCAttributeShell : VM
     {
         { AttributeAllowStr, AttributeForcing.Restrict },
         { AttributeForceIfStr, AttributeForcing.ForceIf },
-        { AttributeForceIfandRestrictStr, AttributeForcing.ForceIf }
+        { AttributeForceIfandRestrictStr, AttributeForcing.ForceIfAndRestrict }
     };
 
     public static Dictionary<AttributeForcing, string> ForceModeEnumToStrDict = new()
