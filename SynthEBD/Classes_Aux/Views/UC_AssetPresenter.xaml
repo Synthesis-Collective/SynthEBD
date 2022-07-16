@@ -38,8 +38,8 @@
         </Grid.RowDefinitions>
 
         <DockPanel HorizontalAlignment="Stretch" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" >
-            <TextBlock Text="Select Asset Pack" VerticalAlignment="Center"/>
-            <ComboBox Margin="15 0 0 0" ItemsSource="{Binding ParentUI.AssetPacks}" SelectedItem="{Binding AssetPack}" DisplayMemberPath="GroupName" IsSynchronizedWithCurrentItem="False"/>
+            <TextBlock Text="Select Asset Pack To Edit" VerticalAlignment="Center" Margin="5 0 0 0"/>
+            <ComboBox Margin="70 0 0 0" ItemsSource="{Binding ParentUI.AssetPacks}" SelectedItem="{Binding AssetPack}" DisplayMemberPath="GroupName" IsSynchronizedWithCurrentItem="False" BorderBrush="White" BorderThickness="1" />
         </DockPanel>
         
         <ContentPresenter Grid.Row="1" Grid.Column="0" Content="{Binding AssetPack}" Margin="5 0 0 0" Name="AssetPresenter">

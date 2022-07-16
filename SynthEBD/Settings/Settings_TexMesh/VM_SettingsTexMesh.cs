@@ -41,6 +41,7 @@ public class VM_SettingsTexMesh : VM
                 }
             }
         );
+
         AddNewAssetPackConfigFile = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => this.AssetPacks.Add(assetPackFactory())
@@ -78,6 +79,15 @@ public class VM_SettingsTexMesh : VM
             }
         );
 
+        SplitScreenToggle = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                if (bShowSecondaryAssetPack) { bShowSecondaryAssetPack = false; }
+                else { bShowSecondaryAssetPack = true; }
+            }
+        );
+
         AssetPresenterPrimary = new VM_AssetPresenter(this);
         AssetPresenterSecondary = new VM_AssetPresenter(this);
     }
@@ -100,6 +110,7 @@ public class VM_SettingsTexMesh : VM
     public RelayCommand AddNewAssetPackConfigFile { get; }
     public RelayCommand InstallFromArchive { get; }
     public RelayCommand InstallFromJson { get; }
+    public RelayCommand SplitScreenToggle { get; }
     public string LastViewedAssetPackName { get; set; }
     public bool bShowSecondaryAssetPack { get; set; } = false;
     public VM_AssetPresenter AssetPresenterPrimary { get; set; }
