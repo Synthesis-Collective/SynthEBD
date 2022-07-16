@@ -13,8 +13,6 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_StatusBar>().AsSelf().SingleInstance();
         builder.RegisterType<VM_NavPanel>().AsSelf().SingleInstance();
         builder.RegisterType<VM_RunButton>().AsSelf().SingleInstance();
-        builder.RegisterType<VM_SettingsTexMesh>().AsSelf().SingleInstance()
-            .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
         builder.RegisterType<VM_SettingsHeight>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsModManager>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BlockListUI>().AsSelf().SingleInstance();
@@ -26,6 +24,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_Settings_General>().AsSelf().SingleInstance()
             .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
         builder.RegisterType<MainState>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_SettingsTexMesh>().AsSelf().SingleInstance()
+    .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
         builder.RegisterType<SaveLoader>().AsSelf().SingleInstance()
             .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
         builder.RegisterType<PatcherEnvironmentProvider>().AsSelf().SingleInstance();
@@ -35,6 +35,7 @@ public class MainModule : Autofac.Module
         
         // Other
         builder.RegisterType<VM_AssetPack>().AsSelf();
+        builder.RegisterType<VM_AssetPresenter>().AsSelf();
         builder.RegisterType<VM_SpecificNPCAssignment>().AsSelf();
         builder.RegisterType<VM_AttributeGroupMenu>().AsSelf();
         builder.RegisterType<VM_BodyGenConfig>().AsSelf();

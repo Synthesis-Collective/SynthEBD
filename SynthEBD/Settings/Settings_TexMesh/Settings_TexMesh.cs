@@ -13,6 +13,7 @@ public class Settings_TexMesh
     public bool bGenerateAssignmentLog { get; set; } = true;
     public bool bShowPreviewImages { get; set; } = true;
     public HashSet<string> SelectedAssetPacks { get; set; } = new();
+    public string LastViewedAssetPack { get; set; }
 
     [JsonIgnore]
     public HashSet<TrimPath> TrimPaths { get; set; } = new();

@@ -1,5 +1,7 @@
-﻿using System.Collections.ObjectModel;
+﻿using ReactiveUI;
+using System.Collections.ObjectModel;
 using System.Windows.Forms;
+using System.Windows.Media;
 
 namespace SynthEBD;
 
@@ -13,8 +15,6 @@ public class VM_SettingsTexMesh : VM
         VM_SettingsModManager modManager,
         VM_AssetPack.Factory assetPackFactory)
     {
-
-
         AddTrimPath = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => this.TrimPaths.Add(new TrimPath())
@@ -77,6 +77,9 @@ public class VM_SettingsTexMesh : VM
                 }
             }
         );
+
+        AssetPresenterPrimary = new VM_AssetPresenter(this);
+        AssetPresenterSecondary = new VM_AssetPresenter(this);
     }
 
     public bool bChangeNPCTextures { get; set; } = true;
@@ -97,6 +100,10 @@ public class VM_SettingsTexMesh : VM
     public RelayCommand AddNewAssetPackConfigFile { get; }
     public RelayCommand InstallFromArchive { get; }
     public RelayCommand InstallFromJson { get; }
+    public string LastViewedAssetPackName { get; set; }
+    public bool bShowSecondaryAssetPack { get; set; } = false;
+    public VM_AssetPresenter AssetPresenterPrimary { get; set; }
+    public VM_AssetPresenter AssetPresenterSecondary { get; set; }
 
     public bool ValidateAllConfigs(BodyGenConfigs bodyGenConfigs, out List<string> errors)
     {
@@ -125,6 +132,7 @@ public class VM_SettingsTexMesh : VM
         viewModel.bGenerateAssignmentLog = model.bGenerateAssignmentLog;
         viewModel.bShowPreviewImages = model.bShowPreviewImages;
         viewModel.TrimPaths = new ObservableCollection<TrimPath>(model.TrimPaths);
+        viewModel.LastViewedAssetPackName = model.LastViewedAssetPack;
     }
 
     public static void DumpViewModelToModel(VM_SettingsTexMesh viewModel, Settings_TexMesh model)
@@ -138,6 +146,10 @@ public class VM_SettingsTexMesh : VM
         model.bGenerateAssignmentLog = viewModel.bGenerateAssignmentLog;
         model.bShowPreviewImages = viewModel.bShowPreviewImages;
         model.SelectedAssetPacks = viewModel.AssetPacks.Where(x => x.IsSelected).Select(x => x.GroupName).ToHashSet();
+        if (viewModel.AssetPresenterPrimary.AssetPack is not null)
+        {
+            model.LastViewedAssetPack = viewModel.AssetPresenterPrimary.AssetPack.GroupName;
+        }
     }
 
     public void RefreshInstalledConfigs(List<string> installedConfigs)

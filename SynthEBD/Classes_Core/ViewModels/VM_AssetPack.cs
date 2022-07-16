@@ -7,7 +7,6 @@ using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using ReactiveUI;
-using System.Windows.Media;
 using GongSolutions.Wpf.DragDrop;
 using System.Windows.Controls;
 
@@ -73,8 +72,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         RecordTemplateLinkCache = state.RecordTemplateLinkCache;
 
         ParentMenuVM = texMesh;
-
-        this.WhenAnyValue(x => x.DisplayedSubgroup).Subscribe(x => UpdatePreviewImages());
 
         this.WhenAnyValue(x => x.Gender).Subscribe(x => SetDefaultRecordTemplate());
 
@@ -221,8 +218,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public RelayCommand SelectedSubgroupChanged { get; }
     public RelayCommand SetDefaultTargetDestPaths { get; }
     public BodyShapeSelectionMode BodyShapeMode { get; set; }
-    public bool ShowPreviewImages { get; set; }
-    public ObservableCollection<VM_PreviewImage> PreviewImages { get; set; } = new();
 
     public VM_SettingsTexMesh ParentMenuVM { get; set; }
     public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>() // referenced by xaml; don't trust VS reference count
@@ -236,28 +231,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         var model = DumpViewModelToModel(this);
         errors = new List<string>();
         return _assetPackValidator.Validate(model, errors, bodyGenConfigs);
-    }
-
-    public async void UpdatePreviewImages()
-    {
-        //this.PreviewImages.Clear();
-        this.PreviewImages = new ObservableCollection<VM_PreviewImage>();
-        if (this.DisplayedSubgroup == null) { return; }
-        foreach (var sourcedFile in this.DisplayedSubgroup.ImagePaths)
-        {
-            Pfim.IImage image = await Task.Run(() => Pfim.Pfim.FromFile(sourcedFile.Path));
-            if (image != null)
-            {
-                var converted = Graphics.WpfImage(image).FirstOrDefault();
-                if (converted != null)
-                {
-                    converted.Stretch = Stretch.Uniform;
-                    converted.StretchDirection = System.Windows.Controls.StretchDirection.DownOnly;
-                    PreviewImages.Add(new VM_PreviewImage(converted, sourcedFile.Source));
-                }
-            }    
-        }
-        return;
     }
 
     public static void GetViewModelsFromModels(
@@ -540,6 +513,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
     public void SetDefaultRecordTemplate()
     {
+        if (RecordTemplateLinkCache is null) { return; }
+
         switch(Gender)
         {
             case Gender.Male:

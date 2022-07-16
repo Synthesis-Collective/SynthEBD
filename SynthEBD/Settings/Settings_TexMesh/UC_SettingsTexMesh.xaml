@@ -6,6 +6,11 @@
              xmlns:local="clr-namespace:SynthEBD" d:DataContext="{d:DesignInstance Type=local:VM_SettingsTexMesh}"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+    
     <ScrollViewer>
         <Grid>
             <Grid.ColumnDefinitions>
@@ -13,6 +18,8 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
@@ -69,8 +76,37 @@
                 </StackPanel>
             </Expander>
 
-            <Button Grid.Column="0" Grid.Row="9" HorizontalAlignment="Left" Command="{Binding ValidateAll}" Foreground="MediumPurple" ToolTip="Check all enabled plugin files for errors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Validate Configs</Button>
+            <TextBlock Grid.Column="0" Grid.Row="9" Text="Show Config Files in Split Screen"/>
+            <CheckBox Grid.Column="1" Grid.Row="9" IsChecked="{Binding Path=bShowSecondaryAssetPack, Mode=TwoWay}"/>
             
+            <Button Grid.Column="0" Grid.Row="10" HorizontalAlignment="Left" Command="{Binding ValidateAll}" Foreground="MediumPurple" ToolTip="Check all enabled plugin files for errors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Validate Configs</Button>
+
+            <Grid Grid.Column="0" Grid.Row="12" Grid.ColumnSpan="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition>
+                        <ColumnDefinition.Style>
+                            <Style TargetType="ColumnDefinition">
+                                <Setter Property="Width" Value="*" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding bShowSecondaryAssetPack}" Value="False">
+                                        <Setter Property="Width" Value="0" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding bShowSecondaryAssetPack}" Value="True">
+                                        <Setter Property="Width" Value="*" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ColumnDefinition.Style>
+                    </ColumnDefinition>
+                </Grid.ColumnDefinitions>
+
+                <local:UC_AssetPresenter Background="Black" BorderBrush="#5844b4" BorderThickness="1" DataContext="{Binding AssetPresenterPrimary}" Grid.Column="0" Grid.Row="1"/>
+                
+                <local:UC_AssetPresenter Background="Black" BorderBrush="MediumAquamarine" BorderThickness="1" DataContext="{Binding AssetPresenterSecondary}" Grid.Column="1" Grid.Row="1" Margin="5 0 0 0" Visibility="{Binding Path = ParentUI.bShowSecondaryAssetPack, Converter={StaticResource BoolToVis}}" />
+            </Grid>
+
+            <!--
             <ItemsControl Grid.Column="0" Grid.Row="10" Grid.ColumnSpan="2" ItemsSource="{Binding AssetPacks, UpdateSourceTrigger=PropertyChanged}" Margin="0 15 0 0">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type local:VM_AssetPack}">
@@ -78,7 +114,8 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <StackPanel Grid.Column="0" Grid.Row="11" Orientation="Horizontal" Grid.ColumnSpan="2">
+            -->
+            <StackPanel Grid.Column="0" Grid.Row="13" Orientation="Horizontal" Grid.ColumnSpan="2">
                 <Button Command="{Binding AddNewAssetPackConfigFile}" Foreground="LightGreen" Margin="5" ToolTip="Create your own blank config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Create New Config File</Button>
                 <Button Command="{Binding InstallFromArchive}" Foreground="LightGreen" Margin="5" ToolTip="Install a config plugin from a SynthEBD installer archive (recommended)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Install Config from Archive</Button>
                 <Button Command="{Binding InstallFromJson}" Foreground="YellowGreen" Margin="5" ToolTip="Install a config plugin file from a loose .json file (not recommended)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Install Config Json File</Button>
