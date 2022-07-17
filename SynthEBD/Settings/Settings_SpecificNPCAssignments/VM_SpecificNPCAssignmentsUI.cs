@@ -145,7 +145,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
     public static void DumpViewModelToModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<NPCAssignment> models)
     {
         models.Clear();
-        foreach (var vm in viewModel.Assignments)
+        foreach (var vm in viewModel.Assignments.Where(x => x is not null)) // null check needed for when user leaves blank specific assignment
         {
             models.Add(VM_SpecificNPCAssignment.DumpViewModelToModel(vm));
         }

@@ -218,7 +218,7 @@ public class OBodySelector
         {
             foreach (var subgroup in assignedAssetCombination.ContainedSubgroups)
             {
-                if (subgroup.AllowedBodyGenDescriptors.Any())
+                if (subgroup.AllowedBodySlideDescriptors.Any())
                 {
                     if (!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors))
                     {
