@@ -72,7 +72,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
             parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => this.PathsMenu.ReferenceLinkCache = parentAssetPack.RecordTemplateLinkCache);
         }
 
-        this.PathsMenu.WhenAnyValue(x => x.Paths).Subscribe(x => GetDDSPaths(this, this.ImagePaths));
+        this.PathsMenu.Paths.ToObservableChangeSet().Subscribe(x => GetDDSPaths(this, ImagePaths));
 
         AddAllowedAttribute = new SynthEBD.RelayCommand(
             canExecute: _ => true,
