@@ -32,8 +32,14 @@ namespace SynthEBD
 
         public async void UpdatePreviewImages(VM_AssetPack source)
         {
+            foreach (var i in PreviewImages)
+            {
+                i.Dispose();
+            }
             this.PreviewImages.Clear();
             this.PreviewImages = new ObservableCollection<VM_PreviewImage>();
+            Graphics.ClearHandles();
+
             if (source == null || source.DisplayedSubgroup == null) { return; }
             foreach (var sourcedFile in source.DisplayedSubgroup.ImagePaths)
             {

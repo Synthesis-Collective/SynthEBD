@@ -1,4 +1,4 @@
-﻿using Pfim;
+using Pfim;
 using System.Windows.Controls;
 using System.Runtime.InteropServices;
 using System.Windows.Media;
@@ -41,6 +41,15 @@ public class Graphics
         {
             return subgroup.ID + ": " + subgroup.Name;
         }
+    }
+
+    public static void ClearHandles()
+    {
+        foreach (var handle in handles)
+        {
+            handle.Free();
+        }
+        handles.Clear();
     }
 
     public static IEnumerable<Image> WpfImage(IImage image)
