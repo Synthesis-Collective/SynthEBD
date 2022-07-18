@@ -8,8 +8,6 @@ namespace SynthEBD;
 
 public class Graphics
 {
-    private static List<GCHandle> handles = new List<GCHandle>();
-
     public class ImagePathWithSource
     {
         public ImagePathWithSource(string path, string source)
@@ -43,51 +41,36 @@ public class Graphics
         }
     }
 
-    public static void ClearHandles()
-    {
-        foreach (var handle in handles)
-        {
-            handle.Free();
-        }
-        handles.Clear();
-    }
-
     public static IEnumerable<Image> WpfImage(IImage image)
     {
-        var pinnedArray = GCHandle.Alloc(image.Data, GCHandleType.Pinned);
-        var addr = pinnedArray.AddrOfPinnedObject();
-        var bsource = BitmapSource.Create(image.Width, image.Height, 96.0, 96.0,
-            PixelFormat(image), null, addr, image.DataLen, image.Stride);
+        BitmapSource bsource = BitmapSource.Create(
+    image.Width,
+    image.Height,
+    96,
+    96,
+    PixelFormat(image),
+    null,
+    image.Data,
+    image.Stride);
 
-        handles.Add(pinnedArray);
-        yield return new Image
+        var maxDimension = Math.Max(image.Width, image.Height);
+        if (maxDimension > 2048)
         {
-            Source = bsource,
-            // parameters below are set in the original pfim code, but interfere with xaml sizing. Leaving commented code for reference
-            //Width = image.Width,
-            //Height = image.Height,
-            //MaxHeight = image.Height,
-            //MaxWidth = image.Width,
-            //Margin = new Thickness(4)
-        };
+            double scaleFactor = 2048 / maxDimension;
+            var scaledBitmap = new TransformedBitmap(bsource, new ScaleTransform(scaleFactor, scaleFactor));
 
-        /* This was in the original pfim code, but mipmaps are not needed for SynthEBD and just slow down the load.
-        foreach (var mip in image.MipMaps)
-        {
-            var mipAddr = addr + mip.DataOffset;
-            var mipSource = BitmapSource.Create(mip.Width, mip.Height, 96.0, 96.0,
-                PixelFormat(image), null, mipAddr, mip.DataLen, mip.Stride);
             yield return new Image
             {
-                Source = mipSource,z
-                Width = mip.Width,
-                Height = mip.Height,
-                MaxHeight = mip.Height,
-                MaxWidth = mip.Width,
-                Margin = new Thickness(4)
+                Source = scaledBitmap.Source
             };
         }
-        */
+        else
+        {
+            yield return new Image
+            {
+                Source = bsource
+            };
+        }
     }
 
     private static PixelFormat PixelFormat(IImage image)

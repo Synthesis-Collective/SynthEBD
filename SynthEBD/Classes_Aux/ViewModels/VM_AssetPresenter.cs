@@ -34,18 +34,28 @@ namespace SynthEBD
         {
             foreach (var i in PreviewImages)
             {
+                i.Image.Source = System.Windows.Media.Imaging.BitmapImage.Create(
+                    2,
+                    2,
+                    96,
+                    96,
+                    PixelFormats.Indexed1,
+                    new System.Windows.Media.Imaging.BitmapPalette(new List<Color> { Colors.Transparent }),
+                    new byte[] { 0, 0, 0, 0 },
+                    1);
                 i.Dispose();
             }
             this.PreviewImages.Clear();
             this.PreviewImages = new ObservableCollection<VM_PreviewImage>();
-            Graphics.ClearHandles();
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
 
             if (source == null || source.DisplayedSubgroup == null) { return; }
             foreach (var sourcedFile in source.DisplayedSubgroup.ImagePaths)
             {
                 try
-                {
-                    if (PreviewImages.Select(x => x.Source).Contains(sourcedFile.Source)) { continue; }
+                {                   
                     using (Pfim.IImage image = await Task.Run(() => Pfim.Pfim.FromFile(sourcedFile.Path)))
                     {
                         if (image != null)
@@ -62,8 +72,8 @@ namespace SynthEBD
                 }
                 catch (Exception ex)
                 {
-                    string errorStr = "Failed to load preview image: " + sourcedFile.Path + Environment.NewLine + ExceptionLogger.GetExceptionStack(ex, "");
-                    CustomMessageBox.DisplayNotificationOK("Error Displaying Preview Image", errorStr);
+                    string errorStr = "Failed to load preview image from Subgroup " + sourcedFile.Source + " : " + sourcedFile.Path + Environment.NewLine + ExceptionLogger.GetExceptionStack(ex, "");
+                    Logger.LogMessage(errorStr);
                 }
             }
             return;
