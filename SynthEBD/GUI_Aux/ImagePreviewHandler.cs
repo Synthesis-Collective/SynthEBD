@@ -114,7 +114,7 @@ public class ImagePreviewHandler
             System.Drawing.Bitmap b = new System.Drawing.Bitmap(outputSize.Width, outputSize.Height);
             using (System.Drawing.Graphics g = System.Drawing.Graphics.FromImage((System.Drawing.Image)b))
             {
-                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.Default;
                 g.DrawImage(bitMap, 0, 0, outputSize.Width, outputSize.Height);
             }
             return b;
