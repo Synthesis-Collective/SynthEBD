@@ -29,6 +29,7 @@ namespace SynthEBD
         public VM_SettingsTexMesh ParentUI { get; private set; }
         public VM_AssetPack AssetPack { get; set; }
         public ObservableCollection<VM_PreviewImage> PreviewImages { get; set; } = new();
+        private const ulong ByteLimit = 157286400; // minimum available RAM for image preview to function (in bytes)
 
         public async void UpdatePreviewImages(VM_AssetPack source)
         {
@@ -47,6 +48,9 @@ namespace SynthEBD
             if (source == null || source.DisplayedSubgroup == null) { return; }
             foreach (var sourcedFile in source.DisplayedSubgroup.ImagePaths)
             {
+                var availableRAM = new Microsoft.VisualBasic.Devices.ComputerInfo().AvailablePhysicalMemory;
+                if (availableRAM <= ByteLimit) { continue; }
+
                 try
                 {                   
                     using (Pfim.IImage image = await Task.Run(() => Pfim.Pfim.FromFile(sourcedFile.Path)))
