@@ -9,7 +9,8 @@
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
         <StackPanel>
-            <ContentControl Content="{Binding Image}"/>
+            <!--<ContentControl Content="{Binding Image}"/>-->
+            <Image Source="{Binding Image}" />
             <TextBlock HorizontalAlignment="Center" Text="{Binding Source}"/>
         </StackPanel>
     </Grid>

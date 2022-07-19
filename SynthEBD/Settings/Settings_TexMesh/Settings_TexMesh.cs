@@ -12,6 +12,7 @@ public class Settings_TexMesh
     public bool bDisplayPopupAlerts { get; set; } = true;
     public bool bGenerateAssignmentLog { get; set; } = true;
     public bool bShowPreviewImages { get; set; } = true;
+    public int MaxPreviewImageSize { get; set; } = 1024;
     public HashSet<string> SelectedAssetPacks { get; set; } = new();
     public string LastViewedAssetPack { get; set; }
 

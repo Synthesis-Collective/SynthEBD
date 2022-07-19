@@ -162,7 +162,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
     public ObservableCollection<VM_Subgroup> ParentCollection { get; set; }
     public VM_AssetPack ParentAssetPack { get; set; }
     public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
-    public ObservableCollection<Graphics.ImagePathWithSource> ImagePaths { get; set; } = new();
+    public ObservableCollection<ImagePreviewHandler.ImagePathWithSource> ImagePaths { get; set; } = new();
 
     public void CopyInViewModelFromModel(
         AssetPack.Subgroup model,
@@ -236,16 +236,16 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         Required,
         Excluded
     }
-    public static void GetDDSPaths(VM_Subgroup viewModel, ObservableCollection<Graphics.ImagePathWithSource> paths)
+    public static void GetDDSPaths(VM_Subgroup viewModel, ObservableCollection<ImagePreviewHandler.ImagePathWithSource> paths)
     {
         var ddsPaths = viewModel.PathsMenu.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, x.Source)))
             .Select(x => x.Source)
             .Select(x => System.IO.Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, x))
             .ToHashSet();
-        var source = Graphics.ImagePathWithSource.GetSource(viewModel);
+        var source = ImagePreviewHandler.ImagePathWithSource.GetSource(viewModel);
         foreach (var path in ddsPaths)
         {
-            var imagePathWithSource = new Graphics.ImagePathWithSource(path, source);
+            var imagePathWithSource = new ImagePreviewHandler.ImagePathWithSource(path, source);
             if (!paths.Contains(imagePathWithSource))
             {
                 paths.Add(imagePathWithSource);

@@ -32,17 +32,9 @@ namespace SynthEBD
 
         public async void UpdatePreviewImages(VM_AssetPack source)
         {
+            #region Try to free memory as completely as possible before loading more images
             foreach (var i in PreviewImages)
             {
-                i.Image.Source = System.Windows.Media.Imaging.BitmapImage.Create(
-                    2,
-                    2,
-                    96,
-                    96,
-                    PixelFormats.Indexed1,
-                    new System.Windows.Media.Imaging.BitmapPalette(new List<Color> { Colors.Transparent }),
-                    new byte[] { 0, 0, 0, 0 },
-                    1);
                 i.Dispose();
             }
             this.PreviewImages.Clear();
@@ -50,6 +42,7 @@ namespace SynthEBD
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
+            #endregion
 
             if (source == null || source.DisplayedSubgroup == null) { return; }
             foreach (var sourcedFile in source.DisplayedSubgroup.ImagePaths)
@@ -60,13 +53,9 @@ namespace SynthEBD
                     {
                         if (image != null)
                         {
-                            var converted = Graphics.WpfImage(image).FirstOrDefault();
-                            if (converted != null)
-                            {
-                                converted.Stretch = Stretch.Uniform;
-                                converted.StretchDirection = System.Windows.Controls.StretchDirection.DownOnly;
-                                PreviewImages.Add(new VM_PreviewImage(converted, sourcedFile.Source));
-                            }
+                            var bmp = ImagePreviewHandler.ResizeIImageAsBitMap(image, ParentUI.MaxPreviewImageSize);
+                            var bmpSource = ImagePreviewHandler.CreateBitmapSourceFromGdiBitmap(bmp); // Try setting xaml to display bitmap directly
+                            PreviewImages.Add(new VM_PreviewImage(bmpSource, sourcedFile.Source));
                         }
                     }
                 }

@@ -100,6 +100,7 @@ public class VM_SettingsTexMesh : VM
     public bool bDisplayPopupAlerts { get; set; } = true;
     public bool bGenerateAssignmentLog { get; set; } = true;
     public bool bShowPreviewImages { get; set; } = true;
+    public int MaxPreviewImageSize { get; set; } = 1024;
     public ObservableCollection<TrimPath> TrimPaths { get; set; } = new();
 
     public ObservableCollection<VM_AssetPack> AssetPacks { get; set; } = new();
@@ -142,6 +143,7 @@ public class VM_SettingsTexMesh : VM
         viewModel.bDisplayPopupAlerts = model.bDisplayPopupAlerts;
         viewModel.bGenerateAssignmentLog = model.bGenerateAssignmentLog;
         viewModel.bShowPreviewImages = model.bShowPreviewImages;
+        viewModel.MaxPreviewImageSize = model.MaxPreviewImageSize;
         viewModel.TrimPaths = new ObservableCollection<TrimPath>(model.TrimPaths);
         viewModel.LastViewedAssetPackName = model.LastViewedAssetPack;
     }
@@ -156,6 +158,7 @@ public class VM_SettingsTexMesh : VM
         model.bDisplayPopupAlerts = viewModel.bDisplayPopupAlerts;
         model.bGenerateAssignmentLog = viewModel.bGenerateAssignmentLog;
         model.bShowPreviewImages = viewModel.bShowPreviewImages;
+        model.MaxPreviewImageSize = viewModel.MaxPreviewImageSize;
         model.SelectedAssetPacks = viewModel.AssetPacks.Where(x => x.IsSelected).Select(x => x.GroupName).ToHashSet();
         if (viewModel.AssetPresenterPrimary.AssetPack is not null)
         {
