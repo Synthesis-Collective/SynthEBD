@@ -135,6 +135,13 @@ public class FlattenedSubgroup : IProbabilityWeighted
                 flattened.AllowedBodyGenDescriptors = AllowedDisallowedCombiners.TrimDisallowedDescriptorsFromAllowed(flattened.AllowedBodyGenDescriptors, flattened.DisallowedBodyGenDescriptors, out bool BodyShapeDescriptorsValid);
                 if (!BodyShapeDescriptorsValid) { return; }
             }
+            else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
+            {
+                flattened.AllowedBodySlideDescriptors = DictionaryMapper.GetMorphDictionaryIntersection(flattened.AllowedBodySlideDescriptors, parent.AllowedBodySlideDescriptors);
+                flattened.DisallowedBodySlideDescriptors = DictionaryMapper.MergeDictionaries(new List<Dictionary<string, HashSet<string>>> { flattened.DisallowedBodySlideDescriptors, parent.DisallowedBodySlideDescriptors });
+                flattened.AllowedBodySlideDescriptors = AllowedDisallowedCombiners.TrimDisallowedDescriptorsFromAllowed(flattened.AllowedBodySlideDescriptors, flattened.DisallowedBodySlideDescriptors, out bool BodyShapeDescriptorsValid);
+                if (!BodyShapeDescriptorsValid) { return; }
+            }
         }
 
         if (toFlatten.Subgroups.Count == 0)
