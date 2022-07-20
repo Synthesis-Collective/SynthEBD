@@ -8,10 +8,18 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
-        <StackPanel>
-            <!--<ContentControl Content="{Binding Image}"/>-->
-            <Image Source="{Binding Image}" />
-            <TextBlock HorizontalAlignment="Center" Text="{Binding Source}"/>
-        </StackPanel>
+        <Border BorderBrush="Teal" BorderThickness="1" Margin="0 5 0 0">
+            <StackPanel>
+                <Image Source="{Binding Image}" />
+                    <TextBlock HorizontalAlignment="Center">
+                        <TextBlock.Text>
+                            <MultiBinding StringFormat="{}{0}: {1}">
+                                <Binding Path="Source.ID" />
+                                <Binding Path="Source.Name" />
+                            </MultiBinding>
+                        </TextBlock.Text>
+                    </TextBlock>
+            </StackPanel>
+        </Border>
     </Grid>
 </UserControl>

@@ -46,26 +46,28 @@ namespace SynthEBD
             #endregion
 
             if (source == null || source.DisplayedSubgroup == null) { return; }
-            foreach (var sourcedFile in source.DisplayedSubgroup.ImagePaths)
+            foreach (var sourcedImagePath in source.DisplayedSubgroup.ImagePaths)
             {
                 var availableRAM = new Microsoft.VisualBasic.Devices.ComputerInfo().AvailablePhysicalMemory;
                 if (availableRAM <= ByteLimit) { continue; }
+                if (!sourcedImagePath.SourceChain.Contains(AssetPack.DisplayedSubgroup)) { continue; } // stop loading images from a previous subgroup if a different one is selected
 
                 try
                 {                   
-                    using (Pfim.IImage image = await Task.Run(() => Pfim.Pfim.FromFile(sourcedFile.Path)))
+                    using (Pfim.IImage image = await Task.Run(() => Pfim.Pfim.FromFile(sourcedImagePath.Path)))
                     {
                         if (image != null)
                         {
                             var bmp = ImagePreviewHandler.ResizeIImageAsBitMap(image, ParentUI.MaxPreviewImageSize);
                             var bmpSource = ImagePreviewHandler.CreateBitmapSourceFromGdiBitmap(bmp); // Try setting xaml to display bitmap directly
-                            PreviewImages.Add(new VM_PreviewImage(bmpSource, sourcedFile.Source));
+                            if (!sourcedImagePath.SourceChain.Contains(AssetPack.DisplayedSubgroup)) { continue; } // Intentional duplication: Pfim.FromFile() takes some time to execute and may already be in progress when the user changes the active subgroup, leading to the last previous PreviewImage loading erroneously
+                            PreviewImages.Add(new VM_PreviewImage(bmpSource, sourcedImagePath.PrimarySource));
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    string errorStr = "Failed to load preview image from Subgroup " + sourcedFile.Source + " : " + sourcedFile.Path + Environment.NewLine + ExceptionLogger.GetExceptionStack(ex, "");
+                    string errorStr = "Failed to load preview image from Subgroup " + sourcedImagePath.PrimarySource + " : " + sourcedImagePath.Path + Environment.NewLine + ExceptionLogger.GetExceptionStack(ex, "");
                     Logger.LogMessage(errorStr);
                 }
             }

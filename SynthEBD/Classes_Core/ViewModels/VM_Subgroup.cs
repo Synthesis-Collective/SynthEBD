@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
@@ -23,12 +23,14 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         ObservableCollection<VM_RaceGrouping> raceGroupingVMs,
         ObservableCollection<VM_Subgroup> parentCollection,
         VM_AssetPack parentAssetPack,
+        VM_Subgroup parentSubgroup,
         bool setExplicitReferenceNPC);
     
     public VM_Subgroup(
         ObservableCollection<VM_RaceGrouping> raceGroupingVMs,
         ObservableCollection<VM_Subgroup> parentCollection,
         VM_AssetPack parentAssetPack, 
+        VM_Subgroup parentSubgroup,
         bool setExplicitReferenceNPC,
         VM_SettingsOBody oBody,
         Factory selfFactory,
@@ -57,7 +59,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         
         //UI-related
         this.ParentCollection = parentCollection;
-
+        this.ParentSubgroup = parentSubgroup;
         this.RequiredSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(RequiredSubgroups, SubgroupListBox.Required));
         this.ExcludedSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(ExcludedSubgroups, SubgroupListBox.Excluded));
 
@@ -72,7 +74,8 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
             parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => this.PathsMenu.ReferenceLinkCache = parentAssetPack.RecordTemplateLinkCache);
         }
 
-        this.PathsMenu.Paths.ToObservableChangeSet().Subscribe(x => GetDDSPaths(this, ImagePaths));
+        this.PathsMenu.Paths.ToObservableChangeSet().Subscribe(x => GetDDSPaths(ImagePaths));
+        this.WhenAnyValue(x => x.ParentAssetPack, x => x.ParentSubgroup).Subscribe(x => GetDDSPaths(ImagePaths));
 
         AddAllowedAttribute = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -96,7 +99,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 
         AddSubgroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.Subgroups.Add(selfFactory(raceGroupingVMs, this.Subgroups, this.ParentAssetPack, setExplicitReferenceNPC))
+            execute: _ => this.Subgroups.Add(selfFactory(raceGroupingVMs, this.Subgroups, this.ParentAssetPack, this, setExplicitReferenceNPC))
         );
 
         DeleteMe = new SynthEBD.RelayCommand(
@@ -161,6 +164,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 
     public ObservableCollection<VM_Subgroup> ParentCollection { get; set; }
     public VM_AssetPack ParentAssetPack { get; set; }
+    public VM_Subgroup ParentSubgroup { get; set; }
     public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
     public ObservableCollection<ImagePreviewHandler.ImagePathWithSource> ImagePaths { get; set; } = new();
 
@@ -204,14 +208,15 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
             var subVm = _selfFactory(
                 generalSettingsVM.RaceGroupings,
                 Subgroups,
-                ParentAssetPack, 
+                ParentAssetPack,
+                this,
                 SetExplicitReferenceNPC);
             subVm.CopyInViewModelFromModel(sg, generalSettingsVM);
             Subgroups.Add(subVm);
         }
 
         //dds preview
-        GetDDSPaths(this, ImagePaths);
+        GetDDSPaths(ImagePaths);
     }
     public void RefreshListBoxLabel(ObservableCollection<VM_Subgroup> listSource, SubgroupListBox whichBox)
     {
@@ -236,25 +241,24 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         Required,
         Excluded
     }
-    public static void GetDDSPaths(VM_Subgroup viewModel, ObservableCollection<ImagePreviewHandler.ImagePathWithSource> paths)
+    public void GetDDSPaths(ObservableCollection<ImagePreviewHandler.ImagePathWithSource> paths)
     {
-        var ddsPaths = viewModel.PathsMenu.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, x.Source)))
+        var ddsPaths = PathsMenu.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, x.Source)))
             .Select(x => x.Source)
             .Select(x => System.IO.Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, x))
             .ToHashSet();
-        var source = ImagePreviewHandler.ImagePathWithSource.GetSource(viewModel);
         foreach (var path in ddsPaths)
         {
-            var imagePathWithSource = new ImagePreviewHandler.ImagePathWithSource(path, source);
+            var imagePathWithSource = new ImagePreviewHandler.ImagePathWithSource(path, this);
             if (!paths.Contains(imagePathWithSource))
             {
                 paths.Add(imagePathWithSource);
             }
         }
         //paths.UnionWith(ddsPaths.Select(x => System.IO.Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, x)));
-        foreach (var subgroup in viewModel.Subgroups)
+        foreach (var subgroup in Subgroups)
         {
-            GetDDSPaths(subgroup, paths);
+            subgroup.GetDDSPaths(paths);
         }
     }
 
@@ -320,7 +324,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 
     public object Clone(ObservableCollection<VM_Subgroup> parentCollection)
     {
-        var clone = _selfFactory(this.SubscribedRaceGroupings, parentCollection, this.ParentAssetPack, this.SetExplicitReferenceNPC);
+        var clone = _selfFactory(this.SubscribedRaceGroupings, parentCollection, this.ParentAssetPack, this, this.SetExplicitReferenceNPC);
         clone.AddKeywords = new ObservableCollection<VM_CollectionMemberString>(this.AddKeywords);
         clone.AllowedAttributes = new ObservableCollection<VM_NPCAttribute>(this.AllowedAttributes);
         clone.DisallowedAttributes = new ObservableCollection<VM_NPCAttribute>(this.DisallowedAttributes);
@@ -350,7 +354,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         clone.WeightRange = new NPCWeightRange { Lower = this.WeightRange.Lower, Upper = this.WeightRange.Upper };
         clone.ProbabilityWeighting = this.ProbabilityWeighting;
         clone.PathsMenu = this.PathsMenu.Clone();
-        GetDDSPaths(clone, clone.ImagePaths);
+        clone.GetDDSPaths(clone.ImagePaths);
 
         clone.Subgroups.Clear();
         foreach (var subgroup in this.Subgroups)

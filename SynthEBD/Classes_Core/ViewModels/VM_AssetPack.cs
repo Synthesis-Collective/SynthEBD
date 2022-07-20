@@ -77,7 +77,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         AddSubgroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => { Subgroups.Add(subgroupFactory(general.RaceGroupings, Subgroups, this, false)); }
+            execute: _ => { Subgroups.Add(subgroupFactory(general.RaceGroupings, Subgroups, this, null, false)); }
         );
 
         RemoveAssetPackConfigFile = new SynthEBD.RelayCommand(
@@ -299,7 +299,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         foreach (var sg in model.Subgroups)
         {
-            var subVm = _subgroupFactory(_general.RaceGroupings, Subgroups, this, false);
+            var subVm = _subgroupFactory(_general.RaceGroupings, Subgroups, this, null, false);
             subVm.CopyInViewModelFromModel(sg, _general);
             Subgroups.Add(subVm);
         }
@@ -763,6 +763,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
                 var clone = (VM_Subgroup)draggedSubgroup.Clone(dropTarget.Subgroups);
                 clone.ParentCollection = dropTarget.Subgroups;
+                clone.ParentSubgroup = dropTarget;
                 clone.ParentAssetPack = dropTarget.ParentAssetPack;
                 dropTarget.Subgroups.Add(clone);
             }
@@ -775,6 +776,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                     var clone = (VM_Subgroup)draggedSubgroup.Clone(dropTarget.Subgroups);
                     clone.ParentCollection = dropTarget.Subgroups;
                     clone.ParentAssetPack = dropTarget;
+                    clone.ParentSubgroup = null;
                     dropTarget.Subgroups.Add(clone);
                 }
             }

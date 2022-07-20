@@ -10,34 +10,29 @@ public class ImagePreviewHandler
 {
     public class ImagePathWithSource
     {
-        public ImagePathWithSource(string path, string source)
+        public ImagePathWithSource(string path, VM_Subgroup source)
         {
             Path = path;
-            Source = source;
+            PrimarySource = source;
+            SourceChain.Add(PrimarySource);
+            AddParentToChain(source, SourceChain);
         }
         public string Path { get; set; }
-        public string Source { get; set; }
+        public HashSet<VM_Subgroup> SourceChain { get; set; } = new();
+        public VM_Subgroup PrimarySource { get; set; }
 
         public ImagePathWithSource Clone()
         {
-            return new ImagePathWithSource(Path, Source);
+            return new ImagePathWithSource(Path, PrimarySource);
         }
 
-        public override bool Equals(object obj)
+        public void AddParentToChain(VM_Subgroup subgroup, HashSet<VM_Subgroup> sourceChain)
         {
-            var item = obj as ImagePathWithSource;
-            if (item == null) { return false; }
-            return item.Path == Path && item.Source == Source;
-        }
-
-        public override int GetHashCode()
-        {
-            return (Path + Source).GetHashCode();
-        }
-
-        public static string GetSource(VM_Subgroup subgroup)
-        {
-            return subgroup.ID + ": " + subgroup.Name;
+            if (subgroup.ParentSubgroup is not null)
+            {
+                sourceChain.Add(subgroup.ParentSubgroup);
+                AddParentToChain(subgroup.ParentSubgroup, sourceChain);
+            }
         }
     }
 
