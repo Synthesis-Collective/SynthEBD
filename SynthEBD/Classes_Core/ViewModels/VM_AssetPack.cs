@@ -64,7 +64,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         this.ReplacersMenu = assetPackDirectReplacerMenuFactory(this);
 
-        this.DistributionRules = new VM_ConfigDistributionRules(general.RaceGroupings, this, oBody.DescriptorUI);
+        this.DistributionRules = new VM_ConfigDistributionRules(general.RaceGroupings, this, oBody);
 
         this.BodyShapeMode = general.BodySelectionMode;
         general.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
@@ -309,7 +309,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         LinkRequiredSubgroups(flattenedSubgroupList);
         LinkExcludedSubgroups(flattenedSubgroupList);
 
-        DistributionRules = new VM_ConfigDistributionRules(_general.RaceGroupings, this, _oBody.DescriptorUI);
+        DistributionRules = new VM_ConfigDistributionRules(_general.RaceGroupings, this, _oBody);
         DistributionRules.CopyInViewModelFromModel(model.DistributionRules, _general.RaceGroupings, this);
 
         SourcePath = model.FilePath;
