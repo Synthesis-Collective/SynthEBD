@@ -12,8 +12,10 @@ public class VM_SettingsTexMesh : VM
 
     public VM_SettingsTexMesh(
         MainState state,
+        VM_Settings_General general,
         VM_SettingsModManager modManager,
-        VM_AssetPack.Factory assetPackFactory)
+        VM_AssetPack.Factory assetPackFactory,
+        VM_Subgroup.Factory subgroupFactory)
     {
         AddTrimPath = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -44,7 +46,16 @@ public class VM_SettingsTexMesh : VM
 
         AddNewAssetPackConfigFile = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.AssetPacks.Add(assetPackFactory())
+            execute: _ =>
+            {
+                var newAP = assetPackFactory();
+                var newSG = subgroupFactory(general.RaceGroupings, newAP.Subgroups, newAP, null, false);
+                newSG.ID = "FS";
+                newSG.Name = "First Subgroup";
+                newAP.Subgroups.Add(newSG);
+                this.AssetPacks.Add(newAP);
+                AssetPresenterPrimary.AssetPack = newAP;
+            }
         );
 
         InstallFromArchive = new SynthEBD.RelayCommand(

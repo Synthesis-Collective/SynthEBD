@@ -13,24 +13,26 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
-                <RowDefinition Height="auto"/>
+                <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
             <StackPanel Orientation="Horizontal">
                 <StackPanel>
                     <TextBlock HorizontalAlignment="Center">Category</TextBlock>
-                    <ListBox SelectedValue="{Binding CurrentlyDisplayedShell}" ItemsSource="{Binding DescriptorShells}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="#5844b4">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel>
-                                    <TextBlock Text="{Binding TrackedShell.Category}" MinWidth="100" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                    <ScrollViewer>
+                        <ListBox SelectedValue="{Binding CurrentlyDisplayedShell}" ItemsSource="{Binding DescriptorShells}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="#5844b4">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding TrackedShell.Category}" MinWidth="100" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </ScrollViewer>
                 </StackPanel>
 
-                <ContentPresenter Content="{Binding CurrentlyDisplayedShell}" Margin="0 0 10 0">
+                <ContentPresenter Content="{Binding CurrentlyDisplayedShell}" Margin="0 0 10 0" MaxHeight="150">
                     <ContentPresenter.Resources>
                         <DataTemplate DataType="{x:Type local:VM_BodyShapeDescriptorShellSelector}">
                             <local:UC_BodyShapeDescriptorShellSelectionMenu/>

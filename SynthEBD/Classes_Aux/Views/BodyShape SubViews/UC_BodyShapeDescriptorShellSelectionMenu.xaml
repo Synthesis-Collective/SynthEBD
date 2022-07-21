@@ -14,10 +14,10 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center">Value</TextBlock>
+        <!--
         <ItemsControl Grid.Row="1" Grid.Column="0" ItemsSource="{Binding DescriptorSelectors}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_BodyShapeDescriptorSelector}">
@@ -27,6 +27,23 @@
                     </StackPanel>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
-        </ItemsControl>
+        </ItemsControl> -->
+        <ScrollViewer Grid.Row="1" Grid.Column="0" MaxHeight="100">
+            <ItemsControl ItemsSource="{Binding DescriptorSelectors}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Vertical" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal" Margin="10 0 0 0">
+                            <CheckBox IsChecked="{Binding IsSelected}"></CheckBox>
+                            <TextBlock Text="{Binding Value}"></TextBlock>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
     </Grid>
 </UserControl>

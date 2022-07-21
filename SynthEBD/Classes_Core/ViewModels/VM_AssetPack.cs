@@ -12,6 +12,15 @@ using System.Windows.Controls;
 
 namespace SynthEBD;
 
+public enum AssetPackMenuVisibility
+{
+    SubgroupEditor,
+    DistributionRules,
+    AssetReplacers,
+    RecordTemplates,
+    AttributeGroups
+}
+
 public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgroupViewModels
 {
     private readonly MainState _state;
@@ -173,11 +182,37 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             canExecute: _ => true,
             execute: x => this.DisplayedSubgroup = (VM_Subgroup)x
         );
+
+        ViewSubgroupEditor = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute:
+            x => DisplayedMenuType = AssetPackMenuVisibility.SubgroupEditor
+        );
+
+        ViewDistRulesEditor = new SynthEBD.RelayCommand(
+           canExecute: _ => true,
+           execute: x => DisplayedMenuType = AssetPackMenuVisibility.DistributionRules
+        );
+
+        ViewDirectReplacersEditor = new SynthEBD.RelayCommand(
+           canExecute: _ => true,
+           execute: x => DisplayedMenuType = AssetPackMenuVisibility.AssetReplacers
+        );
+
+        ViewRecordTemplatesEditor = new SynthEBD.RelayCommand(
+           canExecute: _ => true,
+           execute: x => DisplayedMenuType = AssetPackMenuVisibility.RecordTemplates
+        );
+
+        ViewAttributeGroupsEditor = new SynthEBD.RelayCommand(
+           canExecute: _ => true,
+           execute: x => DisplayedMenuType = AssetPackMenuVisibility.AttributeGroups
+        );
     }
 
-    public string GroupName { get; set; } = "";
-    public string ShortName { get; set; } = "";
-    public AssetPackType ConfigType { get; set; }
+    public string GroupName { get; set; } = "New Asset Pack";
+    public string ShortName { get; set; } = "NAP";
+    public AssetPackType ConfigType { get; set; } = AssetPackType.Primary;
     public Gender Gender { get; set; } = Gender.Male;
     public bool DisplayAlerts { get; set; } = true;
     public string UserAlert { get; set; } = "";
@@ -218,7 +253,12 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public RelayCommand SelectedSubgroupChanged { get; }
     public RelayCommand SetDefaultTargetDestPaths { get; }
     public BodyShapeSelectionMode BodyShapeMode { get; set; }
-
+    public AssetPackMenuVisibility DisplayedMenuType { get; set; } = AssetPackMenuVisibility.SubgroupEditor;
+    public RelayCommand ViewSubgroupEditor { get; }
+    public RelayCommand ViewDistRulesEditor { get; }
+    public RelayCommand ViewDirectReplacersEditor { get; }
+    public RelayCommand ViewRecordTemplatesEditor { get; }
+    public RelayCommand ViewAttributeGroupsEditor { get; }
     public VM_SettingsTexMesh ParentMenuVM { get; set; }
     public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>() // referenced by xaml; don't trust VS reference count
     {

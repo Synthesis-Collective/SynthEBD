@@ -48,105 +48,73 @@
         <TextBlock Grid.Row="3" Grid.Column="0" ToolTip="Select if this is a Primary or Mix-In config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Type</TextBlock>
         <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AssetPackType}}}" SelectedValue="{Binding Path=ConfigType, Mode=TwoWay}" />
 
-        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Assets and their associated distribution rules" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Subgroups</TextBlock>
-        <Button Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Right" Command="{Binding AddSubgroup}" Foreground="Lightgreen">+</Button>
-        <TreeView Grid.Row="5" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding Subgroups}"  Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.DropHandler="{Binding}"  dd:DragDrop.CanDragWithMouseRightButton="True">
-            <TreeView.Resources>
-                <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
-                    <StackPanel Orientation="Horizontal">
-                        <Button VerticalAlignment="Center" Command="{Binding AddSubgroup}" Foreground="Lightgreen">+</Button>
-                        <TextBlock Margin="5 0 5 0" PreviewMouseLeftButtonDown="HandleSelectPreviewMouseDown" MouseLeftButtonUp="HandleSelectPreviewMouseUp">
-                            <TextBlock.Text>
-                                <MultiBinding StringFormat="{}{0}">
-                                    <!--https://stackoverflow.com/questions/541896/concatenate-strings-instead-of-using-a-stack-of-textblocks-->
-                                    <Binding Path="Name"/>
-                                </MultiBinding>
-                            </TextBlock.Text>
-                        </TextBlock>
-                        <Button VerticalAlignment="Center" Command="{Binding DeleteMe}" Foreground="Firebrick">X</Button>
-                    </StackPanel>
-                </HierarchicalDataTemplate>
-            </TreeView.Resources>
 
-            <!-- https://stackoverflow.com/questions/1238304/get-selecteditem-from-treeview/32845182#32845182 -->
-            <i:Interaction.Triggers>
-                <i:EventTrigger EventName="SelectedItemChanged">
-                    <i:InvokeCommandAction Command="{Binding SelectedSubgroupChanged}" CommandParameter="{Binding ElementName=TVsubgroups, Path=SelectedItem}"/>
-                </i:EventTrigger>
-            </i:Interaction.Triggers>
-        </TreeView>
+        <WrapPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Stretch">
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewSubgroupEditor}">Subgroup Editor</RadioButton>
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewDistRulesEditor}">Whole Config Distribution Rules</RadioButton>
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewDirectReplacersEditor}">Direct Asset Replacers</RadioButton>
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewRecordTemplatesEditor}">Record Templates</RadioButton>
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewAttributeGroupsEditor}">Attribute Groups</RadioButton>
+        </WrapPanel>
 
-        <ContentPresenter Grid.Row="5" Grid.Column="1"  Content="{Binding ElementName=TVsubgroups, Path=SelectedItem}" Name="SubgroupPresenter">
-            <ContentPresenter.Resources>
-                <DataTemplate DataType="{x:Type local:VM_Subgroup}">
-                    <local:UC_Subgroup Background="Black" Margin="0 0 0 10"/>
-                </DataTemplate>
-            </ContentPresenter.Resources>
-        </ContentPresenter>
-
-        <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="BodyGen Config File to be distributed along with these assets" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Associated BodyGen Configuration</TextBlock>
-        <ComboBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding AvailableBodyGenConfigs}" DisplayMemberPath="Label" SelectedValue="{Binding TrackedBodyGenConfig}"></ComboBox>
-
-        <Expander Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Header="Distribution Rules" Margin="0 10 0 0" ToolTip="Rules applying to distribution of any asset defined by this config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">
-            <local:UC_ConfigDistributionRules DataContext="{Binding DistributionRules}"/>
-        </Expander>
-
-        <Expander Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" Header="Direct Replacers" Margin="0 10 0 0" ToolTip="Assets that are only to be assigned if an NPC already has them" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">
-            <local:UC_AssetPackDirectReplacerMenu DataContext="{Binding ReplacersMenu}"/>
-        </Expander>
-
-        <Expander Grid.Row="9" Grid.Column="0" Grid.ColumnSpan="2" Header="Record Templates" Margin="0 10 0 0" ToolTip="Template NPCs containing the records referenced by the Asset Paths in this conifg file." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="auto"/>
-                    <RowDefinition Height="auto"/>
-                    <RowDefinition Height="auto"/>
-                    <RowDefinition Height="auto"/>
-                    <RowDefinition Height="auto"/>
-                </Grid.RowDefinitions>
-
-                <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Default template NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Default Template</TextBlock>
-                <plugins:FormKeyPicker Grid.Row="0"  Grid.Column="1" FormKey="{Binding DefaultTemplateFK}" LinkCache="{Binding RecordTemplateLinkCache}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
-
-                <StackPanel Grid.Row="1" Grid.Column="0">
-                    <TextBlock  Margin="0 0 15 0" VerticalAlignment="Top" ToolTip="Paths within the default record template to which the races of patched NPCs must be added" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Additional Races Paths</TextBlock>
-                    <Button  Command="{Binding AddRecordTemplateAdditionalRacesPath}" Foreground="LightGreen">Add New</Button>
-                </StackPanel>
-
-                <ItemsControl Grid.Row="1" Grid.Column="1" ItemsSource="{Binding DefaultRecordTemplateAdditionalRacesPaths}" BorderThickness="1" BorderBrush="#5844b4">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="{x:Type local:VM_CollectionMemberString}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBox Text="{Binding Content}" MinWidth="100"></TextBox>
-                                <Button Command="{Binding DeleteCommand}" Foreground="FireBrick">X</Button>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+        <Control Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2">
+            <Control.Style>
+                <Style TargetType="{x:Type Control}">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding DisplayedMenuType}" Value="{x:Static local:AssetPackMenuVisibility.SubgroupEditor}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <local:UC_AssetPackSubGroupTreePresenter DataContext="{Binding}"/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding DisplayedMenuType}" Value="{x:Static local:AssetPackMenuVisibility.DistributionRules}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <local:UC_ConfigDistributionRules DataContext="{Binding DistributionRules}" />
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding DisplayedMenuType}" Value="{x:Static local:AssetPackMenuVisibility.AssetReplacers}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <local:UC_AssetPackDirectReplacerMenu DataContext="{Binding ReplacersMenu}"/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding DisplayedMenuType}" Value="{x:Static local:AssetPackMenuVisibility.RecordTemplates}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <local:UC_AssetPackRecordTemplateSelector DataContext="{Binding}"/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding DisplayedMenuType}" Value="{x:Static local:AssetPackMenuVisibility.AttributeGroups}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <local:UC_AttributeGroupMenu DataContext="{Binding AttributeGroupMenu}"/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Control.Style>
+        </Control>
 
 
-                <StackPanel Grid.Row="3" Grid.Column="0">
-                    <TextBlock Margin="0 0 15 0" VerticalAlignment="Top" ToolTip="Additional template NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Additional Templates</TextBlock>
-                    <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding AddAdditionalRecordTemplateAssignment}" Foreground="LightGreen">Add New</Button>
-                </StackPanel>
-                <ItemsControl Grid.Row="3" Grid.Column="1" ItemsSource="{Binding AdditionalRecordTemplateAssignments}" BorderThickness="1" BorderBrush="#5844b4">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="{x:Type local:VM_AdditionalRecordTemplate}">
-                            <local:UC_AdditionalRecordTemplate Background="Black" Margin="0 0 0 10"/>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </Grid>
-        </Expander>
-
-        <Expander Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="2" Header="Attribute Groups" ExpandDirection="Down" Margin="0 10 0 0">
-            <local:UC_AttributeGroupMenu DataContext="{Binding AttributeGroupMenu}" ToolTip="Attribute Groups accessible to this config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-        </Expander>
-
+        <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="BodyGen Config File to be distributed along with these assets" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Associated BodyGen Configuration</TextBlock>
+        <ComboBox Grid.Row="10" Grid.Column="1" ItemsSource="{Binding AvailableBodyGenConfigs}" DisplayMemberPath="Label" SelectedValue="{Binding TrackedBodyGenConfig}"></ComboBox>
+        
         <StackPanel Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding ValidateButton}" Foreground="MediumPurple" ToolTip="Check this config file for errors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Validate</Button>
             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding SaveButton}" Foreground="MediumPurple" ToolTip="Save changes to this config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Save</Button>
