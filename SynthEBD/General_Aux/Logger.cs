@@ -437,6 +437,24 @@ public sealed class Logger : VM
     {
         return npc.Name?.String + " (" + npc.EditorID + ") " + npc.FormKey.ToString().Replace(':', '-');
     }
+
+    public static string GetSubgroupIDString(FlattenedSubgroup subgroup)
+    {
+        return subgroup.Id + ": " + subgroup.Name;
+    }
+
+    public static string GetBodyShapeDescriptorString(Dictionary<string, HashSet<string>> descriptorList)
+    {
+        List<string> sections = new List<string>();
+        foreach (var descriptor in descriptorList)
+        {
+            string section = descriptor.Key + ": [";
+            section += string.Join(", ", descriptor.Value);
+            section += "]";
+            sections.Add(section);
+        }
+        return string.Join(" | ", sections);
+    }
 }
 
 public enum ErrorType

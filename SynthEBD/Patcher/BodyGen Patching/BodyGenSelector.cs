@@ -303,12 +303,12 @@ public class BodyGenSelector
         }
         else if (partialMatches.Any())
         {
-            Logger.LogReport("NPC " + npcInfo.LogIDstring + "'s consistency morph could not be fully matched. Attempting to assign the closest available partial match.", true, npcInfo);
+            Logger.LogReport("NPC " + npcInfo.LogIDstring + "'s consistency morph [" + String.Join(", ", consistencyMorphs) + "] could not be fully matched. Attempting to assign the closest available partial match.", true, npcInfo);
             return partialMatches;
         }
         else
         {
-            Logger.LogReport("NPC " + npcInfo.LogIDstring + "'s consistency morph could not be matched. Assigning a random morph", true, npcInfo);
+            Logger.LogReport("NPC " + npcInfo.LogIDstring + "'s consistency morph [" + String.Join(", ", consistencyMorphs) + "] could not be matched. Assigning a random morph", true, npcInfo);
             return availableCombinations;
         }
     }
@@ -420,16 +420,16 @@ public class BodyGenSelector
             {
                 if (subgroup.AllowedBodyGenDescriptors.Any())
                 {
-                    if(!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodyGenDescriptors, candidateMorph.BodyShapeDescriptors))
-                    { 
-                        Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its descriptors does not match any of the assigned asset combination's allowed descriptors", false, npcInfo);
+                    if(!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodyGenDescriptors, candidateMorph.BodyShapeDescriptors, out _))
+                    {
+                        Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its descriptors do not match allowed descriptors from assigned subgroup " + Logger.GetSubgroupIDString(subgroup) + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(subgroup.AllowedBodyGenDescriptors), false, npcInfo);
                         return false;
                     }
                 }
 
-                if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodyGenDescriptors, candidateMorph.BodyShapeDescriptors))
+                if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodyGenDescriptors, candidateMorph.BodyShapeDescriptors, out string matchedDescriptor))
                 {
-                    Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because one of its descriptors matches one of the assigned asset combination's disallowed descriptors", false, npcInfo);
+                    Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned subgroup " + Logger.GetSubgroupIDString(subgroup), false, npcInfo);
                     return false;
                 }
             }

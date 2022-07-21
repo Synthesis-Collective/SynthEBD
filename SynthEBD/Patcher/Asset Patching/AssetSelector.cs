@@ -649,15 +649,15 @@ public class AssetSelector
                     {
                         foreach (var bodyGenTemplate in currentAssignments.AssignedBodyGenMorphs)
                         {
-                            if (subgroup.AllowedBodyGenDescriptors.Any() && !BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodyGenDescriptors, bodyGenTemplate.BodyShapeDescriptors))
+                            if (subgroup.AllowedBodyGenDescriptors.Any() && !BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodyGenDescriptors, bodyGenTemplate.BodyShapeDescriptors, out _))
                             {
-                                Logger.LogReport(reportString + " is invalid because its allowed descriptors do not include any of those annotated in the descriptors of assigned morph " + bodyGenTemplate.Label, false, npcInfo);
+                                Logger.LogReport(reportString + " is invalid because its allowed descriptors do not include any of those annotated in the descriptors of assigned morph " + bodyGenTemplate.Label + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(subgroup.AllowedBodyGenDescriptors), false, npcInfo);
                                 return false;
                             }
 
-                            if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodyGenDescriptors, bodyGenTemplate.BodyShapeDescriptors))
+                            if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodyGenDescriptors, bodyGenTemplate.BodyShapeDescriptors, out string matchedDescriptor))
                             {
-                                Logger.LogReport(reportString + " is invalid because its disallowed descriptors include one of those annotated in the assigned morph " + bodyGenTemplate.Label + "'s descriptors", false, npcInfo);
+                                Logger.LogReport(reportString + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned morph " + bodyGenTemplate.Label + "'s descriptors", false, npcInfo);
                                 return false;
                             }
                         }
@@ -666,15 +666,15 @@ public class AssetSelector
                 case BodyShapeSelectionMode.BodySlide:
                     if (currentAssignments != null && currentAssignments.AssignedOBodyPreset != null)
                     {
-                        if (subgroup.AllowedBodySlideDescriptors.Any() && !BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, currentAssignments.AssignedOBodyPreset.BodyShapeDescriptors))
+                        if (subgroup.AllowedBodySlideDescriptors.Any() && !BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, currentAssignments.AssignedOBodyPreset.BodyShapeDescriptors, out _))
                         {
-                            Logger.LogReport(reportString + " is invalid because its allowed descriptors do not include any of those annotated in the assigned bodyslide's descriptors", false, npcInfo);
+                            Logger.LogReport(reportString + " is invalid because its allowed descriptors do not include any of those annotated in the descriptors of assigned preset " + currentAssignments.AssignedOBodyPreset.Label + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(subgroup.AllowedBodyGenDescriptors), false, npcInfo);
                             return false;
                         }
 
-                        if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, currentAssignments.AssignedOBodyPreset.BodyShapeDescriptors))
+                        if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, currentAssignments.AssignedOBodyPreset.BodyShapeDescriptors, out string matchedDescriptor))
                         {
-                            Logger.LogReport(reportString + " is invalid because its disallowed descriptors include one of those annotated in the assigned bodyslide's descriptors", false, npcInfo);
+                            Logger.LogReport(reportString + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned bodyslide " + currentAssignments.AssignedOBodyPreset.Label + "'s descriptors", false, npcInfo);
                             return false;
                         }
                     }

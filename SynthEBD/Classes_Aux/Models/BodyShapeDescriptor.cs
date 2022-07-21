@@ -16,11 +16,12 @@ public class BodyShapeDescriptor
         }
     }
 
-    public static bool DescriptorsMatch(Dictionary<string, HashSet<string>> DescriptorSet, HashSet<BodyShapeDescriptor> shapeDescriptors)
+    public static bool DescriptorsMatch(Dictionary<string, HashSet<string>> DescriptorSet, HashSet<BodyShapeDescriptor> shapeDescriptors, out string firstMatch)
     {
+        firstMatch = "";
         foreach (var d in shapeDescriptors)
         {
-            if (DescriptorsContainThis(DescriptorSet, d))
+            if (DescriptorsContainThis(DescriptorSet, d, out firstMatch))
             {
                 return true;
             }
@@ -28,12 +29,14 @@ public class BodyShapeDescriptor
         return false;
     }
 
-    public static bool DescriptorsContainThis(Dictionary<string, HashSet<string>> Descriptors, BodyShapeDescriptor currentDescriptor)
+    public static bool DescriptorsContainThis(Dictionary<string, HashSet<string>> Descriptors, BodyShapeDescriptor currentDescriptor, out string firstMatch)
     {
+        firstMatch = "";
         if (Descriptors.ContainsKey(currentDescriptor.Category))
         {
             if (Descriptors[currentDescriptor.Category].Contains(currentDescriptor.Value))
             {
+                firstMatch = currentDescriptor.Category + ": " + currentDescriptor.Value;
                 return true;
             }
         }

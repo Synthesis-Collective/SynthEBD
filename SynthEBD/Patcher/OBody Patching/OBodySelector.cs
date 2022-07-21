@@ -131,7 +131,7 @@ public class OBodySelector
 
             if (selectedPreset.Label != npcInfo.ConsistencyNPCAssignment.BodySlidePreset && availablePresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
             {
-                Logger.LogReport("The consisteny BodySlide preset could not be chosen because it no longer complied with the current distribution rules so a new BodySlide was selected." + npcInfo.LogIDstring, true, npcInfo);
+                Logger.LogReport("The consisteny BodySlide preset " + npcInfo.ConsistencyNPCAssignment.BodySlidePreset + " could not be chosen because it no longer complied with the current distribution rules so a new BodySlide was selected.", true, npcInfo);
             }
         }
 
@@ -220,16 +220,16 @@ public class OBodySelector
             {
                 if (subgroup.AllowedBodySlideDescriptors.Any())
                 {
-                    if (!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors))
+                    if (!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors, out _))
                     {
-                        Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptors does not match any of the assigned asset combination's allowed descriptors", false, npcInfo);
+                        Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptors do not match allowed descriptors from assigned subgroup " + Logger.GetSubgroupIDString(subgroup) + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(subgroup.AllowedBodySlideDescriptors), false, npcInfo);
                         return false;
                     }
                 }
 
-                if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors))
+                if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors, out string matchedDescriptor))
                 {
-                    Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because one of its descriptors matches one of the assigned asset combination's disallowed descriptors", false, npcInfo);
+                    Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned subgroup " + Logger.GetSubgroupIDString(subgroup), false, npcInfo);
                     return false;
                 }
             }
@@ -239,7 +239,7 @@ public class OBodySelector
 
         if (!candidatePreset.AllowRandom && candidatePreset.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above
         {
-            Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because it can only be assigned via ForceIf attribtues or Specific NPC Assignments", false, npcInfo);
+            Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because it can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
             return false;
         }
 

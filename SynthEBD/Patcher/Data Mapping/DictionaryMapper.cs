@@ -79,8 +79,28 @@ public class DictionaryMapper
 
     public static Dictionary<string, HashSet<string>> GetMorphDictionaryIntersection(Dictionary<string, HashSet<string>> dict1, Dictionary<string, HashSet<string>> dict2) 
     {
-        var resultDict = dict1.Where(x => dict2.ContainsKey(x.Key)).ToDictionary(x => x.Key, x => x.Value.Intersect(dict2[x.Key]).ToHashSet()); //https://stackoverflow.com/questions/10685142/c-sharp-dictionaries-intersect
-        return resultDict.Where(f => f.Value.Count > 0).ToDictionary(x => x.Key, x => x.Value); // https://stackoverflow.com/questions/16340818/remove-item-from-dictionary-where-value-is-empty-list
+        Dictionary<string, HashSet<string>> output = new();
+        foreach (var category in dict1.Keys)
+        {
+            if (dict2.ContainsKey(category) && dict2[category].Any())
+            {
+                output.Add(category, dict1[category].Intersect(dict2[category]).ToHashSet());
+            }
+            else
+            {
+                output.Add(category, dict1[category]);
+            }
+        }
+        
+        foreach (var category in dict2.Keys)
+        {
+            if (!output.ContainsKey(category))
+            {
+                output.Add(category, dict2[category]);
+            }
+        }
+
+        return output;
     }
 
     public static Dictionary<string, HashSet<string>> GetMorphDictionaryUnion(Dictionary<string, HashSet<string>> dict1, Dictionary<string, HashSet<string>> dict2)

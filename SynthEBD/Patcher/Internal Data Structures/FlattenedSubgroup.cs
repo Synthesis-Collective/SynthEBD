@@ -32,7 +32,7 @@ public class FlattenedSubgroup : IProbabilityWeighted
         this.AllowedBodyGenDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.AllowedBodyGenDescriptors);
         this.DisallowedBodyGenDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.DisallowedBodyGenDescriptors);
         this.AllowedBodySlideDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.AllowedBodySlideDescriptors);
-        this.DisallowedBodySlideDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.AllowedBodySlideDescriptors);
+        this.DisallowedBodySlideDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.DisallowedBodySlideDescriptors);
         this.WeightRange = new NPCWeightRange { Lower = template.WeightRange.Lower, Upper = template.WeightRange.Upper };
         this.ContainedSubgroupIDs = new List<string> { this.Id };
         this.ContainedSubgroupNames = new List<string> { this.Name };
