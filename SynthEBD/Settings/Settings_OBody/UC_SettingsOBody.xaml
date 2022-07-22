@@ -21,10 +21,10 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Grid.Column="0">
-            <Button Margin="0, 5, 0, 0" Command="{Binding ClickBodySlidesMenu}" ToolTip="Edit settings for individual BodySlides" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">BodySlides</Button>
-            <Button Margin="0, 5, 0, 0" Command="{Binding ClickDescriptorsMenu}" ToolTip="Edit available body shape descriptors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Body Descriptors</Button>
-            <Button Margin="0, 5, 0, 0" Command="{Binding ClickAttributeGroupsMenu}" ToolTip="Edit available attribute groups" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Attribute Groups</Button>
-            <Button Margin="0, 5, 0, 0" Command="{Binding ClickMiscMenu}">Misc Settings</Button>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickBodySlidesMenu}" ToolTip="Edit settings for individual BodySlides" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" IsChecked="True">BodySlides</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickDescriptorsMenu}" ToolTip="Edit available body shape descriptors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Body Descriptors</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickAttributeGroupsMenu}" ToolTip="Edit available attribute groups" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Attribute Groups</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickMiscMenu}">Misc Settings</RadioButton>
         </StackPanel>
 
         <ContentPresenter Content="{Binding DisplayedUI}" Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="10, 0, 0, 0" >

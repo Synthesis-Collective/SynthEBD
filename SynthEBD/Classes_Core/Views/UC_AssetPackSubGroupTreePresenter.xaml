@@ -20,7 +20,11 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Button Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Right" Command="{Binding AddSubgroup}" Foreground="Lightgreen">+</Button>
+        <DockPanel Grid.Row="0" Grid.Column="0" HorizontalAlignment="Stretch">
+            <TextBlock Text="Subgroups"/>
+            <Button VerticalAlignment="Center" HorizontalAlignment="Right" Command="{Binding AddSubgroup}" Foreground="Lightgreen" Margin="0 0 15 0">+</Button>
+        </DockPanel>
+
         <TreeView Grid.Row="1" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding Subgroups}"  Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.DropHandler="{Binding}"  dd:DragDrop.CanDragWithMouseRightButton="True">
             <TreeView.Resources>
                 <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >

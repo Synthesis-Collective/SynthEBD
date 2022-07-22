@@ -27,14 +27,14 @@
         <TextBlock Grid.Row="1" Grid.Column="0" ToolTip="Gender of NPCs to which this config is to be applied" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Config Gender</TextBlock>
         <ComboBox Grid.Row="1" Grid.Column="1" SelectedValue="{Binding Gender}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" IsSynchronizedWithCurrentItem="True"/>
 
-        <StackPanel Grid.Row="2" Grid.Column="0">
-            <Button Margin="0, 5, 0, 0" Command="{Binding ClickTemplateMenu}">Morph List</Button>
-            <Button Margin="0, 5, 0, 0" Command="{Binding ClickGroupMappingMenu}">Morph Group Map</Button>
-            <Button Margin="0, 5, 0, 0" Command="{Binding ClickDescriptorMenu}">Morph Descriptors</Button>
-            <Button Margin="0, 5, 0, 0" Command="{Binding ClickGroupsMenu}">Morph Groups</Button>
-            <Button Margin="0, 5, 0, 0" Command="{Binding ClickAttributeGroupsMenu}">Attribute Groups</Button>
-            <Button Margin="0, 5, 0, 0" Command="{Binding ClickMiscMenu}">Misc</Button>
-            <Button Margin="0, 5, 0, 0" Command="{Binding ClickDelete}" Foreground="Firebrick">Delete</Button>
+        <StackPanel Grid.Row="2" Grid.Column="0" Margin="1 0 0 0">
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickTemplateMenu}" IsChecked="True">Morph List</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickGroupMappingMenu}">Morph Group Map</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickDescriptorMenu}">Morph Descriptors</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickGroupsMenu}">Morph Groups</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickAttributeGroupsMenu}">Attribute Groups</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickMiscMenu}">Misc</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickDelete}" Foreground="Firebrick">Delete</RadioButton>
         </StackPanel>
 
         <ContentPresenter Content="{Binding DisplayedUI}" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Margin="10, 0, 0, 0" >
