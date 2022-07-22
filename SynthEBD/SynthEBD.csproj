@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -131,7 +131,7 @@
     <PackageReference Include="Pfim" Version="0.10.3" />
     <PackageReference Include="PropertyChanged.Fody" Version="3.4.0" />
     <PackageReference Include="SharpCompress" Version="0.31.0" />
-    <PackageReference Include="Z.Expressions.Eval" Version="4.0.81" />
+    <PackageReference Include="Z.Expressions.Eval" Version="4.0.86" />
   </ItemGroup>
 
   <ItemGroup>

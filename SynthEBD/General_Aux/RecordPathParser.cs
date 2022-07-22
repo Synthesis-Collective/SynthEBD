@@ -785,8 +785,12 @@ public class RecordPathParser
                     return true;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                if (ex.Message.StartsWith("ERROR_005") && !MainWindow_ViewModel.EvalMessageTriggered)
+                {
+                    MainWindow_ViewModel.DisplayEvalErrorMessage();
+                }
                 return false; // should only happen when user is screwing around with UI
             }
         }
