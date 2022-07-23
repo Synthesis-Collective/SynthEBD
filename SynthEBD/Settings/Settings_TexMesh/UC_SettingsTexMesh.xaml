@@ -49,6 +49,9 @@
             <TextBlock Grid.Column="0" Grid.Row="4" ToolTip="Force patched NPCs to use vanilla body meshes so that they don't require their own bodyslides" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Force vanilla body mesh paths</TextBlock>
             <CheckBox Grid.Column="1" Grid.Row="4" IsChecked="{Binding Path=bForceVanillaBodyMeshPath, Mode=TwoWay}"></CheckBox>
 
+            <TextBlock Grid.Column="0" Grid.Row="5" ToolTip="Remove SkinNaked WNAM records assigned to NPCs by EasyNPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">EasyNPC Compatibility Mode</TextBlock>
+            <CheckBox Grid.Column="1" Grid.Row="5" IsChecked="{Binding Path=bEasyNPCCompatibilityMode, Mode=TwoWay}"></CheckBox>
+
             <TextBlock Grid.Column="0" Grid.Row="6" ToolTip="Generate log to display generated and assigned assets" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Generate combination assignment log</TextBlock>
             <CheckBox Grid.Column="1" Grid.Row="6" IsChecked="{Binding Path=bGenerateAssignmentLog, Mode=TwoWay}"></CheckBox>
 

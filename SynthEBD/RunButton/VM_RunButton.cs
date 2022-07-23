@@ -44,6 +44,7 @@ public class VM_RunButton : VM
                 saveLoader.DumpViewModelsToModels();
                 if (!PreRunValidation()) { return; }
                 if (HasBeenRun) { PatcherEnvironmentProvider.Instance.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.
+                Logger.ClearStatusError();
                 await Task.Run(() => getPatcher().RunPatcher());
                 VM_ConsistencyUI.GetViewModelsFromModels(state.Consistency, consistencyUi.Assignments, texMeshSettingsVM.AssetPacks); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
                 HasBeenRun = true;
