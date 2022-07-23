@@ -31,7 +31,7 @@ public class AssetSelector
 
             if (iterationInfo.AvailableSeeds[0].ForceIfMatchCount > 0)
             {
-                iterationInfo.ChosenSeed = iterationInfo.AvailableSeeds[0];
+                iterationInfo.ChosenSeed = ChooseForceIfSeed(iterationInfo.AvailableSeeds);
                 iterationInfo.ChosenAssetPack = iterationInfo.ChosenSeed.ParentAssetPack.ShallowCopy();
                 Logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.Id + " in " + iterationInfo.ChosenAssetPack.GroupName + " because it had the most matched ForceIf attributes (" + iterationInfo.ChosenSeed.ForceIfMatchCount + ").", false, npcInfo);
             }
@@ -159,6 +159,13 @@ public class AssetSelector
         Logger.LogReport("Successfully generated combination: " + generatedSignature, false, npcInfo);
         Logger.CloseReportSubsectionsToParentOf("CombinationGeneration", npcInfo);
         return generatedCombination;
+    }
+
+    private static FlattenedSubgroup ChooseForceIfSeed(List<FlattenedSubgroup> availableSeeds)
+    {
+        int maxMatchedForceIfCount = availableSeeds[0].ForceIfMatchCount;
+        var candidateSubgroups = availableSeeds.Where(x => x.ForceIfMatchCount == maxMatchedForceIfCount).ToList(); // input list is sorted so that the subgroup with the most matched ForceIf attributes is first. Get other subgroups with the same number of matched ForceIf attributes (if any)
+        return (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(candidateSubgroups);
     }
 
     private static SubgroupCombination RemoveInvalidSeed(List<FlattenedSubgroup> seedSubgroups, AssignmentIteration iterationInfo)
