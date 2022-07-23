@@ -265,10 +265,13 @@ public class AssetAndBodyShapeSelector
                 // Decision Tree
 
                 bool npcHasBodyShapeConsistency = false;
-                switch (PatcherSettings.General.BodySelectionMode)
+                if (PatcherSettings.General.bEnableConsistency)
                 {
-                    case BodyShapeSelectionMode.BodyGen: npcHasBodyShapeConsistency = npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames.Any(); break;
-                    case BodyShapeSelectionMode.BodySlide: npcHasBodyShapeConsistency = npcInfo.ConsistencyNPCAssignment.BodySlidePreset != null && !string.IsNullOrWhiteSpace(npcInfo.ConsistencyNPCAssignment.BodySlidePreset); break;
+                    switch (PatcherSettings.General.BodySelectionMode)
+                    {
+                        case BodyShapeSelectionMode.BodyGen: npcHasBodyShapeConsistency = npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames.Any(); break;
+                        case BodyShapeSelectionMode.BodySlide: npcHasBodyShapeConsistency = npcInfo.ConsistencyNPCAssignment.BodySlidePreset != null && !string.IsNullOrWhiteSpace(npcInfo.ConsistencyNPCAssignment.BodySlidePreset); break;
+                    }
                 }
 
                 // Branch 1: No body shape could be assigned in conjuction with the current combination

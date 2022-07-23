@@ -111,7 +111,7 @@ public class BodyGenSelector
         #endregion
 
         #region Consistency
-        if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null)
+        if (PatcherSettings.General.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null)
         {
             availableCombinations = GetConsistencyCombinations(availableCombinations, npcInfo);
         }
@@ -146,7 +146,7 @@ public class BodyGenSelector
         }
         allChosenMorphs[currentBodyGenConfig.Label].UnionWith(chosenMorphNames);
 
-        if (npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null && !npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames.Except(chosenMorphNames).Any()) // https://stackoverflow.com/questions/407729/determine-if-a-sequence-contains-all-elements-of-another-sequence-using-linq
+        if (PatcherSettings.General.bEnableConsistency && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null && !npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames.Except(chosenMorphNames).Any()) // https://stackoverflow.com/questions/407729/determine-if-a-sequence-contains-all-elements-of-another-sequence-using-linq
         {
             statusFlags |= AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag.MatchesConsistency;
         }

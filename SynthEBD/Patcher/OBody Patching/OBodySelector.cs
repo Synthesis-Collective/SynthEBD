@@ -91,9 +91,17 @@ public class OBodySelector
             if (forceIfPresets.Any())
             {
                 #region Consistency (With ForceIf)
-                if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && forceIfPresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
+                if (PatcherSettings.General.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && forceIfPresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
                 {
                     selectedPreset = forceIfPresets.Where(x => x.Label == npcInfo.ConsistencyNPCAssignment.BodySlidePreset).FirstOrDefault();
+                    if (selectedPreset is not null)
+                    {
+                        Logger.LogReport("Found consistency BodySlide: " + selectedPreset.Label, false, npcInfo);
+                    }
+                    else
+                    {
+                        Logger.LogReport("Consistency BodySlide " + npcInfo.ConsistencyNPCAssignment.BodySlidePreset + " is no longer available.", false, npcInfo);
+                    }
                 }
                 #endregion
                 else
@@ -103,10 +111,18 @@ public class OBodySelector
             }
             else
             {
-                #region Consistency (With ForceIf)
-                if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && filteredPresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
+                #region Consistency (Without ForceIf)
+                if (PatcherSettings.General.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && filteredPresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
                 {
                     selectedPreset = filteredPresets.Where(x => x.Label == npcInfo.ConsistencyNPCAssignment.BodySlidePreset).FirstOrDefault();
+                    if (selectedPreset is not null)
+                    {
+                        Logger.LogReport("Found consistency BodySlide: " + selectedPreset.Label, false, npcInfo);
+                    }
+                    else
+                    {
+                        Logger.LogReport("Consistency BodySlide " + npcInfo.ConsistencyNPCAssignment.BodySlidePreset + " is no longer available.", false, npcInfo);
+                    }
                 }
                 #endregion
                 else
@@ -129,7 +145,7 @@ public class OBodySelector
             Logger.LogReport("Chose BodySlide Preset: " + selectedPreset.Label, false, npcInfo);
             selectionMade = true;
 
-            if (selectedPreset.Label != npcInfo.ConsistencyNPCAssignment.BodySlidePreset && availablePresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
+            if (PatcherSettings.General.bEnableConsistency && selectedPreset.Label != npcInfo.ConsistencyNPCAssignment.BodySlidePreset && availablePresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
             {
                 Logger.LogReport("The consisteny BodySlide preset " + npcInfo.ConsistencyNPCAssignment.BodySlidePreset + " could not be chosen because it no longer complied with the current distribution rules so a new BodySlide was selected.", true, npcInfo);
             }
