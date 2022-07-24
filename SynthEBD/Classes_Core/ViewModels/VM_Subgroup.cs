@@ -398,4 +398,20 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
             }
         }
     }
+
+    public bool IsParentOf(VM_Subgroup candidateChild)
+    {
+        foreach (var subgroup in Subgroups)
+        {
+            if (candidateChild == subgroup)
+            { return true; }
+            else if (subgroup.IsParentOf(candidateChild))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
 }

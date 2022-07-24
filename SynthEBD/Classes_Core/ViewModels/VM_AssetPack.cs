@@ -800,6 +800,10 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 VM_Subgroup dropTarget = (VM_Subgroup)dropInfo.TargetItem;
 
                 if (dropTarget.Name == draggedSubgroup.Name && dropTarget.ID == draggedSubgroup.ID) { return; }
+                if (draggedSubgroup.IsParentOf(dropTarget))
+                {
+                    return;
+                }
 
                 var clone = (VM_Subgroup)draggedSubgroup.Clone(dropTarget.Subgroups);
                 clone.ParentCollection = dropTarget.Subgroups;
