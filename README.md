@@ -48,6 +48,8 @@ This belongs near the top, as I could never have built SynthEBD on my own. I am 
 - BigBlueWolf, TikiPrime, DisappointingHero, and Aria_Leonsbane (Nexus) for taking the time to write plugins for zEBD. There's no better endorsement than seeing someone take your mod and expand it.
   
 - Timboman (Wabbajack Discord) for incorporating zEBD into the Ultimate VR Essentials Wabbajack List.
+
+- HitBug83 (GitHub) and Daikichi-Takahey (GitHub) for rigorous issue reporting / quality testing.
   
 - Everyone who has downloaded and/or endorsed zEBD and encouraged me to work on this Mutagen port. Without your push I would not have had the motivation to get this out.
   
