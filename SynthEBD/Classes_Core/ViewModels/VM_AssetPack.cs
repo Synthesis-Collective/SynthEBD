@@ -781,7 +781,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     {
         if (dropInfo.Data is VM_Subgroup)
         {
-            dropInfo.DropTargetAdorner = DropTargetAdorners.Highlight;
+            var isTreeViewItem = dropInfo.InsertPosition.HasFlag(RelativeInsertPosition.TargetItemCenter) && dropInfo.VisualTargetItem is TreeViewItem; //https://github.com/punker76/gong-wpf-dragdrop/blob/d8545166eb08e4d71fc2d2aa67713ba7da70f92c/src/GongSolutions.WPF.DragDrop/DefaultDropHandler.cs#L150
+            dropInfo.DropTargetAdorner = isTreeViewItem ? DropTargetAdorners.Highlight : DropTargetAdorners.Insert;
             dropInfo.Effects = DragDropEffects.Move;
             if (dropInfo.KeyStates.HasFlag(DragDropKeyStates.RightMouseButton))
             {
@@ -799,17 +800,28 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             {
                 VM_Subgroup dropTarget = (VM_Subgroup)dropInfo.TargetItem;
 
-                if (dropTarget.Name == draggedSubgroup.Name && dropTarget.ID == draggedSubgroup.ID) { return; }
-                if (draggedSubgroup.IsParentOf(dropTarget))
-                {
-                    return;
-                }
-
                 var clone = (VM_Subgroup)draggedSubgroup.Clone(dropTarget.Subgroups);
-                clone.ParentCollection = dropTarget.Subgroups;
-                clone.ParentSubgroup = dropTarget;
                 clone.ParentAssetPack = dropTarget.ParentAssetPack;
-                dropTarget.Subgroups.Add(clone);
+
+                if (dropInfo.DropTargetAdorner.Name == "DropTargetInsertionAdorner")
+                {
+                    int insertIndex = (dropInfo.InsertIndex != dropInfo.UnfilteredInsertIndex) ? dropInfo.UnfilteredInsertIndex : dropInfo.InsertIndex;
+                    clone.ParentCollection = dropTarget.ParentCollection;
+                    clone.ParentSubgroup = dropTarget.ParentSubgroup;
+                    dropTarget.ParentCollection.Insert(insertIndex, clone);
+                }
+                else
+                {
+                    clone.ParentCollection = dropTarget.Subgroups;
+                    clone.ParentSubgroup = dropTarget;
+                    if (dropTarget.Name == draggedSubgroup.Name && dropTarget.ID == draggedSubgroup.ID) { return; }
+                    if (draggedSubgroup.IsParentOf(dropTarget))
+                    {
+                        return;
+                    }
+
+                    dropTarget.Subgroups.Add(clone);
+                }
             }
             else if (dropInfo.VisualTarget is TreeView)
             {
