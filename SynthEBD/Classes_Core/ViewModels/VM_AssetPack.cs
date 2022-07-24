@@ -800,6 +800,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             {
                 VM_Subgroup dropTarget = (VM_Subgroup)dropInfo.TargetItem;
 
+                if (draggedSubgroup.IsParentOf(dropTarget)) { return; } // prevent mis-click when user releases the click on treeview expander arrow slightly below where they initiated the click, simulating a drop into or before the child node and causing the parent to disappear into the abyss.
+
                 var clone = (VM_Subgroup)draggedSubgroup.Clone(dropTarget.Subgroups);
                 clone.ParentAssetPack = dropTarget.ParentAssetPack;
 
@@ -815,10 +817,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                     clone.ParentCollection = dropTarget.Subgroups;
                     clone.ParentSubgroup = dropTarget;
                     if (dropTarget.Name == draggedSubgroup.Name && dropTarget.ID == draggedSubgroup.ID) { return; }
-                    if (draggedSubgroup.IsParentOf(dropTarget))
-                    {
-                        return;
-                    }
 
                     dropTarget.Subgroups.Add(clone);
                 }
