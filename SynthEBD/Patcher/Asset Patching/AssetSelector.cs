@@ -31,7 +31,7 @@ public class AssetSelector
 
             if (iterationInfo.AvailableSeeds[0].ForceIfMatchCount > 0)
             {
-                iterationInfo.ChosenSeed = ChooseForceIfSeed(iterationInfo.AvailableSeeds);
+                iterationInfo.ChosenSeed = ChooseForceIfSubgroup(iterationInfo.AvailableSeeds);
                 iterationInfo.ChosenAssetPack = iterationInfo.ChosenSeed.ParentAssetPack.ShallowCopy();
                 Logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.Id + " in " + iterationInfo.ChosenAssetPack.GroupName + " because it had the most matched ForceIf attributes (" + iterationInfo.ChosenSeed.ForceIfMatchCount + ").", false, npcInfo);
             }
@@ -106,7 +106,7 @@ public class AssetSelector
             #region Pick next subgroup
             if (iterationInfo.ChosenAssetPack.Subgroups[i][0].ForceIfMatchCount > 0)
             {
-                nextSubgroup = iterationInfo.ChosenAssetPack.Subgroups[i][0];
+                nextSubgroup = ChooseForceIfSubgroup(iterationInfo.ChosenAssetPack.Subgroups[i]);
                 Logger.LogReport("Chose next subgroup: " + nextSubgroup.Id + " at position " + i + " because it had the most matched ForceIf Attributes (" + nextSubgroup.ForceIfMatchCount + ")." + Environment.NewLine, false, npcInfo);
             }
             else
@@ -161,7 +161,7 @@ public class AssetSelector
         return generatedCombination;
     }
 
-    private static FlattenedSubgroup ChooseForceIfSeed(List<FlattenedSubgroup> availableSeeds)
+    private static FlattenedSubgroup ChooseForceIfSubgroup(List<FlattenedSubgroup> availableSeeds)
     {
         int maxMatchedForceIfCount = availableSeeds[0].ForceIfMatchCount;
         var candidateSubgroups = availableSeeds.Where(x => x.ForceIfMatchCount == maxMatchedForceIfCount).ToList(); // input list is sorted so that the subgroup with the most matched ForceIf attributes is first. Get other subgroups with the same number of matched ForceIf attributes (if any)
