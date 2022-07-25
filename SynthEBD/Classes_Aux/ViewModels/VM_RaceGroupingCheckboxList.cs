@@ -1,6 +1,8 @@
-﻿using System.Collections.ObjectModel;
+﻿using DynamicData.Binding;
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using ReactiveUI;
 
 namespace SynthEBD;
 
@@ -8,23 +10,38 @@ public class VM_RaceGroupingCheckboxList : VM
 {
     public VM_RaceGroupingCheckboxList(ObservableCollection<VM_RaceGrouping> RaceGroupingVMs)
     {
-        foreach (var rgvm in RaceGroupingVMs)
+        this.SubscribedMasterList = RaceGroupingVMs;
+        
+        foreach (var rgvm in SubscribedMasterList)
         {
             this.RaceGroupingSelections.Add(new RaceGroupingSelection(rgvm, this));
         }
 
-        this.HeaderCaption = BuildHeaderCaption(this);
-
-        this.SubscribedMasterList = RaceGroupingVMs;
-        this.SubscribedMasterList.CollectionChanged += RefreshCheckList;
+        BuildHeaderCaption();
+        SubscribedMasterList.ToObservableChangeSet().Subscribe(x => RefreshCheckList());
     }
 
     public ObservableCollection<VM_RaceGrouping> SubscribedMasterList { get; set; } // to fire the CollectionChanged event
-    void RefreshCheckList(object sender, NotifyCollectionChangedEventArgs e)
+    void RefreshCheckList()
     {
-        var updatedMasterList = (ObservableCollection<VM_RaceGrouping>)sender;
-        var newCheckList = new VM_RaceGroupingCheckboxList(updatedMasterList);
-        this.RaceGroupingSelections = newCheckList.RaceGroupingSelections;
+        var holdingList = new ObservableCollection<RaceGroupingSelection>(RaceGroupingSelections);
+
+        RaceGroupingSelections.Clear();
+
+        foreach (var masterListing in SubscribedMasterList)
+        {
+            var existingSelection = holdingList.Where(x => x.SubscribedMasterRaceGrouping.Label == masterListing.Label).FirstOrDefault();
+            if (existingSelection is null)
+            {
+                RaceGroupingSelections.Add(new RaceGroupingSelection(masterListing, this));
+            }
+            else
+            {
+                RaceGroupingSelections.Add(existingSelection);
+            }
+        }
+        holdingList.Clear();
+        BuildHeaderCaption();
     }
 
     public ObservableCollection<RaceGroupingSelection> RaceGroupingSelections { get; set; } = new();
@@ -41,22 +58,17 @@ public class VM_RaceGroupingCheckboxList : VM
         return clone;
     }
 
-    public static string BuildHeaderCaption(VM_RaceGroupingCheckboxList checkList)
+    public void BuildHeaderCaption()
     {
-        string header = "";
-        foreach (var selection in checkList.RaceGroupingSelections)
+        List<string> selections = new();
+        foreach (var selection in RaceGroupingSelections)
         {
             if (selection.IsSelected)
             {
-                header += selection.Label + ", ";
+                selections.Add(selection.SubscribedMasterRaceGrouping.Label);
             }
         }
-
-        if (header != "")
-        {
-            header = header.Remove(header.Length - 2, 2);
-        }
-        return header;
+        HeaderCaption = string.Join(", ", selections);
     }
 
     public static VM_RaceGroupingCheckboxList GetRaceGroupingsByLabel(HashSet<string> groupingStrings, ObservableCollection<VM_RaceGrouping> allRaceGroupings)
@@ -67,7 +79,7 @@ public class VM_RaceGroupingCheckboxList : VM
         {
             foreach (string s in groupingStrings) // loop through all of the RaceGrouping labels stored in the models
             {
-                if (raceGroupingSelection.Label == s)
+                if (raceGroupingSelection.SubscribedMasterRaceGrouping.Label == s)
                 {
                     raceGroupingSelection.IsSelected = true;
                     break;
@@ -82,35 +94,19 @@ public class VM_RaceGroupingCheckboxList : VM
     {
         public RaceGroupingSelection(VM_RaceGrouping raceGroupingVM, VM_RaceGroupingCheckboxList parent)
         {
-            this.Label = raceGroupingVM.Label;
             this.SubscribedMasterRaceGrouping = raceGroupingVM;
-            this.SubscribedMasterRaceGrouping.PropertyChanged += RefreshRaceGroupingName;
-
             this.ParentCheckList = parent;
-            this.PropertyChanged += RefreshHeaderCaption;
+            this.WhenAnyValue(x => x.IsSelected).Subscribe(x => ParentCheckList.BuildHeaderCaption());
         }
-        public string Label { get; set; }
         public bool IsSelected { get; set; } = false;
 
         public VM_RaceGrouping SubscribedMasterRaceGrouping { get; set; } // to fire the PropertyChanged event
-        public void RefreshRaceGroupingName(object sender, PropertyChangedEventArgs e)
-        {
-            VM_RaceGrouping updatedMasterRaceGrouping = (VM_RaceGrouping)sender;
-            var updatedSelection = new RaceGroupingSelection(updatedMasterRaceGrouping, this.ParentCheckList);
-            this.Label = updatedMasterRaceGrouping.Label;
-        }
 
         public VM_RaceGroupingCheckboxList ParentCheckList { get; set; }
-
-        public void RefreshHeaderCaption(object sender, PropertyChangedEventArgs e)
-        {
-            ParentCheckList.HeaderCaption = BuildHeaderCaption(ParentCheckList);
-        }
 
         public RaceGroupingSelection Clone()
         {
             RaceGroupingSelection clone = new RaceGroupingSelection(SubscribedMasterRaceGrouping, ParentCheckList);
-            clone.Label = Label;
             clone.IsSelected = IsSelected;
             return clone;
         }

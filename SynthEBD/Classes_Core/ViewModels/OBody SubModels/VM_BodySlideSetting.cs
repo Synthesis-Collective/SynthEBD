@@ -155,7 +155,7 @@ public class VM_BodySlideSetting : VM
         viewModel.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         foreach (var grouping in viewModel.AllowedRaceGroupings.RaceGroupingSelections)
         {
-            if (model.AllowedRaceGroupings.Contains(grouping.Label))
+            if (model.AllowedRaceGroupings.Contains(grouping.SubscribedMasterRaceGrouping.Label))
             {
                 grouping.IsSelected = true;
             }
@@ -167,7 +167,7 @@ public class VM_BodySlideSetting : VM
 
         foreach (var grouping in viewModel.DisallowedRaceGroupings.RaceGroupingSelections)
         {
-            if (model.DisallowedRaceGroupings.Contains(grouping.Label))
+            if (model.DisallowedRaceGroupings.Contains(grouping.SubscribedMasterRaceGrouping.Label))
             {
                 grouping.IsSelected = true;
             }
@@ -197,9 +197,9 @@ public class VM_BodySlideSetting : VM
         model.Notes = viewModel.Notes;
         model.BodyShapeDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(viewModel.DescriptorsSelectionMenu);
         model.AllowedRaces = viewModel.AllowedRaces.ToHashSet();
-        model.AllowedRaceGroupings = viewModel.AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.Label).ToHashSet();
+        model.AllowedRaceGroupings = viewModel.AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
         model.DisallowedRaces = viewModel.DisallowedRaces.ToHashSet();
-        model.DisallowedRaceGroupings = viewModel.DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.Label).ToHashSet();
+        model.DisallowedRaceGroupings = viewModel.DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
         model.AllowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.AllowedAttributes);
         model.DisallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.DisallowedAttributes);
         model.AllowUnique = viewModel.bAllowUnique;

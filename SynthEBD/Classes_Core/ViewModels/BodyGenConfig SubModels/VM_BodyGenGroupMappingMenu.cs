@@ -83,7 +83,7 @@ public class VM_BodyGenRacialMapping : VM
         BodyGenConfig.RacialMapping model = new BodyGenConfig.RacialMapping();
         model.Label = viewModel.Label;
         model.Races = viewModel.Races.ToHashSet();
-        model.RaceGroupings = viewModel.RaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.Label).ToHashSet();
+        model.RaceGroupings = viewModel.RaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
         foreach (var combination in viewModel.Combinations)
         {
             model.Combinations.Add(VM_BodyGenCombination.DumpViewModelToModel(combination));

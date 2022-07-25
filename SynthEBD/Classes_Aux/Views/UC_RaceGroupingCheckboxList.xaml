@@ -7,14 +7,14 @@
              d:DataContext="{d:DesignInstance Type=local:VM_RaceGroupingCheckboxList}"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
-    <Expander Header="{Binding HeaderCaption}">
+    <Expander Header="{Binding HeaderCaption, UpdateSourceTrigger=PropertyChanged}">
     <Grid>
             <ListBox ItemsSource="{Binding RaceGroupingSelections}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal">
                         <CheckBox IsChecked="{Binding IsSelected}"/>
-                        <TextBlock Text="{Binding Label}"></TextBlock>
+                        <TextBlock Text="{Binding SubscribedMasterRaceGrouping.Label}"></TextBlock>
                     </StackPanel>
                 </DataTemplate>
             </ListBox.ItemTemplate>
