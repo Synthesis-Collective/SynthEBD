@@ -178,7 +178,7 @@ public class VM_BodyGenTemplate : VM
         bAllowNonUnique = model.AllowNonUnique;
         bAllowRandom = model.AllowRandom;
         ProbabilityWeighting = model.ProbabilityWeighting;
-        RequiredTemplates = VM_CollectionMemberString.InitializeCollectionFromHashSet(model.RequiredTemplates);
+        RequiredTemplates = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(model.RequiredTemplates);
         WeightRange = model.WeightRange;
 
         UpdateStatusDisplay();

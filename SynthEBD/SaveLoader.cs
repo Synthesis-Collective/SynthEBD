@@ -87,13 +87,6 @@ public class SaveLoader
         // load Mod Manager Integration
         PatcherSettings.ModManagerIntegration = SettingsIO_ModManager.LoadModManagerSettings(out loadSuccess);
         VM_SettingsModManager.GetViewModelFromModel(PatcherSettings.ModManagerIntegration, _modManager);
-
-        // load Misc settings
-        _state.LinkedNPCNameExclusions = SettingsIO_Misc.LoadNPCNameExclusions(out loadSuccess);
-        General.LinkedNameExclusions = VM_CollectionMemberString.InitializeCollectionFromHashSet(_state.LinkedNPCNameExclusions);
-
-        _state.LinkedNPCGroups = SettingsIO_Misc.LoadLinkedNPCGroups(out loadSuccess);
-        General.LinkedNPCGroups = VM_LinkedNPCGroup.GetViewModelsFromModels(_state.LinkedNPCGroups);
     }
 
     public void LoadPluginViewModels()
@@ -148,7 +141,6 @@ public class SaveLoader
         VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(_npcAssignmentsUi, _state.SpecificNPCAssignments);
         VM_BlockListUI.DumpViewModelToModel(_blockList, _state.BlockList);
         VM_ConsistencyUI.DumpViewModelsToModels(_consistencyUi.Assignments, _state.Consistency);
-        VM_LinkedNPCGroup.DumpViewModelsToModels(_state.LinkedNPCGroups, General.LinkedNPCGroups);
         VM_SettingsModManager.DumpViewModelToModel(PatcherSettings.ModManagerIntegration, _modManager);
     }
 
@@ -196,15 +188,6 @@ public class SaveLoader
 
         SettingsIO_BlockList.SaveBlockList(_state.BlockList, out saveSuccess);
         if (!saveSuccess) { allExceptions += "Error saving Block List" + Environment.NewLine; showFinalExceptions = true; }
-
-        SettingsIO_Misc.SaveLinkedNPCGroups(_state.LinkedNPCGroups, out saveSuccess);
-        if (!saveSuccess) { allExceptions += "Error saving Linked NPC Groups" + Environment.NewLine; showFinalExceptions = true; }
-
-        SettingsIO_Misc.SaveNPCNameExclusions(General.LinkedNameExclusions.Select(cms => cms.Content).ToHashSet(), out saveSuccess);
-        if (!saveSuccess) { allExceptions += "Error saving Linked NPC Name Exclusions" + Environment.NewLine; showFinalExceptions = true; }
-
-        SettingsIO_Misc.SaveTrimPaths(TexMesh.TrimPaths.ToHashSet(), out saveSuccess);
-        if (!saveSuccess) { allExceptions += "Error saving Asset Path Trimming Settings" + Environment.NewLine; showFinalExceptions = true; }
 
         JSONhandler<Settings_ModManager>.SaveJSONFile(PatcherSettings.ModManagerIntegration, PatcherSettings.Paths.ModManagerSettingsPath, out saveSuccess, out exceptionStr);
         if (!saveSuccess) { Logger.LogMessage("Error saving Mod Manager Integration Settings: " + exceptionStr); allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }

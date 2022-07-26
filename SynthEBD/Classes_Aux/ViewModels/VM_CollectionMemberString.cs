@@ -15,7 +15,7 @@ public class VM_CollectionMemberString : VM
     public ObservableCollection<VM_CollectionMemberString> ParentCollection { get; set; }
     public RelayCommand DeleteCommand { get; }
 
-    public static ObservableCollection<VM_CollectionMemberString> InitializeCollectionFromHashSet(HashSet<string> source)
+    public static ObservableCollection<VM_CollectionMemberString> InitializeObservableCollectionFromICollection(ICollection<string> source)
     {
         ObservableCollection<VM_CollectionMemberString> parentCollection = new ObservableCollection<VM_CollectionMemberString>();
         foreach (string s in source)

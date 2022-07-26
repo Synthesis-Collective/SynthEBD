@@ -172,6 +172,7 @@ public class VM_SettingsTexMesh : VM
         model.bGenerateAssignmentLog = viewModel.bGenerateAssignmentLog;
         model.bShowPreviewImages = viewModel.bShowPreviewImages;
         model.MaxPreviewImageSize = viewModel.MaxPreviewImageSize;
+        model.TrimPaths = viewModel.TrimPaths.ToList();
         model.SelectedAssetPacks = viewModel.AssetPacks.Where(x => x.IsSelected).Select(x => x.GroupName).ToHashSet();
         if (viewModel.AssetPresenterPrimary.AssetPack is not null)
         {

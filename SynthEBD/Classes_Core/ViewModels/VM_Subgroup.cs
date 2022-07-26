@@ -189,7 +189,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         RequiredSubgroups = new ObservableCollection<VM_Subgroup>();
         ExcludedSubgroupIDs = model.ExcludedSubgroups;
         ExcludedSubgroups = new ObservableCollection<VM_Subgroup>();
-        AddKeywords = VM_CollectionMemberString.InitializeCollectionFromHashSet(model.AddKeywords);
+        AddKeywords = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(model.AddKeywords);
         ProbabilityWeighting = model.ProbabilityWeighting;
         PathsMenu = VM_FilePathReplacementMenu.GetViewModelFromModels(model.Paths, this, SetExplicitReferenceNPC, _filePathReplacementFactory);
         WeightRange = model.WeightRange;

@@ -28,9 +28,6 @@ class SettingsIO_AssetPack
             }
         }
 
-        texMeshSettings.TrimPaths = SettingsIO_Misc.LoadTrimPaths(out bool trimPathLoadSuccess);
-        if (!trimPathLoadSuccess) { loadSuccess = false; }
-
         return texMeshSettings;
     }
 

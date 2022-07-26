@@ -32,7 +32,7 @@ public class Patcher
         ResolvePatchableRaces();
         BodyGenTracker = new BodyGenAssignmentTracker();
         UniqueAssignmentsByName.Clear();
-        UniqueNPCData.UniqueNameExclusions = _state.LinkedNPCNameExclusions;
+        UniqueNPCData.UniqueNameExclusions = PatcherSettings.General.LinkedNPCNameExclusions.ToHashSet();
 
         Logger.UpdateStatus("Patching", false);
         Logger.StartTimer();
@@ -59,7 +59,7 @@ public class Patcher
             UpdateRecordTemplateAdditonalRaces(assetPacks, _state.RecordTemplateLinkCache, _state.RecordTemplatePlugins);
             HashSet<FlattenedAssetPack> flattenedAssetPacks = new HashSet<FlattenedAssetPack>();
             flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x)).ToHashSet();
-            PathTrimmer.TrimFlattenedAssetPacks(flattenedAssetPacks, PatcherSettings.TexMesh.TrimPaths);
+            PathTrimmer.TrimFlattenedAssetPacks(flattenedAssetPacks, PatcherSettings.TexMesh.TrimPaths.ToHashSet());
             availableAssetPacks = new CategorizedFlattenedAssetPacks(flattenedAssetPacks);
 
             EBDCoreRecords.CreateCoreRecords(outputMod, out EBDFaceKW, out EBDScriptKW, out EBDHelperSpell);
@@ -225,12 +225,13 @@ public class Patcher
         HashSet<FlattenedAssetPack> mixInAssetPacks = new HashSet<FlattenedAssetPack>();
             
         List<SubgroupCombination> assignedCombinations = new List<SubgroupCombination>();
+        HashSet<LinkedNPCGroup> linkedGroupsHashSet = PatcherSettings.General.LinkedNPCGroups.ToHashSet();
 
         foreach (var npc in npcCollection)
         {
             npcCounter++;
 
-            var currentNPCInfo = new NPCInfo(npc, _state.LinkedNPCGroups, generatedLinkGroups, _state.SpecificNPCAssignments, _state.Consistency);
+            var currentNPCInfo = new NPCInfo(npc, linkedGroupsHashSet, generatedLinkGroups, _state.SpecificNPCAssignments, _state.Consistency);
             if (!currentNPCInfo.IsPatchable)
             {
                 continue;

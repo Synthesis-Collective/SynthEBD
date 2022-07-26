@@ -328,7 +328,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             var assignmentVM = new VM_AdditionalRecordTemplate(_state.RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
             assignmentVM.RaceFormKeys = new ObservableCollection<FormKey>(additionalTemplateAssignment.Races);
             assignmentVM.TemplateNPC = additionalTemplateAssignment.TemplateNPC;
-            assignmentVM.AdditionalRacesPaths = VM_CollectionMemberString.InitializeCollectionFromHashSet(additionalTemplateAssignment.AdditionalRacesPaths);
+            assignmentVM.AdditionalRacesPaths = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(additionalTemplateAssignment.AdditionalRacesPaths);
             AdditionalRecordTemplateAssignments.Add(assignmentVM);
         }
 

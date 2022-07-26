@@ -188,6 +188,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         viewModel.ExcludePlayerCharacter = model.ExcludePlayerCharacter;
         viewModel.ExcludePresets = model.ExcludePresets;
         viewModel.bLinkNPCsWithSameName = model.bLinkNPCsWithSameName;
+        viewModel.LinkedNameExclusions = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(model.LinkedNPCNameExclusions);
+        viewModel.LinkedNPCGroups = VM_LinkedNPCGroup.GetViewModelsFromModels(model.LinkedNPCGroups);
         viewModel.Environment.PatchFileName = model.PatchFileName;
         viewModel.bVerboseModeAssetsNoncompliant = model.bVerboseModeAssetsNoncompliant;
         viewModel.bVerboseModeAssetsAll = model.bVerboseModeAssetsAll;
@@ -212,6 +214,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         model.ExcludePlayerCharacter = viewModel.ExcludePlayerCharacter;
         model.ExcludePresets = viewModel.ExcludePresets;
         model.bLinkNPCsWithSameName = viewModel.bLinkNPCsWithSameName;
+        model.LinkedNPCNameExclusions = viewModel.LinkedNameExclusions.Select(x => x.Content).ToList();
+        VM_LinkedNPCGroup.DumpViewModelsToModels(model.LinkedNPCGroups, viewModel.LinkedNPCGroups);
         model.PatchFileName = viewModel.Environment.PatchFileName;
         model.bVerboseModeAssetsNoncompliant = viewModel.bVerboseModeAssetsNoncompliant;
         model.bVerboseModeAssetsAll = viewModel.bVerboseModeAssetsAll;

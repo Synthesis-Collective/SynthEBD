@@ -88,7 +88,7 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
             foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
             AllowUnique = model.AllowUnique;
             AllowNonUnique = model.AllowNonUnique;
-            AddKeywords = VM_CollectionMemberString.InitializeCollectionFromHashSet(model.AddKeywords);
+            AddKeywords = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(model.AddKeywords);
             ProbabilityWeighting = model.ProbabilityWeighting;
             WeightRange = model.WeightRange;
 

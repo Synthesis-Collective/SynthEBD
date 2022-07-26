@@ -15,6 +15,115 @@ public class Settings_General
     public bool ExcludePlayerCharacter { get; set; } = true;
     public bool ExcludePresets { get; set; } = true;
     public bool bLinkNPCsWithSameName { get; set; } = true;
+    public List<string> LinkedNPCNameExclusions { get; set; } = new()
+    {
+        "soldier",
+        "headsman",
+        "victim",
+        "nobleman",
+        "werebear",
+        "bandit",
+        "warrior",
+        "bard",
+        "khajiit",
+        "argonian",
+        "citizen",
+        "servant",
+        "pirate",
+        "karita",
+        "East Empire Dockworker",
+        "Savos Aren",
+        "Skooma addict"
+    };
+    public List<LinkedNPCGroup> LinkedNPCGroups { get; set; } = new()
+    {
+        new LinkedNPCGroup()
+        {
+            GroupName = "Legate Rikke",
+            NPCFormKeys = new()
+            {
+                Skyrim.Npc.Rikke.FormKey,
+                Skyrim.Npc.CWBattleRikke.FormKey,
+                Skyrim.Npc.MQ304Rikke.FormKey
+            },
+            Primary = Skyrim.Npc.Rikke.FormKey
+        },
+        new LinkedNPCGroup()
+        {
+            GroupName = "Ulfric Stormcloak",
+            NPCFormKeys = new()
+            {
+                Skyrim.Npc.Ulfric.FormKey,
+                Skyrim.Npc.CWBattleUlfric.FormKey,
+                Skyrim.Npc.MQ304Ulfric.FormKey
+            },
+            Primary = Skyrim.Npc.Ulfric.FormKey
+        },
+        new LinkedNPCGroup()
+        {
+            GroupName = "Galmar Stone-Fist",
+            NPCFormKeys = new()
+            {
+                Skyrim.Npc.Galmar.FormKey,
+                Skyrim.Npc.CWBattleGalmar.FormKey,
+                Skyrim.Npc.MQ304Galmar.FormKey
+            },
+            Primary = Skyrim.Npc.Galmar.FormKey
+        },
+        new LinkedNPCGroup()
+        {
+            GroupName = "General Tullius",
+            NPCFormKeys = new()
+            {
+                Skyrim.Npc.GeneralTullius.FormKey,
+                Skyrim.Npc.CWBattleTullius.FormKey
+            },
+            Primary = Skyrim.Npc.GeneralTullius.FormKey
+        },
+        new LinkedNPCGroup()
+        {
+            GroupName = "Froki Whetted-Blade",
+            NPCFormKeys = new()
+            {
+                Skyrim.Npc.dunHunterFroki.FormKey,
+                Skyrim.Npc.MQ304Froki.FormKey
+            },
+            Primary = Skyrim.Npc.dunHunterFroki.FormKey
+        },
+        new LinkedNPCGroup()
+        {
+            GroupName = "Svaknir",
+            NPCFormKeys = new()
+            {
+                Skyrim.Npc.MQ304Svaknir.FormKey,
+                Skyrim.Npc.MS05_dunDeadMensRespite_Svaknir.FormKey
+            },
+            Primary = Skyrim.Npc.MS05_dunDeadMensRespite_Svaknir.FormKey
+        },
+        new LinkedNPCGroup()
+        {
+            GroupName = "Kodlak Whitemane",
+            NPCFormKeys = new()
+            {
+                Skyrim.Npc.KodlakWhitemane.FormKey,
+                Skyrim.Npc.MQ304Kodlak.FormKey,
+                Skyrim.Npc.C04DeadKodlak.FormKey,
+                Skyrim.Npc.C06DeadKodlak.FormKey,
+                Skyrim.Npc.C06KodlaksGhost.FormKey
+            },
+            Primary = Skyrim.Npc.KodlakWhitemane.FormKey
+        },
+        new LinkedNPCGroup()
+        {
+            GroupName = "Eydis",
+            NPCFormKeys = new()
+            {
+                Skyrim.Npc.Eydis.FormKey,
+                Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02.FormKey,
+            },
+            Primary = Skyrim.Npc.Eydis.FormKey,
+        }
+    };
     public string PatchFileName { get; set; } = "SynthEBD";
     public bool bVerboseModeAssetsNoncompliant { get; set; } = false;
     public bool bVerboseModeAssetsAll { get; set; } = false;
@@ -97,6 +206,7 @@ public class Settings_General
 
     public bool OverwritePluginAttGroups { get; set; } = true;
 }
+
 public enum BodyShapeSelectionMode
 {
     None,

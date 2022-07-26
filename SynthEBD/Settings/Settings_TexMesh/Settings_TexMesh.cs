@@ -16,7 +16,17 @@ public class Settings_TexMesh
     public HashSet<string> SelectedAssetPacks { get; set; } = new();
     public string LastViewedAssetPack { get; set; }
     public bool bEasyNPCCompatibilityMode { get; set; } = true;
-
-    [JsonIgnore]
-    public HashSet<TrimPath> TrimPaths { get; set; } = new();
+    public List<TrimPath> TrimPaths { get; set; } = new()
+    {
+        new TrimPath()
+        {
+            Extension = "dds",
+            PathToTrim = "textures"
+        },
+        new TrimPath()
+        {
+            Extension = "nif",
+            PathToTrim = "meshes"
+        }
+    };
 }

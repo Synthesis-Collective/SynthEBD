@@ -48,7 +48,7 @@ public class VM_LinkedNPCGroup : VM
 
     public IReadOnlyCollection<string> PrimaryCandidates { get; private set; }
 
-    public static ObservableCollection<VM_LinkedNPCGroup> GetViewModelsFromModels(HashSet<LinkedNPCGroup> models)
+    public static ObservableCollection<VM_LinkedNPCGroup> GetViewModelsFromModels(List<LinkedNPCGroup> models)
     {
         var viewModels = new ObservableCollection<VM_LinkedNPCGroup>();
         foreach (var m in models)
@@ -70,7 +70,7 @@ public class VM_LinkedNPCGroup : VM
         return viewModels;
     }
 
-    public static void DumpViewModelsToModels(HashSet<LinkedNPCGroup> models, ObservableCollection<VM_LinkedNPCGroup> viewModels)
+    public static void DumpViewModelsToModels(List<LinkedNPCGroup> models, ObservableCollection<VM_LinkedNPCGroup> viewModels)
     {
         models.Clear();
 
