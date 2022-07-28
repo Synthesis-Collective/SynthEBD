@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -33,6 +33,7 @@
     <None Remove="Resources\JContainers Domain\PSM_SynthEBD.pex" />
     <None Remove="Resources\JContainers Domain\Source\PSM_SynthEBD.psc" />
   </ItemGroup>
+
 
   <ItemGroup>
     <Content Include="Height Configurations\Default Config.json">

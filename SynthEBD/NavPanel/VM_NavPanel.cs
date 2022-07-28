@@ -9,6 +9,7 @@ public class VM_NavPanel : VM
     public ICommand ClickBG { get; }
     public ICommand ClickOB { get; }
     public ICommand ClickH { get; }
+    public ICommand ClickHP { get; }
     public ICommand ClickSA { get; }
     public ICommand ClickC { get; }
     public ICommand ClickBL { get; }
@@ -22,6 +23,7 @@ public class VM_NavPanel : VM
         VM_SettingsBodyGen bodyGenSettingsVm,
         VM_SettingsOBody oBody,
         VM_SettingsHeight height,
+        VM_Settings_Headparts headparts,
         VM_SpecificNPCAssignmentsUI specificNpcAssignmentsUi,
         VM_ConsistencyUI consistencyUi,
         VM_LogDisplay logDisplay,
@@ -48,6 +50,10 @@ public class VM_NavPanel : VM
         ClickH = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => displayedItemVm.DisplayedViewModel = height
+        );
+        ClickHP = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: _ => displayedItemVm.DisplayedViewModel = headparts
         );
         ClickSA = new SynthEBD.RelayCommand(
             canExecute: _ => true,

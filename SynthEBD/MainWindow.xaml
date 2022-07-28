@@ -62,6 +62,9 @@
                 <DataTemplate DataType="{x:Type local:VM_SettingsHeight}">
                     <local:UC_HeightSettings/>
                 </DataTemplate>
+                <DataTemplate DataType="{x:Type local:VM_Settings_Headparts}">
+                    <local:UC_Settings_Headparts/>
+                </DataTemplate>
                 <DataTemplate DataType="{x:Type local:VM_SpecificNPCAssignmentsUI}">
                     <local:UC_SpecificNPCAssignmentsUI/>
                 </DataTemplate>

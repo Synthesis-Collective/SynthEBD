@@ -14,6 +14,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_NavPanel>().AsSelf().SingleInstance();
         builder.RegisterType<VM_RunButton>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsHeight>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_Settings_Headparts>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsModManager>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BlockListUI>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsOBody>().AsSelf().SingleInstance();
@@ -39,6 +40,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_SpecificNPCAssignment>().AsSelf();
         builder.RegisterType<VM_AttributeGroupMenu>().AsSelf();
         builder.RegisterType<VM_BodyGenConfig>().AsSelf();
+        builder.RegisterType<VM_HeadPart>().AsSelf();
         builder.RegisterType<AssetPackValidator>().AsSelf();
         builder.RegisterType<VM_ConfigDistributionRules>().AsSelf();
         builder.RegisterType<VM_Subgroup>().AsSelf();
