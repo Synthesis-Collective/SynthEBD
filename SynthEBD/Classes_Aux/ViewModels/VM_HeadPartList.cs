@@ -9,6 +9,13 @@ namespace SynthEBD
 {
     public class VM_HeadPartList
     {
+        public VM_HeadPartList(VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig)
+        {
+            DisplayedRuleSet = new(bodyShapeDescriptors, raceGroupingVMs, parentConfig);
+        }
+
         public ObservableCollection<VM_HeadPart> DisplayedList { get; set; } = new();
+        public VM_HeadPart DisplayedHeadPart { get; set; }
+        public VM_HeadPartCategoryRules DisplayedRuleSet { get; set; }
     }
 }

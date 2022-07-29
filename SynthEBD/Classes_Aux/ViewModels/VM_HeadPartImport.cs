@@ -11,6 +11,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Reactive;
 using Mutagen.Bethesda.Plugins.Cache;
+using DynamicData.Binding;
+using System.Windows.Media;
 
 namespace SynthEBD
 {
@@ -45,6 +47,14 @@ namespace SynthEBD
             .Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler)
             .Subscribe(_ => UpdateSelections());
 
+            this.EyebrowImports.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyebrows));
+            this.EyeImports.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyes));
+            this.FaceImports.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Face));
+            this.FacialHairImports.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.FacialHair));
+            this.HairImports.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Hair));
+            this.MiscImports.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Misc));
+            this.ScarImports.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Scars));
+
             Import = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => ImportSelections()
@@ -63,12 +73,26 @@ namespace SynthEBD
         public bool bImportScar { get; set; } = true;
 
         public ObservableCollection<FormKey> EyebrowImports { get; set; } = new ObservableCollection<FormKey>();
+        public SolidColorBrush EyebrowBorderColor { get; set; }
+        public string EyebrowStatusString { get; set; } = string.Empty;
         public ObservableCollection<FormKey> EyeImports { get; set; } = new ObservableCollection<FormKey>();
+        public SolidColorBrush EyeBorderColor { get; set; }
+        public string EyeStatusString { get; set; } = string.Empty;
         public ObservableCollection<FormKey> FaceImports { get; set; } = new ObservableCollection<FormKey>();
+        public SolidColorBrush FaceBorderColor { get; set; }
+        public string FaceStatusString { get; set; } = string.Empty;
         public ObservableCollection<FormKey> FacialHairImports { get; set; } = new ObservableCollection<FormKey>();
+        public SolidColorBrush FacialHairBorderColor { get; set; }
+        public string FacialHairStatusString { get; set; } = string.Empty;
         public ObservableCollection<FormKey> HairImports { get; set; } = new ObservableCollection<FormKey>();
+        public SolidColorBrush HairBorderColor { get; set; }
+        public string HairStatusString { get; set; } = string.Empty;
         public ObservableCollection<FormKey> MiscImports { get; set; } = new ObservableCollection<FormKey>();
+        public SolidColorBrush MiscBorderColor { get; set; }
+        public string MiscStatusString { get; set; } = string.Empty;
         public ObservableCollection<FormKey> ScarImports { get; set; } = new ObservableCollection<FormKey>();
+        public SolidColorBrush ScarBorderColor { get; set; }
+        public string ScarStatusString { get; set; } = string.Empty;
 
         public RelayCommand Import { get; }
 
@@ -124,57 +148,189 @@ namespace SynthEBD
             ScarImports.Clear();
         }
 
+        public void ValidateNewSelection(HeadPart.TypeEnum type)
+        {
+            List<string> invalidEditorIDs = new List<string>();
+            switch (type)
+            {
+                case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Eyebrows: 
+                    EyebrowBorderColor = GetBorderColor(EyebrowImports, type, invalidEditorIDs);  
+                    if (invalidEditorIDs.Any())
+                    {
+                        EyebrowStatusString = "The following invalid eyebrows will not be imported:" + Environment.NewLine + String.Join(Environment.NewLine, invalidEditorIDs);
+                    }
+                    else
+                    {
+                        EyebrowStatusString = String.Empty;
+                    }
+                    break;
+                case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Eyes: 
+                    EyeBorderColor = GetBorderColor(EyeImports, type, invalidEditorIDs);
+                    if (invalidEditorIDs.Any())
+                    {
+                        EyeStatusString = "The following invalid eyes will not be imported:" + Environment.NewLine + String.Join(Environment.NewLine, invalidEditorIDs);
+                    }
+                    else
+                    {
+                        EyeStatusString = String.Empty;
+                    }
+                    break;
+                case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Face: 
+                    FaceBorderColor = GetBorderColor(FaceImports, type, invalidEditorIDs);
+                    if (invalidEditorIDs.Any())
+                    {
+                        FaceStatusString = "The following invalid face parts will not be imported:" + Environment.NewLine + String.Join(Environment.NewLine, invalidEditorIDs);
+                    }
+                    else
+                    {
+                        FaceStatusString = String.Empty;
+                    }
+                    break;
+                case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.FacialHair: 
+                    FacialHairBorderColor = GetBorderColor(FacialHairImports, type, invalidEditorIDs);
+                    if (invalidEditorIDs.Any())
+                    {
+                        FacialHairStatusString = "The following invalid facial hairs will not be imported:" + Environment.NewLine + String.Join(Environment.NewLine, invalidEditorIDs);
+                    }
+                    else
+                    {
+                        FacialHairStatusString = String.Empty;
+                    }
+                    break;
+                case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Hair: 
+                    HairBorderColor = GetBorderColor(HairImports, type, invalidEditorIDs);
+                    if (invalidEditorIDs.Any())
+                    {
+                        HairStatusString = "The following invalid hairs will not be imported:" + Environment.NewLine + String.Join(Environment.NewLine, invalidEditorIDs);
+                    }
+                    else
+                    {
+                        HairStatusString = String.Empty;
+                    }
+                    break;
+                case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Misc: 
+                    MiscBorderColor = GetBorderColor(MiscImports, type, invalidEditorIDs);
+                    if (invalidEditorIDs.Any())
+                    {
+                        MiscStatusString = "The following invalid misc parts will not be imported:" + Environment.NewLine + String.Join(Environment.NewLine, invalidEditorIDs);
+                    }
+                    else
+                    {
+                        MiscStatusString = String.Empty;
+                    }
+                    break;
+                case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Scars: 
+                    ScarBorderColor = GetBorderColor(ScarImports, type, invalidEditorIDs);
+                    if (invalidEditorIDs.Any())
+                    {
+                        ScarStatusString = "The following invalid scars will not be imported:" + Environment.NewLine + String.Join(Environment.NewLine, invalidEditorIDs);
+                    }
+                    else
+                    {
+                        ScarStatusString = String.Empty;
+                    }
+                    break;
+            }
+        }
+
+        public static SolidColorBrush GetBorderColor(ObservableCollection<FormKey> collection, HeadPart.TypeEnum type, List<string> invalidEditorIDs)
+        {
+            invalidEditorIDs.Clear();
+            for (int i = 0; i < collection.Count; i++)
+            {
+                var headPartFK = collection[i];
+                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
+                {
+                    if (!headpart.Type.HasValue)
+                    {
+                        invalidEditorIDs.Add(headpart.EditorID);
+                    }
+                    else if (headpart.Type.Value != type)
+                    {
+                        invalidEditorIDs.Add(headpart.EditorID);
+                    }
+                }
+                else
+                {
+                    invalidEditorIDs.Add(headpart.EditorID);
+                }
+            }
+
+            if (invalidEditorIDs.Any())
+            {
+                return new SolidColorBrush(Colors.Red);
+            }
+            if (collection.Any())
+            {
+                return new SolidColorBrush(Colors.Green);
+            }
+            else
+            {
+                return new SolidColorBrush(Colors.Gray);
+            }
+        }
+
         public void ImportSelections()
         {
+            int importCount = 0;
             foreach (var headPartFK in EyebrowImports)
             {
                 if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                 {
-                    ParentMenu.Eyebrows.Add(new VM_HeadPart(ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Eyebrows, ParentMenu));
+                    ParentMenu.Eyebrows.DisplayedList.Add(VM_HeadPart.Import(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Eyebrows.DisplayedList, ParentMenu));
+                    importCount++;
                 }
             }
             foreach (var headPartFK in EyeImports)
             {
                 if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                 {
-                    ParentMenu.Eyes.Add(new VM_HeadPart(ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Eyes, ParentMenu));
+                    ParentMenu.Eyes.DisplayedList.Add(VM_HeadPart.Import(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Eyes.DisplayedList, ParentMenu));
+                    importCount++;
                 }
             }
             foreach (var headPartFK in FaceImports)
             {
                 if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                 {
-                    ParentMenu.Faces.Add(new VM_HeadPart(ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Faces, ParentMenu));
+                    ParentMenu.Faces.DisplayedList.Add(VM_HeadPart.Import(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Faces.DisplayedList, ParentMenu));
+                    importCount++;
                 }
             }
             foreach (var headPartFK in FacialHairImports)
             {
                 if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                 {
-                    ParentMenu.FacialHairs.Add(new VM_HeadPart(ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.FacialHairs, ParentMenu));
+                    ParentMenu.FacialHairs.DisplayedList.Add(VM_HeadPart.Import(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.FacialHairs.DisplayedList, ParentMenu));
+                    importCount++;
                 }
             }
             foreach (var headPartFK in HairImports)
             {
                 if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                 {
-                    ParentMenu.Hairs.Add(new VM_HeadPart(ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Hairs, ParentMenu));
+                    ParentMenu.Hairs.DisplayedList.Add(VM_HeadPart.Import(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Hairs.DisplayedList, ParentMenu));
+                    importCount++;
                 }
             }
             foreach (var headPartFK in MiscImports)
             {
                 if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                 {
-                    ParentMenu.Misc.Add(new VM_HeadPart(ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Misc, ParentMenu));
+                    ParentMenu.Misc.DisplayedList.Add(VM_HeadPart.Import(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Misc.DisplayedList, ParentMenu));
+                    importCount++;
                 }
             }
             foreach (var headPartFK in ScarImports)
             {
                 if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                 {
-                    ParentMenu.Scars.Add(new VM_HeadPart(ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Scars, ParentMenu));
+                    ParentMenu.Scars.DisplayedList.Add(VM_HeadPart.Import(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Scars.DisplayedList, ParentMenu));
+                    importCount++;
                 }
             }
+
+            Logger.CallTimedNotifyStatusUpdateAsync("Imported " + importCount + " head parts.", 5);
         }
     }
 }

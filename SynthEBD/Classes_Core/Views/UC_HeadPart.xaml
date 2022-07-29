@@ -1,0 +1,129 @@
+﻿<UserControl x:Class="SynthEBD.UC_HeadPart"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:SynthEBD"
+             xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
+             mc:Ignorable="d" 
+             d:DataContext="{d:DesignInstance Type=local:VM_HeadPart}"
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="auto"/>
+                    <ColumnDefinition Width="auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                </Grid.RowDefinitions>
+
+                <!--
+                <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Text="{Binding Path=StatusHeader, UpdateSourceTrigger=PropertyChanged}" Foreground="{Binding BorderColor}" Visibility="{Binding Path=ShowStatus, Converter={StaticResource BoolToVis}}"></TextBlock>
+                <TextBlock Background="Black" Grid.Row="0" Grid.Column="2" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=StatusText, UpdateSourceTrigger=PropertyChanged}" Foreground="{Binding BorderColor}" Visibility="{Binding Path=ShowStatus, Converter={StaticResource BoolToVis}}"></TextBlock>
+                -->
+                
+                <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Name</TextBlock>
+                <TextBlock Background="Black" Grid.Row="1" Grid.Column="2" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Label, UpdateSourceTrigger=PropertyChanged}"></TextBlock>
+
+                <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this head part can be assigned (blank = All)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Races</TextBlock>
+                <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="6" Grid.Column="2" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
+
+                <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race Groupings to which this head part can be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Race Groupings</TextBlock>
+                <ContentPresenter Grid.Row="7" Grid.Column="2"  Content="{Binding AllowedRaceGroupings}">
+                    <ContentPresenter.Resources>
+                        <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
+                            <local:UC_RaceGroupingCheckboxList Background="Black" Margin="0 0 0 10"/>
+                        </DataTemplate>
+                    </ContentPresenter.Resources>
+                </ContentPresenter>
+
+                <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this head part cannot be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Races</TextBlock>
+                <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="8" Grid.Column="2" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
+
+                <TextBlock Grid.Row="9" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race Groupings to which this head part cannot be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Race Groupings</TextBlock>
+                <ContentPresenter Grid.Row="9" Grid.Column="2"  Content="{Binding DisallowedRaceGroupings}">
+                    <ContentPresenter.Resources>
+                        <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
+                            <local:UC_RaceGroupingCheckboxList Background="Black" Margin="0 0 0 10"/>
+                        </DataTemplate>
+                    </ContentPresenter.Resources>
+                </ContentPresenter>
+
+                <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attributes that an NPC must possess for this head part to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Attributes</TextBlock>
+                <Button Grid.Row="10" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddAllowedAttribute}" Foreground="Lightgreen">Add New</Button>
+
+                <ItemsControl Grid.Row="10" Grid.Column="2" ItemsSource="{Binding AllowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
+                            <local:UC_NPCAttribute Background="Black" Margin="0 0 0 10"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock Grid.Row="11" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attribute that an NPC may not possess for this BodySlide to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed NPC Attributes</TextBlock>
+                <Button Grid.Row="11" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDisallowedAttribute}" Foreground="Lightgreen">Add New</Button>
+                <ItemsControl Grid.Row="11" Grid.Column="2" ItemsSource="{Binding DisallowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
+                            <local:UC_NPCAttribute Background="Black" Margin="0 0 0 10"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock Grid.Row="13" Grid.Column="0" Margin="0 0 15 0" ToolTip="Minimum and maximum weight (inclusive) that an NPC may have for this head part to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Weight Range</TextBlock>
+                <StackPanel Grid.Row="13" Grid.Column="2" Orientation="Horizontal">
+                    <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=WeightRange.Lower}"/>
+                    <TextBlock Text="to" Margin="15 0 15 0" VerticalAlignment="Center"/>
+                    <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=WeightRange.Upper}"/>
+                </StackPanel>
+
+                <TextBlock Grid.Row="14" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to assign this head part to NPCs not specified via Specific NPC Assignments or ForceIf attributes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribute to non-forced NPCs</TextBlock>
+                <CheckBox Grid.Row="14" Grid.Column="2" IsChecked="{Binding Path=bAllowRandom, Mode=TwoWay}"></CheckBox>
+
+                <TextBlock Grid.Row="15" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to assign this head part to unique NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow Unique NPCs</TextBlock>
+                <CheckBox Grid.Row="15" Grid.Column="2" IsChecked="{Binding Path=bAllowUnique, Mode=TwoWay}"></CheckBox>
+
+                <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to assign this head part to non-unique NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow Non-Unique NPCs</TextBlock>
+                <CheckBox Grid.Row="16" Grid.Column="2" IsChecked="{Binding Path=bAllowNonUnique, Mode=TwoWay}"></CheckBox>
+
+                <TextBlock Grid.Row="17" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Relative probability of assigning the head part compared to others" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"> Distribution Probability Weighting</TextBlock>
+                <TextBox Grid.Row="17" Grid.Column="2" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ProbabilityWeighting}"/>
+
+                <TextBlock Grid.Row="18" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" ToolTip="OBody descriptors that must be assigned for this head part to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Descriptors</TextBlock>
+                <ContentPresenter Grid.Row="18" Grid.Column="2"  Content="{Binding DescriptorsSelectionMenu}">
+                    <ContentPresenter.Resources>
+                        <DataTemplate DataType="{x:Type local:VM_BodyShapeDescriptorSelectionMenu}">
+                            <local:UC_BodyShapeDescriptorSelectionMenu Background="Black" Margin="0 0 0 10"/>
+                        </DataTemplate>
+                    </ContentPresenter.Resources>
+                </ContentPresenter>
+
+                <Button Grid.Row="21" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding DeleteMe}" ToolTip="Delete this head part from SynthEBD's settings" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Delete Head Part</Button>
+            </Grid>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

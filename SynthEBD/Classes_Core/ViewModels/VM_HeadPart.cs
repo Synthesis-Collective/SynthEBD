@@ -82,5 +82,10 @@ namespace SynthEBD
         public RelayCommand ToggleHide { get; }
         public VM_Settings_Headparts ParentConfig { get; set; }
         public ObservableCollection<VM_HeadPart> ParentCollection { get; set; }
+
+        public static VM_HeadPart Import(IHeadPartGetter headPart, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig)
+        {
+            return new VM_HeadPart(bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig) { Label = headPart.EditorID };
+        }
     }
 }

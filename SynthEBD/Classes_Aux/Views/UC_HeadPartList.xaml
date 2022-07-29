@@ -8,6 +8,75 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
-        <TextBlock Text="DEMO"/>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="auto"/>
+        </Grid.RowDefinitions>
+
+        <!--
+        <ComboBox Grid.Row="0" Grid.Column="0" SelectedValue="{Binding SelectedGender}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" IsSynchronizedWithCurrentItem="True"/>
+
+        <StackPanel  Grid.Row="1" Grid.Column="0" Orientation="Horizontal">
+            <TextBlock HorizontalAlignment="Center">Preset (</TextBlock>
+            <CheckBox IsChecked="{Binding ShowHidden}"/>
+            <TextBlock Text=" Show Hidden)"></TextBlock>
+
+        </StackPanel>
+        <Button Grid.Row="2" Grid.Column="0" Command="{Binding AddPreset}" Foreground="Lightgreen">Add New</Button>
+        -->
+
+        <Expander Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Header="Common Distribution Rules">
+            <local:UC_HeadPartCategoryRules DataContext="{Binding DisplayedRuleSet}"/>
+        </Expander>
+
+        <ScrollViewer Grid.Row="3" Grid.Column="0">
+            <StackPanel >
+                <ListBox SelectedValue="{Binding DisplayedHeadPart}" ItemsSource="{Binding DisplayedList}" IsSynchronizedWithCurrentItem="False" >
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <!-- <Border BorderThickness="1" BorderBrush="{Binding BorderColor}"> -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" Text="{Binding Label}" MinWidth="100"/>
+                                <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding DeleteMe}" Foreground="Firebrick">X</Button>
+                                </Grid>
+                            <!-- </Border> -->
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+
+                    <!-- the following ItemContainerStyle makes selecting the TextBox containing Category also toggle the ListBoxItem.IsSelected property to focus on that ListBox Item-->
+                    <!--
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="{x:Type ListBoxItem}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsVisible}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    -->
+                </ListBox>
+            </StackPanel>
+        </ScrollViewer>
+
+        <ContentPresenter Grid.Row="0" Grid.Column="1" Grid.RowSpan="4" Content="{Binding DisplayedHeadPart}">
+            <ContentPresenter.Resources>
+                <DataTemplate DataType="{x:Type local:VM_HeadPart}">
+                    <local:UC_HeadPart/>
+                </DataTemplate>
+            </ContentPresenter.Resources>
+        </ContentPresenter>
     </Grid>
 </UserControl>

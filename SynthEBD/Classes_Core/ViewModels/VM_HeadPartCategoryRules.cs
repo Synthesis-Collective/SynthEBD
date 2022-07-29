@@ -9,7 +9,7 @@ namespace SynthEBD
 {
     public class VM_HeadPartCategoryRules
     {
-        public VM_HeadPartCategoryRules(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig)
+        public VM_HeadPartCategoryRules(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig)
         {
             StandardDistributionRules = new VM_HeadPart(BodyShapeDescriptors, raceGroupingVMs, new ObservableCollection<VM_HeadPart>(), parentConfig);
         }

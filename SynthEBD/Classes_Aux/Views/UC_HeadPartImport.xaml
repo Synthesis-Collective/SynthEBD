@@ -71,32 +71,39 @@
 
         <WrapPanel Orientation="Horizontal" Grid.Row="12" Grid.Column="0" Grid.ColumnSpan="2">
             <StackPanel Margin="10">
-                <TextBlock Text="Eyebrows"/>
-                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding EyebrowImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" />
+                <TextBlock HorizontalAlignment="Center" Text="Eyebrows"/>
+                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding EyebrowImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" BorderThickness="1" BorderBrush="{Binding EyebrowBorderColor}" />
+                <TextBlock Text="{Binding EyebrowStatusString}" Foreground="{Binding EyebrowBorderColor}"/>
             </StackPanel>
             <StackPanel Margin="10">
-                <TextBlock Text="Eyes"/>
-                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding EyeImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" />
+                <TextBlock HorizontalAlignment="Center" Text="Eyes"/>
+                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding EyeImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" BorderThickness="1" BorderBrush="{Binding EyeBorderColor}" />
+                <TextBlock Text="{Binding EyeStatusString}" Foreground="{Binding EyeBorderColor}"/>
             </StackPanel>
             <StackPanel Margin="10">
-                <TextBlock Text="Face"/>
-                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding FaceImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" />
+                <TextBlock HorizontalAlignment="Center" Text="Face"/>
+                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding FaceImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" BorderThickness="1" BorderBrush="{Binding FaceBorderColor}" />
+                <TextBlock Text="{Binding FaceStatusString}" Foreground="{Binding FaceBorderColor}"/>
             </StackPanel>
             <StackPanel Margin="10">
-                <TextBlock Text="Facial Hair"/>
-                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding FacialHairImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" />
+                <TextBlock HorizontalAlignment="Center" Text="Facial Hair"/>
+                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding FacialHairImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" BorderThickness="1" BorderBrush="{Binding FacialHairBorderColor}" />
+                <TextBlock Text="{Binding FacialHairStatusString}" Foreground="{Binding FacialHairBorderColor}"/>
             </StackPanel>
             <StackPanel Margin="10">
-                <TextBlock Text="Hair"/>
-                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding HairImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" />
+                <TextBlock HorizontalAlignment="Center" Text="Hair"/>
+                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding HairImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" BorderThickness="1" BorderBrush="{Binding HairBorderColor}" />
+                <TextBlock Text="{Binding HairStatusString}" Foreground="{Binding HairBorderColor}"/>
             </StackPanel>
             <StackPanel Margin="10">
-                <TextBlock Text="Misc"/>
-                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding MiscImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" />
+                <TextBlock HorizontalAlignment="Center" Text="Misc"/>
+                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding MiscImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" BorderThickness="1" BorderBrush="{Binding MiscBorderColor}" />
+                <TextBlock Text="{Binding MiscStatusString}" Foreground="{Binding MiscBorderColor}"/>
             </StackPanel>
             <StackPanel Margin="10">
-                <TextBlock Text="Scars"/>
-                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding ScarImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" />
+                <TextBlock HorizontalAlignment="Center" Text="Scars"/>
+                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding ScarImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" BorderThickness="1" BorderBrush="{Binding ScarBorderColor}" />
+                <TextBlock Text="{Binding ScarStatusString}" Foreground="{Binding ScarBorderColor}"/>
             </StackPanel>
         </WrapPanel>
 

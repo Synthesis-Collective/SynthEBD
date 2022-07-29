@@ -22,18 +22,88 @@
             <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewHairMenu}">Hair</RadioButton>
             <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewMiscMenu}">Misc</RadioButton>
             <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewScarsMenu}">Scars</RadioButton>
-            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewAttributeGroupsEditor}">Attribute Groups</RadioButton>
         </WrapPanel>
 
-        <ContentPresenter Content="{Binding DisplayedMenu}" Grid.Row="1">
-            <ContentPresenter.Resources>
-                <DataTemplate DataType="{x:Type local:VM_HeadPartImport}">
-                    <local:UC_HeadPartImport/>
-                </DataTemplate>
-                <DataTemplate DataType="{x:Type local:VM_HeadPartList}">
-                    <local:UC_HeadPartList/>
-                </DataTemplate>
-            </ContentPresenter.Resources>
-        </ContentPresenter>
+        <Control Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2">
+            <Control.Style>
+                <Style TargetType="{x:Type Control}">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding DisplayedMenu}" Value="{x:Static local:DisplayedHeadPartMenuType.Eyebrows}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <local:UC_HeadPartList DataContext="{Binding Eyebrows}" />
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding DisplayedMenu}" Value="{x:Static local:DisplayedHeadPartMenuType.Eyes}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <local:UC_HeadPartList DataContext="{Binding Eyes}"/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding DisplayedMenu}" Value="{x:Static local:DisplayedHeadPartMenuType.Faces}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <local:UC_HeadPartList DataContext="{Binding Faces}"/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding DisplayedMenu}" Value="{x:Static local:DisplayedHeadPartMenuType.FacialHairs}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <local:UC_HeadPartList DataContext="{Binding FacialHairs}"/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding DisplayedMenu}" Value="{x:Static local:DisplayedHeadPartMenuType.Hairs}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <local:UC_HeadPartList DataContext="{Binding Hairs}"/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding DisplayedMenu}" Value="{x:Static local:DisplayedHeadPartMenuType.Import}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <local:UC_HeadPartImport DataContext="{Binding ImportMenu}"/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding DisplayedMenu}" Value="{x:Static local:DisplayedHeadPartMenuType.Misc}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <local:UC_HeadPartList DataContext="{Binding Misc}"/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding DisplayedMenu}" Value="{x:Static local:DisplayedHeadPartMenuType.Scars}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <local:UC_HeadPartList DataContext="{Binding Scars}"/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Control.Style>
+        </Control>
+        
     </Grid>
 </UserControl>
