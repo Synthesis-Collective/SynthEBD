@@ -104,6 +104,28 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
     public RelayCommand ViewHairMenu { get; }
     public RelayCommand ViewMiscMenu { get; }
     public RelayCommand ViewScarsMenu { get; }
+
+    public void CopyInFromModel(Settings_Headparts model, VM_SettingsOBody oBody)
+    {
+        Eyebrows.CopyInFromModel(model.EyebrowSettings, RaceGroupings, AttributeGroupMenu, this, oBody);
+        Eyes.CopyInFromModel(model.EyebrowSettings, RaceGroupings, AttributeGroupMenu, this, oBody);
+        Faces.CopyInFromModel(model.FaceSettings, RaceGroupings, AttributeGroupMenu, this, oBody);
+        FacialHairs.CopyInFromModel(model.FacialHairSettings, RaceGroupings, AttributeGroupMenu, this, oBody);
+        Hairs.CopyInFromModel(model.HairSettings, RaceGroupings, AttributeGroupMenu, this, oBody);
+        Misc.CopyInFromModel(model.MiscSettings, RaceGroupings, AttributeGroupMenu, this, oBody);
+        Scars.CopyInFromModel(model.ScarsSettings, RaceGroupings, AttributeGroupMenu, this, oBody);
+    }
+
+    public void DumpViewModelToModel(Settings_Headparts model)
+    {
+        Eyebrows.DumpToModel(model.EyebrowSettings);
+        Eyes.DumpToModel(model.EyeSettings);
+        Faces.DumpToModel(model.FaceSettings);
+        FacialHairs.DumpToModel(model.FacialHairSettings);
+        Hairs.DumpToModel(model.HairSettings);
+        Misc.DumpToModel(model.MiscSettings);
+        Scars.DumpToModel(model.ScarsSettings);
+    }
 }
 public enum DisplayedHeadPartMenuType
 {

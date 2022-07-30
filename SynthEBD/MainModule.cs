@@ -18,6 +18,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_SettingsModManager>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BlockListUI>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsOBody>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_Settings_Headparts>().AsSelf().SingleInstance();
         builder.RegisterType<VM_ConsistencyUI>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SpecificNPCAssignmentsUI>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsBodyGen>().AsSelf().SingleInstance();

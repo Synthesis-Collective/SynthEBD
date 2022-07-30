@@ -11,6 +11,7 @@ public class SaveLoader
     public VM_SettingsTexMesh TexMesh { get; set; }
     private readonly VM_SettingsHeight _settingsHeight;
     public VM_SettingsBodyGen BodyGen { get; set; }
+    public VM_Settings_Headparts HeadParts {get; set;}
     private readonly VM_SettingsModManager _modManager;
     private readonly VM_SettingsOBody _oBody;
     private readonly VM_ConsistencyUI _consistencyUi;
@@ -25,6 +26,7 @@ public class SaveLoader
         VM_SettingsHeight settingsHeight,
         VM_SettingsModManager modManager,
         VM_SettingsOBody oBody,
+        VM_Settings_Headparts headParts,
         VM_ConsistencyUI consistencyUi,
         VM_BlockListUI blockList,
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
@@ -77,6 +79,9 @@ public class SaveLoader
         PatcherSettings.OBody = SettingsIO_OBody.LoadOBodySettings(out loadSuccess);
         PatcherSettings.OBody.ImportBodySlides(PatcherSettings.OBody.TemplateDescriptors);
 
+        // load head part settings
+        PatcherSettings.HeadParts = SettingsIO_HeadParts.LoadHeadPartSettings(out loadSuccess);
+
         // load heights
         PatcherSettings.Height = SettingsIO_Height.LoadHeightSettings(out loadSuccess);
 
@@ -114,6 +119,8 @@ public class SaveLoader
 
     public void LoadFinalSettingsViewModels() // view models that should be loaded after plugin VMs because they depend on the loaded plugins
     {
+        HeadParts.CopyInFromModel(PatcherSettings.HeadParts, _oBody);
+
         // load specific assignments (must load after plugin view models)
         _state.SpecificNPCAssignments = SettingsIO_SpecificNPCAssignments.LoadAssignments(out var loadSuccess);
         VM_SpecificNPCAssignmentsUI.GetViewModelFromModels(
@@ -138,6 +145,7 @@ public class SaveLoader
         VM_HeightConfig.DumpViewModelsToModels(_settingsHeight.AvailableHeightConfigs, _state.HeightConfigs);
         VM_SettingsBodyGen.DumpViewModelToModel(BodyGen, PatcherSettings.BodyGen, _state.BodyGenConfigs);
         VM_SettingsOBody.DumpViewModelToModel(PatcherSettings.OBody, _oBody);
+        HeadParts.DumpViewModelToModel(PatcherSettings.HeadParts);
         VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(_npcAssignmentsUi, _state.SpecificNPCAssignments);
         VM_BlockListUI.DumpViewModelToModel(_blockList, _state.BlockList);
         VM_ConsistencyUI.DumpViewModelsToModels(_consistencyUi.Assignments, _state.Consistency);
@@ -179,6 +187,9 @@ public class SaveLoader
 
         JSONhandler<Settings_OBody>.SaveJSONFile(PatcherSettings.OBody, PatcherSettings.Paths.OBodySettingsPath, out saveSuccess, out exceptionStr);
         if (!saveSuccess) { Logger.LogMessage("Error saving OBody/AutoBody Settings: " + exceptionStr); allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
+
+        JSONhandler<Settings_Headparts>.SaveJSONFile(PatcherSettings.HeadParts, PatcherSettings.Paths.HeadPartsSettingsPath, out saveSuccess, out exceptionStr);
+        if (!saveSuccess) { Logger.LogMessage("Error saving Head Parts Settings: " + exceptionStr); allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
 
         SettingsIO_Misc.SaveConsistency(_state.Consistency, out saveSuccess);
         if (!saveSuccess) { allExceptions += "Error saving Consistency" + Environment.NewLine; showFinalExceptions = true; }

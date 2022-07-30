@@ -53,11 +53,14 @@
                 <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Distribute to Females</TextBlock>
                 <CheckBox Grid.Row="1" Grid.Column="2" IsChecked="{Binding Path=bAllowFemale, Mode=TwoWay}"></CheckBox>
 
-                <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this head part can be assigned (blank = All)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Races</TextBlock>
-                <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="2" Grid.Column="2" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
+                <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Restricts assignment of this head part type only to NPCs that already have a head part of this type" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Lock to NPCs with this Head Part type</TextBlock>
+                <CheckBox Grid.Row="2" Grid.Column="2" IsChecked="{Binding Path=bRestrictToNPCsWithThisType, Mode=TwoWay}"></CheckBox>
 
-                <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race Groupings to which this head part can be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Race Groupings</TextBlock>
-                <ContentPresenter Grid.Row="3" Grid.Column="2"  Content="{Binding AllowedRaceGroupings}">
+                <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this head part can be assigned (blank = All)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Races</TextBlock>
+                <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="3" Grid.Column="2" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
+
+                <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race Groupings to which this head part can be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Race Groupings</TextBlock>
+                <ContentPresenter Grid.Row="4" Grid.Column="2"  Content="{Binding AllowedRaceGroupings}">
                     <ContentPresenter.Resources>
                         <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
                             <local:UC_RaceGroupingCheckboxList Background="Black" Margin="0 0 0 10"/>
@@ -65,11 +68,11 @@
                     </ContentPresenter.Resources>
                 </ContentPresenter>
 
-                <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this head part cannot be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Races</TextBlock>
-                <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="4" Grid.Column="2" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
+                <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this head part cannot be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Races</TextBlock>
+                <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="5" Grid.Column="2" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
-                <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race Groupings to which this head part cannot be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Race Groupings</TextBlock>
-                <ContentPresenter Grid.Row="5" Grid.Column="2"  Content="{Binding DisallowedRaceGroupings}">
+                <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race Groupings to which this head part cannot be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Race Groupings</TextBlock>
+                <ContentPresenter Grid.Row="6" Grid.Column="2"  Content="{Binding DisallowedRaceGroupings}">
                     <ContentPresenter.Resources>
                         <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
                             <local:UC_RaceGroupingCheckboxList Background="Black" Margin="0 0 0 10"/>
@@ -77,9 +80,9 @@
                     </ContentPresenter.Resources>
                 </ContentPresenter>
 
-                <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attributes that an NPC must possess for this head part to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Attributes</TextBlock>
-                <Button Grid.Row="6" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddAllowedAttribute}" Foreground="Lightgreen">Add New</Button>
-                <ItemsControl Grid.Row="6" Grid.Column="2" ItemsSource="{Binding AllowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
+                <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attributes that an NPC must possess for this head part to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Attributes</TextBlock>
+                <Button Grid.Row="7" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddAllowedAttribute}" Foreground="Lightgreen">Add New</Button>
+                <ItemsControl Grid.Row="7" Grid.Column="2" ItemsSource="{Binding AllowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
                             <local:UC_NPCAttribute Background="Black" Margin="0 0 0 10"/>
@@ -87,9 +90,9 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attribute that an NPC may not possess for this BodySlide to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed NPC Attributes</TextBlock>
-                <Button Grid.Row="7" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDisallowedAttribute}" Foreground="Lightgreen">Add New</Button>
-                <ItemsControl Grid.Row="7" Grid.Column="2" ItemsSource="{Binding DisallowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
+                <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attribute that an NPC may not possess for this BodySlide to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed NPC Attributes</TextBlock>
+                <Button Grid.Row="8" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDisallowedAttribute}" Foreground="Lightgreen">Add New</Button>
+                <ItemsControl Grid.Row="8" Grid.Column="2" ItemsSource="{Binding DisallowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
                             <local:UC_NPCAttribute Background="Black" Margin="0 0 0 10"/>
@@ -97,25 +100,25 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" ToolTip="Minimum and maximum weight (inclusive) that an NPC may have for this head part to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Weight Range</TextBlock>
-                <StackPanel Grid.Row="8" Grid.Column="2" Orientation="Horizontal">
+                <TextBlock Grid.Row="9" Grid.Column="0" Margin="0 0 15 0" ToolTip="Minimum and maximum weight (inclusive) that an NPC may have for this head part to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Weight Range</TextBlock>
+                <StackPanel Grid.Row="9" Grid.Column="2" Orientation="Horizontal">
                     <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=WeightRange.Lower}"/>
                     <TextBlock Text="to" Margin="15 0 15 0" VerticalAlignment="Center"/>
                     <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=WeightRange.Upper}"/>
                 </StackPanel>
 
-                <TextBlock Grid.Row="9" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to assign this head part to NPCs not specified via Specific NPC Assignments or ForceIf attributes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribute to non-forced NPCs</TextBlock>
-                <CheckBox Grid.Row="9" Grid.Column="2" IsChecked="{Binding Path=bAllowRandom, Mode=TwoWay}"></CheckBox>
+                <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to assign this head part to NPCs not specified via Specific NPC Assignments or ForceIf attributes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribute to non-forced NPCs</TextBlock>
+                <CheckBox Grid.Row="10" Grid.Column="2" IsChecked="{Binding Path=bAllowRandom, Mode=TwoWay}"></CheckBox>
 
-                <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to assign this head part to unique NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow Unique NPCs</TextBlock>
-                <CheckBox Grid.Row="10" Grid.Column="2" IsChecked="{Binding Path=bAllowUnique, Mode=TwoWay}"></CheckBox>
+                <TextBlock Grid.Row="11" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to assign this head part to unique NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow Unique NPCs</TextBlock>
+                <CheckBox Grid.Row="11" Grid.Column="2" IsChecked="{Binding Path=bAllowUnique, Mode=TwoWay}"></CheckBox>
 
-                <TextBlock Grid.Row="11" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to assign this head part to non-unique NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow Non-Unique NPCs</TextBlock>
-                <CheckBox Grid.Row="11" Grid.Column="2" IsChecked="{Binding Path=bAllowNonUnique, Mode=TwoWay}"></CheckBox>
+                <TextBlock Grid.Row="12" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to assign this head part to non-unique NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow Non-Unique NPCs</TextBlock>
+                <CheckBox Grid.Row="12" Grid.Column="2" IsChecked="{Binding Path=bAllowNonUnique, Mode=TwoWay}"></CheckBox>
 
-                <TextBlock Grid.Row="12" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Relative probability of assigning the given number of this head part type" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"> Distribution Quantity Probabilities</TextBlock>
-                <Button Grid.Row="12" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDistributionWeighting}" Foreground="Lightgreen">+</Button>
-                <ItemsControl Grid.Row="12" Grid.Column="2" ItemsSource="{Binding DistributionProbabilities}" BorderThickness="1" BorderBrush="#5844b4">
+                <TextBlock Grid.Row="13" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Relative probability of assigning the given number of this head part type" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"> Distribution Quantity Probabilities</TextBlock>
+                <Button Grid.Row="13" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDistributionWeighting}" Foreground="Lightgreen">+</Button>
+                <ItemsControl Grid.Row="13" Grid.Column="2" ItemsSource="{Binding DistributionProbabilities}" BorderThickness="1" BorderBrush="#5844b4">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type local:VM_HeadPartQuantityDistributionWeighting}">
                             <StackPanel Orientation="Horizontal">
@@ -130,11 +133,11 @@
                 </ItemsControl>
 
                 <!--OBody-->
-                <TextBlock Grid.Row="13" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" Visibility="{Binding ParentConfig.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" ToolTip="Body shape descriptors that a BodySlide must have to be paired with this subgroup" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed BodySlide Descriptors</TextBlock>
-                <local:UC_BodyShapeDescriptorSelectionMenu Grid.Row="13" Grid.Column="2"  Visibility="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ParentConfig.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" DataContext="{Binding AllowedBodySlideDescriptors}"/>
+                <TextBlock Grid.Row="14" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" Visibility="{Binding ParentConfig.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" ToolTip="Body shape descriptors that a BodySlide must have to be paired with this subgroup" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed BodySlide Descriptors</TextBlock>
+                <local:UC_BodyShapeDescriptorSelectionMenu Grid.Row="14" Grid.Column="2"  Visibility="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ParentConfig.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" DataContext="{Binding AllowedBodySlideDescriptors}"/>
 
-                <TextBlock Grid.Row="14" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" Visibility="{Binding ParentConfig.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" ToolTip="Body shape descriptors that a BodySlide may not have if it is to be paired with this subgroup" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed BodySlide Descriptors</TextBlock>
-                <local:UC_BodyShapeDescriptorSelectionMenu Grid.Row="14" Grid.Column="2"  Visibility="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ParentConfig.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" DataContext="{Binding DisallowedBodySlideDescriptors}"/>
+                <TextBlock Grid.Row="15" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" Visibility="{Binding ParentConfig.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" ToolTip="Body shape descriptors that a BodySlide may not have if it is to be paired with this subgroup" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed BodySlide Descriptors</TextBlock>
+                <local:UC_BodyShapeDescriptorSelectionMenu Grid.Row="15" Grid.Column="2"  Visibility="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ParentConfig.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" DataContext="{Binding DisallowedBodySlideDescriptors}"/>
 
             </Grid>
         </ScrollViewer>

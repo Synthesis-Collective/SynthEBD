@@ -277,7 +277,7 @@ namespace SynthEBD
             {
                 if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                 {
-                    ParentMenu.Eyebrows.DisplayedList.Add(VM_HeadPart.Import(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Eyebrows.DisplayedList, ParentMenu));
+                    ParentMenu.Eyebrows.DisplayedList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Eyebrows.DisplayedList, ParentMenu));
                     importCount++;
                 }
             }
@@ -285,7 +285,7 @@ namespace SynthEBD
             {
                 if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                 {
-                    ParentMenu.Eyes.DisplayedList.Add(VM_HeadPart.Import(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Eyes.DisplayedList, ParentMenu));
+                    ParentMenu.Eyes.DisplayedList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Eyes.DisplayedList, ParentMenu));
                     importCount++;
                 }
             }
@@ -293,7 +293,7 @@ namespace SynthEBD
             {
                 if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                 {
-                    ParentMenu.Faces.DisplayedList.Add(VM_HeadPart.Import(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Faces.DisplayedList, ParentMenu));
+                    ParentMenu.Faces.DisplayedList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Faces.DisplayedList, ParentMenu));
                     importCount++;
                 }
             }
@@ -301,7 +301,7 @@ namespace SynthEBD
             {
                 if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                 {
-                    ParentMenu.FacialHairs.DisplayedList.Add(VM_HeadPart.Import(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.FacialHairs.DisplayedList, ParentMenu));
+                    ParentMenu.FacialHairs.DisplayedList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.FacialHairs.DisplayedList, ParentMenu));
                     importCount++;
                 }
             }
@@ -309,7 +309,7 @@ namespace SynthEBD
             {
                 if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                 {
-                    ParentMenu.Hairs.DisplayedList.Add(VM_HeadPart.Import(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Hairs.DisplayedList, ParentMenu));
+                    ParentMenu.Hairs.DisplayedList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Hairs.DisplayedList, ParentMenu));
                     importCount++;
                 }
             }
@@ -317,7 +317,7 @@ namespace SynthEBD
             {
                 if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                 {
-                    ParentMenu.Misc.DisplayedList.Add(VM_HeadPart.Import(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Misc.DisplayedList, ParentMenu));
+                    ParentMenu.Misc.DisplayedList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Misc.DisplayedList, ParentMenu));
                     importCount++;
                 }
             }
@@ -325,12 +325,17 @@ namespace SynthEBD
             {
                 if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                 {
-                    ParentMenu.Scars.DisplayedList.Add(VM_HeadPart.Import(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Scars.DisplayedList, ParentMenu));
+                    ParentMenu.Scars.DisplayedList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Scars.DisplayedList, ParentMenu));
                     importCount++;
                 }
             }
 
             Logger.CallTimedNotifyStatusUpdateAsync("Imported " + importCount + " head parts.", 5);
+        }
+
+        public static VM_HeadPart ImportHeadPart(IHeadPartGetter headPart, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig)
+        {
+            return new VM_HeadPart(headPart.FormKey, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig) { Label = headPart.EditorID };
         }
     }
 }

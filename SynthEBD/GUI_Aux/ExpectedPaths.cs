@@ -94,6 +94,7 @@ public class Paths
     public string BodyGenSettingsPath => Path.Combine(RelativePath, settingsDirRelPath, "BodyGenSettings.json");
     public string BodyGenConfigDirPath => Path.Combine(RelativePath, bodyGenDirRelPath);
     public string OBodySettingsPath => Path.Combine(RelativePath, settingsDirRelPath, "OBodySettings.json");
+    public string HeadPartsSettingsPath => Path.Combine(RelativePath, settingsDirRelPath, "HeadPartSettings.json");
     public string MaleTemplateGroupsPath => Path.Combine(RelativePath, settingsDirPath, "SliderGroupGenders", "Male.json");
     public string FemaleTemplateGroupsPath => Path.Combine(RelativePath, settingsDirPath, "SliderGroupGenders", "Female.json");
     public string ConsistencyPath => Path.Combine(RelativePath, NPCConfigDirRelPath, "Consistency.json");

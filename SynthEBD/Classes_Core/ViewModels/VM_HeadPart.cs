@@ -9,14 +9,17 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Media;
 
 namespace SynthEBD
 {
     public class VM_HeadPart : VM
     {
-        public VM_HeadPart(VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig)
+        public VM_HeadPart(FormKey headPartFormKey, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig)
         {
-            this.DescriptorsSelectionMenu = new VM_BodyShapeDescriptorSelectionMenu(bodyShapeDescriptors, raceGroupingVMs, parentConfig);
+            FormKey = headPartFormKey;
+            this.AllowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(bodyShapeDescriptors, raceGroupingVMs, parentConfig);
+            this.DisallowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(bodyShapeDescriptors, raceGroupingVMs, parentConfig);
             this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
             this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
@@ -42,6 +45,20 @@ namespace SynthEBD
                 execute: _ => this.ParentCollection.Remove(this)
             );
 
+            this.WhenAnyValue(x => x.FormKey).Subscribe(x =>
+            {
+                if (lk.TryResolve<IHeadPartGetter>(FormKey, out var getter))
+                {
+                    BorderColor = new SolidColorBrush(Colors.Green);
+                    StatusString = String.Empty;
+                }
+                else
+                {
+                    BorderColor = new SolidColorBrush(Colors.Red);
+                    StatusString = "This head part is no longer present in your load order";
+                }
+            });
+
             /*
             Clone = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -58,7 +75,6 @@ namespace SynthEBD
 
         public FormKey FormKey { get; set; }
         public string Label { get; set; } = "";
-        public VM_BodyShapeDescriptorSelectionMenu DescriptorsSelectionMenu { get; set; }
         public ObservableCollection<FormKey> AllowedRaces { get; set; } = new();
         public ObservableCollection<FormKey> DisallowedRaces { get; set; } = new();
         public VM_RaceGroupingCheckboxList AllowedRaceGroupings { get; set; }
@@ -70,7 +86,8 @@ namespace SynthEBD
         public bool bAllowRandom { get; set; } = true;
         public double ProbabilityWeighting { get; set; } = 1;
         public NPCWeightRange WeightRange { get; set; } = new();
-        public string Caption_BodyShapeDescriptors { get; set; } = "";
+        public VM_BodyShapeDescriptorSelectionMenu AllowedBodySlideDescriptors { get; set; }
+        public VM_BodyShapeDescriptorSelectionMenu DisallowedBodySlideDescriptors { get; set; }
 
         public ILinkCache lk { get; private set; }
         public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
@@ -82,10 +99,51 @@ namespace SynthEBD
         public RelayCommand ToggleHide { get; }
         public VM_Settings_Headparts ParentConfig { get; set; }
         public ObservableCollection<VM_HeadPart> ParentCollection { get; set; }
+        public SolidColorBrush BorderColor { get; set; } = new SolidColorBrush(Colors.Green);
+        public string StatusString { get; set; } = string.Empty;
 
-        public static VM_HeadPart Import(IHeadPartGetter headPart, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig)
+        public static VM_HeadPart GetViewModelFromModel(HeadPartSetting model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AttributeGroupMenu attributeGroupMenu, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, VM_Settings_Headparts parentConfig, ObservableCollection<VM_HeadPart> parentCollection)
         {
-            return new VM_HeadPart(bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig) { Label = headPart.EditorID };
+            var viewModel = new VM_HeadPart(model.HeadPart, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig);
+            viewModel.FormKey = model.HeadPart;
+            viewModel.Label = model.EditorID;
+            viewModel.AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
+            viewModel.AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, raceGroupingVMs);
+            viewModel.DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
+            viewModel.DisallowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.DisallowedRaceGroupings, raceGroupingVMs);
+            viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, attributeGroupMenu.Groups, true, null);
+            viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, attributeGroupMenu.Groups, false, null);
+            foreach (var x in viewModel.DisallowedAttributes) { x.DisplayForceIfOption = false; }
+            viewModel.bAllowUnique = model.bAllowUnique;
+            viewModel.bAllowNonUnique = model.bAllowNonUnique;
+            viewModel.bAllowRandom = model.bAllowRandom;
+            viewModel.ProbabilityWeighting = model.ProbabilityWeighting;
+            viewModel.WeightRange = model.WeightRange;
+            viewModel.AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, bodyShapeDescriptors, raceGroupingVMs, parentConfig);
+            viewModel.DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, bodyShapeDescriptors, raceGroupingVMs, parentConfig);
+            return viewModel;
+        }
+
+        public HeadPartSetting DumpToModel()
+        {
+            return new HeadPartSetting()
+            {
+                HeadPart = FormKey,
+                EditorID = Label,
+                AllowedRaces = AllowedRaces.ToHashSet(),
+                AllowedRaceGroupings = AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet(),
+                DisallowedRaces = DisallowedRaces.ToHashSet(),
+                DisallowedRaceGroupings = DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet(),
+                AllowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(AllowedAttributes),
+                DisallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(DisallowedAttributes),
+                bAllowUnique = bAllowUnique,
+                bAllowNonUnique = bAllowNonUnique,
+                bAllowRandom = bAllowRandom,
+                ProbabilityWeighting = ProbabilityWeighting,
+                WeightRange = WeightRange,
+                AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(AllowedBodySlideDescriptors),
+                DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(DisallowedBodySlideDescriptors)
+            };
         }
     }
 }
