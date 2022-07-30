@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ReactiveUI;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -16,15 +17,18 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
         RaceGroupings = generalSettingsVM.RaceGroupings;
         OBodyDescriptors = oBodySettings.DescriptorUI;
 
+        BodyShapeMode = generalSettingsVM.BodySelectionMode;
+        generalSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
+
         DisplayedMenu = DisplayedHeadPartMenuType.Import; // change later to last displayed
 
-        Eyebrows = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this);
-        Eyes = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this);
-        Faces = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this);
-        FacialHairs = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this);
-        Hairs = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this);
-        Misc = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this);
-        Scars = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this);
+        Eyebrows = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings);
+        Eyes = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings);
+        Faces = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings);
+        FacialHairs = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings);
+        Hairs = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings);
+        Misc = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings);
+        Scars = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings);
 
     ViewImportMenu = new RelayCommand(
             canExecute: _ => true,
@@ -90,6 +94,7 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
     public VM_AttributeGroupMenu AttributeGroupMenu { get; }
     public ObservableCollection<VM_RaceGrouping> RaceGroupings { get; set; }
     public VM_BodyShapeDescriptorCreationMenu OBodyDescriptors { get; set; }
+    public BodyShapeSelectionMode BodyShapeMode { get; set; }
 
     public RelayCommand ViewImportMenu { get; }
     public RelayCommand ViewEyebrowsMenu { get; }
