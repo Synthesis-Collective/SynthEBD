@@ -1,4 +1,5 @@
 ﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
@@ -13,6 +14,7 @@ public class NPCAssignment
     public string BodySlidePreset { get; set; } = "";
     public List<AssetReplacerAssignment> AssetReplacerAssignments { get; set; } = new();
     public List<MixInAssignment> MixInAssignments { get; set;} = new();
+    public Dictionary<HeadPart.TypeEnum, List<FormKey>> HeadParts { get; set; } = new();
 
     public class AssetReplacerAssignment
     {

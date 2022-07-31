@@ -1,4 +1,5 @@
-﻿using ReactiveUI;
+﻿using Mutagen.Bethesda.Skyrim;
+using ReactiveUI;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -20,82 +21,85 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
         BodyShapeMode = generalSettingsVM.BodySelectionMode;
         generalSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
 
-        DisplayedMenu = DisplayedHeadPartMenuType.Import; // change later to last displayed
+        DisplayedMenu = ImportMenu;
 
-        Eyebrows = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings);
-        Eyes = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings);
-        Faces = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings);
-        FacialHairs = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings);
-        Hairs = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings);
-        Misc = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings);
-        Scars = new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings);
+        Types = new()
+        {
+            { HeadPart.TypeEnum.Eyebrows, new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings) },
+            { HeadPart.TypeEnum.Eyes, new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings) },
+            { HeadPart.TypeEnum.Face, new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings) },
+            { HeadPart.TypeEnum.FacialHair, new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings) },
+            { HeadPart.TypeEnum.Hair, new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings) },
+            { HeadPart.TypeEnum.Misc, new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings) },
+            { HeadPart.TypeEnum.Scars, new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings) }
+        };
 
-    ViewImportMenu = new RelayCommand(
+        ViewImportMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { 
-                DisplayedMenu = DisplayedHeadPartMenuType.Import; }
+            execute: _ =>
+            {
+                DisplayedMenu = ImportMenu;
+            }
         );
 
         ViewEyebrowsMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { 
-                DisplayedMenu = DisplayedHeadPartMenuType.Eyebrows;
+            execute: _ => {
+                DisplayedMenu = Types[HeadPart.TypeEnum.Eyebrows];
             }
         );
 
         ViewEyesMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { 
-                DisplayedMenu = DisplayedHeadPartMenuType.Eyes; }
+            execute: _ => {
+                DisplayedMenu = Types[HeadPart.TypeEnum.Eyes];
+            }
         );
 
         ViewFaceMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { 
-                DisplayedMenu = DisplayedHeadPartMenuType.Faces; }
+            execute: _ => {
+                DisplayedMenu = Types[HeadPart.TypeEnum.Face];
+            }
         );
 
         ViewFacialHairMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { 
-                DisplayedMenu = DisplayedHeadPartMenuType.FacialHairs; }
+            execute: _ => {
+                DisplayedMenu = Types[HeadPart.TypeEnum.FacialHair];
+            }
         );
 
         ViewHairMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { 
-                DisplayedMenu = DisplayedHeadPartMenuType.Hairs; }
+            execute: _ => {
+                DisplayedMenu = Types[HeadPart.TypeEnum.Hair];
+            }
         );
 
         ViewMiscMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { 
-                DisplayedMenu = DisplayedHeadPartMenuType.Misc; }
+            execute: _ => {
+                DisplayedMenu = Types[HeadPart.TypeEnum.Misc];
+            }
         );
 
         ViewScarsMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { 
-                DisplayedMenu = DisplayedHeadPartMenuType.Scars; }
+            execute: _ => {
+                DisplayedMenu = Types[HeadPart.TypeEnum.Scars];
+            }
         );
     }
 
-    public DisplayedHeadPartMenuType DisplayedMenu { get; set; }
+    public object DisplayedMenu { get; set; }
     public VM_HeadPartImport ImportMenu { get; set; } 
     public VM_HeadPartList DisplayedHeadParts { get; set; } 
-    public VM_HeadPartList Eyebrows { get; set; }
-    public VM_HeadPartList Eyes { get; set; }
-    public VM_HeadPartList Faces { get; set; }
-    public VM_HeadPartList FacialHairs { get; set; } 
-    public VM_HeadPartList Hairs { get; set; } 
-    public VM_HeadPartList Misc { get; set; } 
-    public VM_HeadPartList Scars { get; set; }
-
+    public Dictionary<HeadPart.TypeEnum, VM_HeadPartList> Types { get; set; }
     public VM_AttributeGroupMenu AttributeGroupMenu { get; }
     public ObservableCollection<VM_RaceGrouping> RaceGroupings { get; set; }
     public VM_BodyShapeDescriptorCreationMenu OBodyDescriptors { get; set; }
     public BodyShapeSelectionMode BodyShapeMode { get; set; }
-
     public RelayCommand ViewImportMenu { get; }
     public RelayCommand ViewEyebrowsMenu { get; }
     public RelayCommand ViewEyesMenu { get; }
@@ -104,37 +108,19 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
     public RelayCommand ViewHairMenu { get; }
     public RelayCommand ViewMiscMenu { get; }
     public RelayCommand ViewScarsMenu { get; }
-
     public void CopyInFromModel(Settings_Headparts model, VM_SettingsOBody oBody)
     {
-        Eyebrows.CopyInFromModel(model.EyebrowSettings, RaceGroupings, AttributeGroupMenu, this, oBody);
-        Eyes.CopyInFromModel(model.EyebrowSettings, RaceGroupings, AttributeGroupMenu, this, oBody);
-        Faces.CopyInFromModel(model.FaceSettings, RaceGroupings, AttributeGroupMenu, this, oBody);
-        FacialHairs.CopyInFromModel(model.FacialHairSettings, RaceGroupings, AttributeGroupMenu, this, oBody);
-        Hairs.CopyInFromModel(model.HairSettings, RaceGroupings, AttributeGroupMenu, this, oBody);
-        Misc.CopyInFromModel(model.MiscSettings, RaceGroupings, AttributeGroupMenu, this, oBody);
-        Scars.CopyInFromModel(model.ScarsSettings, RaceGroupings, AttributeGroupMenu, this, oBody);
+        foreach (var type in model.Types.Keys)
+        {
+            Types[type].CopyInFromModel(model.Types[type], RaceGroupings, AttributeGroupMenu, this, oBody);
+        }
     }
 
     public void DumpViewModelToModel(Settings_Headparts model)
     {
-        Eyebrows.DumpToModel(model.EyebrowSettings);
-        Eyes.DumpToModel(model.EyeSettings);
-        Faces.DumpToModel(model.FaceSettings);
-        FacialHairs.DumpToModel(model.FacialHairSettings);
-        Hairs.DumpToModel(model.HairSettings);
-        Misc.DumpToModel(model.MiscSettings);
-        Scars.DumpToModel(model.ScarsSettings);
+        foreach (var type in model.Types.Keys)
+        {
+            Types[type].DumpToModel(model.Types[type]);
+        }
     }
 }
-public enum DisplayedHeadPartMenuType
-{
-    Import,
-    Eyebrows,
-    Eyes,
-    Faces,
-    FacialHairs,
-    Hairs,
-    Misc,
-    Scars
-};

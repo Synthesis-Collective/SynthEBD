@@ -69,43 +69,22 @@
         <TextBlock Grid.Row="11" Grid.Column="0" Text="Import Scars"/>
         <CheckBox Grid.Row="11" Grid.Column="1" IsChecked="{Binding bImportScar}"/>
 
-        <WrapPanel Orientation="Horizontal" Grid.Row="12" Grid.Column="0" Grid.ColumnSpan="2">
-            <StackPanel Margin="10">
-                <TextBlock HorizontalAlignment="Center" Text="Eyebrows"/>
-                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding EyebrowImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" BorderThickness="1" BorderBrush="{Binding EyebrowBorderColor}" />
-                <TextBlock Text="{Binding EyebrowStatusString}" Foreground="{Binding EyebrowBorderColor}"/>
-            </StackPanel>
-            <StackPanel Margin="10">
-                <TextBlock HorizontalAlignment="Center" Text="Eyes"/>
-                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding EyeImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" BorderThickness="1" BorderBrush="{Binding EyeBorderColor}" />
-                <TextBlock Text="{Binding EyeStatusString}" Foreground="{Binding EyeBorderColor}"/>
-            </StackPanel>
-            <StackPanel Margin="10">
-                <TextBlock HorizontalAlignment="Center" Text="Face"/>
-                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding FaceImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" BorderThickness="1" BorderBrush="{Binding FaceBorderColor}" />
-                <TextBlock Text="{Binding FaceStatusString}" Foreground="{Binding FaceBorderColor}"/>
-            </StackPanel>
-            <StackPanel Margin="10">
-                <TextBlock HorizontalAlignment="Center" Text="Facial Hair"/>
-                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding FacialHairImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" BorderThickness="1" BorderBrush="{Binding FacialHairBorderColor}" />
-                <TextBlock Text="{Binding FacialHairStatusString}" Foreground="{Binding FacialHairBorderColor}"/>
-            </StackPanel>
-            <StackPanel Margin="10">
-                <TextBlock HorizontalAlignment="Center" Text="Hair"/>
-                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding HairImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" BorderThickness="1" BorderBrush="{Binding HairBorderColor}" />
-                <TextBlock Text="{Binding HairStatusString}" Foreground="{Binding HairBorderColor}"/>
-            </StackPanel>
-            <StackPanel Margin="10">
-                <TextBlock HorizontalAlignment="Center" Text="Misc"/>
-                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding MiscImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" BorderThickness="1" BorderBrush="{Binding MiscBorderColor}" />
-                <TextBlock Text="{Binding MiscStatusString}" Foreground="{Binding MiscBorderColor}"/>
-            </StackPanel>
-            <StackPanel Margin="10">
-                <TextBlock HorizontalAlignment="Center" Text="Scars"/>
-                <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding ScarImports}" LinkCache="{Binding lk}" ScopedTypes="{Binding HeadPartType}" BorderThickness="1" BorderBrush="{Binding ScarBorderColor}" />
-                <TextBlock Text="{Binding ScarStatusString}" Foreground="{Binding ScarBorderColor}"/>
-            </StackPanel>
-        </WrapPanel>
+        <ItemsControl Grid.Row="12" Grid.Column="0" Grid.ColumnSpan="2" ItemsSource="{Binding Imports}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Margin="10">
+                        <TextBlock HorizontalAlignment="Center" Text="{Binding Key}"/>
+                        <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding Value.FormKeys}" LinkCache="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.lk}" ScopedTypes="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.HeadPartType}" BorderThickness="1" BorderBrush="{Binding Value.BorderColor}" />
+                        <TextBlock Text="{Binding Value.StatusString}" Foreground="{Binding Value.BorderColor}"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
 
         <Button Grid.Row="13" Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Center" Command="{Binding Import}" Foreground="LightGreen">Import Selected Head Parts</Button>
     </Grid>

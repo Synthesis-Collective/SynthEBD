@@ -1,6 +1,7 @@
 ﻿using Mutagen.Bethesda.Plugins;
 using System.Collections.ObjectModel;
 using ReactiveUI;
+using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
@@ -39,6 +40,16 @@ public class VM_ConsistencyAssignment : VM
     public ObservableCollection<VM_CollectionMemberString> BodyGenMorphNames { get; set; } = new();
     public string BodySlidePreset { get; set; } = "";
     public string Height { get; set; }
+    public Dictionary<HeadPart.TypeEnum, ObservableCollection<VM_HeadPartAssignment>> HeadParts { get; set; } = new()
+    {
+        { HeadPart.TypeEnum.Eyebrows, new ObservableCollection<VM_HeadPartAssignment>() },
+        { HeadPart.TypeEnum.Eyes, new ObservableCollection<VM_HeadPartAssignment>() },
+        { HeadPart.TypeEnum.Face, new ObservableCollection<VM_HeadPartAssignment>() },
+        { HeadPart.TypeEnum.FacialHair, new ObservableCollection<VM_HeadPartAssignment>() },
+        { HeadPart.TypeEnum.Hair, new ObservableCollection<VM_HeadPartAssignment>() },
+        { HeadPart.TypeEnum.Misc, new ObservableCollection<VM_HeadPartAssignment>() },
+        { HeadPart.TypeEnum.Scars, new ObservableCollection<VM_HeadPartAssignment>() }
+    };
     public string DispName { get; set; }
     public FormKey NPCFormKey { get; set; }
 

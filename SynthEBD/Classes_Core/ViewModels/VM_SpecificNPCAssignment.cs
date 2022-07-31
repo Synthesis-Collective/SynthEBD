@@ -13,18 +13,20 @@ namespace SynthEBD;
 public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
 {
     public delegate VM_SpecificNPCAssignment Factory();
-    
+
     public VM_SpecificNPCAssignment(
         VM_Settings_General general,
         VM_SettingsOBody oBody,
         VM_SettingsBodyGen bodyGen,
         VM_SettingsTexMesh texMesh,
+        VM_Settings_Headparts headParts,
         VM_AssetPack.Factory assetPackFactory)
     {
         SubscribedGeneralSettings = general;
         SubscribedOBodySettings = oBody;
         SubscribedBodyGenSettings = bodyGen;
-        
+        SubscribedHeadPartSettings = headParts;
+
         PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
@@ -34,7 +36,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
         this.SubscribedAssetPacks = texMesh.AssetPacks;
 
         this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => RefreshAll());
-            
+
         this.SubscribedAssetPacks.ToObservableChangeSet().Subscribe(x => RefreshAssets());
         this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x => UpdateAvailableSubgroups(this));
         this.ForcedSubgroups.ToObservableChangeSet().Subscribe(x => UpdateAvailableSubgroups(this));
@@ -114,6 +116,27 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
     public string ForcedHeight { get; set; } = "";
     public ObservableCollection<VM_BodyGenTemplate> ForcedBodyGenMorphs { get; set; } = new();
     public string ForcedBodySlide { get; set; } = "";
+    public Dictionary<HeadPart.TypeEnum, ObservableCollection<VM_HeadPartAssignment>> HeadParts { get; set; } = new()
+    {
+        { HeadPart.TypeEnum.Eyebrows, new ObservableCollection<VM_HeadPartAssignment>() },
+        { HeadPart.TypeEnum.Eyes, new ObservableCollection<VM_HeadPartAssignment>() },
+        { HeadPart.TypeEnum.Face, new ObservableCollection<VM_HeadPartAssignment>() },
+        { HeadPart.TypeEnum.FacialHair, new ObservableCollection<VM_HeadPartAssignment>() },
+        { HeadPart.TypeEnum.Hair, new ObservableCollection<VM_HeadPartAssignment>() },
+        { HeadPart.TypeEnum.Misc, new ObservableCollection<VM_HeadPartAssignment>() },
+        { HeadPart.TypeEnum.Scars, new ObservableCollection<VM_HeadPartAssignment>() }
+    };
+
+    public Dictionary<HeadPart.TypeEnum, ObservableCollection<VM_HeadPart>> AvailableHeadParts { get; set; } = new()
+    {
+        { HeadPart.TypeEnum.Eyebrows, new ObservableCollection<VM_HeadPart>() },
+        { HeadPart.TypeEnum.Eyes, new ObservableCollection<VM_HeadPart>() },
+        { HeadPart.TypeEnum.Face, new ObservableCollection<VM_HeadPart>() },
+        { HeadPart.TypeEnum.FacialHair, new ObservableCollection<VM_HeadPart>() },
+        { HeadPart.TypeEnum.Hair, new ObservableCollection<VM_HeadPart>() },
+        { HeadPart.TypeEnum.Misc, new ObservableCollection<VM_HeadPart>() },
+        { HeadPart.TypeEnum.Scars, new ObservableCollection<VM_HeadPart>() }
+    };
 
     //Needed by UI
     public ObservableCollection<VM_AssetPack> AvailableAssetPacks { get; set; } = new();
@@ -132,6 +155,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
 
     public VM_Settings_General SubscribedGeneralSettings { get; set; }
     public VM_SettingsOBody SubscribedOBodySettings { get; set; }
+    public VM_Settings_Headparts SubscribedHeadPartSettings { get; set; }
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public RelayCommand DeleteForcedAssetPack { get; set; }
@@ -584,6 +608,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
             Logger.LogError("Could not resolve gender of NPC with FormKey " + NPCFormKey.ToString() + " because it does not exist in the current load order.");
         }
         return Gender.Male;
+    }
+
+    public void RefreshAvailableHeadParts(HeadPart.TypeEnum type)
+    {
+        
     }
 
     public class VM_MixInSpecificAssignment : VM, IHasForcedAssets

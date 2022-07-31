@@ -47,13 +47,13 @@ namespace SynthEBD
             .Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler)
             .Subscribe(_ => UpdateSelections());
 
-            this.EyebrowImports.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyebrows));
-            this.EyeImports.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyes));
-            this.FaceImports.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Face));
-            this.FacialHairImports.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.FacialHair));
-            this.HairImports.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Hair));
-            this.MiscImports.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Misc));
-            this.ScarImports.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Scars));
+            this.Imports[HeadPart.TypeEnum.Eyebrows].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyebrows));
+            this.Imports[HeadPart.TypeEnum.Eyes].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyes));
+            this.Imports[HeadPart.TypeEnum.Face].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Face));
+            this.Imports[HeadPart.TypeEnum.FacialHair].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.FacialHair));
+            this.Imports[HeadPart.TypeEnum.Hair].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Hair));
+            this.Imports[HeadPart.TypeEnum.Misc].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Misc));
+            this.Imports[HeadPart.TypeEnum.Scars].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Scars));
 
             Import = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -72,27 +72,16 @@ namespace SynthEBD
         public bool bImportMisc { get; set; } = true;
         public bool bImportScar { get; set; } = true;
 
-        public ObservableCollection<FormKey> EyebrowImports { get; set; } = new ObservableCollection<FormKey>();
-        public SolidColorBrush EyebrowBorderColor { get; set; }
-        public string EyebrowStatusString { get; set; } = string.Empty;
-        public ObservableCollection<FormKey> EyeImports { get; set; } = new ObservableCollection<FormKey>();
-        public SolidColorBrush EyeBorderColor { get; set; }
-        public string EyeStatusString { get; set; } = string.Empty;
-        public ObservableCollection<FormKey> FaceImports { get; set; } = new ObservableCollection<FormKey>();
-        public SolidColorBrush FaceBorderColor { get; set; }
-        public string FaceStatusString { get; set; } = string.Empty;
-        public ObservableCollection<FormKey> FacialHairImports { get; set; } = new ObservableCollection<FormKey>();
-        public SolidColorBrush FacialHairBorderColor { get; set; }
-        public string FacialHairStatusString { get; set; } = string.Empty;
-        public ObservableCollection<FormKey> HairImports { get; set; } = new ObservableCollection<FormKey>();
-        public SolidColorBrush HairBorderColor { get; set; }
-        public string HairStatusString { get; set; } = string.Empty;
-        public ObservableCollection<FormKey> MiscImports { get; set; } = new ObservableCollection<FormKey>();
-        public SolidColorBrush MiscBorderColor { get; set; }
-        public string MiscStatusString { get; set; } = string.Empty;
-        public ObservableCollection<FormKey> ScarImports { get; set; } = new ObservableCollection<FormKey>();
-        public SolidColorBrush ScarBorderColor { get; set; }
-        public string ScarStatusString { get; set; } = string.Empty;
+        public Dictionary<HeadPart.TypeEnum, HeadPartImportContainer> Imports { get; set; } = new()
+        {
+            { HeadPart.TypeEnum.Eyebrows, new HeadPartImportContainer() },
+            { HeadPart.TypeEnum.Eyes, new HeadPartImportContainer() },
+            { HeadPart.TypeEnum.Face, new HeadPartImportContainer() },
+            { HeadPart.TypeEnum.FacialHair, new HeadPartImportContainer() },
+            { HeadPart.TypeEnum.Hair, new HeadPartImportContainer() },
+            { HeadPart.TypeEnum.Misc, new HeadPartImportContainer() },
+            { HeadPart.TypeEnum.Scars, new HeadPartImportContainer() }
+        };
 
         public RelayCommand Import { get; }
 
@@ -101,6 +90,13 @@ namespace SynthEBD
         public ModKey ModtoImport { get; set; }
         public Mutagen.Bethesda.Plugins.Order.ILoadOrder<Mutagen.Bethesda.Plugins.Order.IModListing<ISkyrimModGetter>> LoadOrder { get; private set; }
         public ILinkCache lk { get; private set; }
+
+        public class HeadPartImportContainer : VM
+        {
+            public ObservableCollection<FormKey> FormKeys { get; set; } = new();
+            public SolidColorBrush BorderColor { get; set; } = new();
+            public string StatusString { get; set; } = String.Empty;
+        }
 
         public void UpdateSelections()
         {
@@ -123,113 +119,32 @@ namespace SynthEBD
                     if (!bImportScar && headpart.Type.Value == Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Scars) { continue; }
                     if (!headpart.Type.HasValue) { continue; }
 
-                    switch (headpart.Type.Value)
-                    {
-                        case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Eyebrows: EyebrowImports.Add(headpart.FormKey); break;
-                        case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Eyes: EyeImports.Add(headpart.FormKey); break;
-                        case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Face: FaceImports.Add(headpart.FormKey); break;
-                        case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.FacialHair: FacialHairImports.Add(headpart.FormKey); break;
-                        case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Hair: HairImports.Add(headpart.FormKey); break;
-                        case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Misc: MiscImports.Add(headpart.FormKey); break;
-                        case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Scars: ScarImports.Add(headpart.FormKey); break;
-                    }
+                    Imports[headpart.Type.Value].FormKeys.Add(headpart.FormKey);
                 }
             }
         }
 
         public void ClearSelections()
         {
-            EyebrowImports.Clear();
-            EyeImports.Clear();
-            FaceImports.Clear();
-            FacialHairImports.Clear();
-            HairImports.Clear();
-            MiscImports.Clear();
-            ScarImports.Clear();
+            foreach (var value in Imports.Values)
+            {
+                value.FormKeys.Clear();
+            }
         }
 
         public void ValidateNewSelection(HeadPart.TypeEnum type)
         {
             List<string> invalidEditorIDs = new List<string>();
-            switch (type)
+
+            Imports[type].BorderColor = GetBorderColor(Imports[type].FormKeys, type, invalidEditorIDs);
+            
+            if (invalidEditorIDs.Any())
             {
-                case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Eyebrows: 
-                    EyebrowBorderColor = GetBorderColor(EyebrowImports, type, invalidEditorIDs);  
-                    if (invalidEditorIDs.Any())
-                    {
-                        EyebrowStatusString = "The following invalid eyebrows will not be imported:" + Environment.NewLine + String.Join(Environment.NewLine, invalidEditorIDs);
-                    }
-                    else
-                    {
-                        EyebrowStatusString = String.Empty;
-                    }
-                    break;
-                case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Eyes: 
-                    EyeBorderColor = GetBorderColor(EyeImports, type, invalidEditorIDs);
-                    if (invalidEditorIDs.Any())
-                    {
-                        EyeStatusString = "The following invalid eyes will not be imported:" + Environment.NewLine + String.Join(Environment.NewLine, invalidEditorIDs);
-                    }
-                    else
-                    {
-                        EyeStatusString = String.Empty;
-                    }
-                    break;
-                case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Face: 
-                    FaceBorderColor = GetBorderColor(FaceImports, type, invalidEditorIDs);
-                    if (invalidEditorIDs.Any())
-                    {
-                        FaceStatusString = "The following invalid face parts will not be imported:" + Environment.NewLine + String.Join(Environment.NewLine, invalidEditorIDs);
-                    }
-                    else
-                    {
-                        FaceStatusString = String.Empty;
-                    }
-                    break;
-                case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.FacialHair: 
-                    FacialHairBorderColor = GetBorderColor(FacialHairImports, type, invalidEditorIDs);
-                    if (invalidEditorIDs.Any())
-                    {
-                        FacialHairStatusString = "The following invalid facial hairs will not be imported:" + Environment.NewLine + String.Join(Environment.NewLine, invalidEditorIDs);
-                    }
-                    else
-                    {
-                        FacialHairStatusString = String.Empty;
-                    }
-                    break;
-                case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Hair: 
-                    HairBorderColor = GetBorderColor(HairImports, type, invalidEditorIDs);
-                    if (invalidEditorIDs.Any())
-                    {
-                        HairStatusString = "The following invalid hairs will not be imported:" + Environment.NewLine + String.Join(Environment.NewLine, invalidEditorIDs);
-                    }
-                    else
-                    {
-                        HairStatusString = String.Empty;
-                    }
-                    break;
-                case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Misc: 
-                    MiscBorderColor = GetBorderColor(MiscImports, type, invalidEditorIDs);
-                    if (invalidEditorIDs.Any())
-                    {
-                        MiscStatusString = "The following invalid misc parts will not be imported:" + Environment.NewLine + String.Join(Environment.NewLine, invalidEditorIDs);
-                    }
-                    else
-                    {
-                        MiscStatusString = String.Empty;
-                    }
-                    break;
-                case Mutagen.Bethesda.Skyrim.HeadPart.TypeEnum.Scars: 
-                    ScarBorderColor = GetBorderColor(ScarImports, type, invalidEditorIDs);
-                    if (invalidEditorIDs.Any())
-                    {
-                        ScarStatusString = "The following invalid scars will not be imported:" + Environment.NewLine + String.Join(Environment.NewLine, invalidEditorIDs);
-                    }
-                    else
-                    {
-                        ScarStatusString = String.Empty;
-                    }
-                    break;
+                Imports[type].StatusString = "The following invalid eyebrows will not be imported:" + Environment.NewLine + String.Join(Environment.NewLine, invalidEditorIDs);
+            }
+            else
+            {
+                Imports[type].StatusString = String.Empty;
             }
         }
 
@@ -273,61 +188,29 @@ namespace SynthEBD
         public void ImportSelections()
         {
             int importCount = 0;
-            foreach (var headPartFK in EyebrowImports)
+            List<string> skippedImports = new();
+            foreach (var entry in Imports)
             {
-                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
+                foreach (var headPartFK in entry.Value.FormKeys)
                 {
-                    ParentMenu.Eyebrows.DisplayedList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Eyebrows.DisplayedList, ParentMenu));
-                    importCount++;
+                    if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
+                    {
+                        if (!ParentMenu.Types[entry.Key].DisplayedList.Where(x => x.FormKey.Equals(headPartFK)).Any())
+                        {
+                            ParentMenu.Types[entry.Key].DisplayedList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Types[entry.Key].DisplayedList, ParentMenu));
+                            importCount++;
+                        }
+                        else
+                        {
+                            skippedImports.Add(headpart.EditorID);
+                        }
+                    }
                 }
-            }
-            foreach (var headPartFK in EyeImports)
+            }    
+
+            if (skippedImports.Any())
             {
-                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
-                {
-                    ParentMenu.Eyes.DisplayedList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Eyes.DisplayedList, ParentMenu));
-                    importCount++;
-                }
-            }
-            foreach (var headPartFK in FaceImports)
-            {
-                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
-                {
-                    ParentMenu.Faces.DisplayedList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Faces.DisplayedList, ParentMenu));
-                    importCount++;
-                }
-            }
-            foreach (var headPartFK in FacialHairImports)
-            {
-                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
-                {
-                    ParentMenu.FacialHairs.DisplayedList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.FacialHairs.DisplayedList, ParentMenu));
-                    importCount++;
-                }
-            }
-            foreach (var headPartFK in HairImports)
-            {
-                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
-                {
-                    ParentMenu.Hairs.DisplayedList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Hairs.DisplayedList, ParentMenu));
-                    importCount++;
-                }
-            }
-            foreach (var headPartFK in MiscImports)
-            {
-                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
-                {
-                    ParentMenu.Misc.DisplayedList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Misc.DisplayedList, ParentMenu));
-                    importCount++;
-                }
-            }
-            foreach (var headPartFK in ScarImports)
-            {
-                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
-                {
-                    ParentMenu.Scars.DisplayedList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Scars.DisplayedList, ParentMenu));
-                    importCount++;
-                }
+                CustomMessageBox.DisplayNotificationOK("Duplicate Imports", "The following head parts were previously imported and will be skipped: " + Environment.NewLine + String.Join(Environment.NewLine, skippedImports));
             }
 
             Logger.CallTimedNotifyStatusUpdateAsync("Imported " + importCount + " head parts.", 5);
