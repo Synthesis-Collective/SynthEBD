@@ -195,9 +195,9 @@ namespace SynthEBD
                 {
                     if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                     {
-                        if (!ParentMenu.Types[entry.Key].DisplayedList.Where(x => x.FormKey.Equals(headPartFK)).Any())
+                        if (!ParentMenu.Types[entry.Key].HeadPartList.Where(x => x.FormKey.Equals(headPartFK)).Any())
                         {
-                            ParentMenu.Types[entry.Key].DisplayedList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Types[entry.Key].DisplayedList, ParentMenu));
+                            ParentMenu.Types[entry.Key].HeadPartList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Types[entry.Key].HeadPartList, ParentMenu));
                             importCount++;
                         }
                         else
@@ -218,7 +218,7 @@ namespace SynthEBD
 
         public static VM_HeadPart ImportHeadPart(IHeadPartGetter headPart, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig)
         {
-            return new VM_HeadPart(headPart.FormKey, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig) { Label = headPart.EditorID };
+            return new VM_HeadPart(headPart.FormKey, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig) { Label = headPart.EditorID, bAllowMale = headPart.Flags.HasFlag(HeadPart.Flag.Male), bAllowFemale = headPart.Flags.HasFlag(HeadPart.Flag.Female) };
         }
     }
 }

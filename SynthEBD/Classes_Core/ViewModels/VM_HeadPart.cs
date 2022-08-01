@@ -75,6 +75,8 @@ namespace SynthEBD
 
         public FormKey FormKey { get; set; }
         public string Label { get; set; } = "";
+        public bool bAllowMale { get; set; }
+        public bool bAllowFemale { get; set; }
         public ObservableCollection<FormKey> AllowedRaces { get; set; } = new();
         public ObservableCollection<FormKey> DisallowedRaces { get; set; } = new();
         public VM_RaceGroupingCheckboxList AllowedRaceGroupings { get; set; }
@@ -107,6 +109,8 @@ namespace SynthEBD
             var viewModel = new VM_HeadPart(model.HeadPart, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig);
             viewModel.FormKey = model.HeadPart;
             viewModel.Label = model.EditorID;
+            viewModel.bAllowFemale = model.bAlloweFemale;
+            viewModel.bAllowMale = model.bAllowMale;
             viewModel.AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
             viewModel.AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, raceGroupingVMs);
             viewModel.DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
@@ -130,6 +134,8 @@ namespace SynthEBD
             {
                 HeadPart = FormKey,
                 EditorID = Label,
+                bAllowMale = bAllowMale,
+                bAlloweFemale = bAllowFemale,
                 AllowedRaces = AllowedRaces.ToHashSet(),
                 AllowedRaceGroupings = AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet(),
                 DisallowedRaces = DisallowedRaces.ToHashSet(),

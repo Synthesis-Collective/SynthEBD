@@ -9,6 +9,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
         VM_SettingsTexMesh texMeshSettings,
         VM_SettingsBodyGen bodyGenSettings, 
         VM_Settings_General generalSettingsVM,
+        VM_Settings_Headparts headPartSettings,
         VM_AssetPack.Factory assetPackFactory, 
         VM_SpecificNPCAssignment.Factory specificNpcAssignmentFactory)
     {
@@ -28,7 +29,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
 
         ImportFromZEBDcommand = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => ImportFromZEBD(assetPackFactory, texMeshSettings, bodyGenSettings, specificNpcAssignmentFactory)
+            execute: _ => ImportFromZEBD(assetPackFactory, texMeshSettings, bodyGenSettings, headPartSettings, specificNpcAssignmentFactory)
         );
 
         ImportBodyGenMorphsIni = new SynthEBD.RelayCommand(
@@ -130,6 +131,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
         VM_AssetPack.Factory assetPackFactory, 
         VM_SettingsTexMesh texMesh,
         VM_SettingsBodyGen bodyGen,
+        VM_Settings_Headparts headParts,
         VM_SpecificNPCAssignment.Factory specificNpcAssignmentFactory,
         VM_SpecificNPCAssignmentsUI viewModel, 
         HashSet<NPCAssignment> models)
@@ -138,7 +140,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
         foreach (var assignment in models)
         {
             viewModel.Assignments.Add(
-                VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, assetPackFactory, texMesh, bodyGen, specificNpcAssignmentFactory));
+                VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, assetPackFactory, texMesh, bodyGen, headParts, specificNpcAssignmentFactory));
         }
     }
 
@@ -155,6 +157,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
         VM_AssetPack.Factory assetPackFactory, 
         VM_SettingsTexMesh texMesh,
         VM_SettingsBodyGen bodyGen,
+        VM_Settings_Headparts headparts,
         VM_SpecificNPCAssignment.Factory specificNpcAssignmentFactory)
     {
         // Configure open file dialog box
@@ -179,7 +182,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
 
                 foreach (var model in newModels)
                 {
-                    var assignmentVM = VM_SpecificNPCAssignment.GetViewModelFromModel(model, assetPackFactory, texMesh, bodyGen, specificNpcAssignmentFactory);
+                    var assignmentVM = VM_SpecificNPCAssignment.GetViewModelFromModel(model, assetPackFactory, texMesh, bodyGen, headparts, specificNpcAssignmentFactory);
                     if (assignmentVM != null) // null if the imported NPC doesn't exist in the current load order
                     {
                         this.Assignments.Add(assignmentVM);

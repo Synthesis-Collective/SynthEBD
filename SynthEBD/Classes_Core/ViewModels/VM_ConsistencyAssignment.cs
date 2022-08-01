@@ -5,7 +5,7 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
-public class VM_ConsistencyAssignment : VM
+public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
 {
     public VM_ConsistencyAssignment()
     {
@@ -60,8 +60,9 @@ public class VM_ConsistencyAssignment : VM
     public bool AssetPackAssigned { get; set; } = false;
     public bool BodySlideAssigned { get; set; } = false;
     public bool HeightAssigned { get; set; } = false;
+    public Gender Gender { get; set; } // only needs to satisfy the HeadPart assignment view model.
 
-    public static VM_ConsistencyAssignment GetViewModelFromModel(NPCAssignment model, ObservableCollection<VM_AssetPack> AssetPackVMs)
+    public static VM_ConsistencyAssignment GetViewModelFromModel(NPCAssignment model, ObservableCollection<VM_AssetPack> AssetPackVMs, VM_Settings_Headparts headParts)
     {
         VM_ConsistencyAssignment viewModel = new VM_ConsistencyAssignment();
         viewModel.AssetPackName = model.AssetPackName;
@@ -109,7 +110,17 @@ public class VM_ConsistencyAssignment : VM
         {
             viewModel.Height = "";
         }
-            
+
+        foreach (var headPartType in viewModel.HeadParts.Keys)
+        {
+            viewModel.HeadParts[headPartType].Clear();
+            if (!model.HeadParts.ContainsKey(headPartType)) { model.HeadParts.Add(headPartType, new()); }
+            foreach (var headPartAssignment in model.HeadParts[headPartType])
+            {
+                viewModel.HeadParts[headPartType].Add(VM_HeadPartAssignment.GetViewModelFromModel(headPartAssignment, headPartType, viewModel.HeadParts[headPartType], headParts, viewModel));
+            }
+        }
+
         viewModel.DispName = model.DispName;
         viewModel.NPCFormKey = model.NPCFormKey;
         return viewModel;
@@ -146,7 +157,16 @@ public class VM_ConsistencyAssignment : VM
         {
             Logger.LogError("Error parsing consistency assignment " + viewModel.DispName + ". Cannot parse height: " + viewModel.Height);
         }
-            
+
+        foreach (var headPartType in viewModel.HeadParts.Keys)
+        {
+            model.HeadParts[headPartType].Clear();
+            foreach (var headPartAssignment in viewModel.HeadParts[headPartType])
+            {
+                model.HeadParts[headPartType].Add(headPartAssignment.DumpToModel());
+            }
+        }
+
         model.DispName = viewModel.DispName;
         model.NPCFormKey = viewModel.NPCFormKey;
         return model;

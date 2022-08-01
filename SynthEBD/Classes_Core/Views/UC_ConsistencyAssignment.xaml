@@ -27,6 +27,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0">Name</TextBlock>
@@ -151,5 +152,37 @@
             <TextBlock Text="{Binding Height, UpdateSourceTrigger=PropertyChanged}" ></TextBlock>
             <Button VerticalAlignment="Center" Margin="5 0 0 0" Command="{Binding DeleteHeightCommand}" Foreground="Firebrick">X</Button>
         </StackPanel>
+
+        <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 10 0 0">Head Parts</TextBlock>
+        <ItemsControl Grid.Row="8" Grid.Column="2" ItemsSource="{Binding HeadParts}" Margin="0 10 0 0" BorderThickness="1" BorderBrush="MediumPurple">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Key}"/>
+                        <ItemsControl ItemsSource="{Binding Value}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding EditorID}" Foreground="{Binding BorderColor}"/>
+                                        <TextBlock Text=": "/>
+                                        <Button VerticalAlignment="Center"  Command="{Binding Path=DeleteMe}" Foreground="Firebrick">X</Button>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
     </Grid>
 </UserControl>

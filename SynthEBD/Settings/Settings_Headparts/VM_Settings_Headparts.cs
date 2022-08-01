@@ -25,13 +25,13 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
 
         Types = new()
         {
-            { HeadPart.TypeEnum.Eyebrows, new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings) },
-            { HeadPart.TypeEnum.Eyes, new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings) },
-            { HeadPart.TypeEnum.Face, new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings) },
-            { HeadPart.TypeEnum.FacialHair, new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings) },
-            { HeadPart.TypeEnum.Hair, new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings) },
-            { HeadPart.TypeEnum.Misc, new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings) },
-            { HeadPart.TypeEnum.Scars, new VM_HeadPartList(oBodySettings.DescriptorUI, generalSettingsVM.RaceGroupings, this, oBodySettings) }
+            { HeadPart.TypeEnum.Eyebrows, new VM_HeadPartList(HeadPart.TypeEnum.Eyebrows, generalSettingsVM.RaceGroupings, this, oBodySettings) },
+            { HeadPart.TypeEnum.Eyes, new VM_HeadPartList(HeadPart.TypeEnum.Eyes, generalSettingsVM.RaceGroupings, this, oBodySettings) },
+            { HeadPart.TypeEnum.Face, new VM_HeadPartList(HeadPart.TypeEnum.Face, generalSettingsVM.RaceGroupings, this, oBodySettings) },
+            { HeadPart.TypeEnum.FacialHair, new VM_HeadPartList(HeadPart.TypeEnum.FacialHair, generalSettingsVM.RaceGroupings, this, oBodySettings) },
+            { HeadPart.TypeEnum.Hair, new VM_HeadPartList(HeadPart.TypeEnum.Hair, generalSettingsVM.RaceGroupings, this, oBodySettings) },
+            { HeadPart.TypeEnum.Misc, new VM_HeadPartList(HeadPart.TypeEnum.Misc, generalSettingsVM.RaceGroupings, this, oBodySettings) },
+            { HeadPart.TypeEnum.Scars, new VM_HeadPartList(HeadPart.TypeEnum.Scars, generalSettingsVM.RaceGroupings, this, oBodySettings) }
         };
 
         ViewImportMenu = new RelayCommand(

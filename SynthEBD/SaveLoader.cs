@@ -127,13 +127,14 @@ public class SaveLoader
             _assetPackFactory,
             TexMesh,
             BodyGen,
+            HeadParts,
             _specificNpcAssignmentFactory,
             _npcAssignmentsUi,
             _state.SpecificNPCAssignments);
 
         // Load Consistency (must load after plugin view models)
         _state.Consistency = SettingsIO_Misc.LoadConsistency(out loadSuccess);
-        VM_ConsistencyUI.GetViewModelsFromModels(_state.Consistency, _consistencyUi.Assignments, TexMesh.AssetPacks);
+        VM_ConsistencyUI.GetViewModelsFromModels(_state.Consistency, _consistencyUi.Assignments, TexMesh.AssetPacks, HeadParts);
     }
 
     public void DumpViewModelsToModels()

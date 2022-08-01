@@ -99,13 +99,13 @@ public class VM_ConsistencyUI : VM
         this.CurrentlyDisplayedAssignment = this.Assignments.Where(x => x.NPCFormKey.ToString() == SelectedNPCFormKey.ToString()).FirstOrDefault();
     }
 
-    public static void GetViewModelsFromModels(Dictionary<string, NPCAssignment> models, ObservableCollection<VM_ConsistencyAssignment> viewModels, ObservableCollection<VM_AssetPack> AssetPackVMs)
+    public static void GetViewModelsFromModels(Dictionary<string, NPCAssignment> models, ObservableCollection<VM_ConsistencyAssignment> viewModels, ObservableCollection<VM_AssetPack> AssetPackVMs, VM_Settings_Headparts headParts)
     {
         viewModels.Clear();
         foreach (var model in models)
         {
             if (model.Value == null) { continue; }
-            viewModels.Add(VM_ConsistencyAssignment.GetViewModelFromModel(model.Value, AssetPackVMs));
+            viewModels.Add(VM_ConsistencyAssignment.GetViewModelFromModel(model.Value, AssetPackVMs, headParts));
         }
     }
 

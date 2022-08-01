@@ -7,10 +7,11 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using ReactiveUI;
 using DynamicData.Binding;
+using System.Linq;
 
 namespace SynthEBD;
 
-public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
+public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 {
     public delegate VM_SpecificNPCAssignment Factory();
 
@@ -100,6 +101,15 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
             }
         );
 
+        AddHeadPart = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: x =>
+            {
+                var type = (HeadPart.TypeEnum)x;
+                HeadParts[type].Add(new(null, HeadParts[type], SubscribedHeadPartSettings, type, this));
+            }
+        );
+
         UpdateAvailableAssetPacks(this);
         UpdateAvailableBodySlides(SubscribedOBodySettings, SubscribedGeneralSettings);
     }
@@ -127,17 +137,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
         { HeadPart.TypeEnum.Scars, new ObservableCollection<VM_HeadPartAssignment>() }
     };
 
-    public Dictionary<HeadPart.TypeEnum, ObservableCollection<VM_HeadPart>> AvailableHeadParts { get; set; } = new()
-    {
-        { HeadPart.TypeEnum.Eyebrows, new ObservableCollection<VM_HeadPart>() },
-        { HeadPart.TypeEnum.Eyes, new ObservableCollection<VM_HeadPart>() },
-        { HeadPart.TypeEnum.Face, new ObservableCollection<VM_HeadPart>() },
-        { HeadPart.TypeEnum.FacialHair, new ObservableCollection<VM_HeadPart>() },
-        { HeadPart.TypeEnum.Hair, new ObservableCollection<VM_HeadPart>() },
-        { HeadPart.TypeEnum.Misc, new ObservableCollection<VM_HeadPart>() },
-        { HeadPart.TypeEnum.Scars, new ObservableCollection<VM_HeadPart>() }
-    };
-
     //Needed by UI
     public ObservableCollection<VM_AssetPack> AvailableAssetPacks { get; set; } = new();
     public ObservableCollection<VM_AssetPack> SubscribedAssetPacks { get; set; }
@@ -151,7 +150,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
     public ObservableCollection<VM_BodySlideSetting> AvailableBodySlides { get; set; }
     public VM_BodyGenTemplate SelectedTemplate { get; set; }
 
-    public Gender Gender = Gender.Female;
+    public Gender Gender { get; set; }
 
     public VM_Settings_General SubscribedGeneralSettings { get; set; }
     public VM_SettingsOBody SubscribedOBodySettings { get; set; }
@@ -165,11 +164,13 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
     public RelayCommand AddForcedReplacer { get; set; }
     public RelayCommand DeleteForcedMixInSubgroup { get; set; }
 
+    public RelayCommand AddHeadPart { get; set; }
     public static VM_SpecificNPCAssignment GetViewModelFromModel(
         NPCAssignment model, 
         VM_AssetPack.Factory assetPackFactory, 
         VM_SettingsTexMesh texMesh,
         VM_SettingsBodyGen bodyGen,
+        VM_Settings_Headparts headParts,
         VM_SpecificNPCAssignment.Factory specificNpcAssignmentFactory)
     {
         var viewModel = specificNpcAssignmentFactory();
@@ -270,6 +271,16 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
         }
 
         viewModel.ForcedBodySlide = model.BodySlidePreset;
+
+        foreach (var headPartType in viewModel.HeadParts.Keys)
+        {
+            viewModel.HeadParts[headPartType].Clear();
+            if (!model.HeadParts.ContainsKey(headPartType)) { model.HeadParts.Add(headPartType, new()); }
+            foreach (var headPartAssignment in model.HeadParts[headPartType])
+            {
+                viewModel.HeadParts[headPartType].Add(VM_HeadPartAssignment.GetViewModelFromModel(headPartAssignment, headPartType, viewModel.HeadParts[headPartType], headParts, viewModel));
+            }
+        }
 
         viewModel.DispName = Converters.CreateNPCDispNameFromFormKey(viewModel.NPCFormKey);
 
@@ -385,6 +396,16 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
         model.BodyGenMorphNames = viewModel.ForcedBodyGenMorphs.Select(morph => morph.Label).ToList();
         model.BodySlidePreset = viewModel.ForcedBodySlide;
         model.NPCFormKey = viewModel.NPCFormKey;
+
+        foreach (var headPartType in viewModel.HeadParts.Keys)
+        {
+            model.HeadParts[headPartType].Clear();
+            foreach (var headPartAssignment in viewModel.HeadParts[headPartType])
+            {
+                model.HeadParts[headPartType].Add(headPartAssignment.DumpToModel());
+            }
+        }
+
         return model;
     }
 
@@ -608,11 +629,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets
             Logger.LogError("Could not resolve gender of NPC with FormKey " + NPCFormKey.ToString() + " because it does not exist in the current load order.");
         }
         return Gender.Male;
-    }
-
-    public void RefreshAvailableHeadParts(HeadPart.TypeEnum type)
-    {
-        
     }
 
     public class VM_MixInSpecificAssignment : VM, IHasForcedAssets

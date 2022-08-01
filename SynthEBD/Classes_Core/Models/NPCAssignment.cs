@@ -14,7 +14,16 @@ public class NPCAssignment
     public string BodySlidePreset { get; set; } = "";
     public List<AssetReplacerAssignment> AssetReplacerAssignments { get; set; } = new();
     public List<MixInAssignment> MixInAssignments { get; set;} = new();
-    public Dictionary<HeadPart.TypeEnum, List<FormKey>> HeadParts { get; set; } = new();
+    public Dictionary<HeadPart.TypeEnum, List<FormKeyEditorIDPair>> HeadParts { get; set; } = new()
+    {
+        { HeadPart.TypeEnum.Eyebrows, new() },
+        { HeadPart.TypeEnum.Eyes, new() },
+        { HeadPart.TypeEnum.Face, new() },
+        { HeadPart.TypeEnum.FacialHair, new() },
+        { HeadPart.TypeEnum.Hair, new() },
+        { HeadPart.TypeEnum.Misc, new() },
+        { HeadPart.TypeEnum.Scars, new() }
+    };
 
     public class AssetReplacerAssignment
     {

@@ -11,6 +11,8 @@ namespace SynthEBD
     {
         public FormKey HeadPart { get; set; }
         public string EditorID { get; set; }
+        public bool bAllowMale { get; set; }
+        public bool bAlloweFemale { get; set; }
         public HashSet<FormKey> AllowedRaces { get; set; } = new();
         public HashSet<FormKey> DisallowedRaces { get; set; } = new();
         public HashSet<string> AllowedRaceGroupings { get; set; } = new();
