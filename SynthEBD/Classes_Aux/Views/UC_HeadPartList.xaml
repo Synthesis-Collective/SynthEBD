@@ -36,16 +36,12 @@
             <local:UC_HeadPartCategoryRules DataContext="{Binding DisplayedRuleSet}"/>
         </Expander>
 
-        <!--<ComboBox Grid.Row="1" Grid.Column="0" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DisplayGender}}}" SelectedValue="{Binding Path=GenderToggle, Mode=TwoWay}" IsSynchronizedWithCurrentItem="True"/> -->
         <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal">
-            <TextBlock Text="Male"/>
-            <CheckBox Margin="5 0 5 0" IsChecked="{Binding bDisplayMale, Mode=TwoWay}"/>
-            <TextBlock Text="Female"/>
-            <CheckBox Margin="5 0 0 0" IsChecked="{Binding bDisplayFemale, Mode=TwoWay}"/>
-            <TextBlock Margin="5 0 0 0" Text="{Binding TestProperty}"/>
+            <TextBlock Text="Display Gender: " VerticalAlignment="Center" />
+            <ComboBox ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DisplayGender}}}" SelectedValue="{Binding Path=GenderToggle, Mode=TwoWay}" IsSynchronizedWithCurrentItem="True"/>
         </StackPanel>
         
-        <ScrollViewer Grid.Row="3" Grid.Column="0">
+        <ScrollViewer Grid.Row="2" Grid.Column="0">
             <StackPanel >
                 <ListBox SelectedValue="{Binding DisplayedHeadPart}" ItemsSource="{Binding DisplayedList}" IsSynchronizedWithCurrentItem="False" >
                     <ListBox.ItemTemplate>
@@ -80,7 +76,7 @@
             </StackPanel>
         </ScrollViewer>
 
-        <ContentPresenter Grid.Row="1" Grid.Column="1" Grid.RowSpan="4" Content="{Binding DisplayedHeadPart}">
+        <ContentPresenter Grid.Row="2" Grid.Column="1" Grid.RowSpan="4" Content="{Binding DisplayedHeadPart}">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_HeadPart}">
                     <local:UC_HeadPart/>
