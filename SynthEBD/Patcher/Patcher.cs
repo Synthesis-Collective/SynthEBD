@@ -298,7 +298,7 @@ public class Patcher
                 continue;
             }
 
-            if (PatcherSettings.General.ExcludePresets && npc.EditorID.Contains("Preset"))
+            if (PatcherSettings.General.ExcludePresets && npc.EditorID != null && npc.EditorID.Contains("Preset"))
             {
                 continue;
             }

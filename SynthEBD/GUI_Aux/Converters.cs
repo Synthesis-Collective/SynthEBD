@@ -18,7 +18,7 @@ class Converters
             {
                 foreach (var race in plugin.Mod.Races)
                 {
-                    if (race.EditorID.ToLower() == EDID.ToLower())
+                    if (race.EditorID != null && race.EditorID.ToLower() == EDID.ToLower())
                     {
                         return race.FormKey;
                     }
@@ -42,7 +42,7 @@ class Converters
             }
             else
             {
-                subName = npcRecord.EditorID;
+                subName = npcRecord.EditorID ?? "No EditorID";
             }
             return subName + " (" + NPCFormKey.ToString() + ")";
         }
@@ -121,7 +121,7 @@ class Converters
                 case "EDID":
                     foreach (var npcGetter in env.LoadOrder.PriorityOrder.Npc().WinningContextOverrides().ToList())
                     {
-                        if (npcGetter.Record.EditorID.ToString() == value)
+                        if (npcGetter.Record.EditorID != null && npcGetter.Record.EditorID.ToString() == value)
                         {
                             npcAttributes.Add(npcGetter.Record.FormKey);
                         }

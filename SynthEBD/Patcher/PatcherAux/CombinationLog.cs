@@ -73,7 +73,7 @@ public class CombinationLog
                 {
                     if (Converters.FormKeyStringToFormIDString(record.FormKey, out string formID))
                     {
-                        fileContents.Add("\t\t\t" + record.EditorID + "(" + formID + ")");
+                        fileContents.Add("\t\t\t" + record.EditorID ?? "No EditorID" + "(" + formID + ")");
                     }
                 }
             }
@@ -87,7 +87,7 @@ public class CombinationLog
         {
             if (_environmentProvider.Environment.LinkCache.TryResolve(containedFormLink.FormKey, containedFormLink.Type, out var resolvedSubRecord))
             {
-                var loggedSubRecord = new GeneratedRecordInfo() { EditorID = resolvedSubRecord.EditorID, FormKey = resolvedSubRecord.FormKey.ToString(), SubRecords = resolvedSubRecord.EnumerateFormLinks().Where(x => x.FormKey.ModKey == resolvedSubRecord.FormKey.ModKey).ToHashSet() };
+                var loggedSubRecord = new GeneratedRecordInfo() { EditorID = resolvedSubRecord.EditorID ?? "No EditorID", FormKey = resolvedSubRecord.FormKey.ToString(), SubRecords = resolvedSubRecord.EnumerateFormLinks().Where(x => x.FormKey.ModKey == resolvedSubRecord.FormKey.ModKey).ToHashSet() };
                     
                 if (!subRecords.Contains(loggedSubRecord))
                 {
@@ -170,7 +170,18 @@ public class GeneratedRecordInfo
     {
         public bool Equals(GeneratedRecordInfo x, GeneratedRecordInfo y)
         {
-            return x.FormKey == y.FormKey && x.EditorID == y.EditorID;
+            if (x.FormKey == y.FormKey)
+            {
+                if (x.EditorID != null && y.EditorID != null && x.EditorID == y.EditorID)
+                {
+                    return true;
+                }
+                else if (x.EditorID == null && y.EditorID == null)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public int GetHashCode([DisallowNull] GeneratedRecordInfo obj)

@@ -232,7 +232,7 @@ public class RecordGenerator
 
         if (newRecord == null)
         {
-            Logger.LogError("Record template error: Could not obtain a subrecord from any template NPCs " + string.Join(", ", group.Select(x => x.TemplateNPC).Select(x => x.EditorID)) + " at path: " + group.Key + ". This subrecord will not be assigned.");
+            Logger.LogError("Record template error: Could not obtain a subrecord from any template NPCs " + string.Join(", ", group.Select(x => x.TemplateNPC).Select(x => x.EditorID ?? "No EditorID")) + " at path: " + group.Key + ". This subrecord will not be assigned.");
             RemovePathsFromList(allPaths, group);
             currentObj = recordToCopy;
             return false;
@@ -391,7 +391,15 @@ public class RecordGenerator
         }
         else
         {
-            record.EditorID += "_Patched";
+            if (record.EditorID != null)
+            {
+                record.EditorID += "_Patched";
+            }
+            else
+            {
+                record.EditorID = "No EditorID_Patched";
+            }
+
             if (ModifiedRecordCounts.ContainsKey(templateFKstr))
             {
                 ModifiedRecordCounts[templateFKstr]++;
@@ -409,14 +417,14 @@ public class RecordGenerator
     {
         foreach (var newRecord in records)
         {
-            if (EdidCounts.ContainsKey(newRecord.EditorID))
+            if (EdidCounts.ContainsKey(newRecord.EditorID ?? "No EditorID"))
             {
-                EdidCounts[newRecord.EditorID]++;
-                newRecord.EditorID += EdidCounts[newRecord.EditorID].ToString("D4"); // pad with leading zeroes https://stackoverflow.com/questions/4325267/c-sharp-convert-int-to-string-with-padding-zeros
+                EdidCounts[newRecord.EditorID ?? "No EditorID"]++;
+                newRecord.EditorID += EdidCounts[newRecord.EditorID ?? "No EditorID"].ToString("D4"); // pad with leading zeroes https://stackoverflow.com/questions/4325267/c-sharp-convert-int-to-string-with-padding-zeros
             }
             else
             {
-                EdidCounts.Add(newRecord.EditorID, 1);
+                EdidCounts.Add(newRecord.EditorID ?? "No EditorID", 1);
                 newRecord.EditorID += 1.ToString("D4");
             }
         }
@@ -429,7 +437,7 @@ public class RecordGenerator
         {
             if (item.TemplateNPC != null)
             {
-                templateNames.Add(item.TemplateNPC.EditorID);
+                templateNames.Add(item.TemplateNPC.EditorID ?? "No EditorID");
             }
         }
         return string.Join(", ", templateNames);
@@ -549,7 +557,7 @@ public class RecordGenerator
     public static void LogRecordAlongPaths(IGrouping<string, FilePathReplacementParsed> group, IMajorRecord record)
     {
         HashSet<GeneratedRecordInfo> assignedRecords = new HashSet<GeneratedRecordInfo>();
-        var recordEntry = new GeneratedRecordInfo() { FormKey = record.FormKey.ToString(), EditorID = record.EditorID, SubRecords = record.EnumerateFormLinks().Where(x => x.FormKey.ModKey == record.FormKey.ModKey).ToHashSet() };
+        var recordEntry = new GeneratedRecordInfo() { FormKey = record.FormKey.ToString(), EditorID = record.EditorID ?? "No EditorID", SubRecords = record.EnumerateFormLinks().Where(x => x.FormKey.ModKey == record.FormKey.ModKey).ToHashSet() };
 
         foreach (var entry in group)
         {

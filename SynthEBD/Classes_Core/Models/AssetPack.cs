@@ -450,7 +450,7 @@ class ZEBDAssetPack
     {
         foreach (var npc in plugin.Npcs)
         {
-            if (npc.EditorID == edid)
+            if (npc.EditorID != null && npc.EditorID == edid)
             {
                 return npc.FormKey;
             }
