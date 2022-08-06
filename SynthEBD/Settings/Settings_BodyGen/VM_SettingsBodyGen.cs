@@ -213,7 +213,7 @@ public class VM_SettingsBodyGen : VM
             humanoidRaces.IsSelected = true;
         }
         var starterCombination = new VM_BodyGenCombination(newConfig.GroupUI, starterMapping);
-        starterCombination.Members.Add("Group 1");
+        starterCombination.Members.Add(new VM_CollectionMemberString("Group 1", starterCombination.Members));
         starterMapping.Combinations.Add(starterCombination);
         newConfig.GroupMappingUI.RacialTemplateGroupMap.Add(starterMapping);
     }

@@ -19,7 +19,7 @@ public class VM_BodyGenGroupMappingMenu : VM
                 var newCombination = new VM_BodyGenCombination(groupsMenu, newMapping);
                 if (groupsMenu.TemplateGroups.Any())
                 {
-                    newCombination.Members.Add(groupsMenu.TemplateGroups.First().Content);
+                    newCombination.Members.Add(groupsMenu.TemplateGroups.First());
                 }
                 newMapping.Combinations.Add(newCombination);
                 this.RacialTemplateGroupMap.Add(newMapping);
@@ -54,7 +54,7 @@ public class VM_BodyGenRacialMapping : VM
                 var newCombination = new VM_BodyGenCombination(groupsMenu, this);
                 if (groupsMenu.TemplateGroups.Any())
                 {
-                    newCombination.Members.Add(groupsMenu.TemplateGroups.First().Content);
+                    newCombination.Members.Add(groupsMenu.TemplateGroups.First());
                 }
                 this.Combinations.Add(newCombination);
             }
@@ -128,17 +128,17 @@ public class VM_BodyGenCombination : VM
 
         RemoveMember = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: x => { this.Members.Remove((string)x); CheckForEmptyCombination(); }
+            execute: x => { this.Members.Remove((VM_CollectionMemberString)x); CheckForEmptyCombination(); }
         );
 
         AddMember = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.Members.Add("")
+            execute: _ => this.Members.Add(new VM_CollectionMemberString("", this.Members))
         );
 
         this.Members.ToObservableChangeSet().Subscribe(x => CheckForEmptyCombination());
     }
-    public ObservableCollection<string> Members { get; set; } = new();
+    public ObservableCollection<VM_CollectionMemberString> Members { get; set; } = new();
     public double ProbabilityWeighting { get; set; } = 1;
 
     public ObservableCollection<VM_CollectionMemberString> MonitoredGroups { get; set; }
@@ -153,7 +153,7 @@ public class VM_BodyGenCombination : VM
     {
         VM_BodyGenCombination viewModel = new VM_BodyGenCombination(groupsMenu, parent);
         viewModel.ProbabilityWeighting = model.ProbabilityWeighting;
-        viewModel.Members = new ObservableCollection<string>(model.Members);
+        viewModel.Members = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(model.Members);
         return viewModel;
     }
 
@@ -161,7 +161,7 @@ public class VM_BodyGenCombination : VM
     {
         BodyGenConfig.RacialMapping.BodyGenCombination model = new BodyGenConfig.RacialMapping.BodyGenCombination();
         model.ProbabilityWeighting = viewModel.ProbabilityWeighting;
-        model.Members = viewModel.Members.ToHashSet();
+        model.Members = viewModel.Members.Select(x => x.Content).ToHashSet();
         return model;
     }
 
