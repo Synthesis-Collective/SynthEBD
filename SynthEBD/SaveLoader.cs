@@ -19,6 +19,7 @@ public class SaveLoader
     private readonly VM_BodyGenConfig.Factory _bodyGenConfigFactory;
     private readonly VM_SpecificNPCAssignment.Factory _specificNpcAssignmentFactory;
     private readonly VM_SpecificNPCAssignmentsUI _npcAssignmentsUi;
+    private readonly PatcherSettingsProvider _patcherSettingsProvider;
 
     public SaveLoader(
         MainState state,
@@ -31,7 +32,8 @@ public class SaveLoader
         VM_BlockListUI blockList,
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
         VM_SpecificNPCAssignment.Factory specificNpcAssignmentFactory,
-        VM_SpecificNPCAssignmentsUI npcAssignmentsUi)
+        VM_SpecificNPCAssignmentsUI npcAssignmentsUi,
+        PatcherSettingsProvider patcherSettingsProvider)
     {
         _state = state;
         _assetPackFactory = assetPackFactory;
@@ -43,8 +45,9 @@ public class SaveLoader
         _bodyGenConfigFactory = bodyGenConfigFactory;
         _specificNpcAssignmentFactory = specificNpcAssignmentFactory;
         _npcAssignmentsUi = npcAssignmentsUi;
+        _patcherSettingsProvider = patcherSettingsProvider;
     }
-    
+
     public void SaveAndRefreshPlugins()
     {
         System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;
@@ -64,7 +67,7 @@ public class SaveLoader
     {
         // Load general settings
         SettingsIO_General.LoadGeneralSettings(out var loadSuccess);
-        VM_Settings_General.GetViewModelFromModel(General);
+        VM_Settings_General.GetViewModelFromModel(General, _patcherSettingsProvider);
 
         // Initialize patchable races from general settings (required by some UI elements)
         Patcher.ResolvePatchableRaces();

@@ -175,7 +175,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     public RelayCommand SelectPortableSettingsFolder { get; }
     public RelayCommand ClearPortableSettingsFolder { get; }
     
-    public static void GetViewModelFromModel(VM_Settings_General viewModel)
+    public static void GetViewModelFromModel(VM_Settings_General viewModel, PatcherSettingsProvider patcherSettingsProvider)
     {
         var model = PatcherSettings.General;
         viewModel.OutputDataFolder = model.OutputDataFolder;
@@ -200,6 +200,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, viewModel);
         viewModel.AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
         viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;
+
+        viewModel.PortableSettingsFolder = patcherSettingsProvider.SourceSettings.Value.PortableSettingsFolder ?? String.Empty;
     }
     public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
     {
