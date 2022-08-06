@@ -15,7 +15,6 @@ public class VM_BodyGenTemplateMenu : VM
 {
     public VM_BodyGenTemplateMenu(VM_BodyGenConfig parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
-        this.CurrentlyDisplayedTemplate = new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, this.Templates, parentConfig);
         AddTemplate = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => this.Templates.Add(new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, this.Templates, parentConfig))
@@ -70,9 +69,10 @@ public class VM_BodyGenTemplate : VM
 
         this.ParentConfig = parentConfig;
         this.ParentCollection = parentCollection;
-        parentCollection.CollectionChanged += UpdateOtherGroupsTemplateCollection;
-        SubscribedTemplateGroups.CollectionChanged += UpdateOtherGroupsTemplateCollection;
-        this.GroupSelectionCheckList.PropertyChanged += UpdateOtherGroupsTemplateCollectionP;
+
+        parentCollection.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection());
+        SubscribedTemplateGroups.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection());
+        GroupSelectionCheckList.CollectionMemberStrings.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection());
 
         this.WhenAnyValue(x => x.DescriptorsSelectionMenu.Header).Subscribe(x => UpdateStatusDisplay());
         this.WhenAnyValue(x => x.GroupSelectionCheckList.Header).Subscribe(x => UpdateStatusDisplay());
@@ -205,24 +205,6 @@ public class VM_BodyGenTemplate : VM
         model.RequiredTemplates = viewModel.RequiredTemplates.Select(x => x.Content).ToHashSet();
         model.WeightRange = viewModel.WeightRange;
         return model;
-    }
-
-    public void UpdateOtherGroupsTemplateCollection(object sender, NotifyCollectionChangedEventArgs e)
-    {
-        var excludedCollection = this.UpdateThisOtherGroupsTemplateCollection();
-        foreach(var template in excludedCollection)
-        {
-            template.UpdateThisOtherGroupsTemplateCollection();
-        }
-    }
-
-    public void UpdateOtherGroupsTemplateCollectionP(object sender, PropertyChangedEventArgs e)
-    {
-        var excludedCollection = this.UpdateThisOtherGroupsTemplateCollection();
-        foreach (var template in excludedCollection)
-        {
-            template.UpdateThisOtherGroupsTemplateCollection();
-        }
     }
 
     public ObservableCollection<VM_BodyGenTemplate> UpdateThisOtherGroupsTemplateCollection()

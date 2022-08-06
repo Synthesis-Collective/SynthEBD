@@ -80,12 +80,14 @@ public class VM_LinkedNPCGroup : VM
             m.GroupName = vm.GroupName;
             m.NPCFormKeys = vm.NPCFormKeys.ToHashSet();
 
-            var fkString = vm.Primary.Split('|')[2];
-            if (FormKey.TryFactory(fkString, out var primary))
+            if (vm.Primary != null && vm.Primary.Any())
             {
-                m.Primary = primary;
-            }    
-
+                var fkString = vm.Primary.Split('|')[2];
+                if (FormKey.TryFactory(fkString, out var primary))
+                {
+                    m.Primary = primary;
+                }
+            }
             models.Add(m);
         }
     }

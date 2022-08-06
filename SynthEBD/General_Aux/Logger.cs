@@ -430,12 +430,12 @@ public sealed class Logger : VM
 
     public static string GetNPCLogNameString(INpcGetter npc)
     {
-        return npc.Name?.String + " | " + npc.EditorID ?? "No EditorID" + " | " + npc.FormKey.ToString();
+        return npc.Name?.String + " | " + (npc.EditorID ?? "No EditorID") + " | " + npc.FormKey.ToString();
     }
 
     public static string GetNPCLogReportingString(INpcGetter npc)
     {
-        return npc.Name?.String + " (" + npc.EditorID ?? "No EditorID" + ") " + npc.FormKey.ToString().Replace(':', '-');
+        return npc.Name?.String + " (" + (npc.EditorID ?? "No EditorID") + ") " + npc.FormKey.ToString().Replace(':', '-');
     }
 
     public static string GetSubgroupIDString(FlattenedSubgroup subgroup)

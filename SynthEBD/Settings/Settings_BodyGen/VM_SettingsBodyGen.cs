@@ -40,6 +40,7 @@ public class VM_SettingsBodyGen : VM
                 this.CurrentlyDisplayedConfig = newConfig;
                 this.DisplayedConfigIsMale = true;
                 this.DisplayedConfigIsFemale = false;
+                InitializeNewBodyGenConfig(newConfig, generalSettingsVM);
             });
 
         AddNewFemaleConfig = new SynthEBD.RelayCommand(
@@ -53,6 +54,7 @@ public class VM_SettingsBodyGen : VM
                 this.CurrentlyDisplayedConfig = newConfig;
                 this.DisplayedConfigIsFemale = true;
                 this.DisplayedConfigIsMale = false;
+                InitializeNewBodyGenConfig(newConfig, generalSettingsVM);
             });
 
         this.WhenAnyValue(x => x.CurrentMaleConfig).Subscribe(x =>
@@ -196,5 +198,23 @@ public class VM_SettingsBodyGen : VM
         {
             configModels.Female.Add(VM_BodyGenConfig.DumpViewModelToModel(femaleVM));
         }
+    }
+
+    public void InitializeNewBodyGenConfig(VM_BodyGenConfig newConfig, VM_Settings_General generalSettingsVM)
+    {
+        var starterGroup = new VM_CollectionMemberString("Group 1", newConfig.GroupUI.TemplateGroups);
+        newConfig.GroupUI.TemplateGroups.Add(starterGroup);
+
+        var starterMapping = new VM_BodyGenRacialMapping(newConfig.GroupUI, generalSettingsVM.RaceGroupings);
+        starterMapping.Label = "Mapping 1";
+        var humanoidRaces = starterMapping.RaceGroupings.RaceGroupingSelections.Where(x => x.SubscribedMasterRaceGrouping.Label.Equals("humanoid", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+        if (humanoidRaces != null)
+        {
+            humanoidRaces.IsSelected = true;
+        }
+        var starterCombination = new VM_BodyGenCombination(newConfig.GroupUI, starterMapping);
+        starterCombination.Members.Add("Group 1");
+        starterMapping.Combinations.Add(starterCombination);
+        newConfig.GroupMappingUI.RacialTemplateGroupMap.Add(starterMapping);
     }
 }

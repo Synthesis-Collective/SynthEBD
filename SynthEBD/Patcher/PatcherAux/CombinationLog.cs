@@ -73,7 +73,7 @@ public class CombinationLog
                 {
                     if (Converters.FormKeyStringToFormIDString(record.FormKey, out string formID))
                     {
-                        fileContents.Add("\t\t\t" + record.EditorID ?? "No EditorID" + "(" + formID + ")");
+                        fileContents.Add("\t\t\t" + (record.EditorID ?? "No EditorID") + " (" + formID + ")");
                     }
                 }
             }

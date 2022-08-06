@@ -3,8 +3,8 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
 using ReactiveUI;
+using DynamicData.Binding;
 
 namespace SynthEBD;
 
@@ -14,7 +14,16 @@ public class VM_BodyGenGroupMappingMenu : VM
     {
         AddMapping = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.RacialTemplateGroupMap.Add(new VM_BodyGenRacialMapping(groupsMenu, raceGroupingVMs))
+            execute: _ => {
+                var newMapping = new VM_BodyGenRacialMapping(groupsMenu, raceGroupingVMs);
+                var newCombination = new VM_BodyGenCombination(groupsMenu, newMapping);
+                if (groupsMenu.TemplateGroups.Any())
+                {
+                    newCombination.Members.Add(groupsMenu.TemplateGroups.First().Content);
+                }
+                newMapping.Combinations.Add(newCombination);
+                this.RacialTemplateGroupMap.Add(newMapping);
+                }
         );
 
         RemoveMapping = new SynthEBD.RelayCommand(
@@ -41,13 +50,32 @@ public class VM_BodyGenRacialMapping : VM
 
         AddCombination = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.Combinations.Add(new VM_BodyGenCombination(groupsMenu, this))
+            execute: _ => {
+                var newCombination = new VM_BodyGenCombination(groupsMenu, this);
+                if (groupsMenu.TemplateGroups.Any())
+                {
+                    newCombination.Members.Add(groupsMenu.TemplateGroups.First().Content);
+                }
+                this.Combinations.Add(newCombination);
+            }
         );
 
         RemoveCombination = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: x =>  this.Combinations.Remove((VM_BodyGenCombination)x)
         );
+
+        this.Combinations.ToObservableChangeSet().Subscribe(x =>
+        {
+            if (Combinations.Any())
+            {
+                ShowAddNew = false;
+            }
+            else
+            {
+                ShowAddNew = true;
+            }
+        });
     }
     public string Label { get; set; } = "";
     public ObservableCollection<FormKey> Races { get; set; } = new();
@@ -61,6 +89,7 @@ public class VM_BodyGenRacialMapping : VM
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
     public RelayCommand AddCombination { get; }
     public RelayCommand RemoveCombination { get; }
+    public bool ShowAddNew { get; set; }
 
     public static VM_BodyGenRacialMapping GetViewModelFromModel(BodyGenConfig.RacialMapping model, VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
@@ -107,7 +136,7 @@ public class VM_BodyGenCombination : VM
             execute: _ => this.Members.Add("")
         );
 
-        this.Members.CollectionChanged += CheckForEmptyCombination;
+        this.Members.ToObservableChangeSet().Subscribe(x => CheckForEmptyCombination());
     }
     public ObservableCollection<string> Members { get; set; } = new();
     public double ProbabilityWeighting { get; set; } = 1;
@@ -134,11 +163,6 @@ public class VM_BodyGenCombination : VM
         model.ProbabilityWeighting = viewModel.ProbabilityWeighting;
         model.Members = viewModel.Members.ToHashSet();
         return model;
-    }
-
-    public void CheckForEmptyCombination(object sender, NotifyCollectionChangedEventArgs e)
-    {
-        CheckForEmptyCombination();
     }
 
     public void CheckForEmptyCombination()

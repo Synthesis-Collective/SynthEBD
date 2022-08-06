@@ -14,13 +14,18 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
         VM_BodyShapeDescriptorCreationMenu.Factory bodyShapeDescriptorCreationMenuFactory,
         VM_SettingsBodyGen bodyGenSettingsVM)
     {
-        this.GroupMappingUI = new VM_BodyGenGroupMappingMenu(this.GroupUI, generalSettingsVM.RaceGroupings);
         this.GroupUI = new VM_BodyGenGroupsMenu(this);
+        this.GroupMappingUI = new VM_BodyGenGroupMappingMenu(this.GroupUI, generalSettingsVM.RaceGroupings);
         this.DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this);
         this.TemplateMorphUI = new VM_BodyGenTemplateMenu(this, generalSettingsVM.RaceGroupings);
         this.DisplayedUI = this.TemplateMorphUI;
         this.AttributeGroupMenu = new VM_AttributeGroupMenu(generalSettingsVM.AttributeGroupMenu, true);
         this.ParentCollection = parentCollection;
+
+        if (TemplateMorphUI.Templates.Any())
+        {
+            TemplateMorphUI.CurrentlyDisplayedTemplate = TemplateMorphUI.Templates.First();
+        }
 
         ClickTemplateMenu = new SynthEBD.RelayCommand(
             canExecute: _ => true,
