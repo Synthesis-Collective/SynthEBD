@@ -12,8 +12,6 @@ public class VM_BodyGenGroupMappingMenu : VM
 {
     public VM_BodyGenGroupMappingMenu(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
-        this.DisplayedMapping = new VM_BodyGenRacialMapping(groupsMenu, raceGroupingVMs);
-
         AddMapping = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => this.RacialTemplateGroupMap.Add(new VM_BodyGenRacialMapping(groupsMenu, raceGroupingVMs))

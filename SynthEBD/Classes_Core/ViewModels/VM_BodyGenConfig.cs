@@ -160,6 +160,11 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
         {
             GroupMappingUI.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.GetViewModelFromModel(RTG, GroupUI, generalSettingsVM.RaceGroupings));
         }
+        
+        if (GroupMappingUI.RacialTemplateGroupMap.Any())
+        {
+            GroupMappingUI.DisplayedMapping = GroupMappingUI.RacialTemplateGroupMap.First();
+        }
 
         DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, generalSettingsVM.RaceGroupings, this, model);
 

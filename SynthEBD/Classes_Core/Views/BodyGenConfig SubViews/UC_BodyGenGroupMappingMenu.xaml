@@ -57,10 +57,10 @@
             </StackPanel>
         </ScrollViewer>
 
-        <ContentPresenter Grid.Row="0" Grid.Column="1" Grid.RowSpan="4" Content="{Binding DisplayedMapping}">
+        <ContentPresenter Grid.Row="0" Grid.Column="1" Grid.RowSpan="4" Margin="5" Content="{Binding DisplayedMapping}">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_BodyGenRacialMapping}">
-                    <local:UC_BodyGenRacialMapping/>
+                    <local:UC_BodyGenRacialMapping BorderThickness="1" BorderBrush="MediumPurple"/>
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>

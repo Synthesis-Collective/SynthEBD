@@ -18,6 +18,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Grouping</TextBlock>
@@ -36,7 +37,8 @@
         </ContentPresenter>
 
         <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Morph Combinations</TextBlock>
-        <ItemsControl Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Combinations}" >
+        <Button Grid.Row="4" Grid.Column="0" Command="{Binding AddCombination}" Foreground="LightGreen" />
+        <ItemsControl Grid.Row="3" Grid.Column="1" Grid.RowSpan="2" ItemsSource="{Binding Combinations}" >
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_BodyGenCombination}">
                     <Grid>
