@@ -31,10 +31,13 @@ public partial class App : Application
 
     private void Application_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {
-        CustomMessageBox.DisplayNotificationOK("SynthEBD has crashed.", "SynthEBD has crashed with the following error:" + Environment.NewLine + ExceptionLogger.GetExceptionStack(e.Exception, ""));
+        string errorMessage = "SynthEBD has crashed with the following error:" + Environment.NewLine + ExceptionLogger.GetExceptionStack(e.Exception, "") + Environment.NewLine + Environment.NewLine;
+        errorMessage += "Patcher Settings Creation Log:" + Environment.NewLine + PatcherSettingsProvider.SettingsLog + Environment.NewLine + Environment.NewLine;
+        errorMessage += "Patcher Environment Creation Log:" + Environment.NewLine + PatcherEnvironmentProvider.Instance.EnvironmentLog;
+        CustomMessageBox.DisplayNotificationOK("SynthEBD has crashed.", errorMessage);
 
         var path = System.IO.Path.Combine(PatcherSettings.Paths.LogFolderPath, "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
-        PatcherIO.WriteTextFile(path, ExceptionLogger.GetExceptionStack(e.Exception, ""));
+        PatcherIO.WriteTextFile(path, errorMessage);
 
         e.Handled = true;
     }

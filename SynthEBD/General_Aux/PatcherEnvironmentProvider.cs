@@ -19,6 +19,12 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
     public RelayCommand ClearGameDataFolder { get; }
     public SkyrimMod OutputMod { get; set; }
     public IGameEnvironment<ISkyrimMod, ISkyrimModGetter> Environment { get; private set; }
+    public string EnvironmentLog { get; set; } = string.Empty;
+
+    private void LogEnvironmentEvent(string logString)
+    {
+        EnvironmentLog += logString + System.Environment.NewLine;
+    }
 
     public PatcherEnvironmentProvider(PatcherSettingsProvider settingsProvider)
     {
@@ -45,11 +51,19 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
 
     public void UpdateEnvironment()
     {
+        LogEnvironmentEvent("Creating Patcher Environment:");
         OutputMod = new SkyrimMod(ModKey.FromName(PatchFileName, ModType.Plugin), SkyrimVersion);
+        LogEnvironmentEvent("Output mod: " + OutputMod.ModKey.ToString());
+        LogEnvironmentEvent("Skyrim Version: " + SkyrimVersion.ToString());
         var builder = GameEnvironment.Typical.Builder<ISkyrimMod, ISkyrimModGetter>(SkyrimVersion.ToGameRelease());
         if (!GameDataFolder.IsNullOrWhitespace())
         {
             builder = builder.WithTargetDataFolder(GameDataFolder);
+            LogEnvironmentEvent("Game Data Directory: " + GameDataFolder.ToString());
+        }
+        else
+        {
+            LogEnvironmentEvent("Game Data Directory: Default");
         }
 
         var built = false;
@@ -63,9 +77,11 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
                     .WithOutputMod(OutputMod)
                 .Build();
             built = true;
+            LogEnvironmentEvent("Environment created successfully");
         }
         catch
         {
+            LogEnvironmentEvent("Environment was NOT successfully created");
             built = false;
         }
 
