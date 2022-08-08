@@ -201,7 +201,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         viewModel.AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
         viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;
 
-        viewModel.PortableSettingsFolder = patcherSettingsProvider.SourceSettings.Value.PortableSettingsFolder ?? String.Empty;
+        viewModel.PortableSettingsFolder = patcherSettingsProvider.SourceSettings.Value?.PortableSettingsFolder ?? String.Empty;
     }
     public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
     {
