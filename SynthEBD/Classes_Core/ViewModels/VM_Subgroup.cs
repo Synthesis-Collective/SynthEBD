@@ -351,7 +351,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         clone.ExcludedSubgroupIDs = new HashSet<string>(ExcludedSubgroupIDs);
         clone.RequiredSubgroups = new ObservableCollection<VM_Subgroup>(this.RequiredSubgroups);
         clone.ExcludedSubgroups = new ObservableCollection<VM_Subgroup>(this.ExcludedSubgroups);
-        clone.WeightRange = new NPCWeightRange { Lower = this.WeightRange.Lower, Upper = this.WeightRange.Upper };
+        clone.WeightRange = this.WeightRange.Clone();
         clone.ProbabilityWeighting = this.ProbabilityWeighting;
         clone.PathsMenu = this.PathsMenu.Clone();
         clone.GetDDSPaths(clone.ImagePaths);

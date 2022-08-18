@@ -181,7 +181,7 @@ public class VM_BodySlideSetting : VM
         viewModel.bAllowNonUnique = model.AllowNonUnique;
         viewModel.bAllowRandom = model.AllowRandom;
         viewModel.ProbabilityWeighting = model.ProbabilityWeighting;
-        viewModel.WeightRange = model.WeightRange;
+        viewModel.WeightRange = model.WeightRange.Clone();
 
         viewModel.UpdateStatusDisplay();
 
@@ -206,7 +206,7 @@ public class VM_BodySlideSetting : VM
         model.AllowNonUnique = viewModel.bAllowNonUnique;
         model.AllowRandom = viewModel.bAllowRandom;
         model.ProbabilityWeighting = viewModel.ProbabilityWeighting;
-        model.WeightRange = viewModel.WeightRange;
+        model.WeightRange = viewModel.WeightRange.Clone();
         model.HideInMenu = viewModel.IsHidden;
         return model;
     }

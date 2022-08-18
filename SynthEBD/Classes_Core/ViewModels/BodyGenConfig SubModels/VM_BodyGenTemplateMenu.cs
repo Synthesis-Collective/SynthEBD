@@ -179,7 +179,7 @@ public class VM_BodyGenTemplate : VM
         bAllowRandom = model.AllowRandom;
         ProbabilityWeighting = model.ProbabilityWeighting;
         RequiredTemplates = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(model.RequiredTemplates);
-        WeightRange = model.WeightRange;
+        WeightRange = model.WeightRange.Clone();
 
         UpdateStatusDisplay();
     }
@@ -203,7 +203,7 @@ public class VM_BodyGenTemplate : VM
         model.AllowRandom = viewModel.bAllowRandom;
         model.ProbabilityWeighting = viewModel.ProbabilityWeighting;
         model.RequiredTemplates = viewModel.RequiredTemplates.Select(x => x.Content).ToHashSet();
-        model.WeightRange = viewModel.WeightRange;
+        model.WeightRange = viewModel.WeightRange.Clone();
         return model;
     }
 

@@ -62,7 +62,7 @@ public class AssetPack : IModelHasSubgroups
             subgroup.DisallowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>(rules.DisallowedBodyGenDescriptors);
             subgroup.AllowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>(rules.AllowedBodySlideDescriptors);
             subgroup.DisallowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>(rules.DisallowedBodySlideDescriptors);
-            subgroup.WeightRange = new NPCWeightRange() { Lower = rules.WeightRange.Lower, Upper = rules.WeightRange.Upper};
+            subgroup.WeightRange = rules.WeightRange.Clone();
             return subgroup;
         }
     }
