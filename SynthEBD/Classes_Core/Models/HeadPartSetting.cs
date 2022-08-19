@@ -24,7 +24,7 @@ namespace SynthEBD
         public bool bAllowRandom { get; set; } = true;
         public double ProbabilityWeighting { get; set; } = 1;
         public NPCWeightRange WeightRange { get; set; } = new();
-        public List<HeadPartQuantityDistributionWeighting> DistributionProbabilities { get; set; } = new();
+        public double DistributionProbability { get; set; } = new();
         public HashSet<BodyShapeDescriptor> AllowedBodySlideDescriptors { get; set; } = new();
         public HashSet<BodyShapeDescriptor> DisallowedBodySlideDescriptors { get; set; } = new();
         public HashSet<BodyShapeDescriptor> AllowedBodyGenDescriptors { get; set; } = new();

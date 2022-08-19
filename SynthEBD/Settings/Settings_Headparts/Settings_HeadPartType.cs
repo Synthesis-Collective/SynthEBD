@@ -25,20 +25,10 @@ namespace SynthEBD
         public bool bAllowNonUnique { get; set; } = true;
         public bool bAllowRandom { get; set; } = true;
         public NPCWeightRange WeightRange { get; set; } = new();
-        public List<HeadPartQuantityDistributionWeighting> DistributionProbabilities { get; set; } = new()
-        {
-            new HeadPartQuantityDistributionWeighting() {Quantity = 0, ProbabilityWeighting = 1},
-            new HeadPartQuantityDistributionWeighting() {Quantity = 1, ProbabilityWeighting = 1}
-        };
+        public double DistributionProbability { get; set; } = 0.5;
         public HashSet<BodyShapeDescriptor> AllowedBodySlideDescriptors { get; set; } = new();
         public HashSet<BodyShapeDescriptor> DisallowedBodySlideDescriptors { get; set; } = new();
         public HashSet<BodyShapeDescriptor> AllowedBodyGenDescriptors { get; set; } = new();
         public HashSet<BodyShapeDescriptor> DisallowedBodyGenDescriptors { get; set; } = new();
-    }
-
-    public class HeadPartQuantityDistributionWeighting : IProbabilityWeighted
-    {
-        public int Quantity { get; set; }
-        public double ProbabilityWeighting { get; set; }
     }
 }

@@ -36,29 +36,6 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ => this.DisallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.DisallowedAttributes, false, null, ParentConfig.AttributeGroupMenu.Groups))
             );
-
-            AddDistributionWeighting = new SynthEBD.RelayCommand(
-                canExecute: _ => true,
-                execute: _ =>
-                {
-                    if (DistributionProbabilities.Any())
-                    {
-                        var existingWeights = DistributionProbabilities.Select(x => x.DistributionQuantity);
-                        var max = existingWeights.Max();
-                        var range = new HashSet<int>(Enumerable.Range(0, max));
-                        range.ExceptWith(existingWeights); // now only missing values remain
-                        var toAdd = max + 1;
-                        if (range.Any()) { toAdd = range.Min(); }
-                        DistributionProbabilities.Add(new VM_HeadPartQuantityDistributionWeighting(toAdd, 1, this));
-                    }
-                    else
-                    {
-                        DistributionProbabilities.Add(new VM_HeadPartQuantityDistributionWeighting(0, 1, this));
-                    }
-
-                    DistributionProbabilities = new(DistributionProbabilities.OrderBy(x => x.DistributionQuantity));
-                }
-            );
         }
         public bool bAllowFemale { get; set; } = true;
         public bool bAllowMale { get; set; } = true;
@@ -73,7 +50,7 @@ namespace SynthEBD
         public bool bAllowNonUnique { get; set; } = true;
         public bool bAllowRandom { get; set; } = true;
         public NPCWeightRange WeightRange { get; set; } = new();
-        public ObservableCollection<VM_HeadPartQuantityDistributionWeighting> DistributionProbabilities { get; set; } = new();
+        public double DistributionProbability { get; set; } = 0.5;
         public RelayCommand AddDistributionWeighting { get; }
         public string Caption_BodyShapeDescriptors { get; set; } = "";
         public ILinkCache lk { get; private set; }
@@ -100,10 +77,7 @@ namespace SynthEBD
             viewModel.bAllowUnique = model.bAllowUnique;
             viewModel.bAllowNonUnique = model.bAllowNonUnique;
             viewModel.bAllowRandom = model.bAllowRandom;
-            foreach (var distWeighting in model.DistributionProbabilities)
-            {
-                viewModel.DistributionProbabilities.Add(new VM_HeadPartQuantityDistributionWeighting(distWeighting.Quantity, distWeighting.ProbabilityWeighting, viewModel));
-            }
+            viewModel.DistributionProbability = model.DistributionProbability;
             viewModel.WeightRange = model.WeightRange;
             viewModel.AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, oBody.DescriptorUI, raceGroupingVMs, parentConfig);
             viewModel.DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, oBody.DescriptorUI, raceGroupingVMs, parentConfig);
@@ -124,40 +98,10 @@ namespace SynthEBD
             model.bAllowUnique = bAllowUnique;
             model.bAllowNonUnique = bAllowNonUnique;
             model.bAllowRandom = bAllowRandom;
-            model.DistributionProbabilities = DistributionProbabilities.Select(x => x.DumpToModel()).ToList();
+            model.DistributionProbability = DistributionProbability;
             model.WeightRange = WeightRange;
             model.AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(AllowedBodySlideDescriptors);
             model.DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(DisallowedBodySlideDescriptors);
-        }
-    }
-
-    public class VM_HeadPartQuantityDistributionWeighting : VM
-    {
-        public VM_HeadPartQuantityDistributionWeighting(int quantity, double weight, VM_HeadPartCategoryRules parentMenu)
-        {
-            ParentMenu = parentMenu;
-            DistributionQuantity = quantity;
-            DistributionWeight = weight;
-
-            DeleteMe = new SynthEBD.RelayCommand(
-                canExecute: _ => true,
-                execute: _ => ParentMenu.DistributionProbabilities.Remove(this)
-            ) ;
-        }
-        public int DistributionQuantity { get; set; }
-        public double DistributionWeight { get; set; }
-        public RelayCommand DeleteMe { get; }
-        VM_HeadPartCategoryRules ParentMenu { get; set; }   
-
-        public void CopyInFromViewModel(HeadPartQuantityDistributionWeighting model)
-        {
-            DistributionQuantity = model.Quantity;
-            DistributionWeight = model.ProbabilityWeighting;
-        }
-
-        public HeadPartQuantityDistributionWeighting DumpToModel()
-        {
-            return new HeadPartQuantityDistributionWeighting() { Quantity = DistributionQuantity, ProbabilityWeighting = DistributionWeight };
         }
     }
 }

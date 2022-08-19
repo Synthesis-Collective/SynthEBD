@@ -17,17 +17,7 @@ namespace SynthEBD
             { HeadPart.TypeEnum.FacialHair, new() },
             { HeadPart.TypeEnum.Hair, new() },
             { HeadPart.TypeEnum.Misc, new() },
-            { HeadPart.TypeEnum.Scars, new()
-                {
-                    DistributionProbabilities = new()
-                    {
-                        new HeadPartQuantityDistributionWeighting() { Quantity = 0, ProbabilityWeighting = 10 },
-                        new HeadPartQuantityDistributionWeighting() { Quantity = 1, ProbabilityWeighting = 10 },
-                        new HeadPartQuantityDistributionWeighting() { Quantity = 2, ProbabilityWeighting = 4 },
-                        new HeadPartQuantityDistributionWeighting() { Quantity = 3, ProbabilityWeighting = 1 }
-                    }
-                }
-            }
+            { HeadPart.TypeEnum.Scars, new() }
         };
     }
 }
