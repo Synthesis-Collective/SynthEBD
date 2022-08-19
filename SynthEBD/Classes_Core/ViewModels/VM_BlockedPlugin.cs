@@ -11,8 +11,14 @@ public class VM_BlockedPlugin : VM
 {
     public VM_BlockedPlugin()
     {
-        this.PropertyChanged += TriggerDispNameUpdate;
-        
+        this.WhenAnyValue(x => x.ModKey).Subscribe(x =>
+        {
+            if (!ModKey.IsNull)
+            {
+                DispName = ModKey.FileName;
+            }
+        });
+
         PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
@@ -20,6 +26,30 @@ public class VM_BlockedPlugin : VM
         PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LoadOrder)
             .Subscribe(x => LoadOrder = x)
             .DisposeWith(this);
+
+        this.WhenAnyValue(x => x.HeadParts).Subscribe(x =>
+        {
+            if (HeadParts)
+            {
+                HeadPartsMisc = true;
+                HeadPartsBeard = true;
+                HeadPartsBrows = true;
+                HeadPartsEyes = true;
+                HeadPartsScars = true;
+                HeadPartsHair = true;
+                HeadPartsFace = true;
+            }
+            else
+            {
+                HeadPartsMisc = false;
+                HeadPartsBeard = false;
+                HeadPartsBrows = false;
+                HeadPartsEyes = false;
+                HeadPartsScars = false;
+                HeadPartsHair = false;
+                HeadPartsFace = false;
+            }
+        });
     }
 
     // Caption
@@ -28,16 +58,17 @@ public class VM_BlockedPlugin : VM
     public bool Assets { get; set; } = true;
     public bool Height { get; set; } = false;
     public bool BodyShape { get; set; } = false;
+    public bool HeadParts { get; set; } = false;
+    public bool HeadPartsMisc { get; set; } = false;
+    public bool HeadPartsFace { get; set; } = false;
+    public bool HeadPartsEyes { get; set; } = false;
+    public bool HeadPartsBeard { get; set; } = false;
+    public bool HeadPartsScars { get; set; } = false;
+    public bool HeadPartsBrows { get; set; } = false;
+    public bool HeadPartsHair { get; set; } = false;
 
     public ILinkCache lk { get; private set; }
     public Mutagen.Bethesda.Plugins.Order.ILoadOrder<Mutagen.Bethesda.Plugins.Order.IModListing<ISkyrimModGetter>> LoadOrder { get; private set; }
-    public void TriggerDispNameUpdate(object sender, PropertyChangedEventArgs e)
-    {
-        if (this.ModKey.IsNull == false)
-        {
-            this.DispName = this.ModKey.FileName;
-        }
-    }
 
     public static VM_BlockedPlugin GetViewModelFromModel(BlockedPlugin model)
     {
@@ -56,7 +87,7 @@ public class VM_BlockedPlugin : VM
         model.ModKey = viewModel.ModKey;
         model.Assets = viewModel.Assets;
         model.Height = viewModel.Height;
-        model.BodyShape = viewModel.BodyShape; 
+        model.BodyShape = viewModel.BodyShape;
         return model;
     }
 }

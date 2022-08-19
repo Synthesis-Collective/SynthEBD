@@ -29,5 +29,8 @@ namespace SynthEBD
         public HashSet<BodyShapeDescriptor> DisallowedBodySlideDescriptors { get; set; } = new();
         public HashSet<BodyShapeDescriptor> AllowedBodyGenDescriptors { get; set; } = new();
         public HashSet<BodyShapeDescriptor> DisallowedBodyGenDescriptors { get; set; } = new();
+
+        [Newtonsoft.Json.JsonIgnore]
+        public int MatchedForceIfCount { get; set; } = 0;
     }
 }

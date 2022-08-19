@@ -555,4 +555,9 @@ public class Patcher
         public Dictionary<string, HashSet<string>> AllChosenMorphsMale = new();
         public Dictionary<string, HashSet<string>> AllChosenMorphsFemale = new();
     }
+
+    public class HeadPartTracker
+    {
+        public Dictionary<FormKey, HeadPartSelection> headParts = new();
+    }
 }

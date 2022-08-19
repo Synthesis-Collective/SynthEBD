@@ -8,12 +8,25 @@
              mc:Ignorable="d" 
              d:DataContext="{d:DesignInstance Type=local:VM_BlockedPlugin}"
              d:DesignHeight="450" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
@@ -28,5 +41,21 @@
         <CheckBox Grid.Row="2" Grid.Column="1"  IsChecked="{Binding Path=Height, Mode=TwoWay}"></CheckBox>
         <TextBlock Grid.Row="3" Grid.Column="0"  HorizontalAlignment="Center">Block Body Shape</TextBlock>
         <CheckBox Grid.Row="3" Grid.Column="1"  IsChecked="{Binding Path=BodyShape, Mode=TwoWay}"></CheckBox>
+        <TextBlock Grid.Row="4" Grid.Column="0" HorizontalAlignment="Center">Block Head Parts</TextBlock>
+        <CheckBox Grid.Row="4" Grid.Column="1"  IsChecked="{Binding Path=HeadParts, Mode=TwoWay}"></CheckBox>
+        <TextBlock Grid.Row="5" Grid.Column="0" HorizontalAlignment="Center" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}">Block Beards</TextBlock>
+        <CheckBox Grid.Row="5" Grid.Column="1"  IsChecked="{Binding Path=HeadPartsBeard, Mode=TwoWay}" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}"></CheckBox>
+        <TextBlock Grid.Row="6" Grid.Column="0" HorizontalAlignment="Center" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}">Block Brows</TextBlock>
+        <CheckBox Grid.Row="6" Grid.Column="1"  IsChecked="{Binding Path=HeadPartsBrows, Mode=TwoWay}" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}"></CheckBox>
+        <TextBlock Grid.Row="7" Grid.Column="0" HorizontalAlignment="Center" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}">Block Eyes</TextBlock>
+        <CheckBox Grid.Row="7" Grid.Column="1"  IsChecked="{Binding Path=HeadPartsEyes, Mode=TwoWay}" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}"></CheckBox>
+        <TextBlock Grid.Row="8" Grid.Column="0" HorizontalAlignment="Center" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}">Block Faces</TextBlock>
+        <CheckBox Grid.Row="8" Grid.Column="1"  IsChecked="{Binding Path=HeadPartsFace, Mode=TwoWay}" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}"></CheckBox>
+        <TextBlock Grid.Row="9" Grid.Column="0" HorizontalAlignment="Center" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}">Block Hair</TextBlock>
+        <CheckBox Grid.Row="9" Grid.Column="1"  IsChecked="{Binding Path=HeadPartsHair, Mode=TwoWay}" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}"></CheckBox>
+        <TextBlock Grid.Row="10" Grid.Column="0" HorizontalAlignment="Center" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}">Block Misc Head Parts</TextBlock>
+        <CheckBox Grid.Row="10" Grid.Column="1"  IsChecked="{Binding Path=HeadPartsMisc, Mode=TwoWay}" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}"></CheckBox>
+        <TextBlock Grid.Row="11" Grid.Column="0" HorizontalAlignment="Center" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}">Block Scars</TextBlock>
+        <CheckBox Grid.Row="11" Grid.Column="1"  IsChecked="{Binding Path=HeadPartsScars, Mode=TwoWay}" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}"></CheckBox>
     </Grid>
 </UserControl>

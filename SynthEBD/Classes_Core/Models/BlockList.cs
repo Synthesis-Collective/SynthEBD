@@ -14,6 +14,14 @@ public class BlockedNPC
     public bool Assets { get; set; } = true;
     public bool Height { get; set; } = false;
     public bool BodyShape { get; set; } = false;
+    public bool HeadParts { get; set; } = false;
+    public bool HeadPartsMisc { get; set; } = false;
+    public bool HeadPartsFace { get; set; } = false;
+    public bool HeadPartsEyes { get; set; } = false;
+    public bool HeadPartsBeard { get; set; } = false;
+    public bool HeadPartsScars { get; set; } = false;
+    public bool HeadPartsBrows { get; set; } = false;
+    public bool HeadPartsHair { get; set; } = false;
 }
 
 public class BlockedPlugin
@@ -22,6 +30,14 @@ public class BlockedPlugin
     public bool Assets { get; set; } = true;
     public bool Height { get; set; } = false;
     public bool BodyShape { get; set; } = false;
+    public bool HeadParts { get; set; } = false;
+    public bool HeadPartsMisc { get; set; } = false;
+    public bool HeadPartsFace { get; set; } = false;
+    public bool HeadPartsEyes { get; set; } = false;
+    public bool HeadPartsBeard { get; set; } = false;
+    public bool HeadPartsScars { get; set; } = false;
+    public bool HeadPartsBrows { get; set; } = false;
+    public bool HeadPartsHair { get; set; } = false;
 }
 
 public class zEBDBlockList

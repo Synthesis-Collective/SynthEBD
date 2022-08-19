@@ -11,11 +11,41 @@ public class VM_BlockedNPC : VM
 {
     public VM_BlockedNPC()
     {
-        this.PropertyChanged += TriggerDispNameUpdate;
-        
+        this.WhenAnyValue(x => x.FormKey).Subscribe(x =>
+        {
+            if (!FormKey.IsNull)
+            {
+                DispName = Converters.CreateNPCDispNameFromFormKey(FormKey);
+            }
+        });
+
         PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
+
+        this.WhenAnyValue(x => x.HeadParts).Subscribe(x =>
+        {
+            if (HeadParts)
+            {
+                HeadPartsMisc = true;
+                HeadPartsBeard = true;
+                HeadPartsBrows = true;
+                HeadPartsEyes = true;
+                HeadPartsScars = true;
+                HeadPartsHair = true;
+                HeadPartsFace = true;
+            }
+            else
+            {
+                HeadPartsMisc = false;
+                HeadPartsBeard = false;
+                HeadPartsBrows = false;
+                HeadPartsEyes = false;
+                HeadPartsScars = false;
+                HeadPartsHair = false;
+                HeadPartsFace = false;
+            }
+        });
     }
     // Caption
     public string DispName { get; set; } = "New NPC";
@@ -23,17 +53,17 @@ public class VM_BlockedNPC : VM
     public bool Assets { get; set; } = true;
     public bool Height { get; set; } = false;
     public bool BodyShape { get; set; } = false;
+    public bool HeadParts { get; set; } = false;
+    public bool HeadPartsMisc { get; set; } = false;
+    public bool HeadPartsFace { get; set; } = false;
+    public bool HeadPartsEyes { get; set; } = false;
+    public bool HeadPartsBeard { get; set; } = false;
+    public bool HeadPartsScars { get; set; } = false;
+    public bool HeadPartsBrows { get; set; } = false;
+    public bool HeadPartsHair { get; set; } = false;
 
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
-
-    public void TriggerDispNameUpdate(object sender, PropertyChangedEventArgs e)
-    {
-        if (this.FormKey.IsNull == false)
-        {
-            this.DispName = Converters.CreateNPCDispNameFromFormKey(this.FormKey);
-        }
-    }
 
     public static VM_BlockedNPC GetViewModelFromModel(BlockedNPC model)
     {
