@@ -5,7 +5,7 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
-public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender, IHasHeadPartAssignments
+public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
 {
     public VM_ConsistencyAssignment()
     {
@@ -40,7 +40,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender, IHasHeadPartAssi
     public ObservableCollection<VM_CollectionMemberString> BodyGenMorphNames { get; set; } = new();
     public string BodySlidePreset { get; set; } = "";
     public string Height { get; set; }
-    public Dictionary<HeadPart.TypeEnum, VM_HeadPartAssignment> HeadParts { get; set; } = new()
+    public Dictionary<HeadPart.TypeEnum, VM_HeadPartConsistency> HeadParts { get; set; } = new()
     {
         { HeadPart.TypeEnum.Eyebrows, null },
         { HeadPart.TypeEnum.Eyes, null },
@@ -116,7 +116,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender, IHasHeadPartAssi
             if (!model.HeadParts.ContainsKey(headPartType)) { model.HeadParts.Add(headPartType, new()); }
             else
             {
-                viewModel.HeadParts[headPartType] = VM_HeadPartAssignment.GetViewModelFromModel(model.HeadParts[headPartType], headPartType, headParts, viewModel, viewModel);
+                viewModel.HeadParts[headPartType] = VM_HeadPartConsistency.GetViewModelFromModel(model.HeadParts[headPartType]);
             }
         }
 

@@ -45,4 +45,18 @@ public class AliasHandler
             return npcRaceFormKey;
         }
     }
+
+    public static FormKey GetAliasHeadParts(FormKey npcRaceFormKey)
+    {
+        var alias = PatcherSettings.General.RaceAliases.Where(x => x.bApplyToHeadParts && x.Race == npcRaceFormKey).Select(x => x.AliasRace).FirstOrDefault();
+
+        if (!alias.IsNull)
+        {
+            return alias;
+        }
+        else
+        {
+            return npcRaceFormKey;
+        }
+    }
 }

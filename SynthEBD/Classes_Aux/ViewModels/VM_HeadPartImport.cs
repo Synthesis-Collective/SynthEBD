@@ -158,16 +158,16 @@ namespace SynthEBD
                 {
                     if (!headpart.Type.HasValue)
                     {
-                        invalidEditorIDs.Add(headpart.EditorID ?? "No EditorID");
+                        invalidEditorIDs.Add(EditorIDHandler.GetEditorIDSafely(headpart));
                     }
                     else if (headpart.Type.Value != type)
                     {
-                        invalidEditorIDs.Add(headpart.EditorID ?? "No EditorID");
+                        invalidEditorIDs.Add(EditorIDHandler.GetEditorIDSafely(headpart));
                     }
                 }
                 else
                 {
-                    invalidEditorIDs.Add(headpart.EditorID ?? "No EditorID");
+                    invalidEditorIDs.Add(EditorIDHandler.GetEditorIDSafely(headpart));
                 }
             }
 
@@ -202,7 +202,7 @@ namespace SynthEBD
                         }
                         else
                         {
-                            skippedImports.Add(headpart.EditorID ?? "No EditorID");
+                            skippedImports.Add(EditorIDHandler.GetEditorIDSafely(headpart));
                         }
                     }
                 }
@@ -218,7 +218,7 @@ namespace SynthEBD
 
         public static VM_HeadPart ImportHeadPart(IHeadPartGetter headPart, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig)
         {
-            return new VM_HeadPart(headPart.FormKey, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig) { Label = headPart.EditorID ?? "No EditorID", bAllowMale = headPart.Flags.HasFlag(HeadPart.Flag.Male), bAllowFemale = headPart.Flags.HasFlag(HeadPart.Flag.Female) };
+            return new VM_HeadPart(headPart.FormKey, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig) { Label = EditorIDHandler.GetEditorIDSafely(headPart), bAllowMale = headPart.Flags.HasFlag(HeadPart.Flag.Male), bAllowFemale = headPart.Flags.HasFlag(HeadPart.Flag.Female) };
         }
     }
 }

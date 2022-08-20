@@ -12,4 +12,5 @@ public class RaceAlias
     public bool bApplyToAssets { get; set; } = false;
     public bool bApplyToBodyGen { get; set; } = false;
     public bool bApplyToHeight { get; set; } = false;
+    public bool bApplyToHeadParts { get; set; } = false;
 }

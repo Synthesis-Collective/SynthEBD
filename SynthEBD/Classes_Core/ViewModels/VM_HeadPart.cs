@@ -108,7 +108,7 @@ namespace SynthEBD
         {
             var viewModel = new VM_HeadPart(model.HeadPart, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig);
             viewModel.FormKey = model.HeadPart;
-            viewModel.Label = model.EditorID;
+            viewModel.Label = EditorIDHandler.GetEditorIDSafely<IHeadPartGetter>(viewModel.FormKey);
             viewModel.bAllowFemale = model.bAlloweFemale;
             viewModel.bAllowMale = model.bAllowMale;
             viewModel.AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);

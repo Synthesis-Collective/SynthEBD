@@ -18,14 +18,21 @@ namespace SynthEBD
 
             List<string> consistencyReportTriggers = new();
 
+            bool recordDataForLinkedUniqueNPCs = false;
+            var tempUniqueNPCDataRecorder = UniqueNPCData.CreateHeadPartTracker(); // keeps the actual tracker null until all head parts are assigned.
+            if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts) == null)
+            {
+                recordDataForLinkedUniqueNPCs = true;
+            }
+
             foreach (var headPartType in settings.Types.Keys)
             {
-                if (!blockedNPCentry.HeadPartTypes[headPartType])
+                if (blockedNPCentry.HeadPartTypes[headPartType])
                 {
                     Logger.LogReport(headPartType + " assignment is blocked for current NPC.", false, npcInfo);
                     continue;
                 }
-                if (!blockedPluginEntry.HeadPartTypes[headPartType])
+                if (blockedPluginEntry.HeadPartTypes[headPartType])
                 {
                     Logger.LogReport(headPartType + " assignment is blocked for current NPC's plugin.", false, npcInfo);
                     continue;
@@ -33,7 +40,9 @@ namespace SynthEBD
 
                 bool hasValidConsistency = PatcherSettings.General.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && !string.IsNullOrEmpty(npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType].EditorID);
                 IHeadPartGetter selection = AssignHeadPartType(settings.Types[headPartType], headPartType, npcInfo, hasValidConsistency, out bool recordConsistencyIfNull);
-                AllocateHeadPartSelection(selection.FormKey, headPartType, selectedHeadParts);
+                FormKey? selectedFK = null;
+                if (selection != null) { selectedFK = selection.FormKey; }
+                AllocateHeadPartSelection(selectedFK, headPartType, selectedHeadParts);
 
                 // record consistency mismatches
                 if (hasValidConsistency && !selection.Equals(npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType]))
@@ -46,7 +55,7 @@ namespace SynthEBD
                 {
                     if (selection != null)
                     {
-                        npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType].EditorID = selection.EditorID ?? "No EditorID";
+                        npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType].EditorID = EditorIDHandler.GetEditorIDSafely(selection);
                         npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType].FormKey = selection.FormKey;
                     }
                     else if (recordConsistencyIfNull)
@@ -62,16 +71,21 @@ namespace SynthEBD
                     npcInfo.AssociatedLinkGroup.HeadPartAssignments[headPartType] = selection;
                 }
 
-                if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Height) == -1)
+                if (recordDataForLinkedUniqueNPCs)
                 {
-                    Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].HeadPartAssignments[headPartType] = selection;
+                    tempUniqueNPCDataRecorder[headPartType] = selection;
                 }
             }
 
             if (consistencyReportTriggers.Any())
             {
                 Logger.LogMessage(npcInfo.LogIDstring + ": (" + String.Join(", ", consistencyReportTriggers) + ") could not be assigned from Consistency and were re-randomized.");
-            }    
+            }
+
+            if (recordDataForLinkedUniqueNPCs)
+            {
+                Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].HeadPartAssignments = tempUniqueNPCDataRecorder;
+            }
 
             Logger.CloseReportSubsectionsToParentOf("HeadParts", npcInfo);
             return selectedHeadParts;
@@ -81,7 +95,7 @@ namespace SynthEBD
         {
             switch(type)
             {
-                case HeadPart.TypeEnum.Eyebrows: assignments.Eyebrows = selection; break;
+                case HeadPart.TypeEnum.Eyebrows: assignments.Brows = selection; break;
                 case HeadPart.TypeEnum.Eyes: assignments.Eyes = selection; break;
                 case HeadPart.TypeEnum.Face: assignments.Face = selection; break;
                 case HeadPart.TypeEnum.FacialHair: assignments.Beard = selection; break;
@@ -100,7 +114,7 @@ namespace SynthEBD
                 return null;
             }
 
-            if (npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey.IsNull == false)
+            if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey.IsNull == false)
             {
                 if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey, out var specificAssignment))
                 {
@@ -401,7 +415,6 @@ namespace SynthEBD
 
     public class HeadPartSelection
     {
-        public FormKey? Eyebrows { get; set; } = null;
         public FormKey? Face { get; set; } = null;
         public FormKey? Eyes { get; set; } = null;
         public FormKey? Beard { get; set; } = null;

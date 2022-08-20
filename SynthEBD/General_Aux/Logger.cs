@@ -93,15 +93,19 @@ public sealed class Logger : VM
 
             if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.AssetsRace, out var assetsRaceGetter))
             {
-                LogReport("Assets race: " + assetsRaceGetter.EditorID ?? "No EditorID", false, npcInfo);
+                LogReport("Assets race: " + EditorIDHandler.GetEditorIDSafely(assetsRaceGetter), false, npcInfo); ;
             }
             if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.BodyShapeRace, out var bodyRaceGetter))
             {
-                LogReport("Body Shape race: " + bodyRaceGetter.EditorID ?? "No EditorID", false, npcInfo);
+                LogReport("Body Shape race: " + EditorIDHandler.GetEditorIDSafely(bodyRaceGetter), false, npcInfo);
             }
             if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.HeightRace, out var heightRaceGetter))
             {
-                LogReport("Height race: " + heightRaceGetter.EditorID ?? "No EditorID", false, npcInfo);
+                LogReport("Height race: " + EditorIDHandler.GetEditorIDSafely(heightRaceGetter), false, npcInfo);
+            }
+            if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.HeadPartsRace, out var headPartsRaceGetter))
+            {
+                LogReport("Head Parts race: " + EditorIDHandler.GetEditorIDSafely(headPartsRaceGetter), false, npcInfo);
             }
         }
     }
@@ -430,12 +434,12 @@ public sealed class Logger : VM
 
     public static string GetNPCLogNameString(INpcGetter npc)
     {
-        return npc.Name?.String + " | " + (npc.EditorID ?? "No EditorID") + " | " + npc.FormKey.ToString();
+        return npc.Name?.String + " | " +  EditorIDHandler.GetEditorIDSafely(npc) + " | " + npc.FormKey.ToString();
     }
 
     public static string GetNPCLogReportingString(INpcGetter npc)
     {
-        return npc.Name?.String + " (" + (npc.EditorID ?? "No EditorID") + ") " + npc.FormKey.ToString().Replace(':', '-');
+        return npc.Name?.String + " (" + EditorIDHandler.GetEditorIDSafely(npc) + ") " + npc.FormKey.ToString().Replace(':', '-');
     }
 
     public static string GetSubgroupIDString(FlattenedSubgroup subgroup)

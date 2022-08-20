@@ -73,7 +73,7 @@ public class CombinationLog
                 {
                     if (Converters.FormKeyStringToFormIDString(record.FormKey, out string formID))
                     {
-                        fileContents.Add("\t\t\t" + (record.EditorID ?? "No EditorID") + " (" + formID + ")");
+                        fileContents.Add("\t\t\t" + (record.EditorID) + " (" + formID + ")"); // not a Mutagen record; EditorID will never be null
                     }
                 }
             }
@@ -87,7 +87,7 @@ public class CombinationLog
         {
             if (_environmentProvider.Environment.LinkCache.TryResolve(containedFormLink.FormKey, containedFormLink.Type, out var resolvedSubRecord))
             {
-                var loggedSubRecord = new GeneratedRecordInfo() { EditorID = resolvedSubRecord.EditorID ?? "No EditorID", FormKey = resolvedSubRecord.FormKey.ToString(), SubRecords = resolvedSubRecord.EnumerateFormLinks().Where(x => x.FormKey.ModKey == resolvedSubRecord.FormKey.ModKey).ToHashSet() };
+                var loggedSubRecord = new GeneratedRecordInfo() { EditorID =  EditorIDHandler.GetEditorIDSafely(resolvedSubRecord), FormKey = resolvedSubRecord.FormKey.ToString(), SubRecords = resolvedSubRecord.EnumerateFormLinks().Where(x => x.FormKey.ModKey == resolvedSubRecord.FormKey.ModKey).ToHashSet() };
                     
                 if (!subRecords.Contains(loggedSubRecord))
                 {

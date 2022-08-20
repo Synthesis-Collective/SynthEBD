@@ -14,16 +14,7 @@ public class UniqueNPCData
         public List<LinkedAssetReplacerAssignment> ReplacerAssignments { get; set; } = new();
         public Dictionary<string, SubgroupCombination> MixInAssignments { get; set; } = new();
 
-        public Dictionary<HeadPart.TypeEnum, IHeadPartGetter> HeadPartAssignments { get; set; } = new()
-        {
-            { HeadPart.TypeEnum.Eyebrows, null },
-            { HeadPart.TypeEnum.Eyes, null },
-            { HeadPart.TypeEnum.Face, null },
-            { HeadPart.TypeEnum.FacialHair, null },
-            { HeadPart.TypeEnum.Hair, null },
-            { HeadPart.TypeEnum.Misc, null },
-            { HeadPart.TypeEnum.Scars, null }
-        };
+        public Dictionary<HeadPart.TypeEnum, IHeadPartGetter> HeadPartAssignments { get; set; } = null;
 
         public class LinkedAssetReplacerAssignment
         {
@@ -101,5 +92,26 @@ public class UniqueNPCData
         {
             Patcher.UniqueAssignmentsByName.Add(npcInfo.Name, new Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>() { { npcInfo.Gender, new UniqueNPCData.UniqueNPCTracker() } });
         }
+    }
+    public static void InitializeHeadPartTracker(NPCInfo npcInfo)
+    {
+        if (npcInfo.IsValidLinkedUnique && Patcher.UniqueAssignmentsByName.ContainsKey(npcInfo.Name) && Patcher.UniqueAssignmentsByName[npcInfo.Name].ContainsKey(npcInfo.Gender))
+        {
+            Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].HeadPartAssignments = CreateHeadPartTracker();
+        }
+    }
+
+    public static Dictionary<HeadPart.TypeEnum, IHeadPartGetter> CreateHeadPartTracker()
+    {
+        return new Dictionary<HeadPart.TypeEnum, IHeadPartGetter>()
+        {
+            { HeadPart.TypeEnum.Eyebrows, null },
+            { HeadPart.TypeEnum.Eyes, null },
+            { HeadPart.TypeEnum.Face, null },
+            { HeadPart.TypeEnum.FacialHair, null },
+            { HeadPart.TypeEnum.Hair, null },
+            { HeadPart.TypeEnum.Misc, null },
+            { HeadPart.TypeEnum.Scars, null }
+        };
     }
 }

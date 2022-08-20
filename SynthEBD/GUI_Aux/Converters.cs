@@ -42,7 +42,7 @@ class Converters
             }
             else
             {
-                subName = npcRecord.EditorID ?? "No EditorID";
+                subName = EditorIDHandler.GetEditorIDSafely(npcRecord);
             }
             return subName + " (" + NPCFormKey.ToString() + ")";
         }

@@ -169,6 +169,8 @@ public class Patcher
             HeadPartWriter.CreateHeadPartLoaderQuest(outputMod, headpartsLoaded);
             headPartAssignmentSpell = HeadPartWriter.CreateHeadPartAssignmentSpell(outputMod, headpartsLoaded);
             HeadPartWriter.WriteHeadPartSPIDIni(headPartAssignmentSpell);
+
+            HeadPartTracker = new Dictionary<FormKey, HeadPartSelection>();
         }
 
         int npcCounter = 0;

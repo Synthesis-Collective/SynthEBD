@@ -171,7 +171,8 @@ public class Settings_General
             bFemale = true,
             bApplyToAssets = false,
             bApplyToBodyGen = true,
-            bApplyToHeight = true
+            bApplyToHeight = true,
+            bApplyToHeadParts = true
         },
     };
 

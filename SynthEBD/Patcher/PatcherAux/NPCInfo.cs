@@ -13,6 +13,7 @@ public class NPCInfo
         AssetsRace = AliasHandler.GetAliasTexMesh(npc.Race.FormKey);
         BodyShapeRace = AliasHandler.GetAliasBodyGen(npc.Race.FormKey);
         HeightRace = AliasHandler.GetAliasHeight(npc.Race.FormKey);
+        HeadPartsRace = AliasHandler.GetAliasHeadParts(npc.Race.FormKey);
 
         IsPatchable = PatcherSettings.General.PatchableRaces.Contains(AssetsRace) || PatcherSettings.General.PatchableRaces.Contains(BodyShapeRace) || PatcherSettings.General.PatchableRaces.Contains(HeightRace);
         if (!IsPatchable)
@@ -68,6 +69,7 @@ public class NPCInfo
     public FormKey AssetsRace { get; set; }
     public FormKey BodyShapeRace { get; set; }
     public FormKey HeightRace { get; set; }
+    public FormKey HeadPartsRace { get; set; }
     public bool IsPatchable { get; set; }
     public LinkedNPCGroupInfo AssociatedLinkGroup { get; set; }
     public LinkGroupMemberType LinkGroupMember { get; set; } = LinkGroupMemberType.None;
