@@ -11,48 +11,54 @@ Event OnInit()
 EndEvent
 
 Function LoadHeadPartDict(string caller) ;caller is for debugging only
-	;debug.MessageBox("Loading HeadParts")
 	loadingCompleted.SetValue(0)
-	int assignmentDict = JValue_readFromFile("Data/SynthEBD/HeadPartDict.json")
-	if (assignmentDict)
-		debug.Trace("SynthEBD: HeadPart Dict Read")
-	else
-		debug.Trace("SynthEBD: Failed to read HeadPart Dict")
-	endIf
-	int count = 0
-	int maxCount = JMap_count(assignmentDict)
-	debug.Trace("SynthEBD: NPCs with head parts Count = " + maxCount as string)
-	while (count < maxCount)
-		string currentNPCstr = JMap_getNthKey(assignmentDict, count)
-		;debug.Trace("Key: " + currentNPCstr)
-		;form currentNPC = JString.decodeFormStringToForm(currentNPCstr) doesn't seem to work in VR
-		form currentNPC = FormKeyToForm(currentNPCstr)
-		;debug.Trace("Form from key: " + currentNPC)
-		
-		int headPartAssignments = JMap_getObj(assignmentDict, currentNPCstr)
-		
-		;int headPartCount = JMap_count(headPartAssignments)
-		;debug.Trace("head part count for " + currentNPC + ": " + headPartCount as string)
-		
-		;string hairStr = JMap_getStr(headPartAssignments, "Hair")
-		;form hair = FormKeyToForm(HairStr)
-		;JFormDB_setForm(currentNPC, ".SynthEBD.HeadPart.Hair", hair)
-		
-		AddHeadPartToDB(headPartAssignments, "Hair", currentNPC)
-		
-		;debug.Trace("SynthEBD: hair for " + currentNPCstr + ": " + hairStr)
-		;debug.Notification("SynthEBD HP: " + currentNPC + ": " + hair)
-		;debug.Trace("SynthEBD: Loaded hair for: " + currentNPC + ": " + hair)
-		currentNPCstr = JMap_nextKey(assignmentDict)
-		count += 1
-	endwhile
 	
-	;debug.MessageBox("Finished loading from " + caller)
-	;debug.Trace("assignmentDict has " + maxCount + " values")
+	int fileCount = 1
+	bool fileFound = true
+	int fileReadCount = 0
+	int keyReadCount = 0
+	while (fileFound)
+		string inputFile = "Data/SynthEBD/HeadPartDict" + fileCount as string + ".json"
+		int assignmentDict = JValue_readFromFile(inputFile)
+		if (assignmentDict)
+			fileReadCount += 1
+			
+			int keyIndex = 0
+			int maxCount = JMap_count(assignmentDict)
+			debug.Notification("SynthEBD: Reading headpart input file " + fileReadCount as string)
+			debug.Trace("SynthEBD: Read input file " + fileCount as string + ": Contains " + maxCount as string + " entries.")
+			while (keyIndex < maxCount)
+				string currentNPCstr = JMap_getNthKey(assignmentDict, keyIndex)
+				form currentNPC = FormKeyToForm(currentNPCstr)
+				int headPartAssignments = JMap_getObj(assignmentDict, currentNPCstr)
+				
+				if (headPartAssignments)
+					debug.Trace("JSON has entry for Key " + keyIndex as string + ": " + currentNPCstr + " (" + currentNPC + ")")
+					keyReadCount += 1
+					AddHeadPartToDB(headPartAssignments, "Beard", currentNPC)
+					AddHeadPartToDB(headPartAssignments, "Brows", currentNPC)
+					AddHeadPartToDB(headPartAssignments, "Eyes", currentNPC)
+					AddHeadPartToDB(headPartAssignments, "Face", currentNPC)
+					AddHeadPartToDB(headPartAssignments, "Hair", currentNPC)
+					AddHeadPartToDB(headPartAssignments, "Misc", currentNPC)
+					AddHeadPartToDB(headPartAssignments, "Scars", currentNPC)
+				else
+					debug.Trace("JSON does not have entry for Key " + keyIndex as string + ": " + currentNPCstr)
+				endif
+
+				currentNPCstr = JMap_nextKey(assignmentDict)
+				keyIndex += 1
+			endwhile
+		else
+			fileFound = false
+		endIf
+		
+		fileCount += 1
+	endwhile
+
 	debug.Notification("Loaded HeadPart Assignments")
-	debug.Trace("SynthEBD: Loaded " + count as string + " HeadPart assignments")
+	debug.Trace("SynthEBD: Loaded " + keyReadCount as string + " HeadPart assignments from " + fileReadCount as string + " input files")
 	loadingCompleted.SetValue(1)
-	;debug.MessageBox("SynthEBD: HeadParts Loaded")
 EndFunction
 
 function AddHeadPartToDB(int headPartAssignments, string headPartType, form currentNPC)

@@ -124,25 +124,51 @@ namespace SynthEBD
                 return;
             }
 
-            string outputStr = JSONhandler<Dictionary<FormKey, HeadPartSelection>>.Serialize(Patcher.HeadPartTracker, out bool success, out string exception);
-            if (!success)
+            int maxKeyCount = 176;
+            List<Dictionary<FormKey, HeadPartSelection>> outputDictionaries = new List<Dictionary<FormKey, HeadPartSelection>>(); // JContainers appears to limit how many keys can be in each dictionary.
+            
+            int keyCountSegmented = 0;
+            int keyCountTotal = 0;
+            var currentDict = new Dictionary<FormKey, HeadPartSelection>();
+            foreach (var entry in Patcher.HeadPartTracker)
             {
-                Logger.LogError("Could not save head part assignments. See log.");
-                Logger.LogMessage("Could not save head part assigments. Error:");
-                Logger.LogMessage(exception);
-                return;
+                keyCountSegmented++;
+                keyCountTotal++;
+
+                currentDict.Add(entry.Key, entry.Value);
+
+                if (keyCountSegmented == maxKeyCount || keyCountTotal == Patcher.HeadPartTracker.Count)
+                {
+                    outputDictionaries.Add(currentDict);
+                    currentDict = new();
+                    keyCountSegmented = 0;
+                }
             }
 
-            var destPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "SynthEBD", "HeadPartDict.json");
+            int dictIndex = 0;
+            foreach (var dict in outputDictionaries)
+            {
+                dictIndex++;
+                string outputStr = JSONhandler<Dictionary<FormKey, HeadPartSelection>>.Serialize(dict, out bool success, out string exception);
+                if (!success)
+                {
+                    Logger.LogError("Could not save head part assignment dictionary " + dictIndex + ". See log.");
+                    Logger.LogMessage("Could not save head part assigment dictionary " + dictIndex + ". Error:");
+                    Logger.LogMessage(exception);
+                    return;
+                }
 
-            try
-            {
-                PatcherIO.CreateDirectoryIfNeeded(destPath, PatcherIO.PathType.File);
-                File.WriteAllText(destPath, outputStr);
-            }
-            catch
-            {
-                Logger.LogErrorWithStatusUpdate("Could not write Head Part assignments to " + destPath, ErrorType.Error);
+                var destPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "SynthEBD", "HeadPartDict" + dictIndex + ".json");
+
+                try
+                {
+                    PatcherIO.CreateDirectoryIfNeeded(destPath, PatcherIO.PathType.File);
+                    File.WriteAllText(destPath, outputStr);
+                }
+                catch
+                {
+                    Logger.LogErrorWithStatusUpdate("Could not write Head Part assignments to " + destPath, ErrorType.Error);
+                }
             }
         }
     }

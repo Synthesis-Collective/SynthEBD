@@ -45,9 +45,15 @@ namespace SynthEBD
                 AllocateHeadPartSelection(selectedFK, headPartType, selectedHeadParts);
 
                 // record consistency mismatches
-                if (hasValidConsistency && !selection.Equals(npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType]))
+                if (hasValidConsistency)
                 {
-                    consistencyReportTriggers.Add(headPartType.ToString());
+                    var consistencyAssignment = npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType];
+                    var bothNull = consistencyAssignment.FormKey.IsNull && selection == null;
+                    var bothMatch = selection != null && selection.FormKey.Equals(consistencyAssignment.FormKey);
+                    if (!bothNull && !bothMatch)
+                    {
+                        consistencyReportTriggers.Add(headPartType.ToString());
+                    }
                 }
 
                 // record new consistency

@@ -171,6 +171,8 @@ public class Patcher
             HeadPartWriter.WriteHeadPartSPIDIni(headPartAssignmentSpell);
 
             HeadPartTracker = new Dictionary<FormKey, HeadPartSelection>();
+
+            HeadPartPreprocessing.CleanPreviousOutputs();
         }
 
         int npcCounter = 0;
@@ -183,13 +185,14 @@ public class Patcher
         // Finish assigning non-primary linked NPCs
         MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, headPartNPCs);
 
-        // Perform headpart functionality if any headparts were patched
+        // Perform headpart functionality if any headparts were patched | DEPRECATED
+        /*
         if (headPartNPCs.Any())
         {
             Keyword EBDValidHeadPartActorKW = EBDCoreRecords.CreateHeadPartKeyword(outputMod);
             EBDCoreRecords.ApplyHeadPartKeyword(headPartNPCs, EBDValidHeadPartActorKW);
             HeadPartFunctions.ApplyNeededFaceTextures(headPartNPCs);
-        }
+        }*/
 
         Logger.StopTimer();
         Logger.LogMessage("Finished patching in " + Logger.GetEllapsedTime());
