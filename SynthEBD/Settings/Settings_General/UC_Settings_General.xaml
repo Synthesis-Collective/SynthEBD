@@ -83,30 +83,33 @@
             <TextBlock Grid.Column="0" Grid.Row="7" ToolTip="Allow NPC height (scale) modification" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Apply Height Changes</TextBlock>
             <CheckBox Grid.Column="2" Grid.Row="7" IsChecked="{Binding Path=bChangeHeight, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="8" ToolTip="Try to assign the same values to NPCs between patcher runs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Enable Consistency</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="8" IsChecked="{Binding Path=bEnableConsistency, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="8" ToolTip="Allow NPCs to receive random headparts" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Apply Head Part Randomization</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="8" IsChecked="{Binding Path=bChangeHeight, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="9" ToolTip="Do not make any changes to player character (Recommended)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Exclude Player Character</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="9" IsChecked="{Binding Path=ExcludePlayerCharacter, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="9" ToolTip="Try to assign the same values to NPCs between patcher runs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Enable Consistency</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="9" IsChecked="{Binding Path=bEnableConsistency, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="10" ToolTip="Do not make any changes to character presets (Recommended)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Exclude Presets</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="10" IsChecked="{Binding Path=ExcludePresets, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="10" ToolTip="Do not make any changes to player character (Recommended)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Exclude Player Character</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="10" IsChecked="{Binding Path=ExcludePlayerCharacter, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="11" ToolTip="Try to load patcher settings from Data\SynthEBD instead of the SynthEBD.exe folder" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Load Settings from Portable Data Folder</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="11" IsChecked="{Binding Path=bLoadSettingsFromDataFolder, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="11" ToolTip="Do not make any changes to character presets (Recommended)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Exclude Presets</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="11" IsChecked="{Binding Path=ExcludePresets, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="12" ToolTip="Folder from which settings should be loaded. Must be named SynthEBD." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding bLoadSettingsFromDataFolder, Converter={StaticResource BoolToVis}}">Portable Settings Folder</TextBlock>
-            <StackPanel Grid.Column="2" Grid.Row="12" Orientation="Horizontal" Visibility="{Binding bLoadSettingsFromDataFolder, Converter={StaticResource BoolToVis}}">
+            <TextBlock Grid.Column="0" Grid.Row="12" ToolTip="Try to load patcher settings from Data\SynthEBD instead of the SynthEBD.exe folder" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Load Settings from Portable Data Folder</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="12" IsChecked="{Binding Path=bLoadSettingsFromDataFolder, Mode=TwoWay}"></CheckBox>
+
+            <TextBlock Grid.Column="0" Grid.Row="13" ToolTip="Folder from which settings should be loaded. Must be named SynthEBD." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding bLoadSettingsFromDataFolder, Converter={StaticResource BoolToVis}}">Portable Settings Folder</TextBlock>
+            <StackPanel Grid.Column="2" Grid.Row="13" Orientation="Horizontal" Visibility="{Binding bLoadSettingsFromDataFolder, Converter={StaticResource BoolToVis}}">
                 <Button VerticalAlignment="Center" Command="{Binding SelectPortableSettingsFolder}"  Foreground="LightGreen">Search</Button>
                 <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Background="Black" Text="{Binding Path=PortableSettingsFolder, UpdateSourceTrigger=PropertyChanged}" Margin="5 0 5 0"/>
                 <Button VerticalAlignment="Center" Command="{Binding ClearPortableSettingsFolder}" Foreground="Firebrick">Clear</Button>
             </StackPanel>
 
-            <TextBlock Grid.Column="0" Grid.Row="13" ToolTip="Apply the same settings to NPCs that are flagged unique and share the same name and gender" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Link NPCs with Same Name</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="13" IsChecked="{Binding Path=bLinkNPCsWithSameName, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="14" ToolTip="Apply the same settings to NPCs that are flagged unique and share the same name and gender" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Link NPCs with Same Name</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="14" IsChecked="{Binding Path=bLinkNPCsWithSameName, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="14" ToolTip="NPC names that should not be linked even if the NPC is unique" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Linked NPC Name Exclusions</TextBlock>
-            <Expander Grid.Column="2" Grid.Row="14" Header="" ExpandDirection="Down" >
+            <TextBlock Grid.Column="0" Grid.Row="15" ToolTip="NPC names that should not be linked even if the NPC is unique" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Linked NPC Name Exclusions</TextBlock>
+            <Expander Grid.Column="2" Grid.Row="15" Header="" ExpandDirection="Down" >
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="auto"/>
@@ -127,9 +130,8 @@
                 </Grid>
             </Expander>
 
-
-            <TextBlock Grid.Column="0" Grid.Row="15" ToolTip="NPCs that have multiple records, all of which should get the same assignments" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Linked NPC Groups</TextBlock>
-            <Expander Grid.Column="2" Grid.Row="15" Header="" ExpandDirection="Down" >
+            <TextBlock Grid.Column="0" Grid.Row="16" ToolTip="NPCs that have multiple records, all of which should get the same assignments" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Linked NPC Groups</TextBlock>
+            <Expander Grid.Column="2" Grid.Row="16" Header="" ExpandDirection="Down" >
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="auto"/>
@@ -161,13 +163,13 @@
                 </Grid>
             </Expander>
 
-            <TextBlock Grid.Column="0" Grid.Row="16" ToolTip="Races that SynthEBD can patch" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Patchable Races</TextBlock>
-            <Expander Grid.Column="2" Grid.Row="16" Header="" ExpandDirection="Down" >
+            <TextBlock Grid.Column="0" Grid.Row="17" ToolTip="Races that SynthEBD can patch" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Patchable Races</TextBlock>
+            <Expander Grid.Column="2" Grid.Row="17" Header="" ExpandDirection="Down" >
                 <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding patchableRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys, Mode=OneWay}" />
             </Expander>
 
-            <TextBlock Grid.Column="0" Grid.Row="17" ToolTip="Make SynthEBD treat race X as race Y" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Race Aliases</TextBlock>
-            <Expander Grid.Column="2" Grid.Row="17" Header="" ExpandDirection="Down" >
+            <TextBlock Grid.Column="0" Grid.Row="18" ToolTip="Make SynthEBD treat race X as race Y" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Race Aliases</TextBlock>
+            <Expander Grid.Column="2" Grid.Row="18" Header="" ExpandDirection="Down" >
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="auto"/>
@@ -184,8 +186,8 @@
                 </Grid>
             </Expander>
 
-            <TextBlock Grid.Column="0" Grid.Row="18" ToolTip="Groups of races that can be referenced by SynthEBD plugins" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Race Groupings</TextBlock>
-            <Expander Grid.Column="2" Grid.Row="18" Header="" ExpandDirection="Down" >
+            <TextBlock Grid.Column="0" Grid.Row="19" ToolTip="Groups of races that can be referenced by SynthEBD plugins" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Race Groupings</TextBlock>
+            <Expander Grid.Column="2" Grid.Row="19" Header="" ExpandDirection="Down" >
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="auto"/>
@@ -202,8 +204,8 @@
                 </Grid>
             </Expander>
 
-            <TextBlock Grid.Column="0" Grid.Row="19" ToolTip="Groups of NPC attributes that can be referenced by SynthEBD plugin files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Attribute Groups</TextBlock>
-            <Expander Grid.Column="2" Grid.Row="19" Header="" ExpandDirection="Down" >
+            <TextBlock Grid.Column="0" Grid.Row="20" ToolTip="Groups of NPC attributes that can be referenced by SynthEBD plugin files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Attribute Groups</TextBlock>
+            <Expander Grid.Column="2" Grid.Row="20" Header="" ExpandDirection="Down" >
                 <StackPanel>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock ToolTip="If checked, when a plugin's Attribute list includes a Group type attribute, that Group's members will be overwritten by the ones in this menu.">Supercede Plugin Group Definitions with Main</TextBlock>
@@ -213,19 +215,19 @@
                 </StackPanel>
             </Expander>
 
-            <TextBlock Grid.Column="0" Grid.Row="20" ToolTip="Write a detailed operation log for NPCs for which an error or assets/bodyshape conflict occurs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Verbose Mode for Conflict NPCs</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="20" IsChecked="{Binding Path=bVerboseModeAssetsNoncompliant, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="21" ToolTip="Write a detailed operation log for NPCs for which an error or assets/bodyshape conflict occurs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Verbose Mode for Conflict NPCs</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="21" IsChecked="{Binding Path=bVerboseModeAssetsNoncompliant, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="21" ToolTip="Write a detailed operation log for all NPCs (not recommended due to log file size)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Verbose Mode for All NPCs</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="21" IsChecked="{Binding Path=bVerboseModeAssetsAll, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="22" ToolTip="Write a detailed operation log for all NPCs (not recommended due to log file size)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Verbose Mode for All NPCs</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="22" IsChecked="{Binding Path=bVerboseModeAssetsAll, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="22" ToolTip="Write a detailed operation log for the NPCs selected" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Verbose Mode for Specific NPCs</TextBlock>
-            <Expander Grid.Column="2" Grid.Row="22" Header="" ExpandDirection="Down" >
+            <TextBlock Grid.Column="0" Grid.Row="23" ToolTip="Write a detailed operation log for the NPCs selected" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Verbose Mode for Specific NPCs</TextBlock>
+            <Expander Grid.Column="2" Grid.Row="23" Header="" ExpandDirection="Down" >
                 <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding verboseModeNPClist}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys, Mode=OneWay}" />
             </Expander>
 
-            <TextBlock Grid.Column="0" Grid.Row="23" ToolTip="Show attribute names instead of FormKeys in Verbose Logs (significantly slower)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Verbose Mode Detailed Attributes</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="23" IsChecked="{Binding Path=VerboseModeDetailedAttributes, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Column="0" Grid.Row="24" ToolTip="Show attribute names instead of FormKeys in Verbose Logs (significantly slower)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Verbose Mode Detailed Attributes</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="24" IsChecked="{Binding Path=VerboseModeDetailedAttributes, Mode=TwoWay}"></CheckBox>
         </Grid>
     </ScrollViewer>
 </UserControl>

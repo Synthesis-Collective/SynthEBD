@@ -77,7 +77,7 @@ namespace SynthEBD
             viewModel.bAllowUnique = model.bAllowUnique;
             viewModel.bAllowNonUnique = model.bAllowNonUnique;
             viewModel.bAllowRandom = model.bAllowRandom;
-            viewModel.DistributionProbability = model.DistributionProbability;
+            viewModel.DistributionProbability = model.RandomizationPercentage;
             viewModel.WeightRange = model.WeightRange;
             viewModel.AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, oBody.DescriptorUI, raceGroupingVMs, parentConfig);
             viewModel.DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, oBody.DescriptorUI, raceGroupingVMs, parentConfig);
@@ -98,7 +98,7 @@ namespace SynthEBD
             model.bAllowUnique = bAllowUnique;
             model.bAllowNonUnique = bAllowNonUnique;
             model.bAllowRandom = bAllowRandom;
-            model.DistributionProbability = DistributionProbability;
+            model.RandomizationPercentage = DistributionProbability;
             model.WeightRange = WeightRange;
             model.AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(AllowedBodySlideDescriptors);
             model.DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(DisallowedBodySlideDescriptors);

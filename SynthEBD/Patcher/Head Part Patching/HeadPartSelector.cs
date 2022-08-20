@@ -16,6 +16,8 @@ namespace SynthEBD
             Logger.LogReport("Selecting Head Parts for Current NPC", false, npcInfo);
             HeadPartSelection selectedHeadParts = new();
 
+            List<string> consistencyReportTriggers = new();
+
             foreach (var headPartType in settings.Types.Keys)
             {
                 if (!blockedNPCentry.HeadPartTypes[headPartType])
@@ -28,35 +30,180 @@ namespace SynthEBD
                     Logger.LogReport(headPartType + " assignment is blocked for current NPC's plugin.", false, npcInfo);
                     continue;
                 }
-                AssignHeadPartType(settings.Types[headPartType], headPartType, npcInfo);
+
+                bool hasValidConsistency = PatcherSettings.General.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && !string.IsNullOrEmpty(npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType].EditorID);
+                IHeadPartGetter selection = AssignHeadPartType(settings.Types[headPartType], headPartType, npcInfo, hasValidConsistency, out bool recordConsistencyIfNull);
+                AllocateHeadPartSelection(selection.FormKey, headPartType, selectedHeadParts);
+
+                // record consistency mismatches
+                if (hasValidConsistency && !selection.Equals(npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType]))
+                {
+                    consistencyReportTriggers.Add(headPartType.ToString());
+                }
+
+                // record new consistency
+                if (PatcherSettings.General.bEnableConsistency)
+                {
+                    if (selection != null)
+                    {
+                        npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType].EditorID = selection.EditorID ?? "No EditorID";
+                        npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType].FormKey = selection.FormKey;
+                    }
+                    else if (recordConsistencyIfNull)
+                    {
+                        npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType].EditorID = "NONE";
+                        npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType].FormKey = new FormKey();
+                    }
+                }
+
+                // assign linkage
+                if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
+                {
+                    npcInfo.AssociatedLinkGroup.HeadPartAssignments[headPartType] = selection;
+                }
+
+                if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Height) == -1)
+                {
+                    Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].HeadPartAssignments[headPartType] = selection;
+                }
             }
+
+            if (consistencyReportTriggers.Any())
+            {
+                Logger.LogMessage(npcInfo.LogIDstring + ": (" + String.Join(", ", consistencyReportTriggers) + ") could not be assigned from Consistency and were re-randomized.");
+            }    
 
             Logger.CloseReportSubsectionsToParentOf("HeadParts", npcInfo);
             return selectedHeadParts;
         }
 
-        public static FormKey AssignHeadPartType(Settings_HeadPartType currentSettings, HeadPart.TypeEnum type, NPCInfo npcInfo)
+        public static void AllocateHeadPartSelection(FormKey? selection, HeadPart.TypeEnum type, HeadPartSelection assignments)
         {
-            if (!CanGetThisHeadPartType(currentSettings, type, npcInfo))
+            switch(type)
             {
-                return new FormKey();
+                case HeadPart.TypeEnum.Eyebrows: assignments.Eyebrows = selection; break;
+                case HeadPart.TypeEnum.Eyes: assignments.Eyes = selection; break;
+                case HeadPart.TypeEnum.Face: assignments.Face = selection; break;
+                case HeadPart.TypeEnum.FacialHair: assignments.Beard = selection; break;
+                case HeadPart.TypeEnum.Hair: assignments.Hair = selection; break;
+                case HeadPart.TypeEnum.Misc: assignments.Misc = selection; break;
+                case HeadPart.TypeEnum.Scars: assignments.Scars = selection; break;
             }
-
-
-            return new FormKey(); // temp
         }
 
+        public static IHeadPartGetter AssignHeadPartType(Settings_HeadPartType currentSettings, HeadPart.TypeEnum type, NPCInfo npcInfo, bool hasValidConsistency, out bool recordConsistencyIfFailed)
+        {
+            recordConsistencyIfFailed = true;
+            if (!CanGetThisHeadPartType(currentSettings, type, npcInfo))
+            {
+                recordConsistencyIfFailed = false;
+                return null;
+            }
 
+            if (npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey.IsNull == false)
+            {
+                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey, out var specificAssignment))
+                {
+                    Logger.LogReport("Assigning " + type + ": " + (specificAssignment.EditorID ?? specificAssignment.FormKey.ToString()) + " via Specific NPC Assignment", false, npcInfo);
+                    return specificAssignment;
+                }
+                else
+                {
+                    Logger.LogReport("Specific NPC Assignment for " + type + " calls for " + npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey.ToString() + " but this head part does not currently exist in the load order. Assigning a different head part.", true, npcInfo);
+                }
+            }
+
+            if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary && npcInfo.AssociatedLinkGroup.HeadPartAssignments[type] != null)
+            {
+                var linkedHeadPart = npcInfo.AssociatedLinkGroup.HeadPartAssignments[type];
+                Logger.LogReport("Assigning " + type + ": " + (linkedHeadPart.EditorID ?? linkedHeadPart.FormKey.ToString()) + " via the NPC's Link Group.", false, npcInfo);
+                return linkedHeadPart;
+            }
+            else if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary && npcInfo.AssociatedLinkGroup.HeadPartAssignments[type] == null)
+            {
+                Logger.LogReport("Assigning " + type + ": NONE via the NPC's Link Group.", false, npcInfo);
+                return null;
+            }
+            else if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts) != null)
+            {
+                Dictionary<HeadPart.TypeEnum, IHeadPartGetter> uniqueAssignments = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts);
+                var assignedHeadPart = uniqueAssignments[type];
+                if (assignedHeadPart != null)
+                {
+                    Logger.LogReport("Another unique NPC with the same name was assigned a " + type + ": " + (assignedHeadPart.EditorID ?? assignedHeadPart.FormKey.ToString()) + ". Using that " + type + " for current NPC.", false, npcInfo);
+                    return assignedHeadPart;
+                }
+                else
+                {
+                    Logger.LogReport("Another unique NPC with the same name was not assigned a " + type + ", so current NPC will also not be assigned a " + type, false, npcInfo);
+                    return null;
+                }
+            }
+
+            var availableHeadParts = currentSettings.HeadParts.Where(x => HeadPartIsValid(x, npcInfo, type));
+            var availableEDIDs = availableHeadParts.Select(x => x.EditorID ?? x.HeadPart.ToString());
+
+            IHeadPartGetter consistencyHeadPart = null;
+            if (hasValidConsistency)
+            {
+                if (!PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(npcInfo.ConsistencyNPCAssignment.HeadParts[type].FormKey, out consistencyHeadPart))
+                {
+                    Logger.LogReport("The consistency " + type + " head part " + npcInfo.ConsistencyNPCAssignment.HeadParts[type].FormKey.ToString() + " is no longer present in the load order.", true, npcInfo);
+                }
+            }
+
+            Logger.LogReport("The following headparts are allowed under the current rule set: " + Environment.NewLine + String.Join(Environment.NewLine, availableEDIDs), false, npcInfo);
+
+            IHeadPartGetter selectedHeadPart = null;
+
+            var specificAssignments = availableHeadParts.Where(x => x.MatchedForceIfCount > 0).OrderBy(x => x.MatchedForceIfCount);
+            if (specificAssignments.Any())
+            {
+                var specificAssignmentStrings = specificAssignments.Select(x => (x.EditorID ?? x.HeadPart.ToString()) + ": " + x.MatchedForceIfCount);
+                Logger.LogReport("The following headparts have matched ForceIf attributes:" + Environment.NewLine + String.Join(Environment.NewLine, specificAssignmentStrings), false, npcInfo);
+                selectedHeadPart = ChooseHeadPart(specificAssignments, consistencyHeadPart, npcInfo, type, 100, out recordConsistencyIfFailed);
+            }
+            else
+            {
+                selectedHeadPart = ChooseHeadPart(availableHeadParts, consistencyHeadPart, npcInfo, type, currentSettings.RandomizationPercentage, out recordConsistencyIfFailed);
+            }
+
+            return selectedHeadPart;
+        }
+
+        public static IHeadPartGetter ChooseHeadPart(IEnumerable<HeadPartSetting> options, IHeadPartGetter consistencyHeadPart, NPCInfo npcInfo, HeadPart.TypeEnum type, double randomizationPercentage, out bool recordConsistencyIfFailed)
+        {
+            recordConsistencyIfFailed = true;
+            if (!options.Any())
+            {
+                Logger.LogReport("No head parts available for " + type + ".", false, npcInfo);
+                recordConsistencyIfFailed = false;
+                return null;
+            }
+
+            if (consistencyHeadPart != null)
+            {
+                var consistencyAssignment = options.Where(x => x.HeadPart.Equals(consistencyHeadPart.FormKey)).FirstOrDefault();
+                if (consistencyAssignment != null)
+                {
+                    Logger.LogReport("Assigning head part " + (consistencyAssignment.EditorID ?? consistencyAssignment.HeadPart.ToString()) + " from Consistency.", false, npcInfo);
+                    return consistencyHeadPart;
+                }
+            }
+            // if no consistency match, select at random
+
+            if (!BoolByProbability.Decide(randomizationPercentage)) // controlled by headpart type's randomization percentage
+            {
+                Logger.LogReport("NPC's " + type + " was chosen at random to NOT be replaced.", false, npcInfo);
+                return null;
+            }
+
+            var selectedAssignment = (HeadPartSetting)ProbabilityWeighting.SelectByProbability(options);
+            Logger.LogReport("Selected " + type + ": " + (selectedAssignment.EditorID ?? selectedAssignment.HeadPart.ToString()) + " at random.", false, npcInfo);
+            return selectedAssignment.ResolvedHeadPart;
+        }
         public static bool CanGetThisHeadPartType(Settings_HeadPartType currentSettings, HeadPart.TypeEnum type, NPCInfo npcInfo)
         {
-            /*
-            if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.BodyGenHead PartNames.Contains(candidateHeadPart.EditorID))
-            {
-                Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is valid because it is specifically assigned by user.", false, npcInfo);
-                return true;
-            }
-            */
-
             if (!currentSettings.bAllowRandom && currentSettings.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above
             {
                 Logger.LogReport(type + " is invalid because it can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
@@ -150,15 +297,13 @@ namespace SynthEBD
             return true;
         }
 
-        public static bool HeadPartIsValid(HeadPartSetting candidateHeadPart, NPCInfo npcInfo)
+        public static bool HeadPartIsValid(HeadPartSetting candidateHeadPart, NPCInfo npcInfo, HeadPart.TypeEnum type)
         {
-            /*
-            if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.BodyGenHead PartNames.Contains(candidateHeadPart.EditorID))
+            if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey.Equals(candidateHeadPart.HeadPart))
             {
                 Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is valid because it is specifically assigned by user.", false, npcInfo);
                 return true;
             }
-            */
 
             if (!candidateHeadPart.bAllowRandom && candidateHeadPart.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above
             {
@@ -256,12 +401,13 @@ namespace SynthEBD
 
     public class HeadPartSelection
     {
-        public FormKey Misc { get; set; }
-        public FormKey Face { get; set; }
-        public FormKey Eyes { get; set; }
-        public FormKey Beard { get; set; }
-        public FormKey Scars { get; set; }
-        public FormKey Brows { get; set; }
-        public FormKey Hair { get; set; }
+        public FormKey? Eyebrows { get; set; } = null;
+        public FormKey? Face { get; set; } = null;
+        public FormKey? Eyes { get; set; } = null;
+        public FormKey? Beard { get; set; } = null;
+        public FormKey? Scars { get; set; } = null;
+        public FormKey? Brows { get; set; } = null;
+        public FormKey? Hair { get; set; } = null;
+        public FormKey? Misc { get; set; } = null;
     }
 }

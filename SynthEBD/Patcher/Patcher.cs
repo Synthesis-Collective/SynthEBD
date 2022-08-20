@@ -54,6 +54,8 @@ public class Patcher
 
         HeightConfig currentHeightConfig = null;
 
+        Spell headPartAssignmentSpell = null;
+
         if (PatcherSettings.General.bChangeMeshesOrTextures)
         {
             UpdateRecordTemplateAdditonalRaces(assetPacks, _state.RecordTemplateLinkCache, _state.RecordTemplatePlugins);
@@ -110,7 +112,7 @@ public class Patcher
                 bodyslidesLoaded.EditorID = "SynthEBDBodySlidesLoaded";
                 bodyslidesLoaded.Data = 0;
 
-                OBodyWriter.CreateSynthEBDDomain();
+                JContainersDomain.CreateSynthEBDDomain();
                 OBodyWriter.CreateBodySlideLoaderQuest(outputMod, bodyslidesLoaded);
                 bodySlideAssignmentSpell = OBodyWriter.CreateOBodyAssignmentSpell(outputMod, bodyslidesLoaded);
                 OBodyWriter.WriteBodySlideSPIDIni(bodySlideAssignmentSpell, copiedOBodySettings, outputMod);
@@ -130,15 +132,54 @@ public class Patcher
             }
         }
 
+        var copiedHeadPartSettings = JSONhandler<Settings_Headparts>.Deserialize(JSONhandler<Settings_Headparts>.Serialize(PatcherSettings.HeadParts, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
+        if (!serializationSuccess) { Logger.LogMessage("Error serializing Head Part configs. Exception: " + serializatonException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
+        if (!deserializationSuccess) { Logger.LogMessage("Error deserializing Head Part configs. Exception: " + deserializationException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
+        
+        if (PatcherSettings.General.bChangeHeadParts)
+        {
+            bool removedHeadParts = false;
+            foreach (var typeSettings in copiedHeadPartSettings.Types.Values)
+            {
+                for (int i = 0; i < typeSettings.HeadParts.Count; i++)
+                {
+                    var headPartSetting = typeSettings.HeadParts[i];
+                    if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartSetting.HeadPart, out var headPartGetter))
+                    {
+                        headPartSetting.ResolvedHeadPart = headPartGetter;
+                    }
+                    else
+                    {
+                        removedHeadParts = true;
+                        typeSettings.HeadParts.RemoveAt(i);
+                        i--;
+                    }
+                }
+            }
+            if (removedHeadParts)
+            {
+                Logger.LogMessage("Some head parts will not be distributed because they are no longer present in your load order.");
+            }
+
+            var headpartsLoaded = outputMod.Globals.AddNewShort();
+            headpartsLoaded.EditorID = "SynthEBDHeadPartsLoaded";
+            headpartsLoaded.Data = 0;
+
+            JContainersDomain.CreateSynthEBDDomain();
+            HeadPartWriter.CreateHeadPartLoaderQuest(outputMod, headpartsLoaded);
+            headPartAssignmentSpell = HeadPartWriter.CreateHeadPartAssignmentSpell(outputMod, headpartsLoaded);
+            HeadPartWriter.WriteHeadPartSPIDIni(headPartAssignmentSpell);
+        }
+
         int npcCounter = 0;
         HashSet<Npc> headPartNPCs = new HashSet<Npc>();
         _statusBar.ProgressBarMax = allNPCs.Count();
         _statusBar.ProgressBarCurrent = 0;
         _statusBar.ProgressBarDisp = "Patched " + _statusBar.ProgressBarCurrent + " NPCs";
         // Patch main NPCs
-        MainLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, headPartNPCs);
+        MainLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, headPartNPCs);
         // Finish assigning non-primary linked NPCs
-        MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, headPartNPCs);
+        MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, headPartNPCs);
 
         // Perform headpart functionality if any headparts were patched
         if (headPartNPCs.Any())
@@ -174,6 +215,12 @@ public class Patcher
             }
         }
 
+        if (PatcherSettings.General.bChangeHeadParts)
+        {
+            HeadPartWriter.CopyHeadPartScript();
+            HeadPartWriter.WriteAssignmentDictionary();
+        }
+
         string patchOutputPath = System.IO.Path.Combine(PatcherSettings.General.OutputDataFolder, PatcherSettings.General.PatchFileName + ".esp");
         PatcherIO.WritePatch(patchOutputPath, outputMod);
 
@@ -207,7 +254,7 @@ public class Patcher
     private void MainLoop(
         IEnumerable<INpcGetter> npcCollection, bool skipLinkedSecondaryNPCs, SkyrimMod outputMod, 
         CategorizedFlattenedAssetPacks sortedAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, 
-        HeightConfig currentHeightConfig, int npcCounter,
+        HeightConfig currentHeightConfig, Settings_Headparts headPartSettings, int npcCounter,
         HashSet<LinkedNPCGroupInfo> generatedLinkGroups, HashSet<INpcGetter> skippedLinkedNPCs,
         Keyword EBDFaceKW, Keyword EBDScriptKW, Spell bodySlideAssignmentSpell,
         HashSet<Npc> headPartNPCs)
@@ -454,6 +501,14 @@ public class Patcher
             }
             #endregion
 
+            #region Head Part assignment
+            if (PatcherSettings.General.bChangeHeadParts)
+            {
+                var assignedHeadParts = HeadPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, blockListNPCEntry, blockListPluginEntry);
+                HeadPartTracker.Add(currentNPCInfo.NPC.FormKey, assignedHeadParts);
+            }
+            #endregion
+
             Logger.SaveReport(currentNPCInfo);
         }
     }
@@ -548,16 +603,11 @@ public class Patcher
 
     public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker(); // tracks unique selected morphs so that only assigned morphs are written to the generated templates.ini
     public static Dictionary<FormKey, string> BodySlideTracker = new Dictionary<FormKey, string>(); // tracks which NPCs get which bodyslide presets
-
+    public static Dictionary<FormKey, HeadPartSelection> HeadPartTracker = new();
     public class BodyGenAssignmentTracker
     {
         public Dictionary<FormKey, List<string>> NPCAssignments = new();
         public Dictionary<string, HashSet<string>> AllChosenMorphsMale = new();
         public Dictionary<string, HashSet<string>> AllChosenMorphsFemale = new();
-    }
-
-    public class HeadPartTracker
-    {
-        public Dictionary<FormKey, HeadPartSelection> headParts = new();
     }
 }

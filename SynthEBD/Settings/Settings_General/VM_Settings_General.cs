@@ -143,6 +143,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     public bool ExcludePlayerCharacter { get; set; } = true;
     public bool ExcludePresets { get; set; } = true;
     public bool bChangeHeight { get; set;  } = true;
+    public bool bChangeHeadParts { get; set; } = true;
     public string PortableSettingsFolder { get; set; } = "";
     public bool bEnableConsistency { get; set;  } = true;
     public bool bLinkNPCsWithSameName { get; set;  } = true;
@@ -183,7 +184,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         viewModel.bChangeMeshesOrTextures = model.bChangeMeshesOrTextures;
         viewModel.BodySelectionMode = model.BodySelectionMode;
         viewModel.BSSelectionMode = model.BSSelectionMode;
-        viewModel.bChangeHeight = model.bChangeHeight;       
+        viewModel.bChangeHeight = model.bChangeHeight;
+        viewModel.bChangeHeadParts = model.bChangeHeadParts;
         viewModel.bEnableConsistency = model.bEnableConsistency;
         viewModel.ExcludePlayerCharacter = model.ExcludePlayerCharacter;
         viewModel.ExcludePresets = model.ExcludePresets;
@@ -211,6 +213,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         model.BodySelectionMode = viewModel.BodySelectionMode;
         model.BSSelectionMode = viewModel.BSSelectionMode;
         model.bChangeHeight = viewModel.bChangeHeight;
+        model.bChangeHeadParts = viewModel.bChangeHeadParts;
         model.OutputDataFolder = viewModel.OutputDataFolder;
         model.bEnableConsistency = viewModel.bEnableConsistency;
         model.ExcludePlayerCharacter = viewModel.ExcludePlayerCharacter;

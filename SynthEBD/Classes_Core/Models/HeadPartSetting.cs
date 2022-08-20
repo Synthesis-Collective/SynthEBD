@@ -1,4 +1,5 @@
 ﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Skyrim;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
-    public class HeadPartSetting
+    public class HeadPartSetting: IProbabilityWeighted
     {
         public FormKey HeadPart { get; set; }
         public string EditorID { get; set; }
@@ -32,5 +33,6 @@ namespace SynthEBD
 
         [Newtonsoft.Json.JsonIgnore]
         public int MatchedForceIfCount { get; set; } = 0;
+        public IHeadPartGetter ResolvedHeadPart { get; set; } = null;
     }
 }

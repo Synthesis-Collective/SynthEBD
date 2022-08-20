@@ -61,4 +61,22 @@ class PatcherIO
         }
         catch { Logger.LogErrorWithStatusUpdate("Could not write output file to " + patchOutputPath, ErrorType.Error); };
     }
+    public static void TryCopyResourceFile(string sourcePath, string destPath)
+    {
+        if (!File.Exists(sourcePath))
+        {
+            Logger.LogErrorWithStatusUpdate("Could not find " + sourcePath, ErrorType.Error);
+            return;
+        }
+
+        try
+        {
+            PatcherIO.CreateDirectoryIfNeeded(destPath, PatcherIO.PathType.File);
+            File.Copy(sourcePath, destPath, true);
+        }
+        catch
+        {
+            Logger.LogErrorWithStatusUpdate("Could not copy " + sourcePath + "to " + destPath, ErrorType.Error);
+        }
+    }
 }

@@ -25,7 +25,7 @@ namespace SynthEBD
         public bool bAllowNonUnique { get; set; } = true;
         public bool bAllowRandom { get; set; } = true;
         public NPCWeightRange WeightRange { get; set; } = new();
-        public double DistributionProbability { get; set; } = 0.5;
+        public double RandomizationPercentage { get; set; } = 50;
         public HashSet<BodyShapeDescriptor> AllowedBodySlideDescriptors { get; set; } = new();
         public HashSet<BodyShapeDescriptor> DisallowedBodySlideDescriptors { get; set; } = new();
         public HashSet<BodyShapeDescriptor> AllowedBodyGenDescriptors { get; set; } = new();

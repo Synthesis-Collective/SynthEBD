@@ -1,4 +1,5 @@
 ﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
@@ -18,7 +19,16 @@ public class LinkedNPCGroupInfo
     public float AssignedHeight { get; set; } = -1;
     public List<LinkedAssetReplacerAssignment> ReplacerAssignments { get; set; } = new();
     public Dictionary<string, SubgroupCombination> MixInAssignments { get; set; } = new();
-
+    public Dictionary<HeadPart.TypeEnum, IHeadPartGetter> HeadPartAssignments { get; set; } = new()
+    {
+        { HeadPart.TypeEnum.Eyebrows, null },
+        { HeadPart.TypeEnum.Eyes, null },
+        { HeadPart.TypeEnum.Face, null },
+        { HeadPart.TypeEnum.FacialHair, null },
+        { HeadPart.TypeEnum.Hair, null },
+        { HeadPart.TypeEnum.Misc, null },
+        { HeadPart.TypeEnum.Scars, null }
+    };
     public class LinkedAssetReplacerAssignment
     {
         public string GroupName { get; set; } = "";

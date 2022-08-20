@@ -10,6 +10,7 @@ public class Settings_General
     public BodyShapeSelectionMode BodySelectionMode { get; set; } = BodyShapeSelectionMode.None;
     public BodySlideSelectionMode BSSelectionMode { get; set; } = BodySlideSelectionMode.OBody;
     public bool bChangeHeight { get; set; } = true;
+    public bool bChangeHeadParts { get; set; } = true;
     public string OutputDataFolder { get; set; } = "";
     public bool bEnableConsistency { get; set; } = true;
     public bool ExcludePlayerCharacter { get; set; } = true;

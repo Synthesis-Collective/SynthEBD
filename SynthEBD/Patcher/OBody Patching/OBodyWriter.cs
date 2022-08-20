@@ -8,16 +8,6 @@ namespace SynthEBD;
 
 public class OBodyWriter
 {
-    public static void CreateSynthEBDDomain()
-    {
-        string domainPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "SKSE","Plugins","JCData","Domains","PSM_SynthEBD");
-        Directory.CreateDirectory(domainPath);
-
-        string domainScriptPath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "JContainers Domain", "PSM_SynthEBD.pex");
-        string domainScriptDestPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Scripts", "PSM_SynthEBD.pex");
-        TryCopyResourceFile(domainScriptPath, domainScriptDestPath);
-    }
-
     public static Spell CreateOBodyAssignmentSpell(SkyrimMod outputMod, GlobalShort settingsLoadedGlobal)
     {
         // create MGEF first
@@ -102,15 +92,13 @@ public class OBodyWriter
         // copy quest script
         string questSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideQuest", "SynthEBDBodySlideLoaderQuestScript.pex");
         string questDestPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Scripts", "SynthEBDBodySlideLoaderQuestScript.pex");
-        TryCopyResourceFile(questSourcePath, questDestPath);
+        PatcherIO.TryCopyResourceFile(questSourcePath, questDestPath);
         // copy quest alias script
         string questAliasSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideQuest", "SynthEBDBodySlideLoaderPAScript.pex");
         string questAliasDestPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Scripts", "SynthEBDBodySlideLoaderPAScript.pex");
-        TryCopyResourceFile(questAliasSourcePath, questAliasDestPath);
+        PatcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath);
         // copy Seq file
-        string questSeqSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideQuest", "SynthEBD.seq");
-        string questSeqDestPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Seq", "SynthEBD.seq");
-        TryCopyResourceFile(questSeqSourcePath, questSeqDestPath);
+        QuestInit.WriteQuestSeqFile();
     }
 
     public static void CopyBodySlideScript()
@@ -138,7 +126,7 @@ public class OBodyWriter
                 break;
         }
 
-        TryCopyResourceFile(sourcePath, destPath);
+        PatcherIO.TryCopyResourceFile(sourcePath, destPath);
     }
 
     public static void WriteBodySlideSPIDIni(Spell bodySlideSpell, Settings_OBody obodySettings, SkyrimMod outputMod)
@@ -259,25 +247,6 @@ public class OBodyWriter
                     Logger.LogErrorWithStatusUpdate("Could not delete file at " + path, ErrorType.Warning);
                 }
             }
-        }
-    }
-
-    public static void TryCopyResourceFile(string sourcePath, string destPath)
-    {
-        if (!File.Exists(sourcePath))
-        {
-            Logger.LogErrorWithStatusUpdate("Could not find " + sourcePath, ErrorType.Error);
-            return;
-        }
-
-        try
-        {
-            PatcherIO.CreateDirectoryIfNeeded(destPath, PatcherIO.PathType.File);
-            File.Copy(sourcePath, destPath, true);
-        }
-        catch
-        {
-            Logger.LogErrorWithStatusUpdate("Could not copy " + sourcePath + "to " + destPath, ErrorType.Error);
         }
     }
 }

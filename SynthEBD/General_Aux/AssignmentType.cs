@@ -7,5 +7,6 @@ public enum AssignmentType
     ReplacerAssets,
     BodyGen,
     BodySlide,
-    Height
+    Height,
+    HeadParts
 }

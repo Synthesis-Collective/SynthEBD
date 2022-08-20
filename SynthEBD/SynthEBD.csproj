@@ -14,7 +14,6 @@
     <None Remove="Record Templates\Record Templates.esp" />
     <None Remove="Resources\BodySlideQuest\Source\SynthEBDBodySlideLoaderPAScript.psc" />
     <None Remove="Resources\BodySlideQuest\Source\SynthEBDBodySlideLoaderQuestScript.psc" />
-    <None Remove="Resources\BodySlideQuest\SynthEBD.seq" />
     <None Remove="Resources\BodySlideQuest\SynthEBDBodySlideLoaderPAScript.pex" />
     <None Remove="Resources\BodySlideQuest\SynthEBDBodySlideLoaderQuestScript.pex" />
     <None Remove="Resources\BodySlideScript - Verbose Versions\AutoBody\source\SynthEBDBodySlideScriptAutoBody.psc" />
@@ -30,10 +29,16 @@
     <None Remove="Resources\Default BodySlide Annotations\CBBE.csv" />
     <None Remove="Resources\Default BodySlide Annotations\HIMBO.csv" />
     <None Remove="Resources\Default BodySlide Annotations\UNP.csv" />
+    <None Remove="Resources\HeadPartScripts\Source\SynthEBDHeadPartLoaderPAScript.psc" />
+    <None Remove="Resources\HeadPartScripts\Source\SynthEBDHeadPartLoaderQuestScript.psc" />
+    <None Remove="Resources\HeadPartScripts\Source\SynthEBDHeadPartScript.psc" />
+    <None Remove="Resources\HeadPartScripts\SynthEBDHeadPartLoaderPAScript.pex" />
+    <None Remove="Resources\HeadPartScripts\SynthEBDHeadPartLoaderQuestScript.pex" />
+    <None Remove="Resources\HeadPartScripts\SynthEBDHeadPartScript.pex" />
     <None Remove="Resources\JContainers Domain\PSM_SynthEBD.pex" />
     <None Remove="Resources\JContainers Domain\Source\PSM_SynthEBD.psc" />
+	<None Remove="Resources\QuestSeq\SynthEBD.seq" />
   </ItemGroup>
-
 
   <ItemGroup>
     <Content Include="Height Configurations\Default Config.json">
@@ -48,7 +53,25 @@
     <Content Include="Resources\BodySlideQuest\Source\SynthEBDBodySlideLoaderQuestScript.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\BodySlideQuest\SynthEBD.seq">
+    <Content Include="Resources\HeadPartScripts\Source\SynthEBDHeadPartLoaderPAScript.psc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\HeadPartScripts\Source\SynthEBDHeadPartLoaderQuestScript.psc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+	<Content Include="Resources\HeadPartScripts\SynthEBDHeadPartLoaderQuestScript.pex">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\HeadPartScripts\Source\SynthEBDHeadPartScript.psc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\HeadPartScripts\SynthEBDHeadPartLoaderPAScript.pex">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\HeadPartScripts\SynthEBDHeadPartScript.pex">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\QuestSeq\SynthEBD.seq">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Resources\BodySlideQuest\SynthEBDBodySlideLoaderPAScript.pex">
@@ -133,10 +156,6 @@
     <Page Update="Settings\Settings_TexMesh\UC_SettingsTexMesh.xaml">
       <XamlRuntime>$(DefaultXamlRuntime)</XamlRuntime>
     </Page>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Patcher\" />
   </ItemGroup>
 
 </Project>

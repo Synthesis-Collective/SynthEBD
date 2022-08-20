@@ -14,6 +14,17 @@ public class UniqueNPCData
         public List<LinkedAssetReplacerAssignment> ReplacerAssignments { get; set; } = new();
         public Dictionary<string, SubgroupCombination> MixInAssignments { get; set; } = new();
 
+        public Dictionary<HeadPart.TypeEnum, IHeadPartGetter> HeadPartAssignments { get; set; } = new()
+        {
+            { HeadPart.TypeEnum.Eyebrows, null },
+            { HeadPart.TypeEnum.Eyes, null },
+            { HeadPart.TypeEnum.Face, null },
+            { HeadPart.TypeEnum.FacialHair, null },
+            { HeadPart.TypeEnum.Hair, null },
+            { HeadPart.TypeEnum.Misc, null },
+            { HeadPart.TypeEnum.Scars, null }
+        };
+
         public class LinkedAssetReplacerAssignment
         {
             public string GroupName { get; set; } = "";
@@ -67,6 +78,7 @@ public class UniqueNPCData
                 case AssignmentType.BodyGen: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedMorphs;
                 case AssignmentType.BodySlide: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedBodySlidePreset;
                 case AssignmentType.Height: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedHeight;
+                case AssignmentType.HeadParts: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].HeadPartAssignments;
                 default: return null;
             }
         }
