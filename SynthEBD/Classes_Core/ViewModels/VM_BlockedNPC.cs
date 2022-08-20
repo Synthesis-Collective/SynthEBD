@@ -4,6 +4,7 @@ using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.ComponentModel;
 using ReactiveUI;
+using System.Collections.ObjectModel;
 
 namespace SynthEBD;
 
@@ -25,26 +26,7 @@ public class VM_BlockedNPC : VM
 
         this.WhenAnyValue(x => x.HeadParts).Subscribe(x =>
         {
-            if (HeadParts)
-            {
-                HeadPartsMisc = true;
-                HeadPartsBeard = true;
-                HeadPartsBrows = true;
-                HeadPartsEyes = true;
-                HeadPartsScars = true;
-                HeadPartsHair = true;
-                HeadPartsFace = true;
-            }
-            else
-            {
-                HeadPartsMisc = false;
-                HeadPartsBeard = false;
-                HeadPartsBrows = false;
-                HeadPartsEyes = false;
-                HeadPartsScars = false;
-                HeadPartsHair = false;
-                HeadPartsFace = false;
-            }
+            for (int i = 0; i < HeadPartTypes.Count; i++) { HeadPartTypes[i].Block = HeadParts; }
         });
     }
     // Caption
@@ -54,13 +36,16 @@ public class VM_BlockedNPC : VM
     public bool Height { get; set; } = false;
     public bool BodyShape { get; set; } = false;
     public bool HeadParts { get; set; } = false;
-    public bool HeadPartsMisc { get; set; } = false;
-    public bool HeadPartsFace { get; set; } = false;
-    public bool HeadPartsEyes { get; set; } = false;
-    public bool HeadPartsBeard { get; set; } = false;
-    public bool HeadPartsScars { get; set; } = false;
-    public bool HeadPartsBrows { get; set; } = false;
-    public bool HeadPartsHair { get; set; } = false;
+    public ObservableCollection<VM_HeadPartBlock> HeadPartTypes { get; set; } = new()
+    {
+        new(HeadPart.TypeEnum.Eyebrows, false),
+        new(HeadPart.TypeEnum.Eyes, false),
+        new(HeadPart.TypeEnum.Face, false),
+        new(HeadPart.TypeEnum.FacialHair, false),
+        new(HeadPart.TypeEnum.Hair, false),
+        new(HeadPart.TypeEnum.Misc, false),
+        new(HeadPart.TypeEnum.Scars, false)
+    };
 
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
@@ -73,6 +58,7 @@ public class VM_BlockedNPC : VM
         viewModel.Assets = model.Assets;
         viewModel.Height = model.Height;
         viewModel.BodyShape = model.BodyShape;
+        foreach (var type in model.HeadPartTypes.Keys) { viewModel.HeadPartTypes.Where(x => x.Type == type).First().Block = model.HeadPartTypes[type]; }
         return viewModel;
     }
 
@@ -83,6 +69,7 @@ public class VM_BlockedNPC : VM
         model.Assets = viewModel.Assets;
         model.Height = viewModel.Height;
         model.BodyShape = viewModel.BodyShape;
+        foreach (var type in model.HeadPartTypes.Keys) { model.HeadPartTypes[type] = viewModel.HeadPartTypes.Where(x => x.Type == type).First().Block; }
         return model;
     }
 }

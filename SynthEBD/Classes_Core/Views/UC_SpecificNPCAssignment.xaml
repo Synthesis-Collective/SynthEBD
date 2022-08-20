@@ -201,23 +201,11 @@
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Margin="10" Orientation="Horizontal">
-                        <TextBlock Text="{Binding Key}"/>
-                        <Button Margin="5 0 5 0" VerticalAlignment="Center" HorizontalAlignment="Left" HorizontalContentAlignment="Left"  Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.AddHeadPart}" CommandParameter="{Binding Key}" Foreground="LightGreen">+</Button>
-                        <ItemsControl ItemsSource="{Binding Value}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel Orientation="Horizontal"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal">
-                                        <ComboBox SelectedValue="{Binding EditorID}" ItemsSource="{Binding Path=AvailableHeadParts}" DisplayMemberPath="Label" SelectedValuePath="Label" BorderThickness="1" BorderBrush="{Binding BorderColor}"/>
-                                        <Button VerticalAlignment="Center"  Command="{Binding Path=DeleteMe}" Foreground="Firebrick">X</Button>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <TextBlock VerticalAlignment="Center" Text="{Binding Key}" MinWidth="75"/>
+                        <StackPanel Orientation="Horizontal">
+                            <ComboBox SelectedValue="{Binding Value.EditorID}" ItemsSource="{Binding Path=Value.AvailableHeadParts}" DisplayMemberPath="Label" SelectedValuePath="Label" BorderThickness="1" BorderBrush="{Binding Value.BorderColor}" Margin="5 0 5 0"/>
+                            <Button VerticalAlignment="Center"  Command="{Binding Value.ClearSelection}" Foreground="Firebrick">X</Button>
+                        </StackPanel>
                     </StackPanel>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>

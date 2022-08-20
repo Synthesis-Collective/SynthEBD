@@ -1,6 +1,7 @@
 ﻿using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using System.ComponentModel;
+using System.Collections.ObjectModel;
 using Noggog;
 using ReactiveUI;
 using Mutagen.Bethesda.Skyrim;
@@ -29,26 +30,7 @@ public class VM_BlockedPlugin : VM
 
         this.WhenAnyValue(x => x.HeadParts).Subscribe(x =>
         {
-            if (HeadParts)
-            {
-                HeadPartsMisc = true;
-                HeadPartsBeard = true;
-                HeadPartsBrows = true;
-                HeadPartsEyes = true;
-                HeadPartsScars = true;
-                HeadPartsHair = true;
-                HeadPartsFace = true;
-            }
-            else
-            {
-                HeadPartsMisc = false;
-                HeadPartsBeard = false;
-                HeadPartsBrows = false;
-                HeadPartsEyes = false;
-                HeadPartsScars = false;
-                HeadPartsHair = false;
-                HeadPartsFace = false;
-            }
+            for (int i = 0; i < HeadPartTypes.Count; i++) { HeadPartTypes[i].Block = HeadParts; }
         });
     }
 
@@ -59,13 +41,16 @@ public class VM_BlockedPlugin : VM
     public bool Height { get; set; } = false;
     public bool BodyShape { get; set; } = false;
     public bool HeadParts { get; set; } = false;
-    public bool HeadPartsMisc { get; set; } = false;
-    public bool HeadPartsFace { get; set; } = false;
-    public bool HeadPartsEyes { get; set; } = false;
-    public bool HeadPartsBeard { get; set; } = false;
-    public bool HeadPartsScars { get; set; } = false;
-    public bool HeadPartsBrows { get; set; } = false;
-    public bool HeadPartsHair { get; set; } = false;
+    public ObservableCollection<VM_HeadPartBlock> HeadPartTypes { get; set; } = new()
+    {
+        new(HeadPart.TypeEnum.Eyebrows, false),
+        new(HeadPart.TypeEnum.Eyes, false),
+        new(HeadPart.TypeEnum.Face, false),
+        new(HeadPart.TypeEnum.FacialHair, false),
+        new(HeadPart.TypeEnum.Hair, false),
+        new(HeadPart.TypeEnum.Misc, false),
+        new(HeadPart.TypeEnum.Scars, false)
+    };
 
     public ILinkCache lk { get; private set; }
     public Mutagen.Bethesda.Plugins.Order.ILoadOrder<Mutagen.Bethesda.Plugins.Order.IModListing<ISkyrimModGetter>> LoadOrder { get; private set; }
@@ -78,6 +63,7 @@ public class VM_BlockedPlugin : VM
         viewModel.Assets = model.Assets;
         viewModel.Height = model.Height;
         viewModel.BodyShape = model.BodyShape;
+        foreach (var type in model.HeadPartTypes.Keys) { viewModel.HeadPartTypes.Where(x => x.Type == type).First().Block = model.HeadPartTypes[type]; }
         return viewModel;
     }
 
@@ -88,6 +74,7 @@ public class VM_BlockedPlugin : VM
         model.Assets = viewModel.Assets;
         model.Height = viewModel.Height;
         model.BodyShape = viewModel.BodyShape;
+        foreach (var type in model.HeadPartTypes.Keys) { model.HeadPartTypes[type] = viewModel.HeadPartTypes.Where(x => x.Type == type).First().Block; }
         return model;
     }
 }

@@ -164,22 +164,11 @@
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="{Binding Key}"/>
-                        <ItemsControl ItemsSource="{Binding Value}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel Orientation="Horizontal"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding EditorID}" Foreground="{Binding BorderColor}"/>
-                                        <TextBlock Text=": "/>
-                                        <Button VerticalAlignment="Center"  Command="{Binding Path=DeleteMe}" Foreground="Firebrick">X</Button>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding EditorID}" Foreground="{Binding BorderColor}"/>
+                            <TextBlock Text=": "/>
+                            <Button VerticalAlignment="Center"  Command="{Binding Path=DeleteMe}" Foreground="Firebrick">X</Button>
+                        </StackPanel>
                     </StackPanel>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>

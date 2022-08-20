@@ -1,4 +1,5 @@
 ﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
@@ -15,13 +16,17 @@ public class BlockedNPC
     public bool Height { get; set; } = false;
     public bool BodyShape { get; set; } = false;
     public bool HeadParts { get; set; } = false;
-    public bool HeadPartsMisc { get; set; } = false;
-    public bool HeadPartsFace { get; set; } = false;
-    public bool HeadPartsEyes { get; set; } = false;
-    public bool HeadPartsBeard { get; set; } = false;
-    public bool HeadPartsScars { get; set; } = false;
-    public bool HeadPartsBrows { get; set; } = false;
-    public bool HeadPartsHair { get; set; } = false;
+
+    public Dictionary<HeadPart.TypeEnum, bool> HeadPartTypes { get; set; } = new()
+    {
+        {HeadPart.TypeEnum.Eyebrows, false },
+        {HeadPart.TypeEnum.Eyes, false },
+        {HeadPart.TypeEnum.Face, false },
+        {HeadPart.TypeEnum.FacialHair, false },
+        {HeadPart.TypeEnum.Hair, false },
+        {HeadPart.TypeEnum.Misc, false },
+        {HeadPart.TypeEnum.Scars, false }
+    };
 }
 
 public class BlockedPlugin
@@ -31,17 +36,20 @@ public class BlockedPlugin
     public bool Height { get; set; } = false;
     public bool BodyShape { get; set; } = false;
     public bool HeadParts { get; set; } = false;
-    public bool HeadPartsMisc { get; set; } = false;
-    public bool HeadPartsFace { get; set; } = false;
-    public bool HeadPartsEyes { get; set; } = false;
-    public bool HeadPartsBeard { get; set; } = false;
-    public bool HeadPartsScars { get; set; } = false;
-    public bool HeadPartsBrows { get; set; } = false;
-    public bool HeadPartsHair { get; set; } = false;
+    public Dictionary<HeadPart.TypeEnum, bool> HeadPartTypes { get; set; } = new()
+    {
+        {HeadPart.TypeEnum.Eyebrows, false },
+        {HeadPart.TypeEnum.Eyes, false },
+        {HeadPart.TypeEnum.Face, false },
+        {HeadPart.TypeEnum.FacialHair, false },
+        {HeadPart.TypeEnum.Hair, false },
+        {HeadPart.TypeEnum.Misc, false },
+        {HeadPart.TypeEnum.Scars, false }
+    };
 }
 
-public class zEBDBlockList
-{
+    public class zEBDBlockList
+    {
     public HashSet<zEBDBlockedNPC> blockedNPCs { get; set; } = new();
     public HashSet<zEBDBlockedPlugin> blockedPlugins { get; set; } = new();
 

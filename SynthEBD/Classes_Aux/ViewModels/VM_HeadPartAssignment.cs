@@ -14,7 +14,7 @@ namespace SynthEBD
 {
     public class VM_HeadPartAssignment : VM
     {
-        public VM_HeadPartAssignment(VM_HeadPart template, ObservableCollection<VM_HeadPartAssignment> parentCollection, VM_Settings_Headparts parentConfig, HeadPart.TypeEnum type, IHasSynthEBDGender parentAssignment)
+        public VM_HeadPartAssignment(VM_HeadPart template, VM_Settings_Headparts parentConfig, HeadPart.TypeEnum type, IHasSynthEBDGender parentAssignmentGender, IHasHeadPartAssignments parentAssignment)
         {
             if (template is not null)
             {
@@ -22,11 +22,13 @@ namespace SynthEBD
                 EditorID = template.Label;
             }
             Type = type;
-            ParentCollection = parentCollection;
             ParentConfig = parentConfig;
+            ParentAssignmentGender = parentAssignmentGender;
             ParentAssignment = parentAssignment;
 
-            ParentCollection.ToObservableChangeSet().Subscribe(x => RefreshAvailable());
+            ParentConfig.Types[Type].HeadPartList.ToObservableChangeSet().Subscribe(x => RefreshAvailable());
+            this.WhenAnyValue(x => x.ParentAssignmentGender.NPCFormKey).Subscribe(x => RefreshAvailable());
+
             this.WhenAnyValue(x => x.EditorID).Subscribe(x =>
                 {
                 var assignment = parentConfig.Types[type].HeadPartList.Where(x => x.Label == EditorID).FirstOrDefault();
@@ -43,33 +45,29 @@ namespace SynthEBD
                 else { BorderColor = new(Colors.Red); }
             });
 
-            
-
-            DeleteMe = new SynthEBD.RelayCommand(
+            ClearSelection = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => ParentCollection.Remove(this)
+                execute: _ => {
+                    FormKey = new();
+                    EditorID = String.Empty;
+                }
             );
         }
         public FormKey FormKey { get; set; }
         public string EditorID { get; set; }
-        public IHasSynthEBDGender ParentAssignment { get; set; }
+        public IHasSynthEBDGender ParentAssignmentGender { get; set; }
+        public IHasHeadPartAssignments ParentAssignment { get; set; }
         public Gender? Gender { get; set; }
         public HeadPart.TypeEnum Type { get; set; }
-        public ObservableCollection<VM_HeadPartAssignment> ParentCollection { get; set; }
         public VM_Settings_Headparts ParentConfig { get; set; }
         public ObservableCollection<VM_HeadPart> AvailableHeadParts { get; set; }
-        public RelayCommand DeleteMe { get; set; }
+        public RelayCommand ClearSelection { get; set; }
         public SolidColorBrush BorderColor { get; set; }
 
         public void RefreshAvailable()
         {
             var all = ParentConfig.Types[Type].HeadPartList.ToHashSet();
-            var used = ParentCollection.Select(x => x.FormKey).ToHashSet();
-            if (FormKey != null)
-            {
-                used.Remove(FormKey);
-            }
-            var available = all.Where(x => !used.Contains(x.FormKey) && HeadPartGenderMatches(ParentAssignment.Gender, x));
+            var available = all.Where(x => HeadPartGenderMatches(ParentAssignmentGender.Gender, x));
             AvailableHeadParts = new ObservableCollection<VM_HeadPart>(available);
         }
 
@@ -79,10 +77,10 @@ namespace SynthEBD
             else { return false; }
         }
 
-        public static VM_HeadPartAssignment GetViewModelFromModel(FormKeyEditorIDPair assignment, HeadPart.TypeEnum type, ObservableCollection<VM_HeadPartAssignment> parentCollection, VM_Settings_Headparts parentConfig, IHasSynthEBDGender parentAssignment)
+        public static VM_HeadPartAssignment GetViewModelFromModel(FormKeyEditorIDPair assignment, HeadPart.TypeEnum type, VM_Settings_Headparts parentConfig, IHasSynthEBDGender parentAssignmentGender, IHasHeadPartAssignments parentAssignment)
         {
             var referencedHeadPart = parentConfig.Types[type].HeadPartList.Where(x => x.FormKey.Equals(assignment.FormKey)).FirstOrDefault();
-            return new VM_HeadPartAssignment(referencedHeadPart, parentCollection, parentConfig, type, parentAssignment);
+            return new VM_HeadPartAssignment(referencedHeadPart, parentConfig, type, parentAssignmentGender, parentAssignment);
         }
 
         public FormKeyEditorIDPair DumpToModel()
@@ -93,6 +91,12 @@ namespace SynthEBD
 
     public interface IHasSynthEBDGender
     {
+        FormKey NPCFormKey { get; set; }
         Gender Gender { get; set; }
     };
+
+    public interface IHasHeadPartAssignments
+    {
+        Dictionary<HeadPart.TypeEnum, VM_HeadPartAssignment> HeadParts { get; set; }
+    }
 }

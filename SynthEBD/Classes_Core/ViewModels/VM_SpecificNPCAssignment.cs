@@ -11,7 +11,7 @@ using System.Linq;
 
 namespace SynthEBD;
 
-public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
+public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender, IHasHeadPartAssignments
 {
     public delegate VM_SpecificNPCAssignment Factory();
 
@@ -58,6 +58,17 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             ForcedAssetReplacements.Remove(ForcedAssetReplacements.Where(x => x.ParentAssetPack != ForcedAssetPack));
         });
 
+        HeadParts = new()
+        {
+            { HeadPart.TypeEnum.Eyebrows, new VM_HeadPartAssignment(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.Eyebrows, this, this) },
+            { HeadPart.TypeEnum.Eyes, new VM_HeadPartAssignment(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.Eyes, this, this) },
+            { HeadPart.TypeEnum.Face, new VM_HeadPartAssignment(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.Face, this, this) },
+            { HeadPart.TypeEnum.FacialHair, new VM_HeadPartAssignment(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.FacialHair, this, this) },
+            { HeadPart.TypeEnum.Hair, new VM_HeadPartAssignment(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.Hair, this, this) },
+            { HeadPart.TypeEnum.Misc, new VM_HeadPartAssignment(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.Misc, this, this) },
+            { HeadPart.TypeEnum.Scars, new VM_HeadPartAssignment(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.Scars, this, this) }
+        };
+
         DeleteForcedAssetPack = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: x =>
@@ -101,15 +112,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             }
         );
 
-        AddHeadPart = new SynthEBD.RelayCommand(
-            canExecute: _ => true,
-            execute: x =>
-            {
-                var type = (HeadPart.TypeEnum)x;
-                HeadParts[type].Add(new(null, HeadParts[type], SubscribedHeadPartSettings, type, this));
-            }
-        );
-
         UpdateAvailableAssetPacks(this);
         UpdateAvailableBodySlides(SubscribedOBodySettings, SubscribedGeneralSettings);
     }
@@ -126,16 +128,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     public string ForcedHeight { get; set; } = "";
     public ObservableCollection<VM_BodyGenTemplate> ForcedBodyGenMorphs { get; set; } = new();
     public string ForcedBodySlide { get; set; } = "";
-    public Dictionary<HeadPart.TypeEnum, ObservableCollection<VM_HeadPartAssignment>> HeadParts { get; set; } = new()
-    {
-        { HeadPart.TypeEnum.Eyebrows, new ObservableCollection<VM_HeadPartAssignment>() },
-        { HeadPart.TypeEnum.Eyes, new ObservableCollection<VM_HeadPartAssignment>() },
-        { HeadPart.TypeEnum.Face, new ObservableCollection<VM_HeadPartAssignment>() },
-        { HeadPart.TypeEnum.FacialHair, new ObservableCollection<VM_HeadPartAssignment>() },
-        { HeadPart.TypeEnum.Hair, new ObservableCollection<VM_HeadPartAssignment>() },
-        { HeadPart.TypeEnum.Misc, new ObservableCollection<VM_HeadPartAssignment>() },
-        { HeadPart.TypeEnum.Scars, new ObservableCollection<VM_HeadPartAssignment>() }
-    };
+    public Dictionary<HeadPart.TypeEnum, VM_HeadPartAssignment> HeadParts { get; set; } = new();
 
     //Needed by UI
     public ObservableCollection<VM_AssetPack> AvailableAssetPacks { get; set; } = new();
@@ -274,11 +267,10 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
         foreach (var headPartType in viewModel.HeadParts.Keys)
         {
-            viewModel.HeadParts[headPartType].Clear();
             if (!model.HeadParts.ContainsKey(headPartType)) { model.HeadParts.Add(headPartType, new()); }
-            foreach (var headPartAssignment in model.HeadParts[headPartType])
+            else
             {
-                viewModel.HeadParts[headPartType].Add(VM_HeadPartAssignment.GetViewModelFromModel(headPartAssignment, headPartType, viewModel.HeadParts[headPartType], headParts, viewModel));
+                viewModel.HeadParts[headPartType] = VM_HeadPartAssignment.GetViewModelFromModel(model.HeadParts[headPartType], headPartType, headParts, viewModel, viewModel);
             }
         }
 
@@ -399,11 +391,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
         foreach (var headPartType in viewModel.HeadParts.Keys)
         {
-            model.HeadParts[headPartType].Clear();
-            foreach (var headPartAssignment in viewModel.HeadParts[headPartType])
-            {
-                model.HeadParts[headPartType].Add(headPartAssignment.DumpToModel());
-            }
+            model.HeadParts[headPartType] = viewModel.HeadParts[headPartType].DumpToModel();
         }
 
         return model;

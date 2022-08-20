@@ -5,7 +5,7 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
-public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
+public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender, IHasHeadPartAssignments
 {
     public VM_ConsistencyAssignment()
     {
@@ -40,15 +40,15 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
     public ObservableCollection<VM_CollectionMemberString> BodyGenMorphNames { get; set; } = new();
     public string BodySlidePreset { get; set; } = "";
     public string Height { get; set; }
-    public Dictionary<HeadPart.TypeEnum, ObservableCollection<VM_HeadPartAssignment>> HeadParts { get; set; } = new()
+    public Dictionary<HeadPart.TypeEnum, VM_HeadPartAssignment> HeadParts { get; set; } = new()
     {
-        { HeadPart.TypeEnum.Eyebrows, new ObservableCollection<VM_HeadPartAssignment>() },
-        { HeadPart.TypeEnum.Eyes, new ObservableCollection<VM_HeadPartAssignment>() },
-        { HeadPart.TypeEnum.Face, new ObservableCollection<VM_HeadPartAssignment>() },
-        { HeadPart.TypeEnum.FacialHair, new ObservableCollection<VM_HeadPartAssignment>() },
-        { HeadPart.TypeEnum.Hair, new ObservableCollection<VM_HeadPartAssignment>() },
-        { HeadPart.TypeEnum.Misc, new ObservableCollection<VM_HeadPartAssignment>() },
-        { HeadPart.TypeEnum.Scars, new ObservableCollection<VM_HeadPartAssignment>() }
+        { HeadPart.TypeEnum.Eyebrows, null },
+        { HeadPart.TypeEnum.Eyes, null },
+        { HeadPart.TypeEnum.Face, null },
+        { HeadPart.TypeEnum.FacialHair, null },
+        { HeadPart.TypeEnum.Hair, null },
+        { HeadPart.TypeEnum.Misc, null },
+        { HeadPart.TypeEnum.Scars, null }
     };
     public string DispName { get; set; }
     public FormKey NPCFormKey { get; set; }
@@ -113,11 +113,10 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
 
         foreach (var headPartType in viewModel.HeadParts.Keys)
         {
-            viewModel.HeadParts[headPartType].Clear();
             if (!model.HeadParts.ContainsKey(headPartType)) { model.HeadParts.Add(headPartType, new()); }
-            foreach (var headPartAssignment in model.HeadParts[headPartType])
+            else
             {
-                viewModel.HeadParts[headPartType].Add(VM_HeadPartAssignment.GetViewModelFromModel(headPartAssignment, headPartType, viewModel.HeadParts[headPartType], headParts, viewModel));
+                viewModel.HeadParts[headPartType] = VM_HeadPartAssignment.GetViewModelFromModel(model.HeadParts[headPartType], headPartType, headParts, viewModel, viewModel);
             }
         }
 
@@ -160,11 +159,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
 
         foreach (var headPartType in viewModel.HeadParts.Keys)
         {
-            model.HeadParts[headPartType].Clear();
-            foreach (var headPartAssignment in viewModel.HeadParts[headPartType])
-            {
-                model.HeadParts[headPartType].Add(headPartAssignment.DumpToModel());
-            }
+            model.HeadParts[headPartType] = viewModel.HeadParts[headPartType].DumpToModel();
         }
 
         model.DispName = viewModel.DispName;

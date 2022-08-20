@@ -10,18 +10,28 @@ namespace SynthEBD
 {
     public class HeadPartSelector
     {
-        public static HeadPartSelection AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings)
+        public static HeadPartSelection AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings, BlockedNPC blockedNPCentry, BlockedPlugin blockedPluginEntry)
         {
+            Logger.OpenReportSubsection("HeadParts", npcInfo);
+            Logger.LogReport("Selecting Head Parts for Current NPC", false, npcInfo);
             HeadPartSelection selectedHeadParts = new();
-
 
             foreach (var headPartType in settings.Types.Keys)
             {
-                var headPartSetting = settings.Types[headPartType];
-
-
+                if (!blockedNPCentry.HeadPartTypes[headPartType])
+                {
+                    Logger.LogReport(headPartType + " assignment is blocked for current NPC.", false, npcInfo);
+                    continue;
+                }
+                if (!blockedPluginEntry.HeadPartTypes[headPartType])
+                {
+                    Logger.LogReport(headPartType + " assignment is blocked for current NPC's plugin.", false, npcInfo);
+                    continue;
+                }
+                AssignHeadPartType(settings.Types[headPartType], headPartType, npcInfo);
             }
 
+            Logger.CloseReportSubsectionsToParentOf("HeadParts", npcInfo);
             return selectedHeadParts;
         }
 

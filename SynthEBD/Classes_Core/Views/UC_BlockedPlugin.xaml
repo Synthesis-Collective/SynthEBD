@@ -43,19 +43,21 @@
         <CheckBox Grid.Row="3" Grid.Column="1"  IsChecked="{Binding Path=BodyShape, Mode=TwoWay}"></CheckBox>
         <TextBlock Grid.Row="4" Grid.Column="0" HorizontalAlignment="Center">Block Head Parts</TextBlock>
         <CheckBox Grid.Row="4" Grid.Column="1"  IsChecked="{Binding Path=HeadParts, Mode=TwoWay}"></CheckBox>
-        <TextBlock Grid.Row="5" Grid.Column="0" HorizontalAlignment="Center" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}">Block Beards</TextBlock>
-        <CheckBox Grid.Row="5" Grid.Column="1"  IsChecked="{Binding Path=HeadPartsBeard, Mode=TwoWay}" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}"></CheckBox>
-        <TextBlock Grid.Row="6" Grid.Column="0" HorizontalAlignment="Center" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}">Block Brows</TextBlock>
-        <CheckBox Grid.Row="6" Grid.Column="1"  IsChecked="{Binding Path=HeadPartsBrows, Mode=TwoWay}" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}"></CheckBox>
-        <TextBlock Grid.Row="7" Grid.Column="0" HorizontalAlignment="Center" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}">Block Eyes</TextBlock>
-        <CheckBox Grid.Row="7" Grid.Column="1"  IsChecked="{Binding Path=HeadPartsEyes, Mode=TwoWay}" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}"></CheckBox>
-        <TextBlock Grid.Row="8" Grid.Column="0" HorizontalAlignment="Center" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}">Block Faces</TextBlock>
-        <CheckBox Grid.Row="8" Grid.Column="1"  IsChecked="{Binding Path=HeadPartsFace, Mode=TwoWay}" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}"></CheckBox>
-        <TextBlock Grid.Row="9" Grid.Column="0" HorizontalAlignment="Center" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}">Block Hair</TextBlock>
-        <CheckBox Grid.Row="9" Grid.Column="1"  IsChecked="{Binding Path=HeadPartsHair, Mode=TwoWay}" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}"></CheckBox>
-        <TextBlock Grid.Row="10" Grid.Column="0" HorizontalAlignment="Center" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}">Block Misc Head Parts</TextBlock>
-        <CheckBox Grid.Row="10" Grid.Column="1"  IsChecked="{Binding Path=HeadPartsMisc, Mode=TwoWay}" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}"></CheckBox>
-        <TextBlock Grid.Row="11" Grid.Column="0" HorizontalAlignment="Center" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}">Block Scars</TextBlock>
-        <CheckBox Grid.Row="11" Grid.Column="1"  IsChecked="{Binding Path=HeadPartsScars, Mode=TwoWay}" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}"></CheckBox>
+
+        <ItemsControl Grid.Row="5" Grid.Column="1" ItemsSource="{Binding HeadPartTypes}" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Margin="10" Orientation="Horizontal">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding Type}" MinWidth="75"/>
+                        <CheckBox IsChecked="{Binding Block}" Margin="5 0 0 0"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
     </Grid>
 </UserControl>

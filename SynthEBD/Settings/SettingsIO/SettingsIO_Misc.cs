@@ -39,6 +39,8 @@ public class SettingsIO_Misc
             }
         }
         // note: No need to alert user if consistency can't be loaded - it won't be available on first run
+
+        if (loaded == null) { loaded = new(); } // this can happen when JSON parsing fails - loaded still gets assigned the failed null value
         return loaded;
     }
     public static void SaveConsistency(Dictionary<string, NPCAssignment> consistency, out bool saveSuccess)

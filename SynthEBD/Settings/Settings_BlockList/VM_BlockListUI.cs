@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using Mutagen.Bethesda.Skyrim;
+using System.Collections.ObjectModel;
 
 namespace SynthEBD;
 
@@ -121,4 +122,15 @@ public class VM_BlockListUI : VM
             }
         }
     }
+}
+
+public class VM_HeadPartBlock : VM
+{
+    public VM_HeadPartBlock(HeadPart.TypeEnum type, bool isBlocked)
+    {
+        Type = type;
+        Block = isBlocked;
+    }
+    public HeadPart.TypeEnum Type { get; set; }
+    public bool Block { get; set; }
 }
