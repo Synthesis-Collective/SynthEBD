@@ -577,11 +577,11 @@ public class ConfigInstaller
     {
         Dictionary<string, string> pathMap = new Dictionary<string, string>();
 
-        int newFileNameIndex = 0;
+        int newFileNameIndex;
 
         var containedPaths = GetAssetPackSourcePaths(extractedPack);
 
-        Dictionary<string, int> pathCountsByFile = new Dictionary<string, int>();
+        Dictionary<string, int> pathCountsByFile = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var path in containedPaths)
         {
