@@ -22,6 +22,7 @@
             <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewHairMenu}">Hair</RadioButton>
             <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewMiscMenu}">Misc</RadioButton>
             <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewScarsMenu}">Scars</RadioButton>
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewSettingsMenu}">Settings</RadioButton>
         </WrapPanel>
 
         <ContentPresenter Content="{Binding DisplayedMenu}" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2">
@@ -31,6 +32,9 @@
                 </DataTemplate>
                 <DataTemplate DataType="{x:Type local:VM_HeadPartList}">
                     <local:UC_HeadPartList/>
+                </DataTemplate>
+                <DataTemplate DataType="{x:Type local:VM_HeadPartMiscSettings}">
+                    <local:UC_HeadPartMiscSettings/>
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>

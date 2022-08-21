@@ -21,7 +21,7 @@ public class Patcher
         _combinationLog = combinationLog;
         _environmentProvider = environmentProvider;
     }
-    
+
     //Synchronous version for debugging only
     //public static void RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins, VM_StatusBar statusBar)
     public async Task RunPatcher()
@@ -135,7 +135,7 @@ public class Patcher
         var copiedHeadPartSettings = JSONhandler<Settings_Headparts>.Deserialize(JSONhandler<Settings_Headparts>.Serialize(PatcherSettings.HeadParts, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
         if (!serializationSuccess) { Logger.LogMessage("Error serializing Head Part configs. Exception: " + serializatonException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
         if (!deserializationSuccess) { Logger.LogMessage("Error deserializing Head Part configs. Exception: " + deserializationException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
-        
+
         if (PatcherSettings.General.bChangeHeadParts)
         {
             bool removedHeadParts = false;
@@ -257,8 +257,8 @@ public class Patcher
     }
 
     private void MainLoop(
-        IEnumerable<INpcGetter> npcCollection, bool skipLinkedSecondaryNPCs, SkyrimMod outputMod, 
-        CategorizedFlattenedAssetPacks sortedAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, 
+        IEnumerable<INpcGetter> npcCollection, bool skipLinkedSecondaryNPCs, SkyrimMod outputMod,
+        CategorizedFlattenedAssetPacks sortedAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings,
         HeightConfig currentHeightConfig, Settings_Headparts headPartSettings, int npcCounter,
         HashSet<LinkedNPCGroupInfo> generatedLinkGroups, HashSet<INpcGetter> skippedLinkedNPCs,
         Keyword EBDFaceKW, Keyword EBDScriptKW, Spell bodySlideAssignmentSpell,
@@ -275,7 +275,7 @@ public class Patcher
 
         HashSet<FlattenedAssetPack> primaryAssetPacks = new HashSet<FlattenedAssetPack>();
         HashSet<FlattenedAssetPack> mixInAssetPacks = new HashSet<FlattenedAssetPack>();
-            
+
         List<SubgroupCombination> assignedCombinations = new List<SubgroupCombination>();
         HashSet<LinkedNPCGroup> linkedGroupsHashSet = PatcherSettings.General.LinkedNPCGroups.ToHashSet();
 
@@ -292,6 +292,8 @@ public class Patcher
             assetsAssigned = false;
             bodyShapeAssigned = false;
             assignedCombinations = new List<SubgroupCombination>();
+            Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts = GetBlankHeadPartAssignment(); // head parts generated via the asset pack functionality
+
             #region Linked NPC Groups
             if (skipLinkedSecondaryNPCs && currentNPCInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary)
             {
@@ -362,7 +364,7 @@ public class Patcher
             {
                 switch (currentNPCInfo.Gender)
                 {
-                    case Gender.Female: 
+                    case Gender.Female:
                         primaryAssetPacks = sortedAssetPacks.PrimaryFemale;
                         mixInAssetPacks = sortedAssetPacks.MixInFemale;
                         break;
@@ -479,7 +481,7 @@ public class Patcher
                     var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
                     var npcObjectMap = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", npcRecord } };
                     var assignedPaths = new List<FilePathReplacementParsed>(); // for logging only
-                    RecordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, _state.RecordTemplateLinkCache, npcObjectMap, objectCaches, outputMod, assignedPaths);
+                    RecordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, _state.RecordTemplateLinkCache, npcObjectMap, objectCaches, outputMod, assignedPaths, generatedHeadParts);
                     _combinationLog.LogAssignment(currentNPCInfo, assignedCombinations, assignedPaths);
                     if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
                     npcRecord.Keywords.Add(EBDFaceKW);
@@ -510,6 +512,12 @@ public class Patcher
             if (PatcherSettings.General.bChangeHeadParts)
             {
                 var assignedHeadParts = HeadPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, blockListNPCEntry, blockListPluginEntry);
+
+                if (PatcherSettings.General.bChangeMeshesOrTextures)
+                {
+                    HeadPartSelector.ResolveConflictsWithAssetAssignments(generatedHeadParts, assignedHeadParts);
+                }
+
                 HeadPartTracker.Add(currentNPCInfo.NPC.FormKey, assignedHeadParts);
             }
             #endregion
@@ -614,5 +622,31 @@ public class Patcher
         public Dictionary<FormKey, List<string>> NPCAssignments = new();
         public Dictionary<string, HashSet<string>> AllChosenMorphsMale = new();
         public Dictionary<string, HashSet<string>> AllChosenMorphsFemale = new();
+    }
+
+    public static Dictionary<HeadPart.TypeEnum, HeadPart> GetBlankHeadPartAssignment()
+    {
+        return new Dictionary<HeadPart.TypeEnum, HeadPart>()
+        {
+            { HeadPart.TypeEnum.Eyebrows, null },
+            { HeadPart.TypeEnum.Eyes, null },
+            { HeadPart.TypeEnum.Face, null },
+            { HeadPart.TypeEnum.FacialHair, null },
+            { HeadPart.TypeEnum.Hair, null },
+            { HeadPart.TypeEnum.Misc, null },
+            { HeadPart.TypeEnum.Scars, null }
+        };
+    }
+
+    public static void SetGeneratedHeadPart(HeadPart hp, Dictionary<HeadPart.TypeEnum, HeadPart> dict)
+    {
+        if (hp.Type != null)
+        {
+            dict[hp.Type.Value] = hp;
+        }
+        else
+        {
+            Logger.LogMessage("Cannot assign a head part replacer for head part " + EditorIDHandler.GetEditorIDSafely(hp) + " because it does not have a specified Type.");
+        }
     }
 }

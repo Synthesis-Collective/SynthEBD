@@ -9,7 +9,7 @@ namespace SynthEBD;
 
 public class RecordGenerator
 {
-    public static void CombinationToRecords(List<SubgroupCombination> combinations, NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, SkyrimMod outputMod, List<FilePathReplacementParsed> assignedPaths)
+    public static void CombinationToRecords(List<SubgroupCombination> combinations, NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, SkyrimMod outputMod, List<FilePathReplacementParsed> assignedPaths, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts)
     {
         HashSet<FilePathReplacementParsed> wnamPaths = new HashSet<FilePathReplacementParsed>();
         HashSet<FilePathReplacementParsed> headtexPaths = new HashSet<FilePathReplacementParsed>();
@@ -26,7 +26,7 @@ public class RecordGenerator
 
         if (nonHardcodedPaths.Any())
         {
-            AssignGenericAssetPaths(npcInfo, nonHardcodedPaths, currentNPC, recordTemplateLinkCache, outputMod, longestPath, true, false, npcObjectMap, objectCaches, assignedPaths);
+            AssignGenericAssetPaths(npcInfo, nonHardcodedPaths, currentNPC, recordTemplateLinkCache, outputMod, longestPath, true, false, npcObjectMap, objectCaches, assignedPaths, generatedHeadParts);
         }
     }
 
@@ -37,7 +37,7 @@ public class RecordGenerator
     }
 
     // assignedPaths is for logging purposes only
-    public static void AssignGenericAssetPaths(NPCInfo npcInfo, List<FilePathReplacementParsed> nonHardcodedPaths, Npc rootNPC, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SkyrimMod outputMod, int longestPath, bool assignFromTemplate, bool suppressMissingPathErrors, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, List<FilePathReplacementParsed> assignedPaths)
+    public static void AssignGenericAssetPaths(NPCInfo npcInfo, List<FilePathReplacementParsed> nonHardcodedPaths, Npc rootNPC, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SkyrimMod outputMod, int longestPath, bool assignFromTemplate, bool suppressMissingPathErrors, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, List<FilePathReplacementParsed> assignedPaths, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts)
     {
         HashSet<TemplateSignatureRecordPair> templateSubRecords = new HashSet<TemplateSignatureRecordPair>();
 
@@ -112,7 +112,7 @@ public class RecordGenerator
                                 LogRecordAlongPaths(group, currentObj);
                             }
                         }
-                        else if (!TraverseRecordFromNpc(currentObj, currentObjInfo, pathSignature, group, rootObj, currentSubPath, npcInfo, nonHardcodedPaths, outputMod, out currentObj))
+                        else if (!TraverseRecordFromNpc(currentObj, currentObjInfo, pathSignature, group, rootObj, currentSubPath, npcInfo, nonHardcodedPaths, generatedHeadParts, outputMod, out currentObj))
                         {
                             continue;
                         }
@@ -124,7 +124,7 @@ public class RecordGenerator
                 {
                     if (currentObjInfo.HasFormKey)  // if the current object is a record, resolve it
                     {
-                        if (!TraverseRecordFromNpc(currentObj, currentObjInfo, pathSignature, group, rootObj, currentSubPath, npcInfo, nonHardcodedPaths, outputMod, out currentObj))
+                        if (!TraverseRecordFromNpc(currentObj, currentObjInfo, pathSignature, group, rootObj, currentSubPath, npcInfo, nonHardcodedPaths, generatedHeadParts, outputMod, out currentObj))
                         {
                             continue;
                         }
@@ -159,7 +159,7 @@ public class RecordGenerator
                     {
                         if (currentObjInfo.HasFormKey)
                         {
-                            if (!TraverseRecordFromTemplate(rootObj, currentSubPath, currentObj, currentObjInfo, recordTemplateLinkCache, nonHardcodedPaths, group, templateSignature, templateSubRecords, outputMod, rootNPC, out currentObj))
+                            if (!TraverseRecordFromTemplate(rootObj, currentSubPath, currentObj, currentObjInfo, recordTemplateLinkCache, nonHardcodedPaths, group, templateSignature, templateSubRecords, generatedHeadParts, outputMod, rootNPC, out currentObj))
                             {
                                 continue;
                             }
@@ -192,10 +192,11 @@ public class RecordGenerator
         }
     }
 
-    private static bool TraverseRecordFromNpc(dynamic currentObj, ObjectInfo currentObjInfo, HashSet<string> pathSignature, IGrouping<string, FilePathReplacementParsed> group, dynamic rootObj, string currentSubPath, NPCInfo npcInfo, List<FilePathReplacementParsed> allPaths, SkyrimMod outputMod, out dynamic outputObj)
+    private static bool TraverseRecordFromNpc(dynamic currentObj, ObjectInfo currentObjInfo, HashSet<string> pathSignature, IGrouping<string, FilePathReplacementParsed> group, dynamic rootObj, string currentSubPath, NPCInfo npcInfo, List<FilePathReplacementParsed> allPaths, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, SkyrimMod outputMod, out dynamic outputObj)
     {
         outputObj = currentObj;
         IMajorRecord copiedRecord = null;
+        bool isHeadPart = false;
         if (!TryGetModifiedRecord(pathSignature, currentObjInfo.RecordFormKey, out copiedRecord) && !currentObjInfo.RecordFormKey.IsNull)
         {
             if (currentObjInfo.LoquiRegistration == null)
@@ -216,14 +217,25 @@ public class RecordGenerator
             return false;
         }
 
-        SetViaFormKeyReplacement(copiedRecord, rootObj, currentSubPath, npcInfo.NPC);
+        var trialHeadPart = copiedRecord as HeadPart;
+
+        if (trialHeadPart is not null) // special handling for head parts
+        {
+            var headPart = copiedRecord as HeadPart;
+            Patcher.SetGeneratedHeadPart(trialHeadPart, generatedHeadParts);
+        }
+        else
+        {
+            SetViaFormKeyReplacement(copiedRecord, rootObj, currentSubPath, npcInfo.NPC);
+        }
+
         AddModifiedRecordToDictionary(pathSignature, currentObjInfo.RecordFormKey, copiedRecord);
         outputObj = copiedRecord;
         LogRecordAlongPaths(group, copiedRecord);
         return true;
     }
 
-    private static bool TraverseRecordFromTemplate(dynamic rootObj, string currentSubPath, dynamic recordToCopy, ObjectInfo recordObjectInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<FilePathReplacementParsed> allPaths, IGrouping<string, FilePathReplacementParsed> group, HashSet<INpcGetter> templateSignature, HashSet<TemplateSignatureRecordPair> templateDerivedRecords, SkyrimMod outputMod, IMajorRecordGetter rootRecord, out dynamic currentObj)
+    private static bool TraverseRecordFromTemplate(dynamic rootObj, string currentSubPath, dynamic recordToCopy, ObjectInfo recordObjectInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<FilePathReplacementParsed> allPaths, IGrouping<string, FilePathReplacementParsed> group, HashSet<INpcGetter> templateSignature, HashSet<TemplateSignatureRecordPair> templateDerivedRecords, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, SkyrimMod outputMod, IMajorRecordGetter rootRecord, out dynamic currentObj)
     {
         IMajorRecord newRecord = null;
         HashSet<IMajorRecord> copiedRecords = new HashSet<IMajorRecord>(); // includes current record and its subrecords
@@ -245,7 +257,16 @@ public class RecordGenerator
 
         IncrementEditorID(copiedRecords);
 
-        SetViaFormKeyReplacement(newRecord, rootObj, currentSubPath, rootRecord);
+        var trialHeadPart = newRecord as HeadPart; 
+
+        if (trialHeadPart is not null) // special handling for head parts
+        {
+            Patcher.SetGeneratedHeadPart(trialHeadPart, generatedHeadParts);
+        }
+        else
+        {
+            SetViaFormKeyReplacement(newRecord, rootObj, currentSubPath, rootRecord);
+        }
 
         currentObj = newRecord;
         LogRecordAlongPaths(group, newRecord);
@@ -571,7 +592,7 @@ public class RecordGenerator
                     if (!string.IsNullOrWhiteSpace(keyword))
                     {
                         AddKeywordToNPC(npc, keyword, outputMod);
-                    }    
+                    }
                 }
             }
         }

@@ -417,9 +417,42 @@ namespace SynthEBD
             // If the head part is still valid
             return true;
         }
+
+        public static void ResolveConflictsWithAssetAssignments(Dictionary<HeadPart.TypeEnum, HeadPart> assetAssignments, HeadPartSelection headPartAssignments)
+        {
+            foreach (var type in PatcherSettings.HeadParts.SourceConflictWinners.Keys)
+            {
+                if (assetAssignments[type] == null) { continue; }
+                
+                switch(type)
+                {
+                    case HeadPart.TypeEnum.Eyebrows: headPartAssignments.Misc = ResolveConflictWithAssetAssignment(assetAssignments[type], headPartAssignments.Brows, type); break;
+                    case HeadPart.TypeEnum.Eyes: headPartAssignments.Eyes = ResolveConflictWithAssetAssignment(assetAssignments[type], headPartAssignments.Eyes, type); break;
+                    case HeadPart.TypeEnum.Face: headPartAssignments.Face = ResolveConflictWithAssetAssignment(assetAssignments[type], headPartAssignments.Face, type); break;
+                    case HeadPart.TypeEnum.FacialHair: headPartAssignments.Beard = ResolveConflictWithAssetAssignment(assetAssignments[type], headPartAssignments.Beard, type); break;
+                    case HeadPart.TypeEnum.Hair: headPartAssignments.Hair = ResolveConflictWithAssetAssignment(assetAssignments[type], headPartAssignments.Hair, type); break;
+                    case HeadPart.TypeEnum.Misc: headPartAssignments.Misc = ResolveConflictWithAssetAssignment(assetAssignments[type], headPartAssignments.Misc, type); break;
+                    case HeadPart.TypeEnum.Scars: headPartAssignments.Scars = ResolveConflictWithAssetAssignment(assetAssignments[type], headPartAssignments.Scars, type); break;
+                }
+            }
+        }
+
+        public static FormKey? ResolveConflictWithAssetAssignment(HeadPart assetAssignment, FormKey? headPartAssignment, HeadPart.TypeEnum type)
+        {
+            if (headPartAssignment == null && assetAssignment != null) { return assetAssignment.FormKey; }
+            else if (headPartAssignment != null && assetAssignment == null) { return headPartAssignment.Value; }
+
+            var conflictWinner = PatcherSettings.HeadParts.SourceConflictWinners[type];
+            switch (conflictWinner)
+            {
+                case HeadPartSourceCandidate.AssetPack: return assetAssignment.FormKey; 
+                case HeadPartSourceCandidate.HeadPartsMenu: return headPartAssignment.Value;
+                default: return null;
+            }
+        }
     }
 
-    public class HeadPartSelection
+    public class HeadPartSelection // intentionally formatted this way rather than using HeadPart.TypeEnum to match EBD Papyrus formatting
     {
         public FormKey? Face { get; set; } = null;
         public FormKey? Eyes { get; set; } = null;

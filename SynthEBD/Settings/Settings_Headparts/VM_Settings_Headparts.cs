@@ -14,6 +14,7 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
     public VM_Settings_Headparts(VM_Settings_General generalSettingsVM, VM_SettingsOBody oBodySettings)
     {
         ImportMenu = new(this);
+        SettingsMenu = new();
         AttributeGroupMenu = generalSettingsVM.AttributeGroupMenu;
         RaceGroupings = generalSettingsVM.RaceGroupings;
         OBodyDescriptors = oBodySettings.DescriptorUI;
@@ -90,6 +91,14 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
                 DisplayedMenu = Types[HeadPart.TypeEnum.Scars];
             }
         );
+
+        ViewSettingsMenu = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                DisplayedMenu = SettingsMenu;
+            }
+        );
     }
 
     public object DisplayedMenu { get; set; }
@@ -97,6 +106,7 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
     public VM_HeadPartList DisplayedHeadParts { get; set; } 
     public Dictionary<HeadPart.TypeEnum, VM_HeadPartList> Types { get; set; }
     public VM_AttributeGroupMenu AttributeGroupMenu { get; }
+    public VM_HeadPartMiscSettings SettingsMenu { get; }
     public ObservableCollection<VM_RaceGrouping> RaceGroupings { get; set; }
     public VM_BodyShapeDescriptorCreationMenu OBodyDescriptors { get; set; }
     public BodyShapeSelectionMode BodyShapeMode { get; set; }
@@ -108,12 +118,14 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
     public RelayCommand ViewHairMenu { get; }
     public RelayCommand ViewMiscMenu { get; }
     public RelayCommand ViewScarsMenu { get; }
+    public RelayCommand ViewSettingsMenu { get; }
     public void CopyInFromModel(Settings_Headparts model, VM_SettingsOBody oBody)
     {
         foreach (var type in model.Types.Keys)
         {
             Types[type].CopyInFromModel(model.Types[type], RaceGroupings, AttributeGroupMenu, this, oBody);
         }
+        SettingsMenu.GetViewModelFromModel(model);
     }
 
     public void DumpViewModelToModel(Settings_Headparts model)
@@ -122,5 +134,6 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
         {
             Types[type].DumpToModel(model.Types[type]);
         }
+        SettingsMenu.DumpViewModelToModel(model);
     }
 }

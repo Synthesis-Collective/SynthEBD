@@ -19,5 +19,16 @@ namespace SynthEBD
             { HeadPart.TypeEnum.Misc, new() },
             { HeadPart.TypeEnum.Scars, new() }
         };
+
+        public Dictionary<HeadPart.TypeEnum, HeadPartSourceCandidate> SourceConflictWinners { get; set; } = new()
+        {
+            { HeadPart.TypeEnum.Eyebrows, HeadPartSourceCandidate.AssetPack },
+            { HeadPart.TypeEnum.Eyes, HeadPartSourceCandidate.AssetPack },
+            { HeadPart.TypeEnum.Face, HeadPartSourceCandidate.AssetPack },
+            { HeadPart.TypeEnum.FacialHair, HeadPartSourceCandidate.AssetPack },
+            { HeadPart.TypeEnum.Hair, HeadPartSourceCandidate.AssetPack },
+            { HeadPart.TypeEnum.Misc, HeadPartSourceCandidate.AssetPack },
+            { HeadPart.TypeEnum.Scars, HeadPartSourceCandidate.AssetPack }
+        };
     }
 }
