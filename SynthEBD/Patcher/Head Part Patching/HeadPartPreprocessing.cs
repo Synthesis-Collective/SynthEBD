@@ -9,22 +9,32 @@ namespace SynthEBD
 {
     public class HeadPartPreprocessing
     {
-        public static void CleanPreviousOutputs()
+        public static void FlattenGroupAttributes(Settings_Headparts headPartSettings)
         {
-            var outputDir = Path.Combine(PatcherSettings.General.OutputDataFolder, "SynthEBD");
-            var oldFiles = Directory.GetFiles(outputDir).Where(x => Path.GetFileName(x).StartsWith("HeadPartDict"));
-            foreach (var path in oldFiles)
+            foreach (var typeSetting in headPartSettings.Types.Values)
             {
-                if (File.Exists(path))
+                typeSetting.AllowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(typeSetting.AllowedAttributes, PatcherSettings.General.AttributeGroups);
+                typeSetting.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(typeSetting.DisallowedAttributes, PatcherSettings.General.AttributeGroups);
+
+                foreach (var headpartSetting in typeSetting.HeadParts)
                 {
-                    try
-                    {
-                        File.Delete(path);
-                    }
-                    catch
-                    {
-                        Logger.LogErrorWithStatusUpdate("Could not delete file at " + path, ErrorType.Warning);
-                    }
+                    headpartSetting.AllowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(headpartSetting.AllowedAttributes, PatcherSettings.General.AttributeGroups);
+                    headpartSetting.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(headpartSetting.DisallowedAttributes, PatcherSettings.General.AttributeGroups);
+                }
+            }
+        }
+
+        public static void CompilePresetRaces(Settings_Headparts headPartSettings)
+        {
+            foreach (var typeSetting in headPartSettings.Types.Values)
+            {
+                typeSetting.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(typeSetting.AllowedRaceGroupings, PatcherSettings.General.RaceGroupings, typeSetting.AllowedRaces);
+                typeSetting.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(typeSetting.DisallowedRaceGroupings, PatcherSettings.General.RaceGroupings, typeSetting.DisallowedRaces);
+
+                foreach (var headpartSetting in typeSetting.HeadParts)
+                {
+                    headpartSetting.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(headpartSetting.AllowedRaceGroupings, PatcherSettings.General.RaceGroupings, headpartSetting.AllowedRaces);
+                    headpartSetting.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(headpartSetting.DisallowedRaceGroupings, PatcherSettings.General.RaceGroupings, headpartSetting.DisallowedRaces);
                 }
             }
         }

@@ -18,6 +18,7 @@ public class VM_raceAlias : VM
         this.bApplyToAssets = alias.bApplyToAssets;
         this.bApplyToBodyGen = alias.bApplyToBodyGen;
         this.bApplyToHeight = alias.bApplyToHeight;
+        this.bApplyToHeadParts = alias.bApplyToHeadParts;
         PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
@@ -33,7 +34,7 @@ public class VM_raceAlias : VM
     public bool bApplyToAssets { get; set; }
     public bool bApplyToBodyGen { get; set; }
     public bool bApplyToHeight { get; set; }
-
+    public bool bApplyToHeadParts { get; set; }
     public IEnumerable<Type> FormKeyPickerTypes { get; set; } = typeof(IRaceGetter).AsEnumerable();
     public ILinkCache lk { get; private set; }
 
@@ -64,7 +65,7 @@ public class VM_raceAlias : VM
         model.bApplyToAssets = viewModel.bApplyToAssets;
         model.bApplyToBodyGen = viewModel.bApplyToBodyGen;
         model.bApplyToHeight = viewModel.bApplyToHeight;
-
+        model.bApplyToHeadParts = viewModel.bApplyToHeadParts;
         return model;
     }
 }

@@ -124,20 +124,32 @@ namespace SynthEBD
                 return;
             }
 
+            // remove NPCs for which no headparts were assigned
+            Dictionary<FormKey, HeadPartSelection> populatedHeadPartTracker = new();
+            foreach (var entry in Patcher.HeadPartTracker)
+            {
+                var assignments = entry.Value;
+                if (assignments.Beard != null || assignments.Brows != null || assignments.Eyes != null || assignments.Face != null || assignments.Hair != null || assignments.Misc != null || assignments.Scars != null)
+                {
+                    populatedHeadPartTracker.Add(entry.Key, entry.Value);
+                }
+            }
+
+            // split dictionary into sub-dictionaries due to apparent JContainers json size limit
             int maxKeyCount = 176;
             List<Dictionary<FormKey, HeadPartSelection>> outputDictionaries = new List<Dictionary<FormKey, HeadPartSelection>>(); // JContainers appears to limit how many keys can be in each dictionary.
             
             int keyCountSegmented = 0;
             int keyCountTotal = 0;
             var currentDict = new Dictionary<FormKey, HeadPartSelection>();
-            foreach (var entry in Patcher.HeadPartTracker)
+            foreach (var entry in populatedHeadPartTracker)
             {
                 keyCountSegmented++;
                 keyCountTotal++;
 
                 currentDict.Add(entry.Key, entry.Value);
 
-                if (keyCountSegmented == maxKeyCount || keyCountTotal == Patcher.HeadPartTracker.Count)
+                if (keyCountSegmented == maxKeyCount || keyCountTotal == populatedHeadPartTracker.Count)
                 {
                     outputDictionaries.Add(currentDict);
                     currentDict = new();
@@ -168,6 +180,25 @@ namespace SynthEBD
                 catch
                 {
                     Logger.LogErrorWithStatusUpdate("Could not write Head Part assignments to " + destPath, ErrorType.Error);
+                }
+            }
+        }
+        public static void CleanPreviousOutputs()
+        {
+            var outputDir = Path.Combine(PatcherSettings.General.OutputDataFolder, "SynthEBD");
+            var oldFiles = Directory.GetFiles(outputDir).Where(x => Path.GetFileName(x).StartsWith("HeadPartDict"));
+            foreach (var path in oldFiles)
+            {
+                if (File.Exists(path))
+                {
+                    try
+                    {
+                        File.Delete(path);
+                    }
+                    catch
+                    {
+                        Logger.LogErrorWithStatusUpdate("Could not delete file at " + path, ErrorType.Warning);
+                    }
                 }
             }
         }

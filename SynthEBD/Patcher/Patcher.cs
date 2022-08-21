@@ -69,6 +69,8 @@ public class Patcher
 
             RecordGenerator.Reinitialize();
             _combinationLog.Reinitialize();
+
+            HasAssetDerivedHeadParts = false;
         }
 
         // Several operations are performed that mutate the input settings. For Asset Packs this does not affect saved settings because the operations are performed on the derived FlattenedAssetPacks, but for BodyGen configs and OBody settings these are made directly to the settings files. Therefore, create a deep copy of the configs and operate on those to avoid altering the user's saved settings upon exiting the program
@@ -138,6 +140,7 @@ public class Patcher
 
         if (PatcherSettings.General.bChangeHeadParts)
         {
+            // remove headparts that don't exist in current load order
             bool removedHeadParts = false;
             foreach (var typeSettings in copiedHeadPartSettings.Types.Values)
             {
@@ -161,18 +164,10 @@ public class Patcher
                 Logger.LogMessage("Some head parts will not be distributed because they are no longer present in your load order.");
             }
 
-            var headpartsLoaded = outputMod.Globals.AddNewShort();
-            headpartsLoaded.EditorID = "SynthEBDHeadPartsLoaded";
-            headpartsLoaded.Data = 0;
-
-            JContainersDomain.CreateSynthEBDDomain();
-            HeadPartWriter.CreateHeadPartLoaderQuest(outputMod, headpartsLoaded);
-            headPartAssignmentSpell = HeadPartWriter.CreateHeadPartAssignmentSpell(outputMod, headpartsLoaded);
-            HeadPartWriter.WriteHeadPartSPIDIni(headPartAssignmentSpell);
-
             HeadPartTracker = new Dictionary<FormKey, HeadPartSelection>();
 
-            HeadPartPreprocessing.CleanPreviousOutputs();
+            HeadPartPreprocessing.CompilePresetRaces(copiedHeadPartSettings);
+            HeadPartPreprocessing.FlattenGroupAttributes(copiedHeadPartSettings);
         }
 
         int npcCounter = 0;
@@ -220,9 +215,19 @@ public class Patcher
             }
         }
 
-        if (PatcherSettings.General.bChangeHeadParts)
+        if (PatcherSettings.General.bChangeHeadParts || HasAssetDerivedHeadParts)
         {
+            var headpartsLoaded = outputMod.Globals.AddNewShort();
+            headpartsLoaded.EditorID = "SynthEBDHeadPartsLoaded";
+            headpartsLoaded.Data = 0;
+
+            JContainersDomain.CreateSynthEBDDomain();
+            HeadPartWriter.CreateHeadPartLoaderQuest(outputMod, headpartsLoaded);
+            headPartAssignmentSpell = HeadPartWriter.CreateHeadPartAssignmentSpell(outputMod, headpartsLoaded);
+            HeadPartWriter.WriteHeadPartSPIDIni(headPartAssignmentSpell);
+
             HeadPartWriter.CopyHeadPartScript();
+            HeadPartWriter.CleanPreviousOutputs();
             HeadPartWriter.WriteAssignmentDictionary();
         }
 
@@ -509,17 +514,19 @@ public class Patcher
             #endregion
 
             #region Head Part assignment
+            HeadPartSelection assignedHeadParts = new();
             if (PatcherSettings.General.bChangeHeadParts)
             {
-                var assignedHeadParts = HeadPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, blockListNPCEntry, blockListPluginEntry);
-
-                if (PatcherSettings.General.bChangeMeshesOrTextures)
-                {
-                    HeadPartSelector.ResolveConflictsWithAssetAssignments(generatedHeadParts, assignedHeadParts);
-                }
-
-                HeadPartTracker.Add(currentNPCInfo.NPC.FormKey, assignedHeadParts);
+                assignedHeadParts = HeadPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, blockListNPCEntry, blockListPluginEntry);
             }
+
+            if (PatcherSettings.General.bChangeMeshesOrTextures) // needs to be done regardless of PatcherSettings.General.bChangeHeadParts status
+            {
+                HeadPartSelector.ResolveConflictsWithAssetAssignments(generatedHeadParts, assignedHeadParts);
+                CheckForAssetDerivedHeadParts(generatedHeadParts); // triggers headpart output even if bChangeHeadParts is false
+            }
+
+            HeadPartTracker.Add(currentNPCInfo.NPC.FormKey, assignedHeadParts);
             #endregion
 
             Logger.SaveReport(currentNPCInfo);
@@ -649,4 +656,20 @@ public class Patcher
             Logger.LogMessage("Cannot assign a head part replacer for head part " + EditorIDHandler.GetEditorIDSafely(hp) + " because it does not have a specified Type.");
         }
     }
+
+    public void CheckForAssetDerivedHeadParts(Dictionary<HeadPart.TypeEnum, HeadPart> assignments)
+    {
+        if (HasAssetDerivedHeadParts) { return; }
+        
+        foreach (var headPart in assignments.Values)
+        {
+            if (headPart != null)
+            {
+                HasAssetDerivedHeadParts = true;
+                return;
+            }
+        }
+    }
+
+    private bool HasAssetDerivedHeadParts { get; set; } = false;
 }

@@ -245,14 +245,14 @@ namespace SynthEBD
             }
 
             // Allowed Races
-            if (currentSettings.AllowedRaces.Any() && !currentSettings.AllowedRaces.Contains(npcInfo.BodyShapeRace))
+            if (currentSettings.AllowedRaces.Any() && !currentSettings.AllowedRaces.Contains(npcInfo.HeadPartsRace))
             {
                 Logger.LogReport(type + " is invalid because its allowed races do not include the current NPC's race", false, npcInfo);
                 return false;
             }
 
             // Disallowed Races
-            if (currentSettings.DisallowedRaces.Contains(npcInfo.BodyShapeRace))
+            if (currentSettings.DisallowedRaces.Contains(npcInfo.HeadPartsRace))
             {
                 Logger.LogReport(type + " is invalid because its disallowed races include the current NPC's race", false, npcInfo);
                 return false;
@@ -346,14 +346,14 @@ namespace SynthEBD
             }
 
             // Allowed Races
-            if (candidateHeadPart.AllowedRaces.Any() && !candidateHeadPart.AllowedRaces.Contains(npcInfo.BodyShapeRace))
+            if (candidateHeadPart.AllowedRaces.Any() && !candidateHeadPart.AllowedRaces.Contains(npcInfo.HeadPartsRace))
             {
                 Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its allowed races do not include the current NPC's race", false, npcInfo);
                 return false;
             }
 
             // Disallowed Races
-            if (candidateHeadPart.DisallowedRaces.Contains(npcInfo.BodyShapeRace))
+            if (candidateHeadPart.DisallowedRaces.Contains(npcInfo.HeadPartsRace))
             {
                 Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its disallowed races include the current NPC's race", false, npcInfo);
                 return false;
