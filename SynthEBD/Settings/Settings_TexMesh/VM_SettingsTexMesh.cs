@@ -101,6 +101,22 @@ public class VM_SettingsTexMesh : VM
 
         AssetPresenterPrimary = new VM_AssetPresenter(this);
         AssetPresenterSecondary = new VM_AssetPresenter(this);
+
+        SelectConfigsAll = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                foreach (var config in AssetPacks) { config.IsSelected = true; }
+            }
+        );
+
+        SelectConfigsNone = new SynthEBD.RelayCommand(
+           canExecute: _ => true,
+           execute: _ =>
+           {
+               foreach (var config in AssetPacks) { config.IsSelected = false; }
+           }
+       );
     }
 
     public bool bChangeNPCTextures { get; set; } = true;
@@ -128,6 +144,9 @@ public class VM_SettingsTexMesh : VM
     public bool bShowSecondaryAssetPack { get; set; } = false;
     public VM_AssetPresenter AssetPresenterPrimary { get; set; }
     public VM_AssetPresenter AssetPresenterSecondary { get; set; }
+    public string DisplayedAssetPackStr { get; set; }
+    public RelayCommand SelectConfigsAll { get; }
+    public RelayCommand SelectConfigsNone { get; }
 
     public bool ValidateAllConfigs(BodyGenConfigs bodyGenConfigs, out List<string> errors)
     {
@@ -194,5 +213,10 @@ public class VM_SettingsTexMesh : VM
             newConfig.IsSelected = true;
         }
         Cursor.Current = Cursors.Default;
+    }
+
+    public void RefreshDisplayedAssetPackString()
+    {
+        DisplayedAssetPackStr = string.Join(" | ", AssetPacks.Where(x => x.IsSelected).Select(x => x.ShortName));
     }
 }

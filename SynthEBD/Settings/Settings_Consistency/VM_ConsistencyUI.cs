@@ -67,6 +67,24 @@ public class VM_ConsistencyUI : VM
             }
         );
 
+        DeleteAllHeadParts = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: x =>
+            {
+                foreach (var assignment in Assignments)
+                {
+                    foreach (var headpart in assignment.HeadParts)
+                    {
+                        if (headpart.Value != null)
+                        {
+                            headpart.Value.Label = String.Empty;
+                        }
+                    }
+                }
+                Logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared head part consistency", ErrorType.Warning, 2);
+            }
+        );
+
         DeleteAllNPCs = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: x =>
@@ -92,6 +110,7 @@ public class VM_ConsistencyUI : VM
     public RelayCommand DeleteAllAssets { get; set; }
     public RelayCommand DeleteAllBodyShape { get; set; }
     public RelayCommand DeleteAllHeight { get; set; }
+    public RelayCommand DeleteAllHeadParts { get; set; }
     public RelayCommand DeleteAllNPCs { get; set; }
 
     public void RefereshCurrentAssignment(object sender, PropertyChangedEventArgs e)

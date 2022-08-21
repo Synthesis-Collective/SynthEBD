@@ -186,6 +186,8 @@ namespace SynthEBD
         public static void CleanPreviousOutputs()
         {
             var outputDir = Path.Combine(PatcherSettings.General.OutputDataFolder, "SynthEBD");
+            if (!Directory.Exists(outputDir)) { return; }
+
             var oldFiles = Directory.GetFiles(outputDir).Where(x => Path.GetFileName(x).StartsWith("HeadPartDict"));
             foreach (var path in oldFiles)
             {

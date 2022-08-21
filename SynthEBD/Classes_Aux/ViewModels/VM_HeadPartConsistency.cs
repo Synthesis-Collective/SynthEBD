@@ -33,8 +33,15 @@ public class VM_HeadPartConsistency : VM
     public FormKeyEditorIDPair DumpToModel()
     {
         var model = new FormKeyEditorIDPair();
-        model.FormKey = FormKey;
         model.EditorID = Label;
+        if (Label == "NONE" || Label == String.Empty)
+        {
+            model.FormKey = new();
+        }
+        else
+        {
+            model.FormKey = FormKey;
+        }
         return model;
     }
 }

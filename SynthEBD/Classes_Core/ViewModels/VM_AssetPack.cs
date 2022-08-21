@@ -84,6 +84,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         this.WhenAnyValue(x => x.Gender).Subscribe(x => SetDefaultRecordTemplate());
 
+        this.WhenAnyValue(x => x.IsSelected).Subscribe(x => ParentMenuVM.RefreshDisplayedAssetPackString());
+
         AddSubgroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => { Subgroups.Add(subgroupFactory(general.RaceGroupings, Subgroups, this, null, false)); }
