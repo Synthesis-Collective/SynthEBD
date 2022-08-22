@@ -15,8 +15,13 @@ namespace SynthEBD
     {
         public static Spell CreateHeadPartAssignmentSpell(SkyrimMod outputMod, GlobalShort settingsLoadedGlobal)
         {
-            // create MGEF first
+            // create MGEF
             MagicEffect MGEFApplyHeadParts = outputMod.MagicEffects.AddNew();
+
+            // create Spell (needed for MGEF script)
+            Spell SPELApplyHeadParts = outputMod.Spells.AddNew();
+
+            // edit MGEF
             MGEFApplyHeadParts.EditorID = "SynthEBDHeadPartMGEF";
             MGEFApplyHeadParts.Name = "Applies head part assignment to NPC";
             MGEFApplyHeadParts.Flags |= MagicEffect.Flag.HideInUI;
@@ -28,14 +33,22 @@ namespace SynthEBD
 
             ScriptEntry ScriptApplyHeadParts = new ScriptEntry();
             ScriptApplyHeadParts.Name = "SynthEBDHeadPartScript";
-            ScriptObjectProperty settingsLoadedProperty = new ScriptObjectProperty() { Name = "loadingCompleted", Flags = ScriptProperty.Flag.Edited };
+            
+            ScriptObjectProperty settingsLoadedProperty = new ScriptObjectProperty() { Name = "SynthEBDDataBaseLoaded", Flags = ScriptProperty.Flag.Edited };
             settingsLoadedProperty.Object.SetTo(settingsLoadedGlobal);
             ScriptApplyHeadParts.Properties.Add(settingsLoadedProperty);
 
+            ScriptObjectProperty magicEffectProperty = new ScriptObjectProperty() { Name = "SynthEBDHeadPartMGEF", Flags = ScriptProperty.Flag.Edited };
+            magicEffectProperty.Object.SetTo(MGEFApplyHeadParts);
+            ScriptApplyHeadParts.Properties.Add(magicEffectProperty);
+
+            ScriptObjectProperty spellProperty = new ScriptObjectProperty() { Name = "SynthEBDHeadPartSpell", Flags = ScriptProperty.Flag.Edited };
+            spellProperty.Object.SetTo(SPELApplyHeadParts);
+            ScriptApplyHeadParts.Properties.Add(spellProperty);
+
             MGEFApplyHeadParts.VirtualMachineAdapter.Scripts.Add(ScriptApplyHeadParts);
 
-            // create Spell
-            Spell SPELApplyHeadParts = outputMod.Spells.AddNew();
+            // Edit Spell
             SPELApplyHeadParts.EditorID = "SynthEBDHeadPartSPEL";
             SPELApplyHeadParts.Name = "Applies head part assignment to NPC";
             SPELApplyHeadParts.CastType = CastType.ConstantEffect;
@@ -68,7 +81,7 @@ namespace SynthEBD
             QuestAdapter bsLoaderScriptAdapter = new QuestAdapter();
 
             ScriptEntry bsLoaderScriptEntry = new ScriptEntry() { Name = "SynthEBDHeadPartLoaderQuestScript", Flags = ScriptEntry.Flag.Local };
-            ScriptObjectProperty settingsLoadedProperty = new ScriptObjectProperty() { Name = "loadingCompleted", Flags = ScriptProperty.Flag.Edited };
+            ScriptObjectProperty settingsLoadedProperty = new ScriptObjectProperty() { Name = "SynthEBDDataBaseLoaded", Flags = ScriptProperty.Flag.Edited };
             settingsLoadedProperty.Object.SetTo(settingsLoadedGlobal.FormKey);
             bsLoaderScriptEntry.Properties.Add(settingsLoadedProperty);
             bsLoaderScriptAdapter.Scripts.Add(bsLoaderScriptEntry);

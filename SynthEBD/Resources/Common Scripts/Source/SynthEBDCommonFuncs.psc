@@ -24,3 +24,9 @@ form Function FormKeyToForm(string formKeyStr, bool bVerbose) global
 	endif
 	return output
 EndFunction
+
+Function ClearActorEffect(Actor akAktor, MagicEffect effectToClear, Spell parentSpell) global
+	If (akAktor.HasMagicEffect(effectToClear))
+		akAktor.DispelSpell(parentSpell)
+	EndIf
+EndFunction

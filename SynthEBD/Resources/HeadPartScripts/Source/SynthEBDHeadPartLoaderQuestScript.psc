@@ -2,15 +2,15 @@ Scriptname SynthEBDHeadPartLoaderQuestScript extends Quest
 
 import PSM_SynthEBD
 
-GlobalVariable Property loadingCompleted Auto
+GlobalVariable Property SynthEBDDataBaseLoaded Auto
 
 Event OnInit()
-	debug.Notification("HeadParts OnInit")
+	debug.Notification("SynthEBD Loading Headparts")
 	LoadHeadPartDict("OnInit")
 EndEvent
 
 Function LoadHeadPartDict(string caller) ;caller is for debugging only
-	loadingCompleted.SetValue(0)
+	SynthEBDDataBaseLoaded.SetValue(0)
 	
 	int fileCount = 1
 	bool fileFound = true
@@ -62,7 +62,7 @@ Function LoadHeadPartDict(string caller) ;caller is for debugging only
 		debug.Notification("Failed to loaded HeadPart Assignments")
 		debug.Trace("SynthEBD: No readable HeadPartDict json files were found")
 	endif
-	loadingCompleted.SetValue(1)
+	SynthEBDDataBaseLoaded.SetValue(1)
 EndFunction
 
 function AddHeadPartToDB(int headPartAssignments, string headPartType, form currentNPC)

@@ -4,12 +4,22 @@ import PSM_SynthEBD
 import EBDHeadPartFuncs
 import EBDGlobalFuncs
 
-GlobalVariable Property loadingCompleted Auto
+import SynthEBDCommonFuncs
+
+GlobalVariable Property SynthEBDDataBaseLoaded Auto
+MagicEffect Property SynthEBDHeadPartMGEF Auto
+Spell Property SynthEBDHeadPartSpell Auto
 
 Event OnEffectStart(Actor akTarget, Actor akCaster)
+	SetHeadParts(akCaster)
+EndEvent
+
+function SetHeadParts(Actor akCaster)
+	ClearActorEffect(akCaster, SynthEBDHeadPartMGEF, SynthEBDHeadPartSpell)
+
 	ActorBase akBase = getProperActorBase(akCaster)
 	
-	while (loadingCompleted.GetValue() == 0)
+	while (SynthEBDDataBaseLoaded.GetValue() == 0)
 		Utility.Wait(2)
 	endwhile
 		
@@ -36,17 +46,17 @@ Event OnEffectStart(Actor akTarget, Actor akCaster)
 	if (SetHeadPart(akCaster, akBase, "Scars"))
 		updated = True;
 	endif
+EndFunction
 
-EndEvent
-
-bool function SetHeadPart(Actor target, ActorBase akBase, string headPartType)
+bool Function SetHeadPart(Actor target, ActorBase akBase, string headPartType)
 	string sourcePath = ".SynthEBD.HeadPart." + headPartType
 	form headPartForm = JFormDB_getForm(akBase, sourcePath)
 	string actorName = akBase.GetName() ; for logging only
 	if (headPartForm)
 		HeadPart headPartAsHP = headPartForm as HeadPart
 		if (headPartAsHP)
-			target.ChangeHeadPart(headPartAsHP)
+			;target.ChangeHeadPart(headPartAsHP)
+			target.ReplaceHeadPart(None, headPartAsHP)
 			
 			if headPartType == "Hair"
 				UpdateHead(target) ; only needed for hair
