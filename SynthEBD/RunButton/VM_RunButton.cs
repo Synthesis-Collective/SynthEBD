@@ -98,10 +98,20 @@ public class VM_RunButton : VM
                     {
                         valid = false;
                     }
+
+                    if (!MiscValidation.VerifyJContainersInstalled(env.DataFolderPath, false))
+                    {
+                        valid = false;
+                    }
                 }
                 else if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.AutoBody)
                 {
                     if (!MiscValidation.VerifyAutoBodyInstalled(env.DataFolderPath))
+                    {
+                        valid = false;
+                    }
+
+                    if (PatcherSettings.OBody.AutoBodySelectionMode == AutoBodySelectionMode.JSON && !MiscValidation.VerifyJContainersInstalled(env.DataFolderPath, false))
                     {
                         valid = false;
                     }
@@ -117,7 +127,7 @@ public class VM_RunButton : VM
                     valid = false;
                 }
 
-                if (!MiscValidation.VerifySPIDInstalled(env.DataFolderPath))
+                if (!MiscValidation.VerifySPIDInstalled(env.DataFolderPath, false))
                 {
                     valid = false;
                 }
@@ -133,6 +143,24 @@ public class VM_RunButton : VM
                 {
                     valid = false;
                 }
+            }
+        }
+
+        if (PatcherSettings.General.bChangeHeadParts)
+        {
+            if (!MiscValidation.VerifyEBDInstalled())
+            {
+                valid = false;
+            }
+
+            if (!MiscValidation.VerifySPIDInstalled(env.DataFolderPath, false))
+            {
+                valid = false;
+            }
+
+            if (!MiscValidation.VerifyJContainersInstalled(env.DataFolderPath, false))
+            {
+                valid = false;
             }
         }
 

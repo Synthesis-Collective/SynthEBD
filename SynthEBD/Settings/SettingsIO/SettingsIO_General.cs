@@ -21,7 +21,6 @@ public class SettingsIO_General
         else
         {
             PatcherSettings.General = new Settings_General();
-            PatcherSettings.General.OutputDataFolder = PatcherEnvironmentProvider.Instance.Environment.DataFolderPath;
             loadSuccess = true;
         }
     }

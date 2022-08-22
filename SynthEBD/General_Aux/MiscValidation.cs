@@ -111,13 +111,43 @@ public class MiscValidation
         return verified;
     }
 
-    public static bool VerifySPIDInstalled(DirectoryPath dataFolderPath)
+    public static bool VerifySPIDInstalled(DirectoryPath dataFolderPath, bool bSilent)
     {
         string dllPath = Path.Combine(dataFolderPath, "SKSE", "Plugins", "po3_SpellPerkItemDistributor.dll");
         if (!File.Exists(dllPath))
         {
-            Logger.LogMessage("Could not find po3_SpellPerkItemDistributor.dll from Spell Perk Item Distributor at " + dllPath);
-            Logger.LogMessage("Please make sure Spell Perk Item Distributor is enabled.");
+            if (!bSilent)
+            {
+                Logger.LogMessage("Could not find po3_SpellPerkItemDistributor.dll from Spell Perk Item Distributor at " + dllPath);
+                Logger.LogMessage("Please make sure Spell Perk Item Distributor is enabled.");
+            }
+            
+            return false;
+        }
+        return true;
+    }
+
+    public static bool VerifyJContainersInstalled(DirectoryPath dataFolderPath, bool bSilent)
+    {
+        string dllPathSE_AE = Path.Combine(dataFolderPath, "SKSE", "Plugins", "JContainers64.dll");
+        string dllPathVR = Path.Combine(dataFolderPath, "SKSE", "Plugins", "JContainersVR.dll");
+
+        var currentSkyrimVersion = PatcherEnvironmentProvider.Instance.Environment.GameRelease;
+        bool checkSE = currentSkyrimVersion == Mutagen.Bethesda.GameRelease.SkyrimSE || currentSkyrimVersion == Mutagen.Bethesda.GameRelease.EnderalSE; // not sure if JContainers actually works with Enderal
+        bool checkVR = currentSkyrimVersion == Mutagen.Bethesda.GameRelease.SkyrimVR;
+
+        if (!(checkSE && File.Exists(dllPathSE_AE)) || (checkVR && File.Exists(dllPathVR)))
+        {
+            if (!bSilent)
+            {
+                string dllName = "";
+                string dllPath = "";
+                if (checkSE) { dllName = "JContainers64.dll"; dllPath = dllPathSE_AE; }
+                else if (checkVR) { dllName = "JContainersVR.dll"; dllPath = dllPathVR; }
+                Logger.LogMessage("Could not find " + dllName + " from JContainers at " + dllPath);
+                Logger.LogMessage("Please make sure JContainers is enabled.");
+            }
+
             return false;
         }
         return true;

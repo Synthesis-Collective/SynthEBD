@@ -217,6 +217,27 @@ public class Patcher
 
         if (PatcherSettings.General.bChangeHeadParts || HasAssetDerivedHeadParts)
         {
+            if (HasAssetDerivedHeadParts) // these checks not performed when running in Asset Mode only - user needs to be warned if patcher dips into the headpart distribution system while headparts are disabled
+            {
+                bool validation = true;
+                if (!MiscValidation.VerifySPIDInstalled(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, true))
+                {
+                    Logger.LogMessage("WARNING: Your Asset Packs have generated new headparts whose distribution requires Spell Perk Item Distributor, which was not detected in your data folder. NPCs will not receive their new headparts until this is installed.");
+                    validation = false;
+                }
+
+                if (!MiscValidation.VerifyJContainersInstalled(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, true))
+                {
+                    Logger.LogMessage("WARNING: Your Asset Packs have generated new headparts whose distribution requires JContainers, which was not detected in your data folder. NPCs will not receive their new headparts until this is installed.");
+                    validation = false;
+                }
+
+                if (!validation)
+                {
+                    Logger.CallTimedLogErrorWithStatusUpdateAsync("WARNING: Missing dependencies for Asset-Generated Headparts. See Log.", ErrorType.Warning, 5);
+                }
+            }
+
             CommonScripts.CopyAllToOutputFolder();
 
             var headpartsLoaded = outputMod.Globals.AddNewShort();
