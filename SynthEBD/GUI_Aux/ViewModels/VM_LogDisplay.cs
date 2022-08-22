@@ -10,6 +10,8 @@ public class VM_LogDisplay : VM
     public string DispString { get; set; } = "";
 
     public RelayCommand Clear { get; set; }
+    public RelayCommand Copy { get; set; }
+    public RelayCommand Save { get; set; }
     public RelayCommand ShowEnvironment { get; set; }
 
     public VM_LogDisplay(
@@ -29,6 +31,47 @@ public class VM_LogDisplay : VM
         Clear = new RelayCommand(
             canExecute: _ => true,
             execute: x => logger.LogString = ""
+        );
+
+        Copy = new RelayCommand(
+            canExecute: _ => true,
+            execute: x =>
+            {
+                try
+                {
+                    System.Windows.Clipboard.SetText(logger.LogString);
+                }
+                catch
+                {
+                    Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not copy log to clipboard", ErrorType.Error, 3);
+                }
+            }
+        );
+
+        Save = new RelayCommand(
+            canExecute: _ => true,
+            execute: x =>
+            {
+                var dialog = new Microsoft.Win32.SaveFileDialog();
+                dialog.DefaultExt = ".txt"; // Default file extension
+                dialog.Filter = "Text files (.txt|*.txt"; // Filter files by extension
+
+                // Show open file dialog box
+                bool? result = dialog.ShowDialog();
+
+                // Process open file dialog box results
+                if (result == true)
+                {
+                    try
+                    {
+                        System.IO.File.WriteAllText(dialog.FileName, logger.LogString);
+                    }
+                    catch
+                    {
+                        Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not write log to file", ErrorType.Error, 3);
+                    }
+                }
+            }
         );
 
         ShowEnvironment = new RelayCommand(

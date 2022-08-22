@@ -23,6 +23,8 @@
         </Border>
         <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="0">
             <Button  Command="{Binding Clear}" HorizontalAlignment="Left" Foreground="Firebrick">Clear</Button>
+            <Button  Command="{Binding Copy}" HorizontalAlignment="Left" Foreground="MediumPurple" Margin="10 0 0 0">Copy to Clipboard</Button>
+            <Button  Command="{Binding Save}" HorizontalAlignment="Left" Foreground="MediumPurple" Margin="10 0 0 0">Save to File</Button>
             <Button  Command="{Binding ShowEnvironment}" HorizontalAlignment="Left" Foreground="MediumPurple" Margin="10 0 0 0">Environment Details</Button>
         </StackPanel>
     </Grid>
