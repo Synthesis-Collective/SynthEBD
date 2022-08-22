@@ -24,6 +24,10 @@
     <None Remove="Resources\BodySlideScript\AutoBody\SynthEBDBodySlideScriptAutoBody.pex" />
     <None Remove="Resources\BodySlideScript\OBody\source\SynthEBDBodySlideScriptOBody.psc" />
     <None Remove="Resources\BodySlideScript\OBody\SynthEBDBodySlideScriptOBody.pex" />
+    <None Remove="Resources\Common Scripts\Source\SynthEBDcLib.psc" />
+    <None Remove="Resources\Common Scripts\Source\SynthEBDCommonFuncs.psc" />
+    <None Remove="Resources\Common Scripts\SynthEBDcLib.pex" />
+    <None Remove="Resources\Common Scripts\SynthEBDCommonFuncs.pex" />
     <None Remove="Resources\Default BodySlide Annotations\BHUNP 3BBB.csv" />
     <None Remove="Resources\Default BodySlide Annotations\BHUNP Unified UNP.csv" />
     <None Remove="Resources\Default BodySlide Annotations\CBBE.csv" />
@@ -51,6 +55,18 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Resources\BodySlideQuest\Source\SynthEBDBodySlideLoaderQuestScript.psc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Common Scripts\Source\SynthEBDcLib.psc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Common Scripts\Source\SynthEBDCommonFuncs.psc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Common Scripts\SynthEBDcLib.pex">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\Common Scripts\SynthEBDCommonFuncs.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Resources\HeadPartScripts\Source\SynthEBDHeadPartLoaderPAScript.psc">

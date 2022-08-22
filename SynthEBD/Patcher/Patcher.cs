@@ -217,6 +217,8 @@ public class Patcher
 
         if (PatcherSettings.General.bChangeHeadParts || HasAssetDerivedHeadParts)
         {
+            CommonScripts.CopyAllToOutputFolder();
+
             var headpartsLoaded = outputMod.Globals.AddNewShort();
             headpartsLoaded.EditorID = "SynthEBDHeadPartsLoaded";
             headpartsLoaded.Data = 0;
