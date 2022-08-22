@@ -135,27 +135,7 @@ namespace SynthEBD
                 }
             }
 
-            // split dictionary into sub-dictionaries due to apparent JContainers json size limit
-            int maxKeyCount = 176;
-            List<Dictionary<FormKey, HeadPartSelection>> outputDictionaries = new List<Dictionary<FormKey, HeadPartSelection>>(); // JContainers appears to limit how many keys can be in each dictionary.
-            
-            int keyCountSegmented = 0;
-            int keyCountTotal = 0;
-            var currentDict = new Dictionary<FormKey, HeadPartSelection>();
-            foreach (var entry in populatedHeadPartTracker)
-            {
-                keyCountSegmented++;
-                keyCountTotal++;
-
-                currentDict.Add(entry.Key, entry.Value);
-
-                if (keyCountSegmented == maxKeyCount || keyCountTotal == populatedHeadPartTracker.Count)
-                {
-                    outputDictionaries.Add(currentDict);
-                    currentDict = new();
-                    keyCountSegmented = 0;
-                }
-            }
+            var outputDictionaries = DictionarySplitter<FormKey, HeadPartSelection>.SplitDictionary(populatedHeadPartTracker, 176); // split dictionary into sub-dictionaries due to apparent JContainers json size limit
 
             int dictIndex = 0;
             foreach (var dict in outputDictionaries)
