@@ -168,6 +168,7 @@ public class Patcher
 
             HeadPartPreprocessing.CompilePresetRaces(copiedHeadPartSettings);
             HeadPartPreprocessing.FlattenGroupAttributes(copiedHeadPartSettings);
+            HeadPartPreprocessing.ConvertBodyShapeDescriptorRules(copiedHeadPartSettings);
         }
 
         int npcCounter = 0;
@@ -320,6 +321,7 @@ public class Patcher
             assetsAssigned = false;
             bodyShapeAssigned = false;
             assignedCombinations = new List<SubgroupCombination>();
+            BodySlideSetting assignedBodySlide = null; // can be used by headpart function
             Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts = GetBlankHeadPartAssignment(); // head parts generated via the asset pack functionality
 
             #region Linked NPC Groups
@@ -420,6 +422,7 @@ public class Patcher
                         case BodyShapeSelectionMode.BodySlide:
                             BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedPrimaryComboAndBodyShape.AssignedOBodyPreset.Label);
                             OBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedOBodyPreset, currentNPCInfo);
+                            assignedBodySlide = assignedPrimaryComboAndBodyShape.AssignedOBodyPreset;
                             break;
                     }
                 }
@@ -452,12 +455,12 @@ public class Patcher
                     if (!blockBodyShape && PatcherSettings.General.PatchableRaces.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && OBodySelector.CurrentNPCHasAvailablePresets(currentNPCInfo, oBodySettings))
                     {
                         Logger.LogReport("Assigning a BodySlide preset independently of Asset Combination", false, currentNPCInfo);
-                        var assignedPreset = OBodySelector.SelectBodySlidePreset(currentNPCInfo, out bool success, oBodySettings, null, out _);
+                        assignedBodySlide = OBodySelector.SelectBodySlidePreset(currentNPCInfo, out bool success, oBodySettings, null, out _);
                         if (success)
                         {
-                            BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedPreset.Label);
-                            OBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedPreset, currentNPCInfo);
-                            assignedPrimaryComboAndBodyShape.AssignedOBodyPreset = assignedPreset;
+                            BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedBodySlide.Label);
+                            OBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedBodySlide, currentNPCInfo);
+                            assignedPrimaryComboAndBodyShape.AssignedOBodyPreset = assignedBodySlide;
                         }
                         else
                         {
@@ -540,7 +543,7 @@ public class Patcher
             HeadPartSelection assignedHeadParts = new();
             if (PatcherSettings.General.bChangeHeadParts)
             {
-                assignedHeadParts = HeadPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, blockListNPCEntry, blockListPluginEntry);
+                assignedHeadParts = HeadPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, blockListNPCEntry, blockListPluginEntry, assignedBodySlide);
             }
 
             if (PatcherSettings.General.bChangeMeshesOrTextures) // needs to be done regardless of PatcherSettings.General.bChangeHeadParts status

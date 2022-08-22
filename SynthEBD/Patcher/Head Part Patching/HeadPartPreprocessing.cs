@@ -38,5 +38,18 @@ namespace SynthEBD
                 }
             }
         }
+
+        public static void ConvertBodyShapeDescriptorRules(Settings_Headparts headPartSettings)
+        {
+            foreach (var typeSetting in headPartSettings.Types.Values)
+            {
+                foreach (var headpartSetting in typeSetting.HeadParts)
+                {
+                    headpartSetting.AllowedBodySlideDescriptorDictionary = DictionaryMapper.BodyShapeDescriptorsToDictionary(headpartSetting.AllowedBodySlideDescriptors);
+                    headpartSetting.DisallowedBodySlideDescriptorDictionary = DictionaryMapper.BodyShapeDescriptorsToDictionary(headpartSetting.DisallowedBodySlideDescriptors);
+                }
+            }
+            
+        }
     }
 }

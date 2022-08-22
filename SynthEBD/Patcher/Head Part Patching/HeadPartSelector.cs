@@ -10,7 +10,7 @@ namespace SynthEBD
 {
     public class HeadPartSelector
     {
-        public static HeadPartSelection AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings, BlockedNPC blockedNPCentry, BlockedPlugin blockedPluginEntry)
+        public static HeadPartSelection AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings, BlockedNPC blockedNPCentry, BlockedPlugin blockedPluginEntry, BodySlideSetting assignedBodySlide)
         {
             Logger.OpenReportSubsection("HeadParts", npcInfo);
             Logger.LogReport("Selecting Head Parts for Current NPC", false, npcInfo);
@@ -39,7 +39,7 @@ namespace SynthEBD
                 }
 
                 bool hasValidConsistency = PatcherSettings.General.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && !string.IsNullOrEmpty(npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType].EditorID);
-                IHeadPartGetter selection = AssignHeadPartType(settings.Types[headPartType], headPartType, npcInfo, hasValidConsistency, out bool recordConsistencyIfNull);
+                IHeadPartGetter selection = AssignHeadPartType(settings.Types[headPartType], headPartType, npcInfo, assignedBodySlide, hasValidConsistency, out bool recordConsistencyIfNull);
                 FormKey? selectedFK = null;
                 if (selection != null) { selectedFK = selection.FormKey; }
                 AllocateHeadPartSelection(selectedFK, headPartType, selectedHeadParts);
@@ -111,7 +111,7 @@ namespace SynthEBD
             }
         }
 
-        public static IHeadPartGetter AssignHeadPartType(Settings_HeadPartType currentSettings, HeadPart.TypeEnum type, NPCInfo npcInfo, bool hasValidConsistency, out bool recordConsistencyIfFailed)
+        public static IHeadPartGetter AssignHeadPartType(Settings_HeadPartType currentSettings, HeadPart.TypeEnum type, NPCInfo npcInfo, BodySlideSetting assignedBodySlide, bool hasValidConsistency, out bool recordConsistencyIfFailed)
         {
             recordConsistencyIfFailed = true;
             if (!CanGetThisHeadPartType(currentSettings, type, npcInfo))
@@ -160,7 +160,7 @@ namespace SynthEBD
                 }
             }
 
-            var availableHeadParts = currentSettings.HeadParts.Where(x => HeadPartIsValid(x, npcInfo, type));
+            var availableHeadParts = currentSettings.HeadParts.Where(x => HeadPartIsValid(x, npcInfo, type, assignedBodySlide));
             var availableEDIDs = availableHeadParts.Select(x => x.EditorID ?? x.HeadPart.ToString());
 
             IHeadPartGetter consistencyHeadPart = null;
@@ -317,7 +317,7 @@ namespace SynthEBD
             return true;
         }
 
-        public static bool HeadPartIsValid(HeadPartSetting candidateHeadPart, NPCInfo npcInfo, HeadPart.TypeEnum type)
+        public static bool HeadPartIsValid(HeadPartSetting candidateHeadPart, NPCInfo npcInfo, HeadPart.TypeEnum type, BodySlideSetting assignedBodySlide)
         {
             if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey.Equals(candidateHeadPart.HeadPart))
             {
@@ -391,28 +391,23 @@ namespace SynthEBD
                 return false;
             }
 
-            /*
-            if (assignedAssetCombination != null)
+            if (assignedBodySlide != null)
             {
-                foreach (var subgroup in assignedAssetCombination.ContainedSubgroups)
+                if (candidateHeadPart.AllowedBodySlideDescriptors.Any())
                 {
-                    if (subgroup.AllowedBodyGenDescriptors.Any())
+                    if (!BodyShapeDescriptor.DescriptorsMatch(candidateHeadPart.AllowedBodySlideDescriptorDictionary, assignedBodySlide.BodyShapeDescriptors, out _))
                     {
-                        if (!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodyGenDescriptors, candidateHeadPart.BodyShapeDescriptors, out _))
-                        {
-                            Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its descriptors do not match allowed descriptors from assigned subgroup " + Logger.GetSubgroupIDString(subgroup) + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(subgroup.AllowedBodyGenDescriptors), false, npcInfo);
-                            return false;
-                        }
-                    }
-
-                    if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodyGenDescriptors, candidateHeadPart.BodyShapeDescriptors, out string matchedDescriptor))
-                    {
-                        Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned subgroup " + Logger.GetSubgroupIDString(subgroup), false, npcInfo);
+                        Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its allowed descriptors do not include those of the assigned BodySlide Preset (" + assignedBodySlide.Label +")" + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(candidateHeadPart.AllowedBodySlideDescriptorDictionary), false, npcInfo);
                         return false;
                     }
                 }
+
+                if (BodyShapeDescriptor.DescriptorsMatch(candidateHeadPart.DisallowedBodySlideDescriptorDictionary, assignedBodySlide.BodyShapeDescriptors, out string matchedDescriptor))
+                {
+                    Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its descriptor [" + matchedDescriptor + "] disallows the assigned BodySlide Preset (" + assignedBodySlide.Label + ")", false, npcInfo);
+                    return false;
+                }
             }
-            */
 
             // If the head part is still valid
             return true;

@@ -25,14 +25,17 @@ namespace SynthEBD
         public bool bAllowRandom { get; set; } = true;
         public double ProbabilityWeighting { get; set; } = 1;
         public NPCWeightRange WeightRange { get; set; } = new();
-        public double DistributionProbability { get; set; } = new();
         public HashSet<BodyShapeDescriptor> AllowedBodySlideDescriptors { get; set; } = new();
         public HashSet<BodyShapeDescriptor> DisallowedBodySlideDescriptors { get; set; } = new();
-        public HashSet<BodyShapeDescriptor> AllowedBodyGenDescriptors { get; set; } = new();
-        public HashSet<BodyShapeDescriptor> DisallowedBodyGenDescriptors { get; set; } = new();
 
+        // used during patching
         [Newtonsoft.Json.JsonIgnore]
         public int MatchedForceIfCount { get; set; } = 0;
+        [Newtonsoft.Json.JsonIgnore]
         public IHeadPartGetter ResolvedHeadPart { get; set; } = null;
+        [Newtonsoft.Json.JsonIgnore]
+        public Dictionary<string, HashSet<string>> AllowedBodySlideDescriptorDictionary { get; set; }
+        [Newtonsoft.Json.JsonIgnore]
+        public Dictionary<string, HashSet<string>> DisallowedBodySlideDescriptorDictionary { get; set; }
     }
 }
