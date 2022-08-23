@@ -20,9 +20,13 @@ Read this readme and still need help? Join the Mutagen Discord channel at https:
   
   SynthEBD can randomize NPC height (the uniform mesh scaling of an NPC) between defined ranges, and also provides a convenient interface to edit base racial heights.
   
+- ##### Head Part Randomization
+
+  SynthEBD can distribute head parts (hair, scars, etc) to NPC according to your chosen distribution rules.
+  
 - ##### Distribution Rules
   
-  SynthEBD provides controls to fine-tune the distribution of assets and body shapes. Common points of control include aspects such as NPC race, class, faction, and other "main" characteristics, but *any data within an NPC record or subrecord* can be used as a check to guide distribution.
+  SynthEBD provides controls to fine-tune the distribution of assets, body shapes, and head parts. Common points of control include aspects such as NPC race, class, faction, and other "main" characteristics, but *any data within an NPC record or subrecord* can be used as a check to guide distribution.
   
 - ##### Manual Assignment
   
@@ -42,6 +46,8 @@ This belongs near the top, as I could never have built SynthEBD on my own. I am 
 - Noggog (Mutagen Discord) for providing an absurd amount of timely support for all of my Mutagen and C# questions, and for an incredible amount of patience in dealing with my barrage of questions over several months.
   
 - Ashen and Nem (SkyrimMods Discord) for helping me learn Papyrus and JContainers to get OBody/Autobody integration into SynthEBD.
+
+- Cecell (Nexus, Ethereal Tools Discord) for providing cLib for Papyrus, which allowed me to work around an apparent JContainers bug and allow the headparts feature to work in VR in addition to SE/AE.
   
 - Mator (Modding Tools Discord) for also providing an absurd amount of support when I was building the original zEBD patcher on which SynthEBD is based.
 
@@ -89,11 +95,16 @@ The different SynthEBD modules have their own requirements, in addition to the c
   - Spell Perk Item Distributor
     
   - JContainers
-    
 
 ###### Height Distribution:
 
 - No dependencies
+
+###### Head Part Distribution:
+
+- Everybody's Different Redone SSE
+- JContainers  
+- Spell Perk Item Distributor
 
 ### Getting Started (For New Users)
 
@@ -531,11 +542,27 @@ This menu enables customization of NPC and racial heights.
 - **Female Height +/-**: The range within which female heights for the given ***Height Group*** can be randomized (e.g. an NPC with a range of 0.02 can be assigned a height between 0.98 and 1.02).
   
 
-###
+### Head Part Distribution
+To use the head part distribution feature, you must first import the head parts that you wish to distribute. 
+- After clicking "Head Parts" in the left navigation pane, it should default to the *Import* tab. 
+- Click in the "Import from: " box and select the mod from which you would like to import head parts
+-- Note: there may be some lag if you select a large plugin such as Skyrim.esm
+- Use the provided checkboxes to filter which headparts to import
+- You also manually filter by removing individual headparts from the list boxes (you can also delete them later if necessary)
+- When finished, click "Imported Selected Headparts"
+- You can now go to the tab for each head part type to set its distribution rules
+
+#### Common Distribution Rules
+These rules govern if ANY headpart within this category can be distributed to a given NPC. Most should be familiar from other sections of the patcher. The only unique rules are:
+- **Lock to NPCs with this Head Part type**: Only distributes the selected headpart to an NPC that already had the same type of head part. E.g. only distribute scars to NPCs that already have them.
+- **Distribution Probability**: Should be 0 - 100. The probability that an NPC will receive a random head part of this type, provided they don't match a Specific NPC assignment or ForceIf attribute (in which case the probability is 100).
+
+#### Head Part Rules
+These rules govern the distribution of each individual head part. All should be familiar from other sections of the patcher. 
 
 ### Specific NPC Assignments
 
-This menu allows you to specify exactly which Assets, Body Shape, or Height you wish to assign to a given NPC.
+This menu allows you to specify exactly which Assets, Body Shape, Height, or Head Part you wish to assign to a given NPC.
 
 **NPC**: The NPC to which the selected assignments apply.
 
