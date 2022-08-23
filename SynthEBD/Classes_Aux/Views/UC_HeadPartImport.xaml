@@ -32,7 +32,7 @@
         </Grid.ColumnDefinitions>
         
         <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2">
-            <TextBlock Text="Import from: "/>
+            <TextBlock Text="Import from: " VerticalAlignment="Center"/>
             <plugins:ModKeyPicker ModKey="{Binding ModtoImport}" SearchableMods="{Binding LoadOrder}" />
         </StackPanel>
 
