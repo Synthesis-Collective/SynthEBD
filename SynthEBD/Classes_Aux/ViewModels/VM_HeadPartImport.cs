@@ -71,6 +71,7 @@ namespace SynthEBD
         public bool bImportHair { get; set; } = true;
         public bool bImportMisc { get; set; } = true;
         public bool bImportScar { get; set; } = true;
+        public bool bRespectHeadPartRaces { get; set; } = true;
 
         public Dictionary<HeadPart.TypeEnum, HeadPartImportContainer> Imports { get; set; } = new()
         {
@@ -218,7 +219,23 @@ namespace SynthEBD
 
         public static VM_HeadPart ImportHeadPart(IHeadPartGetter headPart, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig)
         {
-            return new VM_HeadPart(headPart.FormKey, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig) { Label = EditorIDHandler.GetEditorIDSafely(headPart), bAllowMale = headPart.Flags.HasFlag(HeadPart.Flag.Male), bAllowFemale = headPart.Flags.HasFlag(HeadPart.Flag.Female) };
+            var imported = new VM_HeadPart(headPart.FormKey, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig) { Label = EditorIDHandler.GetEditorIDSafely(headPart), bAllowMale = headPart.Flags.HasFlag(HeadPart.Flag.Male), bAllowFemale = headPart.Flags.HasFlag(HeadPart.Flag.Female) };
+
+            if (parentConfig.ImportMenu.bRespectHeadPartRaces && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IFormListGetter>(headPart.ValidRaces.FormKey, out var raceFormList) && raceFormList.Items.Any())
+            {
+                var races = raceFormList.Items.Select(x => x.FormKey);
+                var matchedGroupings = VM_RaceGrouping.CollectionMatchesRaceGrouping(races, raceGroupingVMs);
+                if (matchedGroupings.Any())
+                {
+                    imported.AllowedRaceGroupings.ActivateSelectedRaceGroupings(matchedGroupings);
+                }
+                else
+                {
+                    imported.AllowedRaces.AddRange(races);
+                }
+            }
+
+            return imported;
         }
     }
 }

@@ -47,4 +47,28 @@ public class VM_RaceGrouping : VM
 
         return model;
     }
+
+    public static HashSet<VM_RaceGrouping> CollectionMatchesRaceGrouping(IEnumerable<FormKey> collection, IEnumerable<VM_RaceGrouping> groupings) // returns true if a collection of Race formkeys is identical to an existing race grouping
+    {
+        HashSet<VM_RaceGrouping> matchedGroupings = new();
+        foreach (var group in groupings)
+        {
+            if (collection.Count() != group.Races.Count()) {  continue; }
+            bool allRacesFound = true;
+            foreach (var collectionRace in collection)
+            {
+                bool raceFound = false;
+                foreach (var groupRace in group.Races)
+                {
+                    if (groupRace.Equals(collectionRace)) { raceFound = true; break; }
+                }
+                if (!raceFound) { allRacesFound = false; break; }
+            }
+            if (allRacesFound)
+            {
+                matchedGroupings.Add(group);
+            }
+        }
+        return matchedGroupings;
+    }
 }

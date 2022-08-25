@@ -122,7 +122,7 @@ public class SaveLoader
 
     public void LoadFinalSettingsViewModels() // view models that should be loaded after plugin VMs because they depend on the loaded plugins
     {
-        HeadParts.CopyInFromModel(PatcherSettings.HeadParts, _oBody);
+        HeadParts.CopyInFromModel(PatcherSettings.HeadParts, _oBody, General.RaceGroupings);
 
         // load specific assignments (must load after plugin view models)
         _state.SpecificNPCAssignments = SettingsIO_SpecificNPCAssignments.LoadAssignments(out var loadSuccess);

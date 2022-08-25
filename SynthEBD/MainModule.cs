@@ -27,7 +27,7 @@ public class MainModule : Autofac.Module
             .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
         builder.RegisterType<MainState>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsTexMesh>().AsSelf().SingleInstance()
-    .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
+            .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
         builder.RegisterType<SaveLoader>().AsSelf().SingleInstance()
             .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
         builder.RegisterType<PatcherEnvironmentProvider>().AsSelf().SingleInstance();

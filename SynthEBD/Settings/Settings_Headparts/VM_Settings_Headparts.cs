@@ -119,8 +119,9 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
     public RelayCommand ViewMiscMenu { get; }
     public RelayCommand ViewScarsMenu { get; }
     public RelayCommand ViewSettingsMenu { get; }
-    public void CopyInFromModel(Settings_Headparts model, VM_SettingsOBody oBody)
+    public void CopyInFromModel(Settings_Headparts model, VM_SettingsOBody oBody, ObservableCollection<VM_RaceGrouping> raceGroupings)
     {
+        RaceGroupings = raceGroupings;
         foreach (var type in model.Types.Keys)
         {
             Types[type].CopyInFromModel(model.Types[type], RaceGroupings, AttributeGroupMenu, this, oBody);

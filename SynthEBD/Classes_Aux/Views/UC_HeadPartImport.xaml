@@ -22,6 +22,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
@@ -69,7 +70,10 @@
         <TextBlock Grid.Row="11" Grid.Column="0" Text="Import Scars"/>
         <CheckBox Grid.Row="11" Grid.Column="1" IsChecked="{Binding bImportScar}"/>
 
-        <ItemsControl Grid.Row="12" Grid.Column="0" Grid.ColumnSpan="2" ItemsSource="{Binding Imports}">
+        <TextBlock Grid.Row="12" Grid.Column="0" Text="Respect Race FormLists"/>
+        <CheckBox Grid.Row="12" Grid.Column="1" IsChecked="{Binding bRespectHeadPartRaces}"/>
+
+        <ItemsControl Grid.Row="13" Grid.Column="0" Grid.ColumnSpan="2" ItemsSource="{Binding Imports}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                     <WrapPanel Orientation="Horizontal" />
@@ -86,6 +90,6 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <Button Grid.Row="13" Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Center" Command="{Binding Import}" Foreground="LightGreen">Import Selected Head Parts</Button>
+        <Button Grid.Row="14" Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Center" Command="{Binding Import}" Foreground="LightGreen">Import Selected Head Parts</Button>
     </Grid>
 </UserControl>

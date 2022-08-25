@@ -111,4 +111,16 @@ public class VM_RaceGroupingCheckboxList : VM
             return clone;
         }
     }
+
+    public void ActivateSelectedRaceGroupings(IEnumerable<VM_RaceGrouping> groupings)
+    {
+        foreach (var group in groupings)
+        {
+            var matchedSelection = RaceGroupingSelections.Where(x => x.SubscribedMasterRaceGrouping == group).FirstOrDefault();
+            if (matchedSelection != null)
+            {
+                matchedSelection.IsSelected = true;
+            }
+        }
+    }
 }
