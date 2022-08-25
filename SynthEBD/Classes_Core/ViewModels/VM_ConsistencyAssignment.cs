@@ -62,7 +62,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
     public bool HeightAssigned { get; set; } = false;
     public Gender Gender { get; set; } // only needs to satisfy the HeadPart assignment view model.
 
-    public static VM_ConsistencyAssignment GetViewModelFromModel(NPCAssignment model, ObservableCollection<VM_AssetPack> AssetPackVMs, VM_Settings_Headparts headParts)
+    public static VM_ConsistencyAssignment GetViewModelFromModel(NPCAssignment model, ObservableCollection<VM_AssetPack> AssetPackVMs)
     {
         VM_ConsistencyAssignment viewModel = new VM_ConsistencyAssignment();
         viewModel.AssetPackName = model.AssetPackName;

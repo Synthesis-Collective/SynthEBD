@@ -124,7 +124,7 @@ public class VM_ConsistencyUI : VM
         foreach (var model in models)
         {
             if (model.Value == null) { continue; }
-            viewModels.Add(VM_ConsistencyAssignment.GetViewModelFromModel(model.Value, AssetPackVMs, headParts));
+            viewModels.Add(VM_ConsistencyAssignment.GetViewModelFromModel(model.Value, AssetPackVMs));
         }
     }
 

@@ -38,7 +38,7 @@ namespace SynthEBD
                     continue;
                 }
 
-                bool hasValidConsistency = PatcherSettings.General.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && !string.IsNullOrEmpty(npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType].EditorID);
+                bool hasValidConsistency = PatcherSettings.General.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && !npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType].FormKey.IsNull;
                 IHeadPartGetter selection = AssignHeadPartType(settings.Types[headPartType], headPartType, npcInfo, assignedBodySlide, hasValidConsistency, out bool recordConsistencyIfNull);
                 FormKey? selectedFK = null;
                 if (selection != null) { selectedFK = selection.FormKey; }
