@@ -325,6 +325,17 @@ namespace SynthEBD
                 return true;
             }
 
+            if (npcInfo.Gender == Gender.Male && !candidateHeadPart.ResolvedHeadPart.Flags.HasFlag(HeadPart.Flag.Male))
+            {
+                Logger.LogReport("Head part invalid for Male NPCs and not assigned via Specific Assignment.", false, npcInfo);
+                return false;
+            }
+            else if (npcInfo.Gender == Gender.Female && !candidateHeadPart.ResolvedHeadPart.Flags.HasFlag(HeadPart.Flag.Female))
+            {
+                Logger.LogReport("Head part invalid for Female NPCs and not assigned via Specific Assignment.", false, npcInfo);
+                return false;
+            }
+
             if (!candidateHeadPart.bAllowRandom && candidateHeadPart.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above
             {
                 Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because it can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
