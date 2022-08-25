@@ -161,7 +161,7 @@ namespace SynthEBD
             }
 
             var availableHeadParts = currentSettings.HeadParts.Where(x => HeadPartIsValid(x, npcInfo, type, assignedBodySlide));
-            var availableEDIDs = availableHeadParts.Select(x => x.EditorID ?? x.HeadPart.ToString());
+            var availableEDIDs = availableHeadParts.Select(x => x.EditorID ?? x.HeadPartFormKey.ToString());
 
             IHeadPartGetter consistencyHeadPart = null;
             if (hasValidConsistency)
@@ -179,7 +179,7 @@ namespace SynthEBD
             var specificAssignments = availableHeadParts.Where(x => x.MatchedForceIfCount > 0).OrderBy(x => x.MatchedForceIfCount);
             if (specificAssignments.Any())
             {
-                var specificAssignmentStrings = specificAssignments.Select(x => (x.EditorID ?? x.HeadPart.ToString()) + ": " + x.MatchedForceIfCount);
+                var specificAssignmentStrings = specificAssignments.Select(x => (x.EditorID ?? x.HeadPartFormKey.ToString()) + ": " + x.MatchedForceIfCount);
                 Logger.LogReport("The following headparts have matched ForceIf attributes:" + Environment.NewLine + String.Join(Environment.NewLine, specificAssignmentStrings), false, npcInfo);
                 selectedHeadPart = ChooseHeadPart(specificAssignments, consistencyHeadPart, npcInfo, type, 100, out recordConsistencyIfFailed);
             }
@@ -203,10 +203,10 @@ namespace SynthEBD
 
             if (consistencyHeadPart != null)
             {
-                var consistencyAssignment = options.Where(x => x.HeadPart.Equals(consistencyHeadPart.FormKey)).FirstOrDefault();
+                var consistencyAssignment = options.Where(x => x.HeadPartFormKey.Equals(consistencyHeadPart.FormKey)).FirstOrDefault();
                 if (consistencyAssignment != null)
                 {
-                    Logger.LogReport("Assigning head part " + (consistencyAssignment.EditorID ?? consistencyAssignment.HeadPart.ToString()) + " from Consistency.", false, npcInfo);
+                    Logger.LogReport("Assigning head part " + (consistencyAssignment.EditorID ?? consistencyAssignment.HeadPartFormKey.ToString()) + " from Consistency.", false, npcInfo);
                     return consistencyHeadPart;
                 }
             }
@@ -219,7 +219,7 @@ namespace SynthEBD
             }
 
             var selectedAssignment = (HeadPartSetting)ProbabilityWeighting.SelectByProbability(options);
-            Logger.LogReport("Selected " + type + ": " + (selectedAssignment.EditorID ?? selectedAssignment.HeadPart.ToString()) + " at random.", false, npcInfo);
+            Logger.LogReport("Selected " + type + ": " + (selectedAssignment.EditorID ?? selectedAssignment.HeadPartFormKey.ToString()) + " at random.", false, npcInfo);
             return selectedAssignment.ResolvedHeadPart;
         }
         public static bool CanGetThisHeadPartType(Settings_HeadPartType currentSettings, HeadPart.TypeEnum type, NPCInfo npcInfo)
@@ -319,7 +319,7 @@ namespace SynthEBD
 
         public static bool HeadPartIsValid(HeadPartSetting candidateHeadPart, NPCInfo npcInfo, HeadPart.TypeEnum type, BodySlideSetting assignedBodySlide)
         {
-            if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey.Equals(candidateHeadPart.HeadPart))
+            if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey.Equals(candidateHeadPart.HeadPartFormKey))
             {
                 Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is valid because it is specifically assigned by user.", false, npcInfo);
                 return true;

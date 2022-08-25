@@ -106,8 +106,8 @@ namespace SynthEBD
 
         public static VM_HeadPart GetViewModelFromModel(HeadPartSetting model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AttributeGroupMenu attributeGroupMenu, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, VM_Settings_Headparts parentConfig, ObservableCollection<VM_HeadPart> parentCollection)
         {
-            var viewModel = new VM_HeadPart(model.HeadPart, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig);
-            viewModel.FormKey = model.HeadPart;
+            var viewModel = new VM_HeadPart(model.HeadPartFormKey, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig);
+            viewModel.FormKey = model.HeadPartFormKey;
             viewModel.Label = EditorIDHandler.GetEditorIDSafely<IHeadPartGetter>(viewModel.FormKey);
             viewModel.bAllowFemale = model.bAlloweFemale;
             viewModel.bAllowMale = model.bAllowMale;
@@ -132,7 +132,7 @@ namespace SynthEBD
         {
             return new HeadPartSetting()
             {
-                HeadPart = FormKey,
+                HeadPartFormKey = FormKey,
                 EditorID = Label,
                 bAllowMale = bAllowMale,
                 bAlloweFemale = bAllowFemale,

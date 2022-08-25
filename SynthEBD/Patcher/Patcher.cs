@@ -147,7 +147,7 @@ public class Patcher
                 for (int i = 0; i < typeSettings.HeadParts.Count; i++)
                 {
                     var headPartSetting = typeSettings.HeadParts[i];
-                    if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartSetting.HeadPart, out var headPartGetter))
+                    if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartSetting.HeadPartFormKey, out var headPartGetter))
                     {
                         headPartSetting.ResolvedHeadPart = headPartGetter;
                     }

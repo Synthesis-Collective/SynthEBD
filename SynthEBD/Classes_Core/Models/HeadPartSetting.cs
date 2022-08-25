@@ -10,7 +10,7 @@ namespace SynthEBD
 {
     public class HeadPartSetting: IProbabilityWeighted
     {
-        public FormKey HeadPart { get; set; }
+        public FormKey HeadPartFormKey { get; set; }
         public string EditorID { get; set; }
         public bool bAllowMale { get; set; }
         public bool bAlloweFemale { get; set; }
