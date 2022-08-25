@@ -109,7 +109,7 @@ namespace SynthEBD
             var viewModel = new VM_HeadPart(model.HeadPartFormKey, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig);
             viewModel.FormKey = model.HeadPartFormKey;
             viewModel.Label = EditorIDHandler.GetEditorIDSafely<IHeadPartGetter>(viewModel.FormKey);
-            viewModel.bAllowFemale = model.bAlloweFemale;
+            viewModel.bAllowFemale = model.bAllowFemale;
             viewModel.bAllowMale = model.bAllowMale;
             viewModel.AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
             viewModel.AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, raceGroupingVMs);
@@ -135,7 +135,7 @@ namespace SynthEBD
                 HeadPartFormKey = FormKey,
                 EditorID = Label,
                 bAllowMale = bAllowMale,
-                bAlloweFemale = bAllowFemale,
+                bAllowFemale = bAllowFemale,
                 AllowedRaces = AllowedRaces.ToHashSet(),
                 AllowedRaceGroupings = AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet(),
                 DisallowedRaces = DisallowedRaces.ToHashSet(),

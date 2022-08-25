@@ -31,7 +31,14 @@ namespace SynthEBD
         public HashSet<BodyShapeDescriptor> AllowedBodyGenDescriptors { get; set; } = new();
         public HashSet<BodyShapeDescriptor> DisallowedBodyGenDescriptors { get; set; } = new();
 
+        // populated during patching
         [Newtonsoft.Json.JsonIgnore]
         public int MatchedForceIfCount { get; set; } = 0;
+        [Newtonsoft.Json.JsonIgnore]
+        public Dictionary<Gender, HashSet<HeadPartSetting>> HeadPartsGendered { get; set; } = new()
+        {
+            {Gender.Male, new HashSet<HeadPartSetting>() },
+            {Gender.Female, new HashSet<HeadPartSetting>() }
+        };
     }
 }

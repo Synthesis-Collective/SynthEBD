@@ -49,7 +49,15 @@ namespace SynthEBD
                     headpartSetting.DisallowedBodySlideDescriptorDictionary = DictionaryMapper.BodyShapeDescriptorsToDictionary(headpartSetting.DisallowedBodySlideDescriptors);
                 }
             }
-            
+        }
+
+        public static void CompileGenderedHeadParts(Settings_Headparts headPartSettings)
+        {
+            foreach (var typeSetting in headPartSettings.Types.Values)
+            {
+                typeSetting.HeadPartsGendered[Gender.Male].UnionWith(typeSetting.HeadParts.Where(x => x.bAllowMale).ToHashSet());
+                typeSetting.HeadPartsGendered[Gender.Female].UnionWith(typeSetting.HeadParts.Where(x => x.bAllowFemale).ToHashSet());
+            }
         }
     }
 }

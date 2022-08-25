@@ -160,7 +160,7 @@ namespace SynthEBD
                 }
             }
 
-            var availableHeadParts = currentSettings.HeadParts.Where(x => HeadPartIsValid(x, npcInfo, type, assignedBodySlide));
+            var availableHeadParts = currentSettings.HeadPartsGendered[npcInfo.Gender].Where(x => HeadPartIsValid(x, npcInfo, type, assignedBodySlide));
             var availableEDIDs = availableHeadParts.Select(x => x.EditorID ?? x.HeadPartFormKey.ToString());
 
             IHeadPartGetter consistencyHeadPart = null;
@@ -229,6 +229,18 @@ namespace SynthEBD
                 Logger.LogReport(type + " is invalid because it can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
                 return false;
             }
+
+            if (npcInfo.Gender == Gender.Male && !currentSettings.bAllowMale)
+            {
+                Logger.LogReport("Head part invalid for Male NPCs and not assigned via Specific Assignment.", false, npcInfo);
+                return false;
+            }
+            else if (npcInfo.Gender == Gender.Female && !currentSettings.bAllowFemale)
+            {
+                Logger.LogReport("Head part invalid for Female NPCs and not assigned via Specific Assignment.", false, npcInfo);
+                return false;
+            }
+
 
             // Allow unique NPCs
             if (!currentSettings.bAllowUnique && npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
@@ -323,17 +335,6 @@ namespace SynthEBD
             {
                 Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is valid because it is specifically assigned by user.", false, npcInfo);
                 return true;
-            }
-
-            if (npcInfo.Gender == Gender.Male && !candidateHeadPart.ResolvedHeadPart.Flags.HasFlag(HeadPart.Flag.Male))
-            {
-                Logger.LogReport("Head part invalid for Male NPCs and not assigned via Specific Assignment.", false, npcInfo);
-                return false;
-            }
-            else if (npcInfo.Gender == Gender.Female && !candidateHeadPart.ResolvedHeadPart.Flags.HasFlag(HeadPart.Flag.Female))
-            {
-                Logger.LogReport("Head part invalid for Female NPCs and not assigned via Specific Assignment.", false, npcInfo);
-                return false;
             }
 
             if (!candidateHeadPart.bAllowRandom && candidateHeadPart.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above

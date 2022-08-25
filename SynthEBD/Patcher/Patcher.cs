@@ -169,6 +169,7 @@ public class Patcher
             HeadPartPreprocessing.CompilePresetRaces(copiedHeadPartSettings);
             HeadPartPreprocessing.FlattenGroupAttributes(copiedHeadPartSettings);
             HeadPartPreprocessing.ConvertBodyShapeDescriptorRules(copiedHeadPartSettings);
+            HeadPartPreprocessing.CompileGenderedHeadParts(copiedHeadPartSettings);
         }
 
         int npcCounter = 0;
