@@ -84,7 +84,9 @@
                     <StackPanel Margin="10">
                         <TextBlock HorizontalAlignment="Center" Text="{Binding Key}"/>
                         <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding Value.FormKeys}" LinkCache="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.lk}" ScopedTypes="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.HeadPartType}" BorderThickness="1" BorderBrush="{Binding Value.BorderColor}" />
-                        <TextBlock Text="{Binding Value.StatusString}" Foreground="{Binding Value.BorderColor}"/>
+                        <ScrollViewer  MaxHeight="100">
+                            <TextBlock Text="{Binding Value.StatusString}" Foreground="{Binding Value.BorderColor}"/>
+                        </ScrollViewer>
                     </StackPanel>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>

@@ -11,6 +11,7 @@ public class EditorIDHandler
 {
     public static string GetEditorIDSafely(IMajorRecordGetter getter)
     {
+        if (getter == null) { return "Null Record"; }
         return getter.EditorID ?? (getter.FormKey.ToString() + " (No EditorID)");
     }
     public static string GetEditorIDSafely<TType>(FormKey formKey) where TType : class, IMajorRecordGetter

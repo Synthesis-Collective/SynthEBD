@@ -27,8 +27,7 @@ namespace SynthEBD
             .DisposeWith(this);
 
             PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LoadOrder)
-            .Subscribe(x => LoadOrder = x)
-            .DisposeWith(this);
+            .Subscribe(x => LoadOrder = x.Where(y => y.Value != null && y.Value.Enabled).Select(x => x.Value.ModKey));
 
             this.WhenAnyValue(
                 x => x.bImportMale,
@@ -89,7 +88,7 @@ namespace SynthEBD
         public VM_Settings_Headparts ParentMenu { get; set; }
         public IEnumerable<Type> HeadPartType { get; set; } = typeof(IHeadPartGetter).AsEnumerable();
         public ModKey ModtoImport { get; set; }
-        public Mutagen.Bethesda.Plugins.Order.ILoadOrder<Mutagen.Bethesda.Plugins.Order.IModListing<ISkyrimModGetter>> LoadOrder { get; private set; }
+        public IEnumerable<ModKey> LoadOrder { get; private set; }
         public ILinkCache lk { get; private set; }
 
         public class HeadPartImportContainer : VM
@@ -141,7 +140,7 @@ namespace SynthEBD
             
             if (invalidEditorIDs.Any())
             {
-                Imports[type].StatusString = "The following invalid eyebrows will not be imported:" + Environment.NewLine + String.Join(Environment.NewLine, invalidEditorIDs);
+                Imports[type].StatusString = "The following invalid " + type.ToString() + " will not be imported:" + Environment.NewLine + String.Join(Environment.NewLine, invalidEditorIDs);
             }
             else
             {
@@ -168,7 +167,7 @@ namespace SynthEBD
                 }
                 else
                 {
-                    invalidEditorIDs.Add(EditorIDHandler.GetEditorIDSafely(headpart));
+                    invalidEditorIDs.Add(EditorIDHandler.GetEditorIDSafely<IHeadPartGetter>(headPartFK));
                 }
             }
 
