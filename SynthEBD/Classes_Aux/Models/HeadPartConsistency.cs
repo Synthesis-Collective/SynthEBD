@@ -7,9 +7,10 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
-    public class FormKeyEditorIDPair
+    public class HeadPartConsistency
     {
         public FormKey FormKey { get; set; }
         public string EditorID { get; set; }
+        public bool RandomizedToNone { get; set; } = false;
     }
 }

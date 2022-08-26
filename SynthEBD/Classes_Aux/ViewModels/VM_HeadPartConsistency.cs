@@ -20,28 +20,24 @@ public class VM_HeadPartConsistency : VM
     }
     public string Label { get; set; }
     private FormKey FormKey { get; set; }
+    public bool RandomizedToNone { get; set;} = false;
     public RelayCommand ClearSelection { get; set; }
 
-    public static VM_HeadPartConsistency GetViewModelFromModel(FormKeyEditorIDPair model)
+    public static VM_HeadPartConsistency GetViewModelFromModel(HeadPartConsistency model)
     {
         var viewModel = new VM_HeadPartConsistency();
         viewModel.Label = model.EditorID;
         viewModel.FormKey = model.FormKey;
+        viewModel.RandomizedToNone = model.RandomizedToNone;
         return viewModel;
     }
 
-    public FormKeyEditorIDPair DumpToModel()
+    public HeadPartConsistency DumpToModel()
     {
-        var model = new FormKeyEditorIDPair();
+        var model = new HeadPartConsistency();
         model.EditorID = Label;
-        if (Label == "NONE" || Label == String.Empty)
-        {
-            model.FormKey = new();
-        }
-        else
-        {
-            model.FormKey = FormKey;
-        }
+        model.FormKey = FormKey;
+        model.RandomizedToNone = RandomizedToNone;
         return model;
     }
 }

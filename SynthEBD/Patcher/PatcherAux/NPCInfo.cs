@@ -59,6 +59,17 @@ public class NPCInfo
             consistency.Add(this.NPC.FormKey.ToString(), ConsistencyNPCAssignment);
         }
 
+        if (PatcherSettings.General.bChangeHeadParts)
+        {
+            foreach (var headpartFK in npc.HeadParts)
+            {
+                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headpartFK.FormKey, out IHeadPartGetter headPart))
+                {
+                    ExistingHeadParts.Add(headPart);
+                }
+            }
+        }
+
         Report = new Logger.NPCReport(this);
     }
 
@@ -77,6 +88,7 @@ public class NPCInfo
     public NPCAssignment SpecificNPCAssignment { get; set; }
     public NPCAssignment ConsistencyNPCAssignment { get; set; }
     public Logger.NPCReport Report { get; set; }
+    public HashSet<IHeadPartGetter> ExistingHeadParts { get; set; } = new();
 
     public enum LinkGroupMemberType
     {

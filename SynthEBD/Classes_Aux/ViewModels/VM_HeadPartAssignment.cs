@@ -77,15 +77,15 @@ namespace SynthEBD
             else { return false; }
         }
 
-        public static VM_HeadPartAssignment GetViewModelFromModel(FormKeyEditorIDPair assignment, HeadPart.TypeEnum type, VM_Settings_Headparts parentConfig, IHasSynthEBDGender parentAssignmentGender, IHasHeadPartAssignments parentAssignment)
+        public static VM_HeadPartAssignment GetViewModelFromModel(HeadPartConsistency assignment, HeadPart.TypeEnum type, VM_Settings_Headparts parentConfig, IHasSynthEBDGender parentAssignmentGender, IHasHeadPartAssignments parentAssignment)
         {
             var referencedHeadPart = parentConfig.Types[type].HeadPartList.Where(x => x.FormKey.Equals(assignment.FormKey)).FirstOrDefault();
             return new VM_HeadPartAssignment(referencedHeadPart, parentConfig, type, parentAssignmentGender, parentAssignment);
         }
 
-        public FormKeyEditorIDPair DumpToModel()
+        public HeadPartConsistency DumpToModel()
         {
-            return new FormKeyEditorIDPair() { FormKey = FormKey, EditorID = EditorID };
+            return new HeadPartConsistency() { FormKey = FormKey, EditorID = EditorID };
         }
     }
 
