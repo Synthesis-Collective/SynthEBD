@@ -12,5 +12,6 @@ namespace SynthEBD
         public FormKey FormKey { get; set; }
         public string EditorID { get; set; }
         public bool RandomizedToNone { get; set; } = false;
+        public bool Initialized { get; set; } = false;
     }
 }

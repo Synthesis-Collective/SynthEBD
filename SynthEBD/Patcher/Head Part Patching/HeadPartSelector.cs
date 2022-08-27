@@ -10,7 +10,7 @@ namespace SynthEBD
 {
     public class HeadPartSelector
     {
-        public static HeadPartSelection AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings, BlockedNPC blockedNPCentry, BlockedPlugin blockedPluginEntry, BodySlideSetting assignedBodySlide)
+        public static HeadPartSelection AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings, BlockedNPC blockedNPCentry, BlockedPlugin blockedPluginEntry, BodySlideSetting? assignedBodySlide)
         {
             Logger.OpenReportSubsection("HeadParts", npcInfo);
             Logger.LogReport("Selecting Head Parts for Current NPC", false, npcInfo);
@@ -49,11 +49,10 @@ namespace SynthEBD
                 AllocateHeadPartSelection(selectedFK, headPartType, selectedHeadParts);
 
                 // record consistency mismatches
-                if (currentConsistency != null)
+                if (currentConsistency != null && currentConsistency.Initialized)
                 {
-                    var consistencyAssignment = npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType];
-                    var bothNull = consistencyAssignment.FormKey.IsNull && selection == null;
-                    var bothMatch = selection != null && selection.FormKey.Equals(consistencyAssignment.FormKey);
+                    var bothNull = currentConsistency.FormKey.IsNull && selection == null;
+                    var bothMatch = selection != null && selection.FormKey.Equals(currentConsistency.FormKey);
                     if (!bothNull && !bothMatch)
                     {
                         consistencyReportTriggers.Add(headPartType.ToString());
@@ -81,6 +80,7 @@ namespace SynthEBD
                         npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType].FormKey = new FormKey();
                         npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType].RandomizedToNone = false;
                     }
+                    npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType].Initialized = true;
                 }
 
                 // assign linkage
@@ -123,7 +123,7 @@ namespace SynthEBD
             }
         }
 
-        public static IHeadPartGetter AssignHeadPartType(Settings_HeadPartType currentSettings, HeadPart.TypeEnum type, NPCInfo npcInfo, BodySlideSetting assignedBodySlide, HeadPartConsistency currentConsistency, out bool randomizedToNone)
+        public static IHeadPartGetter AssignHeadPartType(Settings_HeadPartType currentSettings, HeadPart.TypeEnum type, NPCInfo npcInfo, BodySlideSetting? assignedBodySlide, HeadPartConsistency currentConsistency, out bool randomizedToNone)
         {
             randomizedToNone = false;
             // if there are no head parts of this type at all, don't assign consistency.
@@ -215,9 +215,13 @@ namespace SynthEBD
                 Logger.LogReport("This NPC's consistency shows it was previously selected to NOT receive a " + type + ". Therefore, one will NOT be assigned unless overriden via a Specific or ForceIf assignment." + type, false, npcInfo);
                 randomizedToNone = true;
             }
-            else 
+            else if (availableHeadParts.Any())
             { 
                 selectedHeadPart = ChooseHeadPart(availableHeadParts, consistencyHeadPart, npcInfo, type, currentSettings.RandomizationPercentage, out randomizedToNone);
+            }
+            else
+            {
+                Logger.LogReport("No " + type.ToString() + "head parts are available for this NPC", false, npcInfo);
             }
 
             return selectedHeadPart;
@@ -245,7 +249,7 @@ namespace SynthEBD
             }
 
             var selectedAssignment = (HeadPartSetting)ProbabilityWeighting.SelectByProbability(options);
-            Logger.LogReport("Selected " + type + ": " + (selectedAssignment.EditorID ?? selectedAssignment.HeadPartFormKey.ToString()) + " at random.", false, npcInfo);
+            Logger.LogReport("Selected " + type + ": " + EditorIDHandler.GetEditorIDSafely(selectedAssignment.ResolvedHeadPart) + " at random.", false, npcInfo);
             return selectedAssignment.ResolvedHeadPart;
         }
         public static bool CanGetThisHeadPartType(Settings_HeadPartType currentSettings, HeadPart.TypeEnum type, NPCInfo npcInfo)
@@ -373,7 +377,7 @@ namespace SynthEBD
             return true;
         }
 
-        public static bool HeadPartIsValid(HeadPartSetting candidateHeadPart, NPCInfo npcInfo, HeadPart.TypeEnum type, BodySlideSetting assignedBodySlide)
+        public static bool HeadPartIsValid(HeadPartSetting candidateHeadPart, NPCInfo npcInfo, HeadPart.TypeEnum type, BodySlideSetting? assignedBodySlide)
         {
             if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey.Equals(candidateHeadPart.HeadPartFormKey))
             {
