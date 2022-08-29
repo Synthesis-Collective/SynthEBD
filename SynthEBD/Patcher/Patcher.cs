@@ -162,9 +162,7 @@ public class Patcher
             if (removedHeadParts)
             {
                 Logger.LogMessage("Some head parts will not be distributed because they are no longer present in your load order.");
-            }
-
-            HeadPartTracker = new Dictionary<FormKey, HeadPartSelection>();
+            } 
 
             HeadPartPreprocessing.CompilePresetRaces(copiedHeadPartSettings);
             HeadPartPreprocessing.FlattenGroupAttributes(copiedHeadPartSettings);
@@ -174,6 +172,8 @@ public class Patcher
 
         int npcCounter = 0;
         HashSet<Npc> headPartNPCs = new HashSet<Npc>();
+        HeadPartTracker = new Dictionary<FormKey, HeadPartSelection>(); // needs re-initialization even if headpart distribution is disabled because TexMesh settings can also produce headparts.
+
         _statusBar.ProgressBarMax = allNPCs.Count();
         _statusBar.ProgressBarCurrent = 0;
         _statusBar.ProgressBarDisp = "Patched " + _statusBar.ProgressBarCurrent + " NPCs";
