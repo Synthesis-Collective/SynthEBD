@@ -286,19 +286,19 @@ namespace SynthEBD
                     switch(type)
                     {
                         case HeadPart.TypeEnum.Eyebrows: 
-                            if (existingHP == Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.HeadPart.BrowsMaleHumanoid12NoBrow || existingHP == Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.HeadPart.FemaleBrowsHuman12NoBrow)
+                            if (existingHP.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.HeadPart.BrowsMaleHumanoid12NoBrow) || existingHP.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.HeadPart.FemaleBrowsHuman12NoBrow))
                             {
                                 hasNoneHeadPart = true;
                             }
                             break;
                         case HeadPart.TypeEnum.FacialHair:
-                            if (existingHP == Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.HeadPart.HumanBeard00NoBeard || existingHP == Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.HeadPart.KhajiitNoBeard)
+                            if (existingHP.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.HeadPart.HumanBeard00NoBeard) || existingHP.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.HeadPart.KhajiitNoBeard))
                             {
                                 hasNoneHeadPart = true;
                             }
                             break;
                         case HeadPart.TypeEnum.Scars:
-                            if (existingHP == Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.HeadPart.MarksFemaleHumanoid00NoGash || existingHP == Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.HeadPart.MarksMaleHumanoid00NoScar)
+                            if (existingHP.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.HeadPart.MarksFemaleHumanoid00NoGash) || existingHP.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.HeadPart.MarksMaleHumanoid00NoScar))
                             {
                                 hasNoneHeadPart = true;
                             }
