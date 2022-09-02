@@ -146,7 +146,7 @@
 
   <ItemGroup>
     <PackageReference Include="AlphaFS" Version="2.2.6" />
-    <PackageReference Include="Extended.Wpf.Toolkit" Version="4.3.0" />
+    <PackageReference Include="Extended.Wpf.Toolkit" Version="4.4.0" />
     <PackageReference Include="gong-wpf-dragdrop" Version="3.1.1" />
     <PackageReference Include="MaterialMessageBox" Version="4.0.2" />
     <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.39" />
@@ -156,10 +156,10 @@
     <PackageReference Include="Mutagen.Bethesda.Skyrim" Version="0.37-pr010" />
     <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.37-pr010" />
     <PackageReference Include="Noggog.Autofac" Version="2.46.0" />
-    <PackageReference Include="Pfim" Version="0.10.3" />
-    <PackageReference Include="PropertyChanged.Fody" Version="3.4.0" />
-    <PackageReference Include="SharpCompress" Version="0.31.0" />
-    <PackageReference Include="Z.Expressions.Eval" Version="4.0.86" />
+    <PackageReference Include="Pfim" Version="0.11.1" />
+    <PackageReference Include="PropertyChanged.Fody" Version="3.4.1" />
+    <PackageReference Include="SharpCompress" Version="0.32.2" />
+    <PackageReference Include="Z.Expressions.Eval" Version="4.0.87" />
   </ItemGroup>
 
   <ItemGroup>

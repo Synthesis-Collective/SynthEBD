@@ -8,6 +8,7 @@ using System.Reactive.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media;
+using Pfim;
 
 namespace SynthEBD
 {
@@ -54,7 +55,7 @@ namespace SynthEBD
 
                 try
                 {                   
-                    using (Pfim.IImage image = await Task.Run(() => Pfim.Pfim.FromFile(sourcedImagePath.Path)))
+                    using (IImage image = await Task.Run(() => Pfimage.FromFile(sourcedImagePath.Path)))
                     {
                         if (image != null)
                         {
