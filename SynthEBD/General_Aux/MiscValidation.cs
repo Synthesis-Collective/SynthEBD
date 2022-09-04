@@ -136,7 +136,7 @@ public class MiscValidation
         bool checkSE = currentSkyrimVersion == Mutagen.Bethesda.GameRelease.SkyrimSE || currentSkyrimVersion == Mutagen.Bethesda.GameRelease.EnderalSE; // not sure if JContainers actually works with Enderal
         bool checkVR = currentSkyrimVersion == Mutagen.Bethesda.GameRelease.SkyrimVR;
 
-        if (!(checkSE && File.Exists(dllPathSE_AE)) || (checkVR && File.Exists(dllPathVR)))
+        if ((checkSE && !File.Exists(dllPathSE_AE)) || (checkVR && !File.Exists(dllPathVR)))
         {
             if (!bSilent)
             {
