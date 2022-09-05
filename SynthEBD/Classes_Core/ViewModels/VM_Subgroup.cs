@@ -77,6 +77,13 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         this.PathsMenu.Paths.ToObservableChangeSet().Subscribe(x => GetDDSPaths(ImagePaths));
         this.WhenAnyValue(x => x.ParentAssetPack, x => x.ParentSubgroup).Subscribe(x => GetDDSPaths(ImagePaths));
 
+        AutoGenerateID();
+
+        AutoGenerateIDcommand = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: _ => AutoGenerateID()
+        );
+
         AddAllowedAttribute = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => this.AllowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.AllowedAttributes, true, null, parentAssetPack.AttributeGroupMenu.Groups))
@@ -147,7 +154,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
     public string TopLevelSubgroupID { get; set; }
-
+    public RelayCommand AutoGenerateIDcommand { get; }
     public RelayCommand AddAllowedAttribute { get; }
     public RelayCommand AddDisallowedAttribute { get; }
     public RelayCommand AddNPCKeyword { get; }
@@ -278,6 +285,119 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         {
             this.AllowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(this.ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
             this.DisallowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(this.ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
+        }
+    }
+
+    public void AutoGenerateID()
+    {
+        List<string> ids  = new();
+        List<VM_Subgroup> parents = new();
+        GetParents(parents);
+
+        parents.Reverse();
+        for (int i = 0; i < parents.Count; i++)
+        {
+            var parent = parents[i];
+            if (parent.ID.IsNullOrWhitespace())
+            {
+                ids.Add("New");
+            }
+            else
+            {
+                var splitID = parent.ID.Split('.');
+                ids.Add(splitID.Last());
+            }
+        }
+
+        //get abbreviate for current subgroup name
+        if (Name.IsNullOrWhitespace())
+        {
+            ids.Add("New");
+        }
+        else
+        {
+            var words = System.Text.RegularExpressions.Regex.Split(Name, @"\s+").Where(s => s != string.Empty).ToList();
+            if (words.Count > 1)
+            {
+                var chars = words.Select(x => x.First()).ToList();
+                ids.Add(string.Join("", chars));
+            }
+            else
+            {
+                ids.Add(Name);
+            }
+        }
+       
+
+        ID = string.Join('.', ids);
+
+        EnumerateID();
+    }
+
+    public void EnumerateID()
+    {
+        var newID = ID;
+        ID = string.Empty;
+        bool hasID = true;
+        while (hasID)
+        {
+            if (ParentAssetPack.ContainsSubgroupID(newID))
+            {
+                newID = IncrementID(newID);
+            }
+            else
+            {
+                ID = newID;
+                hasID = false;
+            }
+        }
+    }
+
+    public bool ContainsID(string id)
+    {
+        if (ID == id) { return true; }
+        foreach (var subgroup in Subgroups)
+        {
+            if (subgroup.ContainsID(id))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static string IncrementID(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return "New";
+        }
+        if (id.Length < 2)
+        {
+            return id + "_1";
+        }
+        if (id.Contains('_'))
+        {
+            var split = id.Split('_');
+            if (int.TryParse(split.Last(), out int index))
+            {
+                split[split.Length - 1] = (index + 1).ToString();
+                return String.Join('_', split);
+            }
+            else
+            {
+                return id + "_1";
+            }
+        }
+        return id + "_1";
+    }
+
+    public void GetParents(List<VM_Subgroup> parents)
+    {
+        if (ParentSubgroup is not null)
+        {
+            parents.Add(ParentSubgroup);
+            ParentSubgroup.GetParents(parents);
         }
     }
 

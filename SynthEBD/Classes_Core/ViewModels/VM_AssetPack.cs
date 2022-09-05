@@ -779,6 +779,18 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
     }
 
+    public bool ContainsSubgroupID(string id)
+    {
+        foreach (var subgroup in Subgroups)
+        {
+            if (subgroup.ContainsID(id))
+            {
+                return true;
+            }    
+        }
+        return false;
+    }
+
     public void DragOver(IDropInfo dropInfo)
     {
         if (dropInfo.Data is VM_Subgroup)

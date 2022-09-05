@@ -49,8 +49,11 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Used internally and for logging" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">ID</TextBlock>
-        <TextBox Grid.Row="0" Grid.Column="1" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=ID, UpdateSourceTrigger=PropertyChanged}"></TextBox>
-
+        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
+            <TextBox  MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=ID, UpdateSourceTrigger=PropertyChanged}"/>
+            <Button VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AutoGenerateIDcommand}" Foreground="MediumPurple">AutoGen</Button>
+        </StackPanel>
+        
         <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Descriptive name for this asset group (for display only)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Name</TextBlock>
         <TextBox Grid.Row="1" Grid.Column="1" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Name, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
