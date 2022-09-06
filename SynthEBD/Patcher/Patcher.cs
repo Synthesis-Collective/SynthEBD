@@ -256,7 +256,9 @@ public class Patcher
             HeadPartWriter.WriteAssignmentDictionary();
         }
 
-        string patchOutputPath = System.IO.Path.Combine(PatcherSettings.General.OutputDataFolder, PatcherSettings.General.PatchFileName + ".esp");
+        var outputDir = PatcherSettings.General.OutputDataFolder;
+        if (string.IsNullOrWhiteSpace(outputDir)) { outputDir = PatcherEnvironmentProvider.Instance.Environment.DataFolderPath; }
+        string patchOutputPath = System.IO.Path.Combine(outputDir, PatcherSettings.General.PatchFileName + ".esp");
         PatcherIO.WritePatch(patchOutputPath, outputMod);
 
         _statusBar.IsPatching = false;
