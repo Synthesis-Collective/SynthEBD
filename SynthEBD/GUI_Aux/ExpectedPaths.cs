@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Reactive.Linq;
 using System.Reflection;
+using Noggog;
 using ReactiveUI;
 
 namespace SynthEBD;
@@ -81,6 +82,18 @@ public class Paths
                     }
                 })
             .Subscribe(x => RelativePath = x);
+
+        generalSettings.WhenAnyValue(x => x.OutputDataFolder).Subscribe(x =>
+            {
+                if (generalSettings.OutputDataFolder.IsNullOrWhitespace())
+                {
+                    OutputDataFolder = environmentProvider.Environment.DataFolderPath;
+                }
+                else
+                {
+                    OutputDataFolder = generalSettings.OutputDataFolder;
+                }
+            });
     }
 
     private string RelativePath { get; set; } 
@@ -106,6 +119,7 @@ public class Paths
     public string RecordReplacerSpecifiersPath => Path.Combine(RelativePath, settingsDirRelPath, "RecordReplacerSpecifiers.json");
     public string RecordTemplatesDirPath => Path.Combine(RelativePath, recordTemplatesDirRelPath);
     public string ModManagerSettingsPath => Path.Combine(RelativePath, settingsDirRelPath, "ModManagerSettings.json");
+    public string OutputDataFolder { get; set; }
 
     public string GetFallBackPath(string path)
     {

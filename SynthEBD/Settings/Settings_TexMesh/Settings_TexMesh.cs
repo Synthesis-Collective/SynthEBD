@@ -6,6 +6,7 @@ public class Settings_TexMesh
 {
     public bool bChangeNPCTextures { get; set; } = true;
     public bool bChangeNPCMeshes { get; set; } = true;
+    public bool bChangeNPCHeadParts { get; set; } = true;
     public bool bApplyToNPCsWithCustomSkins { get; set; } = true;
     public bool bApplyToNPCsWithCustomFaces { get; set; } = true;
     public bool bForceVanillaBodyMeshPath { get; set; } = false;

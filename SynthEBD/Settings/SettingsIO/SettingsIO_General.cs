@@ -9,9 +9,9 @@ public class SettingsIO_General
         if (File.Exists(PatcherSettings.Paths.GeneralSettingsPath))
         {
             PatcherSettings.General = JSONhandler<Settings_General>.LoadJSONFile(PatcherSettings.Paths.GeneralSettingsPath, out loadSuccess, out string exceptionStr);
-            if(loadSuccess && string.IsNullOrWhiteSpace(PatcherSettings.General.OutputDataFolder))
+            if(loadSuccess && string.IsNullOrWhiteSpace(PatcherSettings.Paths.OutputDataFolder))
             {
-                PatcherSettings.General.OutputDataFolder = PatcherEnvironmentProvider.Instance.Environment.DataFolderPath;
+                PatcherSettings.Paths.OutputDataFolder = PatcherEnvironmentProvider.Instance.Environment.DataFolderPath;
             }
             else if (!loadSuccess)
             {

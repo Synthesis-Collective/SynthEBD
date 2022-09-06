@@ -12,7 +12,7 @@ namespace SynthEBD
         public static void WriteQuestSeqFile()
         {
             string questSeqSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "QuestSeq", "SynthEBD.seq");
-            string questSeqDestPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Seq", "SynthEBD.seq");
+            string questSeqDestPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Seq", "SynthEBD.seq");
             PatcherIO.TryCopyResourceFile(questSeqSourcePath, questSeqDestPath);
         }
     }

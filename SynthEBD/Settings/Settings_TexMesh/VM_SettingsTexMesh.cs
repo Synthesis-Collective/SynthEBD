@@ -121,6 +121,7 @@ public class VM_SettingsTexMesh : VM
 
     public bool bChangeNPCTextures { get; set; } = true;
     public bool bChangeNPCMeshes { get; set; } = true;
+    public bool bChangeNPCHeadParts { get; set; } = true;
     public bool bApplyToNPCsWithCustomSkins { get; set; } = true;
     public bool bApplyToNPCsWithCustomFaces { get; set; } = true;
     public bool bForceVanillaBodyMeshPath { get; set; } = false;
@@ -168,6 +169,7 @@ public class VM_SettingsTexMesh : VM
     {
         viewModel.bChangeNPCTextures = model.bChangeNPCTextures;
         viewModel.bChangeNPCMeshes = model.bChangeNPCMeshes;
+        viewModel.bChangeNPCHeadParts = model.bChangeNPCHeadParts;
         viewModel.bApplyToNPCsWithCustomSkins = model.bApplyToNPCsWithCustomSkins;
         viewModel.bApplyToNPCsWithCustomFaces = model.bApplyToNPCsWithCustomFaces;
         viewModel.bForceVanillaBodyMeshPath = model.bForceVanillaBodyMeshPath;
@@ -184,6 +186,7 @@ public class VM_SettingsTexMesh : VM
     {
         model.bChangeNPCTextures = viewModel.bChangeNPCTextures;
         model.bChangeNPCMeshes = viewModel.bChangeNPCMeshes;
+        model.bChangeNPCHeadParts = viewModel.bChangeNPCHeadParts;
         model.bApplyToNPCsWithCustomSkins = viewModel.bApplyToNPCsWithCustomSkins;
         model.bApplyToNPCsWithCustomFaces = viewModel.bApplyToNPCsWithCustomFaces;
         model.bForceVanillaBodyMeshPath = viewModel.bForceVanillaBodyMeshPath;

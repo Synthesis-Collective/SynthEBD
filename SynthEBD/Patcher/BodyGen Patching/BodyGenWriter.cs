@@ -10,7 +10,7 @@ public class BodyGenWriter
         string templates = CompileTemplateINI(bodyGenConfigs);
         string morphs = CompileMorphsINI(bodyGenConfigs);
 
-        string outputDirPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.PatchFileName + ".esp");
+        string outputDirPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.PatchFileName + ".esp");
         Directory.CreateDirectory(outputDirPath);
 
         string templatePath = Path.Combine(outputDirPath, "templates.ini");

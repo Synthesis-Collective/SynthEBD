@@ -91,11 +91,11 @@ public class OBodyWriter
 
         // copy quest script
         string questSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideQuest", "SynthEBDBodySlideLoaderQuestScript.pex");
-        string questDestPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Scripts", "SynthEBDBodySlideLoaderQuestScript.pex");
+        string questDestPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideLoaderQuestScript.pex");
         PatcherIO.TryCopyResourceFile(questSourcePath, questDestPath);
         // copy quest alias script
         string questAliasSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideQuest", "SynthEBDBodySlideLoaderPAScript.pex");
-        string questAliasDestPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Scripts", "SynthEBDBodySlideLoaderPAScript.pex");
+        string questAliasDestPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideLoaderPAScript.pex");
         PatcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath);
         // copy Seq file
         QuestInit.WriteQuestSeqFile();
@@ -114,7 +114,7 @@ public class OBodyWriter
                     case true: sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScript - Verbose Versions", "OBody", "SynthEBDBodySlideScriptOBody.pex"); break;
                 }
                     
-                destPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Scripts", "SynthEBDBodySlideScriptOBody.pex");
+                destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideScriptOBody.pex");
                 break;
             case BodySlideSelectionMode.AutoBody:
                 switch (PatcherSettings.OBody.UseVerboseScripts)
@@ -122,7 +122,7 @@ public class OBodyWriter
                     case false: sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScript", "AutoBody", "SynthEBDBodySlideScriptAutoBody.pex"); break;
                     case true: sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScript - Verbose Versions", "AutoBody", "SynthEBDBodySlideScriptAutoBody.pex"); break;
                 }
-                destPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Scripts", "SynthEBDBodySlideScriptAutoBody.pex");
+                destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideScriptAutoBody.pex");
                 break;
         }
 
@@ -140,7 +140,7 @@ public class OBodyWriter
         else if (hasMaleBodySlides && !hasFemaleBodySlides) { str += "M"; }
         else if (!hasMaleBodySlides && hasFemaleBodySlides) { str += "F"; }
 
-        string outputPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini");
+        string outputPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini");
         Task.Run(() => PatcherIO.WriteTextFile(outputPath, str));
     }
 
@@ -160,7 +160,7 @@ public class OBodyWriter
         }
         outputStr += "}";
 
-        var destPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "SynthEBD", "BodySlideDict.json");
+        var destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "BodySlideDict.json");
 
         try
         {
@@ -188,7 +188,7 @@ public class OBodyWriter
             outputStr += BodyGenWriter.FormatFormKeyForBodyGen(entry.Key) + "=" + entry.Value + Environment.NewLine;
         }
 
-        var destPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "autoBody", "Config", "morphs.ini");
+        var destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "autoBody", "Config", "morphs.ini");
 
         try
         {
@@ -205,8 +205,8 @@ public class OBodyWriter
     {
         HashSet<string> toClear = new HashSet<string>()
         {
-            Path.Combine(PatcherSettings.General.OutputDataFolder, "autoBody", "Config", "morphs.ini"),
-            Path.Combine(PatcherSettings.General.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.PatchFileName, "morphs.ini")
+            Path.Combine(PatcherSettings.Paths.OutputDataFolder, "autoBody", "Config", "morphs.ini"),
+            Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.PatchFileName, "morphs.ini")
         };
 
         foreach (string path in toClear)
@@ -229,9 +229,9 @@ public class OBodyWriter
     {
         HashSet<string> toClear = new HashSet<string>()
         {
-            Path.Combine(PatcherSettings.General.OutputDataFolder, "SynthEBD", "BodySlideDict.json"),
-            Path.Combine(PatcherSettings.General.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini"),
-            Path.Combine(PatcherSettings.General.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.PatchFileName, "morphs.ini")
+            Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "BodySlideDict.json"),
+            Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini"),
+            Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.PatchFileName, "morphs.ini")
         };
 
         foreach (string path in toClear)

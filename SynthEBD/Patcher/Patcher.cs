@@ -217,9 +217,9 @@ public class Patcher
             }
         }
 
-        if (PatcherSettings.General.bChangeHeadParts || HasAssetDerivedHeadParts)
+        if (PatcherSettings.General.bChangeHeadParts || (PatcherSettings.TexMesh.bChangeNPCHeadParts && HasAssetDerivedHeadParts))
         {
-            if (HasAssetDerivedHeadParts) // these checks not performed when running in Asset Mode only - user needs to be warned if patcher dips into the headpart distribution system while headparts are disabled
+            if (HasAssetDerivedHeadParts && !PatcherSettings.General.bChangeHeadParts) // these checks not performed when running in Asset Mode only - user needs to be warned if patcher dips into the headpart distribution system while headparts are disabled
             {
                 bool validation = true;
                 if (!MiscValidation.VerifySPIDInstalled(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, true))
@@ -256,9 +256,7 @@ public class Patcher
             HeadPartWriter.WriteAssignmentDictionary();
         }
 
-        var outputDir = PatcherSettings.General.OutputDataFolder;
-        if (string.IsNullOrWhiteSpace(outputDir)) { outputDir = PatcherEnvironmentProvider.Instance.Environment.DataFolderPath; }
-        string patchOutputPath = System.IO.Path.Combine(outputDir, PatcherSettings.General.PatchFileName + ".esp");
+        string patchOutputPath = System.IO.Path.Combine(PatcherSettings.Paths.OutputDataFolder, PatcherSettings.General.PatchFileName + ".esp");
         PatcherIO.WritePatch(patchOutputPath, outputMod);
 
         _statusBar.IsPatching = false;

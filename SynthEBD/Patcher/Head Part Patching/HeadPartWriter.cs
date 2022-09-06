@@ -105,11 +105,11 @@ namespace SynthEBD
 
             // copy quest script
             string questSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "HeadPartScripts", "SynthEBDHeadPartLoaderQuestScript.pex");
-            string questDestPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Scripts", "SynthEBDHeadPartLoaderQuestScript.pex");
+            string questDestPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDHeadPartLoaderQuestScript.pex");
             PatcherIO.TryCopyResourceFile(questSourcePath, questDestPath);
             // copy quest alias script
             string questAliasSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "HeadPartScripts", "SynthEBDHeadPartLoaderPAScript.pex");
-            string questAliasDestPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Scripts", "SynthEBDHeadPartLoaderPAScript.pex");
+            string questAliasDestPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDHeadPartLoaderPAScript.pex");
             PatcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath);
             // copy Seq file
             QuestInit.WriteQuestSeqFile();
@@ -118,14 +118,14 @@ namespace SynthEBD
         public static void CopyHeadPartScript()
         {
             var sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "HeadPartScripts", "SynthEBDHeadPartScript.pex");
-            var destPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "Scripts", "SynthEBDHeadPartScript.pex");
+            var destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDHeadPartScript.pex");
             PatcherIO.TryCopyResourceFile(sourcePath, destPath);
         }
 
         public static void WriteHeadPartSPIDIni(Spell headPartSpell)
         {
             string str = "Spell = " + headPartSpell.FormKey.ToString().Replace(":", " - ") + " | ActorTypeNPC | NONE | NONE | "; // original format - SPID auto-updates but this is compatible with old SPID versions
-            string outputPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "SynthEBDHeadPartDistributor_DISTR.ini");
+            string outputPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBDHeadPartDistributor_DISTR.ini");
             Task.Run(() => PatcherIO.WriteTextFile(outputPath, str));
         }
 
@@ -163,7 +163,7 @@ namespace SynthEBD
                     return;
                 }
 
-                var destPath = Path.Combine(PatcherSettings.General.OutputDataFolder, "SynthEBD", "HeadPartDict" + dictIndex + ".json");
+                var destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "HeadPartDict" + dictIndex + ".json");
 
                 try
                 {
@@ -178,7 +178,7 @@ namespace SynthEBD
         }
         public static void CleanPreviousOutputs()
         {
-            var outputDir = Path.Combine(PatcherSettings.General.OutputDataFolder, "SynthEBD");
+            var outputDir = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD");
             if (!Directory.Exists(outputDir)) { return; }
 
             var oldFiles = Directory.GetFiles(outputDir).Where(x => Path.GetFileName(x).StartsWith("HeadPartDict"));
