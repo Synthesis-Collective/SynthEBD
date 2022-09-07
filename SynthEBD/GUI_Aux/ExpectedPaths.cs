@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Reactive.Linq;
 using System.Reflection;
 using Noggog;
@@ -22,6 +22,7 @@ public class Paths
 
     public Paths(
         PatcherEnvironmentProvider environmentProvider,
+        PatcherSettingsProvider settingsProvider,
         VM_Settings_General generalSettings)
     {
         // create relevant paths if necessary - only in the "home" directory. To avoid inadvertent clutter in the data folder, user must create these directories manually in their data folder
@@ -56,6 +57,11 @@ public class Paths
         if (Directory.Exists(recordTemplatesDirPath) == false)
         {
             Directory.CreateDirectory(recordTemplatesDirPath);
+        }
+
+        if (settingsProvider.SourceSettings != null && settingsProvider.SourceSettings.Value.LoadFromDataDir)
+        {
+            RelativePath = settingsProvider.SourceSettings.Value.PortableSettingsFolder;
         }
 
         Observable.CombineLatest(

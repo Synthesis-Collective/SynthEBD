@@ -20,6 +20,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         AttributeGroupMenu = new VM_AttributeGroupMenu(null, false);
 
         this.bLoadSettingsFromDataFolder = settingsProvider.SourceSettings.Value?.LoadFromDataDir ?? false;
+        this.PortableSettingsFolder = settingsProvider.SourceSettings.Value?.PortableSettingsFolder ?? String.Empty;
 
         this.WhenAnyValue(x => x.bShowToolTips)
             .Subscribe(x => TooltipController.Instance.DisplayToolTips = x);

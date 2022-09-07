@@ -217,7 +217,7 @@ public class Patcher
             }
         }
 
-        if (PatcherSettings.General.bChangeHeadParts || (PatcherSettings.TexMesh.bChangeNPCHeadParts && HasAssetDerivedHeadParts))
+        if ((PatcherSettings.General.bChangeHeadParts && HeadPartTracker.Any()) || (PatcherSettings.TexMesh.bChangeNPCHeadParts && HasAssetDerivedHeadParts))
         {
             if (HasAssetDerivedHeadParts && !PatcherSettings.General.bChangeHeadParts) // these checks not performed when running in Asset Mode only - user needs to be warned if patcher dips into the headpart distribution system while headparts are disabled
             {
