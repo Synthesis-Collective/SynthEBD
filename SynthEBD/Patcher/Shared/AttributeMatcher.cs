@@ -1,4 +1,5 @@
-﻿using Mutagen.Bethesda.Plugins.Cache;
+﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
@@ -257,8 +258,9 @@ public class AttributeMatcher
                     foreach (var resolvedObject in resolvedObjects)
                     {
                         currentTypeMatched = false;
-                        if (RecordPathParser.ObjectHasFormKey(resolvedObject)) { typeMatched = true; currentTypeMatched = true; }
-                        if(currentTypeMatched && FormKeyHashSetComparer.Contains(attribute.ValueFKs, resolvedObject.FormKey)) { valueMatched = true; break; }
+                        var formKeyToMatch = new FormKey();
+                        if (RecordPathParser.ObjectHasFormKey(resolvedObject, out FormKey? fk ) && fk.Value != null && !fk.Value.IsNull) { typeMatched = true; currentTypeMatched = true; formKeyToMatch = fk.Value; }
+                        if(currentTypeMatched && FormKeyHashSetComparer.Contains(attribute.ValueFKs, formKeyToMatch)) { valueMatched = true; break; }
                     }
 
                     if (typeMatched == false)
