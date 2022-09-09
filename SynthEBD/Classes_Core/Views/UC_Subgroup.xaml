@@ -51,12 +51,12 @@
         <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Used internally and for logging" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">ID</TextBlock>
         <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
             <TextBox  MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=ID, UpdateSourceTrigger=PropertyChanged}"/>
-            <Button VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AutoGenerateIDcommand}" Foreground="MediumPurple">AutoGen</Button>
+            <Button VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AutoGenerateIDcommand}" Foreground="MediumPurple" ToolTip="Auto-generate ID from Name" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">AutoGen</Button>
             <StackPanel Orientation="Horizontal" Margin="5 0 0 0">
                 <TextBlock Text="(" VerticalAlignment="Center" />
-                <Button VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AutoGenerateID_Children_Command}" Foreground="Teal">Subs</Button>
+                <Button VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AutoGenerateID_Children_Command}" Foreground="Teal" ToolTip="Auto-generate IDs for all subgroups belonging to this one from their Names" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Subs</Button>
                 <TextBlock Text=") (" VerticalAlignment="Center"/>
-                <Button VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AutoGenerateID_All_Command}" Foreground="ForestGreen">All</Button>
+                <Button VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AutoGenerateID_All_Command}" Foreground="ForestGreen" ToolTip="Auto-generate IDs for all subgroups in this Config File from their Names" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">All</Button>
                 <TextBlock Text=")" VerticalAlignment="Center"/>
             </StackPanel>
         </StackPanel>
