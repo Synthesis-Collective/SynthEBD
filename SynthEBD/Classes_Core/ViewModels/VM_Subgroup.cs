@@ -10,6 +10,7 @@ using System.Collections.Specialized;
 using ReactiveUI;
 using GongSolutions.Wpf.DragDrop;
 using DynamicData.Binding;
+using System.Text.RegularExpressions;
 
 namespace SynthEBD;
 
@@ -338,39 +339,164 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         else
         {
             var words = System.Text.RegularExpressions.Regex.Split(Name, @"\s+").Where(s => s != string.Empty).ToList();
-            if (words.Count > 1)
+            if (words.Count == 1 && words.First().Length <= 3)
             {
-                var chars = words.Select(x => x.First()).ToList();
-                ids.Add(string.Join("", chars));
+                ids.Add(Name);
             }
             else
             {
-                ids.Add(Name);
+                var chars = new List<string>();
+                foreach (var word in words)
+                {
+                    if (CanSplitByLettersAndNumbers(word, out var letterAndNumbers))
+                    {
+                        chars.Add(letterAndNumbers);
+                    }
+                    else
+                    {
+                        var candidate = Regex.Replace(word, "[^a-zA-Z0-9]", String.Empty); // remove non-alphanumeric
+                        if (!candidate.IsNullOrEmpty())
+                        {
+                            if (candidate.IsNumeric())
+                            {
+                                chars.Add(candidate);
+                            }
+                            else
+                            {
+                                chars.Add(candidate.First().ToString());
+                            }
+                        }
+                    }
+                }
+                ids.Add(string.Join("", chars));
             }
         }
        
 
         ID = string.Join('.', ids);
+        ID = TrimTrailingNonAlphaNumeric(ID);
 
         EnumerateID();
+    }
+
+    public static string TrimTrailingNonAlphaNumeric(string s)
+    {
+        while (s != string.Empty && !char.IsLetterOrDigit(s.Last()))
+        {
+            s = s.Substring(0, s.Length - 1);
+        }
+        return s;
     }
 
     public void EnumerateID()
     {
         var newID = ID;
         ID = string.Empty;
-        bool hasID = true;
-        while (hasID)
+        bool isUniqueID = false;
+        HashSet<string> previousSplitNames = new();
+        while (!isUniqueID)
         {
             if (ParentAssetPack.ContainsSubgroupID(newID))
             {
-                newID = IncrementID(newID);
+                var lastID = newID.Split('.').Last();
+                if (lastID == null)
+                {
+                    newID = "New"; // don't think this should ever happen...
+                }
+                else if (CanSplitByLettersAndNumbers(newID, out string renamed1))
+                {
+                    newID = newID.Replace(lastID, renamed1);
+                }
+                else if (CanExtendWordSplit(lastID, Name, previousSplitNames, ParentAssetPack, out string renamed2))
+                {
+                    newID = newID.Replace(lastID, renamed2);
+                }
+                else if (lastID.Length < Name.Length)
+                {
+                    newID = newID.Replace(lastID, Name.Substring(0, lastID.Length + 1));
+                }
+                else
+                {
+                    newID = IncrementID(newID);
+                }
             }
             else
             {
                 ID = newID;
-                hasID = false;
+                isUniqueID = true;
             }
+        }
+    }
+
+    public static bool CanExtendWordSplit(string s, string name, HashSet<string> previousNames, VM_AssetPack assetPack, out string renamed)
+    {
+        renamed = s;
+
+        var split = name.Split();
+
+        if (split.Length == 1)
+        {
+            return false;
+        }
+
+        string prefix = "";
+        for (int i = 0; i < split.Length - 1; i++)
+        {
+            var candidate = Regex.Replace(split[i], "[^a-zA-Z0-9]", String.Empty);
+            if (string.IsNullOrEmpty(candidate))
+            {
+                continue;
+            }
+            else
+            {
+                prefix += candidate.First();
+            }
+        }
+
+        string lastWord = Regex.Replace(split.Last(), "[^a-zA-Z0-9]", String.Empty);
+        string suffix = lastWord.First().ToString();
+
+        string trial = prefix + suffix;
+
+        while (suffix.Length <= lastWord.Length && assetPack.ContainsSubgroupID(trial))
+        {
+            suffix = lastWord.Substring(0, suffix.Length + 1);
+            trial = prefix + suffix;
+        }
+
+        if (assetPack.ContainsSubgroupID(trial))
+        {
+            return false;
+        }
+        else
+        {
+            renamed = trial;
+            return true;
+        }
+    }
+
+    public bool CanSplitByLettersAndNumbers(string s, out string renamed)
+    {
+        if (s.IsNumeric()) { renamed = s; return false; }
+
+        var trimNumbers = s.TrimEnd(" 1234567890".ToCharArray());
+        if (trimNumbers == s)
+        {
+            renamed = s;
+            return false;
+        }
+
+        var numbers = s.Substring(trimNumbers.Length, s.Length - trimNumbers.Length);
+        var letters = trimNumbers.First().ToString();
+        renamed = trimNumbers.First() + numbers;
+
+        if (renamed == s)
+        {
+            return false;
+        }
+        else
+        {
+            return true;
         }
     }
 
