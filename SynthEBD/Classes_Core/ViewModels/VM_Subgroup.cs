@@ -84,6 +84,16 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
             execute: _ => AutoGenerateID()
         );
 
+        AutoGenerateID_Children_Command = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: _ => AutoGenerateID_Children()
+        );
+
+        AutoGenerateID_All_Command = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: _ => ParentAssetPack.AutoGenerateSubgroupIDs()
+        );
+
         AddAllowedAttribute = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => this.AllowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.AllowedAttributes, true, null, parentAssetPack.AttributeGroupMenu.Groups))
@@ -155,6 +165,8 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 
     public string TopLevelSubgroupID { get; set; }
     public RelayCommand AutoGenerateIDcommand { get; }
+    public RelayCommand AutoGenerateID_Children_Command { get; }
+    public RelayCommand AutoGenerateID_All_Command { get; }
     public RelayCommand AddAllowedAttribute { get; }
     public RelayCommand AddDisallowedAttribute { get; }
     public RelayCommand AddNPCKeyword { get; }
@@ -285,6 +297,15 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         {
             this.AllowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(this.ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
             this.DisallowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(this.ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
+        }
+    }
+
+    public void AutoGenerateID_Children()
+    {
+        foreach (var subgroup in Subgroups)
+        {
+            subgroup.AutoGenerateID();
+            subgroup.AutoGenerateID_Children();
         }
     }
 
