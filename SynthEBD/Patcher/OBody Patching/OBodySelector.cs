@@ -232,6 +232,23 @@ public class OBodySelector
 
         if (assignedAssetCombination != null)
         {
+            // check whole config rules
+            if (assignedAssetCombination.AssetPack.DistributionRules.AllowedBodyGenDescriptors.Any())
+            {
+                if (!BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors, out _))
+                {
+                    Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptors do not match allowed descriptors from assigned Asset Pack " + assignedAssetCombination.AssetPackName + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideDescriptors), false, npcInfo);
+                    return false;
+                }
+            }
+
+            if (BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.DisallowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors, out string matchedDescriptor))
+            {
+                Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned Asset Pack " + assignedAssetCombination.AssetPackName, false, npcInfo);
+                return false;
+            }
+
+            // check subgroups
             foreach (var subgroup in assignedAssetCombination.ContainedSubgroups)
             {
                 if (subgroup.AllowedBodySlideDescriptors.Any())
@@ -243,7 +260,7 @@ public class OBodySelector
                     }
                 }
 
-                if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors, out string matchedDescriptor))
+                if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors, out matchedDescriptor))
                 {
                     Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned subgroup " + Logger.GetSubgroupIDString(subgroup), false, npcInfo);
                     return false;
