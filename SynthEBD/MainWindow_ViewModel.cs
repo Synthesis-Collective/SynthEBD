@@ -43,9 +43,7 @@ public class MainWindow_ViewModel : VM
     public void Init()
     {
         // Load settings
-        _saveLoader.LoadInitialSettingsViewModels();
-        _saveLoader.LoadPluginViewModels();
-        _saveLoader.LoadFinalSettingsViewModels();
+        _saveLoader.Reinitialize();
 
         Application.Current.MainWindow.Closing += new CancelEventHandler(MainWindow_Closing);
 
@@ -54,7 +52,7 @@ public class MainWindow_ViewModel : VM
 
     void MainWindow_Closing(object sender, CancelEventArgs e)
     {
-        _saveLoader.FinalClosing();
+        _saveLoader.SaveEntireState();
     }
 
     void ValidateEval() // users should never see this but this will remind developer to update the Eval-Expression NuGet when the monthly trial expires. Unfortunately this function doesn't seeem to work - hence the static trigger that allows the Eval function in RecordPathParser to trigger the message box if necessary.

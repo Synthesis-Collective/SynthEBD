@@ -24,4 +24,11 @@ public class SettingsIO_General
             loadSuccess = true;
         }
     }
+
+    public static void DumpVMandSave(VM_Settings_General generalSettingsVM)
+    {
+        VM_Settings_General.DumpViewModelToModel(generalSettingsVM, PatcherSettings.General);
+        JSONhandler<Settings_General>.SaveJSONFile(PatcherSettings.General, PatcherSettings.Paths.GeneralSettingsPath, out bool saveSuccess, out string exceptionStr);
+        if (!saveSuccess) { Logger.LogMessage("Error saving General Settings: " + exceptionStr); }
+    }
 }

@@ -11,7 +11,8 @@ public class SettingsIO_Misc
             GameEnvironmentDirectory = PatcherEnvironmentProvider.Instance.GameDataFolder, 
             LoadFromDataDir = generalSettings.bLoadSettingsFromDataFolder,
             PortableSettingsFolder = generalSettings.PortableSettingsFolder, 
-            SkyrimVersion = PatcherEnvironmentProvider.Instance.SkyrimVersion
+            SkyrimVersion = PatcherEnvironmentProvider.Instance.SkyrimVersion,
+            Initialized = true,
         };
         JSONhandler<LoadSource>.SaveJSONFile(source, Paths.SettingsSourcePath, out saveSuccess, out exceptionStr);
     }

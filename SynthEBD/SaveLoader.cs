@@ -48,6 +48,15 @@ public class SaveLoader
         _patcherSettingsProvider = patcherSettingsProvider;
     }
 
+    public void Reinitialize()
+    {
+        System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;
+        LoadInitialSettingsViewModels();
+        LoadPluginViewModels();
+        LoadFinalSettingsViewModels();
+        System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.Default;
+    }
+
     public void SaveAndRefreshPlugins()
     {
         System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;
@@ -156,7 +165,7 @@ public class SaveLoader
         VM_SettingsModManager.DumpViewModelToModel(PatcherSettings.ModManagerIntegration, _modManager);
     }
 
-    public void FinalClosing()
+    public void SaveEntireState()
     {
         DumpViewModelsToModels();
 

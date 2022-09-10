@@ -13,7 +13,7 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
 {
     public static PatcherEnvironmentProvider Instance;
     [Reactive] public string PatchFileName { get; set; } = "SynthEBD";
-    [Reactive] public SkyrimRelease SkyrimVersion { get; set; }
+    [Reactive] public SkyrimRelease SkyrimVersion { get; set; } = SkyrimRelease.SkyrimSE;
     [Reactive] public string GameDataFolder { get; set; } = "";
     public RelayCommand SelectGameDataFolder { get; }
     public RelayCommand ClearGameDataFolder { get; }
@@ -30,11 +30,14 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
     {
         // initialize paths
         var sourceSettings = settingsProvider.SourceSettings.Value;
-        if (!string.IsNullOrWhiteSpace(sourceSettings?.GameEnvironmentDirectory))
+        if (sourceSettings.Initialized)
         {
-            GameDataFolder = sourceSettings.GameEnvironmentDirectory;
+            if (!string.IsNullOrWhiteSpace(sourceSettings.GameEnvironmentDirectory))
+            {
+                GameDataFolder = sourceSettings.GameEnvironmentDirectory;
+            }
+            SkyrimVersion = sourceSettings.SkyrimVersion;
         }
-        SkyrimVersion = sourceSettings?.SkyrimVersion ?? SkyrimRelease.SkyrimSE;
 
         UpdateEnvironment(); // create an initial environment
 

@@ -59,7 +59,7 @@ public class Paths
             Directory.CreateDirectory(recordTemplatesDirPath);
         }
 
-        if (settingsProvider.SourceSettings != null && settingsProvider.SourceSettings.Value.LoadFromDataDir)
+        if (settingsProvider.SourceSettings.Value.Initialized && settingsProvider.SourceSettings.Value.LoadFromDataDir)
         {
             RelativePath = settingsProvider.SourceSettings.Value.PortableSettingsFolder;
         }

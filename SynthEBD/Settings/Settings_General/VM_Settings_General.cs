@@ -19,8 +19,11 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     {
         AttributeGroupMenu = new VM_AttributeGroupMenu(null, false);
 
-        this.bLoadSettingsFromDataFolder = settingsProvider.SourceSettings.Value?.LoadFromDataDir ?? false;
-        this.PortableSettingsFolder = settingsProvider.SourceSettings.Value?.PortableSettingsFolder ?? String.Empty;
+        if (settingsProvider.SourceSettings.Value.Initialized)
+        {
+            this.bLoadSettingsFromDataFolder = settingsProvider.SourceSettings.Value.LoadFromDataDir;
+            this.PortableSettingsFolder = settingsProvider.SourceSettings.Value.PortableSettingsFolder;
+        }
 
         this.WhenAnyValue(x => x.bShowToolTips)
             .Subscribe(x => TooltipController.Instance.DisplayToolTips = x);
@@ -60,9 +63,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         {
             System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;
             Patcher.ResolvePatchableRaces();
-            SaveLoader.LoadInitialSettingsViewModels();
-            SaveLoader.LoadPluginViewModels();
-            SaveLoader.LoadFinalSettingsViewModels();
+            SaveLoader.Reinitialize();
             System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.Default;
         });
 
@@ -113,8 +114,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
                     }
                     else
                     {
-                        PortableSettingsFolder = selectedPath;
-                        SaveLoader.SaveAndRefreshPlugins();
+                        SwitchPortableSettingsFolder(selectedPath, settingsProvider);
                     }
                 }
             }
@@ -129,8 +129,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
                     CustomMessageBox.DisplayNotificationOK("", "There is no settings folder path to clear.");
                     return;
                 }
-                PortableSettingsFolder = "";
-                SaveLoader.SaveAndRefreshPlugins();
+                SwitchPortableSettingsFolder(string.Empty, settingsProvider);
             }
         );
     }
@@ -145,7 +144,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     public bool ExcludePresets { get; set; } = true;
     public bool bChangeHeight { get; set;  } = true;
     public bool bChangeHeadParts { get; set; } = true;
-    public string PortableSettingsFolder { get; set; } = "";
+    public string PortableSettingsFolder { get; set; } = string.Empty;
     public bool bEnableConsistency { get; set;  } = true;
     public bool bLinkNPCsWithSameName { get; set;  } = true;
     public ObservableCollection<VM_CollectionMemberString> LinkedNameExclusions { get; set; } = new();
@@ -204,7 +203,10 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         viewModel.AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
         viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;
 
-        viewModel.PortableSettingsFolder = patcherSettingsProvider.SourceSettings.Value?.PortableSettingsFolder ?? String.Empty;
+        if (patcherSettingsProvider.SourceSettings.Value.Initialized)
+        {
+            viewModel.PortableSettingsFolder = patcherSettingsProvider.SourceSettings.Value.PortableSettingsFolder;
+        } 
     }
     public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
     {
@@ -245,5 +247,13 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         model.OverwritePluginAttGroups = viewModel.OverwritePluginAttGroups;
 
         PatcherSettings.General = model;
+    }
+
+    private void SwitchPortableSettingsFolder(string folderPath, PatcherSettingsProvider settingsProvider)
+    {
+        PortableSettingsFolder = folderPath;
+        SettingsIO_General.DumpVMandSave(this);
+        settingsProvider.SetNewDataDir(PortableSettingsFolder);
+        SaveLoader.Reinitialize();
     }
 }

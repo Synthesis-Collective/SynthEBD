@@ -4,12 +4,12 @@ namespace SynthEBD;
 
 public class PatcherSettingsProvider
 {
-    public Lazy<LoadSource?> SourceSettings { get; }
+    public Lazy<LoadSource> SourceSettings { get; }
     public static string SettingsLog { get; set; } = string.Empty;
 
     public PatcherSettingsProvider()
     {
-        SourceSettings = new Lazy<LoadSource?>(() =>
+        SourceSettings = new Lazy<LoadSource>(() =>
         {
             if (File.Exists(Paths.SettingsSourcePath))
             {
@@ -24,20 +24,34 @@ public class PatcherSettingsProvider
                     "Game Environment Directory: " + source.GameEnvironmentDirectory + Environment.NewLine +
                     "Load Settings from Portable Folder: " + source.LoadFromDataDir + Environment.NewLine +
                     "Portable Folder Location: " + source.PortableSettingsFolder;
+                    source.Initialized = true;
                     return source;
                 }
                 else
                 {
                     SettingsLog += "Could not load Settings Source. Error: " + exceptionStr;
                     Logger.LogError("Could not load Settings Source. Error: " + exceptionStr);
-                    return null;
+                    return new();
                 }
             }
             else
             {
                 SettingsLog += "Did not find settings source path at " + Paths.SettingsSourcePath + Environment.NewLine + "Using default environment and patcher settings locations.";
-                return null;
+                return new();
             }  
         });
+    }
+
+    public void SetNewDataDir(string newDir)
+    {
+        SourceSettings.Value.PortableSettingsFolder = newDir;
+        if (string.IsNullOrWhiteSpace(newDir))
+        {
+            SourceSettings.Value.LoadFromDataDir = false;
+        }
+        else
+        {
+            SourceSettings.Value.LoadFromDataDir = true;
+        }
     }
 }
