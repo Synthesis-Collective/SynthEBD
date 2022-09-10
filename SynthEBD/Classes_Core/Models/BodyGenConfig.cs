@@ -58,8 +58,6 @@ public class BodyGenConfig
 
         [JsonIgnore]
         public int MatchedForceIfCount { get; set; } = 0;
-        [JsonIgnore]
-        public int MatchedForceIfCountFromDescriptors { get; set; } = 0;
     }
 }
 

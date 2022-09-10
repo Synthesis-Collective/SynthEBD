@@ -207,7 +207,6 @@ public class OBodySelector
 
         // Allowed and Forced Attributes
         candidatePreset.MatchedForceIfCount = 0;
-        candidatePreset.MatchedForceIfCountFromDescriptors = 0;
         AttributeMatcher.MatchNPCtoAttributeList(candidatePreset.AllowedAttributes, npcInfo.NPC, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog);
         if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
@@ -242,7 +241,7 @@ public class OBodySelector
                 {
                     if (associatedDescriptor.AssociatedRules.MatchedForceIfCount > 0)
                     {
-                        candidatePreset.MatchedForceIfCountFromDescriptors += associatedDescriptor.AssociatedRules.MatchedForceIfCount;
+                        candidatePreset.MatchedForceIfCount += associatedDescriptor.AssociatedRules.MatchedForceIfCount;
                         Logger.LogReport(reportStr, false, npcInfo);
                     }
                 }

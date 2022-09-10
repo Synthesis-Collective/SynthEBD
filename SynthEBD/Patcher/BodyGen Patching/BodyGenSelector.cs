@@ -391,7 +391,6 @@ public class BodyGenSelector
 
         // Allowed and Forced Attributes
         candidateMorph.MatchedForceIfCount = 0;
-        candidateMorph.MatchedForceIfCountFromDescriptors = 0;
         AttributeMatcher.MatchNPCtoAttributeList(candidateMorph.AllowedAttributes, npcInfo.NPC, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog);
         if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
@@ -426,7 +425,7 @@ public class BodyGenSelector
                 {
                     if (associatedDescriptor.AssociatedRules.MatchedForceIfCount > 0)
                     {
-                        candidateMorph.MatchedForceIfCountFromDescriptors += associatedDescriptor.AssociatedRules.MatchedForceIfCount;
+                        candidateMorph.MatchedForceIfCount += associatedDescriptor.AssociatedRules.MatchedForceIfCount;
                         Logger.LogReport(reportStr, false, npcInfo);
                     }
                 }
