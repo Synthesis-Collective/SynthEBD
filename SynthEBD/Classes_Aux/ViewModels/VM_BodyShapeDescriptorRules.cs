@@ -11,7 +11,6 @@ public class VM_BodyShapeDescriptorRules : VM
 {
     public VM_BodyShapeDescriptorRules(VM_BodyShapeDescriptor descriptor, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
     {
-        DescriptorSignature = descriptor.Signature;
         this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
@@ -32,7 +31,6 @@ public class VM_BodyShapeDescriptorRules : VM
         );
     }
 
-    public string DescriptorSignature { get; set; }
     public ObservableCollection<FormKey> AllowedRaces { get; set; } = new();
     public ObservableCollection<FormKey> DisallowedRaces { get; set; } = new();
     public VM_RaceGroupingCheckboxList AllowedRaceGroupings { get; set; }
@@ -57,7 +55,6 @@ public class VM_BodyShapeDescriptorRules : VM
 
     public void CopyInViewModelFromModel(BodyShapeDescriptorRules model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
-        DescriptorSignature = model.DescriptorSignature;
         AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         foreach (var grouping in AllowedRaceGroupings.RaceGroupingSelections)
@@ -94,7 +91,6 @@ public class VM_BodyShapeDescriptorRules : VM
     public static BodyShapeDescriptorRules DumpViewModelToModel(VM_BodyShapeDescriptorRules viewModel)
     {
         BodyShapeDescriptorRules model = new BodyShapeDescriptorRules();
-        model.DescriptorSignature = viewModel.DescriptorSignature;
         model.AllowedRaces = viewModel.AllowedRaces.ToHashSet();
         model.AllowedRaceGroupings = viewModel.AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
         model.DisallowedRaces = viewModel.DisallowedRaces.ToHashSet();

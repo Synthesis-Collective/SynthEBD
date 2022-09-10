@@ -5,7 +5,6 @@ namespace SynthEBD;
 
 public class BodyShapeDescriptorRules
 {
-    public string DescriptorSignature { get; set; } = "";
     public HashSet<FormKey> AllowedRaces { get; set; } = new();
     public HashSet<FormKey> DisallowedRaces { get; set; } = new();
     public HashSet<string> AllowedRaceGroupings { get; set; } = new();
