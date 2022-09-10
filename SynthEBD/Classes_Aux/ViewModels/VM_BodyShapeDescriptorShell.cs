@@ -20,7 +20,7 @@ public class VM_BodyShapeDescriptorShell : VM
     public RelayCommand AddTemplateDescriptorValue { get; }
 
 
-    public static ObservableCollection<VM_BodyShapeDescriptorShell> GetViewModelsFromModels(HashSet<BodyShapeDescriptor> models, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig, IHasDescriptorRules parentDescriptorConfig)
+    public static ObservableCollection<VM_BodyShapeDescriptorShell> GetViewModelsFromModels(HashSet<BodyShapeDescriptor> models, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig)
     {
         ObservableCollection<VM_BodyShapeDescriptorShell> viewModels = new ObservableCollection<VM_BodyShapeDescriptorShell>();
         VM_BodyShapeDescriptorShell shellViewModel = new VM_BodyShapeDescriptorShell(viewModels, raceGroupings, parentConfig);
@@ -35,20 +35,20 @@ public class VM_BodyShapeDescriptorShell : VM
                 raceGroupings, 
                 parentConfig);
 
-            subVm.CopyInViewModelFromModel(model, raceGroupings, parentConfig, parentDescriptorConfig);
+            subVm.CopyInViewModelFromModel(model, raceGroupings, parentConfig);
 
-            if (!usedCategories.Contains(model.Category))
+            if (!usedCategories.Contains(model.Signature.Category))
             {
                 shellViewModel = new VM_BodyShapeDescriptorShell(viewModels, raceGroupings, parentConfig);
-                shellViewModel.Category = model.Category;
+                shellViewModel.Category = model.Signature.Category;
                 subVm.ParentShell = shellViewModel;
                 shellViewModel.Descriptors.Add(subVm);
                 viewModels.Add(shellViewModel);
-                usedCategories.Add(model.Category);
+                usedCategories.Add(model.Signature.Category);
             }
             else
             {
-                int index = usedCategories.IndexOf(model.Category);
+                int index = usedCategories.IndexOf(model.Signature.Category);
                 subVm.ParentShell = viewModels[index];
                 viewModels[index].Descriptors.Add(subVm);
             }
@@ -57,15 +57,15 @@ public class VM_BodyShapeDescriptorShell : VM
         return viewModels;
     }
 
-    public static HashSet<BodyShapeDescriptor> DumpViewModelsToModels(ObservableCollection<VM_BodyShapeDescriptorShell> viewModels, HashSet<BodyShapeDescriptorRules> configDescriptorRules)
+    public static HashSet<BodyShapeDescriptor> DumpViewModelsToModels(ObservableCollection<VM_BodyShapeDescriptorShell> viewModels)
     {
-        HashSet<BodyShapeDescriptor> models = new HashSet<BodyShapeDescriptor>();
+        HashSet<BodyShapeDescriptor> models = new();
 
         foreach (var categoryVM in viewModels)
         {
             foreach (var descriptor in categoryVM.Descriptors)
             {
-                models.Add(VM_BodyShapeDescriptor.DumpViewModeltoModel(descriptor, configDescriptorRules));
+                models.Add(VM_BodyShapeDescriptor.DumpViewModeltoModel(descriptor));
             }
         }
 

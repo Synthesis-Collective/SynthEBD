@@ -349,6 +349,7 @@ namespace SynthEBD
             }
 
             // Allowed and Forced Attributes
+            currentSettings.MatchedForceIfCount = 0;
             AttributeMatcher.MatchNPCtoAttributeList(currentSettings.AllowedAttributes, npcInfo.NPC, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog);
             if (hasAttributeRestrictions && !matchesAttributeRestrictions)
             {
@@ -427,6 +428,7 @@ namespace SynthEBD
             }
 
             // Allowed and Forced Attributes
+            candidateHeadPart.MatchedForceIfCount = 0;
             AttributeMatcher.MatchNPCtoAttributeList(candidateHeadPart.AllowedAttributes, npcInfo.NPC, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog);
             if (hasAttributeRestrictions && !matchesAttributeRestrictions)
             {

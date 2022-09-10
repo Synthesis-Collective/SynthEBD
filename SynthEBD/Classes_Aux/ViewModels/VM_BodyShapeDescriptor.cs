@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using ReactiveUI;
+using System.Collections.ObjectModel;
 
 namespace SynthEBD;
 
@@ -22,33 +23,35 @@ public class VM_BodyShapeDescriptor : VM
 
     public RelayCommand RemoveDescriptorValue { get; }
 
-    public void CopyInViewModelFromModel(BodyShapeDescriptor model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, IHasDescriptorRules parentDescriptorConfig)
+    public void CopyInViewModelFromModel(BodyShapeDescriptor model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
     {
-        Value = model.Value;
-        Signature = model.Category + ": " + model.Value;
+        Value = model.Signature.Value;
+        Signature = model.Signature.Category + ": " + model.Signature.Value;
+        AssociatedRules = new VM_BodyShapeDescriptorRules(this, raceGroupingVMs, parentConfig);
+        AssociatedRules.CopyInViewModelFromModel(model.AssociatedRules, raceGroupingVMs);
+    }
 
-        var descriptorRules = parentDescriptorConfig.DescriptorRules.Where(x => x.DescriptorSignature == Signature).FirstOrDefault();
-        if (descriptorRules != null)
+    public static BodyShapeDescriptor DumpViewModeltoModel(VM_BodyShapeDescriptor viewModel)
+    {
+        BodyShapeDescriptor model = new BodyShapeDescriptor(); 
+        model.Signature = new(){ Category = viewModel.ParentShell.Category, Value = viewModel.Value };
+        model.AssociatedRules = (VM_BodyShapeDescriptorRules.DumpViewModelToModel(viewModel.AssociatedRules));
+        return model;
+    }
+
+    public bool MapsTo(BodyShapeDescriptor descriptor)
+    {
+        return MapsTo(descriptor.Signature);    
+    }
+    public bool MapsTo(BodyShapeDescriptor.LabelSignature descriptor)
+    {
+        if (ParentShell.Category == descriptor.Category && Value == descriptor.Value)
         {
-            var subVm = new VM_BodyShapeDescriptorRules(this, raceGroupingVMs, parentConfig);
-            subVm.CopyInViewModelFromModel(descriptorRules, raceGroupingVMs);
-            AssociatedRules = subVm;
+            return true;
         }
         else
         {
-            AssociatedRules = new VM_BodyShapeDescriptorRules(this, raceGroupingVMs, parentConfig);
+            return false;
         }
-    }
-
-    public static BodyShapeDescriptor DumpViewModeltoModel(VM_BodyShapeDescriptor viewModel, HashSet<BodyShapeDescriptorRules> descriptorRules)
-    {
-        BodyShapeDescriptor model = new BodyShapeDescriptor() { Category = viewModel.ParentShell.Category, Value = viewModel.Value, Signature = viewModel.Signature };
-        var matchedDescriptorModel = descriptorRules.Where(x => x.DescriptorSignature == model.Signature).FirstOrDefault();
-        if (matchedDescriptorModel is not null)
-        {
-            descriptorRules.Remove(matchedDescriptorModel); // remove current model and replace with new one
-        }
-        descriptorRules.Add(VM_BodyShapeDescriptorRules.DumpViewModelToModel(viewModel.AssociatedRules));
-        return model;
     }
 }

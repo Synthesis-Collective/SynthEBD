@@ -27,6 +27,11 @@ public class SettingsIO_OBody
             }
         }
 
+        if (oBodySettings == null)
+        {
+            oBodySettings = new();
+        }
+
         foreach (var attributeGroup in PatcherSettings.General.AttributeGroups) // add any available attribute groups from the general patcher settings
         {
             if (!oBodySettings.AttributeGroups.Select(x => x.Label).Contains(attributeGroup.Label))

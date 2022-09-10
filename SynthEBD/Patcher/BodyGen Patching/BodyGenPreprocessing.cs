@@ -35,21 +35,10 @@ public class BodyGenPreprocessing
 
     private static void CompileBodyGenDescriptorRaces(BodyGenConfig bodyGenConfig)
     {
-        foreach (var rule in bodyGenConfig.DescriptorRules)
+        foreach (var descriptor in bodyGenConfig.TemplateDescriptors)
         {
-            rule.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(rule.AllowedRaceGroupings, PatcherSettings.General.RaceGroupings, rule.AllowedRaces);
-        }
-    }
-
-    public static void ImplementDescriptorRules(BodyGenConfigs bodyGenConfigs)
-    {
-        foreach (var bodyGenConfig in bodyGenConfigs.Male)
-        {
-            ImplementDescriptorRules(bodyGenConfig);
-        }
-        foreach (var bodyGenConfig in bodyGenConfigs.Female)
-        {
-            ImplementDescriptorRules(bodyGenConfig);
+            descriptor.AssociatedRules.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(descriptor.AssociatedRules.AllowedRaceGroupings, PatcherSettings.General.RaceGroupings, descriptor.AssociatedRules.AllowedRaces);
+            descriptor.AssociatedRules.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(descriptor.AssociatedRules.DisallowedRaceGroupings, PatcherSettings.General.RaceGroupings, descriptor.AssociatedRules.DisallowedRaces);
         }
     }
 
@@ -73,62 +62,10 @@ public class BodyGenPreprocessing
             template.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(template.DisallowedAttributes, bodyGenConfig.AttributeGroups);
         }
 
-        foreach (var rule in bodyGenConfig.DescriptorRules)
+        foreach (var descriptor in bodyGenConfig.TemplateDescriptors)
         {
-            rule.AllowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(rule.AllowedAttributes, bodyGenConfig.AttributeGroups);
-            rule.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(rule.DisallowedAttributes, bodyGenConfig.AttributeGroups);
+            descriptor.AssociatedRules.AllowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(descriptor.AssociatedRules.AllowedAttributes, bodyGenConfig.AttributeGroups);
+            descriptor.AssociatedRules.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(descriptor.AssociatedRules.DisallowedAttributes, bodyGenConfig.AttributeGroups);
         }
-    }
-
-    private static void ImplementDescriptorRules(BodyGenConfig bodyGenConfig)
-    {
-        foreach (var template in bodyGenConfig.Templates)
-        {
-            foreach (var descriptor in template.BodyShapeDescriptors)
-            {
-                var rules = bodyGenConfig.DescriptorRules.Where(x => x.DescriptorSignature == descriptor.Signature).FirstOrDefault();
-                if (rules != null)
-                {
-                    InsertDescriptorRules(template, rules);
-                }
-            }
-        }
-    }
-
-    private static void InsertDescriptorRules(BodyGenConfig.BodyGenTemplate template, BodyShapeDescriptorRules rules)
-    {
-        // merge properties between current subgroup and rules
-        if (rules.AllowRandom == false) { template.AllowRandom = false; }
-        if (rules.AllowUnique == false) { template.AllowUnique = false; }
-        if (rules.AllowNonUnique == false) { template.AllowNonUnique = false; }
-        template.ProbabilityWeighting *= rules.ProbabilityWeighting;
-
-        //handle DisallowedRaces first
-        template.DisallowedRaces.UnionWith(rules.DisallowedRaces);
-
-        // if both rules AllowedRaces and template AllowedRaces are not empty, get their intersection
-        if (rules.AllowedRaces.Count > 0 && template.AllowedRaces.Count > 0)
-        {
-            template.AllowedRaces.IntersectWith(rules.AllowedRaces);
-        }
-
-        // now trim disallowedRaces from allowed
-        if (template.AllowedRaces.Any())
-        {
-            template.AllowedRaces = AllowedDisallowedCombiners.TrimDisallowedRacesFromAllowed(template.AllowedRaces, template.DisallowedRaces);
-            // if there are now no more AllowedRaces, the current tempalate shouldn't be distributed
-            if (template.AllowedRaces.Count == 0) 
-            { 
-                template.AllowRandom = false;
-            }
-        }
-
-        // Attribute Merging
-        template.AllowedAttributes = NPCAttribute.InheritAttributes(rules.AllowedAttributes, template.AllowedAttributes);
-        template.DisallowedAttributes = NPCAttribute.InheritAttributes(rules.DisallowedAttributes, template.DisallowedAttributes);
-
-        // Weight Range
-        if (rules.WeightRange.Lower > template.WeightRange.Lower) { template.WeightRange.Lower = rules.WeightRange.Lower; }
-        if (rules.WeightRange.Upper < template.WeightRange.Upper) { template.WeightRange.Upper = rules.WeightRange.Upper; }
     }
 }

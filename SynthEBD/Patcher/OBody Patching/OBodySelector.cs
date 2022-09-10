@@ -78,7 +78,7 @@ public class OBodySelector
 
             foreach (var preset in availablePresets)
             {
-                if (PresetIsValid(preset, npcInfo, assignedAssetCombination))
+                if (PresetIsValid(preset, npcInfo, assignedAssetCombination, oBodySettings))
                 {
                     filteredPresets.Add(preset);
                     if (preset.MatchedForceIfCount > 0)
@@ -162,7 +162,7 @@ public class OBodySelector
         return selectedPreset;
     }
 
-    public static bool PresetIsValid(BodySlideSetting candidatePreset, NPCInfo npcInfo, SubgroupCombination assignedAssetCombination)
+    public static bool PresetIsValid(BodySlideSetting candidatePreset, NPCInfo npcInfo, SubgroupCombination assignedAssetCombination, Settings_OBody oBodySettings)
     {
         if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.BodyGenMorphNames.Contains(candidatePreset.Label))
         {
@@ -206,6 +206,8 @@ public class OBodySelector
         }
 
         // Allowed and Forced Attributes
+        candidatePreset.MatchedForceIfCount = 0;
+        candidatePreset.MatchedForceIfCountFromDescriptors = 0;
         AttributeMatcher.MatchNPCtoAttributeList(candidatePreset.AllowedAttributes, npcInfo.NPC, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog);
         if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
@@ -228,6 +230,27 @@ public class OBodySelector
         {
             Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog, false, npcInfo);
             return false;
+        }
+
+        // Repeat the above checks for the preset's descriptor rules
+        foreach (var descriptorLabel in candidatePreset.BodyShapeDescriptors)
+        {
+            var associatedDescriptor = oBodySettings.TemplateDescriptors.Where(x => x.Signature.Equals(descriptorLabel)).FirstOrDefault();
+            if (associatedDescriptor is not null)
+            {
+                if (associatedDescriptor.PermitNPC(npcInfo, out string reportStr))
+                {
+                    if (associatedDescriptor.AssociatedRules.MatchedForceIfCount > 0)
+                    {
+                        candidatePreset.MatchedForceIfCountFromDescriptors += associatedDescriptor.AssociatedRules.MatchedForceIfCount;
+                        Logger.LogReport(reportStr, false, npcInfo);
+                    }
+                }
+                else
+                {
+                    Logger.LogReport("Preset " + candidatePreset.Label + " is invalid because the rules for its descriptor " + reportStr, false, npcInfo);
+                }
+            }
         }
 
         if (assignedAssetCombination != null)

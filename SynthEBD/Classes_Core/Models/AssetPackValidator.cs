@@ -164,7 +164,7 @@ public class AssetPackValidator
             {
                 if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors))
                 {
-                    subErrors.Add("Allowed descriptor " + descriptor.Signature + " is invalid because it is not contained within the associated BodyGen config's descriptors");
+                    subErrors.Add("Allowed descriptor " + descriptor.ToString() + " is invalid because it is not contained within the associated BodyGen config's descriptors");
                     isValid=false;
                 }
             }
@@ -172,7 +172,7 @@ public class AssetPackValidator
             {
                 if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors))
                 {
-                    subErrors.Add("Disallowed descriptor " + descriptor.Signature + " is invalid because it is not contained within the associated BodyGen config's descriptors");
+                    subErrors.Add("Disallowed descriptor " + descriptor.ToString() + " is invalid because it is not contained within the associated BodyGen config's descriptors");
                     isValid = false;
                 }
             }
@@ -184,7 +184,7 @@ public class AssetPackValidator
             {
                 if (!descriptor.CollectionContainsThisDescriptor(PatcherSettings.OBody.TemplateDescriptors))
                 {
-                    subErrors.Add("Allowed descriptor " + descriptor.Signature + " is invalid because it is not contained within your O/AutoBody descriptors");
+                    subErrors.Add("Allowed descriptor " + descriptor.ToString() + " is invalid because it is not contained within your O/AutoBody descriptors");
                     isValid = false;
                 }
             }
@@ -192,7 +192,7 @@ public class AssetPackValidator
             {
                 if (!descriptor.CollectionContainsThisDescriptor(PatcherSettings.OBody.TemplateDescriptors))
                 {
-                    subErrors.Add("Disallowed descriptor " + descriptor.Signature + " is invalid because it is not contained within your O/AutoBody descriptors");
+                    subErrors.Add("Disallowed descriptor " + descriptor.ToString() + " is invalid because it is not contained within your O/AutoBody descriptors");
                     isValid = false;
                 }
             }

@@ -26,10 +26,10 @@ namespace SynthEBD
         public bool bAllowRandom { get; set; } = true;
         public NPCWeightRange WeightRange { get; set; } = new();
         public double RandomizationPercentage { get; set; } = 50;
-        public HashSet<BodyShapeDescriptor> AllowedBodySlideDescriptors { get; set; } = new();
-        public HashSet<BodyShapeDescriptor> DisallowedBodySlideDescriptors { get; set; } = new();
-        public HashSet<BodyShapeDescriptor> AllowedBodyGenDescriptors { get; set; } = new();
-        public HashSet<BodyShapeDescriptor> DisallowedBodyGenDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodySlideDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodySlideDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodyGenDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodyGenDescriptors { get; set; } = new();
 
         // populated during patching
         [Newtonsoft.Json.JsonIgnore]

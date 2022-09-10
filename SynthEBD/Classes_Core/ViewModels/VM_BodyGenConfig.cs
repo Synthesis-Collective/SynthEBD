@@ -171,7 +171,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
             GroupMappingUI.DisplayedMapping = GroupMappingUI.RacialTemplateGroupMap.First();
         }
 
-        DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, generalSettingsVM.RaceGroupings, this, model);
+        DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, generalSettingsVM.RaceGroupings, this);
 
         foreach (var descriptor in model.TemplateDescriptors)
         {
@@ -180,7 +180,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
                     new ObservableCollection<VM_BodyShapeDescriptorShell>(), generalSettingsVM.RaceGroupings, this),
                 generalSettingsVM.RaceGroupings, 
                 this);
-            subVm.CopyInViewModelFromModel(descriptor, generalSettingsVM.RaceGroupings, this, model);
+            subVm.CopyInViewModelFromModel(descriptor, generalSettingsVM.RaceGroupings, this);
             DescriptorUI.TemplateDescriptorList.Add(subVm);
         }
 
@@ -206,7 +206,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
         {
             model.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.DumpViewModelToModel(RTG));
         }
-        model.TemplateDescriptors = VM_BodyShapeDescriptorShell.DumpViewModelsToModels(viewModel.DescriptorUI.TemplateDescriptors, model.DescriptorRules);
+        model.TemplateDescriptors = VM_BodyShapeDescriptorShell.DumpViewModelsToModels(viewModel.DescriptorUI.TemplateDescriptors);
         foreach (var template in viewModel.TemplateMorphUI.Templates)
         {
             model.Templates.Add(VM_BodyGenTemplate.DumpViewModelToModel(template));

@@ -17,10 +17,10 @@ public class OBodyPreprocessing
             preset.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(preset.DisallowedAttributes, oBodySettings.AttributeGroups);
         }
 
-        foreach (var rule in oBodySettings.DescriptorRules)
+        foreach (var descriptor in oBodySettings.TemplateDescriptors)
         {
-            rule.AllowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(rule.AllowedAttributes, oBodySettings.AttributeGroups);
-            rule.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(rule.DisallowedAttributes, oBodySettings.AttributeGroups);
+            descriptor.AssociatedRules.AllowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(descriptor.AssociatedRules.AllowedAttributes, oBodySettings.AttributeGroups);
+            descriptor.AssociatedRules.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(descriptor.AssociatedRules.DisallowedAttributes, oBodySettings.AttributeGroups);
         }
     }
 
@@ -40,9 +40,10 @@ public class OBodyPreprocessing
 
     public static void CompileRulesRaces(Settings_OBody oBodySettings)
     {
-        foreach (var rule in oBodySettings.DescriptorRules)
+        foreach (var descriptor in oBodySettings.TemplateDescriptors)
         {
-            rule.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(rule.AllowedRaceGroupings, PatcherSettings.General.RaceGroupings, rule.AllowedRaces);
+            descriptor.AssociatedRules.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(descriptor.AssociatedRules.AllowedRaceGroupings, PatcherSettings.General.RaceGroupings, descriptor.AssociatedRules.AllowedRaces);
+            descriptor.AssociatedRules.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(descriptor.AssociatedRules.DisallowedRaceGroupings, PatcherSettings.General.RaceGroupings, descriptor.AssociatedRules.DisallowedRaces);
         }
     }
 

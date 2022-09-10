@@ -614,6 +614,7 @@ public class AssetSelector
         }
 
         // Allowed and Forced Attributes
+        subgroup.ForceIfMatchCount = 0;
         AttributeMatcher.MatchNPCtoAttributeList(subgroup.AllowedAttributes, npcInfo.NPC, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog);
         if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {

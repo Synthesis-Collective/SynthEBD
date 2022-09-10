@@ -42,7 +42,7 @@ public class BodyGenSelector
         AssetAndBodyShapeSelector.ClearStatusFlags(statusFlags);
         List<BodyGenConfig.BodyGenTemplate> chosenMorphs = new List<BodyGenConfig.BodyGenTemplate>();
 
-        var availableTemplatesGlobal = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.None, assignedAssetCombination);
+        var availableTemplatesGlobal = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.None, assignedAssetCombination, currentBodyGenConfig);
         var availableCombinations = GetAvailableCombinations(currentBodyGenConfig, npcInfo, availableTemplatesGlobal);
 
         HashSet<BodyGenConfig.BodyGenTemplate> availableTemplatesAll = new HashSet<BodyGenConfig.BodyGenTemplate>();
@@ -56,13 +56,13 @@ public class BodyGenSelector
             if (!assignmentsSpecified)
             {
                 // if that didn't work, try forming combination objects out of all templates regardless of the Racial Template Map
-                var availableTemplatesRaceIgnore = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.Race, assignedAssetCombination);
+                var availableTemplatesRaceIgnore = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.Race, assignedAssetCombination, currentBodyGenConfig);
                 availableCombinations = GetAvailableCombinations(currentBodyGenConfig, npcInfo, availableTemplatesRaceIgnore);
                 availableCombinations = FilterBySpecificNPCAssignments(availableCombinations, npcInfo, out assignmentsSpecified);
                 if (!assignmentsSpecified)
                 {
                     // if that still didn't work, ignore all 
-                    availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All, null);
+                    availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All, null, currentBodyGenConfig);
                     availableCombinations = GetAllCombinations(genderedBodyGenConfigs, npcInfo, ValidationIgnore.All);
                     availableCombinations = FilterBySpecificNPCAssignments(availableCombinations, npcInfo, out assignmentsSpecified);
                     if (!assignmentsSpecified)
@@ -78,7 +78,7 @@ public class BodyGenSelector
         #region Linked NPC Group
         if (!assignmentsSpecified && npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary)
         {
-            availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All, null);
+            availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All, null, currentBodyGenConfig);
             var allCombinations = GetAllCombinations(genderedBodyGenConfigs, npcInfo, ValidationIgnore.All);
             var linkedCombinations = GetLinkedCombination(allCombinations, npcInfo.AssociatedLinkGroup.AssignedMorphs);
             if (linkedCombinations != null)
@@ -98,7 +98,7 @@ public class BodyGenSelector
             var uniqueBodyGenAssignment = (List<BodyGenConfig.BodyGenTemplate>)UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodyGen);
             if (uniqueBodyGenAssignment != null && uniqueBodyGenAssignment.Any())
             {
-                availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All, null);
+                availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All, null, currentBodyGenConfig);
                 var allCombinations = GetAllCombinations(genderedBodyGenConfigs, npcInfo, ValidationIgnore.All);
                 var linkedCombinations = GetLinkedCombination(allCombinations, uniqueBodyGenAssignment);
                 if (linkedCombinations != null)
@@ -319,12 +319,12 @@ public class BodyGenSelector
     /// <param name="allMorphs">All templated contained within a BodyGenConfig</param>
     /// <param name="npcInfo"></param>
     /// <returns></returns>
-    public static HashSet<BodyGenConfig.BodyGenTemplate> InitializeMorphList(HashSet<BodyGenConfig.BodyGenTemplate> allMorphs, NPCInfo npcInfo, ValidationIgnore ignoredFactors, SubgroupCombination assignedAssetCombination)
+    public static HashSet<BodyGenConfig.BodyGenTemplate> InitializeMorphList(HashSet<BodyGenConfig.BodyGenTemplate> allMorphs, NPCInfo npcInfo, ValidationIgnore ignoredFactors, SubgroupCombination assignedAssetCombination, BodyGenConfig bodyGenConfig)
     {
         HashSet<BodyGenConfig.BodyGenTemplate> outputMorphs = new HashSet<BodyGenConfig.BodyGenTemplate>();
         foreach (var candidateMorph in allMorphs)
         {
-            if (MorphIsValid(candidateMorph, npcInfo, ignoredFactors, assignedAssetCombination))
+            if (MorphIsValid(candidateMorph, npcInfo, ignoredFactors, assignedAssetCombination, bodyGenConfig))
             {
                 outputMorphs.Add(candidateMorph);
             }
@@ -332,7 +332,7 @@ public class BodyGenSelector
         return outputMorphs;
     }
 
-    public static bool MorphIsValid(BodyGenConfig.BodyGenTemplate candidateMorph, NPCInfo npcInfo, ValidationIgnore ignoredFactors, SubgroupCombination assignedAssetCombination)
+    public static bool MorphIsValid(BodyGenConfig.BodyGenTemplate candidateMorph, NPCInfo npcInfo, ValidationIgnore ignoredFactors, SubgroupCombination assignedAssetCombination, BodyGenConfig bodyGenConfig)
     {
         if (ignoredFactors == ValidationIgnore.All)
         {
@@ -390,6 +390,8 @@ public class BodyGenSelector
         }
 
         // Allowed and Forced Attributes
+        candidateMorph.MatchedForceIfCount = 0;
+        candidateMorph.MatchedForceIfCountFromDescriptors = 0;
         AttributeMatcher.MatchNPCtoAttributeList(candidateMorph.AllowedAttributes, npcInfo.NPC, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog);
         if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
@@ -412,6 +414,27 @@ public class BodyGenSelector
         {
             Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog, false, npcInfo);
             return false;
+        }
+
+        // Repeat the above checks for the morph's descriptor rules
+        foreach (var descriptorLabel in candidateMorph.BodyShapeDescriptors)
+        {
+            var associatedDescriptor = bodyGenConfig.TemplateDescriptors.Where(x => x.Signature.Equals(descriptorLabel)).FirstOrDefault();
+            if (associatedDescriptor is not null)
+            {
+                if (associatedDescriptor.PermitNPC(npcInfo, out string reportStr))
+                {
+                    if (associatedDescriptor.AssociatedRules.MatchedForceIfCount > 0)
+                    {
+                        candidateMorph.MatchedForceIfCountFromDescriptors += associatedDescriptor.AssociatedRules.MatchedForceIfCount;
+                        Logger.LogReport(reportStr, false, npcInfo);
+                    }
+                }
+                else
+                {
+                    Logger.LogReport("Preset " + candidateMorph.Label + " is invalid because the rules for its descriptor " + reportStr, false, npcInfo);
+                }
+            }
         }
 
         if (assignedAssetCombination != null)

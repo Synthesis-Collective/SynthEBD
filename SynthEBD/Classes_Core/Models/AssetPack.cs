@@ -34,10 +34,10 @@ public class AssetPack : IModelHasSubgroups
         public bool AllowNonUnique { get; set; } = true;
         public HashSet<string> AddKeywords { get; set; } = new();
         public double ProbabilityWeighting { get; set; } = 1;
-        public HashSet<BodyShapeDescriptor> AllowedBodyGenDescriptors { get; set; } = new();
-        public HashSet<BodyShapeDescriptor> DisallowedBodyGenDescriptors { get; set; } = new();
-        public HashSet<BodyShapeDescriptor> AllowedBodySlideDescriptors { get; set; } = new();
-        public HashSet<BodyShapeDescriptor> DisallowedBodySlideDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodyGenDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodyGenDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodySlideDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodySlideDescriptors { get; set; } = new();
         public NPCWeightRange WeightRange { get; set; } = new();
 
         public static string SubgroupIDString = "ConfigDistributionRules";
@@ -58,10 +58,10 @@ public class AssetPack : IModelHasSubgroups
             subgroup.AllowNonUnique = rules.AllowNonUnique;
             subgroup.AddKeywords = new HashSet<string>(rules.AddKeywords);
             subgroup.ProbabilityWeighting = rules.ProbabilityWeighting;
-            subgroup.AllowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>(rules.AllowedBodyGenDescriptors);
-            subgroup.DisallowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor>(rules.DisallowedBodyGenDescriptors);
-            subgroup.AllowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>(rules.AllowedBodySlideDescriptors);
-            subgroup.DisallowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor>(rules.DisallowedBodySlideDescriptors);
+            subgroup.AllowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor.LabelSignature>(rules.AllowedBodyGenDescriptors);
+            subgroup.DisallowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor.LabelSignature>(rules.DisallowedBodyGenDescriptors);
+            subgroup.AllowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor.LabelSignature>(rules.AllowedBodySlideDescriptors);
+            subgroup.DisallowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor.LabelSignature>(rules.DisallowedBodySlideDescriptors);
             subgroup.WeightRange = rules.WeightRange.Clone();
             return subgroup;
         }
@@ -86,10 +86,10 @@ public class AssetPack : IModelHasSubgroups
         public HashSet<string> AddKeywords { get; set; } = new();
         public double ProbabilityWeighting { get; set; } = 1;
         public HashSet<FilePathReplacement> Paths { get; set; } = new();
-        public HashSet<BodyShapeDescriptor> AllowedBodyGenDescriptors { get; set; } = new();
-        public HashSet<BodyShapeDescriptor> DisallowedBodyGenDescriptors { get; set; } = new();
-        public HashSet<BodyShapeDescriptor> AllowedBodySlideDescriptors { get; set; } = new();
-        public HashSet<BodyShapeDescriptor> DisallowedBodySlideDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodyGenDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodyGenDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodySlideDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodySlideDescriptors { get; set; } = new();
         public NPCWeightRange WeightRange { get; set; } = new();
         public List<Subgroup> Subgroups { get; set; } = new();
         public string TopLevelSubgroupID { get; set; } = "";
@@ -298,11 +298,17 @@ class ZEBDAssetPack
 
             foreach (string str in g.allowedBodyGenDescriptors)
             {
-                s.AllowedBodyGenDescriptors.Add(Converters.StringToBodyShapeDescriptor(str));
+                if (BodyShapeDescriptor.LabelSignature.FromString(str, out BodyShapeDescriptor.LabelSignature allowedDescriptor))
+                {
+                    s.AllowedBodyGenDescriptors.Add(allowedDescriptor);
+                }
             }
             foreach (string str in g.disallowedBodyGenDescriptors)
             {
-                s.DisallowedBodyGenDescriptors.Add(Converters.StringToBodyShapeDescriptor(str));
+                if (BodyShapeDescriptor.LabelSignature.FromString(str, out BodyShapeDescriptor.LabelSignature disallowedDescriptor))
+                {
+                    s.DisallowedBodyGenDescriptors.Add(disallowedDescriptor);
+                }
             }
 
             if (topLevelSubgroupID == "")

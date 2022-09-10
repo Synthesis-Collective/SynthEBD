@@ -89,7 +89,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         this.UpdateHeader();
     }
 
-    public static VM_BodyShapeDescriptorSelectionMenu InitializeFromHashSet(HashSet<BodyShapeDescriptor> BodyShapeDescriptors, VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
+    public static VM_BodyShapeDescriptorSelectionMenu InitializeFromHashSet(HashSet<BodyShapeDescriptor.LabelSignature> BodyShapeDescriptors, VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
     {
         var menu = new VM_BodyShapeDescriptorSelectionMenu(trackedMenu, raceGroupingVMs, parentConfig);
         foreach (var descriptor in BodyShapeDescriptors)
@@ -99,7 +99,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
             {
                 foreach (var selectableDescriptor in Descriptor.DescriptorSelectors)
                 {
-                    if (selectableDescriptor.TrackedDescriptor.Signature == descriptor.Signature)
+                    if (selectableDescriptor.TrackedDescriptor.MapsTo(descriptor))
                     {
                         selectableDescriptor.IsSelected = true;
                         keepLooking = false;
@@ -113,14 +113,14 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         return menu;
     }
 
-    public static HashSet<BodyShapeDescriptor> DumpToHashSet(VM_BodyShapeDescriptorSelectionMenu viewModel)
+    public static HashSet<BodyShapeDescriptor.LabelSignature> DumpToHashSet(VM_BodyShapeDescriptorSelectionMenu viewModel)
     {
-        HashSet<BodyShapeDescriptor> output = new HashSet<BodyShapeDescriptor>();
+        HashSet<BodyShapeDescriptor.LabelSignature> output = new HashSet<BodyShapeDescriptor.LabelSignature>();
         if (viewModel is not null && viewModel.DescriptorShells is not null)
         {
             foreach (var shell in viewModel.DescriptorShells)
             {
-                output.UnionWith(shell.DescriptorSelectors.Where(x => x.IsSelected).Select(x => new BodyShapeDescriptor() { Category = shell.TrackedShell.Category, Value = x.Value, Signature = x.TrackedDescriptor.Signature }).ToHashSet());
+                output.UnionWith(shell.DescriptorSelectors.Where(x => x.IsSelected).Select(x => new BodyShapeDescriptor.LabelSignature() { Category = shell.TrackedShell.Category, Value = x.Value }).ToHashSet());
             }
         }
         return output;

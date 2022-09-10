@@ -60,7 +60,7 @@ public class DictionaryMapper
         return true;
     }
 
-    public static Dictionary<string, HashSet<string>> BodyShapeDescriptorsToDictionary(HashSet<BodyShapeDescriptor> BodyShapeDescriptors)
+    public static Dictionary<string, HashSet<string>> BodyShapeDescriptorsToDictionary(HashSet<BodyShapeDescriptor.LabelSignature> BodyShapeDescriptors)
     {
         Dictionary<string, HashSet<string>> dict = new Dictionary<string, HashSet<string>>();
         foreach (var m in BodyShapeDescriptors)

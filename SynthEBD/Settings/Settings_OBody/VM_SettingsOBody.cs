@@ -49,7 +49,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     {
         viewModel.AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups); // get this first so other properties can reference it
 
-        viewModel.DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, raceGroupingVMs, viewModel, model);
+        viewModel.DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, raceGroupingVMs, viewModel);
 
         viewModel.DescriptorUI.TemplateDescriptorList.Clear();
         foreach (var descriptor in model.TemplateDescriptors)
@@ -59,7 +59,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
                 raceGroupingVMs, viewModel),
                 raceGroupingVMs, 
                 viewModel);
-            subVm.CopyInViewModelFromModel(descriptor, raceGroupingVMs, viewModel, model);
+            subVm.CopyInViewModelFromModel(descriptor, raceGroupingVMs, viewModel);
             viewModel.DescriptorUI.TemplateDescriptorList.Add(subVm);
         }
 
@@ -87,7 +87,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
     public static void DumpViewModelToModel(Settings_OBody model, VM_SettingsOBody viewModel)
     {
-        model.TemplateDescriptors = VM_BodyShapeDescriptorShell.DumpViewModelsToModels(viewModel.DescriptorUI.TemplateDescriptors, model.DescriptorRules);
+        model.TemplateDescriptors = VM_BodyShapeDescriptorShell.DumpViewModelsToModels(viewModel.DescriptorUI.TemplateDescriptors);
 
         model.BodySlidesMale.Clear();
         model.BodySlidesFemale.Clear();

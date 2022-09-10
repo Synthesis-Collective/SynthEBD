@@ -10,27 +10,26 @@ public enum AutoBodySelectionMode
     JSON
 }
 
-public class Settings_OBody: IHasDescriptorRules
+public class Settings_OBody
 {
     public List<BodySlideSetting> BodySlidesMale { get; set; } = new();
     public List<BodySlideSetting> BodySlidesFemale { get; set; } = new();
     public HashSet<BodyShapeDescriptor> TemplateDescriptors { get; set; } = new()
     {
-        new BodyShapeDescriptor(){Category = "Build", Value = "Slight", Signature = "Build: Slight"},
-        new BodyShapeDescriptor(){Category = "Build", Value = "Medium", Signature = "Build: Medium"},
-        new BodyShapeDescriptor(){Category = "Build", Value = "Curvy", Signature = "Build: Curvy"},
-        new BodyShapeDescriptor(){Category = "Build", Value = "Chubby", Signature = "Build: Chubby"},
-        new BodyShapeDescriptor(){Category = "Build", Value = "Exaggerated", Signature = "Build: Exaggerated"},
-        new BodyShapeDescriptor(){Category = "Build", Value = "Powerful", Signature = "Build: Powerful"},
-        new BodyShapeDescriptor(){Category = "Chest", Value = "Busty", Signature = "Build: Busty"},
-        new BodyShapeDescriptor(){Category = "Chest", Value = "Medium", Signature = "Build: Medium"},
-        new BodyShapeDescriptor(){Category = "Chest", Value = "Petite", Signature = "Build: Petite"},
+        new BodyShapeDescriptor(){ Signature = new(){ Category = "Build", Value = "Slight" } },
+        new BodyShapeDescriptor(){ Signature = new(){Category = "Build", Value = "Medium" } },
+        new BodyShapeDescriptor() { Signature = new(){Category = "Build", Value = "Curvy"} },
+        new BodyShapeDescriptor() { Signature = new(){Category = "Build", Value = "Chubby"}},
+        new BodyShapeDescriptor() { Signature = new(){Category = "Build", Value = "Exaggerated" }},
+        new BodyShapeDescriptor() { Signature = new(){Category = "Build", Value = "Powerful" }},
+        new BodyShapeDescriptor() { Signature = new(){Category = "Chest", Value = "Busty" }},
+        new BodyShapeDescriptor() { Signature = new(){Category = "Chest", Value = "Medium" }},
+        new BodyShapeDescriptor() { Signature = new(){Category = "Chest", Value = "Petite" }},
     };
 
     public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
     public HashSet<string> MaleSliderGroups { get; set; } = new();
     public HashSet<string> FemaleSliderGroups { get; set; } = new();
-    public HashSet<BodyShapeDescriptorRules> DescriptorRules { get; set; } = new();
     public bool UseVerboseScripts { get; set; } = false;
     public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
 
@@ -118,10 +117,10 @@ public class Settings_OBody: IHasDescriptorRules
                     {
                         foreach (var annotation in defaultAnnotationDict[presetName])
                         {
-                            var descriptor = templateDescriptors.Where(x => x.Signature.Equals(annotation, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+                            var descriptor = templateDescriptors.Where(x => x.Signature.ToString().Equals(annotation, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
                             if (descriptor != null)
                             {
-                                newPreset.BodyShapeDescriptors.Add(descriptor);
+                                newPreset.BodyShapeDescriptors.Add(descriptor.Signature);
                             }
                         }
                     }
@@ -137,7 +136,7 @@ public class BodySlideSetting : IProbabilityWeighted
 {
     public string Label { get; set; } = "";
     public string Notes { get; set; } = "";
-    public HashSet<BodyShapeDescriptor> BodyShapeDescriptors { get; set; } = new();
+    public HashSet<BodyShapeDescriptor.LabelSignature> BodyShapeDescriptors { get; set; } = new();
     public HashSet<FormKey> AllowedRaces { get; set; } = new();
     public HashSet<FormKey> DisallowedRaces { get; set; } = new();
     public HashSet<string> AllowedRaceGroupings { get; set; } = new();
@@ -153,4 +152,6 @@ public class BodySlideSetting : IProbabilityWeighted
 
     [JsonIgnore]
     public int MatchedForceIfCount { get; set; } = 0;
+    [JsonIgnore]
+    public int MatchedForceIfCountFromDescriptors { get; set; } = 0;
 }

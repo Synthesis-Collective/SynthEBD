@@ -9,7 +9,7 @@ public class BodyGenConfigs
     public HashSet<BodyGenConfig> Female { get; set; } = new();
 }
 
-public class BodyGenConfig : IHasDescriptorRules
+public class BodyGenConfig
 {
     public string Label { get; set; } = "";
     public Gender Gender { get; set; } = Gender.Female;
@@ -18,7 +18,6 @@ public class BodyGenConfig : IHasDescriptorRules
     public HashSet<string> TemplateGroups { get; set; } = new();
     public HashSet<BodyShapeDescriptor> TemplateDescriptors { get; set; } = new();
     public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
-    public HashSet<BodyShapeDescriptorRules> DescriptorRules { get; set; } = new();
 
     [Newtonsoft.Json.JsonIgnore]
     public string FilePath { get; set; }
@@ -43,7 +42,7 @@ public class BodyGenConfig : IHasDescriptorRules
         public string Notes { get; set; } = "";
         public string Specs { get; set; } = ""; // will need special logic during I/O because in zEBD settings this is called "params" which is reserved in C#
         public HashSet<string> MemberOfTemplateGroups { get; set; } = new();
-        public HashSet<BodyShapeDescriptor> BodyShapeDescriptors { get; set; } = new();
+        public HashSet<BodyShapeDescriptor.LabelSignature> BodyShapeDescriptors { get; set; } = new();
         public HashSet<FormKey> AllowedRaces { get; set; } = new();
         public HashSet<FormKey> DisallowedRaces { get; set; } = new();
         public HashSet<string> AllowedRaceGroupings { get; set; } = new();
@@ -59,6 +58,8 @@ public class BodyGenConfig : IHasDescriptorRules
 
         [JsonIgnore]
         public int MatchedForceIfCount { get; set; } = 0;
+        [JsonIgnore]
+        public int MatchedForceIfCountFromDescriptors { get; set; } = 0;
     }
 }
 
@@ -114,8 +115,8 @@ public class zEBDBodyGenConfig
     {
         zEBDSplitBodyGenConfig converted = new zEBDSplitBodyGenConfig();
 
-        List<BodyShapeDescriptor> usedMaleDescriptors = new List<BodyShapeDescriptor>();
-        List<BodyShapeDescriptor> usedFemaleDescriptors = new List<BodyShapeDescriptor>();
+        List<BodyShapeDescriptor.LabelSignature> usedMaleDescriptors = new();
+        List<BodyShapeDescriptor.LabelSignature> usedFemaleDescriptors = new();
 
         HashSet<string> usedMaleGroups = new HashSet<string>();
         HashSet<string> usedFemaleGroups = new HashSet<string>();
@@ -137,7 +138,7 @@ public class zEBDBodyGenConfig
             }
 
             converted.Female.TemplateGroups = usedFemaleGroups;
-            converted.Female.TemplateDescriptors = new HashSet<BodyShapeDescriptor>(usedFemaleDescriptors);
+            converted.Female.TemplateDescriptors = usedFemaleDescriptors.Select(x => new BodyShapeDescriptor() { Signature = x }).ToHashSet();
             converted.bFemaleInitialized = true;
         }
 
@@ -158,7 +159,7 @@ public class zEBDBodyGenConfig
             }
 
             converted.Male.TemplateGroups = usedMaleGroups;
-            converted.Male.TemplateDescriptors = new HashSet<BodyShapeDescriptor>(usedMaleDescriptors);
+            converted.Male.TemplateDescriptors = usedMaleDescriptors.Select(x => new BodyShapeDescriptor() { Signature = x }).ToHashSet();
             converted.bMaleInitialized = true;
         }
 
@@ -190,7 +191,7 @@ public class zEBDBodyGenConfig
         return newRS;
     }
 
-    public static BodyGenConfig.BodyGenTemplate zEBDBodyGenRacialTemplateToSynthEBD(zEBDBodyGenConfig.BodyGenTemplate zTemplate, List<RaceGrouping> raceGroupings, List<BodyShapeDescriptor> usedDescriptors)
+    public static BodyGenConfig.BodyGenTemplate zEBDBodyGenRacialTemplateToSynthEBD(zEBDBodyGenConfig.BodyGenTemplate zTemplate, List<RaceGrouping> raceGroupings, List<BodyShapeDescriptor.LabelSignature> usedDescriptors)
     {
         BodyGenConfig.BodyGenTemplate newTemplate = new BodyGenConfig.BodyGenTemplate();
 
@@ -200,12 +201,14 @@ public class zEBDBodyGenConfig
         newTemplate.MemberOfTemplateGroups = zTemplate.groups;
         foreach (string d in zTemplate.descriptors)
         {
-            var convertedDescriptor = Converters.StringToBodyShapeDescriptor(d);
-            if(!usedDescriptors.Any(n=> n.Signature == d))
+            if (BodyShapeDescriptor.LabelSignature.FromString(d, out BodyShapeDescriptor.LabelSignature descriptor))
             {
-                usedDescriptors.Add(convertedDescriptor);
+                if (!usedDescriptors.Any(n => n.Equals(descriptor)))
+                {
+                    usedDescriptors.Add(descriptor);
+                }
+                newTemplate.BodyShapeDescriptors.Add(descriptor);
             }
-            newTemplate.BodyShapeDescriptors.Add(convertedDescriptor);
         }
 
         foreach (string id in zTemplate.allowedRaces)

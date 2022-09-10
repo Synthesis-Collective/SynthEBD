@@ -316,23 +316,6 @@ class Converters
         return weightRange;
     }
 
-    public static BodyShapeDescriptor StringToBodyShapeDescriptor(string s)
-    {
-        BodyShapeDescriptor newDescriptor = new BodyShapeDescriptor();
-        try
-        {
-            string[] split = s.Split(':');
-            newDescriptor.Category = split[0].Trim();
-            newDescriptor.Value = split[1].Trim();
-            newDescriptor.Signature = s;
-        }
-        catch
-        {
-            Logger.LogError("Could not convert \"" + s + "\" into a Body Shape Descriptor");
-        }
-        return newDescriptor;
-    }
-
     /// <summary>
     /// Reads in ForceIf attributes from a zEBD config file, matches them to their corresponding AllowedAttribute, and sets that AllowedAttribute's ForceIf property to tru
     /// If is no AllowedAttribute that matches the ForceIfAttribute (zEBD permitted this), make a new AllowedAttribute
