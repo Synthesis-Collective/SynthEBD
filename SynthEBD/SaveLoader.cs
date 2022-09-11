@@ -11,7 +11,7 @@ public class SaveLoader
     public VM_SettingsTexMesh TexMesh { get; set; }
     private readonly VM_SettingsHeight _settingsHeight;
     public VM_SettingsBodyGen BodyGen { get; set; }
-    public VM_Settings_Headparts HeadParts {get; set;}
+    public VM_Settings_Headparts HeadParts { get; set; }
     private readonly VM_SettingsModManager _modManager;
     private readonly VM_SettingsOBody _oBody;
     private readonly VM_ConsistencyUI _consistencyUi;
@@ -71,7 +71,7 @@ public class SaveLoader
         VM_HeightConfig.DumpViewModelsToModels(_settingsHeight.AvailableHeightConfigs, _state.HeightConfigs);
         VM_SettingsBodyGen.DumpViewModelToModel(BodyGen, PatcherSettings.BodyGen, _state.BodyGenConfigs);
     }
-    
+
     public void LoadInitialSettingsViewModels() // view models that should be loaded before plugin VMs
     {
         // Load general settings
@@ -170,54 +170,115 @@ public class SaveLoader
         DumpViewModelsToModels();
 
         bool saveSuccess;
+        string captionStr;
         string exceptionStr;
         string allExceptions = "";
         bool showFinalExceptions = false;
 
         JSONhandler<Settings_General>.SaveJSONFile(PatcherSettings.General, PatcherSettings.Paths.GeneralSettingsPath, out saveSuccess, out exceptionStr);
-        if (!saveSuccess) { Logger.LogMessage("Error saving General Settings: " + exceptionStr); allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
+        if (!saveSuccess)
+        {
+            captionStr = "Error saving General Settings: ";
+            Logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
+        }
 
         JSONhandler<Settings_TexMesh>.SaveJSONFile(PatcherSettings.TexMesh, PatcherSettings.Paths.TexMeshSettingsPath, out saveSuccess, out exceptionStr);
-        if (!saveSuccess) { Logger.LogMessage("Error saving Texture and Mesh Settings: " + exceptionStr); allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
-            
+        if (!saveSuccess) 
+        {
+            captionStr = "Error saving Texture and Mesh Settings: ";
+            Logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
+        }
+
         SettingsIO_AssetPack.SaveAssetPacks(_state.AssetPacks, out saveSuccess);
-        if (!saveSuccess) { allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
+        if (!saveSuccess) 
+        {
+            captionStr = "Error saving Asset Packs: ";
+            Logger.LogError(captionStr); allExceptions += captionStr + Environment.NewLine; showFinalExceptions = true;
+        }
 
         JSONhandler<Settings_Height>.SaveJSONFile(PatcherSettings.Height, PatcherSettings.Paths.HeightSettingsPath, out saveSuccess, out exceptionStr);
-        if (!saveSuccess) { Logger.LogMessage("Error saving Height Settings: " + exceptionStr); allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
-            
+        if (!saveSuccess) 
+        {
+            captionStr = "Error saving Height Settings: ";
+            Logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
+        }
+
         SettingsIO_Height.SaveHeightConfigs(_state.HeightConfigs, out saveSuccess);
-        if (!saveSuccess) { allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
+        if (!saveSuccess) 
+        {
+            captionStr = "Error saving Height Configs: ";
+            Logger.LogError(captionStr); allExceptions += captionStr + Environment.NewLine; showFinalExceptions = true;
+        }
 
         JSONhandler<Settings_BodyGen>.SaveJSONFile(PatcherSettings.BodyGen, PatcherSettings.Paths.BodyGenSettingsPath, out saveSuccess, out exceptionStr);
-        if (!saveSuccess) { Logger.LogMessage("Error saving BodyGen Settings: " + exceptionStr); allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
-            
+        if (!saveSuccess) 
+        {
+            captionStr = "Error saving BodyGen Settings: ";
+            Logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
+        }
+
         SettingsIO_BodyGen.SaveBodyGenConfigs(_state.BodyGenConfigs.Female, out saveSuccess);
-        if (!saveSuccess) { allExceptions += "Error saving BodyGen configs" + Environment.NewLine; showFinalExceptions = true; }
+        if (!saveSuccess) 
+        {
+            captionStr = "Error saving BodyGen configs";
+            Logger.LogError(captionStr); allExceptions += captionStr + Environment.NewLine; showFinalExceptions = true;
+        }
 
         SettingsIO_BodyGen.SaveBodyGenConfigs(_state.BodyGenConfigs.Male, out saveSuccess);
-        if (!saveSuccess) { allExceptions += "Error saving BodyGen configs" + Environment.NewLine; showFinalExceptions = true; }
+        if (!saveSuccess) 
+        {
+            captionStr = "Error saving BodyGen configs";
+            Logger.LogError(captionStr); allExceptions += captionStr + Environment.NewLine; showFinalExceptions = true;
+        }
 
         JSONhandler<Settings_OBody>.SaveJSONFile(PatcherSettings.OBody, PatcherSettings.Paths.OBodySettingsPath, out saveSuccess, out exceptionStr);
-        if (!saveSuccess) { Logger.LogMessage("Error saving OBody/AutoBody Settings: " + exceptionStr); allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
+        if (!saveSuccess) 
+        {
+            captionStr = "Error saving OBody/AutoBody Settings: ";
+            Logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
+        }
 
         JSONhandler<Settings_Headparts>.SaveJSONFile(PatcherSettings.HeadParts, PatcherSettings.Paths.HeadPartsSettingsPath, out saveSuccess, out exceptionStr);
-        if (!saveSuccess) { Logger.LogMessage("Error saving Head Parts Settings: " + exceptionStr); allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
+        if (!saveSuccess) 
+        {
+            captionStr = "Error saving Head Parts Settings: ";
+            Logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
+        }
 
         SettingsIO_Misc.SaveConsistency(_state.Consistency, out saveSuccess);
-        if (!saveSuccess) { allExceptions += "Error saving Consistency" + Environment.NewLine; showFinalExceptions = true; }
+        if (!saveSuccess) 
+        {
+            captionStr = "Error saving Consistency";
+            Logger.LogError(captionStr); allExceptions += captionStr + Environment.NewLine; showFinalExceptions = true;
+        }
 
         SettingsIO_SpecificNPCAssignments.SaveAssignments(_state.SpecificNPCAssignments, out saveSuccess);
-        if (!saveSuccess) { allExceptions += "Error saving Specific NPC Assignmentss" + Environment.NewLine; showFinalExceptions = true; }
+        if (!saveSuccess) 
+        {
+            captionStr = "Error saving Specific NPC Assignments";
+            Logger.LogError(captionStr); allExceptions += captionStr + Environment.NewLine; showFinalExceptions = true;
+        }
 
         SettingsIO_BlockList.SaveBlockList(_state.BlockList, out saveSuccess);
-        if (!saveSuccess) { allExceptions += "Error saving Block List" + Environment.NewLine; showFinalExceptions = true; }
+        if (!saveSuccess) 
+        {
+            captionStr = "Error saving Block List";
+            Logger.LogError(captionStr); allExceptions += captionStr + Environment.NewLine; showFinalExceptions = true;
+        }
 
         JSONhandler<Settings_ModManager>.SaveJSONFile(PatcherSettings.ModManagerIntegration, PatcherSettings.Paths.ModManagerSettingsPath, out saveSuccess, out exceptionStr);
-        if (!saveSuccess) { Logger.LogMessage("Error saving Mod Manager Integration Settings: " + exceptionStr); allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
+        if (!saveSuccess) 
+        {
+            captionStr = "Error saving Mod Manager Integration Settings: ";
+            Logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
+        }
 
         SettingsIO_Misc.SaveSettingsSource(General, out saveSuccess, out exceptionStr);
-        if (!saveSuccess) { allExceptions += exceptionStr + Environment.NewLine; showFinalExceptions = true; }
+        if (!saveSuccess) 
+        {
+            captionStr = "Error saving Load Source Settings: ";
+            Logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
+        }
 
         if (showFinalExceptions)
         {

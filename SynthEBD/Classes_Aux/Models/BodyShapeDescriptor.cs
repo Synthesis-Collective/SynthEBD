@@ -26,13 +26,13 @@ public class BodyShapeDescriptor
     public LabelSignature ID { get; set; } = new();
     public BodyShapeDescriptorRules AssociatedRules { get; set; } = new();
 
-    public override bool Equals(Object obj)
+    public bool MapsTo(Object obj)
     {
         if (obj == null) return false;
         if (obj is BodyShapeDescriptor)
         {
             var other = obj as BodyShapeDescriptor;
-            return this.ID.Equals(other.ID);
+            return this.ID.MapsTo(other.ID);
         }
         else if (obj is LabelSignature)
         {
@@ -51,13 +51,13 @@ public class BodyShapeDescriptor
         public string Category { get; set; } = "";
         public string Value { get; set; } = "";
 
-        public override bool Equals(Object obj)
+        public bool MapsTo(Object obj)
         {
             if (obj == null) return false;
             if (obj is BodyShapeDescriptor)
             {
                 var other = obj as BodyShapeDescriptor;
-                return this.Equals(other.ID);
+                return this.MapsTo(other.ID);
             }
             else if (obj is LabelSignature)
             {
@@ -69,22 +69,11 @@ public class BodyShapeDescriptor
                 return false;
             }
         }
-        public bool MapsTo(string category, string value)
-        {
-            if (Category == category && Value == value)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
         public bool CollectionContainsThisDescriptor(IEnumerable<LabelSignature> collection)
         {
             foreach (var d in collection)
             {
-                if (d.Equals(this))
+                if (d.MapsTo(this))
                 {
                     return true;
                 }
@@ -95,7 +84,7 @@ public class BodyShapeDescriptor
         {
             foreach (var d in collection)
             {
-                if (d.Equals(this))
+                if (d.MapsTo(this))
                 {
                     return true;
                 }
@@ -127,11 +116,6 @@ public class BodyShapeDescriptor
                 return true;
             }
         }
-    }
-
-    public bool MapsTo(string category, string value)
-    {
-        return ID.MapsTo(category, value);
     }
 
     public bool PermitNPC(NPCInfo npcInfo, out string reportStr)

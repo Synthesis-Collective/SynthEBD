@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Newtonsoft.Json;
 using System.IO;
 
@@ -123,6 +123,11 @@ class SettingsIO_BodyGen
                 }
             }
 
+            if (synthEBDconfig is null)
+            {
+                Logger.LogError("Could not read BodyGen Config File at " + s);
+                continue;
+            }
 
             synthEBDconfig.FilePath = s;
             switch (synthEBDconfig.Gender)
