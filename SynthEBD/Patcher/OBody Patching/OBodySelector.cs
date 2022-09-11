@@ -1,4 +1,4 @@
-﻿namespace SynthEBD;
+namespace SynthEBD;
 
 public class OBodySelector
 {
@@ -255,7 +255,7 @@ public class OBodySelector
         if (assignedAssetCombination != null)
         {
             // check whole config rules
-            if (assignedAssetCombination.AssetPack.DistributionRules.AllowedBodyGenDescriptors.Any())
+            if (assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideDescriptors.Any())
             {
                 if (!BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors, out _))
                 {
