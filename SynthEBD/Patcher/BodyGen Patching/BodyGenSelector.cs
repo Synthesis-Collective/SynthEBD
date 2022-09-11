@@ -418,7 +418,7 @@ public class BodyGenSelector
         // Repeat the above checks for the morph's descriptor rules
         foreach (var descriptorLabel in candidateMorph.BodyShapeDescriptors)
         {
-            var associatedDescriptor = bodyGenConfig.TemplateDescriptors.Where(x => x.ID.Equals(descriptorLabel)).FirstOrDefault();
+            var associatedDescriptor = bodyGenConfig.TemplateDescriptors.Where(x => x.ID.MapsTo(descriptorLabel)).FirstOrDefault();
             if (associatedDescriptor is not null)
             {
                 if (associatedDescriptor.PermitNPC(npcInfo, out string reportStr))

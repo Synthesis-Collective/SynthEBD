@@ -234,7 +234,7 @@ public class OBodySelector
         // Repeat the above checks for the preset's descriptor rules
         foreach (var descriptorLabel in candidatePreset.BodyShapeDescriptors)
         {
-            var associatedDescriptor = oBodySettings.TemplateDescriptors.Where(x => x.ID.Equals(descriptorLabel)).FirstOrDefault();
+            var associatedDescriptor = oBodySettings.TemplateDescriptors.Where(x => x.ID.MapsTo(descriptorLabel)).FirstOrDefault();
             if (associatedDescriptor is not null)
             {
                 if (associatedDescriptor.PermitNPC(npcInfo, out string reportStr))
