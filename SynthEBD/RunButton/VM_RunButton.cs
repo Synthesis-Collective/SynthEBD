@@ -1,4 +1,4 @@
-﻿using System.Windows.Media;
+using System.Windows.Media;
 
 namespace SynthEBD;
 
@@ -67,7 +67,7 @@ public class VM_RunButton : VM
                 valid = false;
             }
 
-            if (!_texMeshSettingsVm.ValidateAllConfigs(_state.BodyGenConfigs, out var configErrors)) // check config files for errors
+            if (!_texMeshSettingsVm.ValidateAllConfigs(_state.BodyGenConfigs, PatcherSettings.OBody, out var configErrors)) // check config files for errors
             {
                 Logger.LogMessage(configErrors);
                 valid = false;

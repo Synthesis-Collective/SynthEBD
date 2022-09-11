@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
@@ -124,7 +124,15 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         ValidateButton = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => {
-                if (Validate(state.BodyGenConfigs, out List<string> errors))
+
+                // dump view models to models so that latest are available for validation
+                BodyGenConfigs bgConfigs = new();
+                bgConfigs.Male = bodyGen.MaleConfigs.Select(x => VM_BodyGenConfig.DumpViewModelToModel(x)).ToHashSet();
+                bgConfigs.Female = bodyGen.FemaleConfigs.Select(x => VM_BodyGenConfig.DumpViewModelToModel(x)).ToHashSet();
+                Settings_OBody oBodySettings = new();
+                VM_SettingsOBody.DumpViewModelToModel(oBodySettings, oBody);
+
+                if (Validate(bgConfigs, oBodySettings, out List<string> errors))
                 {
                     CustomMessageBox.DisplayNotificationOK("Validation", "No errors found.");
                 }
@@ -268,11 +276,11 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         {Gender.Female, "Female"},
     };
 
-    public bool Validate(BodyGenConfigs bodyGenConfigs, out List<string> errors)
+    public bool Validate(BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, out List<string> errors)
     {
         var model = DumpViewModelToModel(this);
         errors = new List<string>();
-        return _assetPackValidator.Validate(model, errors, bodyGenConfigs);
+        return _assetPackValidator.Validate(model, errors, bodyGenConfigs, oBodySettings);
     }
 
     public static void GetViewModelsFromModels(

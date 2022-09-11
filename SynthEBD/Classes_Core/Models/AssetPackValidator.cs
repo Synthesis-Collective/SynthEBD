@@ -13,7 +13,7 @@ public class AssetPackValidator
         _environmentProvider = environmentProvider;
     }
     
-    public bool Validate(AssetPack assetPack, List<string> errors, BodyGenConfigs bodyGenConfigs)
+    public bool Validate(AssetPack assetPack, List<string> errors, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings)
     {
         bool isValidated = true;
 
@@ -55,13 +55,13 @@ public class AssetPackValidator
             }
         }
 
-        if (!ValidateSubgroups(assetPack.Subgroups, errors, assetPack, referencedBodyGenConfig))
+        if (!ValidateSubgroups(assetPack.Subgroups, errors, assetPack, referencedBodyGenConfig, oBodySettings))
         {
             isValidated = false;
         }
         foreach (var replacer in assetPack.ReplacerGroups)
         {
-            if (!ValidateReplacer(replacer, referencedBodyGenConfig, errors))
+            if (!ValidateReplacer(replacer, referencedBodyGenConfig,oBodySettings, errors))
             {
                 isValidated = false;
             }
@@ -75,12 +75,12 @@ public class AssetPackValidator
         return isValidated;
     }
 
-    private bool ValidateSubgroups(List<AssetPack.Subgroup> subgroups, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig)
+    private bool ValidateSubgroups(List<AssetPack.Subgroup> subgroups, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings)
     {
         bool isValid = true;
         for (int i = 0; i < subgroups.Count; i++)
         {
-            if (!ValidateSubgroup(subgroups[i], errors, parent, bodyGenConfig, i))
+            if (!ValidateSubgroup(subgroups[i], errors, parent, bodyGenConfig, oBodySettings, i))
             {
                 isValid = false;
             }
@@ -88,7 +88,7 @@ public class AssetPackValidator
         return isValid;
     }
 
-    private bool ValidateSubgroup(AssetPack.Subgroup subgroup, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, int topLevelIndex)
+    private bool ValidateSubgroup(AssetPack.Subgroup subgroup, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, int topLevelIndex)
     {
         if (!subgroup.Enabled) { return true; }
 
@@ -182,7 +182,7 @@ public class AssetPackValidator
         {
             foreach (var descriptor in subgroup.AllowedBodySlideDescriptors)
             {
-                if (!descriptor.CollectionContainsThisDescriptor(PatcherSettings.OBody.TemplateDescriptors))
+                if (!descriptor.CollectionContainsThisDescriptor(oBodySettings.TemplateDescriptors))
                 {
                     subErrors.Add("Allowed descriptor " + descriptor.ToString() + " is invalid because it is not contained within your O/AutoBody descriptors");
                     isValid = false;
@@ -190,7 +190,7 @@ public class AssetPackValidator
             }
             foreach (var descriptor in subgroup.DisallowedBodySlideDescriptors)
             {
-                if (!descriptor.CollectionContainsThisDescriptor(PatcherSettings.OBody.TemplateDescriptors))
+                if (!descriptor.CollectionContainsThisDescriptor(oBodySettings.TemplateDescriptors))
                 {
                     subErrors.Add("Disallowed descriptor " + descriptor.ToString() + " is invalid because it is not contained within your O/AutoBody descriptors");
                     isValid = false;
@@ -221,7 +221,7 @@ public class AssetPackValidator
 
         foreach (var subSubgroup in subgroup.Subgroups)
         {
-            if (!ValidateSubgroup(subSubgroup, errors, parent, bodyGenConfig, topLevelIndex))
+            if (!ValidateSubgroup(subSubgroup, errors, parent, bodyGenConfig, oBodySettings, topLevelIndex))
             {
                 isValid = false;
             }
@@ -241,7 +241,7 @@ public class AssetPackValidator
         { return false; }
     }
 
-    private bool ValidateReplacer(AssetReplacerGroup group, BodyGenConfig bodyGenConfig, List<string> errors)
+    private bool ValidateReplacer(AssetReplacerGroup group, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, List<string> errors)
     {
         bool isValid = true;
         if (string.IsNullOrWhiteSpace(group.Label))
@@ -250,7 +250,7 @@ public class AssetPackValidator
             isValid = false;
         }
 
-        ValidateSubgroups(group.Subgroups, errors, group, bodyGenConfig);
+        ValidateSubgroups(group.Subgroups, errors, group, bodyGenConfig, oBodySettings);
         return isValid;
     }
 

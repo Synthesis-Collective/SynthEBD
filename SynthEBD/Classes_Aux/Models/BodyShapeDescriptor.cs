@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 
 namespace SynthEBD;
 
@@ -25,6 +25,26 @@ public class BodyShapeDescriptor
 
     public LabelSignature ID { get; set; } = new();
     public BodyShapeDescriptorRules AssociatedRules { get; set; } = new();
+
+    public override bool Equals(Object obj)
+    {
+        if (obj == null) return false;
+        if (obj is BodyShapeDescriptor)
+        {
+            var other = obj as BodyShapeDescriptor;
+            return this.ID.Equals(other.ID);
+        }
+        else if (obj is LabelSignature)
+        {
+            var other = obj as LabelSignature;
+            return other.Category == ID.Category && other.Value == ID.Value;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
 
     public class LabelSignature
     {

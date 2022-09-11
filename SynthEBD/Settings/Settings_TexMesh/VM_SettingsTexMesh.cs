@@ -1,7 +1,8 @@
-﻿using ReactiveUI;
+using ReactiveUI;
 using System.Collections.ObjectModel;
 using System.Windows.Forms;
 using System.Windows.Media;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Tab;
 
 namespace SynthEBD;
 
@@ -13,6 +14,8 @@ public class VM_SettingsTexMesh : VM
     public VM_SettingsTexMesh(
         MainState state,
         VM_Settings_General general,
+        VM_SettingsBodyGen bodyGen,
+        VM_SettingsOBody oBody,
         VM_SettingsModManager modManager,
         VM_AssetPack.Factory assetPackFactory,
         VM_Subgroup.Factory subgroupFactory)
@@ -29,11 +32,18 @@ public class VM_SettingsTexMesh : VM
             canExecute: _ => true,
             execute: _ =>
             {
+                // dump view models to models so that latest are available for validation
+                BodyGenConfigs bgConfigs = new();
+                bgConfigs.Male = bodyGen.MaleConfigs.Select(x => VM_BodyGenConfig.DumpViewModelToModel(x)).ToHashSet();
+                bgConfigs.Female = bodyGen.FemaleConfigs.Select(x => VM_BodyGenConfig.DumpViewModelToModel(x)).ToHashSet();
+                Settings_OBody oBodySettings = new();
+                VM_SettingsOBody.DumpViewModelToModel(oBodySettings, oBody);
+
                 if (!AssetPacks.Any())
                 {
                     CustomMessageBox.DisplayNotificationOK("", "There are no Asset Pack Config Files installed.");
                 }
-                else if (ValidateAllConfigs(state.BodyGenConfigs, out List<string> errors))
+                else if (ValidateAllConfigs(bgConfigs, oBodySettings, out List<string> errors))
                 {
                     CustomMessageBox.DisplayNotificationOK("", "No errors found.");
                 }
@@ -149,13 +159,13 @@ public class VM_SettingsTexMesh : VM
     public RelayCommand SelectConfigsAll { get; }
     public RelayCommand SelectConfigsNone { get; }
 
-    public bool ValidateAllConfigs(BodyGenConfigs bodyGenConfigs, out List<string> errors)
+    public bool ValidateAllConfigs(BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, out List<string> errors)
     {
         bool isValid = true;
         errors = new List<string>();
         foreach (var config in AssetPacks)
         {
-            if (config.IsSelected && !config.Validate(bodyGenConfigs, out var configErrors))
+            if (config.IsSelected && !config.Validate(bodyGenConfigs, oBodySettings, out var configErrors))
             {
                 isValid = false;
                 errors.AddRange(configErrors);
