@@ -150,11 +150,11 @@
     <PackageReference Include="gong-wpf-dragdrop" Version="3.1.1" />
     <PackageReference Include="MaterialMessageBox" Version="4.0.2" />
     <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.39" />
-    <PackageReference Include="Mutagen.Bethesda" Version="0.39.3" />
+    <PackageReference Include="Mutagen.Bethesda" Version="0.39.4" />
     <PackageReference Include="Mutagen.Bethesda.FormKeys.SkyrimSE" Version="3.0.0" />
-    <PackageReference Include="Mutagen.Bethesda.Json" Version="0.39.3" />
-    <PackageReference Include="Mutagen.Bethesda.Skyrim" Version="0.39.3" />
-    <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.39.3" />
+    <PackageReference Include="Mutagen.Bethesda.Json" Version="0.39.4" />
+    <PackageReference Include="Mutagen.Bethesda.Skyrim" Version="0.39.4" />
+    <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.39.4" />
     <PackageReference Include="Noggog.Autofac" Version="2.50.1" />
     <PackageReference Include="Pfim" Version="0.11.1" />
     <PackageReference Include="PropertyChanged.Fody" Version="3.4.1" />
