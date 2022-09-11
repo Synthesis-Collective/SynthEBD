@@ -1,4 +1,4 @@
-﻿namespace SynthEBD;
+namespace SynthEBD;
 
 public class BodyGenSelector
 {
@@ -432,6 +432,7 @@ public class BodyGenSelector
                 else
                 {
                     Logger.LogReport("Preset " + candidateMorph.Label + " is invalid because the rules for its descriptor " + reportStr, false, npcInfo);
+                    return false;
                 }
             }
         }
