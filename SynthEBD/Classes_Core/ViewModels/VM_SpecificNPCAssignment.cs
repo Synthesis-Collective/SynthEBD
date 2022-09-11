@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda;
+using Mutagen.Bethesda;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
@@ -32,7 +32,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-        this.ForcedAssetPack = assetPackFactory();
+        //this.ForcedAssetPack = assetPackFactory();
 
         this.SubscribedAssetPacks = texMesh.AssetPacks;
 
@@ -74,7 +74,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             execute: x =>
             {
                 this.ForcedSubgroups.Clear();
-                this.ForcedAssetPack = assetPackFactory();
+                this.ForcedAssetPack = null;
             }
         );
         DeleteForcedSubgroup = new SynthEBD.RelayCommand(
@@ -363,6 +363,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                 model.AssetReplacerAssignments.Add(VM_AssetReplacementAssignment.DumpViewModelToModel(replacer));
             }
         }
+        else
+        {
+            model.AssetPackName = String.Empty;
+            model.SubgroupIDs = new();
+        }
 
         foreach (var mixin in viewModel.ForcedMixIns)
         {
@@ -396,38 +401,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
         return model;
     }
-
-    /*
-    public void TriggerAvailableAssetPackUpdate(object sender, PropertyChangedEventArgs e)
-    {
-        UpdateAvailableAssetPacks(this);
-    }
-
-    public void TriggerAvailableAssetPackUpdate(object sender, NotifyCollectionChangedEventArgs e)
-    {
-        UpdateAvailableAssetPacks(this);
-    }
-
-    public void TriggerAvailableSubgroupsUpdate(object sender, PropertyChangedEventArgs e)
-    {
-        UpdateAvailableSubgroups(this);
-    }
-
-    public void TriggerAvailableSubgroupsUpdate(object sender, NotifyCollectionChangedEventArgs e)
-    {
-        UpdateAvailableSubgroups(this);
-    }
-
-    public void TriggerAvailableMorphsUpdate(object sender, PropertyChangedEventArgs e)
-    {
-        UpdateAvailableMorphs(this);
-    }
-
-    public void TriggerAvailableMorphsUpdate(object sender, NotifyCollectionChangedEventArgs e)
-    {
-        UpdateAvailableMorphs(this);
-    }
-    */
 
     public void UpdateAvailableAssetPacks(VM_SpecificNPCAssignment assignment)
     {
