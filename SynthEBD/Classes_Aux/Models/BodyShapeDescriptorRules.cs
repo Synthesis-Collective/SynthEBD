@@ -26,35 +26,35 @@ public class BodyShapeDescriptorRules
         // Allow unique NPCs
         if (!descriptor.AssociatedRules.AllowUnique && npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
         {
-            reportStr = descriptor.Signature + " disallow unique NPCs";
+            reportStr = descriptor.ID + " disallow unique NPCs";
             return false;
         }
 
         // Allow non-unique NPCs
         if (!descriptor.AssociatedRules.AllowNonUnique && !npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
         {
-            reportStr = descriptor.Signature + " disallow non-unique NPCs";
+            reportStr = descriptor.ID + " disallow non-unique NPCs";
             return false;
         }
 
         // Allowed Races
         if (descriptor.AssociatedRules.AllowedRaces.Any() && !descriptor.AssociatedRules.AllowedRaces.Contains(npcInfo.BodyShapeRace))
         {
-            reportStr = descriptor.Signature + " have Allowed Races that do not include the current NPC's race";
+            reportStr = descriptor.ID + " have Allowed Races that do not include the current NPC's race";
             return false;
         }
 
         // Disallowed Races
         if (descriptor.AssociatedRules.DisallowedRaces.Contains(npcInfo.BodyShapeRace))
         {
-            reportStr = descriptor.Signature + " have Disallowed Races that include the current NPC's race";
+            reportStr = descriptor.ID + " have Disallowed Races that include the current NPC's race";
             return false;
         }
 
         // Weight Range
         if (npcInfo.NPC.Weight < descriptor.AssociatedRules.WeightRange.Lower || npcInfo.NPC.Weight > descriptor.AssociatedRules.WeightRange.Upper)
         {
-            reportStr = descriptor.Signature + " specify that the current NPC's weight falls outside of the allowed weight range";
+            reportStr = descriptor.ID + " specify that the current NPC's weight falls outside of the allowed weight range";
             return false;
         }
 
@@ -63,7 +63,7 @@ public class BodyShapeDescriptorRules
         AttributeMatcher.MatchNPCtoAttributeList(descriptor.AssociatedRules.AllowedAttributes, npcInfo.NPC, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog);
         if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
-            reportStr = descriptor.Signature + " have the following allowed attributes of which none are matched to the NPC: " + unmatchedLog;
+            reportStr = descriptor.ID + " have the following allowed attributes of which none are matched to the NPC: " + unmatchedLog;
             return false;
         }
         else
@@ -73,14 +73,14 @@ public class BodyShapeDescriptorRules
 
         if (descriptor.AssociatedRules.MatchedForceIfCount > 0)
         {
-            reportStr = "Current NPC matches the following forced attributes from Body Shape Descriptor " + descriptor.Signature.ToString() + ": " + forceIfLog;
+            reportStr = "Current NPC matches the following forced attributes from Body Shape Descriptor " + descriptor.ID.ToString() + ": " + forceIfLog;
         }
 
         // Disallowed Attributes
         AttributeMatcher.MatchNPCtoAttributeList(descriptor.AssociatedRules.DisallowedAttributes, npcInfo.NPC, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _);
         if (hasAttributeRestrictions && matchesAttributeRestrictions)
         {
-            reportStr = descriptor.Signature + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog;
+            reportStr = descriptor.ID + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog;
             return false;
         }
 

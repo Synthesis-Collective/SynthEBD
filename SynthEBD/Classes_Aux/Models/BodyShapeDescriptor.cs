@@ -1,8 +1,29 @@
-﻿namespace SynthEBD;
+﻿using Newtonsoft.Json;
+
+namespace SynthEBD;
 
 public class BodyShapeDescriptor
 {
-    public LabelSignature Signature { get; set; } = new();
+    public BodyShapeDescriptor()
+    {
+        // empty - used for everything besides backward-compatibile deserialization
+    }
+
+    [JsonConstructor] // https://stackoverflow.com/questions/73675879/newtonsoft-json-if-deserialization-error-try-different-class
+    public BodyShapeDescriptor(LabelSignature deprecated, string category, string Value)
+    {
+        if (deprecated != null)
+        {
+            ID.Category = deprecated.Category;
+            ID.Value = deprecated.Value;
+        }
+        else
+        {
+            this.ID = new() { Category = category, Value = Value };
+        }
+    }
+
+    public LabelSignature ID { get; set; } = new();
     public BodyShapeDescriptorRules AssociatedRules { get; set; } = new();
 
     public class LabelSignature
@@ -16,7 +37,7 @@ public class BodyShapeDescriptor
             if (obj is BodyShapeDescriptor)
             {
                 var other = obj as BodyShapeDescriptor;
-                return this.Equals(other.Signature);
+                return this.Equals(other.ID);
             }
             else if (obj is LabelSignature)
             {
@@ -90,7 +111,7 @@ public class BodyShapeDescriptor
 
     public bool MapsTo(string category, string value)
     {
-        return Signature.MapsTo(category, value);
+        return ID.MapsTo(category, value);
     }
 
     public bool PermitNPC(NPCInfo npcInfo, out string reportStr)

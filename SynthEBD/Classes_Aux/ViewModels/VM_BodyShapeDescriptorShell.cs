@@ -37,18 +37,18 @@ public class VM_BodyShapeDescriptorShell : VM
 
             subVm.CopyInViewModelFromModel(model, raceGroupings, parentConfig);
 
-            if (!usedCategories.Contains(model.Signature.Category))
+            if (!usedCategories.Contains(model.ID.Category))
             {
                 shellViewModel = new VM_BodyShapeDescriptorShell(viewModels, raceGroupings, parentConfig);
-                shellViewModel.Category = model.Signature.Category;
+                shellViewModel.Category = model.ID.Category;
                 subVm.ParentShell = shellViewModel;
                 shellViewModel.Descriptors.Add(subVm);
                 viewModels.Add(shellViewModel);
-                usedCategories.Add(model.Signature.Category);
+                usedCategories.Add(model.ID.Category);
             }
             else
             {
-                int index = usedCategories.IndexOf(model.Signature.Category);
+                int index = usedCategories.IndexOf(model.ID.Category);
                 subVm.ParentShell = viewModels[index];
                 viewModels[index].Descriptors.Add(subVm);
             }

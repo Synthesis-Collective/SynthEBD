@@ -16,15 +16,15 @@ public class Settings_OBody
     public List<BodySlideSetting> BodySlidesFemale { get; set; } = new();
     public HashSet<BodyShapeDescriptor> TemplateDescriptors { get; set; } = new()
     {
-        new BodyShapeDescriptor(){ Signature = new(){ Category = "Build", Value = "Slight" } },
-        new BodyShapeDescriptor(){ Signature = new(){Category = "Build", Value = "Medium" } },
-        new BodyShapeDescriptor() { Signature = new(){Category = "Build", Value = "Curvy"} },
-        new BodyShapeDescriptor() { Signature = new(){Category = "Build", Value = "Chubby"}},
-        new BodyShapeDescriptor() { Signature = new(){Category = "Build", Value = "Exaggerated" }},
-        new BodyShapeDescriptor() { Signature = new(){Category = "Build", Value = "Powerful" }},
-        new BodyShapeDescriptor() { Signature = new(){Category = "Chest", Value = "Busty" }},
-        new BodyShapeDescriptor() { Signature = new(){Category = "Chest", Value = "Medium" }},
-        new BodyShapeDescriptor() { Signature = new(){Category = "Chest", Value = "Petite" }},
+        new BodyShapeDescriptor(){ ID = new(){ Category = "Build", Value = "Slight" } },
+        new BodyShapeDescriptor(){ ID = new(){Category = "Build", Value = "Medium" } },
+        new BodyShapeDescriptor() { ID = new(){Category = "Build", Value = "Curvy"} },
+        new BodyShapeDescriptor() { ID = new(){Category = "Build", Value = "Chubby"}},
+        new BodyShapeDescriptor() { ID = new(){Category = "Build", Value = "Exaggerated" }},
+        new BodyShapeDescriptor() { ID = new(){Category = "Build", Value = "Powerful" }},
+        new BodyShapeDescriptor() { ID = new(){Category = "Chest", Value = "Busty" }},
+        new BodyShapeDescriptor() { ID = new(){Category = "Chest", Value = "Medium" }},
+        new BodyShapeDescriptor() { ID = new(){Category = "Chest", Value = "Petite" }},
     };
 
     public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
@@ -117,10 +117,10 @@ public class Settings_OBody
                     {
                         foreach (var annotation in defaultAnnotationDict[presetName])
                         {
-                            var descriptor = templateDescriptors.Where(x => x.Signature.ToString().Equals(annotation, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+                            var descriptor = templateDescriptors.Where(x => x.ID.ToString().Equals(annotation, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
                             if (descriptor != null)
                             {
-                                newPreset.BodyShapeDescriptors.Add(descriptor.Signature);
+                                newPreset.BodyShapeDescriptors.Add(descriptor.ID);
                             }
                         }
                     }

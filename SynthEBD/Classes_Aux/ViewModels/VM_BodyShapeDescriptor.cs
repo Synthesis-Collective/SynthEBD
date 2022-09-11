@@ -25,8 +25,8 @@ public class VM_BodyShapeDescriptor : VM
 
     public void CopyInViewModelFromModel(BodyShapeDescriptor model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
     {
-        Value = model.Signature.Value;
-        Signature = model.Signature.Category + ": " + model.Signature.Value;
+        Value = model.ID.Value;
+        Signature = model.ID.Category + ": " + model.ID.Value;
         AssociatedRules = new VM_BodyShapeDescriptorRules(this, raceGroupingVMs, parentConfig);
         AssociatedRules.CopyInViewModelFromModel(model.AssociatedRules, raceGroupingVMs);
     }
@@ -34,14 +34,14 @@ public class VM_BodyShapeDescriptor : VM
     public static BodyShapeDescriptor DumpViewModeltoModel(VM_BodyShapeDescriptor viewModel)
     {
         BodyShapeDescriptor model = new BodyShapeDescriptor(); 
-        model.Signature = new(){ Category = viewModel.ParentShell.Category, Value = viewModel.Value };
+        model.ID = new(){ Category = viewModel.ParentShell.Category, Value = viewModel.Value };
         model.AssociatedRules = (VM_BodyShapeDescriptorRules.DumpViewModelToModel(viewModel.AssociatedRules));
         return model;
     }
 
     public bool MapsTo(BodyShapeDescriptor descriptor)
     {
-        return MapsTo(descriptor.Signature);    
+        return MapsTo(descriptor.ID);    
     }
     public bool MapsTo(BodyShapeDescriptor.LabelSignature descriptor)
     {

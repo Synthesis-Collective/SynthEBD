@@ -136,7 +136,7 @@ public class zEBDBodyGenConfig
             }
 
             converted.Female.TemplateGroups = usedFemaleGroups;
-            converted.Female.TemplateDescriptors = usedFemaleDescriptors.Select(x => new BodyShapeDescriptor() { Signature = x }).ToHashSet();
+            converted.Female.TemplateDescriptors = usedFemaleDescriptors.Select(x => new BodyShapeDescriptor() { ID = x }).ToHashSet();
             converted.bFemaleInitialized = true;
         }
 
@@ -157,7 +157,7 @@ public class zEBDBodyGenConfig
             }
 
             converted.Male.TemplateGroups = usedMaleGroups;
-            converted.Male.TemplateDescriptors = usedMaleDescriptors.Select(x => new BodyShapeDescriptor() { Signature = x }).ToHashSet();
+            converted.Male.TemplateDescriptors = usedMaleDescriptors.Select(x => new BodyShapeDescriptor() { ID = x }).ToHashSet();
             converted.bMaleInitialized = true;
         }
 
