@@ -1,4 +1,4 @@
-﻿using DynamicData;
+using DynamicData;
 using DynamicData.Binding;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
@@ -458,6 +458,12 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
             this.Comparators.Add("<=");
             this.Comparators.Add(">");
             this.Comparators.Add(">=");
+        }
+        else if (this.CustomType == CustomAttributeType.Text)
+        {
+            this.Comparators.Add("Contains");
+            this.Comparators.Add("Starts With");
+            this.Comparators.Add("Ends With");
         }
 
         Evaluate();

@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 
@@ -164,6 +164,9 @@ public class AttributeMatcher
                         currentTypeMatched = false;
                         if (resolvedObject.GetType() == typeof(string)) { typeMatched = true; currentTypeMatched = true; }
                         if (currentTypeMatched && resolvedObject == attribute.ValueStr) { valueMatched = true; break; }
+                        else if (attribute.Comparator == "Contains" && currentTypeMatched && (resolvedObject as string).Contains(attribute.ValueStr)) { valueMatched = true; break; }
+                        else if (attribute.Comparator == "Starts With" && currentTypeMatched && (resolvedObject as string).StartsWith(attribute.ValueStr)) { valueMatched = true; break; }
+                        else if (attribute.Comparator == "Ends With" && currentTypeMatched && (resolvedObject as string).EndsWith(attribute.ValueStr)) { valueMatched = true; break; }
                     }
 
                     if (typeMatched == false)
@@ -181,6 +184,15 @@ public class AttributeMatcher
                             case "!=":
                                 if (!valueMatched) { return true; }
                                 else { dispMessage = "The text at the specified path(s) matches the attribute value."; return false; }
+                            case "Contains":
+                                if (valueMatched) { return true; }
+                                else { dispMessage = "The text at the specified path(s) does not contain the attribute value."; return false; }
+                            case "Starts With":
+                                if (valueMatched) { return true; }
+                                else { dispMessage = "The text at the specified path(s) does not start with the attribute value."; return false; }
+                            case "Ends With":
+                                if (valueMatched) { return true; }
+                                else { dispMessage = "The text at the specified path(s) does not end with the attribute value."; return false; }
                             default: return false;
                         }  
                     }
