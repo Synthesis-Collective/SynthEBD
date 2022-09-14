@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda;
+using Mutagen.Bethesda;
 using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
@@ -128,6 +128,8 @@ public class HeightPatcher
         HeightAssignment heightRacialSetting = null;
         RaceAlias raceAlias = null;
 
+        if (heightConfig == null) { return; }
+
         foreach (var race in PatcherEnvironmentProvider.Instance.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
         {
             patchedRace = null;
@@ -137,12 +139,11 @@ public class HeightPatcher
             {
                 heightRacialSetting = heightConfig.HeightAssignments.Where(x => x.Races.Contains(raceAlias.AliasRace)).FirstOrDefault();
 
-                if (heightRacialSetting.HeightMale == race.Height.Male && heightRacialSetting.HeightFemale == race.Height.Female)
+                if (heightRacialSetting == null || heightRacialSetting.HeightMale == race.Height.Male && heightRacialSetting.HeightFemale == race.Height.Female)
                 {
                     continue; // avoid creating ITM
                 }
-
-                if (heightRacialSetting != null)
+                else
                 {
                     patchedRace = outputMod.Races.GetOrAddAsOverride(raceAliasGetter);
                 }
@@ -151,12 +152,11 @@ public class HeightPatcher
             {
                 heightRacialSetting = heightConfig.HeightAssignments.Where(x => x.Races.Contains(race.FormKey)).FirstOrDefault();
                     
-                if (heightRacialSetting.HeightMale == race.Height.Male && heightRacialSetting.HeightFemale == race.Height.Female)
+                if (heightRacialSetting == null || heightRacialSetting.HeightMale == race.Height.Male && heightRacialSetting.HeightFemale == race.Height.Female)
                 {
                     continue; // avoid creating ITM
                 }
-
-                if (heightRacialSetting != null)
+                else
                 {
                     patchedRace = outputMod.Races.GetOrAddAsOverride(race);
                 }
