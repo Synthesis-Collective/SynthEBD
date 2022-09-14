@@ -1,4 +1,4 @@
-﻿using DynamicData;
+using DynamicData;
 using DynamicData.Binding;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
@@ -39,6 +39,7 @@ public class VM_NPCAttribute : VM
         VM_NPCAttributeClass startingAttributeGroup = new VM_NPCAttributeClass(newAtt, startingShell);
         startingShell.Type = NPCAttributeType.Class;
         startingShell.Attribute = startingAttributeGroup;
+        startingShell.InitializedVMcache[startingShell.Type] = startingShell.Attribute;
         newAtt.GroupedSubAttributes.Add(startingShell);
         newAtt.DisplayForceIfOption = displayForceIfOption;
         newAtt.DisplayForceIfWeight = displayForceIfWeight;
@@ -86,6 +87,7 @@ public class VM_NPCAttribute : VM
                     Logger.LogError("Could not determine attribute type of NPC Attribute " + attributeShellModel.Type.ToString() + ". Ignoring this attribute.");
                     break;
             }
+            shellVM.InitializedVMcache[shellVM.Type] = shellVM.Attribute;
             shellVM.ForceModeStr = VM_NPCAttributeShell.ForceModeEnumToStrDict[attributeShellModel.ForceMode];
             viewModel.GroupedSubAttributes.Add(shellVM);
         }
@@ -152,21 +154,7 @@ public class VM_NPCAttributeShell : VM
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(this));
 
-        ChangeType = new RelayCommand(canExecute: _ => true, execute: _ =>
-            {
-                switch (this.Type)
-                {
-                    case NPCAttributeType.Class: this.Attribute = new VM_NPCAttributeClass(parentVM, this); break;
-                    case NPCAttributeType.Custom: this.Attribute = new VM_NPCAttributeCustom(parentVM, this); break;
-                    case NPCAttributeType.FaceTexture: this.Attribute = new VM_NPCAttributeFaceTexture(parentVM, this); break;
-                    case NPCAttributeType.Faction: this.Attribute = new VM_NPCAttributeFactions(parentVM, this); break;
-                    case NPCAttributeType.Group: this.Attribute = new VM_NPCAttributeGroup(parentVM, this, attributeGroups); break;
-                    case NPCAttributeType.NPC: this.Attribute = new VM_NPCAttributeNPC(parentVM, this); break;
-                    case NPCAttributeType.Race: this.Attribute = new VM_NPCAttributeRace(parentVM, this); break;
-                    case NPCAttributeType.VoiceType: this.Attribute = new VM_NPCAttributeVoiceType(parentVM, this); break;
-                }
-            }
-
+        ChangeType = new RelayCommand(canExecute: _ => true, execute: _ => GetOrCreateSubAttribute(Type, parentVM, attributeGroups)
         );
     }
     public ISubAttributeViewModel Attribute { get; set; }
@@ -199,6 +187,42 @@ public class VM_NPCAttributeShell : VM
         { AttributeForcing.ForceIf, AttributeForceIfStr },
         { AttributeForcing.ForceIfAndRestrict, AttributeForceIfandRestrictStr }
     };
+
+    // If adding a new attribute type, be sure to register it here
+    public Dictionary<NPCAttributeType, ISubAttributeViewModel> InitializedVMcache { get; set; } = new()
+    {
+        { NPCAttributeType.Class, null },
+        { NPCAttributeType.Custom, null },
+        { NPCAttributeType.FaceTexture, null },
+        { NPCAttributeType.Faction, null },
+        { NPCAttributeType.Group, null },
+        { NPCAttributeType.NPC, null },
+        { NPCAttributeType.Race, null },
+        { NPCAttributeType.VoiceType, null }
+    };
+
+    public void GetOrCreateSubAttribute(NPCAttributeType type, VM_NPCAttribute parentVM, ObservableCollection<VM_AttributeGroup> attributeGroups)
+    {
+        if (InitializedVMcache[type] is not null)
+        {
+            this.Attribute = InitializedVMcache[type];
+        }
+        else
+        {
+            switch (type)
+            {
+                case NPCAttributeType.Class: this.Attribute = new VM_NPCAttributeClass(parentVM, this); break;
+                case NPCAttributeType.Custom: this.Attribute = new VM_NPCAttributeCustom(parentVM, this); break;
+                case NPCAttributeType.FaceTexture: this.Attribute = new VM_NPCAttributeFaceTexture(parentVM, this); break;
+                case NPCAttributeType.Faction: this.Attribute = new VM_NPCAttributeFactions(parentVM, this); break;
+                case NPCAttributeType.Group: this.Attribute = new VM_NPCAttributeGroup(parentVM, this, attributeGroups); break;
+                case NPCAttributeType.NPC: this.Attribute = new VM_NPCAttributeNPC(parentVM, this); break;
+                case NPCAttributeType.Race: this.Attribute = new VM_NPCAttributeRace(parentVM, this); break;
+                case NPCAttributeType.VoiceType: this.Attribute = new VM_NPCAttributeVoiceType(parentVM, this); break;
+            }
+            InitializedVMcache[type] = this.Attribute;
+        }
+    }
 }
 
 public interface ISubAttributeViewModel
