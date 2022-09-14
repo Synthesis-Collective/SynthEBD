@@ -39,6 +39,7 @@ public class VM_NPCAttribute : VM
         VM_NPCAttributeClass startingAttributeGroup = new VM_NPCAttributeClass(newAtt, startingShell);
         startingShell.Type = NPCAttributeType.Class;
         startingShell.Attribute = startingAttributeGroup;
+        startingShell.InitializedVMcache[startingShell.Type] = startingShell.Attribute;
         newAtt.GroupedSubAttributes.Add(startingShell);
         newAtt.DisplayForceIfOption = displayForceIfOption;
         newAtt.DisplayForceIfWeight = displayForceIfWeight;
@@ -78,14 +79,16 @@ public class VM_NPCAttribute : VM
                 case NPCAttributeType.Custom: shellVM.Attribute = VM_NPCAttributeCustom.GetViewModelFromModel((NPCAttributeCustom)attributeShellModel, viewModel, shellVM); break;
                 case NPCAttributeType.Faction: shellVM.Attribute = VM_NPCAttributeFactions.GetViewModelFromModel((NPCAttributeFactions)attributeShellModel, viewModel, shellVM); break;
                 case NPCAttributeType.FaceTexture: shellVM.Attribute = VM_NPCAttributeFaceTexture.GetViewModelFromModel((NPCAttributeFaceTexture)attributeShellModel, viewModel, shellVM); break;
-                case NPCAttributeType.Race: shellVM.Attribute = VM_NPCAttributeRace.getViewModelFromModel((NPCAttributeRace)attributeShellModel, viewModel, shellVM); break;
+                case NPCAttributeType.Misc: shellVM.Attribute = VM_NPCAttributeMisc.getViewModelFromModel((NPCAttributeMisc)attributeShellModel, viewModel, shellVM); break;
                 case NPCAttributeType.NPC: shellVM.Attribute = VM_NPCAttributeNPC.getViewModelFromModel((NPCAttributeNPC)attributeShellModel, viewModel, shellVM); break;
+                case NPCAttributeType.Race: shellVM.Attribute = VM_NPCAttributeRace.getViewModelFromModel((NPCAttributeRace)attributeShellModel, viewModel, shellVM); break;
                 case NPCAttributeType.VoiceType: shellVM.Attribute = VM_NPCAttributeVoiceType.GetViewModelFromModel((NPCAttributeVoiceType)attributeShellModel, viewModel, shellVM); break;
                 case NPCAttributeType.Group: shellVM.Attribute = VM_NPCAttributeGroup.GetViewModelFromModel((NPCAttributeGroup)attributeShellModel, viewModel, shellVM, attributeGroups); break; // Setting the checkbox selections MUST be done in the calling function after all `attributeGroups` view models have been created from their corresponding model (otherwise the required checkbox entry may not yet exist). This is done in VM_AttributeGroupMenu.GetViewModelFromModels().
                 default: 
                     Logger.LogError("Could not determine attribute type of NPC Attribute " + attributeShellModel.Type.ToString() + ". Ignoring this attribute.");
                     break;
             }
+            shellVM.InitializedVMcache[shellVM.Type] = shellVM.Attribute;
             shellVM.ForceModeStr = VM_NPCAttributeShell.ForceModeEnumToStrDict[attributeShellModel.ForceMode];
             viewModel.GroupedSubAttributes.Add(shellVM);
         }
@@ -115,8 +118,9 @@ public class VM_NPCAttribute : VM
                 case NPCAttributeType.Faction: model.SubAttributes.Add(VM_NPCAttributeFactions.DumpViewModelToModel((VM_NPCAttributeFactions)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
                 case NPCAttributeType.FaceTexture: model.SubAttributes.Add(VM_NPCAttributeFaceTexture.DumpViewModelToModel((VM_NPCAttributeFaceTexture)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
                 case NPCAttributeType.Group: model.SubAttributes.Add(VM_NPCAttributeGroup.DumpViewModelToModel((VM_NPCAttributeGroup)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
-                case NPCAttributeType.Race: model.SubAttributes.Add(VM_NPCAttributeRace.DumpViewModelToModel((VM_NPCAttributeRace)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
+                case NPCAttributeType.Misc: model.SubAttributes.Add(VM_NPCAttributeMisc.DumpViewModelToModel((VM_NPCAttributeMisc)subAttVM.Attribute,subAttVM.ForceModeStr)); break;
                 case NPCAttributeType.NPC: model.SubAttributes.Add(VM_NPCAttributeNPC.DumpViewModelToModel((VM_NPCAttributeNPC)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
+                case NPCAttributeType.Race: model.SubAttributes.Add(VM_NPCAttributeRace.DumpViewModelToModel((VM_NPCAttributeRace)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
                 case NPCAttributeType.VoiceType: model.SubAttributes.Add(VM_NPCAttributeVoiceType.DumpViewModelToModel((VM_NPCAttributeVoiceType)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
             }
         }
@@ -152,21 +156,7 @@ public class VM_NPCAttributeShell : VM
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(this));
 
-        ChangeType = new RelayCommand(canExecute: _ => true, execute: _ =>
-            {
-                switch (this.Type)
-                {
-                    case NPCAttributeType.Class: this.Attribute = new VM_NPCAttributeClass(parentVM, this); break;
-                    case NPCAttributeType.Custom: this.Attribute = new VM_NPCAttributeCustom(parentVM, this); break;
-                    case NPCAttributeType.FaceTexture: this.Attribute = new VM_NPCAttributeFaceTexture(parentVM, this); break;
-                    case NPCAttributeType.Faction: this.Attribute = new VM_NPCAttributeFactions(parentVM, this); break;
-                    case NPCAttributeType.Group: this.Attribute = new VM_NPCAttributeGroup(parentVM, this, attributeGroups); break;
-                    case NPCAttributeType.NPC: this.Attribute = new VM_NPCAttributeNPC(parentVM, this); break;
-                    case NPCAttributeType.Race: this.Attribute = new VM_NPCAttributeRace(parentVM, this); break;
-                    case NPCAttributeType.VoiceType: this.Attribute = new VM_NPCAttributeVoiceType(parentVM, this); break;
-                }
-            }
-
+        ChangeType = new RelayCommand(canExecute: _ => true, execute: _ => GetOrCreateSubAttribute(Type, parentVM, attributeGroups)
         );
     }
     public ISubAttributeViewModel Attribute { get; set; }
@@ -199,6 +189,44 @@ public class VM_NPCAttributeShell : VM
         { AttributeForcing.ForceIf, AttributeForceIfStr },
         { AttributeForcing.ForceIfAndRestrict, AttributeForceIfandRestrictStr }
     };
+
+    // If adding a new attribute type, be sure to register it here
+    public Dictionary<NPCAttributeType, ISubAttributeViewModel> InitializedVMcache { get; set; } = new()
+    {
+        { NPCAttributeType.Class, null },
+        { NPCAttributeType.Custom, null },
+        { NPCAttributeType.FaceTexture, null },
+        { NPCAttributeType.Faction, null },
+        { NPCAttributeType.Group, null },
+        { NPCAttributeType.Misc, null },
+        { NPCAttributeType.NPC, null },
+        { NPCAttributeType.Race, null },
+        { NPCAttributeType.VoiceType, null }
+    };
+
+    public void GetOrCreateSubAttribute(NPCAttributeType type, VM_NPCAttribute parentVM, ObservableCollection<VM_AttributeGroup> attributeGroups)
+    {
+        if (InitializedVMcache[type] is not null)
+        {
+            this.Attribute = InitializedVMcache[type];
+        }
+        else
+        {
+            switch (type)
+            {
+                case NPCAttributeType.Class: this.Attribute = new VM_NPCAttributeClass(parentVM, this); break;
+                case NPCAttributeType.Custom: this.Attribute = new VM_NPCAttributeCustom(parentVM, this); break;
+                case NPCAttributeType.FaceTexture: this.Attribute = new VM_NPCAttributeFaceTexture(parentVM, this); break;
+                case NPCAttributeType.Faction: this.Attribute = new VM_NPCAttributeFactions(parentVM, this); break;
+                case NPCAttributeType.Group: this.Attribute = new VM_NPCAttributeGroup(parentVM, this, attributeGroups); break;
+                case NPCAttributeType.Misc: this.Attribute = new VM_NPCAttributeMisc(parentVM, this); break;
+                case NPCAttributeType.NPC: this.Attribute = new VM_NPCAttributeNPC(parentVM, this); break;
+                case NPCAttributeType.Race: this.Attribute = new VM_NPCAttributeRace(parentVM, this); break;
+                case NPCAttributeType.VoiceType: this.Attribute = new VM_NPCAttributeVoiceType(parentVM, this); break;
+            }
+            InitializedVMcache[type] = this.Attribute;
+        }
+    }
 }
 
 public interface ISubAttributeViewModel
@@ -581,6 +609,74 @@ public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
     public static NPCAttributeRace DumpViewModelToModel(VM_NPCAttributeRace viewModel, string forceModeStr)
     {
         return new NPCAttributeRace() { Type = NPCAttributeType.Race, FormKeys = viewModel.RaceFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
+    }
+}
+
+public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
+{
+    public VM_NPCAttributeMisc(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+    {
+        this.ParentVM = parentVM;
+        this.ParentShell = parentShell;
+
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => lk = x)
+            .DisposeWith(this);
+        DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
+    }
+    public ThreeWayState Unique { get; set; } = ThreeWayState.Ignore;
+    public ThreeWayState Essential { get; set; } = ThreeWayState.Ignore;
+    public ThreeWayState Protected { get; set; } = ThreeWayState.Ignore;
+    public ThreeWayState Summonable { get; set; } = ThreeWayState.Ignore;
+    public ThreeWayState Ghost { get; set; } = ThreeWayState.Ignore;
+    public ThreeWayState Invulnerable { get; set; } = ThreeWayState.Ignore;
+    public bool EvalMood { get; set; } = false;
+    public Mood Mood { get; set; } = Mood.Neutral;
+    public bool EvalAggression { get; set; } = false;
+    public Aggression Aggression { get; set; } = Aggression.Unagressive;
+    public bool EvalGender { get; set; } = false;
+    public Gender NPCGender { get; set; } = Gender.Female;
+    public VM_NPCAttribute ParentVM { get; set; }
+    public VM_NPCAttributeShell ParentShell { get; set; }
+    public RelayCommand DeleteCommand { get; }
+    public ILinkCache lk { get; private set; }
+    public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
+    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+
+    public static VM_NPCAttributeMisc getViewModelFromModel(NPCAttributeMisc model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+    {
+        var newAtt = new VM_NPCAttributeMisc(parentVM, parentShell);
+        newAtt.Unique = model.Unique;
+        newAtt.Essential = model.Essential;
+        newAtt.Protected = model.Protected;
+        newAtt.Summonable = model.Summonable;
+        newAtt.Ghost = model.Ghost;
+        newAtt.Invulnerable = model.Invulnerable;
+        newAtt.EvalMood = model.EvalMood;
+        newAtt.Mood = model.Mood;
+        newAtt.EvalAggression = model.EvalAggression;
+        newAtt.Aggression = model.Aggression;
+        newAtt.EvalGender = model.EvalGender;
+        newAtt.NPCGender = model.NPCGender;
+        parentShell.ForceIfWeight = model.Weighting;
+        return newAtt;
+    }
+    public static NPCAttributeMisc DumpViewModelToModel(VM_NPCAttributeMisc viewModel, string forceModeStr)
+    {
+        var model = new NPCAttributeMisc();
+        model.Unique = viewModel.Unique;
+        model.Essential = viewModel.Essential;
+        model.Protected = viewModel.Protected;
+        model.Summonable = viewModel.Summonable;
+        model.Ghost = viewModel.Ghost;
+        model.Invulnerable = viewModel.Invulnerable;
+        model.EvalMood = viewModel.EvalMood;
+        model.Mood = viewModel.Mood;
+        model.EvalAggression = viewModel.EvalAggression;
+        model.Aggression = viewModel.Aggression;
+        model.EvalGender = viewModel.EvalGender;
+        model.NPCGender = viewModel.NPCGender;
+        return model;
     }
 }
 

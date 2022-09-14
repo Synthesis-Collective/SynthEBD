@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Aspects;
 using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
@@ -221,6 +221,7 @@ public enum NPCAttributeType
     Faction,
     FaceTexture,
     Group,
+    Misc,
     NPC,
     Race,
     VoiceType
@@ -239,43 +240,6 @@ public enum AttributeForcing
     Restrict,
     ForceIf,
     ForceIfAndRestrict
-}
-
-public class NPCAttributeVoiceType : ITypedNPCAttribute
-{
-    public HashSet<FormKey> FormKeys { get; set; } = new();
-    public NPCAttributeType Type { get; set; } = NPCAttributeType.VoiceType;
-    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
-    public int Weighting { get; set; } = 1;
-
-    public bool Equals(ITypedNPCAttribute other)
-    {
-        var otherTyped = (NPCAttributeVoiceType)other;
-        if (this.Type == other.Type && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
-        return false;
-    }
-
-    public static NPCAttributeVoiceType CloneAsNew(NPCAttributeVoiceType input)
-    {
-        var output = new NPCAttributeVoiceType();
-        output.ForceMode = input.ForceMode;
-        output.Type = input.Type;
-        output.FormKeys = input.FormKeys;
-        output.Weighting = input.Weighting;
-        return output;
-    }
-
-    public string ToLogString()
-    {
-        if (PatcherSettings.General.VerboseModeDetailedAttributes)
-        {
-            return "VoiceType: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<IVoiceTypeGetter>(x))) + "]";
-        }
-        else
-        {
-            return "VoiceType: [" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "]";
-        }
-    }
 }
 
 public class NPCAttributeClass : ITypedNPCAttribute
@@ -499,6 +463,76 @@ public class NPCAttributeRace : ITypedNPCAttribute
     }
 }
 
+public class NPCAttributeMisc : ITypedNPCAttribute
+{
+    public ThreeWayState Unique { get; set; } = ThreeWayState.Ignore;
+    public ThreeWayState Essential { get; set; } = ThreeWayState.Ignore;
+    public ThreeWayState Protected { get; set; } = ThreeWayState.Ignore;
+    public ThreeWayState Summonable { get; set; } = ThreeWayState.Ignore;
+    public ThreeWayState Ghost { get; set; } = ThreeWayState.Ignore;
+    public ThreeWayState Invulnerable { get; set; } = ThreeWayState.Ignore;
+
+    public bool EvalMood { get; set; } = false;
+    public Mood Mood { get; set; } = Mood.Neutral;
+    public bool EvalAggression { get; set; } = false;
+    public Aggression Aggression { get; set; } = Aggression.Unagressive;
+    public bool EvalGender { get; set; } = false;
+    public Gender NPCGender { get; set; } = Gender.Female;
+
+    public NPCAttributeType Type { get; set; } = NPCAttributeType.Misc;
+    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
+    public int Weighting { get; set; } = 1;
+
+    public bool Equals(ITypedNPCAttribute other)
+    {
+        var otherTyped = (NPCAttributeMisc)other;
+        if (this.Type != other.Type) { return false; }
+
+        if (this.Unique != otherTyped.Unique) { return false; }
+        if (this.Essential != otherTyped.Essential) { return false; }
+        if (this.Protected != otherTyped.Protected) { return false; }
+        if (this.Summonable != otherTyped.Summonable) { return false; }
+        if (this.Ghost != otherTyped.Ghost) { return false; }
+        if (this.Invulnerable != otherTyped.Invulnerable) { return false; }
+        if (EvalMood && this.Mood != otherTyped.Mood) { return false; }
+        if (EvalAggression && this.Aggression != otherTyped.Aggression) { return false; }
+        return true;
+    }
+
+    public static NPCAttributeMisc CloneAsNew(NPCAttributeMisc input)
+    {
+        var output = new NPCAttributeMisc();
+        output.Unique = input.Unique;
+        output.Essential = input.Essential;
+        output.Protected = input.Protected;
+        output.Summonable = input.Summonable;
+        output.Ghost = input.Ghost;
+        output.Invulnerable = input.Invulnerable;
+        output.EvalMood = input.EvalMood;
+        output.EvalAggression = input.EvalAggression;
+
+        output.ForceMode = input.ForceMode;
+        output.Type = input.Type;
+        output.Weighting = input.Weighting;
+        return output;
+    }
+
+    public string ToLogString()
+    {
+        string output = "Misc:";
+        if (Unique != ThreeWayState.Ignore) { output += " [Unique: " + Unique.ToString() + "]"; }
+        if (Essential != ThreeWayState.Ignore) { output += " [Essential: " + Essential.ToString() + "]"; }
+        if (Protected != ThreeWayState.Ignore) { output += " [Protected: " + Protected.ToString() + "]"; }
+        if (Summonable != ThreeWayState.Ignore) { output += " [Summonable: " + Summonable.ToString() + "]"; }
+        if (Ghost != ThreeWayState.Ignore) { output += " [Ghost: " + Ghost.ToString() + "]"; }
+        if (Invulnerable != ThreeWayState.Ignore) { output += " [Invulnerable: " + Invulnerable.ToString() + "]"; }
+        if (EvalMood) { output += " [Mood: " + Mood.ToString() + "]"; }
+        if (EvalAggression) { output += " [Aggression: " + Aggression.ToString() + "]"; }
+
+        return output;
+    }
+}
+
 public class NPCAttributeNPC : ITypedNPCAttribute
 {
     public HashSet<FormKey> FormKeys { get; set; } = new();
@@ -532,6 +566,42 @@ public class NPCAttributeNPC : ITypedNPCAttribute
         else
         {
             return "NPC: [" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "]";
+        }
+    }
+}
+public class NPCAttributeVoiceType : ITypedNPCAttribute
+{
+    public HashSet<FormKey> FormKeys { get; set; } = new();
+    public NPCAttributeType Type { get; set; } = NPCAttributeType.VoiceType;
+    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
+    public int Weighting { get; set; } = 1;
+
+    public bool Equals(ITypedNPCAttribute other)
+    {
+        var otherTyped = (NPCAttributeVoiceType)other;
+        if (this.Type == other.Type && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
+        return false;
+    }
+
+    public static NPCAttributeVoiceType CloneAsNew(NPCAttributeVoiceType input)
+    {
+        var output = new NPCAttributeVoiceType();
+        output.ForceMode = input.ForceMode;
+        output.Type = input.Type;
+        output.FormKeys = input.FormKeys;
+        output.Weighting = input.Weighting;
+        return output;
+    }
+
+    public string ToLogString()
+    {
+        if (PatcherSettings.General.VerboseModeDetailedAttributes)
+        {
+            return "VoiceType: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<IVoiceTypeGetter>(x))) + "]";
+        }
+        else
+        {
+            return "VoiceType: [" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "]";
         }
     }
 }
@@ -594,4 +664,11 @@ public class AttributeGroup
 {
     public string Label { get; set; } = "";
     public HashSet<NPCAttribute> Attributes { get; set; } = new();
+}
+
+public enum ThreeWayState
+{
+    Ignore,
+    Is,
+    IsNot
 }

@@ -1,0 +1,64 @@
+<UserControl x:Class="SynthEBD.UC_NPCAttributeMisc"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:SynthEBD"
+             xmlns:Skyrim="clr-namespace:Mutagen.Bethesda.Skyrim;assembly=Mutagen.Bethesda.Skyrim"
+             d:DataContext="{d:DesignInstance Type=local:VM_NPCAttributeMisc}"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+        </Grid.ColumnDefinitions>
+
+        <ComboBox Grid.Row="0" Grid.Column="0" SelectedValue="{Binding Type}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ThreeWayState}}}" SelectedItem="{Binding Unique}" IsSynchronizedWithCurrentItem="True"/>
+        <TextBlock Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Text="Unique"/>
+
+        <ComboBox Grid.Row="1" Grid.Column="0" SelectedValue="{Binding Type}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ThreeWayState}}}" SelectedItem="{Binding Protected}" IsSynchronizedWithCurrentItem="True"/>
+        <TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Text="Protected"/>
+
+        <ComboBox Grid.Row="2" Grid.Column="0" SelectedValue="{Binding Type}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ThreeWayState}}}" SelectedItem="{Binding Essential}" IsSynchronizedWithCurrentItem="True"/>
+        <TextBlock Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" Text="Essential"/>
+
+        <ComboBox Grid.Row="3" Grid.Column="0" SelectedValue="{Binding Type}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ThreeWayState}}}" SelectedItem="{Binding Invulnerable}" IsSynchronizedWithCurrentItem="True"/>
+        <TextBlock Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" Text="Invulnerable"/>
+
+        <ComboBox Grid.Row="4" Grid.Column="0" SelectedValue="{Binding Type}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ThreeWayState}}}" SelectedItem="{Binding Summonable}" IsSynchronizedWithCurrentItem="True"/>
+        <TextBlock Grid.Row="4" Grid.Column="1" VerticalAlignment="Center" Text="Summonable"/>
+
+        <ComboBox Grid.Row="5" Grid.Column="0" SelectedValue="{Binding Type}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ThreeWayState}}}" SelectedItem="{Binding Ghost}" IsSynchronizedWithCurrentItem="True"/>
+        <TextBlock Grid.Row="5" Grid.Column="1" VerticalAlignment="Center" Text="Ghost"/>
+
+        <TextBlock Grid.Row="6" Grid.Column="0" VerticalAlignment="Center" Text="Aggression"/>
+        <CheckBox Grid.Row="6" Grid.Column="1" IsChecked="{Binding EvalAggression}"/>
+        <ComboBox Grid.Row="6" Grid.Column="2" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type Skyrim:Aggression}}}" SelectedItem="{Binding Aggression}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding Path=EvalAggression, Converter={StaticResource BoolToVis}}"/>
+
+        <TextBlock Grid.Row="7" Grid.Column="0" VerticalAlignment="Center" Text="Mood"/>
+        <CheckBox Grid.Row="7" Grid.Column="1" IsChecked="{Binding EvalMood}"/>
+        <ComboBox Grid.Row="7" Grid.Column="2" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type Skyrim:Mood}}}" SelectedItem="{Binding Mood}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding Path=EvalMood, Converter={StaticResource BoolToVis}}"/>
+
+        <TextBlock Grid.Row="8" Grid.Column="0" VerticalAlignment="Center" Text="Gender"/>
+        <CheckBox Grid.Row="8" Grid.Column="1" IsChecked="{Binding EvalGender}"/>
+        <ComboBox Grid.Row="8" Grid.Column="2" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" SelectedItem="{Binding NPCGender}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding Path=EvalGender, Converter={StaticResource BoolToVis}}"/>
+    </Grid>
+</UserControl>
