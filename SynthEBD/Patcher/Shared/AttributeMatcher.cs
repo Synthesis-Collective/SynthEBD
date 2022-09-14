@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 
@@ -76,6 +76,43 @@ public class AttributeMatcher
                         if (!faceTextureAttribute.FormKeys.Contains(npc.HeadTexture.FormKey))
                         {
                             subAttributeMatched = false;
+                        }
+                        break;
+                    case NPCAttributeType.Misc:
+                        var miscAttribute = (NPCAttributeMisc)subAttribute;
+                        if (miscAttribute.EvalAggression && npc.AIData.Aggression != miscAttribute.Aggression) { subAttributeMatched = false; }
+                        if (miscAttribute.EvalMood && npc.AIData.Mood != miscAttribute.Mood) { subAttributeMatched = false; }
+                        if (miscAttribute.EvalGender && miscAttribute.NPCGender == Gender.Male && npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Female)) { subAttributeMatched = false; }
+                        else if (miscAttribute.EvalGender && miscAttribute.NPCGender == Gender.Female && !npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Female)) { subAttributeMatched = false; }
+                        if (miscAttribute.Essential != ThreeWayState.Ignore)
+                        {
+                            if (miscAttribute.Essential == ThreeWayState.Is && !npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Essential)) { subAttributeMatched = false; }
+                            else if (miscAttribute.Essential == ThreeWayState.IsNot && npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Essential)) { subAttributeMatched = false; }
+                        }
+                        if (miscAttribute.Ghost != ThreeWayState.Ignore)
+                        {
+                            if (miscAttribute.Ghost == ThreeWayState.Is && !npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.IsGhost)) { subAttributeMatched = false; }
+                            else if (miscAttribute.Ghost == ThreeWayState.IsNot && npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.IsGhost)) { subAttributeMatched = false; }
+                        }
+                        if (miscAttribute.Invulnerable != ThreeWayState.Ignore)
+                        {
+                            if (miscAttribute.Invulnerable == ThreeWayState.Is && !npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Invulnerable)) { subAttributeMatched = false; }
+                            else if (miscAttribute.Invulnerable == ThreeWayState.IsNot && npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Invulnerable)) { subAttributeMatched = false; }
+                        }
+                        if (miscAttribute.Protected != ThreeWayState.Ignore)
+                        {
+                            if (miscAttribute.Protected == ThreeWayState.Is && !npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Protected)) { subAttributeMatched = false; }
+                            else if (miscAttribute.Protected == ThreeWayState.IsNot && npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Protected)) { subAttributeMatched = false; }
+                        }
+                        if (miscAttribute.Summonable != ThreeWayState.Ignore)
+                        {
+                            if (miscAttribute.Summonable == ThreeWayState.Is && !npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Summonable)) { subAttributeMatched = false; }
+                            else if (miscAttribute.Summonable == ThreeWayState.IsNot && npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Summonable)) { subAttributeMatched = false; }
+                        }
+                        if (miscAttribute.Unique != ThreeWayState.Ignore)
+                        {
+                            if (miscAttribute.Unique == ThreeWayState.Is && !npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Unique)) { subAttributeMatched = false; }
+                            else if (miscAttribute.Unique == ThreeWayState.IsNot && npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Unique)) { subAttributeMatched = false; }
                         }
                         break;
                     case NPCAttributeType.NPC:

@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Mutagen.Bethesda.Json;
 using System.IO;
 using Newtonsoft.Json.Linq;
@@ -88,6 +88,7 @@ public class JSONhandler<T>
                 case "FaceTexture": return jo.ToObject<NPCAttributeFaceTexture>(serializer);
                 case "Faction": return jo.ToObject<NPCAttributeFactions>(serializer);
                 case "Group": return jo.ToObject<NPCAttributeGroup>(serializer);
+                case "Misc": return jo.ToObject<NPCAttributeMisc>(serializer);
                 case "NPC": return jo.ToObject<NPCAttributeNPC>(serializer);
                 case "Race": return jo.ToObject<NPCAttributeRace>(serializer);
                 case "VoiceType": return jo.ToObject<NPCAttributeVoiceType>(serializer);
