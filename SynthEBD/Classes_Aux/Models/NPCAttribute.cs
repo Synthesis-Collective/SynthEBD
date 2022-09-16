@@ -222,6 +222,7 @@ public enum NPCAttributeType
     FaceTexture,
     Group,
     Misc,
+    Mod,
     NPC,
     Race,
     VoiceType
@@ -533,8 +534,39 @@ public class NPCAttributeMisc : ITypedNPCAttribute
     }
 }
 
-public class NPCAttributeNPC : ITypedNPCAttribute
+public class NPCAttributeMod : ITypedNPCAttribute
 {
+    public HashSet<ModKey> ModKeys { get; set; }
+    public ModAttributeEnum ModActionType { get; set; } = ModAttributeEnum.PatchedBy;
+
+    public NPCAttributeType Type { get; set; } = NPCAttributeType.Mod;
+    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
+    public int Weighting { get; set; } = 1;
+
+    public bool Equals(ITypedNPCAttribute other)
+    {
+        var otherTyped = (NPCAttributeMod)other;
+        if (this.Type == other.Type && ModKeyHashSetComparer.Equals(this.ModKeys, otherTyped.ModKeys)) { return true; }
+        return false;
+    }
+    public static NPCAttributeMod CloneAsNew(NPCAttributeMod input)
+    {
+        var output = new NPCAttributeMod();
+        output.ForceMode = input.ForceMode;
+        output.Type = input.Type;
+        output.ModKeys = input.ModKeys;
+        output.ModActionType = input.ModActionType;
+        output.Weighting = input.Weighting;
+        return output;
+    }
+    public string ToLogString()
+    {
+        return "Mod: [" + string.Join(", ", ModKeys.Select(x => x.FileName.ToString())) + "]";
+    }
+}
+
+    public class NPCAttributeNPC : ITypedNPCAttribute
+    {
     public HashSet<FormKey> FormKeys { get; set; } = new();
     public NPCAttributeType Type { get; set; } = NPCAttributeType.NPC;
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
@@ -671,4 +703,10 @@ public enum ThreeWayState
     Ignore,
     Is,
     IsNot
+}
+
+public enum ModAttributeEnum
+{
+    From,
+    PatchedBy
 }

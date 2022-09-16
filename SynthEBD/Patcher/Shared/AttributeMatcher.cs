@@ -115,6 +115,27 @@ public class AttributeMatcher
                             else if (miscAttribute.Unique == ThreeWayState.IsNot && npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Unique)) { subAttributeMatched = false; }
                         }
                         break;
+                    case NPCAttributeType.Mod:
+                        var modAttribute = (NPCAttributeMod)subAttribute;
+                        switch(modAttribute.ModActionType)
+                        {
+                            case ModAttributeEnum.From: 
+                                if (!ModKeyHashSetComparer.Contains(modAttribute.ModKeys, npc.FormKey.ModKey)) { subAttributeMatched = false; }
+                                break;
+                            case ModAttributeEnum.PatchedBy:
+                                var contexts = PatcherEnvironmentProvider.Instance.Environment.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npc.FormKey).Where(x => !x.ModKey.Equals(npc.FormKey.ModKey)); // contexts[0] is winning override. [Last] is source plugin. Omit the source plugin
+                                bool foundContext = false;
+                                foreach (var context in contexts)
+                                {
+                                    ModKeyHashSetComparer.Contains(modAttribute.ModKeys, context.ModKey) {  foundContext = true; break; }
+                                }
+                                if (!foundContext)
+                                {
+                                    subAttributeMatched = false;
+                                }
+                                break;
+                        }
+                        break;
                     case NPCAttributeType.NPC:
                         var npcAttribute = (NPCAttributeNPC)subAttribute;
                         if (!npcAttribute.FormKeys.Contains(npc.FormKey))

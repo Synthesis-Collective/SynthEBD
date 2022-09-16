@@ -49,6 +49,9 @@
                 <DataTemplate DataType="{x:Type local:VM_NPCAttributeMisc}">
                     <local:UC_NPCAttributeMisc/>
                 </DataTemplate>
+                <DataTemplate DataType="{x:Type local:VM_NPCAttributeMod}">
+                    <local:UC_NPCAttributeMod/>
+                </DataTemplate>
                 <DataTemplate DataType="{x:Type local:VM_NPCAttributeNPC}">
                     <local:UC_NPCAttributeNPC/>
                 </DataTemplate>
