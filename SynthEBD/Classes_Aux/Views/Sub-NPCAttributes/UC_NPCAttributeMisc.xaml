@@ -31,22 +31,22 @@
             <ColumnDefinition Width="auto"/>
         </Grid.ColumnDefinitions>
 
-        <ComboBox Grid.Row="0" Grid.Column="0" SelectedValue="{Binding Type}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ThreeWayState}}}" SelectedItem="{Binding Unique}" IsSynchronizedWithCurrentItem="True"/>
+        <ComboBox Grid.Row="0" Grid.Column="0" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ThreeWayState}}}" SelectedItem="{Binding Unique}" IsSynchronizedWithCurrentItem="True"/>
         <TextBlock Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Text="Unique"/>
 
-        <ComboBox Grid.Row="1" Grid.Column="0" SelectedValue="{Binding Type}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ThreeWayState}}}" SelectedItem="{Binding Protected}" IsSynchronizedWithCurrentItem="True"/>
+        <ComboBox Grid.Row="1" Grid.Column="0" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ThreeWayState}}}" SelectedItem="{Binding Protected}" IsSynchronizedWithCurrentItem="True"/>
         <TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Text="Protected"/>
 
-        <ComboBox Grid.Row="2" Grid.Column="0" SelectedValue="{Binding Type}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ThreeWayState}}}" SelectedItem="{Binding Essential}" IsSynchronizedWithCurrentItem="True"/>
+        <ComboBox Grid.Row="2" Grid.Column="0" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ThreeWayState}}}" SelectedItem="{Binding Essential}" IsSynchronizedWithCurrentItem="True"/>
         <TextBlock Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" Text="Essential"/>
 
-        <ComboBox Grid.Row="3" Grid.Column="0" SelectedValue="{Binding Type}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ThreeWayState}}}" SelectedItem="{Binding Invulnerable}" IsSynchronizedWithCurrentItem="True"/>
+        <ComboBox Grid.Row="3" Grid.Column="0" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ThreeWayState}}}" SelectedItem="{Binding Invulnerable}" IsSynchronizedWithCurrentItem="True"/>
         <TextBlock Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" Text="Invulnerable"/>
 
-        <ComboBox Grid.Row="4" Grid.Column="0" SelectedValue="{Binding Type}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ThreeWayState}}}" SelectedItem="{Binding Summonable}" IsSynchronizedWithCurrentItem="True"/>
+        <ComboBox Grid.Row="4" Grid.Column="0" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ThreeWayState}}}" SelectedItem="{Binding Summonable}" IsSynchronizedWithCurrentItem="True"/>
         <TextBlock Grid.Row="4" Grid.Column="1" VerticalAlignment="Center" Text="Summonable"/>
 
-        <ComboBox Grid.Row="5" Grid.Column="0" SelectedValue="{Binding Type}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ThreeWayState}}}" SelectedItem="{Binding Ghost}" IsSynchronizedWithCurrentItem="True"/>
+        <ComboBox Grid.Row="5" Grid.Column="0" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ThreeWayState}}}" SelectedItem="{Binding Ghost}" IsSynchronizedWithCurrentItem="True"/>
         <TextBlock Grid.Row="5" Grid.Column="1" VerticalAlignment="Center" Text="Ghost"/>
 
         <TextBlock Grid.Row="6" Grid.Column="0" VerticalAlignment="Center" Text="Aggression"/>
