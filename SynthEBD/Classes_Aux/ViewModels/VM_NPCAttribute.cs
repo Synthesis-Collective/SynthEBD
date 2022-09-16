@@ -697,9 +697,9 @@ public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
     }
-    
-    public ObservableCollection<ModKey> ModKeys { get; set; }
-    public ModAttributeEnum ModActionType { get; set; }
+
+    public ObservableCollection<ModKey> ModKeys { get; set; } = new();
+    public ModAttributeEnum ModActionType { get; set; } = ModAttributeEnum.PatchedBy;
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
