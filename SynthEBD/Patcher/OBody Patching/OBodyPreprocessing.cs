@@ -1,29 +1,9 @@
-﻿using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
 public class OBodyPreprocessing
 {
-    public static void FlattenGroupAttributes(Settings_OBody oBodySettings)
-    {
-        foreach (var preset in oBodySettings.BodySlidesMale)
-        {
-            preset.AllowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(preset.AllowedAttributes, oBodySettings.AttributeGroups);
-            preset.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(preset.DisallowedAttributes, oBodySettings.AttributeGroups);
-        }
-        foreach (var preset in oBodySettings.BodySlidesFemale)
-        {
-            preset.AllowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(preset.AllowedAttributes, oBodySettings.AttributeGroups);
-            preset.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(preset.DisallowedAttributes, oBodySettings.AttributeGroups);
-        }
-
-        foreach (var descriptor in oBodySettings.TemplateDescriptors)
-        {
-            descriptor.AssociatedRules.AllowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(descriptor.AssociatedRules.AllowedAttributes, oBodySettings.AttributeGroups);
-            descriptor.AssociatedRules.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(descriptor.AssociatedRules.DisallowedAttributes, oBodySettings.AttributeGroups);
-        }
-    }
-
     public static void CompilePresetRaces(Settings_OBody oBodySettings)
     {
         foreach (var preset in oBodySettings.BodySlidesMale)

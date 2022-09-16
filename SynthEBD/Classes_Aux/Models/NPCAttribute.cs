@@ -30,50 +30,14 @@ public class NPCAttribute
         return true;
     }
 
-    #region Group-Type Attribute Manipulation
-    public static HashSet<NPCAttribute> SpreadGroupTypeAttributes(HashSet<NPCAttribute> attributeList, HashSet<AttributeGroup> groupDefinitions)
-    {
-        HashSet<NPCAttribute> output = new HashSet<NPCAttribute>();
-
-        foreach (var att in attributeList)
-        {
-            var groupAttributes = att.SubAttributes.Where(x => x.Type == NPCAttributeType.Group).ToHashSet();
-            if (!groupAttributes.Any())
-            {
-                output.Add(att);
-            }
-
-            var additionalSubAttributes = att.SubAttributes.Where(x => x.Type != NPCAttributeType.Group).ToHashSet(); // to be merged into output attributes
-
-            foreach (var IGroup in groupAttributes)
-            {
-                var group = (NPCAttributeGroup)IGroup;
-                foreach (var label in group.SelectedLabels)
-                {
-                    var subattributesFromGroup = GetGroupedAttributesByLabel(label, groupDefinitions, group.ForceMode);
-
-                    foreach (var subAtt in subattributesFromGroup)
-                    {
-                        var newAttribute = new NPCAttribute();
-                        newAttribute.SubAttributes.UnionWith(additionalSubAttributes);
-                        newAttribute.SubAttributes.Add(subAtt);
-                        output.Add(newAttribute);
-                    }
-                }
-            }
-        }
-
-        return output;
-    }
-
-    public static HashSet<ITypedNPCAttribute> GetGroupedAttributesByLabel(string label, HashSet<AttributeGroup> groupDefinitions, AttributeForcing groupForceMode)
+    public static AttributeGroup GetAttributeGroupByLabel(string label, HashSet<AttributeGroup> groupDefinitions)
     {
         if (PatcherSettings.General.OverwritePluginAttGroups)
         {
             var matchedMainGroup = PatcherSettings.General.AttributeGroups.Where(x => x.Label == label).FirstOrDefault();
             if (matchedMainGroup != null)
             {
-                return GetGroupedAttributesFromGroup(matchedMainGroup, groupDefinitions, groupForceMode);
+                return matchedMainGroup;
             }
         }
 
@@ -81,37 +45,11 @@ public class NPCAttribute
         var matchedPluginGroup = groupDefinitions.Where(x => x.Label == label).FirstOrDefault();
         if (matchedPluginGroup != null)
         {
-            return GetGroupedAttributesFromGroup(matchedPluginGroup, groupDefinitions, groupForceMode);
+            return matchedPluginGroup;
         }
-        return new HashSet<ITypedNPCAttribute>();
+        Logger.LogMessage("Could not find Attribute Group " + label + " in any group definition");
+        return null;
     }
-
-    public static HashSet<ITypedNPCAttribute> GetGroupedAttributesFromGroup(AttributeGroup group, HashSet<AttributeGroup> groupDefinitions, AttributeForcing groupForceMode)
-    {
-        HashSet<ITypedNPCAttribute> outputs = new HashSet<ITypedNPCAttribute>();
-        foreach (var attribute in group.Attributes)
-        {
-            foreach (var subAttribute in attribute.SubAttributes)
-            {
-                if (subAttribute.Type == NPCAttributeType.Group)
-                {
-                    var subGroup = (NPCAttributeGroup)subAttribute;
-                    foreach (var subLabel in subGroup.SelectedLabels)
-                    {
-                        outputs.UnionWith(GetGroupedAttributesByLabel(subLabel, groupDefinitions, groupForceMode));
-                    }
-                }
-                else
-                {
-                    var clonedSubAttribute = CloneAsNew(subAttribute);
-                    clonedSubAttribute.ForceMode = groupForceMode;
-                    outputs.Add(clonedSubAttribute);
-                }
-            }
-        }
-        return outputs;
-    }
-    #endregion
 
     public static NPCAttribute CloneAsNew(NPCAttribute input)
     {

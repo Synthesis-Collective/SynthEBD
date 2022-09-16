@@ -391,7 +391,7 @@ public class BodyGenSelector
 
         // Allowed and Forced Attributes
         candidateMorph.MatchedForceIfCount = 0;
-        AttributeMatcher.MatchNPCtoAttributeList(candidateMorph.AllowedAttributes, npcInfo.NPC, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog);
+        AttributeMatcher.MatchNPCtoAttributeList(candidateMorph.AllowedAttributes, npcInfo.NPC, bodyGenConfig.AttributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog);
         if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
             Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedLog, false, npcInfo);
@@ -408,7 +408,7 @@ public class BodyGenSelector
         }
 
         // Disallowed Attributes
-        AttributeMatcher.MatchNPCtoAttributeList(candidateMorph.DisallowedAttributes, npcInfo.NPC, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _);
+        AttributeMatcher.MatchNPCtoAttributeList(candidateMorph.DisallowedAttributes, npcInfo.NPC, bodyGenConfig.AttributeGroups, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _);
         if (hasAttributeRestrictions && matchesAttributeRestrictions)
         {
             Logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog, false, npcInfo);
@@ -421,7 +421,7 @@ public class BodyGenSelector
             var associatedDescriptor = bodyGenConfig.TemplateDescriptors.Where(x => x.ID.MapsTo(descriptorLabel)).FirstOrDefault();
             if (associatedDescriptor is not null)
             {
-                if (associatedDescriptor.PermitNPC(npcInfo, out string reportStr))
+                if (associatedDescriptor.PermitNPC(npcInfo, bodyGenConfig.AttributeGroups, out string reportStr))
                 {
                     if (associatedDescriptor.AssociatedRules.MatchedForceIfCount > 0)
                     {

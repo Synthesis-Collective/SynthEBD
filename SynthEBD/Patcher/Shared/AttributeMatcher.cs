@@ -16,7 +16,7 @@ public class AttributeMatcher
     /// <param name="matchesAttributeRestrictions">Output: Does the NPC match any attributes of type "Restrict" or "ForceIfAndRestrict"</param>
     /// <param name="matchedForceIfAttributeWeightedCount">"Output: Cumulative weighting of matched ForceIf attributes"</param>
     /// <param name="matchLog">"Output: Log of Matched/Unmatched Attributes (depending on logType)</param>
-    public static void MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog)
+    public static void MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, HashSet<AttributeGroup> attributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog)
     {
         hasAttributeRestrictions = false;
         matchesAttributeRestrictions = false;
@@ -25,6 +25,7 @@ public class AttributeMatcher
         unmatchedLog = string.Empty;
         forceIfLog = string.Empty;
         if (attributeList.Count == 0) { return; }
+        int groupWeightingMultiplier = 1;
 
         foreach (var attribute in attributeList)
         {
@@ -33,6 +34,7 @@ public class AttributeMatcher
             foreach (var subAttribute in attribute.SubAttributes)
             {
                 if (subAttribute.ForceMode != AttributeForcing.ForceIf) { hasAttributeRestrictions = true; }
+                groupWeightingMultiplier = 1;
 
                 switch(subAttribute.Type)
                 {
@@ -76,6 +78,29 @@ public class AttributeMatcher
                         if (!faceTextureAttribute.FormKeys.Contains(npc.HeadTexture.FormKey))
                         {
                             subAttributeMatched = false;
+                        }
+                        break;
+                    case NPCAttributeType.Group:
+                        var groupAttribute = (NPCAttributeGroup)subAttribute;
+                        foreach (string selectedGroup in groupAttribute.SelectedLabels)
+                        {
+                            var attributeGroup = NPCAttribute.GetAttributeGroupByLabel(selectedGroup, attributeGroups);
+                            if (attributeGroup == null)
+                            {
+                                subAttributeMatched = false;
+                            }
+                            else
+                            {
+                                MatchNPCtoAttributeList(attributeGroup.Attributes, npc, attributeGroups, out _, out bool groupMatched, out int groupForceIfCount, out _, out _, out _);
+                                if (groupMatched)
+                                {
+                                    groupWeightingMultiplier = groupForceIfCount;
+                                }
+                                else
+                                {
+                                    subAttributeMatched = false;
+                                }
+                            }
                         }
                         break;
                     case NPCAttributeType.Misc:
@@ -167,7 +192,7 @@ public class AttributeMatcher
                 }
                 else if (subAttributeMatched && (subAttribute.ForceMode == AttributeForcing.ForceIf || subAttribute.ForceMode == AttributeForcing.ForceIfAndRestrict)) 
                 { 
-                    currentAttributeForceIfWeight += subAttribute.Weighting; 
+                    currentAttributeForceIfWeight += subAttribute.Weighting * groupWeightingMultiplier; 
                 }
             }
 

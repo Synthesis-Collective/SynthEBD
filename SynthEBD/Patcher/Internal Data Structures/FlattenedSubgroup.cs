@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using static SynthEBD.AssetPack;
 
 namespace SynthEBD;
@@ -17,11 +17,6 @@ public class FlattenedSubgroup : IProbabilityWeighted
         this.AllowedRaces = AllowedDisallowedCombiners.TrimDisallowedRacesFromAllowed(this.AllowedRaces, this.DisallowedRaces);
         this.AllowedAttributes = new HashSet<NPCAttribute>(template.AllowedAttributes);
         this.DisallowedAttributes = new HashSet<NPCAttribute>(template.DisallowedAttributes);
-
-        // replace Grouped attributes (if any) with their corresponding group members
-        this.AllowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(this.AllowedAttributes, parent.Source.AttributeGroups);
-        this.DisallowedAttributes = NPCAttribute.SpreadGroupTypeAttributes(this.DisallowedAttributes, parent.Source.AttributeGroups);
-
         this.AllowUnique = template.AllowUnique;
         this.AllowNonUnique = template.AllowNonUnique;
         this.RequiredSubgroupIDs = DictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.RequiredSubgroups, subgroupHierarchy);
