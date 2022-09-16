@@ -25,45 +25,52 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <ListBox Grid.Row="0" Grid.Column="0" SelectedValue="{Binding Type}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:NPCAttributeType}}}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="#5844b4">
-            <i:Interaction.Triggers>
-                <i:EventTrigger EventName="SelectionChanged">
-                    <i:InvokeCommandAction Command="{Binding ChangeType}" />
-                </i:EventTrigger>
-            </i:Interaction.Triggers>
-        </ListBox>
-        <ContentPresenter Content="{Binding Attribute}" Grid.Row="0" Grid.Column="1" Margin="10, 0, 0, 0">
-            <ContentPresenter.Resources>
-                <DataTemplate DataType="{x:Type local:VM_NPCAttributeClass}">
-                    <local:UC_NPCAttributeClass/>
-                </DataTemplate>
-                <DataTemplate DataType="{x:Type local:VM_NPCAttributeCustom}">
-                    <local:UC_NPCAttributeCustom/>
-                </DataTemplate>
-                <DataTemplate DataType="{x:Type local:VM_NPCAttributeFaceTexture}">
-                    <local:UC_NPCAttributeFaceTexture/>
-                </DataTemplate>
-                <DataTemplate DataType="{x:Type local:VM_NPCAttributeFactions}">
-                    <local:UC_NPCAttributeFactions/>
-                </DataTemplate>
-                <DataTemplate DataType="{x:Type local:VM_NPCAttributeMisc}">
-                    <local:UC_NPCAttributeMisc/>
-                </DataTemplate>
-                <DataTemplate DataType="{x:Type local:VM_NPCAttributeNPC}">
-                    <local:UC_NPCAttributeNPC/>
-                </DataTemplate>
-                <DataTemplate DataType="{x:Type local:VM_NPCAttributeRace}">
-                    <local:UC_NPCAttributeRace/>
-                </DataTemplate>
-                <DataTemplate DataType="{x:Type local:VM_NPCAttributeVoiceType}">
-                    <local:UC_NPCAttributeVoiceType/>
-                </DataTemplate>
-                <DataTemplate DataType="{x:Type local:VM_NPCAttributeGroup}">
-                    <local:UC_NPCAttributeGroup/>
-                </DataTemplate>
-            </ContentPresenter.Resources>
-        </ContentPresenter>
-
+        <ScrollViewer Grid.Row="0" Grid.Column="0" MaxHeight="175">
+            <ListBox SelectedValue="{Binding Type}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:NPCAttributeType}}}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="#5844b4">
+                <i:Interaction.Triggers>
+                    <i:EventTrigger EventName="SelectionChanged">
+                        <i:InvokeCommandAction Command="{Binding ChangeType}" />
+                    </i:EventTrigger>
+                </i:Interaction.Triggers>
+            </ListBox>
+        </ScrollViewer>
+        <ScrollViewer Grid.Row="0" Grid.Column="1" MaxHeight="175">
+            <ContentPresenter Content="{Binding Attribute}" Margin="10, 0, 0, 0">
+                <ContentPresenter.Resources>
+                    <DataTemplate DataType="{x:Type local:VM_NPCAttributeClass}">
+                        <local:UC_NPCAttributeClass/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type local:VM_NPCAttributeCustom}">
+                        <local:UC_NPCAttributeCustom/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type local:VM_NPCAttributeFaceTexture}">
+                        <local:UC_NPCAttributeFaceTexture/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type local:VM_NPCAttributeFactions}">
+                        <local:UC_NPCAttributeFactions/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type local:VM_NPCAttributeMisc}">
+                        <local:UC_NPCAttributeMisc/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type local:VM_NPCAttributeMod}">
+                        <local:UC_NPCAttributeMod/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type local:VM_NPCAttributeNPC}">
+                        <local:UC_NPCAttributeNPC/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type local:VM_NPCAttributeRace}">
+                        <local:UC_NPCAttributeRace/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type local:VM_NPCAttributeVoiceType}">
+                        <local:UC_NPCAttributeVoiceType/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type local:VM_NPCAttributeGroup}">
+                        <local:UC_NPCAttributeGroup/>
+                    </DataTemplate>
+                </ContentPresenter.Resources>
+            </ContentPresenter>
+        </ScrollViewer>
+        
         <Button Grid.Row="1" Grid.Column="1" Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AddAdditionalSubAttributeToParent}" Foreground="Lightgreen">AND</Button>
         <Button Grid.Row="0" Grid.Column="2" Width="75" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}" Foreground="Firebrick">
             <TextBlock FontSize="11">Remove<LineBreak/>Sub-Attribute</TextBlock>

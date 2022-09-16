@@ -89,6 +89,7 @@ public class JSONhandler<T>
                 case "Faction": return jo.ToObject<NPCAttributeFactions>(serializer);
                 case "Group": return jo.ToObject<NPCAttributeGroup>(serializer);
                 case "Misc": return jo.ToObject<NPCAttributeMisc>(serializer);
+                case "Mod": return jo.ToObject<NPCAttributeMod>(serializer);
                 case "NPC": return jo.ToObject<NPCAttributeNPC>(serializer);
                 case "Race": return jo.ToObject<NPCAttributeRace>(serializer);
                 case "VoiceType": return jo.ToObject<NPCAttributeVoiceType>(serializer);

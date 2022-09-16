@@ -80,6 +80,7 @@ public class VM_NPCAttribute : VM
                 case NPCAttributeType.Faction: shellVM.Attribute = VM_NPCAttributeFactions.GetViewModelFromModel((NPCAttributeFactions)attributeShellModel, viewModel, shellVM); break;
                 case NPCAttributeType.FaceTexture: shellVM.Attribute = VM_NPCAttributeFaceTexture.GetViewModelFromModel((NPCAttributeFaceTexture)attributeShellModel, viewModel, shellVM); break;
                 case NPCAttributeType.Misc: shellVM.Attribute = VM_NPCAttributeMisc.getViewModelFromModel((NPCAttributeMisc)attributeShellModel, viewModel, shellVM); break;
+                case NPCAttributeType.Mod: shellVM.Attribute = VM_NPCAttributeMod.getViewModelFromModel((NPCAttributeMod)attributeShellModel, viewModel, shellVM); break;
                 case NPCAttributeType.NPC: shellVM.Attribute = VM_NPCAttributeNPC.getViewModelFromModel((NPCAttributeNPC)attributeShellModel, viewModel, shellVM); break;
                 case NPCAttributeType.Race: shellVM.Attribute = VM_NPCAttributeRace.getViewModelFromModel((NPCAttributeRace)attributeShellModel, viewModel, shellVM); break;
                 case NPCAttributeType.VoiceType: shellVM.Attribute = VM_NPCAttributeVoiceType.GetViewModelFromModel((NPCAttributeVoiceType)attributeShellModel, viewModel, shellVM); break;
@@ -119,6 +120,7 @@ public class VM_NPCAttribute : VM
                 case NPCAttributeType.FaceTexture: model.SubAttributes.Add(VM_NPCAttributeFaceTexture.DumpViewModelToModel((VM_NPCAttributeFaceTexture)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
                 case NPCAttributeType.Group: model.SubAttributes.Add(VM_NPCAttributeGroup.DumpViewModelToModel((VM_NPCAttributeGroup)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
                 case NPCAttributeType.Misc: model.SubAttributes.Add(VM_NPCAttributeMisc.DumpViewModelToModel((VM_NPCAttributeMisc)subAttVM.Attribute,subAttVM.ForceModeStr)); break;
+                case NPCAttributeType.Mod: model.SubAttributes.Add(VM_NPCAttributeMod.DumpViewModelToModel((VM_NPCAttributeMod)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
                 case NPCAttributeType.NPC: model.SubAttributes.Add(VM_NPCAttributeNPC.DumpViewModelToModel((VM_NPCAttributeNPC)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
                 case NPCAttributeType.Race: model.SubAttributes.Add(VM_NPCAttributeRace.DumpViewModelToModel((VM_NPCAttributeRace)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
                 case NPCAttributeType.VoiceType: model.SubAttributes.Add(VM_NPCAttributeVoiceType.DumpViewModelToModel((VM_NPCAttributeVoiceType)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
@@ -199,6 +201,7 @@ public class VM_NPCAttributeShell : VM
         { NPCAttributeType.Faction, null },
         { NPCAttributeType.Group, null },
         { NPCAttributeType.Misc, null },
+        { NPCAttributeType.Mod, null },
         { NPCAttributeType.NPC, null },
         { NPCAttributeType.Race, null },
         { NPCAttributeType.VoiceType, null }
@@ -220,9 +223,11 @@ public class VM_NPCAttributeShell : VM
                 case NPCAttributeType.Faction: this.Attribute = new VM_NPCAttributeFactions(parentVM, this); break;
                 case NPCAttributeType.Group: this.Attribute = new VM_NPCAttributeGroup(parentVM, this, attributeGroups); break;
                 case NPCAttributeType.Misc: this.Attribute = new VM_NPCAttributeMisc(parentVM, this); break;
+                case NPCAttributeType.Mod: this.Attribute = new VM_NPCAttributeMod(parentVM, this); break;
                 case NPCAttributeType.NPC: this.Attribute = new VM_NPCAttributeNPC(parentVM, this); break;
                 case NPCAttributeType.Race: this.Attribute = new VM_NPCAttributeRace(parentVM, this); break;
                 case NPCAttributeType.VoiceType: this.Attribute = new VM_NPCAttributeVoiceType(parentVM, this); break;
+                default: throw new NotImplementedException();
             }
             InitializedVMcache[type] = this.Attribute;
         }
@@ -676,6 +681,54 @@ public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
         model.Aggression = viewModel.Aggression;
         model.EvalGender = viewModel.EvalGender;
         model.NPCGender = viewModel.NPCGender;
+        model.Weighting = viewModel.ParentShell.ForceIfWeight;
+        return model;
+    }
+}
+
+public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
+{
+    public VM_NPCAttributeMod(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+    {
+        this.ParentVM = parentVM;
+        this.ParentShell = parentShell;
+
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            .Subscribe(x => lk = x)
+            .DisposeWith(this);
+
+        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LoadOrder)
+            .Subscribe(x => LoadOrder = x)
+            .DisposeWith(this);
+
+        DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
+    }
+
+    public ObservableCollection<ModKey> ModKeys { get; set; } = new();
+    public ModAttributeEnum ModActionType { get; set; } = ModAttributeEnum.PatchedBy;
+    public VM_NPCAttribute ParentVM { get; set; }
+    public VM_NPCAttributeShell ParentShell { get; set; }
+    public RelayCommand DeleteCommand { get; }
+    public ILinkCache lk { get; private set; }
+    public Mutagen.Bethesda.Plugins.Order.ILoadOrder<Mutagen.Bethesda.Plugins.Order.IModListing<ISkyrimModGetter>> LoadOrder { get; private set; }
+
+    public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
+    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+
+    public static VM_NPCAttributeMod getViewModelFromModel(NPCAttributeMod model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+    {
+        var newAtt = new VM_NPCAttributeMod(parentVM, parentShell);
+        newAtt.ModKeys = new(model.ModKeys);
+        newAtt.ModActionType = model.ModActionType;
+        parentShell.ForceIfWeight = model.Weighting;
+        return newAtt;
+    }
+    public static NPCAttributeMod DumpViewModelToModel(VM_NPCAttributeMod viewModel, string forceModeStr)
+    {
+        var model = new NPCAttributeMod();
+        model.ModKeys = viewModel.ModKeys.ToHashSet();
+        model.ModActionType = viewModel.ModActionType;
+        model.Weighting = viewModel.ParentShell.ForceIfWeight;
         return model;
     }
 }
