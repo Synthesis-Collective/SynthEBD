@@ -127,7 +127,7 @@ public class AttributeMatcher
                                 bool foundContext = false;
                                 foreach (var context in contexts)
                                 {
-                                    ModKeyHashSetComparer.Contains(modAttribute.ModKeys, context.ModKey) {  foundContext = true; break; }
+                                    if (ModKeyHashSetComparer.Contains(modAttribute.ModKeys, context.ModKey)) {  foundContext = true; break; }
                                 }
                                 if (!foundContext)
                                 {
