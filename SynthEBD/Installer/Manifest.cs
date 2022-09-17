@@ -1,9 +1,9 @@
-﻿namespace SynthEBD;
+namespace SynthEBD;
 
 public class Manifest
 {
     public string ConfigName { get; set; } = "New Config";
-    public string ConfigDescription { get; set; } = "";
+    public string ConfigDescription { get; set; } = string.Empty;
     public string DestinationModFolder { get; set; } = "Top Level Folder";
     public string ConfigPrefix { get; set; } = "Prefix";
     public Dictionary<string, string> FileExtensionMap { get; set; } = new(StringComparer.InvariantCultureIgnoreCase) { { "nif", "meshes" }, { "tri", "meshes" }, { "dds", "textures" } };
@@ -11,8 +11,9 @@ public class Manifest
     public HashSet<string> RecordTemplatePaths { get; set; } = new();
     public HashSet<string> BodyGenConfigPaths { get; set; } = new();
     public HashSet<DownloadInfoContainer> DownloadInfo { get; set; } = new();
-    public string OptionsDescription { get; set; } = "";
+    public string OptionsDescription { get; set; } = string.Empty;
     public HashSet<Option> Options { get; set; } = new();
+    public string InstallationMessage { get; set; } = string.Empty;
 
     public class Option
     {

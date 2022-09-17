@@ -68,6 +68,17 @@ public class VM_SettingsTexMesh : VM
             }
         );
 
+        CreateConfigArchive = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                var packagerWindow = new Window_ConfigPackager();
+                var packagerVM = new VM_Manifest();
+                packagerWindow.DataContext = packagerVM;
+                packagerWindow.ShowDialog();
+            }
+        );
+
         InstallFromArchive = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -150,6 +161,7 @@ public class VM_SettingsTexMesh : VM
     public RelayCommand AddNewAssetPackConfigFile { get; }
     public RelayCommand InstallFromArchive { get; }
     public RelayCommand InstallFromJson { get; }
+    public RelayCommand CreateConfigArchive { get; }
     public RelayCommand SplitScreenToggle { get; }
     public string LastViewedAssetPackName { get; set; }
     public bool bShowSecondaryAssetPack { get; set; } = false;

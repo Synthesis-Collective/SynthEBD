@@ -1,0 +1,95 @@
+<UserControl x:Class="SynthEBD.UC_PackagerOption"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:SynthEBD"
+             d:DataContext="{d:DesignInstance Type=local:VM_PackagerOption}"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Name: " VerticalAlignment="Center" Foreground="White" ToolTip="The name of this installer branch" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name}" Foreground="LightBlue"/>
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Description: " VerticalAlignment="Center" Foreground="White" ToolTip="Brief description of this branch" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Description}" Foreground="LightBlue"/>
+
+        <TextBlock Grid.Row="5" Grid.Column="0" Text="Destination Folder Name: " VerticalAlignment="Center" Foreground="White" ToolTip="Name of the folder within MO2\mods or Vortex Staging Folder created by this config installer (will overwrite parent if not blank)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+        <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding DestinationModFolder}" Foreground="LightBlue"/>
+
+        <TextBlock Grid.Row="5" Grid.Column="0" Text="Sub-Options Prompt: " VerticalAlignment="Center" Foreground="White" ToolTip="Prompt to display in installer to help user choose between this option's sub-options" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+        <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding OptionsDescription}" Foreground="LightBlue"/>
+
+        <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal">
+            <TextBlock Text="Asset Config Files: " VerticalAlignment="Center" Foreground="White" ToolTip="Asset config files to install if user selects this option" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <Button Command="{Binding AddAssetConfigFile}" Foreground="LightGreen" HorizontalAlignment="Right">+</Button>
+        </StackPanel>
+        <ItemsControl Grid.Row="2" Grid.Column="0" ItemsSource="{Binding AssetPackPaths, UpdateSourceTrigger=Default}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                        <Button VerticalAlignment="Center" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.FindJSONFile}" CommandParameter="{Binding}" Foreground="LightGreen">Select</Button>
+                        <local:UC_CollectionMemberStringDecorated DataContext="{Binding}"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal">
+            <TextBlock Text="BodyGen Config Files: " VerticalAlignment="Center" Foreground="White" ToolTip="BodyGen config files to install if user selects this option" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <Button Command="{Binding AddBodyGenConfigFile}" Foreground="LightGreen" HorizontalAlignment="Right">+</Button>
+        </StackPanel>
+        <ItemsControl Grid.Row="2" Grid.Column="0" ItemsSource="{Binding BodyGenConfigPaths, UpdateSourceTrigger=Default}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                        <Button VerticalAlignment="Center" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.FindJSONFile}" CommandParameter="{Binding}" Foreground="LightGreen">Select</Button>
+                        <local:UC_CollectionMemberStringDecorated DataContext="{Binding}"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <StackPanel Grid.Row="3" Grid.Column="0" Orientation="Horizontal">
+            <TextBlock Text="Record Template Plugins: " VerticalAlignment="Center" Foreground="White" ToolTip="Additional record template plugin files to install if user selects this option" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <Button Command="{Binding AddRecordTemplateFile}" Foreground="LightGreen" HorizontalAlignment="Right">+</Button>
+        </StackPanel>
+        <ItemsControl Grid.Row="3" Grid.Column="0" ItemsSource="{Binding AssetPackPaths, UpdateSourceTrigger=Default}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                        <Button VerticalAlignment="Center" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.FindPluginFile}" CommandParameter="{Binding}" Foreground="LightGreen">Select</Button>
+                        <local:UC_CollectionMemberStringDecorated DataContext="{Binding}"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Horizontal">
+            <TextBlock Text="Mod Downloads: " VerticalAlignment="Center" Foreground="White" ToolTip="Mods the user must download if this option is selected" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <Button Command="{Binding AddDownloadInfo}" Foreground="LightGreen" HorizontalAlignment="Right">+</Button>
+        </StackPanel>
+        <ItemsControl Grid.Row="4" Grid.Column="0" ItemsSource="{Binding DownloadInfo, UpdateSourceTrigger=Default}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                        <local:UC_DownloadInfoContainer DataContext="{Binding}"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </Grid>
+</UserControl>
