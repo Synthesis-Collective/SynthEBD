@@ -1,11 +1,10 @@
-﻿namespace SynthEBD;
+namespace SynthEBD;
 
 public class VM_ConfigInstaller : VM
 {
     public VM_ConfigInstaller(Manifest manifest, Window_ConfigInstaller window)
     {
         SelectorMenu = new VM_ConfigSelector(manifest, window, this);
-        SelectorMenu.SelectedOption = SelectorMenu; // shows the top-level choices
         DisplayedViewModel = SelectorMenu;
     }
     public Window_ConfigInstaller Window { get; set; }

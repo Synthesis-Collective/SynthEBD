@@ -11,8 +11,7 @@ public class Manifest
     public HashSet<string> RecordTemplatePaths { get; set; } = new();
     public HashSet<string> BodyGenConfigPaths { get; set; } = new();
     public HashSet<DownloadInfoContainer> DownloadInfo { get; set; } = new();
-    public string OptionsDescription { get; set; } = string.Empty;
-    public HashSet<Option> Options { get; set; } = new();
+    public List<Option> Options { get; set; } = new();
     public string InstallationMessage { get; set; } = string.Empty;
 
     public class Option
@@ -23,8 +22,9 @@ public class Manifest
         public HashSet<string> RecordTemplatePaths { get; set; } = new();
         public HashSet<string> BodyGenConfigPaths { get; set; } = new();
         public HashSet<DownloadInfoContainer> DownloadInfo { get; set; } = new();
+        public Dictionary<string, string> FileExtensionMap { get; set; } = new(StringComparer.InvariantCultureIgnoreCase) { { "nif", "meshes" }, { "tri", "meshes" }, { "dds", "textures" } };
         public string OptionsDescription { get; set; } = "";
-        public HashSet<Option> Options { get; set; } = new();
+        public List<Option> Options { get; set; } = new();
         public string DestinationModFolder { get; set; } = ""; // overwrites main if populated
     }
 
