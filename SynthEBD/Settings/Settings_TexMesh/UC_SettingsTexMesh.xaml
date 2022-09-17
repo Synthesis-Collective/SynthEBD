@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SynthEBD.UC_SettingsTexMesh"
+<UserControl x:Class="SynthEBD.UC_SettingsTexMesh"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -133,11 +133,12 @@
 
                 <local:UC_AssetPresenter Background="Black" BorderBrush="MediumAquamarine" BorderThickness="1" DataContext="{Binding AssetPresenterSecondary}" Grid.Column="1" Grid.Row="1" Margin="5 0 0 0" Visibility="{Binding Path = ParentUI.bShowSecondaryAssetPack, Converter={StaticResource BoolToVis}}" />
             </Grid>
-            
+
             <StackPanel Grid.Column="0" Grid.Row="14" Orientation="Horizontal" Grid.ColumnSpan="2">
-                <Button Command="{Binding AddNewAssetPackConfigFile}" Foreground="LightGreen" Margin="5" ToolTip="Create your own blank config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Create New Config File</Button>
                 <Button Command="{Binding InstallFromArchive}" Foreground="LightGreen" Margin="5" ToolTip="Install a config plugin from a SynthEBD installer archive (recommended)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Install Config from Archive</Button>
                 <Button Command="{Binding InstallFromJson}" Foreground="YellowGreen" Margin="5" ToolTip="Install a config plugin file from a loose .json file (not recommended)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Install Config Json File</Button>
+                <Button Command="{Binding AddNewAssetPackConfigFile}" Foreground="LightGreen" Margin="5" ToolTip="Create your own blank config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Create New Config File</Button>
+                <Button Command="{Binding CreateConfigArchive}" Foreground="LightGreen" Margin="5" ToolTip="Package your config file(s) into an installer archive" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Package Config File(s)</Button>
             </StackPanel>
         </Grid>
     </ScrollViewer>
