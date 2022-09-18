@@ -16,7 +16,8 @@ public class AttributeMatcher
     /// <param name="matchesAttributeRestrictions">Output: Does the NPC match any attributes of type "Restrict" or "ForceIfAndRestrict"</param>
     /// <param name="matchedForceIfAttributeWeightedCount">"Output: Cumulative weighting of matched ForceIf attributes"</param>
     /// <param name="matchLog">"Output: Log of Matched/Unmatched Attributes (depending on logType)</param>
-    public static void MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, HashSet<AttributeGroup> attributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog)
+    /// <param name="overrideForceIf">"overrideForceIf: if not null, overrides the AttributeForcing on all sub-attributes (allows Group type attributes to forward its own forcing to recursive calls)</param>
+    public static void MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, HashSet<AttributeGroup> attributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog, AttributeForcing? overrideForceIf)
     {
         hasAttributeRestrictions = false;
         matchesAttributeRestrictions = false;
@@ -26,6 +27,8 @@ public class AttributeMatcher
         forceIfLog = string.Empty;
         if (attributeList.Count == 0) { return; }
         int groupWeightingMultiplier = 1;
+
+        bool forceIfFromOverride = overrideForceIf != null && (overrideForceIf.Value == AttributeForcing.ForceIf || overrideForceIf.Value == AttributeForcing.ForceIfAndRestrict);
 
         foreach (var attribute in attributeList)
         {
@@ -91,7 +94,8 @@ public class AttributeMatcher
                             }
                             else
                             {
-                                MatchNPCtoAttributeList(attributeGroup.Attributes, npc, attributeGroups, out _, out bool groupMatched, out int groupForceIfCount, out _, out _, out _);
+                                var recursiveForceMode = overrideForceIf ?? subAttribute.ForceMode;
+                                MatchNPCtoAttributeList(attributeGroup.Attributes, npc, attributeGroups, out _, out bool groupMatched, out int groupForceIfCount, out _, out _, out _, recursiveForceMode);
                                 if (groupMatched)
                                 {
                                     groupWeightingMultiplier = groupForceIfCount;
@@ -184,13 +188,13 @@ public class AttributeMatcher
                         break;
                 }
 
-                if (!subAttributeMatched && subAttribute.ForceMode != AttributeForcing.ForceIf) //  "ForceIf" mode does not cause attribute to fail matching because it implies the user does not want this sub-attribute to restrict distribute (otherwise it would be ForceIfAndRestrict) 
+                if (!subAttributeMatched && subAttribute.ForceMode != AttributeForcing.ForceIf && (overrideForceIf == null || overrideForceIf.Value != AttributeForcing.ForceIf)) //  "ForceIf" mode does not cause attribute to fail matching because it implies the user does not want this sub-attribute to restrict distribute (otherwise it would be ForceIfAndRestrict) 
                 {
                     if (unmatchedLog.Any()) { unmatchedLog += " | "; }
                     unmatchedLog += subAttribute.ToLogString();
-                    break; 
+                    break; // stop evaluating sub-attributes if one sub-attribute isn't matched
                 }
-                else if (subAttributeMatched && (subAttribute.ForceMode == AttributeForcing.ForceIf || subAttribute.ForceMode == AttributeForcing.ForceIfAndRestrict)) 
+                else if (subAttributeMatched && (subAttribute.ForceMode == AttributeForcing.ForceIf || subAttribute.ForceMode == AttributeForcing.ForceIfAndRestrict || forceIfFromOverride)) 
                 { 
                     currentAttributeForceIfWeight += subAttribute.Weighting * groupWeightingMultiplier; 
                 }
