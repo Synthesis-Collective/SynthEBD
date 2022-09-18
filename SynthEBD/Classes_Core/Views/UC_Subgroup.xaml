@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SynthEBD.UC_Subgroup"
+<UserControl x:Class="SynthEBD.UC_Subgroup"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -64,26 +64,29 @@
         <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Descriptive name for this asset group (for display only)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Name</TextBlock>
         <TextBox Grid.Row="1" Grid.Column="1" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Name, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
-        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to distribute this subgroup" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Subgroup Distribution Enabled</TextBlock>
-        <CheckBox Grid.Row="2" Grid.Column="1" IsChecked="{Binding Path=Enabled, Mode=TwoWay}"></CheckBox>
+        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Notes about this subgroup (for information purposes only)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Notes</TextBlock>
+        <TextBox Grid.Row="2" Grid.Column="1" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Foreground="White" Text="{Binding Notes}" MaxHeight="50"/>
+        
+        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to distribute this subgroup" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Subgroup Distribution Enabled</TextBlock>
+        <CheckBox Grid.Row="3" Grid.Column="1" IsChecked="{Binding Path=Enabled, Mode=TwoWay}"></CheckBox>
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to distribute this subgroup to NPCs other than those specified via Specific NPC Assignments or ForceIf attributes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribute to non-forced NPCs</TextBlock>
-        <CheckBox Grid.Row="3" Grid.Column="1" IsChecked="{Binding Path=DistributionEnabled, Mode=TwoWay}"></CheckBox>
+        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to distribute this subgroup to NPCs other than those specified via Specific NPC Assignments or ForceIf attributes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribute to non-forced NPCs</TextBlock>
+        <CheckBox Grid.Row="4" Grid.Column="1" IsChecked="{Binding Path=DistributionEnabled, Mode=TwoWay}"></CheckBox>
 
-        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to distribute this subgroup to unique NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow Unique NPCs</TextBlock>
-        <CheckBox Grid.Row="4" Grid.Column="1" IsChecked="{Binding Path=AllowUnique, Mode=TwoWay}"></CheckBox>
+        <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to distribute this subgroup to unique NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow Unique NPCs</TextBlock>
+        <CheckBox Grid.Row="5" Grid.Column="1" IsChecked="{Binding Path=AllowUnique, Mode=TwoWay}"></CheckBox>
 
-        <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to distribute this subgroup to generic non-named NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow Non-Unique NPCs</TextBlock>
-        <CheckBox Grid.Row="5" Grid.Column="1" IsChecked="{Binding Path=AllowNonUnique, Mode=TwoWay}"></CheckBox>
+        <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to distribute this subgroup to generic non-named NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow Non-Unique NPCs</TextBlock>
+        <CheckBox Grid.Row="6" Grid.Column="1" IsChecked="{Binding Path=AllowNonUnique, Mode=TwoWay}"></CheckBox>
 
-        <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Likelihood of this subgroup being assigned compared to other subgroups" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribution Probability Weighting</TextBlock>
-        <TextBox Grid.Row="6" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ProbabilityWeighting}"/>
+        <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Likelihood of this subgroup being assigned compared to other subgroups" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribution Probability Weighting</TextBlock>
+        <TextBox Grid.Row="7" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ProbabilityWeighting}"/>
 
-        <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this subgroup may be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Races</TextBlock>
-        <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="7" Grid.Column="1" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding LinkCache}" ScopedTypes="{Binding RacePickerFormKeys}" />
+        <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this subgroup may be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Races</TextBlock>
+        <plugins:FormKeyMultiPicker Grid.Row="8" Grid.Column="1" MaxHeight="500" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding LinkCache}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
-        <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race groupings to which this subgroup may be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Race Groupings</TextBlock>
-        <ContentPresenter Grid.Row="8" Grid.Column="1"  Content="{Binding AllowedRaceGroupings}">
+        <TextBlock Grid.Row="9" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race groupings to which this subgroup may be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Race Groupings</TextBlock>
+        <ContentPresenter Grid.Row="9" Grid.Column="1"  Content="{Binding AllowedRaceGroupings}">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
                     <local:UC_RaceGroupingCheckboxList Background="Black" Margin="0 0 0 10"/>
@@ -91,11 +94,11 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <TextBlock Grid.Row="9" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this subgroup may not be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Races</TextBlock>
-        <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="9" Grid.Column="1" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding LinkCache}" ScopedTypes="{Binding RacePickerFormKeys}" />
+        <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this subgroup may not be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Races</TextBlock>
+        <plugins:FormKeyMultiPicker Grid.Row="10" Grid.Column="1" MaxHeight="500" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding LinkCache}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
-        <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this subgroup may not be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Race Groupings</TextBlock>
-        <ContentPresenter Grid.Row="10" Grid.Column="1"  Content="{Binding DisallowedRaceGroupings}">
+        <TextBlock Grid.Row="11" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this subgroup may not be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Race Groupings</TextBlock>
+        <ContentPresenter Grid.Row="11" Grid.Column="1"  Content="{Binding DisallowedRaceGroupings}">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
                     <local:UC_RaceGroupingCheckboxList Background="Black" Margin="0 0 0 10"/>
@@ -103,10 +106,10 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <TextBlock Grid.Row="11" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attributes that an NPC must have for this subgroup to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Attributes</TextBlock>
-        <Button Grid.Row="11" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddAllowedAttribute}" Foreground="Lightgreen">Add New</Button>
+        <TextBlock Grid.Row="12" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attributes that an NPC must have for this subgroup to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Attributes</TextBlock>
+        <Button Grid.Row="12" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddAllowedAttribute}" Foreground="Lightgreen">Add New</Button>
 
-        <ItemsControl Grid.Row="11" Grid.Column="1" ItemsSource="{Binding AllowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
+        <ItemsControl Grid.Row="12" Grid.Column="1" ItemsSource="{Binding AllowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
                     <local:UC_NPCAttribute Background="Black" Margin="0 0 0 10"/>
@@ -115,9 +118,9 @@
         </ItemsControl>
 
 
-        <TextBlock Grid.Row="12" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attributes that an NPC may not have if this subgroup is to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed NPC Attributes</TextBlock>
-        <Button Grid.Row="12" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDisallowedAttribute}" Foreground="Lightgreen">Add New</Button>
-        <ItemsControl Grid.Row="12" Grid.Column="1" ItemsSource="{Binding DisallowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
+        <TextBlock Grid.Row="13" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attributes that an NPC may not have if this subgroup is to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed NPC Attributes</TextBlock>
+        <Button Grid.Row="13" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDisallowedAttribute}" Foreground="Lightgreen">Add New</Button>
+        <ItemsControl Grid.Row="13" Grid.Column="1" ItemsSource="{Binding DisallowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
                     <local:UC_NPCAttribute Background="Black" Margin="0 0 0 10"/>

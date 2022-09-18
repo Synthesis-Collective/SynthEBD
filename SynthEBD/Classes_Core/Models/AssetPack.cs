@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
@@ -73,6 +73,7 @@ public class AssetPack : IModelHasSubgroups
         public string Name { get; set; } = "";
         public bool Enabled { get; set; } = true;
         public bool DistributionEnabled { get; set; } = true;
+        public string Notes { get; set; } = string.Empty;
         public HashSet<FormKey> AllowedRaces { get; set; } = new();
         public HashSet<string> AllowedRaceGroupings { get; set; } = new();
         public HashSet<FormKey> DisallowedRaces { get; set; } = new();

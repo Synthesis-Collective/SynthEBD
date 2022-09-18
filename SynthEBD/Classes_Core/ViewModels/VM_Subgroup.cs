@@ -140,6 +140,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
     public string Name { get; set; } = "New";
     public bool Enabled { get; set; } = true;
     public bool DistributionEnabled { get; set; } = true;
+    public string Notes { get; set; } = string.Empty;
     public ObservableCollection<FormKey> AllowedRaces { get; set; } = new();
     public VM_RaceGroupingCheckboxList AllowedRaceGroupings { get; set; }
     public ObservableCollection<FormKey> DisallowedRaces { get; set; } = new();
@@ -196,6 +197,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         Name = model.Name;
         Enabled = model.Enabled;
         DistributionEnabled = model.DistributionEnabled;
+        Notes = model.Notes;
         AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
         AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, generalSettingsVM.RaceGroupings);
         DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
@@ -556,6 +558,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         model.Name = viewModel.Name;
         model.Enabled = viewModel.Enabled;
         model.DistributionEnabled = viewModel.DistributionEnabled;
+        model.Notes = viewModel.Notes;
         model.AllowedRaces = viewModel.AllowedRaces.ToHashSet();
         model.AllowedRaceGroupings = viewModel.AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
         model.DisallowedRaces = viewModel.DisallowedRaces.ToHashSet();
