@@ -12,7 +12,7 @@ namespace SynthEBD;
 // Each NPCAttribute within a HashSet<NPC> Attribute is treated with OR logic; i.e. if an NPC matches ANY of the NPCAttributes, the NPCAttribute's parent object can be assigned to the NPC
 public class NPCAttribute
 {
-    public HashSet<ITypedNPCAttribute> SubAttributes { get; set; } = new();
+    public HashSet<ITypedNPCAttribute> SubAttributes { get; set; } = new(); // AND Logic
 
     public bool Equals(NPCAttribute other)
     {

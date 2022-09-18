@@ -11,11 +11,13 @@ public class AttributeMatcher
     /// </summary>
     /// <param name="attributeList">List to attributes against which the NPC is to be compared</param>
     /// <param name="npc">NPC to be compared</param>
-    /// <param name="logType">Determines if matched or unmatched attributes should be logged</param>
+    /// <param name="attributeGroups">Collection of group-type attribute definitions that will be recursively evaluated if a Group-type attribute is supplied</param>
     /// <param name="hasAttributeRestrictions">Output: Does the attribute list contain attributes of type "Restrict" or "ForceIfAndRestrict" </param>
     /// <param name="matchesAttributeRestrictions">Output: Does the NPC match any attributes of type "Restrict" or "ForceIfAndRestrict"</param>
     /// <param name="matchedForceIfAttributeWeightedCount">"Output: Cumulative weighting of matched ForceIf attributes"</param>
-    /// <param name="matchLog">"Output: Log of Matched/Unmatched Attributes (depending on logType)</param>
+    /// <param name="matchLog">"Output: Log of matched Attributes</param>
+    /// <param name="unmatchedLog">"Output: Log of unmatched Attributes</param>
+    /// <param name="unmatchedLog">"Output: Log of matched ForceIf Attributes and their respective weights</param>
     /// <param name="overrideForceIf">"overrideForceIf: if not null, overrides the AttributeForcing on all sub-attributes (allows Group type attributes to forward its own forcing to recursive calls)</param>
     public static void MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, HashSet<AttributeGroup> attributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog, AttributeForcing? overrideForceIf)
     {
