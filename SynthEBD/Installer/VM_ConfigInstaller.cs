@@ -13,4 +13,5 @@ public class VM_ConfigInstaller : VM
     public VM_DownloadCoordinator DownloadMenu { get; set; } = null;
     public bool Cancelled { get; set; } = false;
     public bool Completed { get; set; } = false;
+    public string InstallationMessage { get; set; } = string.Empty;
 }

@@ -24,6 +24,8 @@ public class VM_ConfigSelector : VM
 
         OKvisibility = this.Options == null || !this.Options.Any();
 
+        parentVM.InstallationMessage = manifest.InstallationMessage;
+
         this.WhenAnyValue(x => x.SelectedOption).Subscribe(_ =>
         {
             SelectionMade();

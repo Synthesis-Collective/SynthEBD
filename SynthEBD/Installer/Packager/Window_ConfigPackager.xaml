@@ -19,9 +19,36 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <TreeView Grid.Row="0" Grid.Column="0" Name="TVoptions"  ItemsSource ="{Binding Options}"  Margin="0 0 15 0" HorizontalAlignment="Stretch" dd:DragDrop.IsDragSource="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.CanDragWithMouseRightButton="True">
+        <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Foreground="White" >Config Name: </TextBlock>
+        <Border Grid.Row="0" Grid.Column="1" BorderBrush="White" BorderThickness="1">
+            <TextBox Foreground="White" Text="{Binding ConfigName}"/>
+        </Border>
+
+        <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Foreground="White">Config Prefix:</TextBlock>
+        <Border Grid.Row="2" Grid.Column="1" BorderBrush="White" BorderThickness="1">
+            <TextBox Foreground="White" Text="{Binding ConfigPrefix}"/>
+        </Border>
+
+        <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Foreground="White">Config Description:</TextBlock>
+        <Border Grid.Row="3" Grid.Column="1" BorderBrush="White" BorderThickness="1">
+            <TextBox TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Foreground="White" Text="{Binding ConfigDescription}" MaxHeight="50"/>
+        </Border>
+
+        <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Foreground="White">Installation Notes:</TextBlock>
+        <Border Grid.Row="4" Grid.Column="1" BorderBrush="White" BorderThickness="1">
+            <TextBox TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Foreground="White" Text="{Binding InstallationMessage}" Height="50"/>
+        </Border>
+
+        <Button Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" Command="{Binding AddRootNode}" Content="+ Root Node" Foreground="LightGreen" Margin="5 0 0 0"/>
+        <TreeView Grid.Row="6" Grid.Column="0" Name="TVoptions"  ItemsSource ="{Binding Options}"  Margin="0 0 15 0" HorizontalAlignment="Stretch" dd:DragDrop.IsDragSource="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.CanDragWithMouseRightButton="True" dd:DragDrop.DragDropCopyKeyState="ControlKey" ScrollViewer.VerticalScrollBarVisibility="Auto" BorderBrush="CadetBlue" BorderThickness="1">
             <TreeView.Resources>
                 <HierarchicalDataTemplate DataType="{x:Type local:VM_PackagerOption}" ItemsSource="{Binding Options}" >
                     <StackPanel Orientation="Horizontal">
@@ -47,20 +74,20 @@
             </i:Interaction.Triggers>
         </TreeView>
 
-        <ContentPresenter Grid.Row="0" Grid.Column="1"  Content="{Binding SelectedNode}" Name="SubgroupPresenter">
+        <ContentPresenter Grid.Row="6" Grid.Column="1"  Content="{Binding SelectedNode}" Name="SubgroupPresenter">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_PackagerOption}">
-                    <local:UC_PackagerOption Background="Black" Margin="0 0 0 10"/>
+                    <local:UC_PackagerOption Background="Black" BorderThickness="1" BorderBrush="Teal" Margin="0 0 0 10"/>
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
+        <StackPanel Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
             <TextBlock Text="Root Directory: " Foreground="White" VerticalAlignment="Center" ToolTip="The top-level within which files will be packaged" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
             <TextBlock Text="{Binding RootDirectory}" Foreground="LightBlue" VerticalAlignment="Center"/>
-            <Button VerticalAlignment="Center" Command="{Binding SetRootDirectory}" Content="Set" Foreground="LightGreen"/>
+            <Button VerticalAlignment="Center" Command="{Binding SetRootDirectory}" Content="Set" Foreground="LightGreen" Margin="5 0 0 0"/>
         </StackPanel>
-        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
+        <StackPanel Grid.Row="9" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
             <Button Command="{Binding ExportCommand}" Foreground="LightGreen" Margin="5" ToolTip="Export the current configuration to a Manifest.json file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Export</Button>
             <Button Command="{Binding ImportCommand}" Foreground="LawnGreen" Margin="5" ToolTip="Import an existing Manifest.json file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Import</Button>
         </StackPanel>

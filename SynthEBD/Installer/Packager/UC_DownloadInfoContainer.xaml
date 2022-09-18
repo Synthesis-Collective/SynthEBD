@@ -7,7 +7,7 @@
              d:DataContext="{d:DesignInstance Type=local:VM_DownloadInfoContainer}"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
-    <Border BorderBrush="AntiqueWhite" BorderThickness="1">
+    <Border BorderBrush="Teal" BorderThickness="1">
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="auto"/>
@@ -22,17 +22,25 @@
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Mod Page Name: " VerticalAlignment="Center" ToolTip="The name of the mod or web page where the user will download the mod" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ModPageName}"/>
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Mod Page Name: " VerticalAlignment="Center" Foreground="White" ToolTip="The name of the mod or web page where the user will download the mod" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <Border Grid.Row="0" Grid.Column="1" BorderThickness="1" BorderBrush="White" >
+                <TextBox Text="{Binding ModPageName}"/>
+            </Border>
 
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="Mod Page URL: " VerticalAlignment="Center" ToolTip="URL where user will go to download the mod" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding URL}"/>
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Mod Page URL: " VerticalAlignment="Center" Foreground="White" ToolTip="URL where user will go to download the mod" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <Border Grid.Row="1" Grid.Column="1" BorderThickness="1" BorderBrush="White" >
+                <TextBox Text="{Binding URL}"/>
+            </Border>
 
-            <TextBlock Grid.Row="2" Grid.Column="0" Text="Mod Download Link Text: " VerticalAlignment="Center" ToolTip="Hyperlink text within the mod page that the user will click on to start the download" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding ModDownloadName}"/>
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Mod Download Link Text: " VerticalAlignment="Center" Foreground="White" ToolTip="Hyperlink text within the mod page that the user will click on to start the download" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <Border Grid.Row="2" Grid.Column="1" BorderThickness="1" BorderBrush="White" >
+                <TextBox Text="{Binding ModDownloadName}"/>
+            </Border>
 
-            <TextBlock Grid.Row="3" Grid.Column="0" Text="Expected File Name: " VerticalAlignment="Center" ToolTip="The name of the downloaded file (including extension)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-            <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding ExpectedFileName}"/>
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="Expected File Name: " VerticalAlignment="Center" Foreground="White" ToolTip="The name of the downloaded file (including extension)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <Border Grid.Row="3" Grid.Column="1" BorderThickness="1" BorderBrush="White" >
+                <TextBox Text="{Binding ExpectedFileName}"/>
+            </Border>
 
             <Button Grid.Row="4" Grid.Column="0" Content="Delete" VerticalAlignment="Center" Command="{Binding DeleteCommand}" Foreground="Firebrick" Margin="5 0 0 0"/>
         </Grid>

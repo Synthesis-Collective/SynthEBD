@@ -20,10 +20,10 @@
 
         <Border Grid.Column="0"  BorderThickness="1" BorderBrush="{Binding BorderColor}" >
             <StackPanel>
-                <TextBox Text="{Binding Content}" VerticalAlignment="Center" Visibility="{Binding Path = TextBox, Converter={StaticResource BoolToVis}}"/>
-                <TextBlock Text="{Binding Content}" VerticalAlignment="Center" Visibility="{Binding Path = TextBlock, Converter={StaticResource BoolToVis}}"/>
+                <TextBox Text="{Binding Content}" Foreground="{Binding TextColor}" VerticalAlignment="Center" Visibility="{Binding Path = TextBox, Converter={StaticResource BoolToVis}}"/>
+                <TextBlock Text="{Binding Content}" Foreground="{Binding TextColor}" VerticalAlignment="Center" Visibility="{Binding Path = TextBlock, Converter={StaticResource BoolToVis}}"/>
             </StackPanel>
         </Border>
-        <Button Grid.Column="1" Content="X" VerticalAlignment="Center" Command="{Binding DeleteCommand}" Margin="5 0 0 0"/>
+        <Button Grid.Column="1" Content="X" VerticalAlignment="Center" Command="{Binding DeleteCommand}" Margin="5 0 0 0" Foreground="Firebrick"/>
     </Grid>
 </UserControl>

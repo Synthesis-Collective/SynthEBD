@@ -1,9 +1,11 @@
+using DynamicData;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace SynthEBD
 {
@@ -11,7 +13,7 @@ namespace SynthEBD
     {
         public VM_Manifest()
         {
-            VM_PackagerOption root = new(Options, this) { Name = "Root" };
+            VM_PackagerOption root = new(Options, this, true);
             Options.Add(root);
             SelectedNode = root;
 
@@ -58,6 +60,13 @@ namespace SynthEBD
                 execute: x => this.SelectedNode = (VM_PackagerOption)x
                 );
 
+            AddRootNode = new RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    Options.Add(new VM_PackagerOption(Options, this, true));
+                });
+
             SetRootDirectory = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ =>
@@ -71,7 +80,6 @@ namespace SynthEBD
         public string ConfigName { get; set; } = "New Config";
         public string ConfigDescription { get; set; } = "";
         public string ConfigPrefix { get; set; } = "Prefix";
-        public ObservableCollection<string[]> FileExtensionMap { get; set; } = new();
         public ObservableCollection<VM_PackagerOption> Options { get; set; } = new();
         public string InstallationMessage { get; set; } = string.Empty;
         public string RootDirectory { get; set; } = string.Empty;
@@ -80,22 +88,47 @@ namespace SynthEBD
         public RelayCommand SelectedNodeChanged { get; set; }
         public RelayCommand SetRootDirectory { get; set; }
         public VM_PackagerOption SelectedNode { get; set; }
+        public RelayCommand AddRootNode { get; set; }
 
         public void GetViewModelFromModel(Manifest model)
         {
             ConfigName = model.ConfigName;
             ConfigDescription = model.ConfigDescription;
-            DestinationModFolder = model.DestinationModFolder;
             ConfigPrefix = model.ConfigPrefix;
-            FileExtensionMap = GetFileExtensionMapFromModel(model.FileExtensionMap);
-            foreach (var item in model.DownloadInfo)
+            InstallationMessage = model.InstallationMessage;
+
+            Options.Clear();
+
+            if (model.Version == 0) // compatibility for legacy installer that only had one root node within the manifest itself
             {
-                DownloadInfo.Add(VM_DownloadInfoContainer.GetViewModelFromModel(item, ));
+                var root = new VM_PackagerOption(Options, this, true);
+                root.Name = "Root";
+                root.OptionsDescription = model.OptionsDescription;
+                root.AssetPackPaths = VM_CollectionMemberStringDecorated.InitializeObservableCollectionFromICollection(model.AssetPackPaths);
+                root.BodyGenConfigPaths = VM_CollectionMemberStringDecorated.InitializeObservableCollectionFromICollection(model.BodyGenConfigPaths);
+                root.RecordTemplatePaths = VM_CollectionMemberStringDecorated.InitializeObservableCollectionFromICollection(model.RecordTemplatePaths);
+                root.DestinationModFolder = model.DestinationModFolder;
+                if (model.FileExtensionMap.Any())
+                {
+                    root.FileExtensionMap = GetFileExtensionMapFromModel(model.FileExtensionMap);
+                }
+                else
+                {
+                    root.FileExtensionMap.Add(new string[] { "dds", "textures" });
+                    root.FileExtensionMap.Add(new string[] { "nif", "meshes" });
+                    root.FileExtensionMap.Add(new string[] { "tri", "meshes" });
+                }
+                root.Options.AddRange(model.Options.Select(x => VM_PackagerOption.GetViewModelFromModel(x, root.Options, this)));
+                Options.Add(root);
             }
-            OptionsDescription = model.OptionsDescription;
-            foreach (var item in model.Options)
+            else
             {
-                Options.Add(VM_PackagerOption.GetViewModelFromModel(item, Options, this));
+                Options.AddRange(model.Options.Select(x => VM_PackagerOption.GetViewModelFromModel(x, Options, this)));
+            }
+
+            if (Options.Any())
+            {
+                SelectedNode = Options.First();
             }
         }
 
@@ -115,23 +148,14 @@ namespace SynthEBD
             Manifest model = new();
             model.ConfigName = ConfigName;
             model.ConfigDescription = ConfigDescription;
-            model.DestinationModFolder = DestinationModFolder;
             model.ConfigPrefix = ConfigPrefix;
-            foreach (var entry in FileExtensionMap)
-            {
-                if (model.FileExtensionMap.ContainsKey(entry[0]))
-                {
-                    model.FileExtensionMap[entry[0]] = entry[1];
-                }
-                else
-                {
-                    model.FileExtensionMap.Add(entry[0], entry[1]);
-                }
-            }
-            model.DownloadInfo = DownloadInfo.Select(x => x.DumpViewModelToModel()).ToHashSet();
-            model.OptionsDescription = OptionsDescription;
-            model.Options = Options.Select(x => x.DumpViewModelToModel()).ToHashSet();
             model.InstallationMessage = InstallationMessage;
+            model.Options.Clear();
+            foreach (var option in Options)
+            {
+                model.Options.Add(option.DumpViewModelToModel());
+            }
+            model.Version = 1;
             return model;
         }
     }
