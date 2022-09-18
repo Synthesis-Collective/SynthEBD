@@ -9,6 +9,7 @@ public class VM_ConfigSelector : VM
     public VM_ConfigSelector(Manifest manifest, Window_ConfigInstaller window, VM_ConfigInstaller parentVM)
     {
         Manifest = manifest;
+        UpgradeVersion0(); // upgrade pre-0.8.3 version of the manifest if necessary to maintain compatibilty
         AssociatedWindow = window;
         Name = manifest.ConfigName;
         Description = manifest.ConfigDescription;
@@ -90,6 +91,23 @@ public class VM_ConfigSelector : VM
 
     public Window_ConfigInstaller AssociatedWindow { get; set; }
 
+    private void UpgradeVersion0()
+    {
+        if (Manifest.Version == 0)
+        {
+            Manifest.Option rootOption = new();
+            rootOption.OptionsDescription = Manifest.OptionsDescription;
+            rootOption.FileExtensionMap = Manifest.FileExtensionMap;
+            rootOption.DownloadInfo = Manifest.DownloadInfo;
+            rootOption.DestinationModFolder = Manifest.DestinationModFolder;
+            rootOption.AssetPackPaths = Manifest.AssetPackPaths;
+            rootOption.BodyGenConfigPaths = Manifest.BodyGenConfigPaths;
+            rootOption.RecordTemplatePaths = Manifest.RecordTemplatePaths;
+            rootOption.Options.AddRange(Manifest.Options);
+            Manifest.Options.Clear();
+            Manifest.Options.Add(rootOption);
+        }
+    }
     private void InitializeOptions(Manifest manifest)
     {
         if (manifest.Options.Any())
