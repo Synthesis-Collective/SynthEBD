@@ -8,7 +8,7 @@
         xmlns:dd="clr-namespace:GongSolutions.Wpf.DragDrop;assembly=GongSolutions.Wpf.DragDrop"
         xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         mc:Ignorable="d"
-        Title="Window_ConfigPackager" Height="450" Width="800">
+        Title="Window_ConfigPackager" Height="600" Width="800">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -44,7 +44,7 @@
 
         <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Foreground="White">Installation Notes:</TextBlock>
         <Border Grid.Row="4" Grid.Column="1" BorderBrush="White" BorderThickness="1">
-            <TextBox TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Foreground="White" Text="{Binding InstallationMessage}" Height="50"/>
+            <TextBox TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Foreground="White" Text="{Binding InstallationMessage}" Height="150"/>
         </Border>
 
         <Button Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" Command="{Binding AddRootNode}" Content="+ Root Node" Foreground="LightGreen" Margin="5 0 0 0"/>
