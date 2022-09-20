@@ -583,9 +583,9 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 
     public void GetDisabledSubgroups(List<string> disabledSubgroups)
     {
-        if (!DistributionEnabled)
+        if (!Enabled)
         {
-            disabledSubgroups.Add(GetReportString());
+            disabledSubgroups.Add(GetReportString(false));
         }
         foreach (var subgroup in Subgroups)
         {
@@ -593,9 +593,20 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         }
     }
 
-    public string GetReportString()
+    public string GetReportString(bool shortName)
     {
-        return ID + ": " + Name;
+        if (shortName)
+        {
+            return ID + ": " + Name;
+        }
+        else
+        {
+            List<VM_Subgroup> parents = new();
+            GetParents(parents);
+            var names = parents.Select(x => x.Name);
+            var nameStr = string.Join("\\", names);
+            return ID + ": " + nameStr + "\\" + Name;
+        }
     }
 
     public static AssetPack.Subgroup DumpViewModelToModel(VM_Subgroup viewModel)
