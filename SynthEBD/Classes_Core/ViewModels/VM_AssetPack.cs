@@ -158,6 +158,14 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
         );
 
+        ListDisabledSubgroupsButton = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: _ => {
+                var disabledSubgroups = GetDisabledSubgroups();
+                CustomMessageBox.DisplayNotificationOK("Disabled Subgroups", string.Join(Environment.NewLine, disabledSubgroups));
+            }
+        );
+
         DiscardButton = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => {
@@ -228,36 +236,28 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public string UserAlert { get; set; } = "";
     public ObservableCollection<VM_Subgroup> Subgroups { get; set; } = new();
     public ObservableCollection<VM_RaceGrouping> RaceGroupingList { get; set; } = new();
-
     public VM_BodyGenConfig TrackedBodyGenConfig { get; set; }
     public ObservableCollection<VM_BodyGenConfig> AvailableBodyGenConfigs { get; set; }
     public VM_SettingsBodyGen CurrentBodyGenSettings { get; set; }
     public ObservableCollection<VM_CollectionMemberString> DefaultRecordTemplateAdditionalRacesPaths { get; set; } = new();
     public bool IsSelected { get; set; } = true;
-
     public string SourcePath { get; set; } = "";
-
     public ILinkCache<ISkyrimMod, ISkyrimModGetter> RecordTemplateLinkCache { get; set; }
-
     public FormKey DefaultTemplateFK { get; set; } = new();
     public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
-
     public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
-
     public ObservableCollection<VM_AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; } = new();
     public VM_AssetPackDirectReplacerMenu ReplacersMenu { get; set; }
     public VM_ConfigDistributionRules DistributionRules { get; set; }
-
     public ObservableCollection<VM_AssetPack> ParentCollection { get; set; }
-
     public VM_Subgroup DisplayedSubgroup { get; set; }
-
     public RelayCommand RemoveAssetPackConfigFile { get; }
     public RelayCommand AddSubgroup { get; }
     public RelayCommand AddAdditionalRecordTemplateAssignment { get; }
     public RelayCommand AddRecordTemplateAdditionalRacesPath { get; }
     public RelayCommand MergeWithAssetPack { get; }
     public RelayCommand ValidateButton { get; }
+    public RelayCommand ListDisabledSubgroupsButton { get; }
     public RelayCommand SaveButton { get; }
     public RelayCommand DiscardButton { get; }
     public RelayCommand SelectedSubgroupChanged { get; }
@@ -801,11 +801,29 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
     public void AutoGenerateSubgroupIDs()
     {
+        ClearSubgroupIDs();
         foreach (var subgroup in Subgroups)
         {
-            subgroup.AutoGenerateID();
-            subgroup.AutoGenerateID_Children();
+            subgroup.AutoGenerateID(true, 0);
         }
+    }
+
+    public void ClearSubgroupIDs()
+    {
+        foreach (var subgroup in Subgroups)
+        {
+            subgroup.ClearID(true);
+        }
+    }
+
+    public List<string> GetDisabledSubgroups()
+    {
+        List<string> disabledSubgroups = new();
+        foreach (var subgroup in Subgroups)
+        {
+            subgroup.GetDisabledSubgroups(disabledSubgroups);
+        }
+        return disabledSubgroups;
     }
 
     public void DragOver(IDropInfo dropInfo)

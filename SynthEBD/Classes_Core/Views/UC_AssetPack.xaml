@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SynthEBD.UC_AssetPack"
+<UserControl x:Class="SynthEBD.UC_AssetPack"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -121,6 +121,7 @@
             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding DiscardButton}" Foreground="MediumPurple" ToolTip="Discard changes to this config file and reload last saved version" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Discard Changes</Button>
             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding MergeWithAssetPack}" Foreground="MediumPurple" ToolTip="Merge this config file with another config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Merge With</Button>
             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding SetDefaultTargetDestPaths}" Foreground="MediumPurple" ToolTip="Set asset destination paths for all recognized source files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Auto-Set Destination Paths</Button>
+            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding ListDisabledSubgroupsButton}" Foreground="MediumPurple" ToolTip="List all subgroups whose distribution is currently disabled" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">List Disabled Subgroups</Button>
             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding RemoveAssetPackConfigFile}" Foreground="FireBrick">Delete</Button>
         </StackPanel>
     </Grid>

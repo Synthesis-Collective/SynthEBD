@@ -78,16 +78,16 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         this.PathsMenu.Paths.ToObservableChangeSet().Subscribe(x => GetDDSPaths(ImagePaths));
         this.WhenAnyValue(x => x.ParentAssetPack, x => x.ParentSubgroup).Subscribe(x => GetDDSPaths(ImagePaths));
 
-        AutoGenerateID();
+        AutoGenerateID(false, 0);
 
         AutoGenerateIDcommand = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => AutoGenerateID()
+            execute: _ => AutoGenerateID(false, 0)
         );
 
         AutoGenerateID_Children_Command = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => AutoGenerateID_Children()
+            execute: _ => AutoGenerateID(true, 1)
         );
 
         AutoGenerateID_All_Command = new SynthEBD.RelayCommand(
@@ -303,82 +303,84 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         }
     }
 
-    public void AutoGenerateID_Children()
+    public void AutoGenerateID(bool recursive, int skipLayers)
     {
-        foreach (var subgroup in Subgroups)
+        if (skipLayers <= 0)
         {
-            subgroup.AutoGenerateID();
-            subgroup.AutoGenerateID_Children();
-        }
-    }
+            List<string> ids = new();
+            List<VM_Subgroup> parents = new();
+            GetParents(parents);
 
-    public void AutoGenerateID()
-    {
-        List<string> ids  = new();
-        List<VM_Subgroup> parents = new();
-        GetParents(parents);
+            parents.Reverse();
+            for (int i = 0; i < parents.Count; i++)
+            {
+                var parent = parents[i];
+                if (parent.ID.IsNullOrWhitespace())
+                {
+                    ids.Add("New");
+                }
+                else
+                {
+                    var splitID = parent.ID.Split('.');
+                    ids.Add(splitID.Last());
+                }
+            }
 
-        parents.Reverse();
-        for (int i = 0; i < parents.Count; i++)
-        {
-            var parent = parents[i];
-            if (parent.ID.IsNullOrWhitespace())
+            //get abbreviate for current subgroup name
+            if (Name.IsNullOrWhitespace())
             {
                 ids.Add("New");
             }
             else
             {
-                var splitID = parent.ID.Split('.');
-                ids.Add(splitID.Last());
-            }
-        }
-
-        //get abbreviate for current subgroup name
-        if (Name.IsNullOrWhitespace())
-        {
-            ids.Add("New");
-        }
-        else
-        {
-            var words = System.Text.RegularExpressions.Regex.Split(Name, @"\s+").Where(s => s != string.Empty).ToList();
-            if (words.Count == 1 && words.First().Length <= 3)
-            {
-                ids.Add(Name);
-            }
-            else
-            {
-                var chars = new List<string>();
-                foreach (var word in words)
+                var words = System.Text.RegularExpressions.Regex.Split(Name, @"\s+").Where(s => s != string.Empty).ToList();
+                if (words.Count == 1 && words.First().Length <= 3)
                 {
-                    if (CanSplitByLettersAndNumbers(word, out var letterAndNumbers))
+                    ids.Add(Name);
+                }
+                else
+                {
+                    var chars = new List<string>();
+                    foreach (var word in words)
                     {
-                        chars.Add(letterAndNumbers);
-                    }
-                    else
-                    {
-                        var candidate = Regex.Replace(word, "[^a-zA-Z0-9]", String.Empty); // remove non-alphanumeric
-                        if (!candidate.IsNullOrEmpty())
+                        if (CanSplitByLettersAndNumbers(word, out var letterAndNumbers))
                         {
-                            if (candidate.IsNumeric())
+                            chars.Add(letterAndNumbers);
+                        }
+                        else
+                        {
+                            var candidate = Regex.Replace(word, "[^a-zA-Z0-9]", String.Empty); // remove non-alphanumeric
+                            if (!candidate.IsNullOrEmpty())
                             {
-                                chars.Add(candidate);
-                            }
-                            else
-                            {
-                                chars.Add(candidate.First().ToString());
+                                if (candidate.IsNumeric())
+                                {
+                                    chars.Add(candidate);
+                                }
+                                else
+                                {
+                                    chars.Add(candidate.First().ToString());
+                                }
                             }
                         }
                     }
+                    ids.Add(string.Join("", chars));
                 }
-                ids.Add(string.Join("", chars));
+            }
+
+
+            ID = string.Join('.', ids);
+            ID = TrimTrailingNonAlphaNumeric(ID);
+
+            EnumerateID();
+        }
+        skipLayers--;
+        if (recursive)
+        {
+            foreach (var subgroup in Subgroups)
+            {
+                subgroup.AutoGenerateID(recursive, skipLayers);
             }
         }
-       
-
-        ID = string.Join('.', ids);
-        ID = TrimTrailingNonAlphaNumeric(ID);
-
-        EnumerateID();
     }
 
     public static string TrimTrailingNonAlphaNumeric(string s)
@@ -396,6 +398,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         ID = string.Empty;
         bool isUniqueID = false;
         HashSet<string> previousSplitNames = new();
+        int count = 0; // algorithm can hang if there is two subgroups exist whose IDs should be swapped. Snap out if hang is detected
         while (!isUniqueID)
         {
             if (ParentAssetPack.ContainsSubgroupID(newID))
@@ -404,6 +407,21 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
                 if (lastID == null)
                 {
                     newID = "New"; // don't think this should ever happen...
+                }
+                if (count > 100) // seems like a reasonable number of iterations
+                {
+                    int appendCount = 1;
+                    while (ParentAssetPack.ContainsSubgroupID(newID))
+                    {
+                        newID = newID.Replace(lastID, lastID + "_" + appendCount.ToString());
+                        appendCount++;
+                        if (appendCount > 100)
+                        {
+                            Logger.LogError("Could not auto-generated ID for subgroup " + newID);
+                            break;
+                        }
+                    }
+                    break;
                 }
                 else if (CanSplitByLettersAndNumbers(newID, out string renamed1))
                 {
@@ -421,6 +439,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
                 {
                     newID = IncrementID(newID);
                 }
+                count++;
             }
             else
             {
@@ -548,6 +567,35 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
             parents.Add(ParentSubgroup);
             ParentSubgroup.GetParents(parents);
         }
+    }
+
+    public void ClearID(bool recursive)
+    {
+        ID = String.Empty;
+        if (recursive)
+        {
+            foreach (var subgroup in Subgroups)
+            {
+                subgroup.ClearID(recursive);
+            }
+        }
+    }
+
+    public void GetDisabledSubgroups(List<string> disabledSubgroups)
+    {
+        if (!DistributionEnabled)
+        {
+            disabledSubgroups.Add(GetReportString());
+        }
+        foreach (var subgroup in Subgroups)
+        {
+            subgroup.GetDisabledSubgroups(disabledSubgroups);
+        }
+    }
+
+    public string GetReportString()
+    {
+        return ID + ": " + Name;
     }
 
     public static AssetPack.Subgroup DumpViewModelToModel(VM_Subgroup viewModel)
