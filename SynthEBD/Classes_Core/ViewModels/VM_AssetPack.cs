@@ -196,6 +196,18 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
         );
 
+        CopyButton = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: _ => {
+                var copiedModel = DumpViewModelToModel(this);
+                copiedModel.GroupName += " (2)";
+                var copiedVM = new VM_AssetPack(state, bodyGen, oBody, texMesh, general, bodyGenConfigFactory, assetPackDirectReplacerMenuFactory, subgroupFactory, filePathReplacementFactory, assetPackValidator, selfFactory);
+                copiedVM.CopyInViewModelFromModel(copiedModel);
+                texMesh.AssetPacks.Add(copiedVM);
+                texMesh.AssetPresenterPrimary.AssetPack = copiedVM;
+            }
+        );
+
         SelectedSubgroupChanged = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: x => this.DisplayedSubgroup = (VM_Subgroup)x
@@ -260,6 +272,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public RelayCommand ListDisabledSubgroupsButton { get; }
     public RelayCommand SaveButton { get; }
     public RelayCommand DiscardButton { get; }
+    public RelayCommand CopyButton { get; }
     public RelayCommand SelectedSubgroupChanged { get; }
     public RelayCommand SetDefaultTargetDestPaths { get; }
     public BodyShapeSelectionMode BodyShapeMode { get; set; }
