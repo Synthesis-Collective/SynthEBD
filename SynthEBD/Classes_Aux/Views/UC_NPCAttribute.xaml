@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SynthEBD.UC_NPCAttribute"
+<UserControl x:Class="SynthEBD.UC_NPCAttribute"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -35,7 +35,9 @@
                 <Button Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding DeleteCommand}" Foreground="Firebrick">
                     <TextBlock FontSize="11">Remove<LineBreak/>Attribute</TextBlock>
                 </Button>
-
+                <Button Grid.Row="0" Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Center" Command="{Binding Validate}" Foreground="LightGreen">
+                    <TextBlock FontSize="11">Test<LineBreak/>Attribute</TextBlock>
+                </Button>
             </Grid>
         </Border>
         <Button Grid.Row="1" Grid.Column="0" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AddToParent}" Foreground="Lightgreen">OR</Button>

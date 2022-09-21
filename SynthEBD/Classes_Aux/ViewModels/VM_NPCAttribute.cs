@@ -23,11 +23,18 @@ public class VM_NPCAttribute : VM
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
         AddToParent = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Add(CreateNewFromUI(parentCollection, this.DisplayForceIfOption, this.DisplayForceIfWeight, attributeGroups)));
+        Validate = new RelayCommand(canExecute: _ => true, execute: _ => { 
+            var validator = new VM_AttributeValidator(this, attributeGroups);
+            Window_AttributeValidator window = new Window_AttributeValidator();
+            window.DataContext = validator;
+            window.ShowDialog();
+            });
     }
 
     public ObservableCollection<VM_NPCAttributeShell> GroupedSubAttributes { get; set; } = new(); // everything within this collection is evaluated as AND (all must be true)
     public RelayCommand DeleteCommand { get; }
     public RelayCommand AddToParent { get; }
+    public RelayCommand Validate { get; }
     public bool DisplayForceIfOption { get; set; } = true;
     public bool? DisplayForceIfWeight { get; set; }
     public ObservableCollection<VM_NPCAttribute> ParentCollection { get; set; }
