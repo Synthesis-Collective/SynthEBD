@@ -24,6 +24,8 @@ namespace SynthEBD
         public ObservableCollection<string[]> FileExtensionMap { get; set; } = new();
         public RelayCommand AddNew { get; set; }
         public RelayCommand DeleteMe { get; set; }
+        public RelayCommand AddFileExtensionMapping { get; set; }
+        public RelayCommand RemoveFileExtensionMapping { get; set; }
         public RelayCommand AddAssetConfigFile { get; set; }
         public RelayCommand AddBodyGenConfigFile { get; set; }
         public RelayCommand AddRecordTemplateFile { get; set; }
@@ -56,6 +58,16 @@ namespace SynthEBD
             DeleteMe = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => this.ParentCollection.Remove(this)
+                );
+
+            AddFileExtensionMapping = new RelayCommand(
+                canExecute: _ => true,
+                execute: _ => this.FileExtensionMap.Add(new string[2])
+                );
+
+            RemoveFileExtensionMapping = new RelayCommand(
+                canExecute: _ => true,
+                execute: x => this.FileExtensionMap.Remove((string[])x)
                 );
 
             AddAssetConfigFile = new RelayCommand(
