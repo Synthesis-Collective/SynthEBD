@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows.Forms;
 using Mutagen.Bethesda.Skyrim;
 using SharpCompress.Archives.Rar;
@@ -69,7 +69,7 @@ public class ConfigInstaller
         }
 
         var installerWindow = new Window_ConfigInstaller();
-        var installerVM = new VM_ConfigInstaller(manifest, installerWindow);
+        var installerVM = new VM_ConfigInstaller(manifest, installerWindow); // note: installerVM edits the Manifest to use as a convenient DTO.
         installerWindow.DataContext = installerVM;
         installerWindow.ShowDialog();
 
@@ -78,10 +78,16 @@ public class ConfigInstaller
             return installedConfigs;
         }
 
+        if (PatcherSettings.ModManagerIntegration.ModManagerType != ModManager.None && (manifest.DestinationModFolder == null || string.IsNullOrWhiteSpace(manifest.DestinationModFolder)))
+        {
+            CustomMessageBox.DisplayNotificationOK("Installation warning", "Manifest did not include a destination folder. A new folder called \"New SynthEBD Config\" will appear in your mod list. Pleast rename this folder to something sensible after completing installation.");
+            manifest.DestinationModFolder = "New SynthEBD Config";
+        }
+
         #region load potential required dependencies for validating asset pack
         //record templates
         HashSet<string> recordTemplatePaths = new HashSet<string>();
-        foreach (var rtPath in installerVM.SelectorMenu.SelectedRecordTemplatePaths)
+        foreach (var rtPath in manifest.RecordTemplatePaths)
         {
             recordTemplatePaths.Add(Path.Combine(tempFolderPath, rtPath));
         }
@@ -94,7 +100,7 @@ public class ConfigInstaller
 
         // BodyGen config
         HashSet<string> bodyGenConfigPaths = new HashSet<string>();
-        foreach (var bgPath in installerVM.SelectorMenu.SelectedBodyGenConfigPaths)
+        foreach (var bgPath in manifest.BodyGenConfigPaths)
         {
             bodyGenConfigPaths.Add(Path.Combine(tempFolderPath, bgPath));
         }
@@ -113,7 +119,7 @@ public class ConfigInstaller
         HashSet<string> skippedConfigs = new HashSet<string>();
 
         #region Load, validate, and resave Asset Packs
-        foreach (var configPath in installerVM.SelectorMenu.SelectedAssetPackPaths)
+        foreach (var configPath in manifest.AssetPackPaths)
         {
             string extractedPath = Path.Combine(tempFolderPath, configPath);
             var validationAP = SettingsIO_AssetPack.LoadAssetPack(extractedPath, PatcherSettings.General.RaceGroupings, validationRecordTemplates, validationBG, out loadSuccess);
@@ -166,7 +172,7 @@ public class ConfigInstaller
         #endregion
 
         #region move bodygen configs
-        foreach (var bgPath in installerVM.SelectorMenu.SelectedBodyGenConfigPaths)
+        foreach (var bgPath in manifest.BodyGenConfigPaths)
         {
             string destPath = Path.Combine(PatcherSettings.Paths.BodyGenConfigDirPath, Path.GetFileName(bgPath));
             if (!File.Exists(destPath))
@@ -189,7 +195,7 @@ public class ConfigInstaller
         #endregion
 
         #region Move record templates
-        foreach (var templatePath in installerVM.SelectorMenu.SelectedRecordTemplatePaths)
+        foreach (var templatePath in manifest.RecordTemplatePaths)
         {
             string destPath = Path.Combine(PatcherSettings.Paths.RecordTemplatesDirPath, Path.GetFileName(templatePath));
             if (!File.Exists(destPath))
@@ -246,6 +252,7 @@ public class ConfigInstaller
             }
             else if (reversedAssetPathMapping.ContainsKey(assetPath))
             {
+                
                 var pathInConfigFile = reversedAssetPathMapping[assetPath];
                 string extractedSubPath = GetPathWithoutSynthEBDPrefix(pathInConfigFile, manifest);
                 string extractedFullPath = Path.Combine(tempFolderPath, extractedSubPath);
@@ -380,11 +387,6 @@ public class ConfigInstaller
 
     public static bool ValidateManifest(Manifest manifest)
     {
-        if (PatcherSettings.ModManagerIntegration.ModManagerType != ModManager.None && (manifest.DestinationModFolder == null || string.IsNullOrWhiteSpace(manifest.DestinationModFolder)))
-        {
-            CustomMessageBox.DisplayNotificationOK("Installation warning", "Manifest did not include a destination folder. A new folder called \"New SynthEBD Config\" will appear in your mod list. Pleast rename this folder to something sensible after completing installation.");
-            manifest.DestinationModFolder = "New SynthEBD Config";
-        }
         if (manifest.ConfigPrefix == null || string.IsNullOrWhiteSpace(manifest.ConfigPrefix))
         {
             CustomMessageBox.DisplayNotificationOK("Installation error", "Manifest did not include a destination prefix. This must match the second directory of each file path in the config file (e.g. textures\\PREFIX\\some\\texture.dds). Please fix the manifest file.");
@@ -491,7 +493,7 @@ public class ConfigInstaller
             }
             else
             {
-                CustomMessageBox.DisplayNotificationOK("Installation notice", "Config file " + assetPack.GroupName + " was modified to comply with the path length limit (" + pathLengthLimit + "). The longest file path (" + longestPath + ") would have been " + originalLongestPathLength + ", and has been truncated to " + newLongestPathLength + ". All paths within the config file and the destination data folder were automatically modified; no additional action is required.");
+                CustomMessageBox.DisplayNotificationOK("Installation notice", "Config file " + assetPack.GroupName + " was modified to comply with the path length limit (" + pathLengthLimit + ")." + Environment.NewLine + "The longest file path (" + longestPath + ") would have been " + originalLongestPathLength + " characters long." + Environment.NewLine + "The longest file path is now truncated to " + newLongestPathLength + " characters." + Environment.NewLine + "All paths within the config file and the destination data folder were automatically modified. No additional action is required.");
             }
         }
 
@@ -539,38 +541,64 @@ public class ConfigInstaller
         }
     }
 
-    public static string GenerateInstalledPath(string extractedPath, Manifest manifest)
+    public static string GenerateInstalledPath(string extractedSubPath, Manifest manifest)
     {
-        string extensionFolder = GetExpectedDataFolderFromExtension(extractedPath, manifest);
-
-        if (PatcherSettings.ModManagerIntegration.ModManagerType == ModManager.None)
+        if (GetExpectedDataFolderFromExtension(extractedSubPath, manifest, out string extensionFolder))
         {
-            return Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, extensionFolder, manifest.ConfigPrefix, extractedPath);
+            if (PatcherSettings.ModManagerIntegration.ModManagerType == ModManager.None)
+            {
+                return Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, extensionFolder, manifest.ConfigPrefix, extractedSubPath);
+            }
+            else
+            {
+                return Path.Combine(PatcherSettings.ModManagerIntegration.CurrentInstallationFolder, manifest.DestinationModFolder, extensionFolder, manifest.ConfigPrefix, extractedSubPath);
+            }
         }
         else
         {
-            return Path.Combine(PatcherSettings.ModManagerIntegration.CurrentInstallationFolder, manifest.DestinationModFolder, extensionFolder, manifest.ConfigPrefix, extractedPath);
+            if (PatcherSettings.ModManagerIntegration.ModManagerType == ModManager.None)
+            {
+                return Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, extractedSubPath);
+            }
+            else
+            {
+                return Path.Combine(PatcherSettings.ModManagerIntegration.CurrentInstallationFolder, manifest.DestinationModFolder, extractedSubPath);
+            }
         }
     }
 
-    public static string GetPathWithoutSynthEBDPrefix(string path, Manifest manifest) // expects path straigth from Config file, e.g. textures\\foo\\textures\\blah.dds
+    public static string GetPathWithoutSynthEBDPrefix(string path, Manifest manifest) // expects path straight from Config file, e.g. textures\\foo\\textures\\blah.dds
     {
-        string extensionFolder = GetExpectedDataFolderFromExtension(path, manifest);
-
-        string synthEBDPrefix = Path.Combine(extensionFolder, manifest.ConfigPrefix);
-
-        return Path.GetRelativePath(synthEBDPrefix, path);
+        if(GetExpectedDataFolderFromExtension(path, manifest, out string extensionFolder))
+        {
+            string synthEBDPrefix = Path.Combine(extensionFolder, manifest.ConfigPrefix);
+            return Path.GetRelativePath(synthEBDPrefix, path);
+        }
+        else
+        {
+            return path;
+        }
     }
 
-    public static string GetExpectedDataFolderFromExtension(string path, Manifest manifest)
+    public static bool GetExpectedDataFolderFromExtension(string path, Manifest manifest, out string extensionFolder)
     {
         string extension = Path.GetExtension(path).TrimStart('.');
-        string extensionFolder = "";
+        extensionFolder = "";
         if (manifest.FileExtensionMap.ContainsKey(extension))
         {
             extensionFolder = manifest.FileExtensionMap[extension]; // otherwise the file will be installed directly to the data folder or top-level of the mod folder
+            return true;
         }
-        return extensionFolder;
+        else
+        {
+            var trimPath = PatcherSettings.TexMesh.TrimPaths.Where(x => x.Extension.Equals(extension, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+            if (trimPath is not null)
+            {
+                extensionFolder = trimPath.PathToTrim;
+                return true;
+            }
+        }
+        return false;
     }
 
     public static Dictionary<string, string> RemapDirectoryNames(AssetPack extractedPack, Manifest manifest)
@@ -585,7 +613,7 @@ public class ConfigInstaller
 
         foreach (var path in containedPaths)
         {
-            if (!pathMap.ContainsKey(path) && !PathStartsWithModName(path) && HasRecognizedExtension(path, manifest, out string currentFileExtension))
+            if (!pathMap.ContainsKey(path) && !PathStartsWithModName(path) && GetExpectedDataFolderFromExtension(path, manifest, out _))
             {
                 string fileName = Path.GetFileNameWithoutExtension(path);
                 if(pathCountsByFile.ContainsKey(fileName))
@@ -599,7 +627,7 @@ public class ConfigInstaller
                     newFileNameIndex = 1;
                 }
 
-                pathMap.Add(path, GenerateRemappedPath(path, manifest, currentFileExtension, fileName, newFileNameIndex));
+                pathMap.Add(path, GenerateRemappedPath(path, manifest, fileName, newFileNameIndex));
                 newFileNameIndex++;
             }
         }
@@ -634,24 +662,16 @@ public class ConfigInstaller
         }
     }
 
-    public static string GenerateRemappedPath(string path, Manifest manifest, string extension, string folderName, int fileName)
+    public static string GenerateRemappedPath(string path, Manifest manifest, string folderName, int fileName)
     {
-        string parentFolder = manifest.FileExtensionMap[extension];
-        return Path.Join(parentFolder, manifest.ConfigPrefix, folderName, fileName.ToString() + "." + extension);
-    }
-
-    public static bool HasRecognizedExtension(string path, Manifest manifest, out string extension)
-    {
-        extension = Path.GetExtension(path);
-        if (extension.Any())
+        if (GetExpectedDataFolderFromExtension(path, manifest, out string parentFolder))
         {
-            extension = extension.Remove(0, 1);
-            if (manifest.FileExtensionMap.ContainsKey(extension))
-            {
-                return true;
-            }
+            return Path.Join(parentFolder, manifest.ConfigPrefix, folderName, fileName.ToString() + Path.GetExtension(path)); // Path.GetExtension returns a string starting with '.'
         }
-        return false;
+        else
+        {
+            return path;
+        }
     }
 
     public enum PathModifications

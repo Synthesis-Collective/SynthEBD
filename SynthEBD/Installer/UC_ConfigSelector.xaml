@@ -42,7 +42,7 @@
                         </Style>
                     </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
-                        <DataTemplate DataType="{x:Type local:VM_Option}">
+                        <DataTemplate DataType="{x:Type local:VM_ConfigSelectorOption}">
                             <RadioButton Content="{Binding Name}" GroupName="Properties" ToolTip="{Binding Description}" ToolTipService.InitialShowDelay='100'>
                                 <!-- Binding IsChecked to IsSelected requires no support code -->
                                 <RadioButton.IsChecked>

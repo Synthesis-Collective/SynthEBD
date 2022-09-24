@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 
 namespace SynthEBD;
 
@@ -27,6 +27,11 @@ public class Settings_TexMesh
         new TrimPath()
         {
             Extension = "nif",
+            PathToTrim = "meshes"
+        },
+        new TrimPath()
+        {
+            Extension = "tri",
             PathToTrim = "meshes"
         }
     };
