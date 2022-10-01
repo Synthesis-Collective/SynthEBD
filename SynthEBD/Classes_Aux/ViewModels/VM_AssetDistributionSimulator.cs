@@ -54,7 +54,7 @@ namespace SynthEBD
         public Settings_OBody OBodySettings { get; set; } = new();
         public BlockList BlockList { get; set; } = new();
         public int Repetitions { get; set; } = 100;
-        public string TextReport = string.Empty;
+        public string TextReport { get; set; } = string.Empty;
         public RelayCommand SimulatePrimary { get; set; }
 
         public void SimulatePrimaryDistribution()
@@ -76,6 +76,8 @@ namespace SynthEBD
                 var chosenCombination = AssetAndBodyShapeSelector.GenerateCombinationWithBodyShape(flattenedAssetPacks, BodyGenConfigs, OBodySettings, new AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment(), NPCinfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, new());
                 combinations.Add(chosenCombination);
             }
+
+            GenerateReport(combinations);
         }
 
         public void GenerateReport(HashSet<SubgroupCombination> combinations)

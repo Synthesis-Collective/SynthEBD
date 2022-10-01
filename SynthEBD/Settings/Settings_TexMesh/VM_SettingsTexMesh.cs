@@ -140,13 +140,11 @@ public class VM_SettingsTexMesh : VM
            }
        );
 
-        DistributionSimulator = new(this, bodyGen, oBody, blockListUI);
-
         SimulateDistribution = new SynthEBD.RelayCommand(
            canExecute: _ => true,
            execute: _ =>
            {
-               SimulateAssetAssignment();
+               SimulateAssetAssignment(bodyGen, oBody, blockListUI);
            }
        );
     }
@@ -164,7 +162,6 @@ public class VM_SettingsTexMesh : VM
     public int MaxPreviewImageSize { get; set; } = 1024;
     public ObservableCollection<TrimPath> TrimPaths { get; set; } = new();
     public ObservableCollection<VM_AssetPack> AssetPacks { get; set; } = new();
-    public VM_AssetDistributionSimulator DistributionSimulator { get; set; }
 
     public RelayCommand AddTrimPath { get; }
     public RelayCommand RemoveTrimPath { get; }
@@ -257,10 +254,11 @@ public class VM_SettingsTexMesh : VM
         DisplayedAssetPackStr = string.Join(" | ", AssetPacks.Where(x => x.IsSelected).Select(x => x.ShortName));
     }
 
-    public void SimulateAssetAssignment()
+    public void SimulateAssetAssignment(VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI)
     {
         Window_AssetDistributionSimulator simWindow = new();
-        simWindow.DataContext = DistributionSimulator;
+        VM_AssetDistributionSimulator distributionSimulator = new(this, bodyGen, oBody, blockListUI);
+        simWindow.DataContext = distributionSimulator;
         simWindow.ShowDialog();
     }
 }

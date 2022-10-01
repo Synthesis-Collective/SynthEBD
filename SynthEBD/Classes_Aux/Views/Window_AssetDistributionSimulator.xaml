@@ -21,7 +21,7 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" Text="NPC" Foreground="GhostWhite"/>
-        <plugins:FormKeyPicker Grid.Row="0" Grid.Column="1" FormKey="{Binding NPCformKey}" ScopedTypes="{Binding NPCFormKeyTypes}"/>
+        <plugins:FormKeyPicker Grid.Row="0" Grid.Column="1" FormKey="{Binding NPCformKey}" ScopedTypes="{Binding NPCFormKeyTypes}" LinkCache="{Binding lk}"/>
 
         <TextBlock Grid.Row="1" Grid.Column="0" Text="Simulation Rounds" Foreground="GhostWhite"/>
         <TextBox Grid.Row="1" Grid.Column="1" MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=Repetitions}"/>

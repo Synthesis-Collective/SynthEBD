@@ -1,10 +1,10 @@
-﻿using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
 public class UniqueNPCData
 {
-    public static HashSet<string> UniqueNameExclusions { get; set; }
+    public static HashSet<string> UniqueNameExclusions { get; set; } = new();
     public class UniqueNPCTracker
     {
         public SubgroupCombination AssignedCombination { get; set; } = null;
