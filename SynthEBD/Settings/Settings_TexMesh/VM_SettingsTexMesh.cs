@@ -16,6 +16,7 @@ public class VM_SettingsTexMesh : VM
         VM_Settings_General general,
         VM_SettingsBodyGen bodyGen,
         VM_SettingsOBody oBody,
+        VM_BlockListUI blockListUI,
         VM_SettingsModManager modManager,
         VM_AssetPack.Factory assetPackFactory,
         VM_Subgroup.Factory subgroupFactory)
@@ -138,6 +139,16 @@ public class VM_SettingsTexMesh : VM
                foreach (var config in AssetPacks) { config.IsSelected = false; }
            }
        );
+
+        DistributionSimulator = new(this, bodyGen, oBody, blockListUI);
+
+        SimulateDistribution = new SynthEBD.RelayCommand(
+           canExecute: _ => true,
+           execute: _ =>
+           {
+               SimulateAssetAssignment();
+           }
+       );
     }
 
     public bool bChangeNPCTextures { get; set; } = true;
@@ -152,8 +163,8 @@ public class VM_SettingsTexMesh : VM
     public bool bShowPreviewImages { get; set; } = true;
     public int MaxPreviewImageSize { get; set; } = 1024;
     public ObservableCollection<TrimPath> TrimPaths { get; set; } = new();
-
     public ObservableCollection<VM_AssetPack> AssetPacks { get; set; } = new();
+    public VM_AssetDistributionSimulator DistributionSimulator { get; set; }
 
     public RelayCommand AddTrimPath { get; }
     public RelayCommand RemoveTrimPath { get; }
@@ -170,6 +181,7 @@ public class VM_SettingsTexMesh : VM
     public string DisplayedAssetPackStr { get; set; }
     public RelayCommand SelectConfigsAll { get; }
     public RelayCommand SelectConfigsNone { get; }
+    public RelayCommand SimulateDistribution { get; }
 
     public bool ValidateAllConfigs(BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, out List<string> errors)
     {
@@ -243,5 +255,12 @@ public class VM_SettingsTexMesh : VM
     public void RefreshDisplayedAssetPackString()
     {
         DisplayedAssetPackStr = string.Join(" | ", AssetPacks.Where(x => x.IsSelected).Select(x => x.ShortName));
+    }
+
+    public void SimulateAssetAssignment()
+    {
+        Window_AssetDistributionSimulator simWindow = new();
+        simWindow.DataContext = DistributionSimulator;
+        simWindow.ShowDialog();
     }
 }
