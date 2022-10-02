@@ -158,8 +158,9 @@
     <PackageReference Include="Noggog.Autofac" Version="2.50.1" />
     <PackageReference Include="Pfim" Version="0.11.1" />
     <PackageReference Include="PropertyChanged.Fody" Version="3.4.1" />
+    <PackageReference Include="SevenZipExtractor" Version="1.0.17" />
     <PackageReference Include="SharpCompress" Version="0.32.2" />
-    <PackageReference Include="Z.Expressions.Eval" Version="4.0.87" />
+    <PackageReference Include="Wabbajack.FileExtractor" Version="3.0.0.7" />
     <PackageReference Include="Z.Expressions.Eval" Version="4.0.88" />
   </ItemGroup>
 
