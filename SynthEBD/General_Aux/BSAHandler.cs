@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda;
+using Mutagen.Bethesda;
 using System.IO;
 using Mutagen.Bethesda.Archives;
 using Mutagen.Bethesda.Plugins;
@@ -70,11 +70,11 @@ public class BSAHandler
         }
         else
         {
-            foreach (var bsaFile in Archive.GetApplicableArchivePaths(GameRelease.SkyrimSE, PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, modKey))
+            foreach (var bsaFile in Archive.GetApplicableArchivePaths(PatcherEnvironmentProvider.Instance.Environment.GameRelease, PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, modKey))
             {
                 try
                 {
-                    var reader = Archive.CreateReader(GameRelease.SkyrimSE, bsaFile);
+                    var reader = Archive.CreateReader(PatcherEnvironmentProvider.Instance.Environment.GameRelease, bsaFile);
                     if (reader != null)
                     {
                         archiveReaders.Add(reader);
@@ -106,11 +106,11 @@ public class BSAHandler
 
         var readers = new List<PathedArchiveReader>();
 
-        foreach (var bsaFile in Archive.GetApplicableArchivePaths(GameRelease.SkyrimSE, currentDataDir, currentPlugin))
+        foreach (var bsaFile in Archive.GetApplicableArchivePaths(PatcherEnvironmentProvider.Instance.Environment.GameRelease, currentDataDir, currentPlugin))
         {
             try
             {
-                var bsaReader = Archive.CreateReader(GameRelease.SkyrimSE, bsaFile);
+                var bsaReader = Archive.CreateReader(PatcherEnvironmentProvider.Instance.Environment.GameRelease, bsaFile);
                 readers.Add(new PathedArchiveReader() { Reader = bsaReader, FilePath = bsaFile });
             }
             catch
