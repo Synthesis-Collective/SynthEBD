@@ -103,6 +103,7 @@ public class HeightPatcher
         }
 
         npc.Height = assignedHeight;
+        Logger.LogReport("Height set to: " + assignedHeight, false, npcInfo);
 
         if (PatcherSettings.General.bEnableConsistency)
         {
