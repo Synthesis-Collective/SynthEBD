@@ -13,7 +13,19 @@ public class HeightPatcher
         Logger.OpenReportSubsection("Height", npcInfo);
         Logger.LogReport("Assigning NPC height", false, npcInfo);
 
-        if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.Height != null)
+        if (!PatcherSettings.Height.bChangeNPCHeight)
+        {
+            Logger.LogReport("Height randomization for individual NPCs is disabled. Height remains: " + npcInfo.NPC.Height, false, npcInfo);
+            Logger.CloseReportSubsection(npcInfo);
+            return;
+        }
+        else if (!PatcherSettings.Height.bOverwriteNonDefaultNPCHeights && !npcInfo.NPC.Height.Equals(1))
+        {
+            Logger.LogReport("Height randomization is disabled for NPCs with custom height. Height remains: " + npcInfo.NPC.Height, false, npcInfo);
+            Logger.CloseReportSubsection(npcInfo);
+            return;
+        }
+        else if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.Height != null)
         {
             npc = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
             assignedHeight = npcInfo.SpecificNPCAssignment.Height.Value;
@@ -78,7 +90,6 @@ public class HeightPatcher
                 switch (heightAssignment.DistributionMode)
                 {
                     case DistMode.uniform:
-
                         double randomVal = rand.NextDouble() * (upperBound - lowerBound) + lowerBound;
                         assignedHeight = (float)randomVal;
                         break;
@@ -130,6 +141,7 @@ public class HeightPatcher
         RaceAlias raceAlias = null;
 
         if (heightConfig == null) { return; }
+        if (!PatcherSettings.Height.bChangeRaceHeight) { return; }
 
         foreach (var race in PatcherEnvironmentProvider.Instance.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
         {
