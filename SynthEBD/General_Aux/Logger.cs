@@ -1,9 +1,11 @@
-﻿using System.Reactive;
+using System.Reactive;
 using System.Reactive.Subjects;
 using Mutagen.Bethesda.Skyrim;
 using System.Text;
 using System.Windows.Media;
 using System.Xml.Linq;
+using Mutagen.Bethesda.Plugins;
+using Noggog;
 
 namespace SynthEBD;
 
@@ -269,7 +271,7 @@ public sealed class Logger : VM
                 break;
             case ErrorType.Error:
                 Instance._loggedError.OnNext(Unit.Default);
-                Instance.StatusColor = Instance.ErrorColor; 
+                Instance.StatusColor = Instance.ErrorColor;
                 break;
         }
     }
@@ -293,7 +295,7 @@ public sealed class Logger : VM
     {
         await Task.Run(() => _UpdateStatusAsync(message, triggerWarning));
     }
-        
+
     private static async Task _UpdateStatusAsync(string message, bool triggerWarning)
     {
         Instance.StatusString = message;
@@ -318,7 +320,7 @@ public sealed class Logger : VM
         Instance.BackupStatusString = Instance.StatusString;
         Instance.BackupStatusColor = Instance.StatusColor;
     }
-        
+
     public static async Task UnarchiveStatusAsync()
     {
         await Task.Run(() => _DeArchiveStatusAsync());
@@ -434,7 +436,7 @@ public sealed class Logger : VM
 
     public static string GetNPCLogNameString(INpcGetter npc)
     {
-        return npc.Name?.String + " | " +  EditorIDHandler.GetEditorIDSafely(npc) + " | " + npc.FormKey.ToString();
+        return npc.Name?.String + " | " + EditorIDHandler.GetEditorIDSafely(npc) + " | " + npc.FormKey.ToString();
     }
 
     public static string GetNPCLogReportingString(INpcGetter npc)
@@ -458,6 +460,39 @@ public sealed class Logger : VM
             sections.Add(section);
         }
         return string.Join(" | ", sections);
+    }
+
+    public static string GetRaceListLogStrings(IEnumerable<FormKey> formKeys, Mutagen.Bethesda.Plugins.Cache.ILinkCache lk)
+    {
+        return "[" + String.Join(", ", formKeys.Select(x => GetRaceLogString(x, lk))) + "]";
+    }
+
+    public static string GetRaceLogString(FormKey fk, Mutagen.Bethesda.Plugins.Cache.ILinkCache lk)
+    {
+        if (!PatcherSettings.General.VerboseModeDetailedAttributes)
+        {
+            return fk.ToString();
+        }
+
+        if (lk.TryResolve<IRaceGetter>(fk, out var raceGetter))
+        {
+            if (raceGetter.Name != null && !raceGetter.Name.ToString().IsNullOrWhitespace())
+            {
+                return raceGetter.Name.ToString();
+            }
+            else if (raceGetter.EditorID != null && !raceGetter.EditorID.ToString().IsNullOrWhitespace())
+            {
+                return raceGetter.EditorID.ToString();
+            }
+            else
+            {
+                return "(No Name or EditorID: " + fk.ToString() + ")";
+            }
+        }
+        else
+        {
+            return "(Not Currently In Load Order)";
+        }
     }
 }
 

@@ -17,7 +17,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" Text="NPC" Foreground="GhostWhite"/>
@@ -31,6 +31,21 @@
         </StackPanel>
 
         <TextBlock Grid.Row="3" Grid.Column="0" Text="Report: " Foreground="GhostWhite"/>
-        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding TextReport}" ScrollViewer.CanContentScroll="True" Foreground="GhostWhite"/>
+        <ScrollViewer Grid.Row="3" Grid.Column="1">
+            <StackPanel>
+                <TextBlock  Text="{Binding TextReport}" ScrollViewer.CanContentScroll="True" Foreground="GhostWhite"/>
+                <ItemsControl ItemsSource="{Binding ReportStrings}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding ReferencedStr.Str}" Foreground="{Binding TextColor}"/>
+                                <TextBlock Text="{Binding ReferencedStr.Count}" Foreground="{Binding TextColor}" Margin="5 0 0 0"/>
+                                <Button Command="{Binding ExplainCommand}" Content="Why?" Foreground="MediumPurple" Margin="5 0 0 0"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Window>

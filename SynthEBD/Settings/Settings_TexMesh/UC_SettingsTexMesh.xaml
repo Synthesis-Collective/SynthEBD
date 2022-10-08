@@ -156,7 +156,7 @@
             <Button Command="{Binding InstallFromJson}" Foreground="YellowGreen" Margin="5" ToolTip="Install a config plugin file from a loose .json file (not recommended)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Install Config Json File</Button>
             <Button Command="{Binding AddNewAssetPackConfigFile}" Foreground="LightGreen" Margin="5" ToolTip="Create your own blank config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Create New Config File</Button>
             <Button Command="{Binding CreateConfigArchive}" Foreground="LightGreen" Margin="5" ToolTip="Package your config file(s) into an installer archive" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Package Config File(s)</Button>
-            <!--<Button Command="{Binding SimulateDistribution}" Foreground="MediumPurple" Margin="5" ToolTip="Simulate and get statistics on how config files would be assigned to a specific NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Simulate Distribution</Button> -->
+            <Button Command="{Binding SimulateDistribution}" Foreground="MediumPurple" Margin="5" ToolTip="Simulate and get statistics on how config files would be assigned to a specific NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Simulate Distribution</Button>
         </StackPanel>
     </Grid>
 </UserControl>

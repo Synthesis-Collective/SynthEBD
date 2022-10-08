@@ -571,7 +571,7 @@ public class AssetSelector
     /// <returns></returns>
     private static bool SubgroupValidForCurrentNPC(FlattenedSubgroup subgroup, NPCInfo npcInfo, AssetAndBodyShapeSelector.AssetPackAssignmentMode mode, AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment currentAssignments)
     {
-        var reportString = "Subgroup " + subgroup.Id + "(" + subgroup.Name + ") ";
+        var reportString = subgroup.GetReportString();
         if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.SubgroupIDs.Contains(subgroup.Id))
         {
             Logger.LogReport(reportString + "is valid because it is specifically assigned by user.", false, npcInfo);
@@ -595,14 +595,14 @@ public class AssetSelector
         // Allowed Races
         if (!subgroup.AllowedRacesIsEmpty && !subgroup.AllowedRaces.Contains(npcInfo.AssetsRace))
         {
-            Logger.LogReport(reportString + "is invalid because its allowed races do not include the current NPC's race", false, npcInfo);
+            Logger.LogReport(reportString + "is invalid because its allowed races (" + Logger.GetRaceListLogStrings(subgroup.AllowedRaces, PatcherEnvironmentProvider.Instance.Environment.LinkCache) +") do not include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, PatcherEnvironmentProvider.Instance.Environment.LinkCache) + ")", false, npcInfo);
             return false;
         }
 
         // Disallowed Races
         if (subgroup.DisallowedRaces.Contains(npcInfo.AssetsRace))
         {
-            Logger.LogReport(reportString + "is invalid because its disallowed races include the current NPC's race", false, npcInfo);
+            Logger.LogReport(reportString + "is invalid because its disallowed races (" + Logger.GetRaceListLogStrings(subgroup.DisallowedRaces, PatcherEnvironmentProvider.Instance.Environment.LinkCache) + ") include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, PatcherEnvironmentProvider.Instance.Environment.LinkCache) + ")", false, npcInfo);
             return false;
         }
 

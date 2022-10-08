@@ -151,4 +151,9 @@ public class FlattenedSubgroup : IProbabilityWeighted
             }
         }
     }
+
+    public string GetReportString()
+    {
+        return "Subgroup " + Id + " (" + Name + ") ";
+    }
 }

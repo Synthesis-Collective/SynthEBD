@@ -5,9 +5,12 @@ using Noggog;
 using ReactiveUI;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Windows.Media;
 
 namespace SynthEBD
 {
@@ -55,6 +58,7 @@ namespace SynthEBD
         public BlockList BlockList { get; set; } = new();
         public int Repetitions { get; set; } = 100;
         public string TextReport { get; set; } = string.Empty;
+        public ObservableCollection<VM_ReportCountableStringWrapper> ReportStrings { get; set; } = new();
         public RelayCommand SimulatePrimary { get; set; }
 
         public void SimulatePrimaryDistribution()
@@ -62,7 +66,7 @@ namespace SynthEBD
             if (PrimaryAPs is null || !PrimaryAPs.Any()) { return; }
             if (NPCformKey.IsNull) { return; }
 
-            var flattenedAssetPacks = PrimaryAPs.Select(x => FlattenedAssetPack.FlattenAssetPack(x)).ToHashSet();
+            var flattenedAssetPacks = PrimaryAPs.Where(x => x.Gender == NPCinfo.Gender).Select(x => FlattenedAssetPack.FlattenAssetPack(x)).ToHashSet();
 
             var blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(BlockList, NPCformKey);
             var blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(BlockList, NPCformKey);
@@ -71,17 +75,32 @@ namespace SynthEBD
 
             HashSet<SubgroupCombination> combinations = new();
 
+            var currentDetailedVerboseSetting = PatcherSettings.General.VerboseModeDetailedAttributes;
+
             for (int i = 0; i < Repetitions; i++)
             {
+                if (i == Repetitions - 1)
+                {
+                    PatcherSettings.General.VerboseModeDetailedAttributes = true;
+                    NPCinfo.Report.LogCurrentNPC = true;
+                    Logger.InitializeNewReport(NPCinfo);
+                }
                 var chosenCombination = AssetAndBodyShapeSelector.GenerateCombinationWithBodyShape(flattenedAssetPacks, BodyGenConfigs, OBodySettings, new AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment(), NPCinfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, new());
                 combinations.Add(chosenCombination);
+                if (i == Repetitions - 1)
+                {
+                    NPCinfo.Report.LogCurrentNPC = false;
+                    PatcherSettings.General.VerboseModeDetailedAttributes = currentDetailedVerboseSetting;
+                }
             }
 
-            GenerateReport(combinations);
+            GenerateReport(combinations, flattenedAssetPacks, NPCinfo);
         }
 
-        public void GenerateReport(HashSet<SubgroupCombination> combinations)
+        public void GenerateReport(HashSet<SubgroupCombination> combinations, HashSet<FlattenedAssetPack> available, NPCInfo npcInfo)
         {
+            ReportStrings = new();
+
             List<CountableString> assetPacks = new();
             foreach (var combo in combinations)
             {
@@ -98,12 +117,81 @@ namespace SynthEBD
             {
                 TextReport += Environment.NewLine + ap.Str + " (" + ap.Count + ")";
             }
+
+            TextReport += Environment.NewLine + Environment.NewLine + "Subgroup Assignment Counts:";
+            foreach (var ap in available)
+            {
+                if (!assetPacks.Where(x => x.Str == ap.GroupName).Any()) { continue; }
+                TextReport += Environment.NewLine + Environment.NewLine + ap.GroupName;
+                List<CountableString> subgroups = new();
+                for (int i = 0; i < ap.Subgroups.Count; i++)
+                {
+                    var index = ap.Subgroups[i];
+                    foreach (var subgroup in index)
+                    {
+                        CountableString sgString = new() { Str = subgroup.Id + " (" + subgroup.Name + "): " };
+                        sgString.Count = combinations.Where(x => x.AssetPackName == ap.GroupName && x.ContainedSubgroups[i].Id == subgroup.Id).Count();
+
+                        var reportString = new VM_ReportCountableStringWrapper(sgString);
+                        if (sgString.Count > 0) { reportString.TextColor = new SolidColorBrush(Colors.White); }
+                        else {  reportString.TextColor = new SolidColorBrush(Colors.Firebrick); }
+                        reportString.GetExplainStringSubgroup(npcInfo, ap.GroupName, subgroup.Id, subgroup.Name);
+                        ReportStrings.Add(reportString);
+                        //TextReport += Environment.NewLine + sgString.Str + ": " + sgString.Count;
+                    }
+                }
+            }
+
+            //TextReport += NPCinfo.Report.RootElement.ToString();
         }
 
         public class CountableString
         {
             public string Str { get; set; }
-            public int Count { get; set; } = 0;
+            public int Count { get; set; } = 1;
+        }
+
+        public class VM_ReportCountableStringWrapper
+        {
+            public VM_ReportCountableStringWrapper(CountableString str)
+            {
+                ReferencedStr = str;
+                ExplainCommand = new RelayCommand(canExecute: _ => true, execute: _ =>
+                {
+                    CustomMessageBox.DisplayNotificationOK("Explanation", ExplainStr);
+                });
+            }
+
+            public CountableString ReferencedStr { get; set; }
+            public SolidColorBrush TextColor { get; set; } = new SolidColorBrush(Colors.White);
+            public RelayCommand ExplainCommand { get; }
+            public string ExplainStr { get; set; }
+
+            public void GetExplainStringSubgroup(NPCInfo npcInfo, string assetPackName, string subGroupID, string subgroupName)
+            {
+                var log = npcInfo.Report.RootElement.ToString();
+
+                string startStr = "Filtering subgroups within asset pack: " + assetPackName;
+                var split1 = log.Split(startStr);
+                if (split1.Length < 2) { ExplainStr = "Could not parse the log."; return; }
+
+                string endStr = "</AssetPack>";
+                var split2 = split1[1].Split(endStr);
+                if (split2.Length < 2) { ExplainStr = "Could not parse the log."; return; }
+
+                string subgroupStrs = split2[0];
+
+                var subgroupStrArray = subgroupStrs.Split(Environment.NewLine).Where(x => !x.IsNullOrWhitespace());
+                string matchStr = "Subgroup" + subGroupID + "(" + subgroupName + ")"; // remove all white space to remain agnostic to formatting
+                ExplainStr = subgroupStrArray.Where(x => ReplaceWhitespace(x, string.Empty).StartsWith(ReplaceWhitespace(matchStr, string.Empty))).FirstOrDefault() ?? "No relevant information found";
+            }
+
+            //https://stackoverflow.com/questions/6219454/efficient-way-to-remove-all-whitespace-from-string
+            private static readonly Regex sWhitespace = new Regex(@"\s+");
+            public static string ReplaceWhitespace(string input, string replacement)
+            {
+                return sWhitespace.Replace(input, replacement);
+            }
         }
     }
 }
