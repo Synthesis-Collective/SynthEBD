@@ -54,7 +54,7 @@ class PatcherIO
             }
             catch (Exception e)
             {
-                ExceptionLogger.GetExceptionStack(e, errStr);
+                errStr = ExceptionLogger.GetExceptionStack(e, errStr);
                 Logger.LogMessage("Failed to delete previous version of patch. Error: " + Environment.NewLine + errStr);
                 Logger.LogErrorWithStatusUpdate("Could not write output file to " + patchOutputPath, ErrorType.Error);
                 return;
@@ -72,7 +72,7 @@ class PatcherIO
         }
         catch (Exception e)
         {
-            ExceptionLogger.GetExceptionStack(e, errStr);
+            errStr = ExceptionLogger.GetExceptionStack(e, errStr);
             Logger.LogMessage("Failed to write new patch. Error: " + Environment.NewLine + errStr);
             Logger.LogErrorWithStatusUpdate("Could not write output file to " + patchOutputPath, ErrorType.Error); 
         };
