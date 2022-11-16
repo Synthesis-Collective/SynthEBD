@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Skyrim;
 using System.IO;
 
 namespace SynthEBD;
@@ -45,13 +45,24 @@ class PatcherIO
     }
     public static void WritePatch(string patchOutputPath, SkyrimMod outputMod)
     {
-        try
+        string errStr = "";
+        if (File.Exists(patchOutputPath))
         {
-            if (File.Exists(patchOutputPath))
+            try
             {
                 File.Delete(patchOutputPath);
             }
+            catch (Exception e)
+            {
+                ExceptionLogger.GetExceptionStack(e, errStr);
+                Logger.LogMessage("Failed to delete previous version of patch. Error: " + Environment.NewLine + errStr);
+                Logger.LogErrorWithStatusUpdate("Could not write output file to " + patchOutputPath, ErrorType.Error);
+                return;
+            }
+        }
 
+        try
+        {
             var writeParams = new Mutagen.Bethesda.Plugins.Binary.Parameters.BinaryWriteParameters()
             {
                 MastersListOrdering = new Mutagen.Bethesda.Plugins.Binary.Parameters.MastersListOrderingByLoadOrder(PatcherEnvironmentProvider.Instance.Environment.LoadOrder)
@@ -59,7 +70,12 @@ class PatcherIO
             outputMod.WriteToBinary(patchOutputPath, writeParams);
             Logger.LogMessage("Wrote output file at " + patchOutputPath + ".");
         }
-        catch { Logger.LogErrorWithStatusUpdate("Could not write output file to " + patchOutputPath, ErrorType.Error); };
+        catch (Exception e)
+        {
+            ExceptionLogger.GetExceptionStack(e, errStr);
+            Logger.LogMessage("Failed to write new patch. Error: " + Environment.NewLine + errStr);
+            Logger.LogErrorWithStatusUpdate("Could not write output file to " + patchOutputPath, ErrorType.Error); 
+        };
     }
     public static void TryCopyResourceFile(string sourcePath, string destPath)
     {
