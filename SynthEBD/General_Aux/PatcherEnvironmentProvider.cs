@@ -1,3 +1,4 @@
+﻿using System.Text;
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Plugins;
@@ -17,7 +18,7 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
     [Reactive] public string GameDataFolder { get; set; } = "";
     public RelayCommand SelectGameDataFolder { get; }
     public RelayCommand ClearGameDataFolder { get; }
-    public SkyrimMod OutputMod { get; set; }
+    [Reactive] public SkyrimMod OutputMod { get; set; }
     public IGameEnvironment<ISkyrimMod, ISkyrimModGetter> Environment { get; private set; }
     public StringBuilder EnvironmentLog { get; } = new();
 
@@ -49,12 +50,16 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
             }
         );
 
-        this.WhenAnyValue(x => x.SkyrimVersion).Subscribe(_ => UpdateEnvironment());
+        this.WhenAnyValue(
+                x => x.SkyrimVersion,
+                x => x.PatchFileName)
+            .Subscribe(_ => UpdateEnvironment());
     }
 
     public void UpdateEnvironment()
     {
         LogEnvironmentEvent("Creating Patcher Environment:");
+        OutputMod = null;
         OutputMod = new SkyrimMod(ModKey.FromName(PatchFileName, ModType.Plugin), SkyrimVersion);
         LogEnvironmentEvent("Output mod: " + OutputMod.ModKey.ToString());
         LogEnvironmentEvent("Skyrim Version: " + SkyrimVersion.ToString());
