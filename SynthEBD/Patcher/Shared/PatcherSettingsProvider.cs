@@ -1,11 +1,12 @@
 using System.IO;
+using System.Text;
 
 namespace SynthEBD;
 
 public class PatcherSettingsProvider
 {
     public Lazy<LoadSource> SourceSettings { get; }
-    public static string SettingsLog { get; set; } = string.Empty;
+    public static StringBuilder SettingsLog { get; } = new();
 
     public PatcherSettingsProvider()
     {
@@ -13,30 +14,31 @@ public class PatcherSettingsProvider
         {
             if (File.Exists(Paths.SettingsSourcePath))
             {
-                SettingsLog += "Found settings source path at " + Paths.SettingsSourcePath + Environment.NewLine;
+                SettingsLog.AppendLine("Found settings source path at " + Paths.SettingsSourcePath);
 
                 var source = JSONhandler<LoadSource>.LoadJSONFile(Paths.SettingsSourcePath, out bool loadSuccess,
                     out string exceptionStr);
                 if (loadSuccess)
                 {
-                    SettingsLog += "Source Settings: " + Environment.NewLine +
-                    "Skyrim Version: " + source.SkyrimVersion + Environment.NewLine +
-                    "Game Environment Directory: " + source.GameEnvironmentDirectory + Environment.NewLine +
-                    "Load Settings from Portable Folder: " + source.LoadFromDataDir + Environment.NewLine +
-                    "Portable Folder Location: " + source.PortableSettingsFolder;
+                    SettingsLog.AppendLine("Source Settings: ");
+                    SettingsLog.AppendLine("Skyrim Version: " + source.SkyrimVersion);
+                    SettingsLog.AppendLine("Game Environment Directory: " + source.GameEnvironmentDirectory);
+                    SettingsLog.AppendLine("Load Settings from Portable Folder: " + source.LoadFromDataDir);
+                    SettingsLog.AppendLine("Portable Folder Location: " + source.PortableSettingsFolder);
                     source.Initialized = true;
                     return source;
                 }
                 else
                 {
-                    SettingsLog += "Could not load Settings Source. Error: " + exceptionStr;
+                    SettingsLog.AppendLine("Could not load Settings Source. Error: " + exceptionStr);
                     Logger.LogError("Could not load Settings Source. Error: " + exceptionStr);
                     return new();
                 }
             }
             else
             {
-                SettingsLog += "Did not find settings source path at " + Paths.SettingsSourcePath + Environment.NewLine + "Using default environment and patcher settings locations.";
+                SettingsLog.AppendLine("Did not find settings source path at " + Paths.SettingsSourcePath);
+                SettingsLog.AppendLine("Using default environment and patcher settings locations.");
                 return new();
             }  
         });

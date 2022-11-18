@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda;
+using Mutagen.Bethesda;
 using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Order;
@@ -19,11 +19,11 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
     public RelayCommand ClearGameDataFolder { get; }
     public SkyrimMod OutputMod { get; set; }
     public IGameEnvironment<ISkyrimMod, ISkyrimModGetter> Environment { get; private set; }
-    public string EnvironmentLog { get; set; } = string.Empty;
+    public StringBuilder EnvironmentLog { get; } = new();
 
     private void LogEnvironmentEvent(string logString)
     {
-        EnvironmentLog += logString + System.Environment.NewLine;
+        EnvironmentLog.AppendLine(logString);
     }
 
     public PatcherEnvironmentProvider(PatcherSettingsProvider settingsProvider)

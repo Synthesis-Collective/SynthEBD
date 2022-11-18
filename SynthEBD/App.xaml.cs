@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.Text;
+using System.Windows;
 
 namespace SynthEBD;
 
@@ -31,9 +32,17 @@ public partial class App : Application
 
     private void Application_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {
-        string errorMessage = "SynthEBD has crashed with the following error:" + Environment.NewLine + ExceptionLogger.GetExceptionStack(e.Exception, "") + Environment.NewLine + Environment.NewLine;
-        errorMessage += "Patcher Settings Creation Log:" + Environment.NewLine + PatcherSettingsProvider.SettingsLog + Environment.NewLine + Environment.NewLine;
-        errorMessage += "Patcher Environment Creation Log:" + Environment.NewLine + PatcherEnvironmentProvider.Instance.EnvironmentLog;
+        StringBuilder sb = new();
+        sb.AppendLine("SynthEBD has crashed with the following error:");
+        sb.AppendLine(ExceptionLogger.GetExceptionStack(e.Exception, ""));
+        sb.AppendLine();
+        sb.AppendLine("Patcher Settings Creation Log:");
+        sb.AppendLine(PatcherSettingsProvider.SettingsLog.ToString());
+        sb.AppendLine();
+        sb.AppendLine("Patcher Environment Creation Log:");
+        sb.AppendLine(PatcherEnvironmentProvider.Instance.EnvironmentLog.ToString());
+
+        var errorMessage = sb.ToString();
         CustomMessageBox.DisplayNotificationOK("SynthEBD has crashed.", errorMessage);
 
         var path = System.IO.Path.Combine(PatcherSettings.Paths.LogFolderPath, "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
