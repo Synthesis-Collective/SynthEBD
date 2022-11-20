@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda;
+using Mutagen.Bethesda;
 using Mutagen.Bethesda.FormKeys.SkyrimSE;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
@@ -122,13 +122,14 @@ namespace SynthEBD
             PatcherIO.TryCopyResourceFile(sourcePath, destPath);
         }
 
+        /*
         public static void WriteHeadPartSPIDIni(Spell headPartSpell)
         {
             string str = "Spell = " + headPartSpell.FormKey.ToString().Replace(":", " - ") + " | ActorTypeNPC | NONE | NONE | "; // original format - SPID auto-updates but this is compatible with old SPID versions
             string outputPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBDHeadPartDistributor_DISTR.ini");
             Task.Run(() => PatcherIO.WriteTextFile(outputPath, str));
         }
-
+        */
         public static void WriteAssignmentDictionary()
         {
             if (Patcher.HeadPartTracker.Count == 0)

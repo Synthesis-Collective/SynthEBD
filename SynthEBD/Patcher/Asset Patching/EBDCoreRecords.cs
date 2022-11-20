@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda;
+using Mutagen.Bethesda;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 
@@ -111,23 +111,6 @@ public class EBDCoreRecords
         spellEffect.Data.Area = 0;
         EBDHelperSpell.Effects.Add(spellEffect);
     }
-
-    public static void ApplyHelperSpell(SkyrimMod outputMod, Spell EBDHelperSpell)
-    {
-        foreach (var raceGetter in PatcherEnvironmentProvider.Instance.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
-        {
-            if (PatcherSettings.General.PatchableRaces.Contains(raceGetter.FormKey))
-            {
-                var patchableRace = outputMod.Races.GetOrAddAsOverride(raceGetter);
-                if (patchableRace.ActorEffect == null)
-                {
-                    patchableRace.ActorEffect = new Noggog.ExtendedList<IFormLinkGetter<ISpellRecordGetter>>();
-                }
-                patchableRace.ActorEffect.Add(EBDHelperSpell);
-            }
-        }
-    }
-
         
     public static Keyword CreateHeadPartKeyword(SkyrimMod outputMod)
     {

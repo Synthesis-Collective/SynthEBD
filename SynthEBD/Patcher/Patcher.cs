@@ -65,7 +65,7 @@ public class Patcher
             availableAssetPacks = new CategorizedFlattenedAssetPacks(flattenedAssetPacks);
 
             EBDCoreRecords.CreateCoreRecords(outputMod, out EBDFaceKW, out EBDScriptKW, out EBDHelperSpell);
-            EBDCoreRecords.ApplyHelperSpell(outputMod, EBDHelperSpell);
+            ApplyRacialSpell.ApplySpell(outputMod, EBDHelperSpell);
 
             if (PatcherSettings.TexMesh.bApplyFixedScripts) { EBDScripts.ApplyFixedScripts(); }
 
@@ -220,11 +220,12 @@ public class Patcher
             if (HasAssetDerivedHeadParts && !PatcherSettings.General.bChangeHeadParts) // these checks not performed when running in Asset Mode only - user needs to be warned if patcher dips into the headpart distribution system while headparts are disabled
             {
                 bool validation = true;
+                /*
                 if (!MiscValidation.VerifySPIDInstalled(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, true))
                 {
                     Logger.LogMessage("WARNING: Your Asset Packs have generated new headparts whose distribution requires Spell Perk Item Distributor, which was not detected in your data folder. NPCs will not receive their new headparts until this is installed.");
                     validation = false;
-                }
+                }*/
 
                 if (!MiscValidation.VerifyJContainersInstalled(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, true))
                 {
@@ -247,7 +248,9 @@ public class Patcher
             JContainersDomain.CreateSynthEBDDomain();
             HeadPartWriter.CreateHeadPartLoaderQuest(outputMod, headpartsLoaded);
             headPartAssignmentSpell = HeadPartWriter.CreateHeadPartAssignmentSpell(outputMod, headpartsLoaded);
-            HeadPartWriter.WriteHeadPartSPIDIni(headPartAssignmentSpell);
+            //HeadPartWriter.WriteHeadPartSPIDIni(headPartAssignmentSpell);
+            UpdateHandler.CleanSPIDiniHeadParts();
+            ApplyRacialSpell.ApplySpell(outputMod, headPartAssignmentSpell);
 
             HeadPartWriter.CopyHeadPartScript();
             HeadPartWriter.CleanPreviousOutputs();
