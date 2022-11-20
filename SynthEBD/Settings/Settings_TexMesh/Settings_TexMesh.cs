@@ -17,6 +17,7 @@ public class Settings_TexMesh
     public HashSet<string> SelectedAssetPacks { get; set; } = new();
     public string LastViewedAssetPack { get; set; }
     public bool bEasyNPCCompatibilityMode { get; set; } = true;
+    public bool bApplyFixedScripts { get; set; } = true;
     public List<TrimPath> TrimPaths { get; set; } = new()
     {
         new TrimPath()

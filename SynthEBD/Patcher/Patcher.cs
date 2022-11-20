@@ -67,6 +67,8 @@ public class Patcher
             EBDCoreRecords.CreateCoreRecords(outputMod, out EBDFaceKW, out EBDScriptKW, out EBDHelperSpell);
             EBDCoreRecords.ApplyHelperSpell(outputMod, EBDHelperSpell);
 
+            if (PatcherSettings.TexMesh.bApplyFixedScripts) { EBDScripts.ApplyFixedScripts(); }
+
             RecordGenerator.Reinitialize();
             _combinationLog.Reinitialize();
 

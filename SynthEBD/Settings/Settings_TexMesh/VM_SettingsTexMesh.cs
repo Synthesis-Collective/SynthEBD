@@ -158,6 +158,7 @@ public class VM_SettingsTexMesh : VM
     public bool bDisplayPopupAlerts { get; set; } = true;
     public bool bGenerateAssignmentLog { get; set; } = true;
     public bool bEasyNPCCompatibilityMode { get; set; } = true;
+    public bool bApplyFixedScripts { get; set; } = true;
     public bool bShowPreviewImages { get; set; } = true;
     public int MaxPreviewImageSize { get; set; } = 1024;
     public ObservableCollection<TrimPath> TrimPaths { get; set; } = new();
@@ -211,6 +212,7 @@ public class VM_SettingsTexMesh : VM
         viewModel.TrimPaths = new ObservableCollection<TrimPath>(model.TrimPaths);
         viewModel.LastViewedAssetPackName = model.LastViewedAssetPack;
         viewModel.bEasyNPCCompatibilityMode = model.bEasyNPCCompatibilityMode;
+        viewModel.bApplyFixedScripts = model.bApplyFixedScripts;
     }
 
     public static void DumpViewModelToModel(VM_SettingsTexMesh viewModel, Settings_TexMesh model)
@@ -232,6 +234,7 @@ public class VM_SettingsTexMesh : VM
             model.LastViewedAssetPack = viewModel.AssetPresenterPrimary.AssetPack.GroupName;
         }
         model.bEasyNPCCompatibilityMode = viewModel.bEasyNPCCompatibilityMode;
+        model.bApplyFixedScripts = viewModel.bApplyFixedScripts;
     }
 
     public void RefreshInstalledConfigs(List<string> installedConfigs)

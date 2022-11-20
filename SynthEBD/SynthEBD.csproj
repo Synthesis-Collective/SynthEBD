@@ -33,6 +33,10 @@
     <None Remove="Resources\Default BodySlide Annotations\CBBE.csv" />
     <None Remove="Resources\Default BodySlide Annotations\HIMBO.csv" />
     <None Remove="Resources\Default BodySlide Annotations\UNP.csv" />
+    <None Remove="Resources\EBD Code\SSE\EBDGlobalFuncs.pex" />
+    <None Remove="Resources\EBD Code\SSE\Source\EBDGlobalFuncs.psc" />
+    <None Remove="Resources\EBD Code\VR\EBDGlobalFuncs.pex" />
+    <None Remove="Resources\EBD Code\VR\Source\EBDGlobalFuncs.psc" />
     <None Remove="Resources\HeadPartScripts\Source\SynthEBDHeadPartLoaderPAScript.psc" />
     <None Remove="Resources\HeadPartScripts\Source\SynthEBDHeadPartLoaderQuestScript.psc" />
     <None Remove="Resources\HeadPartScripts\Source\SynthEBDHeadPartScript.psc" />
@@ -67,6 +71,18 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Resources\Common Scripts\SynthEBDCommonFuncs.pex">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\EBD Code\SSE\EBDGlobalFuncs.pex">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\EBD Code\SSE\Source\EBDGlobalFuncs.psc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\EBD Code\VR\EBDGlobalFuncs.pex">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\EBD Code\VR\Source\EBDGlobalFuncs.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Resources\HeadPartScripts\Source\SynthEBDHeadPartLoaderPAScript.psc">
