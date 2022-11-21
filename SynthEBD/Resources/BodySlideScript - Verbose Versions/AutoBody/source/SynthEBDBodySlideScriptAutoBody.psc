@@ -1,44 +1,38 @@
 Scriptname SynthEBDBodySlideScriptAutoBody extends ActiveMagicEffect
 
 import PSM_SynthEBD
+import EBDGlobalFuncs
+import SynthEBDCommonFuncs
 
-GlobalVariable Property loadingCompleted Auto
+GlobalVariable Property SynthEBDDataBaseLoaded Auto
+MagicEffect Property SynthEBDBodySlideMGEF Auto
+Spell Property SynthEBDBodySlideSpell Auto
 
 Event OnEffectStart(Actor akTarget, Actor akCaster)
+	ApplyBodySlide(akCaster)
+EndEvent
+
+function ApplyBodySlide(Actor akCaster)
+	ClearActorEffect(akCaster, SynthEBDBodySlideMGEF, SynthEBDBodySlideSpell)
 	
-	while (loadingCompleted.GetValue() == 0)
+	ActorBase akBase = getProperActorBase(akCaster)
+	string actorName = akBase.GetName()
+	if actorName == ""
+		actorName = "Unnamed"
+	endif
+	
+	while (SynthEBDDataBaseLoaded.GetValue() == 0)
 		Utility.Wait(2)
 	endwhile
+
+	string assignment = JFormDB_getStr(akBase, ".SynthEBD.BodySlide")
 	
-	If (!JFormDB_hasPath(akCaster, ".SynthEBD.Assigned") || JFormDB_getInt(akCaster, ".SynthEBD.Assigned") == 0)
-		form akBase = akCaster.GetLeveledActorBase().GetTemplate()
-		string actorName = ""
-		bool lockAssignment = false
-		if akBase == None
-			akBase = akCaster.GetActorBase().GetTemplate()
-			actorName = akCaster.GetActorBase().GetName()
-			if akBase == None
-				akBase = akCaster.GetActorBase()
-				lockAssignment = true
-			endif
-		else
-			actorName = akCaster.GetLeveledActorBase().GetName()
-		endif
-		
-		string assignment = JFormDB_getStr(akBase, ".SynthEBD.BodySlide")
-		if actorName == ""
-			actorName = "Unnamed"
-		endif
-		if assignment != ""
-			autoBodyUtils.ApplyPresetByName(akCaster, assignment)
-			debug.Notification("Assigned bodyslide preset: " + assignment + " to NPC: " + actorName)
-			debug.Trace("Assigned bodyslide preset: " + assignment + " to NPC: " + actorName + " (" + akBase + ")")
-			if lockAssignment
-				JFormDB_setInt(akCaster, ".SynthEBD.Assigned", 1)
-			endif
-		else 
-			debug.Notification("No assignment recorded for NPC: " + actorName)
-			debug.Trace("No assignment recorded for NPC: " + actorName + " (" + akBase + ")")
-		endif
-    EndIf
-EndEvent
+	if assignment != ""
+		autoBodyUtils.ApplyPresetByName(akCaster, assignment)
+		debug.Notification("Assigned bodyslide preset: " + assignment + " to NPC: " + actorName)
+		debug.Trace("Assigned bodyslide preset: " + assignment + " to NPC: " + actorName + " (" + akBase + ")")
+	else 
+		debug.Notification("No bodyslide assignment recorded for NPC: " + actorName)
+		debug.Trace("No bodyslide assignment recorded for NPC: " + actorName + " (" + akBase + ")")
+	endif
+EndFunction
