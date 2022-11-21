@@ -23,14 +23,14 @@ Function LoadBodySlideDict(string caller) ;caller is for debugging only
 			fileReadCount += 1
 			int keyIndex = 0
 			int maxCount = JMap_count(assignmentDict)
-			debug.Notification("SynthEBD: Reading BS dict " + fileReadCount as string)
-			debug.Trace("SynthEBD: Read BodySlide input file " + fileCount as string + ": Contains " + maxCount as string + " entries.")
+			;debug.Notification("SynthEBD: Reading BS dict " + fileReadCount as string)
+			;debug.Trace("SynthEBD: Read BodySlide input file " + fileCount as string + ": Contains " + maxCount as string + " entries.")
 			while (keyIndex < maxCount)
 				string currentNPCstr = JMap_getNthKey(assignmentDict, keyIndex)
 				form currentNPC = SynthEBDCommonFuncs.FormKeyToForm(currentNPCstr, false)
 				string assignment = JMap_getStr(assignmentDict, currentNPCstr)
 				if (assignment)
-					debug.Trace("JSON has entry for Key " + keyIndex as string + ": " + currentNPCstr + " (" + currentNPC + ")")
+					;debug.Trace("JSON has entry for Key " + keyIndex as string + ": " + currentNPCstr + " (" + currentNPC + ")")
 					keyReadCount += 1
 					AddBodySlideToDB(assignment, currentNPC)
 				else
@@ -48,10 +48,10 @@ Function LoadBodySlideDict(string caller) ;caller is for debugging only
 	endwhile
 
 	if (fileCount > 0)
-		debug.Notification("Loaded BodySlide Assignments")
+		;debug.Notification("Loaded BodySlide Assignments")
 		debug.Trace("SynthEBD: Loaded " + keyReadCount as string + " BodySlide assignments from " + fileReadCount as string + " input files")
 	else
-		debug.Notification("Failed to loaded BodySlide Assignments")
+		;debug.Notification("Failed to loaded BodySlide Assignments")
 		debug.Trace("SynthEBD: No BodySlide json files found")
 	endif
 	SynthEBDDataBaseLoaded.SetValue(1)
