@@ -56,6 +56,8 @@ public class Patcher
 
         Spell headPartAssignmentSpell = null;
 
+        bool bWriteCommonScripts = false;
+
         if (PatcherSettings.General.bChangeMeshesOrTextures)
         {
             UpdateRecordTemplateAdditonalRaces(assetPacks, _state.RecordTemplateLinkCache, _state.RecordTemplatePlugins);
@@ -119,6 +121,9 @@ public class Patcher
                 //OBodyWriter.WriteBodySlideSPIDIni(bodySlideAssignmentSpell, copiedOBodySettings, outputMod);
                 UpdateHandler.CleanSPIDiniOBody();
                 ApplyRacialSpell.ApplySpell(outputMod, bodySlideAssignmentSpell);
+                UpdateHandler.CleanOldHeadPartDict();
+
+                bWriteCommonScripts = true;
             }
         }
 
@@ -241,7 +246,7 @@ public class Patcher
                 }
             }
 
-            CommonScripts.CopyAllToOutputFolder();
+            bWriteCommonScripts = true;
 
             var headpartsLoaded = outputMod.Globals.AddNewShort();
             headpartsLoaded.EditorID = "SynthEBDHeadPartsLoaded";
@@ -258,6 +263,8 @@ public class Patcher
             HeadPartWriter.CleanPreviousOutputs();
             HeadPartWriter.WriteAssignmentDictionary();
         }
+
+        if (bWriteCommonScripts) { CommonScripts.CopyAllToOutputFolder(); }
 
         string patchOutputPath = System.IO.Path.Combine(PatcherSettings.Paths.OutputDataFolder, PatcherSettings.General.PatchFileName + ".esp");
         PatcherIO.WritePatch(patchOutputPath, outputMod);

@@ -115,4 +115,23 @@ class PatcherIO
         }
         return true;
     }
+
+    public static bool TryDeleteDirectory(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            try
+            {
+                Directory.Delete(path, true);
+            }
+            catch (Exception e)
+            {
+                Logger.LogErrorWithStatusUpdate("Could not delete directory - see log", ErrorType.Warning);
+                string error = ExceptionLogger.GetExceptionStack(e, "");
+                Logger.LogMessage("Could not delete directory: " + path + Environment.NewLine + error);
+                return false;
+            }
+        }
+        return true;
+    }
 }
