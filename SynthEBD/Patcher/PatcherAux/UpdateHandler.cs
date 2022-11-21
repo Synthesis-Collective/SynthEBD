@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,20 +12,11 @@ namespace SynthEBD
     {
         public static void CleanSPIDiniHeadParts()
         {
-            var path = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBDHeadPartDistributor_DISTR.ini");
-            if (File.Exists(path))
-            {
-                try
-                {
-                    File.Delete(path);
-                }
-                catch (Exception e)
-                {
-                    Logger.LogErrorWithStatusUpdate("Could not delete outdated SPID ini", ErrorType.Warning);
-                    string error = ExceptionLogger.GetExceptionStack(e, "");
-                    Logger.LogMessage("Could not delete outdated SPID ini" + Environment.NewLine + error);
-                }
-            }
+            PatcherIO.TryDeleteFile(Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBDHeadPartDistributor_DISTR.ini"));
+        }
+        public static void CleanSPIDiniOBody()
+        {
+            PatcherIO.TryDeleteFile(Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini"));
         }
     }
 }

@@ -116,7 +116,9 @@ public class Patcher
                 JContainersDomain.CreateSynthEBDDomain();
                 OBodyWriter.CreateBodySlideLoaderQuest(outputMod, bodyslidesLoaded);
                 bodySlideAssignmentSpell = OBodyWriter.CreateOBodyAssignmentSpell(outputMod, bodyslidesLoaded);
-                OBodyWriter.WriteBodySlideSPIDIni(bodySlideAssignmentSpell, copiedOBodySettings, outputMod);
+                //OBodyWriter.WriteBodySlideSPIDIni(bodySlideAssignmentSpell, copiedOBodySettings, outputMod);
+                UpdateHandler.CleanSPIDiniOBody();
+                ApplyRacialSpell.ApplySpell(outputMod, bodySlideAssignmentSpell);
             }
         }
 

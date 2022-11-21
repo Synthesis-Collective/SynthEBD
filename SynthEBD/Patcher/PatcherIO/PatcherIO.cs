@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Mutagen.Bethesda.Skyrim;
 using System.IO;
 
@@ -94,5 +95,24 @@ class PatcherIO
         {
             Logger.LogErrorWithStatusUpdate("Could not copy " + sourcePath + "to " + destPath, ErrorType.Error);
         }
+    }
+
+    public static bool TryDeleteFile(string path)
+    {
+        if (File.Exists(path))
+        {
+            try
+            {
+                File.Delete(path);
+            }
+            catch (Exception e)
+            {
+                Logger.LogErrorWithStatusUpdate("Could not delete file - see log", ErrorType.Warning);
+                string error = ExceptionLogger.GetExceptionStack(e, "");
+                Logger.LogMessage("Could not delete file: " + path + Environment.NewLine + error);
+                return false;
+            }
+        }
+        return true;
     }
 }
