@@ -56,6 +56,8 @@ public class Patcher
 
         Spell headPartAssignmentSpell = null;
 
+        HeadPartWriter.CleanPreviousOutputs();
+
         bool bWriteCommonScripts = false;
 
         if (PatcherSettings.General.bChangeMeshesOrTextures)
@@ -260,7 +262,6 @@ public class Patcher
             ApplyRacialSpell.ApplySpell(outputMod, headPartAssignmentSpell);
 
             HeadPartWriter.CopyHeadPartScript();
-            HeadPartWriter.CleanPreviousOutputs();
             HeadPartWriter.WriteAssignmentDictionary();
         }
 

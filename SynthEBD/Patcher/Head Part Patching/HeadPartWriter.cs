@@ -185,17 +185,7 @@ namespace SynthEBD
             var oldFiles = Directory.GetFiles(outputDir).Where(x => Path.GetFileName(x).StartsWith("HeadPartDict"));
             foreach (var path in oldFiles)
             {
-                if (File.Exists(path))
-                {
-                    try
-                    {
-                        File.Delete(path);
-                    }
-                    catch
-                    {
-                        Logger.LogErrorWithStatusUpdate("Could not delete file at " + path, ErrorType.Warning);
-                    }
-                }
+                PatcherIO.TryDeleteFile(path);
             }
         }
     }

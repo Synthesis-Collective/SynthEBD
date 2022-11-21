@@ -32,7 +32,7 @@ function ApplyBodySlide(Actor akCaster)
 		debug.Notification("Assigned bodyslide preset: " + assignment + " to NPC: " + actorName)
 		debug.Trace("Assigned bodyslide preset: " + assignment + " to NPC: " + actorName + " (" + akBase + ")")
 	else 
-		debug.Notification("No assignment recorded for NPC: " + actorName)
-		debug.Trace("No assignment recorded for NPC: " + actorName + " (" + akBase + ")")
+		debug.Notification("No bodyslide assignment recorded for NPC: " + actorName)
+		debug.Trace("No bodyslide assignment recorded for NPC: " + actorName + " (" + akBase + ")")
 	endif
 EndFunction
