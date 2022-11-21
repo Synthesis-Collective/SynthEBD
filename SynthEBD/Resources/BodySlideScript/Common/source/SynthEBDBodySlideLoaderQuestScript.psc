@@ -5,7 +5,7 @@ import PSM_SynthEBD
 GlobalVariable Property SynthEBDDataBaseLoaded Auto
 
 Event OnInit()
-	debug.Notification("SynthEBD Loading BodySlides")
+	;debug.Notification("SynthEBD Loading BodySlides")
 	LoadBodySlideDict("OnInit")
 EndEvent
 
