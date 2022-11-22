@@ -103,12 +103,14 @@ namespace SynthEBD
             bsLoaderScriptAdapter.Aliases.Add(loaderQuestFragmentAlias);
             bsLoaderQuest.VirtualMachineAdapter = bsLoaderScriptAdapter;
 
+            string scriptSourceDir = GetScriptSource();
+
             // copy quest script
-            string questSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "HeadPartScripts", "SynthEBDHeadPartLoaderQuestScript.pex");
+            string questSourcePath = Path.Combine(scriptSourceDir, "SynthEBDHeadPartLoaderQuestScript.pex");
             string questDestPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDHeadPartLoaderQuestScript.pex");
             PatcherIO.TryCopyResourceFile(questSourcePath, questDestPath);
             // copy quest alias script
-            string questAliasSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "HeadPartScripts", "SynthEBDHeadPartLoaderPAScript.pex");
+            string questAliasSourcePath = Path.Combine(scriptSourceDir, "SynthEBDHeadPartLoaderPAScript.pex");
             string questAliasDestPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDHeadPartLoaderPAScript.pex");
             PatcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath);
             // copy Seq file
@@ -117,9 +119,20 @@ namespace SynthEBD
 
         public static void CopyHeadPartScript()
         {
-            var sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "HeadPartScripts", "SynthEBDHeadPartScript.pex");
+            var sourcePath = Path.Combine(GetScriptSource(), "SynthEBDHeadPartScript.pex");
             var destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDHeadPartScript.pex");
             PatcherIO.TryCopyResourceFile(sourcePath, destPath);
+        }
+
+        public static string GetScriptSource()
+        {
+            string scriptSourceDir = string.Empty;
+            switch (PatcherSettings.HeadParts.bUseVerboseScripts)
+            {
+                case false: scriptSourceDir = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "HeadPartScripts", "Silent"); break;
+                case true: scriptSourceDir = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "HeadPartScripts", "Verbose"); break;
+            }
+            return scriptSourceDir;
         }
 
         /*

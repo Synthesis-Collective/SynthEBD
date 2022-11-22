@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SynthEBD.UC_HeadPartMiscSettings"
+<UserControl x:Class="SynthEBD.UC_HeadPartMiscSettings"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -14,6 +14,7 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
@@ -36,5 +37,8 @@
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
+
+        <TextBlock Grid.Row="2" Grid.Column="0">Use Verbose Scripts</TextBlock>
+        <CheckBox Grid.Row="2" Grid.Column="2" IsChecked="{Binding bUseVerboseScripts}"/>
     </Grid>
 </UserControl>

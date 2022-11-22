@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Skyrim;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,12 +20,16 @@ namespace SynthEBD
             { HeadPart.TypeEnum.Scars, new HeadPartSource() { Source = HeadPartSourceCandidate.AssetPack} }
         };
 
+        public bool bUseVerboseScripts { get; set; } = false;
+
         public void GetViewModelFromModel(Settings_Headparts model)
         {
             foreach (var type in model.SourceConflictWinners.Keys)
             {
                 SourceConflictWinners[type].Source = model.SourceConflictWinners[type];
             }
+
+            bUseVerboseScripts = model.bUseVerboseScripts;
         }
 
         public void DumpViewModelToModel(Settings_Headparts model)
@@ -34,6 +38,8 @@ namespace SynthEBD
             {
                 model.SourceConflictWinners[type] = SourceConflictWinners[type].Source;
             }
+
+            model.bUseVerboseScripts = bUseVerboseScripts;
         }
     }
 

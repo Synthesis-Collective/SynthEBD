@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Skyrim;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -30,5 +30,7 @@ namespace SynthEBD
             { HeadPart.TypeEnum.Misc, HeadPartSourceCandidate.AssetPack },
             { HeadPart.TypeEnum.Scars, HeadPartSourceCandidate.AssetPack }
         };
+
+        public bool bUseVerboseScripts { get; set; } = false;
     }
 }
