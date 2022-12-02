@@ -52,8 +52,9 @@ namespace SynthEBD
                 if (currentConsistency != null && currentConsistency.Initialized)
                 {
                     var bothNull = currentConsistency.FormKey.IsNull && selection == null;
+                    var overwriteNull = selection != null && currentConsistency.FormKey.IsNull;
                     var bothMatch = selection != null && selection.FormKey.Equals(currentConsistency.FormKey);
-                    if (!bothNull && !bothMatch)
+                    if (!bothNull && !overwriteNull && !bothMatch)
                     {
                         consistencyReportTriggers.Add(headPartType.ToString());
                     }

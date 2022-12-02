@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
@@ -77,7 +77,7 @@ public class VM_ConsistencyUI : VM
                     {
                         if (headpart.Value != null)
                         {
-                            headpart.Value.Label = String.Empty;
+                            headpart.Value.ClearAssignment();
                         }
                     }
                 }
