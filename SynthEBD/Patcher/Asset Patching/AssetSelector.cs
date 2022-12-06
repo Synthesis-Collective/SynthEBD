@@ -991,36 +991,59 @@ public class AssetSelector
 
     public static void SetVanillaBodyPath(NPCInfo npcInfo, SkyrimMod outputMod)
     {
-        if (npcInfo.NPC.WornArmor != null && !npcInfo.NPC.WornArmor.IsNull && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IArmorGetter>(npcInfo.NPC.WornArmor.FormKey, out var skin))
+        if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<INpcGetter>(npcInfo.NPC.FormKey, out var npcWinningRecord) && npcWinningRecord.WornArmor != null && !npcWinningRecord.WornArmor.IsNull && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IArmorGetter>(npcWinningRecord.WornArmor.FormKey, out var skin))
         {
-            foreach (var armaGetter in skin.Armature)
-            { 
-                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IArmorAddonGetter>(armaGetter.FormKey, out var armature) && armature.BodyTemplate != null && armature.WorldModel != null && armature.BodyTemplate.FirstPersonFlags.HasFlag(BipedObjectFlag.Body) && Patcher.PatchableRaces.Contains(armature.Race))
+            foreach (var armaLinkGetter in skin.Armature)
+            {
+                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IArmorAddonGetter>(armaLinkGetter.FormKey, out var armaGetter) && armaGetter.BodyTemplate != null && armaGetter.WorldModel != null && (Patcher.PatchableRaces.Contains(armaGetter.Race) || npcWinningRecord.Race.Equals(armaGetter.Race) || armaGetter.AdditionalRaces.Contains(npcWinningRecord.Race.FormKey)) && DefaultBodyMeshPaths.ContainsKey(npcInfo.Gender) && DefaultBodyMeshPaths[npcInfo.Gender] != null)
                 {
-                    string vanillaPath;
-                    switch(npcInfo.Gender)
+                    /*
+                    foreach (var flag in DefaultBodyMeshPaths[npcInfo.Gender].Keys)
                     {
-                        case Gender.Male: 
-                            vanillaPath = "Actors\\Character\\Character Assets\\MaleBody_1.NIF";
-                            if (armature.WorldModel.Male != null && armature.WorldModel.Male.File != null && !armature.WorldModel.Male.File.Equals(vanillaPath, StringComparison.OrdinalIgnoreCase))
+                        if (armaGetter.BodyTemplate.Flags.HasFlag(flag))
+                        {
+                            var armature = outputMod.ArmorAddons.GetOrAddAsOverride(armaGetter);
+                            switch (npcInfo.Gender)
                             {
-                                var moddedArmature = outputMod.ArmorAddons.GetOrAddAsOverride(armature);
-                                moddedArmature.WorldModel.Male.File = vanillaPath;
-                                return;
+                                case Gender.Female: armature.WorldModel.Female.File = DefaultBodyMeshPaths[npcInfo.Gender][flag]; break;
+                                case Gender.Male: armature.WorldModel.Male.File = DefaultBodyMeshPaths[npcInfo.Gender][flag]; break;
                             }
-                            break;
-                        case Gender.Female: 
-                            vanillaPath = "Actors\\Character\\Character Assets\\FemaleBody_1.nif";
-                            if (armature.WorldModel.Female != null && armature.WorldModel.Female.File != null && !armature.WorldModel.Female.File.Equals(vanillaPath, StringComparison.OrdinalIgnoreCase))
-                            {
-                                var moddedArmature = outputMod.ArmorAddons.GetOrAddAsOverride(armature);
-                                moddedArmature.WorldModel.Female.File = vanillaPath;
-                                return;
-                            }
-                            break;
+                        }
+                    }*/
+                    var matchedEntry = DefaultBodyMeshPaths[npcInfo.Gender].Where(x => armaGetter.BodyTemplate.FirstPersonFlags.HasFlag(x.Key)).FirstOrDefault();
+                    if (matchedEntry.Value != null)
+                    {
+                        var armature = outputMod.ArmorAddons.GetOrAddAsOverride(armaGetter);
+                        switch(npcInfo.Gender)
+                        {
+                            case Gender.Female: armature.WorldModel.Female.File = matchedEntry.Value; break;
+                            case Gender.Male: armature.WorldModel.Male.File = matchedEntry.Value; break;
+                        }
                     }
                 }
             }
         }
     }
+
+    public static Dictionary<Gender, Dictionary<BipedObjectFlag, string>> DefaultBodyMeshPaths = new()
+    {
+        {
+            Gender.Male,
+            new Dictionary<BipedObjectFlag, string>()
+            {
+                { BipedObjectFlag.Body, "Actors\\Character\\Character Assets\\MaleBody_1.nif" },
+                { BipedObjectFlag.Hands, "Actors\\Character\\Character Assets\\MaleHands_1.nif" },
+                { BipedObjectFlag.Feet, "Actors\\Character\\Character Assets\\MaleFeet_1.nif" },
+            }
+        },
+        {
+            Gender.Female,
+            new Dictionary<BipedObjectFlag, string>()
+            {
+                { BipedObjectFlag.Body, "Actors\\Character\\Character Assets\\FemaleBody_1.nif" },
+                { BipedObjectFlag.Hands, "Actors\\Character\\Character Assets\\FemaleHands_1.nif" },
+                { BipedObjectFlag.Feet, "Actors\\Character\\Character Assets\\FemaleFeet_1.nif" },
+            }
+        }
+    };
 }
