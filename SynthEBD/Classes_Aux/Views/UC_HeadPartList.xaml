@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SynthEBD.UC_HeadPartList"
+<UserControl x:Class="SynthEBD.UC_HeadPartList"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -38,6 +38,7 @@
         <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal">
             <TextBlock Text="Display Gender: " VerticalAlignment="Center" />
             <ComboBox ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DisplayGender}}}" SelectedValue="{Binding Path=GenderToggle, Mode=TwoWay}" IsSynchronizedWithCurrentItem="True"/>
+            <local:UC_Alphabetizer DataContext="{Binding Alphabetizer}" Margin="3 0 0 0"/>
         </StackPanel>
         
         <ScrollViewer Grid.Row="2" Grid.Column="0">

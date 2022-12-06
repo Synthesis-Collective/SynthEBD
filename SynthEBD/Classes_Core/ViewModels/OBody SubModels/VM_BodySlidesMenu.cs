@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using ReactiveUI;
 
 namespace SynthEBD;
@@ -17,12 +17,22 @@ public class VM_BodySlidesMenu : VM
             execute: x => this.CurrentlyDisplayedBodySlides.Remove((VM_BodySlideSetting)x)
         );
 
+        CurrentlyDisplayedBodySlides = BodySlidesFemale;
+        Alphabetizer_Male = new(BodySlidesMale, x => x.Label, new(System.Windows.Media.Colors.MediumPurple));
+        Alphabetizer_Female = new(BodySlidesFemale, x => x.Label, new(System.Windows.Media.Colors.MediumPurple));
+
         this.WhenAnyValue(x => x.SelectedGender).Subscribe(x =>
         {
             switch (SelectedGender)
             {
-                case Gender.Female: CurrentlyDisplayedBodySlides = BodySlidesFemale; break;
-                case Gender.Male: CurrentlyDisplayedBodySlides = BodySlidesMale; break;
+                case Gender.Female: 
+                    CurrentlyDisplayedBodySlides = BodySlidesFemale;
+                    Alphabetizer = Alphabetizer_Female;
+                    break;
+                case Gender.Male: 
+                    CurrentlyDisplayedBodySlides = BodySlidesMale;
+                    Alphabetizer = Alphabetizer_Male;
+                    break;
             }
         });
 
@@ -31,12 +41,15 @@ public class VM_BodySlidesMenu : VM
             TogglePresetVisibility(BodySlidesMale, ShowHidden);
             TogglePresetVisibility(BodySlidesFemale, ShowHidden);
         });
-
     }
     public ObservableCollection<VM_BodySlideSetting> BodySlidesMale { get; set; } = new();
     public ObservableCollection<VM_BodySlideSetting> BodySlidesFemale { get; set; } = new();
 
-    public ObservableCollection<VM_BodySlideSetting> CurrentlyDisplayedBodySlides { get; set; }
+    public VM_Alphabetizer<VM_BodySlideSetting, string> Alphabetizer_Male { get; set; }
+    public VM_Alphabetizer<VM_BodySlideSetting, string> Alphabetizer_Female { get; set; }
+    public VM_Alphabetizer<VM_BodySlideSetting, string> Alphabetizer { get; set; }
+
+    public ObservableCollection<VM_BodySlideSetting> CurrentlyDisplayedBodySlides { get; set; } = new();
     public VM_BodySlideSetting CurrentlyDisplayedBodySlide { get; set; } = null;
     public Gender SelectedGender { get; set; } = Gender.Female;
 

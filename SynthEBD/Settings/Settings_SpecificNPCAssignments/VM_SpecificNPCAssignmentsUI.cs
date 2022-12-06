@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Skyrim;
 using System.Collections.ObjectModel;
 
 namespace SynthEBD;
@@ -110,10 +110,14 @@ public class VM_SpecificNPCAssignmentsUI : VM
                 }
             }
         );
+
+        Alphabetizer = new(Assignments, x => x.DispName, new(System.Windows.Media.Colors.MediumPurple));
     }
 
     public ObservableCollection<VM_SpecificNPCAssignment> Assignments { get; set; } = new();
     public VM_SpecificNPCAssignment CurrentlyDisplayedAssignment { get; set; } = null;
+
+    public VM_Alphabetizer<VM_SpecificNPCAssignment, string> Alphabetizer { get; set; }
 
     public VM_SettingsBodyGen BodyGenSettings { get; set; }
 

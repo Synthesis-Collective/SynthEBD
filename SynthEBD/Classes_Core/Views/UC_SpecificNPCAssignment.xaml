@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SynthEBD.UC_SpecificNPCAssignment"
+<UserControl x:Class="SynthEBD.UC_SpecificNPCAssignment"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -35,7 +35,7 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0"  HorizontalAlignment="Center" ToolTip="Select the subject of this Specific NPC Assignment" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">NPC</TextBlock>
+        <TextBlock Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" ToolTip="Select the subject of this Specific NPC Assignment" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">NPC</TextBlock>
         <plugins:FormKeyPicker Grid.Row="0" Grid.Column="1" FormKey="{Binding NPCFormKey}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
 
         <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Asset config file that must be assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Asset Pack</TextBlock>

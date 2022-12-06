@@ -1,4 +1,4 @@
-﻿using DynamicData.Binding;
+using DynamicData.Binding;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
 using System;
@@ -19,8 +19,11 @@ namespace SynthEBD
             HeadPartType = type;
             DisplayedRuleSet = new(raceGroupingVMs, parentConfig, oBody);
 
+            Alphabetizer = new(HeadPartList, x => x.Label, new(System.Windows.Media.Colors.MediumPurple));
+
             this.WhenAnyValue(x => x.GenderToggle).Subscribe(x => UpdateList());
             HeadPartList.ToObservableChangeSet().Subscribe(_ => UpdateList());
+
         }
 
         public ObservableCollection<VM_HeadPart> HeadPartList { get; set; } = new();
@@ -29,6 +32,7 @@ namespace SynthEBD
         public VM_HeadPartCategoryRules DisplayedRuleSet { get; set; }
         public DisplayGender GenderToggle { get; set; } = DisplayGender.Both; 
         private HeadPart.TypeEnum HeadPartType { get; set; }
+        public VM_Alphabetizer<VM_HeadPart, string> Alphabetizer { get; set; }
 
         public void UpdateList()
         {

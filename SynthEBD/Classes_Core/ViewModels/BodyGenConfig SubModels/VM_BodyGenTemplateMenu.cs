@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
@@ -46,10 +46,14 @@ public class VM_BodyGenTemplateMenu : VM
                 }
             }
         );
+
+        Alphabetizer = new(Templates, x => x.Label, new(Colors.MediumPurple));
     }
     public ObservableCollection<VM_BodyGenTemplate> Templates { get; set; } = new();
 
     public VM_BodyGenTemplate CurrentlyDisplayedTemplate { get; set; }
+
+    public VM_Alphabetizer<VM_BodyGenTemplate, string> Alphabetizer { get; set; }
 
     public RelayCommand AddTemplate { get; }
     public RelayCommand RemoveTemplate { get; }
