@@ -997,19 +997,6 @@ public class AssetSelector
             {
                 if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IArmorAddonGetter>(armaLinkGetter.FormKey, out var armaGetter) && armaGetter.BodyTemplate != null && armaGetter.WorldModel != null && (Patcher.PatchableRaces.Contains(armaGetter.Race) || npcWinningRecord.Race.Equals(armaGetter.Race) || armaGetter.AdditionalRaces.Contains(npcWinningRecord.Race.FormKey)) && DefaultBodyMeshPaths.ContainsKey(npcInfo.Gender) && DefaultBodyMeshPaths[npcInfo.Gender] != null)
                 {
-                    /*
-                    foreach (var flag in DefaultBodyMeshPaths[npcInfo.Gender].Keys)
-                    {
-                        if (armaGetter.BodyTemplate.Flags.HasFlag(flag))
-                        {
-                            var armature = outputMod.ArmorAddons.GetOrAddAsOverride(armaGetter);
-                            switch (npcInfo.Gender)
-                            {
-                                case Gender.Female: armature.WorldModel.Female.File = DefaultBodyMeshPaths[npcInfo.Gender][flag]; break;
-                                case Gender.Male: armature.WorldModel.Male.File = DefaultBodyMeshPaths[npcInfo.Gender][flag]; break;
-                            }
-                        }
-                    }*/
                     var matchedEntry = DefaultBodyMeshPaths[npcInfo.Gender].Where(x => armaGetter.BodyTemplate.FirstPersonFlags.HasFlag(x.Key)).FirstOrDefault();
                     if (matchedEntry.Value != null)
                     {
