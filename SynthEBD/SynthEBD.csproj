@@ -217,7 +217,7 @@
     <PackageReference Include="SevenZipExtractor" Version="1.0.17" />
     <PackageReference Include="SharpCompress" Version="0.32.2" />
     <PackageReference Include="Wabbajack.FileExtractor" Version="3.0.1.8" />
-    <PackageReference Include="Z.Expressions.Eval" Version="4.0.90" />
+    <PackageReference Include="Z.Expressions.Eval" Version="4.0.91" />
   </ItemGroup>
 
   <ItemGroup>
