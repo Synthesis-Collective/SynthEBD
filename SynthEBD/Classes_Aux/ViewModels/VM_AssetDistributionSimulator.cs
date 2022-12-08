@@ -18,8 +18,8 @@ namespace SynthEBD
     {
         public VM_AssetDistributionSimulator(VM_SettingsTexMesh texMesh, VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI)
         {
-            PrimaryAPs = texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.Primary).Select(x => VM_AssetPack.DumpViewModelToModel(x)).ToHashSet();
-            MixInAPs = texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.MixIn).Select(x => VM_AssetPack.DumpViewModelToModel(x)).ToHashSet();
+            PrimaryAPs = texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.Primary && x.IsSelected).Select(x => VM_AssetPack.DumpViewModelToModel(x)).ToHashSet();
+            MixInAPs = texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.MixIn && x.IsSelected).Select(x => VM_AssetPack.DumpViewModelToModel(x)).ToHashSet();
             VM_SettingsOBody.DumpViewModelToModel(OBodySettings, oBody);
             VM_BlockListUI.DumpViewModelToModel(blockListUI, BlockList);
             VM_SettingsBodyGen.DumpViewModelToModel(bodyGen, new(), BodyGenConfigs);
