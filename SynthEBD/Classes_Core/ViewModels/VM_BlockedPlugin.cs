@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using System.ComponentModel;
 using System.Collections.ObjectModel;
@@ -63,6 +63,7 @@ public class VM_BlockedPlugin : VM
         viewModel.Assets = model.Assets;
         viewModel.Height = model.Height;
         viewModel.BodyShape = model.BodyShape;
+        viewModel.HeadParts = model.HeadParts;
         foreach (var type in model.HeadPartTypes.Keys) { viewModel.HeadPartTypes.Where(x => x.Type == type).First().Block = model.HeadPartTypes[type]; }
         return viewModel;
     }
@@ -74,6 +75,7 @@ public class VM_BlockedPlugin : VM
         model.Assets = viewModel.Assets;
         model.Height = viewModel.Height;
         model.BodyShape = viewModel.BodyShape;
+        model.HeadParts = viewModel.HeadParts;
         foreach (var type in model.HeadPartTypes.Keys) { model.HeadPartTypes[type] = viewModel.HeadPartTypes.Where(x => x.Type == type).First().Block; }
         return model;
     }
