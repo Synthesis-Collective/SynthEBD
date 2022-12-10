@@ -581,14 +581,14 @@ public class AssetSelector
         // Allow unique NPCs
         if (!subgroup.AllowUnique && npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
         {
-            Logger.LogReport(reportString + "is invalid because the current morph is disallowed for unique NPCs", false, npcInfo);
+            Logger.LogReport(reportString + "is invalid because it is disallowed for unique NPCs", false, npcInfo);
             return false;
         }
 
         // Allow non-unique NPCs
         if (!subgroup.AllowNonUnique && !npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
         {
-            Logger.LogReport(reportString + "is invalid because the current morph is disallowed for non-unique NPCs", false, npcInfo);
+            Logger.LogReport(reportString + "is invalid because it is disallowed for non-unique NPCs", false, npcInfo);
             return false;
         }
 
