@@ -56,6 +56,7 @@ namespace SynthEBD
 
         private void Sort()
         {
+            if (SubscribedCollection is null) { return; }
             if (!WasSorted)
             {
                 _originalOrder = new ObservableCollection<TSource>(SubscribedCollection);
@@ -74,6 +75,7 @@ namespace SynthEBD
 
         private void Revert()
         {
+            if (SubscribedCollection is null) { return; }
             if (WasSorted)
             {
                 SubscribedCollection.Clear();
@@ -87,6 +89,7 @@ namespace SynthEBD
 
         private void GetSortState()
         {
+            if (SubscribedCollection is null) { return; }
             if (SubscribedCollection.IsSorted(KeySelector, false))
             {
                 State = SortState.Forward;
