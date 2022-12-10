@@ -27,12 +27,12 @@ namespace SynthEBD
 
             foreach (var headPartType in settings.Types.Keys)
             {
-                if (blockedNPCentry.HeadPartTypes[headPartType])
+                if (blockedNPCentry.HeadParts && blockedNPCentry.HeadPartTypes[headPartType])
                 {
                     Logger.LogReport(headPartType + " assignment is blocked for current NPC.", false, npcInfo);
                     continue;
                 }
-                if (blockedPluginEntry.HeadPartTypes[headPartType])
+                if (blockedPluginEntry.HeadParts && blockedPluginEntry.HeadPartTypes[headPartType])
                 {
                     Logger.LogReport(headPartType + " assignment is blocked for current NPC's plugin.", false, npcInfo);
                     continue;

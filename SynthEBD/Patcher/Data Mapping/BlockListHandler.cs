@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
@@ -46,6 +46,15 @@ class BlockListHandler
                 if (blockedPlugin.Height)
                 {
                     output.Height = true;
+                }
+                if (blockedPlugin.HeadParts)
+                {
+                    output.HeadParts = true;
+                    foreach (var headPartType in Enum.GetValues(typeof(HeadPart.TypeEnum)).Cast<HeadPart.TypeEnum>())
+                    {
+                        if (blockedPlugin.HeadPartTypes[headPartType]) { output.HeadPartTypes[headPartType] = true; }
+                        else { output.HeadPartTypes[headPartType] = false; }
+                    }
                 }
             }
         }
