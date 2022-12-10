@@ -102,7 +102,7 @@ namespace SynthEBD
             ReportStrings = new();
 
             List<CountableString> assetPacks = new();
-            foreach (var combo in combinations)
+            foreach (var combo in combinations.Where(x => x.AssetPack != null))
             {
                 var existing = assetPacks.Where(x => (x.Str) == combo.AssetPackName).FirstOrDefault();
                 if (existing != null) { existing.Count++; }
@@ -110,6 +110,11 @@ namespace SynthEBD
                 {
                     assetPacks.Add(new() { Str = combo.AssetPackName });
                 }
+            }
+
+            foreach (var assetPack in available.Where(x => !assetPacks.Select(x => x.Str).Contains(x.GroupName)))
+            {
+                assetPacks.Add(new() {  Str = assetPack.GroupName, Count = 0 });
             }
 
             TextReport = "Asset Pack Assignment Counts:";
