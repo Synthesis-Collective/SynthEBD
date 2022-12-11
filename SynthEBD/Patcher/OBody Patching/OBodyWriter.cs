@@ -262,7 +262,7 @@ public class OBodyWriter
             Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.PatchFileName, "morphs.ini")
         };
 
-        var dictDir = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD");
+        var dictDir = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "BodySlideAssignments");
         if (Directory.Exists(dictDir))
         {
             foreach (var file in Directory.GetFiles(dictDir))
