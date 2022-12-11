@@ -188,7 +188,7 @@ public class OBodyWriter
                 return;
             }
 
-            var destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "BodySlideDict" + dictIndex + ".json");
+            var destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "BodySlideAssignments", "BodySlideDict" + dictIndex + ".json");
 
             try
             {

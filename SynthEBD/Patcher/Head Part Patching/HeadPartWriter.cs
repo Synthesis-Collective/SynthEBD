@@ -177,7 +177,7 @@ namespace SynthEBD
                     return;
                 }
 
-                var destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "HeadPartDict" + dictIndex + ".json");
+                var destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "HeadPartAssignments", "HeadPartDict" + dictIndex + ".json");
 
                 try
                 {
