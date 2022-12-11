@@ -12,19 +12,28 @@ EndEvent
 Function LoadBodySlideDict(string caller) ;caller is for debugging only
 	SynthEBDDataBaseLoaded.SetValue(0)
 	
-	int fileCount = 1
-	bool fileFound = true
-	int fileReadCount = 0
+	int fileCount = 0
+	int validFileCount = 0
 	int keyReadCount = 0
-	while (fileFound)
-		string inputFile = "Data/SynthEBD/BodySlideDict" + fileCount as string + ".json"
-		int assignmentDict = JValue_readFromFile(inputFile)
+	
+	string bodySlideDirectory = "Data/SynthEBD/BodySlideAssignments"
+	int dictionariesContainer = JValue_readFromDirectory(bodySlideDirectory, ".json")
+	JValue_retain(dictionariesContainer)
+	int dictCount = JMap_count(dictionariesContainer)
+	debug.Trace("SynthEBD: Found " + dictCount as string + " Dictionaries in " + bodySlideDirectory)
+	
+	while (fileCount < dictCount)
+		string currentDictName = JMap_getNthKey(dictionariesContainer, fileCount)
+		debug.Notification("SynthEBD: Reading bodyslide input file " + (fileCount + 1) as string)
+		debug.Trace("SynthEBD: Reading input file " + (fileCount + 1) as string + " (" + currentDictName + ")")
+		
+		int assignmentDict = JMap_getObj(dictionariesContainer, currentDictName)
 		if (assignmentDict)
-			fileReadCount += 1
+			validFileCount += 1
 			int keyIndex = 0
 			int maxCount = JMap_count(assignmentDict)
-			debug.Notification("SynthEBD: Reading BS dict " + fileReadCount as string)
-			debug.Trace("SynthEBD: Read BodySlide input file " + fileCount as string + ": Contains " + maxCount as string + " entries.")
+			debug.Trace("SynthEBD: " + currentDictName + ": Contains " + maxCount as string + " entries.")
+			
 			while (keyIndex < maxCount)
 				string currentNPCstr = JMap_getNthKey(assignmentDict, keyIndex)
 				form currentNPC = SynthEBDCommonFuncs.FormKeyToForm(currentNPCstr, false)
@@ -39,9 +48,9 @@ Function LoadBodySlideDict(string caller) ;caller is for debugging only
 				
 				currentNPCstr = JMap_nextKey(assignmentDict)
 				keyIndex += 1
-			endwhile	
+			endwhile
 		else
-			fileFound = false
+			debug.Trace("SynthEBD: " + currentDictName + " is not a valid bodyslide dictionary.")
 		endIf
 		
 		fileCount += 1
@@ -49,12 +58,13 @@ Function LoadBodySlideDict(string caller) ;caller is for debugging only
 
 	if (fileCount > 0)
 		debug.Notification("Loaded BodySlide Assignments")
-		debug.Trace("SynthEBD: Loaded " + keyReadCount as string + " BodySlide assignments from " + fileReadCount as string + " input files")
+		debug.Trace("SynthEBD: Loaded " + keyReadCount as string + " BodySlide assignments from " + validFileCount as string + " input files")
 	else
 		debug.Notification("Failed to loaded BodySlide Assignments")
-		debug.Trace("SynthEBD: No BodySlide json files found")
+		debug.Trace("SynthEBD: No readable BodySlideDict json files were found")
 	endif
 	SynthEBDDataBaseLoaded.SetValue(1)
+	JValue_release(dictionariesContainer)
 EndFunction
 
 Function AddBodySlideToDB(string bodyslide, form currentNPC)
