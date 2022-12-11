@@ -101,20 +101,15 @@ public class OBodyWriter
         bsLoaderScriptAdapter.Aliases.Add(loaderQuestFragmentAlias);
         bsLoaderQuest.VirtualMachineAdapter = bsLoaderScriptAdapter;
 
-        string scriptSourceDir = "";
-        switch (PatcherSettings.OBody.UseVerboseScripts)
-        {
-            case false: scriptSourceDir = "BodySlideScript"; break;
-            case true: scriptSourceDir = "BodySlideScript - Verbose Versions"; break;
-        }
+        string scriptSourceDir = GetScriptSource();
 
         // copy quest script
-        string questSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, scriptSourceDir, "Common", "SynthEBDBodySlideLoaderQuestScript.pex");
+        string questSourcePath = Path.Combine(scriptSourceDir, "Common", "SynthEBDBodySlideLoaderQuestScript.pex");
         string questDestPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideLoaderQuestScript.pex");
         PatcherIO.TryCopyResourceFile(questSourcePath, questDestPath);
 
         // copy quest alias script
-        string questAliasSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, scriptSourceDir, "Common", "SynthEBDBodySlideLoaderPAScript.pex");
+        string questAliasSourcePath = Path.Combine(scriptSourceDir, "Common", "SynthEBDBodySlideLoaderPAScript.pex");
         string questAliasDestPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideLoaderPAScript.pex");
         PatcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath);
 
@@ -126,26 +121,31 @@ public class OBodyWriter
     {
         var sourcePath = "";
         var destPath = "";
-        string scriptSourceDir = "";
-        switch (PatcherSettings.OBody.UseVerboseScripts)
-        {
-            case false: scriptSourceDir = "BodySlideScript"; break;
-            case true: scriptSourceDir = "BodySlideScript - Verbose Versions"; break;
-        }
+        string scriptSourceDir = GetScriptSource();
 
         switch (PatcherSettings.General.BSSelectionMode)
         {
             case BodySlideSelectionMode.OBody:
-                sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, scriptSourceDir, "OBody", "SynthEBDBodySlideScriptOBody.pex");
+                sourcePath = Path.Combine(scriptSourceDir, "OBody", "SynthEBDBodySlideScriptOBody.pex");
                 destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideScriptOBody.pex");
                 break;
             case BodySlideSelectionMode.AutoBody:
-                sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, scriptSourceDir, "AutoBody", "SynthEBDBodySlideScriptAutoBody.pex");
+                sourcePath = Path.Combine(scriptSourceDir, "AutoBody", "SynthEBDBodySlideScriptAutoBody.pex");
                 destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideScriptAutoBody.pex");
                 break;
         }
 
         PatcherIO.TryCopyResourceFile(sourcePath, destPath);
+    }
+    public static string GetScriptSource()
+    {
+        string scriptSourceDir = string.Empty;
+        switch (PatcherSettings.OBody.UseVerboseScripts)
+        {
+            case false: scriptSourceDir = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScripts", "Silent"); break;
+            case true: scriptSourceDir = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScripts", "Verbose"); break;
+        }
+        return scriptSourceDir;
     }
 
     /*
