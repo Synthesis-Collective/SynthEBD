@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 
 namespace SynthEBD;
 
@@ -29,6 +29,8 @@ public class VM_AttributeGroupMenu : VM
                 }
             }
         );
+
+        Alphabetizer = new(Groups, x => x.Label, new(System.Windows.Media.Colors.MediumPurple));
     }
     public ObservableCollection<VM_AttributeGroup> Groups { get; set; } = new();
     public VM_AttributeGroup DisplayedGroup { get; set; } = null;
@@ -36,6 +38,8 @@ public class VM_AttributeGroupMenu : VM
     public bool ShowImportFromGeneralOption { get; }
     public RelayCommand AddGroup { get; }
     public RelayCommand ImportAttributeGroups { get; }
+
+    public VM_Alphabetizer<VM_AttributeGroup, string> Alphabetizer { get; set; }
 
     public void CopyInViewModelFromModels(HashSet<AttributeGroup> models)
     {
