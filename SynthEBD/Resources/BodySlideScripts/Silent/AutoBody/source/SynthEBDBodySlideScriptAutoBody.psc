@@ -9,22 +9,22 @@ MagicEffect Property SynthEBDBodySlideMGEF Auto
 Spell Property SynthEBDBodySlideSpell Auto
 
 Event OnEffectStart(Actor akTarget, Actor akCaster)
+	RegisterForModEvent("SynthEBD_BodySlidesReloaded", "OnBodySlideReload")
 	ApplyBodySlide(akCaster)
 EndEvent
 
+Event OnBodySlideReload()
+	ActorBase akBase = getProperActorBase(GetCasterActor())
+	ApplyBodySlide(GetCasterActor())
+EndEvent
+
 function ApplyBodySlide(Actor akCaster)
-	ClearActorEffect(akCaster, SynthEBDBodySlideMGEF, SynthEBDBodySlideSpell)
-	
 	ActorBase akBase = getProperActorBase(akCaster)
 	string actorName = akBase.GetName()
 	if actorName == ""
 		actorName = "Unnamed"
 	endif
 	
-	while (SynthEBDDataBaseLoaded.GetValue() == 0)
-		Utility.Wait(2)
-	endwhile
-
 	string assignment = JFormDB_getStr(akBase, ".SynthEBD.BodySlide")
 	
 	if assignment != ""

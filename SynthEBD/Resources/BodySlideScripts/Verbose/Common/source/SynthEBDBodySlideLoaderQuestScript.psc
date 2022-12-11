@@ -1,5 +1,13 @@
 Scriptname SynthEBDBodySlideLoaderQuestScript extends Quest
 
+;FAQ
+;Q: Why are you writing a JMAP with FormKey strings that you have to parse yourself rather than using a JFormMap?
+;A: JFormMap appears not to work in VR (yes, with JContainers VR). The JString.decodeFormStringToForm() function also fails in VR in my testing. The only way I could figure out to make this script VR-compatible was to parse the strings on my end.
+
+;Q: Why are you writing a bunch of dictionary files to a directory rather than writing a single .json file?
+;A: In my testing with headparts, JMaps containing >176 headpart entries will return NONE when JMap.GetNthKey is called on entry #177 and higher. Not sure if the 176 limit is hard, or if it depends on the size of each object in memory. 
+;   I therefore had to split the headpart assignments into chunks of 176, and am doing the same for other JSON files to err on the side of caution.
+
 import PSM_SynthEBD
 
 GlobalVariable Property SynthEBDDataBaseLoaded Auto
@@ -39,11 +47,11 @@ Function LoadBodySlideDict(string caller) ;caller is for debugging only
 				form currentNPC = SynthEBDCommonFuncs.FormKeyToForm(currentNPCstr, false)
 				string assignment = JMap_getStr(assignmentDict, currentNPCstr)
 				if (assignment)
-					debug.Trace("JSON has entry for Key " + keyIndex as string + ": " + currentNPCstr + " (" + currentNPC + ")")
+					debug.Trace("JSON has BodySlide entry for Key " + keyIndex as string + ": " + currentNPCstr + " (" + currentNPC + ")")
 					keyReadCount += 1
 					AddBodySlideToDB(assignment, currentNPC)
 				else
-					debug.Trace("JSON does not have entry for Key " + keyIndex as string + ": " + currentNPCstr)
+					debug.Trace("JSON does not have BodySlide entry for Key " + keyIndex as string + ": " + currentNPCstr)
 				endif
 				
 				currentNPCstr = JMap_nextKey(assignmentDict)
@@ -57,6 +65,10 @@ Function LoadBodySlideDict(string caller) ;caller is for debugging only
 	endwhile
 
 	if (fileCount > 0)
+		int handle = ModEvent.Create("SynthEBD_BodySlidesReloaded")
+		if (handle)
+			ModEvent.Send(handle)
+		endif
 		debug.Notification("Loaded BodySlide Assignments")
 		debug.Trace("SynthEBD: Loaded " + keyReadCount as string + " BodySlide assignments from " + validFileCount as string + " input files")
 	else

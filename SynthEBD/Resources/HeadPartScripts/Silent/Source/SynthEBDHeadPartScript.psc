@@ -11,17 +11,17 @@ MagicEffect Property SynthEBDHeadPartMGEF Auto
 Spell Property SynthEBDHeadPartSpell Auto
 
 Event OnEffectStart(Actor akTarget, Actor akCaster)
+	RegisterForModEvent("SynthEBD_HeadPartsReloaded", "OnHeadPartReload")
 	SetHeadParts(akCaster)
 EndEvent
 
-function SetHeadParts(Actor akCaster)
-	ClearActorEffect(akCaster, SynthEBDHeadPartMGEF, SynthEBDHeadPartSpell)
+Event OnHeadPartReload()
+	ActorBase akBase = getProperActorBase(GetCasterActor())
+	SetHeadParts(GetCasterActor())
+EndEvent
 
+function SetHeadParts(Actor akCaster)
 	ActorBase akBase = getProperActorBase(akCaster)
-	
-	while (SynthEBDDataBaseLoaded.GetValue() == 0)
-		Utility.Wait(2)
-	endwhile
 		
 	bool updated = False
 	
@@ -49,23 +49,23 @@ function SetHeadParts(Actor akCaster)
 EndFunction
 
 bool Function SetHeadPart(Actor target, ActorBase akBase, string headPartType)
+	string actorName = akBase.GetName() ; for logging only
 	string sourcePath = ".SynthEBD.HeadPart." + headPartType
 	form headPartForm = JFormDB_getForm(akBase, sourcePath)
-	string actorName = akBase.GetName() ; for logging only
-	if (headPartForm)
-		HeadPart headPartAsHP = headPartForm as HeadPart
-		if (headPartAsHP)
-			;target.ChangeHeadPart(headPartAsHP)
-			target.ReplaceHeadPart(None, headPartAsHP)
-			
-			if headPartType == "Hair"
-				UpdateHead(target) ; only needed for hair
+		if (headPartForm)
+			HeadPart headPartAsHP = headPartForm as HeadPart
+			if (headPartAsHP)
+				;target.ChangeHeadPart(headPartAsHP)
+				target.ReplaceHeadPart(None, headPartAsHP)
+				
+				if headPartType == "Hair"
+					UpdateHead(target) ; only needed for hair
+				endif
+				;debug.Trace("Assigning new " + headPartType + " to NPC: " + actorName + " (" + akBase + "): " + headPartAsHP)
+				
+				return true
 			endif
-			;debug.Trace("Assigning new " + headPartType + " to NPC: " + actorName + " (" + akBase + "): " + headPartAsHP)
-			
-			return true
 		endif
-	endif
 	
 	;debug.Trace("No " + headPartType + " found for NPC: " + actorName + " (" + akBase + ")")		
 	return false
