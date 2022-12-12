@@ -52,7 +52,7 @@ public class VM_OBodyMiscSettings : VM
         {
             viewModel.FemaleBodySlideGroups.Add(new VM_CollectionMemberString(g, viewModel.FemaleBodySlideGroups));
         }
-        viewModel.UseVerboseScripts = model.UseVerboseScripts;
+        viewModel.UseVerboseScripts = model.bUseVerboseScripts;
         viewModel.AutoBodySelectionMode = model.AutoBodySelectionMode;
         return viewModel;
     }
@@ -61,7 +61,7 @@ public class VM_OBodyMiscSettings : VM
     {
         model.MaleSliderGroups = viewModel.MaleBodySlideGroups.Select(x => x.Content).ToHashSet();
         model.FemaleSliderGroups = viewModel.FemaleBodySlideGroups.Select(x => x.Content).ToHashSet();
-        model.UseVerboseScripts = viewModel.UseVerboseScripts;
+        model.bUseVerboseScripts = viewModel.UseVerboseScripts;
         model.AutoBodySelectionMode = viewModel.AutoBodySelectionMode;
     }
 }

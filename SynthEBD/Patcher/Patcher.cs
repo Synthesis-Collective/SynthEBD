@@ -26,40 +26,34 @@ public class Patcher
     //public static void RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins, VM_StatusBar statusBar)
     public async Task RunPatcher()
     {
-        var assetPacks = _state.AssetPacks.Where(x => PatcherSettings.TexMesh.SelectedAssetPacks.Contains(x.GroupName))
-            .ToList();
+        // General pre-patching tasks: 
         var outputMod = _environmentProvider.OutputMod;
+        var allNPCs = PatcherEnvironmentProvider.Instance.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
         ResolvePatchableRaces();
-        BodyGenTracker = new BodyGenAssignmentTracker();
         UniqueAssignmentsByName.Clear();
         UniqueNPCData.UniqueNameExclusions = PatcherSettings.General.LinkedNPCNameExclusions.ToHashSet();
+        HashSet<LinkedNPCGroupInfo> generatedLinkGroups = new HashSet<LinkedNPCGroupInfo>();
+        HashSet<INpcGetter> skippedLinkedNPCs = new HashSet<INpcGetter>();
 
+        // Script copying: All scripts are copied to the output folder even if the respective patcher functionality is unused. Script activity is controlled by a global variable. This prevents potential nastiness from missing script files if user toggles patcher functionalities
+        CommonScripts.CopyAllToOutputFolder();
+        OBodyWriter.CopyBodySlideScript();
+        HeadPartWriter.CopyHeadPartScript();
+        JContainersDomain.CreateSynthEBDDomain();
+        QuestInit.WriteQuestSeqFile();
+
+        // UI Pre-patching tasks:
         Logger.UpdateStatus("Patching", false);
         Logger.StartTimer();
         Logger.Instance.PatcherExecutionStart = DateTime.Now;
-
         _statusBar.IsPatching = true;
 
-        HashSet<LinkedNPCGroupInfo> generatedLinkGroups = new HashSet<LinkedNPCGroupInfo>();
+        // Asset Pre-patching tasks:
+        var assetPacks = _state.AssetPacks.Where(x => PatcherSettings.TexMesh.SelectedAssetPacks.Contains(x.GroupName)).ToList();
         CategorizedFlattenedAssetPacks availableAssetPacks = null;
-
-        var allNPCs = PatcherEnvironmentProvider.Instance.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
-        HashSet<INpcGetter> skippedLinkedNPCs = new HashSet<INpcGetter>();
-
         Keyword EBDFaceKW = null;
         Keyword EBDScriptKW = null;
         Spell EBDHelperSpell = null;
-
-        Spell bodySlideAssignmentSpell = null;
-
-        HeightConfig currentHeightConfig = null;
-
-        Spell headPartAssignmentSpell = null;
-
-        HeadPartWriter.CleanPreviousOutputs();
-
-        bool bWriteCommonScripts = false;
-
         if (PatcherSettings.General.bChangeMeshesOrTextures)
         {
             UpdateRecordTemplateAdditonalRaces(assetPacks, _state.RecordTemplateLinkCache, _state.RecordTemplatePlugins);
@@ -79,6 +73,21 @@ public class Patcher
             HasAssetDerivedHeadParts = false;
         }
 
+        // BodyGen Pre-patching tasks:
+        BodyGenTracker = new BodyGenAssignmentTracker();
+
+        // BodySlide Pre-patching tasks:
+        OBodyWriter.ClearOutputForJsonMode();
+        var gEnableBodySlideScript = outputMod.Globals.AddNewShort();
+        gEnableBodySlideScript.EditorID = "SynthEBD_BodySlideScriptActive";
+        gEnableBodySlideScript.Data = 0; // default to 0; patcher will change later if one of several conditions are met
+        var gBodySlideVerboseMode = outputMod.Globals.AddNewShort();
+        gBodySlideVerboseMode.EditorID = "SynthEBD_BodySlideVerboseMode";
+        gBodySlideVerboseMode.Data = Convert.ToInt16(PatcherSettings.OBody.bUseVerboseScripts);
+        OBodyWriter.CreateBodySlideLoaderQuest(outputMod, gEnableBodySlideScript, gBodySlideVerboseMode);
+        Spell bodySlideAssignmentSpell = OBodyWriter.CreateOBodyAssignmentSpell(outputMod, gBodySlideVerboseMode);
+
+        // Mutual BodyGen/BodySlide Pre-patching tasks:
         // Several operations are performed that mutate the input settings. For Asset Packs this does not affect saved settings because the operations are performed on the derived FlattenedAssetPacks, but for BodyGen configs and OBody settings these are made directly to the settings files. Therefore, create a deep copy of the configs and operate on those to avoid altering the user's saved settings upon exiting the program
         bool serializationSuccess, deserializationSuccess;
         string serializatonException, deserializationException;
@@ -112,23 +121,16 @@ public class Patcher
             }
             else
             {
-                OBodyWriter.ClearOutputForJsonMode();
-                var bodyslidesLoaded = outputMod.Globals.AddNewShort();
-                bodyslidesLoaded.EditorID = "SynthEBDBodySlidesLoaded";
-                bodyslidesLoaded.Data = 0;
-
-                JContainersDomain.CreateSynthEBDDomain();
-                OBodyWriter.CreateBodySlideLoaderQuest(outputMod, bodyslidesLoaded);
-                bodySlideAssignmentSpell = OBodyWriter.CreateOBodyAssignmentSpell(outputMod, bodyslidesLoaded);
                 //OBodyWriter.WriteBodySlideSPIDIni(bodySlideAssignmentSpell, copiedOBodySettings, outputMod);
                 UpdateHandler.CleanSPIDiniOBody();
                 ApplyRacialSpell.ApplySpell(outputMod, bodySlideAssignmentSpell);
                 UpdateHandler.CleanOldHeadPartDict();
-
-                bWriteCommonScripts = true;
+                gEnableBodySlideScript.Data = 1;
             }
         }
 
+        // Height Pre-patching tasks:
+        HeightConfig currentHeightConfig = null;
         if (PatcherSettings.General.bChangeHeight)
         {
             currentHeightConfig = _state.HeightConfigs.Where(x => x.Label == PatcherSettings.Height.SelectedHeightConfig).FirstOrDefault();
@@ -141,6 +143,21 @@ public class Patcher
                 HeightPatcher.AssignRacialHeight(currentHeightConfig, outputMod);
             }
         }
+
+        // HeadPart Pre-patching tasks:
+        HeadPartWriter.CleanPreviousOutputs();
+        var gEnableHeadParts = outputMod.Globals.AddNewShort();
+        gEnableHeadParts.EditorID = "SynthEBD_HeadPartScriptActive";
+        gEnableHeadParts.Data = 0; // default to 0; patcher will change later if one of several conditions are met
+        var gHeadpartsVerboseMode = outputMod.Globals.AddNewShort();
+        gHeadpartsVerboseMode.EditorID = "SynthEBD_HeadPartsVerboseMode";
+        gHeadpartsVerboseMode.Data = Convert.ToInt16(PatcherSettings.HeadParts.bUseVerboseScripts);
+
+        HeadPartWriter.CreateHeadPartLoaderQuest(outputMod, gEnableHeadParts, gHeadpartsVerboseMode);
+        Spell headPartAssignmentSpell = HeadPartWriter.CreateHeadPartAssignmentSpell(outputMod, gHeadpartsVerboseMode);
+        //HeadPartWriter.WriteHeadPartSPIDIni(headPartAssignmentSpell);
+        UpdateHandler.CleanSPIDiniHeadParts();
+        ApplyRacialSpell.ApplySpell(outputMod, headPartAssignmentSpell);
 
         var copiedHeadPartSettings = JSONhandler<Settings_Headparts>.Deserialize(JSONhandler<Settings_Headparts>.Serialize(PatcherSettings.HeadParts, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
         if (!serializationSuccess) { Logger.LogMessage("Error serializing Head Part configs. Exception: " + serializatonException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
@@ -177,6 +194,7 @@ public class Patcher
             HeadPartPreprocessing.CompileGenderedHeadParts(copiedHeadPartSettings);
         }
 
+        // Run main patching operations
         int npcCounter = 0;
         HashSet<Npc> headPartNPCs = new HashSet<Npc>();
         HeadPartTracker = new Dictionary<FormKey, HeadPartSelection>(); // needs re-initialization even if headpart distribution is disabled because TexMesh settings can also produce headparts.
@@ -188,15 +206,6 @@ public class Patcher
         MainLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, headPartNPCs);
         // Finish assigning non-primary linked NPCs
         MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, headPartNPCs);
-
-        // Perform headpart functionality if any headparts were patched | DEPRECATED
-        /*
-        if (headPartNPCs.Any())
-        {
-            Keyword EBDValidHeadPartActorKW = EBDCoreRecords.CreateHeadPartKeyword(outputMod);
-            EBDCoreRecords.ApplyHeadPartKeyword(headPartNPCs, EBDValidHeadPartActorKW);
-            HeadPartFunctions.ApplyNeededFaceTextures(headPartNPCs);
-        }*/
 
         Logger.StopTimer();
         Logger.LogMessage("Finished patching in " + Logger.GetEllapsedTime());
@@ -219,7 +228,6 @@ public class Patcher
             }
             else
             {
-                OBodyWriter.CopyBodySlideScript();
                 OBodyWriter.WriteAssignmentDictionary();
             }
         }
@@ -248,24 +256,9 @@ public class Patcher
                 }
             }
 
-            bWriteCommonScripts = true;
-
-            var headpartsLoaded = outputMod.Globals.AddNewShort();
-            headpartsLoaded.EditorID = "SynthEBDHeadPartsLoaded";
-            headpartsLoaded.Data = 0;
-
-            JContainersDomain.CreateSynthEBDDomain();
-            HeadPartWriter.CreateHeadPartLoaderQuest(outputMod, headpartsLoaded);
-            headPartAssignmentSpell = HeadPartWriter.CreateHeadPartAssignmentSpell(outputMod, headpartsLoaded);
-            //HeadPartWriter.WriteHeadPartSPIDIni(headPartAssignmentSpell);
-            UpdateHandler.CleanSPIDiniHeadParts();
-            ApplyRacialSpell.ApplySpell(outputMod, headPartAssignmentSpell);
-
-            HeadPartWriter.CopyHeadPartScript();
+            gEnableHeadParts.Data = 1;
             HeadPartWriter.WriteAssignmentDictionary();
         }
-
-        if (bWriteCommonScripts) { CommonScripts.CopyAllToOutputFolder(); }
 
         string patchOutputPath = System.IO.Path.Combine(PatcherSettings.Paths.OutputDataFolder, PatcherSettings.General.PatchFileName + ".esp");
         PatcherIO.WritePatch(patchOutputPath, outputMod);

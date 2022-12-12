@@ -30,7 +30,7 @@ public class Settings_OBody
     public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
     public HashSet<string> MaleSliderGroups { get; set; } = new();
     public HashSet<string> FemaleSliderGroups { get; set; } = new();
-    public bool UseVerboseScripts { get; set; } = false;
+    public bool bUseVerboseScripts { get; set; } = false;
     public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
 
     [JsonIgnore]

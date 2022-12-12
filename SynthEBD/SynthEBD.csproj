@@ -11,34 +11,38 @@
 
   <ItemGroup>
     <Compile Remove="Resources\BodySlideScript - Verbose Versions\**" />
+    <Compile Remove="Resources\BodySlideScripts\Silent\**" />
+    <Compile Remove="Resources\BodySlideScripts\Verbose\**" />
     <Compile Remove="Resources\BodySlideScript\**" />
+    <Compile Remove="Resources\HeadPartScripts\Silent\**" />
+    <Compile Remove="Resources\HeadPartScripts\Verbose\**" />
     <EmbeddedResource Remove="Resources\BodySlideScript - Verbose Versions\**" />
+    <EmbeddedResource Remove="Resources\BodySlideScripts\Silent\**" />
+    <EmbeddedResource Remove="Resources\BodySlideScripts\Verbose\**" />
     <EmbeddedResource Remove="Resources\BodySlideScript\**" />
+    <EmbeddedResource Remove="Resources\HeadPartScripts\Silent\**" />
+    <EmbeddedResource Remove="Resources\HeadPartScripts\Verbose\**" />
     <None Remove="Resources\BodySlideScript - Verbose Versions\**" />
+    <None Remove="Resources\BodySlideScripts\Silent\**" />
+    <None Remove="Resources\BodySlideScripts\Verbose\**" />
     <None Remove="Resources\BodySlideScript\**" />
+    <None Remove="Resources\HeadPartScripts\Silent\**" />
+    <None Remove="Resources\HeadPartScripts\Verbose\**" />
     <Page Remove="Resources\BodySlideScript - Verbose Versions\**" />
+    <Page Remove="Resources\BodySlideScripts\Silent\**" />
+    <Page Remove="Resources\BodySlideScripts\Verbose\**" />
     <Page Remove="Resources\BodySlideScript\**" />
+    <Page Remove="Resources\HeadPartScripts\Silent\**" />
+    <Page Remove="Resources\HeadPartScripts\Verbose\**" />
   </ItemGroup>
 
   <ItemGroup>
     <None Remove="Height Configurations\Default Config.json" />
     <None Remove="Record Templates\Record Templates.esp" />
-    <None Remove="Resources\BodySlideScripts\Silent\AutoBody\source\SynthEBDBodySlideScriptAutoBody.psc" />
-    <None Remove="Resources\BodySlideScripts\Silent\AutoBody\SynthEBDBodySlideScriptAutoBody.pex" />
-    <None Remove="Resources\BodySlideScripts\Silent\Common\source\SynthEBDBodySlideLoaderPAScript.psc" />
-    <None Remove="Resources\BodySlideScripts\Silent\Common\source\SynthEBDBodySlideLoaderQuestScript.psc" />
-    <None Remove="Resources\BodySlideScripts\Silent\Common\SynthEBDBodySlideLoaderPAScript.pex" />
-    <None Remove="Resources\BodySlideScripts\Silent\Common\SynthEBDBodySlideLoaderQuestScript.pex" />
-    <None Remove="Resources\BodySlideScripts\Silent\OBody\source\SynthEBDBodySlideScriptOBody.psc" />
-    <None Remove="Resources\BodySlideScripts\Silent\OBody\SynthEBDBodySlideScriptOBody.pex" />
-    <None Remove="Resources\BodySlideScripts\Verbose\AutoBody\source\SynthEBDBodySlideScriptAutoBody.psc" />
-    <None Remove="Resources\BodySlideScripts\Verbose\AutoBody\SynthEBDBodySlideScriptAutoBody.pex" />
-    <None Remove="Resources\BodySlideScripts\Verbose\Common\source\SynthEBDBodySlideLoaderPAScript.psc" />
-    <None Remove="Resources\BodySlideScripts\Verbose\Common\source\SynthEBDBodySlideLoaderQuestScript.psc" />
-    <None Remove="Resources\BodySlideScripts\Verbose\Common\SynthEBDBodySlideLoaderPAScript.pex" />
-    <None Remove="Resources\BodySlideScripts\Verbose\Common\SynthEBDBodySlideLoaderQuestScript.pex" />
-    <None Remove="Resources\BodySlideScripts\Verbose\OBody\source\SynthEBDBodySlideScriptOBody.psc" />
-    <None Remove="Resources\BodySlideScripts\Verbose\OBody\SynthEBDBodySlideScriptOBody.pex" />
+    <None Remove="Resources\BodySlideScripts\Source\SynthEBDBodySlideLoaderPAScript.psc" />
+    <None Remove="Resources\BodySlideScripts\Source\SynthEBDBodySlideScript.psc" />
+    <None Remove="Resources\BodySlideScripts\SynthEBDBodySlideLoaderPAScript.pex" />
+    <None Remove="Resources\BodySlideScripts\SynthEBDBodySlideScript.pex" />
     <None Remove="Resources\Common Scripts\Source\SynthEBDcLib.psc" />
     <None Remove="Resources\Common Scripts\Source\SynthEBDCommonFuncs.psc" />
     <None Remove="Resources\Common Scripts\SynthEBDcLib.pex" />
@@ -52,17 +56,12 @@
     <None Remove="Resources\EBD Code\SSE\Source\EBDGlobalFuncs.psc" />
     <None Remove="Resources\EBD Code\VR\EBDGlobalFuncs.pex" />
     <None Remove="Resources\EBD Code\VR\Source\EBDGlobalFuncs.psc" />
-    <None Remove="Resources\HeadPartScripts\Silent\Source\SynthEBDHeadPartLoaderPAScript.psc" />
-    <None Remove="Resources\HeadPartScripts\Silent\Source\SynthEBDHeadPartLoaderQuestScript.psc" />
-    <None Remove="Resources\HeadPartScripts\Silent\Source\SynthEBDHeadPartScript.psc" />
-    <None Remove="Resources\HeadPartScripts\Silent\SynthEBDHeadPartLoaderPAScript.pex" />
-    <None Remove="Resources\HeadPartScripts\Silent\SynthEBDHeadPartLoaderQuestScript.pex" />
-    <None Remove="Resources\HeadPartScripts\Silent\SynthEBDHeadPartScript.pex" />
-    <None Remove="Resources\HeadPartScripts\Verbose\Source\SynthEBDHeadPartLoaderPAScript.psc" />
-    <None Remove="Resources\HeadPartScripts\Verbose\Source\SynthEBDHeadPartLoaderQuestScript.psc" />
-    <None Remove="Resources\HeadPartScripts\Verbose\Source\SynthEBDHeadPartScript.psc" />
+    <None Remove="Resources\HeadPartScripts\Source\SynthEBDHeadPartLoaderPAScript.psc" />
+    <None Remove="Resources\HeadPartScripts\Source\SynthEBDHeadPartScript.psc" />
+    <None Remove="Resources\HeadPartScripts\SynthEBDHeadPartLoaderPAScript - Copy.pex" />
     <None Remove="Resources\HeadPartScripts\SynthEBDHeadPartLoaderPAScript.pex" />
     <None Remove="Resources\HeadPartScripts\SynthEBDHeadPartLoaderQuestScript.pex" />
+    <None Remove="Resources\HeadPartScripts\SynthEBDHeadPartScript - Copy.pex" />
     <None Remove="Resources\HeadPartScripts\SynthEBDHeadPartScript.pex" />
     <None Remove="Resources\JContainers Domain\PSM_SynthEBD.pex" />
     <None Remove="Resources\JContainers Domain\Source\PSM_SynthEBD.psc" />
@@ -76,52 +75,16 @@
     <Content Include="Record Templates\Record Templates.esp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\BodySlideScripts\Silent\AutoBody\source\SynthEBDBodySlideScriptAutoBody.psc">
+    <Content Include="Resources\BodySlideScripts\Source\SynthEBDBodySlideLoaderPAScript.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\BodySlideScripts\Silent\AutoBody\SynthEBDBodySlideScriptAutoBody.pex">
+    <Content Include="Resources\BodySlideScripts\Source\SynthEBDBodySlideScript.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\BodySlideScripts\Silent\Common\source\SynthEBDBodySlideLoaderPAScript.psc">
+    <Content Include="Resources\BodySlideScripts\SynthEBDBodySlideLoaderPAScript.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\BodySlideScripts\Silent\Common\source\SynthEBDBodySlideLoaderQuestScript.psc">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\BodySlideScripts\Silent\Common\SynthEBDBodySlideLoaderPAScript.pex">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\BodySlideScripts\Silent\Common\SynthEBDBodySlideLoaderQuestScript.pex">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\BodySlideScripts\Silent\OBody\source\SynthEBDBodySlideScriptOBody.psc">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\BodySlideScripts\Silent\OBody\SynthEBDBodySlideScriptOBody.pex">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\BodySlideScripts\Verbose\AutoBody\source\SynthEBDBodySlideScriptAutoBody.psc">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\BodySlideScripts\Verbose\AutoBody\SynthEBDBodySlideScriptAutoBody.pex">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\BodySlideScripts\Verbose\Common\source\SynthEBDBodySlideLoaderPAScript.psc">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\BodySlideScripts\Verbose\Common\source\SynthEBDBodySlideLoaderQuestScript.psc">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\BodySlideScripts\Verbose\Common\SynthEBDBodySlideLoaderPAScript.pex">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\BodySlideScripts\Verbose\Common\SynthEBDBodySlideLoaderQuestScript.pex">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\BodySlideScripts\Verbose\OBody\source\SynthEBDBodySlideScriptOBody.psc">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\BodySlideScripts\Verbose\OBody\SynthEBDBodySlideScriptOBody.pex">
+    <Content Include="Resources\BodySlideScripts\SynthEBDBodySlideScript.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Resources\Common Scripts\Source\SynthEBDcLib.psc">
@@ -148,40 +111,16 @@
     <Content Include="Resources\EBD Code\VR\Source\EBDGlobalFuncs.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\HeadPartScripts\Silent\Source\SynthEBDHeadPartLoaderPAScript.psc">
+    <Content Include="Resources\HeadPartScripts\Source\SynthEBDHeadPartLoaderPAScript.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\HeadPartScripts\Silent\Source\SynthEBDHeadPartLoaderQuestScript.psc">
+    <Content Include="Resources\HeadPartScripts\Source\SynthEBDHeadPartScript.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\HeadPartScripts\Silent\Source\SynthEBDHeadPartScript.psc">
+    <Content Include="Resources\HeadPartScripts\SynthEBDHeadPartLoaderPAScript.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\HeadPartScripts\Silent\SynthEBDHeadPartLoaderPAScript.pex">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\HeadPartScripts\Silent\SynthEBDHeadPartLoaderQuestScript.pex">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\HeadPartScripts\Silent\SynthEBDHeadPartScript.pex">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\HeadPartScripts\Verbose\Source\SynthEBDHeadPartLoaderPAScript.psc">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\HeadPartScripts\Verbose\Source\SynthEBDHeadPartLoaderQuestScript.psc">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-	<Content Include="Resources\HeadPartScripts\Verbose\SynthEBDHeadPartLoaderQuestScript.pex">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\HeadPartScripts\Verbose\Source\SynthEBDHeadPartScript.psc">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\HeadPartScripts\Verbose\SynthEBDHeadPartLoaderPAScript.pex">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Resources\HeadPartScripts\Verbose\SynthEBDHeadPartScript.pex">
+    <Content Include="Resources\HeadPartScripts\SynthEBDHeadPartScript.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Resources\QuestSeq\SynthEBD.seq">

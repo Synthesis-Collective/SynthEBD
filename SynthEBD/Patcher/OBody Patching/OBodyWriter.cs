@@ -8,7 +8,7 @@ namespace SynthEBD;
 
 public class OBodyWriter
 {
-    public static Spell CreateOBodyAssignmentSpell(SkyrimMod outputMod, GlobalShort settingsLoadedGlobal)
+    public static Spell CreateOBodyAssignmentSpell(SkyrimMod outputMod, GlobalShort gBodySlideVerboseMode)
     {
         // create MGEF first
         MagicEffect MGEFApplyBodySlide = outputMod.MagicEffects.AddNew();
@@ -25,24 +25,19 @@ public class OBodyWriter
         MGEFApplyBodySlide.CastType = CastType.ConstantEffect;
         MGEFApplyBodySlide.VirtualMachineAdapter = new VirtualMachineAdapter();
 
-        ScriptEntry ScriptApplyBodySlide = new ScriptEntry();
+        ScriptEntry ScriptApplyBodySlide = new ScriptEntry() { Name = "SynthEBDBodySlideScript"};
+
+        ScriptStringProperty targetModProperty = new ScriptStringProperty() { Name = "TargetMod", Flags = ScriptProperty.Flag.Edited };
         switch(PatcherSettings.General.BSSelectionMode)
         {
-            case BodySlideSelectionMode.OBody: ScriptApplyBodySlide.Name = "SynthEBDBodySlideScriptOBody"; break;
-            case BodySlideSelectionMode.AutoBody: ScriptApplyBodySlide.Name = "SynthEBDBodySlideScriptAutoBody"; break;
+            case BodySlideSelectionMode.OBody: targetModProperty.Data = "OBody"; break;
+            case BodySlideSelectionMode.AutoBody: targetModProperty.Data = "AutoBody"; break;
         }
+        ScriptApplyBodySlide.Properties.Add(targetModProperty);
 
-        ScriptObjectProperty settingsLoadedProperty = new ScriptObjectProperty() { Name = "SynthEBDDataBaseLoaded", Flags = ScriptProperty.Flag.Edited } ;
-        settingsLoadedProperty.Object.SetTo(settingsLoadedGlobal);
-        ScriptApplyBodySlide.Properties.Add(settingsLoadedProperty);
-
-        ScriptObjectProperty magicEffectProperty = new ScriptObjectProperty() { Name = "SynthEBDBodySlideMGEF", Flags = ScriptProperty.Flag.Edited };
-        magicEffectProperty.Object.SetTo(MGEFApplyBodySlide);
-        ScriptApplyBodySlide.Properties.Add(magicEffectProperty);
-
-        ScriptObjectProperty spellProperty = new ScriptObjectProperty() { Name = "SynthEBDBodySlideSpell", Flags = ScriptProperty.Flag.Edited };
-        spellProperty.Object.SetTo(SPELApplyBodySlide);
-        ScriptApplyBodySlide.Properties.Add(spellProperty);
+        ScriptObjectProperty verboseModeProperty = new ScriptObjectProperty() { Name = "VerboseMode", Flags = ScriptProperty.Flag.Edited } ;
+        verboseModeProperty.Object.SetTo(gBodySlideVerboseMode);
+        ScriptApplyBodySlide.Properties.Add(verboseModeProperty);
 
         MGEFApplyBodySlide.VirtualMachineAdapter.Scripts.Add(ScriptApplyBodySlide);
 
@@ -62,7 +57,7 @@ public class OBodyWriter
         return SPELApplyBodySlide;
     }
 
-    public static void CreateBodySlideLoaderQuest(SkyrimMod outputMod, GlobalShort settingsLoadedGlobal)
+    public static void CreateBodySlideLoaderQuest(SkyrimMod outputMod, GlobalShort gEnableBodySlideScript, GlobalShort gBodySlideVerboseMode)
     {
         Quest bsLoaderQuest = outputMod.Quests.AddNew();
         bsLoaderQuest.Name = "Loads SynthEBD BodySlide Assignments";
@@ -78,11 +73,13 @@ public class OBodyWriter
 
         QuestAdapter bsLoaderScriptAdapter = new QuestAdapter();
 
+        /*
         ScriptEntry bsLoaderScriptEntry = new ScriptEntry() { Name = "SynthEBDBodySlideLoaderQuestScript", Flags = ScriptEntry.Flag.Local };
         ScriptObjectProperty settingsLoadedProperty = new ScriptObjectProperty() { Name = "SynthEBDDataBaseLoaded", Flags = ScriptProperty.Flag.Edited };
         settingsLoadedProperty.Object.SetTo(settingsLoadedGlobal.FormKey);
         bsLoaderScriptEntry.Properties.Add(settingsLoadedProperty);
         bsLoaderScriptAdapter.Scripts.Add(bsLoaderScriptEntry);
+        */
 
         QuestFragmentAlias loaderQuestFragmentAlias = new QuestFragmentAlias();
         loaderQuestFragmentAlias.Property = new ScriptObjectProperty() { Name = "000 Player" };
@@ -93,59 +90,30 @@ public class OBodyWriter
         ScriptEntry playerAliasScriptEntry = new ScriptEntry();
         playerAliasScriptEntry.Name = "SynthEBDBodySlideLoaderPAScript";
         playerAliasScriptEntry.Flags = ScriptEntry.Flag.Local;
-        ScriptObjectProperty loaderQuestProperty = new ScriptObjectProperty() { Name = "QuestScript", Flags = ScriptProperty.Flag.Edited };
-        loaderQuestProperty.Object.SetTo(bsLoaderQuest.FormKey);
 
-        playerAliasScriptEntry.Properties.Add(loaderQuestProperty);
+        ScriptObjectProperty loaderQuestActiveProperty = new ScriptObjectProperty() { Name = "BodySlideScriptActive", Flags = ScriptProperty.Flag.Edited };
+        loaderQuestActiveProperty.Object.SetTo(gEnableBodySlideScript);
+        playerAliasScriptEntry.Properties.Add(loaderQuestActiveProperty);
+
+        ScriptObjectProperty verboseModeProperty = new ScriptObjectProperty() { Name = "VerboseMode", Flags = ScriptProperty.Flag.Edited };
+        verboseModeProperty.Object.SetTo(gBodySlideVerboseMode);
+        playerAliasScriptEntry.Properties.Add(verboseModeProperty);
+
         loaderQuestFragmentAlias.Scripts.Add(playerAliasScriptEntry);
         bsLoaderScriptAdapter.Aliases.Add(loaderQuestFragmentAlias);
         bsLoaderQuest.VirtualMachineAdapter = bsLoaderScriptAdapter;
 
-        string scriptSourceDir = GetScriptSource();
-
-        // copy quest script
-        string questSourcePath = Path.Combine(scriptSourceDir, "Common", "SynthEBDBodySlideLoaderQuestScript.pex");
-        string questDestPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideLoaderQuestScript.pex");
-        PatcherIO.TryCopyResourceFile(questSourcePath, questDestPath);
-
         // copy quest alias script
-        string questAliasSourcePath = Path.Combine(scriptSourceDir, "Common", "SynthEBDBodySlideLoaderPAScript.pex");
+        string questAliasSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScripts", "SynthEBDBodySlideLoaderPAScript.pex");
         string questAliasDestPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideLoaderPAScript.pex");
         PatcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath);
-
-        // copy Seq file
-        QuestInit.WriteQuestSeqFile();
     }
 
     public static void CopyBodySlideScript()
     {
-        var sourcePath = "";
-        var destPath = "";
-        string scriptSourceDir = GetScriptSource();
-
-        switch (PatcherSettings.General.BSSelectionMode)
-        {
-            case BodySlideSelectionMode.OBody:
-                sourcePath = Path.Combine(scriptSourceDir, "OBody", "SynthEBDBodySlideScriptOBody.pex");
-                destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideScriptOBody.pex");
-                break;
-            case BodySlideSelectionMode.AutoBody:
-                sourcePath = Path.Combine(scriptSourceDir, "AutoBody", "SynthEBDBodySlideScriptAutoBody.pex");
-                destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideScriptAutoBody.pex");
-                break;
-        }
-
+        string sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScripts", "SynthEBDBodySlideScript.pex");
+        string destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideScript.pex");
         PatcherIO.TryCopyResourceFile(sourcePath, destPath);
-    }
-    public static string GetScriptSource()
-    {
-        string scriptSourceDir = string.Empty;
-        switch (PatcherSettings.OBody.UseVerboseScripts)
-        {
-            case false: scriptSourceDir = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScripts", "Silent"); break;
-            case true: scriptSourceDir = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScripts", "Verbose"); break;
-        }
-        return scriptSourceDir;
     }
 
     /*

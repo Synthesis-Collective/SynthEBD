@@ -13,7 +13,7 @@ namespace SynthEBD
 {
     public class HeadPartWriter
     {
-        public static Spell CreateHeadPartAssignmentSpell(SkyrimMod outputMod, GlobalShort settingsLoadedGlobal)
+        public static Spell CreateHeadPartAssignmentSpell(SkyrimMod outputMod, GlobalShort gHeadpartsVerboseMode)
         {
             // create MGEF
             MagicEffect MGEFApplyHeadParts = outputMod.MagicEffects.AddNew();
@@ -34,17 +34,9 @@ namespace SynthEBD
             ScriptEntry ScriptApplyHeadParts = new ScriptEntry();
             ScriptApplyHeadParts.Name = "SynthEBDHeadPartScript";
             
-            ScriptObjectProperty settingsLoadedProperty = new ScriptObjectProperty() { Name = "SynthEBDDataBaseLoaded", Flags = ScriptProperty.Flag.Edited };
-            settingsLoadedProperty.Object.SetTo(settingsLoadedGlobal);
-            ScriptApplyHeadParts.Properties.Add(settingsLoadedProperty);
-
-            ScriptObjectProperty magicEffectProperty = new ScriptObjectProperty() { Name = "SynthEBDHeadPartMGEF", Flags = ScriptProperty.Flag.Edited };
-            magicEffectProperty.Object.SetTo(MGEFApplyHeadParts);
-            ScriptApplyHeadParts.Properties.Add(magicEffectProperty);
-
-            ScriptObjectProperty spellProperty = new ScriptObjectProperty() { Name = "SynthEBDHeadPartSpell", Flags = ScriptProperty.Flag.Edited };
-            spellProperty.Object.SetTo(SPELApplyHeadParts);
-            ScriptApplyHeadParts.Properties.Add(spellProperty);
+            ScriptObjectProperty verboseModeProperty = new ScriptObjectProperty() { Name = "VerboseMode", Flags = ScriptProperty.Flag.Edited };
+            verboseModeProperty.Object.SetTo(gHeadpartsVerboseMode);
+            ScriptApplyHeadParts.Properties.Add(verboseModeProperty);
 
             MGEFApplyHeadParts.VirtualMachineAdapter.Scripts.Add(ScriptApplyHeadParts);
 
@@ -64,75 +56,63 @@ namespace SynthEBD
             return SPELApplyHeadParts;
         }
 
-        public static void CreateHeadPartLoaderQuest(SkyrimMod outputMod, GlobalShort settingsLoadedGlobal)
+        public static void CreateHeadPartLoaderQuest(SkyrimMod outputMod, GlobalShort gEnableHeadParts, GlobalShort gHeadpartsVerboseMode)
         {
-            Quest bsLoaderQuest = outputMod.Quests.AddNew();
-            bsLoaderQuest.Name = "Loads SynthEBD Head Part Assignments";
-            bsLoaderQuest.EditorID = "SynthEBDHPLoaderQuest";
+            Quest hpLoaderQuest = outputMod.Quests.AddNew();
+            hpLoaderQuest.Name = "Loads SynthEBD Head Part Assignments";
+            hpLoaderQuest.EditorID = "SynthEBDHPLoaderQuest";
 
-            bsLoaderQuest.Flags |= Quest.Flag.StartGameEnabled;
-            bsLoaderQuest.Flags |= Quest.Flag.RunOnce;
+            hpLoaderQuest.Flags |= Quest.Flag.StartGameEnabled;
+            hpLoaderQuest.Flags |= Quest.Flag.RunOnce;
 
             QuestAlias playerQuestAlias = new QuestAlias();
             FormKey.TryFactory("000014:Skyrim.esm", out FormKey playerRefFK);
             playerQuestAlias.ForcedReference.SetTo(playerRefFK);
-            bsLoaderQuest.Aliases.Add(playerQuestAlias);
+            hpLoaderQuest.Aliases.Add(playerQuestAlias);
 
-            QuestAdapter bsLoaderScriptAdapter = new QuestAdapter();
+            QuestAdapter hpLoaderScriptAdapter = new QuestAdapter();
 
-            ScriptEntry bsLoaderScriptEntry = new ScriptEntry() { Name = "SynthEBDHeadPartLoaderQuestScript", Flags = ScriptEntry.Flag.Local };
+            /*
+            ScriptEntry hpLoaderScriptEntry = new ScriptEntry() { Name = "SynthEBDHeadPartLoaderQuestScript", Flags = ScriptEntry.Flag.Local };
             ScriptObjectProperty settingsLoadedProperty = new ScriptObjectProperty() { Name = "SynthEBDDataBaseLoaded", Flags = ScriptProperty.Flag.Edited };
             settingsLoadedProperty.Object.SetTo(settingsLoadedGlobal.FormKey);
-            bsLoaderScriptEntry.Properties.Add(settingsLoadedProperty);
-            bsLoaderScriptAdapter.Scripts.Add(bsLoaderScriptEntry);
+            hpLoaderScriptEntry.Properties.Add(settingsLoadedProperty);
+            hpLoaderScriptAdapter.Scripts.Add(hpLoaderScriptEntry);
+            */
 
             QuestFragmentAlias loaderQuestFragmentAlias = new QuestFragmentAlias();
             loaderQuestFragmentAlias.Property = new ScriptObjectProperty() { Name = "000 Player" };
-            loaderQuestFragmentAlias.Property.Object.SetTo(bsLoaderQuest.FormKey);
+            loaderQuestFragmentAlias.Property.Object.SetTo(hpLoaderQuest);
             loaderQuestFragmentAlias.Property.Name = "Player";
             loaderQuestFragmentAlias.Property.Alias = 0;
 
             ScriptEntry playerAliasScriptEntry = new ScriptEntry();
             playerAliasScriptEntry.Name = "SynthEBDHeadPartLoaderPAScript";
             playerAliasScriptEntry.Flags = ScriptEntry.Flag.Local;
-            ScriptObjectProperty loaderQuestProperty = new ScriptObjectProperty() { Name = "QuestScript", Flags = ScriptProperty.Flag.Edited };
-            loaderQuestProperty.Object.SetTo(bsLoaderQuest.FormKey);
 
-            playerAliasScriptEntry.Properties.Add(loaderQuestProperty);
+            ScriptObjectProperty loaderQuestActiveProperty = new ScriptObjectProperty() { Name = "HeadPartScriptActive", Flags = ScriptProperty.Flag.Edited };
+            loaderQuestActiveProperty.Object.SetTo(gEnableHeadParts);
+            playerAliasScriptEntry.Properties.Add(loaderQuestActiveProperty);
+
+            ScriptObjectProperty verboseModeProperty = new ScriptObjectProperty() { Name = "VerboseMode", Flags = ScriptProperty.Flag.Edited };
+            verboseModeProperty.Object.SetTo(gHeadpartsVerboseMode);
+            playerAliasScriptEntry.Properties.Add(verboseModeProperty);
+
             loaderQuestFragmentAlias.Scripts.Add(playerAliasScriptEntry);
-            bsLoaderScriptAdapter.Aliases.Add(loaderQuestFragmentAlias);
-            bsLoaderQuest.VirtualMachineAdapter = bsLoaderScriptAdapter;
+            hpLoaderScriptAdapter.Aliases.Add(loaderQuestFragmentAlias);
+            hpLoaderQuest.VirtualMachineAdapter = hpLoaderScriptAdapter;
 
-            string scriptSourceDir = GetScriptSource();
-
-            // copy quest script
-            string questSourcePath = Path.Combine(scriptSourceDir, "SynthEBDHeadPartLoaderQuestScript.pex");
-            string questDestPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDHeadPartLoaderQuestScript.pex");
-            PatcherIO.TryCopyResourceFile(questSourcePath, questDestPath);
             // copy quest alias script
-            string questAliasSourcePath = Path.Combine(scriptSourceDir, "SynthEBDHeadPartLoaderPAScript.pex");
+            string questAliasSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "HeadPartScripts", "SynthEBDHeadPartLoaderPAScript.pex");
             string questAliasDestPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDHeadPartLoaderPAScript.pex");
             PatcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath);
-            // copy Seq file
-            QuestInit.WriteQuestSeqFile();
         }
 
         public static void CopyHeadPartScript()
         {
-            var sourcePath = Path.Combine(GetScriptSource(), "SynthEBDHeadPartScript.pex");
+            var sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "HeadPartScripts", "SynthEBDHeadPartScript.pex");
             var destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDHeadPartScript.pex");
             PatcherIO.TryCopyResourceFile(sourcePath, destPath);
-        }
-
-        public static string GetScriptSource()
-        {
-            string scriptSourceDir = string.Empty;
-            switch (PatcherSettings.HeadParts.bUseVerboseScripts)
-            {
-                case false: scriptSourceDir = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "HeadPartScripts", "Silent"); break;
-                case true: scriptSourceDir = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "HeadPartScripts", "Verbose"); break;
-            }
-            return scriptSourceDir;
         }
 
         /*
