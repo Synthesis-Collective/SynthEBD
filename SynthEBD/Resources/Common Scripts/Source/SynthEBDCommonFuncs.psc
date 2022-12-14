@@ -1,8 +1,93 @@
 ScriptName SynthEBDCommonFuncs
 
 import SynthEBDcLib
+import EBDGlobalFuncs
 import PSM_SynthEBD
 
+;FAQ
+;Q: Why are you writing a JMAP with FormKey strings that you have to parse yourself rather than using a JFormMap?
+;A: JFormMap appears not to work in VR (yes, with JContainers VR). The JString.decodeFormStringToForm() function also fails in VR in my testing. The only way I could figure out to make this script VR-compatible was to parse the strings on my end.
+
+Function ReloadSynthEBDDataBase(string jsonPath, string dbSubPath, bool verbose, string entryType) global
+	if (jContainers.fileExistsAtPath(jsonPath))
+		int containerHandle = JValue_readFromFile(jsonPath)
+		if (containerHandle)
+			JValue_retain(containerHandle)
+			JDB_solveObjSetter(dbSubPath, containerHandle, true)
+			VerboseLogger("SynthEBD: Loaded " + JMap_count(containerHandle) as string + " " + entryType + " assignments", verbose, true)
+			JValue_release(containerHandle)
+		endif
+
+		string eventName = "SynthEBD_" + entryType + "sReloaded"
+		int handle = ModEvent.Create(eventName)
+		if (handle)
+			VerboseLogger("SynthEBD: Sending" + eventName, verbose, false)
+			ModEvent.Send(handle)
+		endif
+	else
+		VerboseLogger("SynthEBD: Can't find expected json file at " + jsonPath, verbose, true)
+	endif	
+EndFunction
+
+string Function FormKeyFromForm(form fForm, bool bJCPathCompatibility) global
+	string formKey = StringUtil.subString(getFormIDString(fForm), 2) + ":" + getModName(fForm)
+	if (bJCPathCompatibility)
+		formKey = strReplace(formKey, ".",  "*")
+	endif
+	return formKey
+EndFunction
+
+form Function FormKeyToForm(string formKeyStr, bool bJCPathCompatibility, bool bVerbose) global
+	if (bJCPathCompatibility)
+		formKeyStr = StrReplace(formKeyStr, ".", "*")
+	endIf
+	
+	string[] split = StringUtil.Split(formKeyStr, ":")
+	if (split.Length != 2 || StringUtil.GetLength(split[0]) != 6)
+		if (bVerbose)
+			debug.Trace("FormKeyToForm: " + formKeyStr + " is not a FormKey string")
+		endif
+		return None
+	endif
+	
+	string modStr = split[1]
+	string subID = split[0]
+	form output = cGetForm(0, subID, modStr)
+	
+	if (bVerbose)
+		if (output)
+			debug.Trace("FormKeyToForm( " + formKeyStr + "): Found " + subID + " in " + modStr)
+		else
+			debug.Trace("FormKeyToForm( " + formKeyStr + "): Did not find " + subID + " in " + modStr)
+		endif
+	endif
+	return output
+EndFunction
+
+Function VerboseLogger(string logStr, bool verbose, bool bNotifyInGame) global
+	if (verbose)
+		debug.Trace(logStr)
+		if (bNotifyInGame)
+			debug.Notification(logStr)
+		endIf
+	endif
+EndFunction
+
+string Function StrReplace(string target, string toReplace, string replaceWith) global
+	string[] parts = StringUtil.split(target, toReplace)
+	string output = ""
+	int i = 0
+	while (i < parts.Length)
+		output += parts[i]
+		if (i < parts.Length - 1)
+			output += replaceWith
+		endIf
+		i += 1
+	endWhile
+	return output
+endFunction
+
+;DEPRECATED
 ;FAQ
 ;Q: Why are you writing a JMAP with FormKey strings that you have to parse yourself rather than using a JFormMap?
 ;A: JFormMap appears not to work in VR (yes, with JContainers VR). The JString.decodeFormStringToForm() function also fails in VR in my testing. The only way I could figure out to make this script VR-compatible was to parse the strings on my end.
@@ -35,7 +120,7 @@ Function LoadJFormKeyMapsToJFormDB(string jsonDirectory, string dbSubPath, bool 
 			
 			while (keyIndex < maxCount)
 				string currentNPCstr = JMap_getNthKey(assignmentDict, keyIndex)
-				form currentNPC = SynthEBDCommonFuncs.FormKeyToForm(currentNPCstr, false)
+				form currentNPC = SynthEBDCommonFuncs.FormKeyToForm(currentNPCstr, false, false)
 				if (currentNPC)
 					if (dataType == "obj")
 						keyReadCount += SetFormDBObj(assignmentDict, currentNPCstr, currentNPC, entryType, dbSubPath, keyIndex, verbose)
@@ -155,38 +240,6 @@ int Function SetFormDBForm(int assignmentDict, string currentNPCstr, form curren
 		VerboseLogger("SynthEBD: JSON does not have " + entryType + " entry for Key " + keyIndex as string + ": " + currentNPCstr, verbose, false)
 		return 0
 	endIf	
-EndFunction
-
-Function VerboseLogger(string logStr, bool verbose, bool bNotifyInGame) global
-	if (verbose)
-		debug.Trace(logStr)
-		if (bNotifyInGame)
-			debug.Notification(logStr)
-		endIf
-	endif
-EndFunction
-
-form Function FormKeyToForm(string formKeyStr, bool bVerbose) global
-	string[] split = StringUtil.Split(formKeyStr, ":")
-	if (split.Length != 2 || StringUtil.GetLength(split[0]) != 6)
-		if (bVerbose)
-			debug.Trace("FormKeyToForm: " + formKeyStr + " is not a FormKey string")
-		endif
-		return None
-	endif
-	
-	string modStr = split[1]
-	string subID = split[0]
-	form output = cGetForm(0, subID, modStr)
-	
-	if (bVerbose)
-		if (output)
-			debug.Trace("FormKeyToForm( " + formKeyStr + "): Found " + subID + " in " + modStr)
-		else
-			debug.Trace("FormKeyToForm( " + formKeyStr + "): Did not find " + subID + " in " + modStr)
-		endif
-	endif
-	return output
 EndFunction
 
 Function ClearActorEffect(Actor akAktor, MagicEffect effectToClear, Spell parentSpell) global

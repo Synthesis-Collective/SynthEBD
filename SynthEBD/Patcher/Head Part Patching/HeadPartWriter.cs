@@ -142,32 +142,30 @@ namespace SynthEBD
                 }
             }
 
-            var outputDictionaries = DictionarySplitter<FormKey, HeadPartSelection>.SplitDictionary(populatedHeadPartTracker, 176); // split dictionary into sub-dictionaries due to apparent JContainers json size limit
-
-            int dictIndex = 0;
-            foreach (var dict in outputDictionaries)
+            var outputDictionary = new Dictionary<string, HeadPartSelection>();
+            foreach (var entry in populatedHeadPartTracker)
             {
-                dictIndex++;
-                string outputStr = JSONhandler<Dictionary<FormKey, HeadPartSelection>>.Serialize(dict, out bool success, out string exception);
-                if (!success)
-                {
-                    Logger.LogError("Could not save head part assignment dictionary " + dictIndex + ". See log.");
-                    Logger.LogMessage("Could not save head part assigment dictionary " + dictIndex + ". Error:");
-                    Logger.LogMessage(exception);
-                    return;
-                }
+                outputDictionary.TryAdd(entry.Key.ToJContainersCompatiblityKey(), entry.Value);
+            }
+            string outputStr = JSONhandler<Dictionary<string, HeadPartSelection>>.Serialize(outputDictionary, out bool success, out string exception);
+            if (!success)
+            {
+                Logger.LogError("Could not save head part assignment dictionary. See log.");
+                Logger.LogMessage("Could not save head part assigment dictionary. Error:");
+                Logger.LogMessage(exception);
+                return;
+            }
 
-                var destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "HeadPartAssignments", "HeadPartDict" + dictIndex + ".json");
+            var destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "HeadPartAssignments.json");
 
-                try
-                {
-                    PatcherIO.CreateDirectoryIfNeeded(destPath, PatcherIO.PathType.File);
-                    File.WriteAllText(destPath, outputStr);
-                }
-                catch
-                {
-                    Logger.LogErrorWithStatusUpdate("Could not write Head Part assignments to " + destPath, ErrorType.Error);
-                }
+            try
+            {
+                PatcherIO.CreateDirectoryIfNeeded(destPath, PatcherIO.PathType.File);
+                File.WriteAllText(destPath, outputStr);
+            }
+            catch
+            {
+                Logger.LogErrorWithStatusUpdate("Could not write Head Part assignments to " + destPath, ErrorType.Error);
             }
         }
         public static void CleanPreviousOutputs()
