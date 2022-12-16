@@ -21,6 +21,10 @@ public class VM_SettingsTexMesh : VM
         VM_AssetPack.Factory assetPackFactory,
         VM_Subgroup.Factory subgroupFactory)
     {
+        _generalSettingsVM = general;
+
+        this.WhenAnyValue(x => x.bApplyFixedScripts, x => x._generalSettingsVM.Environment.SkyrimVersion).Subscribe(_ => UpdateSKSESelectionVisibility());
+
         AddTrimPath = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => this.TrimPaths.Add(new TrimPath())
@@ -159,6 +163,12 @@ public class VM_SettingsTexMesh : VM
     public bool bGenerateAssignmentLog { get; set; } = true;
     public bool bEasyNPCCompatibilityMode { get; set; } = true;
     public bool bApplyFixedScripts { get; set; } = true;
+
+    private static string oldSKSEversion = "< 1.5.97";
+    private static string newSKSEversion = "1.5.97 or higher";
+    public string SKSEversionSSE { get; set; } = newSKSEversion;
+    public bool bShowSKSEversionOptions { get; set; } = false;
+    public List<string> SKSEversionOptions { get; set; } = new() { newSKSEversion, oldSKSEversion };
     public bool bShowPreviewImages { get; set; } = true;
     public int MaxPreviewImageSize { get; set; } = 1024;
     public ObservableCollection<TrimPath> TrimPaths { get; set; } = new();
@@ -180,6 +190,8 @@ public class VM_SettingsTexMesh : VM
     public RelayCommand SelectConfigsAll { get; }
     public RelayCommand SelectConfigsNone { get; }
     public RelayCommand SimulateDistribution { get; }
+
+    private VM_Settings_General _generalSettingsVM { get; }
 
     public bool ValidateAllConfigs(BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, out List<string> errors)
     {
@@ -213,6 +225,15 @@ public class VM_SettingsTexMesh : VM
         viewModel.LastViewedAssetPackName = model.LastViewedAssetPack;
         viewModel.bEasyNPCCompatibilityMode = model.bEasyNPCCompatibilityMode;
         viewModel.bApplyFixedScripts = model.bApplyFixedScripts;
+
+        if (model.bFixedScriptsOldSKSEversion)
+        {
+            viewModel.SKSEversionSSE = oldSKSEversion;
+        }
+        else
+        {
+            viewModel.SKSEversionSSE = newSKSEversion;
+        }
     }
 
     public static void DumpViewModelToModel(VM_SettingsTexMesh viewModel, Settings_TexMesh model)
@@ -235,6 +256,7 @@ public class VM_SettingsTexMesh : VM
         }
         model.bEasyNPCCompatibilityMode = viewModel.bEasyNPCCompatibilityMode;
         model.bApplyFixedScripts = viewModel.bApplyFixedScripts;
+        model.bFixedScriptsOldSKSEversion = viewModel.SKSEversionSSE == oldSKSEversion;
     }
 
     public void RefreshInstalledConfigs(List<string> installedConfigs)
@@ -263,5 +285,17 @@ public class VM_SettingsTexMesh : VM
         VM_AssetDistributionSimulator distributionSimulator = new(this, bodyGen, oBody, blockListUI);
         simWindow.DataContext = distributionSimulator;
         simWindow.ShowDialog();
+    }
+
+    private void UpdateSKSESelectionVisibility()
+    {
+        if (bApplyFixedScripts && _generalSettingsVM.Environment.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimSE)
+        {
+            bShowSKSEversionOptions = true;
+        }
+        else
+        {
+            bShowSKSEversionOptions = false;
+        }
     }
 }

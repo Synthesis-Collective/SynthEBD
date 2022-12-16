@@ -18,6 +18,7 @@ public class Settings_TexMesh
     public string LastViewedAssetPack { get; set; }
     public bool bEasyNPCCompatibilityMode { get; set; } = true;
     public bool bApplyFixedScripts { get; set; } = true;
+    public bool bFixedScriptsOldSKSEversion { get; set; } = false;
     public List<TrimPath> TrimPaths { get; set; } = new()
     {
         new TrimPath()

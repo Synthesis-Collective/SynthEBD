@@ -74,7 +74,11 @@
         <CheckBox Grid.Row="7" Grid.Column="1" IsChecked="{Binding Path=bEasyNPCCompatibilityMode, Mode=TwoWay}"></CheckBox>
 
         <TextBlock Grid.Row="8" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Overwrites some original EBD scripts with updated and fixed versions" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Fix EBD Script</TextBlock>
-        <CheckBox Grid.Row="8" Grid.Column="1" IsChecked="{Binding Path=bEasyNPCCompatibilityMode, Mode=TwoWay}"></CheckBox>
+        <StackPanel Orientation="Horizontal" Grid.Row="8" Grid.Column="1">
+            <CheckBox IsChecked="{Binding Path=bApplyFixedScripts, Mode=TwoWay}"/>
+            <TextBlock Text="SKSE Version: " Margin="3 0 3 0" VerticalAlignment="Center" Visibility="{Binding Path = bShowSKSEversionOptions, Converter={StaticResource BoolToVis}}"/>
+            <ComboBox SelectedItem="{Binding SKSEversionSSE}" ItemsSource="{Binding SKSEversionOptions}" Visibility="{Binding Path = bShowSKSEversionOptions, Converter={StaticResource BoolToVis}}"/>
+        </StackPanel>
 
         <TextBlock Grid.Row="9" Grid.Column="0" VerticalAlignment="Center" ToolTip="Generate log to display generated and assigned assets" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Generate combination assignment log</TextBlock>
         <CheckBox Grid.Row="9"  Grid.Column="1" IsChecked="{Binding Path=bGenerateAssignmentLog, Mode=TwoWay}"></CheckBox>
