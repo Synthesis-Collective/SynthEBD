@@ -141,32 +141,23 @@ public class OBodyWriter
             return;
         }
 
-        var outputDictionaries = DictionarySplitter<FormKey, string>.SplitDictionary(Patcher.BodySlideTracker, 176); // split dictionary into sub-dictionaries due to apparent JContainers json size limit
-
-        int dictIndex = 0;
-        foreach (var dict in outputDictionaries)
+        var outputDictionary = new Dictionary<string, string>();
+        foreach (var entry in Patcher.BodySlideTracker)
         {
-            dictIndex++;
-            string outputStr = JSONhandler<Dictionary<FormKey, string>>.Serialize(dict, out bool success, out string exception);
-            if (!success)
-            {
-                Logger.LogError("Could not save BodySlide assignment dictionary " + dictIndex + ". See log.");
-                Logger.LogMessage("Could not save BodySlide assigment dictionary " + dictIndex + ". Error:");
-                Logger.LogMessage(exception);
-                return;
-            }
+            outputDictionary.TryAdd(entry.Key.ToJContainersCompatiblityKey(), entry.Value);
+        }
+        string outputStr = JSONhandler<Dictionary<string, string>>.Serialize(outputDictionary, out bool success, out string exception);
 
-            var destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "BodySlideAssignments", "BodySlideDict" + dictIndex + ".json");
+        var destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "BodySlideAssignments.json");
 
-            try
-            {
-                PatcherIO.CreateDirectoryIfNeeded(destPath, PatcherIO.PathType.File);
-                File.WriteAllText(destPath, outputStr);
-            }
-            catch
-            {
-                Logger.LogErrorWithStatusUpdate("Could not write BodySlide assignments to " + destPath, ErrorType.Error);
-            }
+        try
+        {
+            PatcherIO.CreateDirectoryIfNeeded(destPath, PatcherIO.PathType.File);
+            File.WriteAllText(destPath, outputStr);
+        }
+        catch
+        {
+            Logger.LogErrorWithStatusUpdate("Could not write BodySlide assignments to " + destPath, ErrorType.Error);
         }
     }
 

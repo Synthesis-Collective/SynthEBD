@@ -8,13 +8,13 @@ import SynthEBDCommonFuncs
 Event OnInit()
 	if (BodySlideScriptActive)
 		VerboseLogger("SynthEBD: Player Alias BodySlide Script running OnInit", VerboseMode, false)
-		LoadJFormKeyMapsToJFormDB("Data/SynthEBD/BodySlideAssignments", ".SynthEBD.BodySlide", VerboseMode, "BodySlide", "str")
+		ReloadSynthEBDDataBase("Data/SynthEBD/BodySlideAssignments.json", ".SynthEBD.BodySlides", VerboseMode, "BodySlide")
 	endif
 EndEvent
 
 Event OnPlayerLoadGame()
 	if (BodySlideScriptActive)
-		VerboseLogger("SynthEBD: Player Alias HeadPart Script running OnPlayerLoadGame", VerboseMode, false)
-		LoadJFormKeyMapsToJFormDB("Data/SynthEBD/BodySlideAssignments", ".SynthEBD.BodySlide", VerboseMode, "BodySlide", "str")
+		VerboseLogger("SynthEBD: Player Alias BodySlide Script running OnPlayerLoadGame", VerboseMode, false)
+		ReloadSynthEBDDataBase("Data/SynthEBD/BodySlideAssignments.json", ".SynthEBD.BodySlides", VerboseMode, "BodySlide")
 	endif
 EndEvent

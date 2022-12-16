@@ -1,7 +1,6 @@
 Scriptname SynthEBDBodySlideScript extends ActiveMagicEffect
 
 import PSM_SynthEBD
-import EBDHeadPartFuncs
 import EBDGlobalFuncs
 
 import SynthEBDCommonFuncs
@@ -25,7 +24,8 @@ function ApplyBodySlide(Actor akCaster, bool onReload)
 		actorName = "Unnamed"
 	endif
 	
-	string assignment = JFormDB_getStr(akBase, ".SynthEBD.BodySlide")
+	string formKey = FormKeyFromForm(akBase,  true)
+	string assignment = JDB_solveStr(".SynthEBD.BodySlides." + formKey)
 	if assignment != ""
 		ApplyPresetByName(akCaster, assignment)
 		VerboseLogger("SynthEBD: Assigned bodyslide preset: " + assignment + " to NPC: " + actorName + " (" + akBase + ")", VerboseMode, true)
