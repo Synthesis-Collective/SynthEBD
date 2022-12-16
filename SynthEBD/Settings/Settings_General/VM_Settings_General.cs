@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Reactive.Linq;
 using Mutagen.Bethesda.Plugins;
@@ -12,7 +12,7 @@ namespace SynthEBD;
 public class VM_Settings_General : VM, IHasAttributeGroupMenu
 {
     public SaveLoader SaveLoader { get; set; }
-
+    private bool _bFirstRun { get; set;} = false;
     public VM_Settings_General(
         VM_SettingsModManager modManagerSettings,
         PatcherSettingsProvider settingsProvider)
@@ -132,6 +132,12 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
                 SwitchPortableSettingsFolder(string.Empty, settingsProvider);
             }
         );
+
+        this.WhenAnyValue(x => x._bFirstRun).Subscribe(x => { 
+        if (x) { 
+                ShowFirstRunMessage(); 
+            }
+        });
     }
 
     public string OutputDataFolder { get; set; } = "";
@@ -206,7 +212,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         if (patcherSettingsProvider.SourceSettings.Value.Initialized)
         {
             viewModel.PortableSettingsFolder = patcherSettingsProvider.SourceSettings.Value.PortableSettingsFolder;
-        } 
+        }
+
+        viewModel._bFirstRun = model.bFirstRun;
     }
     public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
     {
@@ -246,6 +254,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         VM_AttributeGroupMenu.DumpViewModelToModels(viewModel.AttributeGroupMenu, model.AttributeGroups);
         model.OverwritePluginAttGroups = viewModel.OverwritePluginAttGroups;
 
+        model.bFirstRun = false;
+
         PatcherSettings.General = model;
     }
 
@@ -255,5 +265,14 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         SettingsIO_General.DumpVMandSave(this);
         settingsProvider.SetNewDataDir(PortableSettingsFolder);
         SaveLoader.Reinitialize();
+    }
+
+    private void ShowFirstRunMessage()
+    {
+        string message = @"Welcome to SynthEBD
+If you are using a mod manager, start by going to the Mod Manager Integration menu and setting up your paths.
+If you don't want your patcher outuput going straight to your Data or Overwrite folder, set your desired Output Path in this menu.";
+
+        CustomMessageBox.DisplayNotificationOK("", message);
     }
 }
