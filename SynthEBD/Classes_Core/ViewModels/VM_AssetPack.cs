@@ -201,6 +201,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             execute: _ => {
                 var copiedModel = DumpViewModelToModel(this);
                 copiedModel.GroupName += " (2)";
+                copiedModel.FilePath = String.Empty;
                 var copiedVM = new VM_AssetPack(state, bodyGen, oBody, texMesh, general, bodyGenConfigFactory, assetPackDirectReplacerMenuFactory, subgroupFactory, filePathReplacementFactory, assetPackValidator, selfFactory);
                 copiedVM.CopyInViewModelFromModel(copiedModel);
                 texMesh.AssetPacks.Add(copiedVM);
