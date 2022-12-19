@@ -58,7 +58,7 @@ namespace SynthEBD
         public BlockList BlockList { get; set; } = new();
         public int Repetitions { get; set; } = 100;
         public string TextReport { get; set; } = string.Empty;
-        public ObservableCollection<VM_ReportCountableStringWrapper> ReportStrings { get; set; } = new();
+        public ObservableCollection<AssetReport> AssetReports { get; set; } = new();
         public RelayCommand SimulatePrimary { get; set; }
 
         public void SimulatePrimaryDistribution()
@@ -99,8 +99,6 @@ namespace SynthEBD
 
         public void GenerateReport(HashSet<SubgroupCombination> combinations, HashSet<FlattenedAssetPack> available, NPCInfo npcInfo)
         {
-            ReportStrings = new();
-
             List<CountableString> assetPacks = new();
             foreach (var combo in combinations.Where(x => x.AssetPack != null))
             {
@@ -127,8 +125,10 @@ namespace SynthEBD
             foreach (var ap in available)
             {
                 if (!assetPacks.Where(x => x.Str == ap.GroupName).Any()) { continue; }
-                TextReport += Environment.NewLine + Environment.NewLine + ap.GroupName;
+                AssetReport assetReport = new();
+                assetReport.TitleString += Environment.NewLine + "====================" + Environment.NewLine + ap.GroupName + Environment.NewLine + "====================" + Environment.NewLine;
                 List<CountableString> subgroups = new();
+                assetReport.SubgroupStrings = new();
                 for (int i = 0; i < ap.Subgroups.Count; i++)
                 {
                     var index = ap.Subgroups[i];
@@ -141,13 +141,17 @@ namespace SynthEBD
                         if (sgString.Count > 0) { reportString.TextColor = new SolidColorBrush(Colors.White); }
                         else {  reportString.TextColor = new SolidColorBrush(Colors.Firebrick); }
                         reportString.GetExplainStringSubgroup(npcInfo, ap.GroupName, subgroup.Id, subgroup.Name);
-                        ReportStrings.Add(reportString);
-                        //TextReport += Environment.NewLine + sgString.Str + ": " + sgString.Count;
+                        assetReport.SubgroupStrings.Add(reportString);
                     }
                 }
+                AssetReports.Add(assetReport);
             }
-
-            //TextReport += NPCinfo.Report.RootElement.ToString();
+        }
+        
+        public class AssetReport
+        {
+            public string TitleString { get; set; } = "";
+            public ObservableCollection<VM_ReportCountableStringWrapper> SubgroupStrings { get; set; } = new();
         }
 
         public class CountableString
