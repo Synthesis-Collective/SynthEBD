@@ -10,7 +10,7 @@ namespace SynthEBD
 {
     public class HeadPartSelector
     {
-        public static HeadPartSelection AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings, BlockedNPC blockedNPCentry, BlockedPlugin blockedPluginEntry, BodySlideSetting? assignedBodySlide)
+        public static HeadPartSelection AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings, BodySlideSetting? assignedBodySlide)
         {
             Logger.OpenReportSubsection("HeadParts", npcInfo);
             Logger.LogReport("Selecting Head Parts for Current NPC", false, npcInfo);
@@ -27,12 +27,12 @@ namespace SynthEBD
 
             foreach (var headPartType in settings.Types.Keys)
             {
-                if (blockedNPCentry.HeadParts && blockedNPCentry.HeadPartTypes[headPartType])
+                if (npcInfo.BlockedNPCEntry.HeadParts && npcInfo.BlockedNPCEntry.HeadPartTypes[headPartType])
                 {
                     Logger.LogReport(headPartType + " assignment is blocked for current NPC.", false, npcInfo);
                     continue;
                 }
-                if (blockedPluginEntry.HeadParts && blockedPluginEntry.HeadPartTypes[headPartType])
+                if (npcInfo.BlockedPluginEntry.HeadParts && npcInfo.BlockedPluginEntry.HeadPartTypes[headPartType])
                 {
                     Logger.LogReport(headPartType + " assignment is blocked for current NPC's plugin.", false, npcInfo);
                     continue;

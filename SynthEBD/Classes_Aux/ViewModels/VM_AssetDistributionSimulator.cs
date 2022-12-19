@@ -33,7 +33,7 @@ namespace SynthEBD
                 if (lk.TryResolve<INpcGetter>(NPCformKey, out var npcGetter))
                 {
                     NPCgetter = npcGetter;
-                    NPCinfo = new NPCInfo(npcGetter, new(), new(), new(), new());
+                    NPCinfo = new NPCInfo(npcGetter, new(), new(), new(), new(), new());
                 }
             });
 

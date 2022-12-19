@@ -159,7 +159,7 @@ public class RecordGenerator
                     {
                         if (currentObjInfo.HasFormKey)
                         {
-                            if (!TraverseRecordFromTemplate(rootObj, currentSubPath, currentObj, currentObjInfo, recordTemplateLinkCache, nonHardcodedPaths, group, templateSignature, templateSubRecords, generatedHeadParts, outputMod, rootNPC, out currentObj))
+                            if (!TraverseRecordFromTemplate(rootObj, currentSubPath, currentObj, currentObjInfo, recordTemplateLinkCache, nonHardcodedPaths, group, templateSignature, templateSubRecords, generatedHeadParts, outputMod, rootNPC, npcInfo, out currentObj))
                             {
                                 continue;
                             }
@@ -222,7 +222,7 @@ public class RecordGenerator
         if (trialHeadPart is not null) // special handling for head parts
         {
             var headPart = copiedRecord as HeadPart;
-            Patcher.SetGeneratedHeadPart(trialHeadPart, generatedHeadParts);
+            Patcher.SetGeneratedHeadPart(trialHeadPart, generatedHeadParts, npcInfo);
         }
         else
         {
@@ -235,7 +235,7 @@ public class RecordGenerator
         return true;
     }
 
-    private static bool TraverseRecordFromTemplate(dynamic rootObj, string currentSubPath, dynamic recordToCopy, ObjectInfo recordObjectInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<FilePathReplacementParsed> allPaths, IGrouping<string, FilePathReplacementParsed> group, HashSet<INpcGetter> templateSignature, HashSet<TemplateSignatureRecordPair> templateDerivedRecords, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, SkyrimMod outputMod, IMajorRecordGetter rootRecord, out dynamic currentObj)
+    private static bool TraverseRecordFromTemplate(dynamic rootObj, string currentSubPath, dynamic recordToCopy, ObjectInfo recordObjectInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<FilePathReplacementParsed> allPaths, IGrouping<string, FilePathReplacementParsed> group, HashSet<INpcGetter> templateSignature, HashSet<TemplateSignatureRecordPair> templateDerivedRecords, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, SkyrimMod outputMod, IMajorRecordGetter rootRecord, NPCInfo npcInfo, out dynamic currentObj)
     {
         IMajorRecord newRecord = null;
         HashSet<IMajorRecord> copiedRecords = new HashSet<IMajorRecord>(); // includes current record and its subrecords
@@ -261,7 +261,7 @@ public class RecordGenerator
 
         if (trialHeadPart is not null) // special handling for head parts
         {
-            Patcher.SetGeneratedHeadPart(trialHeadPart, generatedHeadParts);
+            Patcher.SetGeneratedHeadPart(trialHeadPart, generatedHeadParts, npcInfo);
         }
         else
         {

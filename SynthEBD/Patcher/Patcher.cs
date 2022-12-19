@@ -305,9 +305,6 @@ public class Patcher
         bool assetsAssigned = false;
         bool bodyShapeAssigned = false;
 
-        BlockedNPC blockListNPCEntry;
-        BlockedPlugin blockListPluginEntry;
-
         HashSet<FlattenedAssetPack> primaryAssetPacks = new HashSet<FlattenedAssetPack>();
         HashSet<FlattenedAssetPack> mixInAssetPacks = new HashSet<FlattenedAssetPack>();
 
@@ -318,7 +315,7 @@ public class Patcher
         {
             npcCounter++;
 
-            var currentNPCInfo = new NPCInfo(npc, linkedGroupsHashSet, generatedLinkGroups, _state.SpecificNPCAssignments, _state.Consistency);
+            var currentNPCInfo = new NPCInfo(npc, linkedGroupsHashSet, generatedLinkGroups, _state.SpecificNPCAssignments, _state.Consistency, _state.BlockList);
             if (!currentNPCInfo.IsPatchable)
             {
                 continue;
@@ -368,16 +365,13 @@ public class Patcher
             #endregion
 
             #region Block List
-            blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(_state.BlockList, npc.FormKey);
-            blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(_state.BlockList, npc.FormKey);
-
-            if (blockListNPCEntry.Assets || blockListPluginEntry.Assets || AssetSelector.BlockAssetDistributionByExistingAssets(currentNPCInfo)) { blockAssets = true; }
+            if (currentNPCInfo.BlockedNPCEntry.Assets || currentNPCInfo.BlockedPluginEntry.Assets || AssetSelector.BlockAssetDistributionByExistingAssets(currentNPCInfo)) { blockAssets = true; }
             else { blockAssets = false; }
 
-            if (blockListNPCEntry.BodyShape || blockListPluginEntry.BodyShape || !OBodyPreprocessing.NPCIsEligibleForBodySlide(npc)) { blockBodyShape = true; }
+            if (currentNPCInfo.BlockedNPCEntry.BodyShape || currentNPCInfo.BlockedPluginEntry.BodyShape || !OBodyPreprocessing.NPCIsEligibleForBodySlide(npc)) { blockBodyShape = true; }
             else { blockBodyShape = false; }
 
-            if (blockListNPCEntry.Height || blockListPluginEntry.Height) { blockHeight = true; }
+            if (currentNPCInfo.BlockedNPCEntry.Height || currentNPCInfo.BlockedPluginEntry.Height) { blockHeight = true; }
             else { blockHeight = false; }
             #endregion
 
@@ -549,7 +543,7 @@ public class Patcher
             HeadPartSelection assignedHeadParts = new();
             if (PatcherSettings.General.bChangeHeadParts)
             {
-                assignedHeadParts = HeadPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, blockListNPCEntry, blockListPluginEntry, assignedBodySlide);
+                assignedHeadParts = HeadPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, assignedBodySlide);
             }
 
             if (PatcherSettings.General.bChangeMeshesOrTextures) // needs to be done regardless of PatcherSettings.General.bChangeHeadParts status
@@ -677,10 +671,20 @@ public class Patcher
         };
     }
 
-    public static void SetGeneratedHeadPart(HeadPart hp, Dictionary<HeadPart.TypeEnum, HeadPart> dict)
+    public static void SetGeneratedHeadPart(HeadPart hp, Dictionary<HeadPart.TypeEnum, HeadPart> dict, NPCInfo npcInfo)
     {
         if (hp.Type != null)
         {
+            if (npcInfo.BlockedNPCEntry.HeadParts && npcInfo.BlockedNPCEntry.HeadPartTypes[hp.Type.Value])
+            {
+                Logger.LogReport(hp.Type.Value.ToString() + " assignment is blocked for current NPC.", false, npcInfo);
+                return;
+            }
+            if (npcInfo.BlockedPluginEntry.HeadParts && npcInfo.BlockedPluginEntry.HeadPartTypes[hp.Type.Value])
+            {
+                Logger.LogReport(hp.Type.Value.ToString() + " assignment is blocked for current NPC's plugin.", false, npcInfo);
+                return;
+            }
             dict[hp.Type.Value] = hp;
         }
         else

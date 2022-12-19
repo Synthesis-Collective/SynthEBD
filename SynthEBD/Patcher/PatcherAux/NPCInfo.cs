@@ -1,11 +1,12 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
+using static System.Windows.Forms.AxHost;
 
 namespace SynthEBD;
 
 public class NPCInfo
 {
-    public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, HashSet<NPCAssignment> specificNPCAssignments, Dictionary<string, NPCAssignment> consistency)
+    public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, HashSet<NPCAssignment> specificNPCAssignments, Dictionary<string, NPCAssignment> consistency, BlockList blockList)
     {
         this.NPC = npc;
         this.LogIDstring = Logger.GetNPCLogNameString(npc);
@@ -70,6 +71,9 @@ public class NPCInfo
             }
         }
 
+        BlockedNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(blockList, npc.FormKey);
+        BlockedPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey);
+
         Report = new Logger.NPCReport(this);
     }
 
@@ -89,6 +93,8 @@ public class NPCInfo
     public NPCAssignment ConsistencyNPCAssignment { get; set; }
     public Logger.NPCReport Report { get; set; }
     public HashSet<IHeadPartGetter> ExistingHeadParts { get; set; } = new();
+    public BlockedNPC BlockedNPCEntry { get; set; }
+    public BlockedPlugin BlockedPluginEntry { get; set; }
 
     public enum LinkGroupMemberType
     {
