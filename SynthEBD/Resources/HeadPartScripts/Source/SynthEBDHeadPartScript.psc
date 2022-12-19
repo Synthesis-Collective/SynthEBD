@@ -49,6 +49,15 @@ function SetHeadParts(Actor akCaster, bool onReload)
 	if (SetHeadPart(akCaster, akBase, formKey, "Scars", actorName, onReload))
 		updated = True;
 	endif
+	
+	if (updated)
+		ActorBase akTemplate = akBase.getTemplate()
+		if (akTemplate)
+			FixFaceTexture(akCaster, akTemplate)
+		else
+			FixFaceTexture(akCaster, akBase)
+		EndIf
+	endif
 EndFunction
 
 bool Function SetHeadPart(Actor target, ActorBase akBase, string formKey, string headPartType, string actorName, bool onReload)
