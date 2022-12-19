@@ -256,6 +256,7 @@ public class Patcher
                 }
             }
 
+            HeadPartFunctions.ApplyNeededFaceTextures(HeadPartTracker, outputMod);
             gEnableHeadParts.Data = 1;
             HeadPartWriter.WriteAssignmentDictionary();
         }
