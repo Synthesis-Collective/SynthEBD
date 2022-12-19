@@ -6,14 +6,14 @@ GlobalVariable Property VerboseMode Auto
 import SynthEBDCommonFuncs
 
 Event OnInit()
-	if (BodySlideScriptActive)
+	if (BodySlideScriptActive.GetValue())
 		VerboseLogger("SynthEBD: Player Alias BodySlide Script running OnInit", VerboseMode, false)
 		ReloadSynthEBDDataBase("Data/SynthEBD/BodySlideAssignments.json", ".SynthEBD.BodySlides", VerboseMode, "BodySlide")
 	endif
 EndEvent
 
 Event OnPlayerLoadGame()
-	if (BodySlideScriptActive)
+	if (BodySlideScriptActive.GetValue())
 		VerboseLogger("SynthEBD: Player Alias BodySlide Script running OnPlayerLoadGame", VerboseMode, false)
 		ReloadSynthEBDDataBase("Data/SynthEBD/BodySlideAssignments.json", ".SynthEBD.BodySlides", VerboseMode, "BodySlide")
 	endif
