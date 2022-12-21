@@ -1,4 +1,6 @@
-﻿using ReactiveUI;
+using Noggog;
+using ReactiveUI;
+using System.IO;
 
 namespace SynthEBD;
 
@@ -110,12 +112,71 @@ public class VM_MO2Integration : VM
                 }
             }
         );
+
+        this.WhenAnyValue(x => x.ExecutablePath).Subscribe(x =>
+        {
+            UpdateModFolderPath();
+        });
     }
     public string ModFolderPath { get; set; } = "";
     public string ExecutablePath { get; set; } = "";
     public int FilePathLimit { get; set; } = 220;
     public RelayCommand FindModFolder { get; set; }
     public RelayCommand FindExecutable { get; set; }
+
+    public void UpdateModFolderPath()
+    {
+        if (!ModFolderPath.IsNullOrEmpty() && Directory.Exists(ModFolderPath))
+        {
+            return;
+        }
+        if (ExecutablePath.IsNullOrEmpty() || !File.Exists(ExecutablePath))
+        {
+            return;
+        }
+        string mo2Dir = Path.GetDirectoryName(ExecutablePath);
+        string mo2iniPath = Path.Combine(mo2Dir, "ModOrganizer.ini");
+        if (!File.Exists(mo2iniPath))
+        {
+            SetDefaultModDirPath();
+            return;
+        }
+        var iniLines = IO_Aux.ReadFileToList(mo2iniPath, out bool success);
+        if (!success)
+        {
+            SetDefaultModDirPath();
+            return;
+        }
+        string dirLine = iniLines.Where(x => x.StartsWith("mod_directory", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+        if (dirLine == null || dirLine.IsNullOrEmpty())
+        {
+            SetDefaultModDirPath();
+            return;
+        }
+        int eqPos = dirLine.IndexOf('=');
+        if (eqPos > -1)
+        {
+            var dirPath = dirLine.Substring(eqPos + 1);
+            if (Directory.Exists(dirPath))
+            {
+                ModFolderPath = Path.GetFullPath(dirPath); // convert // in ini file to \\
+            }
+            else
+            {
+                SetDefaultModDirPath();
+            }
+        }
+    }
+
+    public void SetDefaultModDirPath()
+    {
+        string mo2Dir = Path.GetDirectoryName(ExecutablePath);
+        string defaultPath = Path.Combine(mo2Dir, "mods");
+        if (Directory.Exists(defaultPath))
+        {
+            ModFolderPath = defaultPath;
+        }
+    }
 
     public static void GetViewModelFromModel(Settings_ModManager.MO2 model, VM_MO2Integration viewModel)
     {
