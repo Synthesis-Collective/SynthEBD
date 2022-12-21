@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Windows.Forms;
 using Mutagen.Bethesda.Skyrim;
 using SharpCompress.Archives.Rar;
@@ -39,7 +41,7 @@ public class ConfigInstaller
 
         try
         {
-            if (!ExtractArchive(path, tempFolderPath))
+            if (!ExtractArchiveNew(path, tempFolderPath, true))
             {
                 return installedConfigs;
             }
@@ -230,7 +232,7 @@ public class ConfigInstaller
         //_ = Logger.UpdateStatusAsync("Extracting mods - please wait.", false);
         foreach(string dependencyArchive in installerVM.DownloadMenu.DownloadInfo.Select(x => x.Path))
         {
-            ExtractArchive(dependencyArchive, tempFolderPath);
+            ExtractArchiveNew(dependencyArchive, tempFolderPath, false);
         }
         //System.Windows.Application.Current.Dispatcher.InvokeAsync(async () => await Logger.UnarchiveStatusAsync());
         //_ = Logger.DeArchiveStatusAsync();
@@ -393,6 +395,29 @@ public class ConfigInstaller
             return false;
         }
         return true;
+    }
+
+    private static bool ExtractArchiveNew(string archivePath, string destinationPath, bool hideWindow)
+    {
+        try
+        {
+            var sevenZipPath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "7Zip",
+                        Environment.Is64BitProcess ? "x64" : "x86", "7za.exe");
+
+            ProcessStartInfo pro = new ProcessStartInfo();
+            pro.WindowStyle = ProcessWindowStyle.Hidden;
+            pro.FileName = sevenZipPath;
+            pro.Arguments = string.Format("x \"{0}\" -y -o\"{1}\"", archivePath, destinationPath);
+            Process x = Process.Start(pro);
+            x.WaitForExit();
+        }
+
+        catch (Exception e)
+        {
+            CustomMessageBox.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " failed with message: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(e, ""));
+            return false;
+        }
+        return true;   
     }
 
     private static bool ExtractArchive(string archivePath, string destinationPath)
