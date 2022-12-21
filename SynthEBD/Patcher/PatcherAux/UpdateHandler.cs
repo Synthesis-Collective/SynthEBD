@@ -18,7 +18,7 @@ namespace SynthEBD
         {
             PatcherIO.TryDeleteFile(Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini"));
         }
-        public static void CleanOldHeadPartDict()
+        public static void CleanOldBodySlideDict()
         {
             PatcherIO.TryDeleteFile(Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "BodySlideDict.json"));
         }

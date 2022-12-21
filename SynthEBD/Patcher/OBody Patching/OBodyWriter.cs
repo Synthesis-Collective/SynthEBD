@@ -218,21 +218,9 @@ public class OBodyWriter
         {
             //Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "BodySlideDict.json"),
             //Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini"),
-            Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.PatchFileName, "morphs.ini")
+            Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.PatchFileName, "morphs.ini"),
+            Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "BodySlideAssignments.json")
         };
-
-        var dictDir = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "BodySlideAssignments");
-        if (Directory.Exists(dictDir))
-        {
-            foreach (var file in Directory.GetFiles(dictDir))
-            {
-                string fileName = Path.GetFileName(file);
-                if (fileName.StartsWith("BodySlideDict", StringComparison.OrdinalIgnoreCase))
-                {
-                    toClear.Add(file);
-                }
-            }
-        }
 
         foreach (string path in toClear)
         {
