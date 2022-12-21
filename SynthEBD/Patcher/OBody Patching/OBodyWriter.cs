@@ -204,12 +204,6 @@ public class OBodyWriter
                 PatcherIO.TryDeleteFile(path);
             }
         }
-
-        string autoBodyDir = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "autoBody");
-        if (Directory.Exists(autoBodyDir))
-        {
-            PatcherIO.TryDeleteDirectory(autoBodyDir);
-        }
     }
 
     public static void ClearOutputForIniMode()
