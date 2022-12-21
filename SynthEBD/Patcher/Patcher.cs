@@ -124,7 +124,7 @@ public class Patcher
                 //OBodyWriter.WriteBodySlideSPIDIni(bodySlideAssignmentSpell, copiedOBodySettings, outputMod);
                 UpdateHandler.CleanSPIDiniOBody();
                 ApplyRacialSpell.ApplySpell(outputMod, bodySlideAssignmentSpell);
-                UpdateHandler.CleanOldHeadPartDict();
+                UpdateHandler.CleanOldBodySlideDict();
                 gEnableBodySlideScript.Data = 1;
             }
         }
