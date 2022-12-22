@@ -519,5 +519,18 @@ namespace SynthEBD
         public FormKey? Brows { get; set; } = null;
         public FormKey? Hair { get; set; } = null;
         public FormKey? Misc { get; set; } = null;
+
+        public bool HasAssignment()
+        {
+            if (Hair != null && !Hair.Value.IsNull) { return true; }
+            if (Face != null && !Face.Value.IsNull) { return true; }
+            if (Eyes != null && !Eyes.Value.IsNull) { return true; }
+            if (Beard != null && !Beard.Value.IsNull) { return true; }
+            if (Scars != null && !Scars.Value.IsNull) { return true; }
+            if (Brows != null && !Brows.Value.IsNull) { return true; }
+            if (Misc != null && !Misc.Value.IsNull) { return true; }
+
+            return false;
+        }
     }
 }

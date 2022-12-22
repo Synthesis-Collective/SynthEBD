@@ -72,6 +72,7 @@ public class Patcher
 
             HasAssetDerivedHeadParts = false;
         }
+        FacePartCompliance facePartComplianceMaintainer = new();
 
         // BodyGen Pre-patching tasks:
         BodyGenTracker = new BodyGenAssignmentTracker();
@@ -203,9 +204,9 @@ public class Patcher
         _statusBar.ProgressBarCurrent = 0;
         _statusBar.ProgressBarDisp = "Patched " + _statusBar.ProgressBarCurrent + " NPCs";
         // Patch main NPCs
-        MainLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, headPartNPCs);
+        MainLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
         // Finish assigning non-primary linked NPCs
-        MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, bodySlideAssignmentSpell, headPartNPCs);
+        MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
 
         Logger.StopTimer();
         Logger.LogMessage("Finished patching in " + Logger.GetEllapsedTime());
@@ -296,7 +297,7 @@ public class Patcher
         CategorizedFlattenedAssetPacks sortedAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings,
         HeightConfig currentHeightConfig, Settings_Headparts headPartSettings, int npcCounter,
         HashSet<LinkedNPCGroupInfo> generatedLinkGroups, HashSet<INpcGetter> skippedLinkedNPCs,
-        Keyword EBDFaceKW, Keyword EBDScriptKW, Spell bodySlideAssignmentSpell,
+        Keyword EBDFaceKW, Keyword EBDScriptKW, FacePartCompliance facePartComplianceMaintainer,
         HashSet<Npc> headPartNPCs)
     {
         bool blockAssets;
@@ -553,6 +554,13 @@ public class Patcher
             }
 
             HeadPartTracker.Add(currentNPCInfo.NPC.FormKey, assignedHeadParts);
+            #endregion
+
+            #region final functions
+            if (facePartComplianceMaintainer.RequiresComplianceCheck && (assignedCombinations.Any() || assignedHeadParts.HasAssignment()))
+            {
+                facePartComplianceMaintainer.CheckAndFixFaceName(currentNPCInfo, PatcherEnvironmentProvider.Instance.Environment.LinkCache, outputMod);
+            }
             #endregion
 
             Logger.SaveReport(currentNPCInfo);
