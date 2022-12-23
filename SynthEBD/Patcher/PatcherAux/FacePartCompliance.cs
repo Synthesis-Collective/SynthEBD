@@ -34,7 +34,7 @@ namespace SynthEBD
                 foreach (var part in npcInfo.NPC.HeadParts)
                 {
                     var partGetter = part.TryResolve(linkCache);
-                    if (partGetter != null && partGetter.Type == HeadPart.TypeEnum.Face && (partGetter.EditorID == null || partGetter.Name.ToString() == null || partGetter.EditorID != partGetter.Name.ToString()))
+                    if (partGetter != null && partGetter.Type != null && partGetter.Type == HeadPart.TypeEnum.Face && (partGetter.EditorID == null || partGetter.Name == null || partGetter.EditorID != partGetter.Name.ToString()))
                     {
                         var headPart = outputMod.HeadParts.GetOrAddAsOverride(partGetter);
                         var name = partGetter.Name?.ToString() ?? String.Empty;
