@@ -1,4 +1,9 @@
-﻿using System.Text;
+using Autofac;
+using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Synthesis;
+using Mutagen.Bethesda.Synthesis.WPF;
+using Noggog.WPF;
+using System.Text;
 using System.Windows;
 
 namespace SynthEBD;
@@ -8,6 +13,69 @@ namespace SynthEBD;
 /// </summary>
 public partial class App : Application
 {
+    
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+
+        SynthesisPipeline.Instance
+            .SetOpenForSettings(OpenForSettings)
+            .AddPatch<ISkyrimMod, ISkyrimModGetter>(RunPatch)
+            .SetTypicalOpen(StandaloneOpen)
+            .SetForWpf()
+            .Run(e.Args)
+            .Wait();
+    }
+
+    public static int OpenForSettings(IOpenForSettingsState state)
+    {
+        /*
+        var builder = new ContainerBuilder();
+        builder.RegisterModule<MainModule>();
+        var container = builder.Build();
+        PatcherEnvironmentProvider.Instance = container.Resolve<PatcherEnvironmentProvider>();
+        var mvm = container.Resolve<MainWindow_ViewModel>();
+        this.DataContext = mvm;
+        mvm.Init();
+        */
+        var builder = new ContainerBuilder();
+        builder.RegisterModule<MainModule>();
+        builder.RegisterInstance(new OpenForSettingsWrapper(state)).AsImplementedInterfaces();
+        var container = builder.Build();
+
+        var window = new MainWindow();
+        var mainVM = container.Resolve<MainWindow_ViewModel>();
+        window.DataContext = mainVM;
+
+        window.Show();
+        window.CenterAround(state.RecommendedOpenLocation);
+
+        return 0;
+    }
+
+    public static int StandaloneOpen()
+    {
+        var builder = new ContainerBuilder();
+        builder.RegisterModule<MainModule>();
+        builder.RegisterType<StandaloneRunStateProvider>().AsImplementedInterfaces();
+        var container = builder.Build();
+
+        var window = new MainWindow();
+        window.DataContext = container.Resolve<MainWindow_ViewModel>();
+        window.Show();
+
+        return 0;
+    }
+
+    private async Task RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
+    {
+        /*
+         * 
+         * 
+         */
+    }
+    
+    /*
     void App_Startup(object sender, StartupEventArgs e)
     {
         // Application is running
@@ -29,7 +97,7 @@ public partial class App : Application
         }
         mainWindow.Show();
     }
-
+    */
     private void Application_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {
         StringBuilder sb = new();
