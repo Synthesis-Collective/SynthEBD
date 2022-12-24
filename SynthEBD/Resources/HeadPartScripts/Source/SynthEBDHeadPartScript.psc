@@ -73,16 +73,16 @@ bool Function SetHeadPart(Actor target, ActorBase akBase, string formKey, string
 				if headPartType == "Hair"
 					UpdateHead(target) ; only needed for hair
 				endif
-				VerboseLogger("Assigning new " + headPartType + " to NPC: " + actorName + " (" + akBase + "): " + hp, VerboseMode, true)
+				VerboseLogger("Assigning new " + headPartType + " to NPC: " + actorName + " (" + akBase + "): " + hp, VerboseMode.GetValue(), true)
 				return true
 			else
-				VerboseLogger("SynthEBD: Could not get head part from form " + headPartForm, VerboseMode, false)
+				VerboseLogger("SynthEBD: Could not get head part from form " + headPartForm, VerboseMode.GetValue(), false)
 			endif
 		else
-			VerboseLogger("SynthEBD: Could not convert string " + headPartStr + " to a Form", VerboseMode, false)
+			VerboseLogger("SynthEBD: Could not convert string " + headPartStr + " to a Form", VerboseMode.GetValue(), false)
 		endif
 	elseif(onReload) ; only warn if assignment failed with the most recent database 
-		VerboseLogger("SynthEBD: Head Part Database for NPC " + actorName + " has no entry for " + headPartType, VerboseMode, false)
+		VerboseLogger("SynthEBD: Head Part Database for NPC " + actorName + " has no entry for " + headPartType, VerboseMode.GetValue(), false)
 	endif
 				
 	return false
