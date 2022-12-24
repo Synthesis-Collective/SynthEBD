@@ -47,6 +47,8 @@ public partial class App : Application
         var mainVM = container.Resolve<MainWindow_ViewModel>();
         window.DataContext = mainVM;
 
+        //PatcherSettings.Paths.SetRootPath("");
+
         window.Show();
         window.CenterAround(state.RecommendedOpenLocation);
 

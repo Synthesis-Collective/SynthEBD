@@ -550,7 +550,7 @@ public class HardcodedRecordGenerator
         "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && PatchableRaces.Contains(Race)].SkinTexture.Female.BacklightMaskOrSpecular"
     };
 
-    private static HashSet<string> WornArmorPaths = new HashSet<string>().Combine(TorsoArmorAddonPaths).Combine(HandsArmorAddonPaths).Combine(FeetArmorAddonPaths).Combine(TailArmorAddonPaths).ToHashSet();
+    private static HashSet<string> WornArmorPaths = new HashSet<string>().Concat(TorsoArmorAddonPaths).Concat(HandsArmorAddonPaths).Concat(FeetArmorAddonPaths).Concat(TailArmorAddonPaths).ToHashSet();
 
     private static HashSet<string> HeadTexturePaths = new HashSet<string>()
     {

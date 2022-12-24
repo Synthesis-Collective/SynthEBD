@@ -2,6 +2,7 @@ using DynamicData;
 using DynamicData.Binding;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
+using Mutagen.Bethesda.Plugins.Order;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using ReactiveUI;
@@ -717,7 +718,7 @@ public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
     public ILinkCache lk { get; private set; }
-    public Mutagen.Bethesda.Plugins.Order.ILoadOrder<Mutagen.Bethesda.Plugins.Order.IModListing<ISkyrimModGetter>> LoadOrder { get; private set; }
+    public ILoadOrderGetter LoadOrder { get; private set; }
 
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();

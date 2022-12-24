@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using Noggog;
 using ReactiveUI;
 using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Plugins.Order;
 
 namespace SynthEBD;
 
@@ -53,7 +54,7 @@ public class VM_BlockedPlugin : VM
     };
 
     public ILinkCache lk { get; private set; }
-    public Mutagen.Bethesda.Plugins.Order.ILoadOrder<Mutagen.Bethesda.Plugins.Order.IModListing<ISkyrimModGetter>> LoadOrder { get; private set; }
+    public ILoadOrderGetter LoadOrder { get; private set; }
 
     public static VM_BlockedPlugin GetViewModelFromModel(BlockedPlugin model)
     {
