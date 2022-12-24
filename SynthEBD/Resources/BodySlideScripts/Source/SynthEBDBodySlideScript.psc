@@ -28,9 +28,9 @@ function ApplyBodySlide(Actor akCaster, bool onReload)
 	string assignment = JDB_solveStr(".SynthEBD.BodySlides." + formKey)
 	if assignment != ""
 		ApplyPresetByName(akCaster, assignment)
-		VerboseLogger("SynthEBD: Assigned bodyslide preset: " + assignment + " to NPC: " + actorName + " (" + akBase + ")", VerboseMode, true)
+		VerboseLogger("SynthEBD: Assigned bodyslide preset: " + assignment + " to NPC: " + actorName + " (" + akBase + ")", VerboseMode.GetValue(), true)
 	ElseIf(onReload) ; only warn if assignment failed with the most recent database 
-		VerboseLogger("No bodyslide assignment recorded for NPC: " + actorName + " (" + akBase + ")", VerboseMode, true)
+		VerboseLogger("No bodyslide assignment recorded for NPC: " + actorName + " (" + akBase + ")", VerboseMode.GetValue(), true)
 	endif	
 EndFunction
 

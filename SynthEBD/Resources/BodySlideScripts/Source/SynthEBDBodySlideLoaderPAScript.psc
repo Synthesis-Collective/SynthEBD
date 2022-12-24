@@ -7,14 +7,14 @@ import SynthEBDCommonFuncs
 
 Event OnInit()
 	if (BodySlideScriptActive.GetValue())
-		VerboseLogger("SynthEBD: Player Alias BodySlide Script running OnInit", VerboseMode, false)
-		ReloadSynthEBDDataBase("Data/SynthEBD/BodySlideAssignments.json", ".SynthEBD.BodySlides", VerboseMode, "BodySlide")
+		VerboseLogger("SynthEBD: Player Alias BodySlide Script running OnInit", VerboseMode.GetValue(), false)
+		ReloadSynthEBDDataBase("Data/SynthEBD/BodySlideAssignments.json", ".SynthEBD.BodySlides", VerboseMode.GetValue(), "BodySlide")
 	endif
 EndEvent
 
 Event OnPlayerLoadGame()
 	if (BodySlideScriptActive.GetValue())
-		VerboseLogger("SynthEBD: Player Alias BodySlide Script running OnPlayerLoadGame", VerboseMode, false)
-		ReloadSynthEBDDataBase("Data/SynthEBD/BodySlideAssignments.json", ".SynthEBD.BodySlides", VerboseMode, "BodySlide")
+		VerboseLogger("SynthEBD: Player Alias BodySlide Script running OnPlayerLoadGame", VerboseMode.GetValue(), false)
+		ReloadSynthEBDDataBase("Data/SynthEBD/BodySlideAssignments.json", ".SynthEBD.BodySlides", VerboseMode.GetValue(), "BodySlide")
 	endif
 EndEvent
