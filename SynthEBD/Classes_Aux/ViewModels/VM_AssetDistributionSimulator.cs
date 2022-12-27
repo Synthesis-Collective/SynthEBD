@@ -16,14 +16,16 @@ namespace SynthEBD
 {
     public class VM_AssetDistributionSimulator : VM
     {
+        private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
         private readonly Logger _logger;
         private readonly SynthEBDPaths _paths;
         private readonly DictionaryMapper _dictionaryMapper;
         private readonly AssetAndBodyShapeSelector _assetAndBodyShapeSelector;
         private readonly SettingsIO_OBody _oBodyIO;
         public delegate VM_AssetDistributionSimulator Factory();
-        public VM_AssetDistributionSimulator(VM_SettingsTexMesh texMesh, VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI, Logger logger, SynthEBDPaths paths, DictionaryMapper dictionaryMapper, AssetAndBodyShapeSelector assetAndBodyShapeSelector, SettingsIO_OBody oBodyIO)
+        public VM_AssetDistributionSimulator(VM_SettingsTexMesh texMesh, VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI, PatcherEnvironmentProvider patcherEnvironmentProvider, Logger logger, SynthEBDPaths paths, DictionaryMapper dictionaryMapper, AssetAndBodyShapeSelector assetAndBodyShapeSelector, SettingsIO_OBody oBodyIO)
         {
+            _patcherEnvironmentProvider = patcherEnvironmentProvider;
             _logger = logger;
             _paths = paths;
             _dictionaryMapper = dictionaryMapper;
@@ -32,7 +34,7 @@ namespace SynthEBD
 
             PrimaryAPs = texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.Primary && x.IsSelected).Select(x => VM_AssetPack.DumpViewModelToModel(x)).ToHashSet();
             MixInAPs = texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.MixIn && x.IsSelected).Select(x => VM_AssetPack.DumpViewModelToModel(x)).ToHashSet();
-            OBodySettings = new(_oBodyIO);
+            OBodySettings = new();
             OBodySettings = oBody.DumpViewModelToModel();
             VM_BlockListUI.DumpViewModelToModel(blockListUI, BlockList);
             VM_SettingsBodyGen.DumpViewModelToModel(bodyGen, new(), BodyGenConfigs);
@@ -96,7 +98,7 @@ namespace SynthEBD
                 {
                     PatcherSettings.General.VerboseModeDetailedAttributes = true;
                     NPCinfo.Report.LogCurrentNPC = true;
-                    _logger.InitializeNewReport(NPCinfo);
+                    _logger.InitializeNewReport(NPCinfo, _patcherEnvironmentProvider);
                 }
                 var chosenCombination = _assetAndBodyShapeSelector.GenerateCombinationWithBodyShape(flattenedAssetPacks, BodyGenConfigs, OBodySettings, new AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment(), NPCinfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, new());
                 combinations.Add(chosenCombination);

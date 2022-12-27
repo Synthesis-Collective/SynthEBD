@@ -17,6 +17,7 @@ public class Patcher
     private readonly Logger _logger;
     private readonly AssetAndBodyShapeSelector _assetAndBodyShapeSelector;
     private readonly AssetSelector _assetSelector;
+    private readonly AssetReplacerSelector _assetReplacerSelector;
     private readonly RecordGenerator _recordGenerator;
     private readonly RecordPathParser _recordPathParser;
     private readonly BodyGenSelector _bodyGenSelector;
@@ -34,9 +35,11 @@ public class Patcher
     private readonly UpdateHandler _updateHandler;
     private readonly MiscValidation _miscValidation;
     private readonly PatcherIO _patcherIO;
+    private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
 
-    public Patcher(MainState state, VM_StatusBar statusBar, CombinationLog combinationLog, PatcherEnvironmentProvider environmentProvider, SynthEBDPaths paths, Logger logger, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO)
+    public Patcher(MainState state, VM_StatusBar statusBar, CombinationLog combinationLog, PatcherEnvironmentProvider environmentProvider, SynthEBDPaths paths, Logger logger, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO)
     {
+        _patcherEnvironmentProvider = environmentProvider;
         _state = state;
         _statusBar = statusBar;
         _combinationLog = combinationLog;
@@ -45,6 +48,7 @@ public class Patcher
         _logger = logger;
         _assetAndBodyShapeSelector = assetAndBodyShapeSelector;
         _assetSelector = assetSelector;
+        _assetReplacerSelector = assetReplacerSelector;
         _recordGenerator = recordGenerator;
         _recordPathParser = recordPathParser;
         _bodyGenSelector = bodyGenSelector;
@@ -305,7 +309,7 @@ public class Patcher
         }
 
         string patchOutputPath = System.IO.Path.Combine(_paths.OutputDataFolder, PatcherSettings.General.PatchFileName + ".esp");
-        _patcherIO.WritePatch(patchOutputPath, outputMod);
+        PatcherIO.WritePatch(patchOutputPath, outputMod, _logger);
 
         _statusBar.IsPatching = false;
     }
@@ -404,7 +408,7 @@ public class Patcher
                 _logger.TriggerNPCReportingSave(currentNPCInfo);
             }
 
-            _logger.InitializeNewReport(currentNPCInfo);
+            _logger.InitializeNewReport(currentNPCInfo, _patcherEnvironmentProvider);
             #endregion
 
             #region Block List
@@ -539,12 +543,12 @@ public class Patcher
                 {
                     foreach (var combination in assignedCombinations)
                     {
-                        assetReplacerCombinations.UnionWith(_assetSelector.SelectAssetReplacers(combination.AssetPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
+                        assetReplacerCombinations.UnionWith(_assetReplacerSelector.SelectAssetReplacers(combination.AssetPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
                     }
                 }
                 foreach (var replacerOnlyPack in mixInAssetPacks.Where(x => !x.Subgroups.Any() && x.AssetReplacerGroups.Any())) // add asset replacers from mix-in asset packs that ONLY have replacer assets, since they won't be contained in assignedCombinations
                 {
-                    assetReplacerCombinations.UnionWith(_assetSelector.SelectAssetReplacers(replacerOnlyPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
+                    assetReplacerCombinations.UnionWith(_assetReplacerSelector.SelectAssetReplacers(replacerOnlyPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
                 }
                 assignedCombinations.AddRange(assetReplacerCombinations);
                 #endregion
@@ -719,28 +723,6 @@ public class Patcher
             { HeadPart.TypeEnum.Misc, null },
             { HeadPart.TypeEnum.Scars, null }
         };
-    }
-
-    public void SetGeneratedHeadPart(HeadPart hp, Dictionary<HeadPart.TypeEnum, HeadPart> dict, NPCInfo npcInfo)
-    {
-        if (hp.Type != null)
-        {
-            if (npcInfo.BlockedNPCEntry.HeadParts && npcInfo.BlockedNPCEntry.HeadPartTypes[hp.Type.Value])
-            {
-                _logger.LogReport(hp.Type.Value.ToString() + " assignment is blocked for current NPC.", false, npcInfo);
-                return;
-            }
-            if (npcInfo.BlockedPluginEntry.HeadParts && npcInfo.BlockedPluginEntry.HeadPartTypes[hp.Type.Value])
-            {
-                _logger.LogReport(hp.Type.Value.ToString() + " assignment is blocked for current NPC's plugin.", false, npcInfo);
-                return;
-            }
-            dict[hp.Type.Value] = hp;
-        }
-        else
-        {
-            _logger.LogMessage("Cannot assign a head part replacer for head part " + EditorIDHandler.GetEditorIDSafely(hp) + " because it does not have a specified Type.");
-        }
     }
 
     public void CheckForAssetDerivedHeadParts(Dictionary<HeadPart.TypeEnum, HeadPart> assignments)

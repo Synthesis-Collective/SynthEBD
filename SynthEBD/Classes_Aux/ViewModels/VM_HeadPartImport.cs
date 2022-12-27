@@ -26,13 +26,17 @@ namespace SynthEBD
             _logger = logger;
             _headPartFactory = headPartFactory;
 
+            /*
             PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
-
+            */
+            /*
             PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LoadOrder)
             .Subscribe(x => LoadOrder = x.Where(y => y.Value != null && y.Value.Enabled).Select(x => x.Value.ModKey));
+            */
 
+            /*
             this.WhenAnyValue(
                 x => x.bImportMale,
                 x => x.bImportFemale,
@@ -48,8 +52,8 @@ namespace SynthEBD
                 // Just pass along the signal, don't care about the triggering values
                 (_, _, _, _, _, _, _, _, _, _, _) => Unit.Default)
             .Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler)
-            .Subscribe(_ => UpdateSelections());
-
+            .Subscribe(_ => UpdateSelections());*/
+            /*
             this.Imports[HeadPart.TypeEnum.Eyebrows].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyebrows));
             this.Imports[HeadPart.TypeEnum.Eyes].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyes));
             this.Imports[HeadPart.TypeEnum.Face].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Face));
@@ -57,7 +61,7 @@ namespace SynthEBD
             this.Imports[HeadPart.TypeEnum.Hair].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Hair));
             this.Imports[HeadPart.TypeEnum.Misc].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Misc));
             this.Imports[HeadPart.TypeEnum.Scars].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Scars));
-
+            */
             Import = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => ImportSelections()

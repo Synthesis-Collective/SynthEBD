@@ -6,7 +6,7 @@ using ReactiveUI;
 
 namespace SynthEBD;
 
-public class SynthEBDPaths
+public class SynthEBDPaths : VM
 {
     private static string RootPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
     public static string SettingsSourcePath => Path.Combine(RootPath, "Settings", "SettingsSource.json");
@@ -27,8 +27,7 @@ public class SynthEBDPaths
 
     public SynthEBDPaths(
         PatcherEnvironmentProvider environmentProvider,
-        PatcherSettingsSourceProvider settingsSourceProvider,
-        VM_Settings_General generalSettings)
+        PatcherSettingsSourceProvider settingsSourceProvider)
     {
         // create relevant paths if necessary - only in the "home" directory. To avoid inadvertent clutter in the data folder, user must create these directories manually in their data folder
 
@@ -69,6 +68,7 @@ public class SynthEBDPaths
             RelativePath = settingsSourceProvider.SourceSettings.Value.PortableSettingsFolder;
         }
 
+        /*
         Observable.CombineLatest(
                 generalSettings.WhenAnyValue(x => x.bLoadSettingsFromDataFolder),
                 generalSettings.WhenAnyValue(x => x.PortableSettingsFolder),
@@ -105,6 +105,7 @@ public class SynthEBDPaths
                     OutputDataFolder = generalSettings.OutputDataFolder;
                 }
             });
+        */
     }
 
     private string RelativePath { get; set; } 

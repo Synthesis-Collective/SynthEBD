@@ -12,22 +12,24 @@ namespace SynthEBD
     {
         private readonly SynthEBDPaths _paths;
         private readonly PatcherIO _patcherIO;
-        public UpdateHandler(SynthEBDPaths paths, PatcherIO patcherIO)
+        private readonly Logger _logger;
+        public UpdateHandler(SynthEBDPaths paths, PatcherIO patcherIO, Logger logger)
         {
             _paths = paths;
             _patcherIO = patcherIO; 
+            _logger = logger;
         }
         public void CleanSPIDiniHeadParts()
         {
-            _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBDHeadPartDistributor_DISTR.ini"));
+            _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBDHeadPartDistributor_DISTR.ini"), _logger);
         }
         public void CleanSPIDiniOBody()
         {
-            _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini"));
+            _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini"), _logger);
         }
         public void CleanOldBodySlideDict()
         {
-            _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBD", "BodySlideDict.json"));
+            _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBD", "BodySlideDict.json"), _logger);
         }
     }
 }

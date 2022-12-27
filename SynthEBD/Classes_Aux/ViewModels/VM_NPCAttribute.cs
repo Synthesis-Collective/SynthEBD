@@ -49,7 +49,7 @@ public class VM_NPCAttribute : VM
         private readonly VM_NPCAttributeShell.Factory _shellFactory;
         private readonly VM_NPCAttributeCustom.Factory _customAttributeFactory;
 
-        public VM_NPCAttributeCreator(Factory factory, VM_NPCAttributeShell.Factory shellFactory, VM_NPCAttributeCustom.Factory customAttributeFactory)
+        public VM_NPCAttributeCreator(VM_NPCAttribute.Factory factory, VM_NPCAttributeShell.Factory shellFactory, VM_NPCAttributeCustom.Factory customAttributeFactory)
         {
             _attributeFactory = factory;
             _shellFactory = shellFactory;

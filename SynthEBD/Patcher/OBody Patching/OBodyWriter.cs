@@ -116,14 +116,14 @@ public class OBodyWriter
         // copy quest alias script
         string questAliasSourcePath = Path.Combine(_paths.ResourcesFolderPath, "BodySlideScripts", "SynthEBDBodySlideLoaderPAScript.pex");
         string questAliasDestPath = Path.Combine(_paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideLoaderPAScript.pex");
-        _patcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath);
+        _patcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath, _logger);
     }
 
     public void CopyBodySlideScript()
     {
         string sourcePath = Path.Combine(_paths.ResourcesFolderPath, "BodySlideScripts", "SynthEBDBodySlideScript.pex");
         string destPath = Path.Combine(_paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideScript.pex");
-        _patcherIO.TryCopyResourceFile(sourcePath, destPath);
+        _patcherIO.TryCopyResourceFile(sourcePath, destPath, _logger);
     }
 
     /*
@@ -211,7 +211,7 @@ public class OBodyWriter
         {
             if (File.Exists(path))
             {
-                _patcherIO.TryDeleteFile(path);
+                _patcherIO.TryDeleteFile(path, _logger);
             }
         }
     }

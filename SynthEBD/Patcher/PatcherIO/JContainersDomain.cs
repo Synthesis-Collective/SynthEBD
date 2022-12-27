@@ -11,10 +11,12 @@ public class JContainersDomain
 {
     private readonly PatcherIO _patcherIO;
     private readonly SynthEBDPaths _paths;
-    public JContainersDomain(PatcherIO patcherIO, SynthEBDPaths paths)
+    private readonly Logger _logger;
+    public JContainersDomain(PatcherIO patcherIO, SynthEBDPaths paths, Logger logger)
     {
         _patcherIO = patcherIO;
         _paths = paths;
+        _logger = logger;
     }
     public void CreateSynthEBDDomain()
     {
@@ -23,6 +25,6 @@ public class JContainersDomain
 
         string domainScriptPath = Path.Combine(_paths.ResourcesFolderPath, "JContainers Domain", "PSM_SynthEBD.pex");
         string domainScriptDestPath = Path.Combine(_paths.OutputDataFolder, "Scripts", "PSM_SynthEBD.pex");
-        _patcherIO.TryCopyResourceFile(domainScriptPath, domainScriptDestPath);
+        _patcherIO.TryCopyResourceFile(domainScriptPath, domainScriptDestPath, _logger);
     }
 }

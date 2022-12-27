@@ -48,7 +48,7 @@ public class CombinationLog
         output.Add("----------------Replacer Combinations:----------------" + Environment.NewLine);
         FormatCombinationInfoOutput(AssignedReplacerCombinations, output);
 
-        Task.Run(() => _patcherIO.WriteTextFile(outputFile, output));
+        Task.Run(() => PatcherIO.WriteTextFile(outputFile, output, _logger));
     }
 
     public void FormatCombinationInfoOutput(Dictionary<string, List<CombinationInfo>> combinationInfo, List<string> fileContents)

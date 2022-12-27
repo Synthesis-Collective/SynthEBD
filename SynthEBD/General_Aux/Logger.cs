@@ -15,7 +15,6 @@ public sealed class Logger : VM
 {
     private readonly DisplayedItemVm _displayedItemVm;
     private readonly VM_LogDisplay _logDisplay;
-    private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
     private readonly PatcherIO _patcherIO;
     public string StatusString { get; set; }
     public string BackupStatusString { get; set; }
@@ -52,11 +51,10 @@ public sealed class Logger : VM
         public int CurrentLayer;
     }
 
-    public Logger(PatcherEnvironmentProvider patcherEnvironmentProvider, PatcherIO patcherIO)
+    public Logger(PatcherIO patcherIO)
     {
         StatusColor = ReadyColor;
         StatusString = ReadyString;
-        _patcherEnvironmentProvider = patcherEnvironmentProvider;
         _patcherIO = patcherIO;
 
         // set default log path
@@ -99,7 +97,7 @@ public sealed class Logger : VM
         }
     }
 
-    public void InitializeNewReport(NPCInfo npcInfo)
+    public void InitializeNewReport(NPCInfo npcInfo, PatcherEnvironmentProvider environmentProvider)
     {
         if (npcInfo.Report.LogCurrentNPC)
         {
@@ -109,19 +107,19 @@ public sealed class Logger : VM
 
             LogReport("Patching NPC " + npcInfo.Report.NameString, false, npcInfo);
 
-            if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.AssetsRace, out var assetsRaceGetter))
+            if (environmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.AssetsRace, out var assetsRaceGetter))
             {
                 LogReport("Assets race: " + EditorIDHandler.GetEditorIDSafely(assetsRaceGetter), false, npcInfo); ;
             }
-            if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.BodyShapeRace, out var bodyRaceGetter))
+            if (environmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.BodyShapeRace, out var bodyRaceGetter))
             {
                 LogReport("Body Shape race: " + EditorIDHandler.GetEditorIDSafely(bodyRaceGetter), false, npcInfo);
             }
-            if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.HeightRace, out var heightRaceGetter))
+            if (environmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.HeightRace, out var heightRaceGetter))
             {
                 LogReport("Height race: " + EditorIDHandler.GetEditorIDSafely(heightRaceGetter), false, npcInfo);
             }
-            if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.HeadPartsRace, out var headPartsRaceGetter))
+            if (environmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.HeadPartsRace, out var headPartsRaceGetter))
             {
                 LogReport("Head Parts race: " + EditorIDHandler.GetEditorIDSafely(headPartsRaceGetter), false, npcInfo);
             }
@@ -210,7 +208,7 @@ public sealed class Logger : VM
                 XDocument output = new XDocument();
                 output.Add(npcInfo.Report.RootElement);
 
-                Task.Run(() => _patcherIO.WriteTextFile(outputFile, FormatLogStringIndents(output.ToString())));
+                Task.Run(() => PatcherIO.WriteTextFile(outputFile, FormatLogStringIndents(output.ToString()), this));
             }
         }
     }

@@ -20,19 +20,19 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
         OBodyDescriptors = oBodySettings.DescriptorUI;
 
         BodyShapeMode = generalSettingsVM.BodySelectionMode;
-        generalSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
+        //generalSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
 
         DisplayedMenu = ImportMenu;
 
         Types = new()
         {
-            { HeadPart.TypeEnum.Eyebrows, listFactory(HeadPart.TypeEnum.Eyebrows, generalSettingsVM.RaceGroupings, this) },
-            { HeadPart.TypeEnum.Eyes, listFactory(HeadPart.TypeEnum.Eyes, generalSettingsVM.RaceGroupings, this) },
-            { HeadPart.TypeEnum.Face, listFactory(HeadPart.TypeEnum.Face, generalSettingsVM.RaceGroupings, this) },
-            { HeadPart.TypeEnum.FacialHair, listFactory(HeadPart.TypeEnum.FacialHair, generalSettingsVM.RaceGroupings, this) },
-            { HeadPart.TypeEnum.Hair, listFactory(HeadPart.TypeEnum.Hair, generalSettingsVM.RaceGroupings, this) },
-            { HeadPart.TypeEnum.Misc, listFactory(HeadPart.TypeEnum.Misc, generalSettingsVM.RaceGroupings, this) },
-            { HeadPart.TypeEnum.Scars, listFactory(HeadPart.TypeEnum.Scars, generalSettingsVM.RaceGroupings, this) }
+            { HeadPart.TypeEnum.Eyebrows, listFactory(HeadPart.TypeEnum.Eyebrows, generalSettingsVM.RaceGroupings) },
+            { HeadPart.TypeEnum.Eyes, listFactory(HeadPart.TypeEnum.Eyes, generalSettingsVM.RaceGroupings) },
+            { HeadPart.TypeEnum.Face, listFactory(HeadPart.TypeEnum.Face, generalSettingsVM.RaceGroupings) },
+            { HeadPart.TypeEnum.FacialHair, listFactory(HeadPart.TypeEnum.FacialHair, generalSettingsVM.RaceGroupings) },
+            { HeadPart.TypeEnum.Hair, listFactory(HeadPart.TypeEnum.Hair, generalSettingsVM.RaceGroupings) },
+            { HeadPart.TypeEnum.Misc, listFactory(HeadPart.TypeEnum.Misc, generalSettingsVM.RaceGroupings) },
+            { HeadPart.TypeEnum.Scars, listFactory(HeadPart.TypeEnum.Scars, generalSettingsVM.RaceGroupings) }
         };
 
         ViewImportMenu = new RelayCommand(

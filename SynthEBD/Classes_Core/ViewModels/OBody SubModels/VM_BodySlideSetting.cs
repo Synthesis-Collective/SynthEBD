@@ -11,7 +11,7 @@ namespace SynthEBD;
 
 public class VM_BodySlideSetting : VM
 {
-    private readonly VM_SettingsOBody _parentMenuVM;
+    public VM_SettingsOBody ParentMenuVM;
     private readonly VM_NPCAttributeCreator _attributeCreator;
     private readonly Logger _logger;
     private readonly VM_BodySlideSetting.Factory _selfFactory;
@@ -19,7 +19,7 @@ public class VM_BodySlideSetting : VM
     public delegate VM_BodySlideSetting Factory(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection);
     public VM_BodySlideSetting(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
-        _parentMenuVM = oBodySettingsVM;
+        ParentMenuVM = oBodySettingsVM;
         _attributeCreator = attributeCreator;
         _logger = logger;
         _selfFactory = selfFactory;
@@ -37,12 +37,12 @@ public class VM_BodySlideSetting : VM
 
         AddAllowedAttribute = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => AllowedAttributes.Add(_attributeCreator.CreateNewFromUI(AllowedAttributes, true, null, _parentMenuVM.AttributeGroupMenu.Groups))
+            execute: _ => AllowedAttributes.Add(_attributeCreator.CreateNewFromUI(AllowedAttributes, true, null, ParentMenuVM.AttributeGroupMenu.Groups))
         );
 
         AddDisallowedAttribute = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, _parentMenuVM.AttributeGroupMenu.Groups))
+            execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, ParentMenuVM.AttributeGroupMenu.Groups))
         );
 
         DeleteMe = new RelayCommand(
@@ -85,7 +85,7 @@ public class VM_BodySlideSetting : VM
             execute: _ => { 
                 var cloneModel = DumpViewModelToModel(this);
                 var cloneViewModel = _selfFactory(BodyShapeDescriptors, raceGroupingVMs, ParentCollection);
-                VM_BodySlideSetting.GetViewModelFromModel(cloneModel, cloneViewModel, BodyShapeDescriptors, raceGroupingVMs, _parentMenuVM, _attributeCreator, _logger, _descriptorSelectionFactory);
+                VM_BodySlideSetting.GetViewModelFromModel(cloneModel, cloneViewModel, BodyShapeDescriptors, raceGroupingVMs, ParentMenuVM, _attributeCreator, _logger, _descriptorSelectionFactory);
                 var index = parentCollection.IndexOf(this);
                 parentCollection.Insert(index, cloneViewModel);
             }
@@ -118,7 +118,6 @@ public class VM_BodySlideSetting : VM
     public RelayCommand DeleteMe { get; }
     public RelayCommand Clone { get; }
     public RelayCommand ToggleHide { get; }
-    public VM_SettingsOBody ParentConfig { get; set; }
     public ObservableCollection<VM_BodySlideSetting> ParentCollection { get; set; }
 
     public SolidColorBrush BorderColor { get; set; }
@@ -131,7 +130,7 @@ public class VM_BodySlideSetting : VM
 
     public void UpdateStatusDisplay()
     {
-        if (!ParentConfig.BodySlidesUI.CurrentlyExistingBodySlides.Contains(this.Label))
+        if (!ParentMenuVM.BodySlidesUI.CurrentlyExistingBodySlides.Contains(this.Label))
         {
             BorderColor = new SolidColorBrush(Colors.Red);
             StatusHeader = "Warning:";
@@ -186,8 +185,8 @@ public class VM_BodySlideSetting : VM
             else { grouping.IsSelected = false; }
         }
 
-        viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, viewModel.ParentConfig.AttributeGroupMenu.Groups, true, null, attCreator, logger);
-        viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, viewModel.ParentConfig.AttributeGroupMenu.Groups, false, null, attCreator, logger);
+        viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, viewModel.ParentMenuVM.AttributeGroupMenu.Groups, true, null, attCreator, logger);
+        viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, viewModel.ParentMenuVM.AttributeGroupMenu.Groups, false, null, attCreator, logger);
         foreach (var x in viewModel.DisallowedAttributes) { x.DisplayForceIfOption = false; }
         viewModel.bAllowUnique = model.AllowUnique;
         viewModel.bAllowNonUnique = model.AllowNonUnique;

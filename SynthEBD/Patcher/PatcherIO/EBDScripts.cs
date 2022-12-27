@@ -32,7 +32,7 @@ namespace SynthEBD
                 sourcePath = Path.Combine(_paths.ResourcesFolderPath, "EBD Code", "VR", "EBDGlobalFuncs.pex");
             }
             string destPath = Path.Combine(_paths.OutputDataFolder, "Scripts", "EBDGlobalFuncs.pex");
-            _patcherIO.TryCopyResourceFile(sourcePath, destPath);
+            _patcherIO.TryCopyResourceFile(sourcePath, destPath, _logger);
         }
     }
 }

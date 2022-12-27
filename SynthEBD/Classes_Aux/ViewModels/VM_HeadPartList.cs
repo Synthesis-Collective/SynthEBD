@@ -22,7 +22,7 @@ namespace SynthEBD
         private readonly VM_HeadPart.Factory _headPartFactory;
         private readonly VM_HeadPartCategoryRules.Factory _headPartCategoryRulesFactory;
         private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
-        public delegate VM_HeadPartList Factory(HeadPart.TypeEnum type, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig);
+        public delegate VM_HeadPartList Factory(HeadPart.TypeEnum type, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
         public VM_HeadPartList(HeadPart.TypeEnum type, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts headPartMenuVM, VM_SettingsOBody oBodyMenuVM, VM_NPCAttributeCreator attributeCreator, Logger logger, VM_HeadPart.Factory headPartFactory, VM_HeadPartCategoryRules.Factory headPartCategoryRulesFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
             _logger = logger;

@@ -454,7 +454,7 @@ class ZEBDAssetPack
         {
             string logFile = string.Join("_", groupName.Split(System.IO.Path.GetInvalidFileNameChars())) + ".txt";
             string logPath = System.IO.Path.Combine(_paths.LogFolderPath, logFile);
-            Task.Run(() => _patcherIO.WriteTextFile(logPath, conversionErrors));
+            Task.Run(() => PatcherIO.WriteTextFile(logPath, conversionErrors, _logger));
             _logger.LogMessage(conversionErrors);
             CustomMessageBox.DisplayNotificationOK("Import Error", "Errors were encountered during upgrade of a zEBD Config File. Please see log at " + logPath + ".");
         }

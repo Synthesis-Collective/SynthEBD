@@ -13,7 +13,7 @@ public class SettingsIO_OBody
     }
     public Settings_OBody LoadOBodySettings(out bool loadSuccess)
     {
-        Settings_OBody oBodySettings = new Settings_OBody(this);
+        Settings_OBody oBodySettings = new Settings_OBody();
 
         loadSuccess = true;
 
@@ -36,7 +36,7 @@ public class SettingsIO_OBody
 
         if (oBodySettings == null)
         {
-            oBodySettings = new(this);
+            oBodySettings = new();
         }
 
         foreach (var attributeGroup in PatcherSettings.General.AttributeGroups) // add any available attribute groups from the general patcher settings

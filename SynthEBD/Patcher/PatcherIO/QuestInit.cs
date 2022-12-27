@@ -9,18 +9,20 @@ namespace SynthEBD
 {
     public class QuestInit
     {
-        private SynthEBDPaths _paths;
-        private PatcherIO _patcherIO;
-        public QuestInit(SynthEBDPaths paths, PatcherIO patcherIO)
+        private readonly SynthEBDPaths _paths;
+        private readonly PatcherIO _patcherIO;
+        private readonly Logger _logger;
+        public QuestInit(SynthEBDPaths paths, PatcherIO patcherIO, Logger logger)
         {
             _paths = paths;
             _patcherIO = patcherIO;
+            _logger = logger;
         }
         public void WriteQuestSeqFile()
         {
             string questSeqSourcePath = Path.Combine(_paths.ResourcesFolderPath, "QuestSeq", "SynthEBD.seq");
             string questSeqDestPath = Path.Combine(_paths.OutputDataFolder, "Seq", "SynthEBD.seq");
-            _patcherIO.TryCopyResourceFile(questSeqSourcePath, questSeqDestPath);
+            _patcherIO.TryCopyResourceFile(questSeqSourcePath, questSeqDestPath, _logger);
         }
     }
 }

@@ -12,14 +12,14 @@ public class RecordGenerator
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly HardcodedRecordGenerator _hardcodedRecordGenerator;
-    private readonly Patcher _patcher;
+    private readonly HeadPartSelector _headPartSelector;
     private readonly RecordPathParser _recordPathParser;
-    public RecordGenerator(Logger logger, SynthEBDPaths paths, HardcodedRecordGenerator hardcodedRecordGenerator, Patcher patcher, RecordPathParser recordPathParser)
+    public RecordGenerator(Logger logger, SynthEBDPaths paths, HardcodedRecordGenerator hardcodedRecordGenerator, HeadPartSelector headPartSelector, RecordPathParser recordPathParser)
     {
         _logger = logger;
         _paths = paths;
-        _hardcodedRecordGenerator = hardcodedRecordGenerator;   
-        _patcher = patcher;
+        _hardcodedRecordGenerator = hardcodedRecordGenerator;
+        _headPartSelector = headPartSelector;
         _recordPathParser = recordPathParser;
     }
     public void CombinationToRecords(List<SubgroupCombination> combinations, NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, SkyrimMod outputMod, List<FilePathReplacementParsed> assignedPaths, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts)
@@ -28,14 +28,14 @@ public class RecordGenerator
         HashSet<FilePathReplacementParsed> headtexPaths = new HashSet<FilePathReplacementParsed>();
         List<FilePathReplacementParsed> nonHardcodedPaths = new List<FilePathReplacementParsed>();
 
-        _hardcodedRecordGenerator.CategorizePaths(combinations, npcInfo, recordTemplateLinkCache, wnamPaths, headtexPaths, nonHardcodedPaths, out int longestPath, true, _patcher); // categorize everything as generic for now.
+        _hardcodedRecordGenerator.CategorizePaths(combinations, npcInfo, recordTemplateLinkCache, wnamPaths, headtexPaths, nonHardcodedPaths, out int longestPath, true); // categorize everything as generic for now.
 
         if (!nonHardcodedPaths.Any() && !wnamPaths.Any() && !headtexPaths.Any()) { return; } // avoid making ITM if user blocks all assets of the type assigned (see AssetSelector.BlockAssetDistributionByExistingAssets())
 
         var currentNPC = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
         objectCaches.Add(npcInfo.NPC.FormKey, new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", currentNPC } });
 
-        _hardcodedRecordGenerator.AssignHardcodedRecords(wnamPaths, headtexPaths, npcInfo, recordTemplateLinkCache, npcObjectMap, objectCaches, outputMod);
+        _hardcodedRecordGenerator.AssignHardcodedRecords(wnamPaths, headtexPaths, npcInfo, recordTemplateLinkCache, npcObjectMap, objectCaches, outputMod, this);
 
         if (nonHardcodedPaths.Any())
         {
@@ -235,7 +235,7 @@ public class RecordGenerator
         if (trialHeadPart is not null) // special handling for head parts
         {
             var headPart = copiedRecord as HeadPart;
-            _patcher.SetGeneratedHeadPart(trialHeadPart, generatedHeadParts, npcInfo);
+            _headPartSelector.SetGeneratedHeadPart(trialHeadPart, generatedHeadParts, npcInfo);
         }
         else
         {
@@ -274,7 +274,7 @@ public class RecordGenerator
 
         if (trialHeadPart is not null) // special handling for head parts
         {
-            _patcher.SetGeneratedHeadPart(trialHeadPart, generatedHeadParts, npcInfo);
+            _headPartSelector.SetGeneratedHeadPart(trialHeadPart, generatedHeadParts, npcInfo);
         }
         else
         {

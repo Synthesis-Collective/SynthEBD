@@ -10,9 +10,28 @@ public class MainModule : Autofac.Module
     {
         // Singletons
 
-        // UI components (main)
+        //logging
         builder.RegisterType<Logger>().AsSelf().SingleInstance()
             .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
+
+        //IO
+        builder.RegisterType<PatcherIO>().AsSelf().SingleInstance();
+        builder.RegisterType<IO_Aux>().AsSelf().SingleInstance();
+        builder.RegisterType<SettingsIO_General>().AsSelf().SingleInstance();
+        builder.RegisterType<SettingsIO_AssetPack>().AsSelf().SingleInstance();
+        builder.RegisterType<SettingsIO_BodyGen>().AsSelf().SingleInstance();
+        builder.RegisterType<SettingsIO_OBody>().AsSelf().SingleInstance();
+        builder.RegisterType<SettingsIO_SpecificNPCAssignments>().AsSelf().SingleInstance();
+        builder.RegisterType<SettingsIO_BlockList>().AsSelf().SingleInstance();
+        builder.RegisterType<SettingsIO_HeadParts>().AsSelf().SingleInstance();
+        builder.RegisterType<SettingsIO_Height>().AsSelf().SingleInstance();
+        builder.RegisterType<SettingsIO_ModManager>().AsSelf().SingleInstance();
+        builder.RegisterType<SettingsIO_Misc>().AsSelf().SingleInstance();
+        builder.RegisterType<HeadPartWriter>().AsSelf().SingleInstance();
+        builder.RegisterType<OBodyWriter>().AsSelf().SingleInstance();
+        builder.RegisterType<BodyGenWriter>().AsSelf().SingleInstance();
+
+        // UI components (main)
         builder.RegisterType<MainWindow_ViewModel>().AsSelf().SingleInstance();
         builder.RegisterType<DisplayedItemVm>().AsSelf().SingleInstance();
         builder.RegisterType<VM_StatusBar>().AsSelf().SingleInstance();
@@ -31,7 +50,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_ConsistencyUI>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SpecificNPCAssignmentsUI>().AsSelf().SingleInstance();        
         builder.RegisterType<VM_LogDisplay>().AsSelf().SingleInstance();
-
+        builder.RegisterType<VM_AssetDistributionSimulator>().AsSelf().SingleInstance();
+        
         // UI components (sub-menus)
         builder.RegisterType<VM_BodyGenTemplateMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodyGenMiscMenu>().AsSelf().SingleInstance();
@@ -70,26 +90,10 @@ public class MainModule : Autofac.Module
         builder.RegisterType<RecordIntellisense>().AsSelf().SingleInstance();
         builder.RegisterType<AssetPackValidator>().AsSelf().SingleInstance();
 
-        //IO
-        builder.RegisterType<PatcherIO>().AsSelf().SingleInstance();
-        builder.RegisterType<IO_Aux>().AsSelf().SingleInstance();
-        builder.RegisterType<SettingsIO_General>().AsSelf().SingleInstance();
-        builder.RegisterType<SettingsIO_AssetPack>().AsSelf().SingleInstance();
-        builder.RegisterType<SettingsIO_BodyGen>().AsSelf().SingleInstance();
-        builder.RegisterType<SettingsIO_OBody>().AsSelf().SingleInstance();
-        builder.RegisterType<SettingsIO_SpecificNPCAssignments>().AsSelf().SingleInstance();
-        builder.RegisterType<SettingsIO_BlockList>().AsSelf().SingleInstance();
-        builder.RegisterType<SettingsIO_HeadParts>().AsSelf().SingleInstance();
-        builder.RegisterType<SettingsIO_Height>().AsSelf().SingleInstance();
-        builder.RegisterType<SettingsIO_ModManager>().AsSelf().SingleInstance();
-        builder.RegisterType<SettingsIO_Misc>().AsSelf().SingleInstance();
-        builder.RegisterType<HeadPartWriter>().AsSelf().SingleInstance();
-        builder.RegisterType<OBodyWriter>().AsSelf().SingleInstance();
-        builder.RegisterType<BodyGenWriter>().AsSelf().SingleInstance();
-
         //Patcher components
         builder.RegisterType<AssetAndBodyShapeSelector>().AsSelf().SingleInstance();
         builder.RegisterType<AssetSelector>().AsSelf().SingleInstance();
+        builder.RegisterType<AssetReplacerSelector>().AsSelf().SingleInstance();
         builder.RegisterType<BodyGenSelector>().AsSelf().SingleInstance();
         builder.RegisterType<OBodySelector>().AsSelf().SingleInstance();
         builder.RegisterType<HeadPartSelector>().AsSelf().SingleInstance();
@@ -113,6 +117,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_ConsistencyAssignment>().AsSelf();
         builder.RegisterType<VM_AttributeGroupMenu>().AsSelf();
         builder.RegisterType<VM_BodyGenConfig>().AsSelf();
+        builder.RegisterType<VM_BodyGenTemplate>().AsSelf();
         builder.RegisterType<VM_HeightConfig>().AsSelf();
         builder.RegisterType<VM_HeadPart>().AsSelf();
         builder.RegisterType<VM_HeadPartList>().AsSelf();
@@ -126,6 +131,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_AssetPackDirectReplacerMenu>().AsSelf();
         builder.RegisterType<VM_AssetReplacerGroup>().AsSelf();
         builder.RegisterType<VM_FilePathReplacement>().AsSelf();
+        builder.RegisterType<VM_NPCAttribute>().AsSelf();
         builder.RegisterType<VM_NPCAttributeShell>().AsSelf();
         builder.RegisterType<VM_NPCAttributeCustom>().AsSelf();
         builder.RegisterType<VM_AttributeValidator>().AsSelf();

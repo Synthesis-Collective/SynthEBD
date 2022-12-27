@@ -106,14 +106,14 @@ namespace SynthEBD
             // copy quest alias script
             string questAliasSourcePath = Path.Combine(_paths.ResourcesFolderPath, "HeadPartScripts", "SynthEBDHeadPartLoaderPAScript.pex");
             string questAliasDestPath = Path.Combine(_paths.OutputDataFolder, "Scripts", "SynthEBDHeadPartLoaderPAScript.pex");
-            _patcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath);
+            _patcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath, _logger);
         }
 
         public void CopyHeadPartScript()
         {
             var sourcePath = Path.Combine(_paths.ResourcesFolderPath, "HeadPartScripts", "SynthEBDHeadPartScript.pex");
             var destPath = Path.Combine(_paths.OutputDataFolder, "Scripts", "SynthEBDHeadPartScript.pex");
-            _patcherIO.TryCopyResourceFile(sourcePath, destPath);
+            _patcherIO.TryCopyResourceFile(sourcePath, destPath, _logger);
         }
 
         /*
@@ -177,7 +177,7 @@ namespace SynthEBD
             var oldFiles = Directory.GetFiles(outputDir).Where(x => Path.GetFileName(x).StartsWith("HeadPartDict"));
             foreach (var path in oldFiles)
             {
-                _patcherIO.TryDeleteFile(path);
+                _patcherIO.TryDeleteFile(path, _logger);
             }
         }
     }

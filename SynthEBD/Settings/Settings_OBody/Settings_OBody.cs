@@ -12,11 +12,6 @@ public enum AutoBodySelectionMode
 
 public class Settings_OBody
 {
-    private readonly SettingsIO_OBody _oBodyIO;
-    public Settings_OBody(SettingsIO_OBody oBodyIO)
-    {
-        _oBodyIO = oBodyIO;
-    }
     public List<BodySlideSetting> BodySlidesMale { get; set; } = new();
     public List<BodySlideSetting> BodySlidesFemale { get; set; } = new();
     public HashSet<BodyShapeDescriptor> TemplateDescriptors { get; set; } = new()
@@ -41,12 +36,12 @@ public class Settings_OBody
     [JsonIgnore]
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new();
 
-    public void ImportBodySlides(HashSet<BodyShapeDescriptor> templateDescriptors)
+    public void ImportBodySlides(HashSet<BodyShapeDescriptor> templateDescriptors, SettingsIO_OBody oBodyIO)
     {
         if (!MaleSliderGroups.Any()) { MaleSliderGroups = new HashSet<string>() { "HIMBO" }; }
         if (!FemaleSliderGroups.Any()) { FemaleSliderGroups = new HashSet<string>() { "CBBE", "3BBB", "3BA", "UNP", "Unified UNP", "BHUNP 3BBB" }; }
 
-        var defaultAnnotationDict = _oBodyIO.LoadDefaultBodySlideAnnotation();
+        var defaultAnnotationDict = oBodyIO.LoadDefaultBodySlideAnnotation();
 
         CurrentlyExistingBodySlides.Clear();
         List<BodySlideSetting> currentBodySlides = new List<BodySlideSetting>();
