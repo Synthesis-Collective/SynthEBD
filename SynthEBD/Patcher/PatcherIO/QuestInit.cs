@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,11 +9,18 @@ namespace SynthEBD
 {
     public class QuestInit
     {
-        public static void WriteQuestSeqFile()
+        private SynthEBDPaths _paths;
+        private PatcherIO _patcherIO;
+        public QuestInit(SynthEBDPaths paths, PatcherIO patcherIO)
         {
-            string questSeqSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "QuestSeq", "SynthEBD.seq");
-            string questSeqDestPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Seq", "SynthEBD.seq");
-            PatcherIO.TryCopyResourceFile(questSeqSourcePath, questSeqDestPath);
+            _paths = paths;
+            _patcherIO = patcherIO;
+        }
+        public void WriteQuestSeqFile()
+        {
+            string questSeqSourcePath = Path.Combine(_paths.ResourcesFolderPath, "QuestSeq", "SynthEBD.seq");
+            string questSeqDestPath = Path.Combine(_paths.OutputDataFolder, "Seq", "SynthEBD.seq");
+            _patcherIO.TryCopyResourceFile(questSeqSourcePath, questSeqDestPath);
         }
     }
 }

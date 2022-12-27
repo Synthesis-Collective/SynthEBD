@@ -6,7 +6,7 @@ namespace SynthEBD;
 
 public class HeadPartFunctions
 {
-    public static void ApplyNeededFaceTextures(Dictionary<FormKey, HeadPartSelection> headPartAssignemnts, SkyrimMod outputMod) // The EBD Papyrus scripts require a head texture to be assigned in order to process headparts. If none was assigned by SynthEBD, assign the default head texture for the NPC's race
+    public static void ApplyNeededFaceTextures(Dictionary<FormKey, HeadPartSelection> headPartAssignemnts, SkyrimMod outputMod, Logger logger) // The EBD Papyrus scripts require a head texture to be assigned in order to process headparts. If none was assigned by SynthEBD, assign the default head texture for the NPC's race
     {
         HashSet<FormKey> npcsToRemove = new();
         foreach (var npcFormKey in headPartAssignemnts.Keys)
@@ -19,7 +19,7 @@ public class HeadPartFunctions
             {
                 if (npcGetter.WornArmor != null && !npcGetter.WornArmor.IsNull)
                 {
-                    AddNPCtoRemovalList_WNAM(npcGetter, npcsToRemove);
+                    AddNPCtoRemovalList_WNAM(npcGetter, npcsToRemove, logger);
                 }
                 if (npcGetter.Race != null && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(npcGetter.Race.FormKey, out var raceGetter))
                 {
@@ -34,7 +34,7 @@ public class HeadPartFunctions
                             }
                             else
                             {
-                                AddNPCtoRemovalList(npcGetter, npcsToRemove);
+                                AddNPCtoRemovalList(npcGetter, npcsToRemove, logger);
                             }
                             break;
                         case Gender.Female:
@@ -45,14 +45,14 @@ public class HeadPartFunctions
                             }
                             else
                             {
-                                AddNPCtoRemovalList(npcGetter, npcsToRemove);
+                                AddNPCtoRemovalList(npcGetter, npcsToRemove, logger);
                             }
                             break;
                     }
                 }
                 else
                 {
-                    AddNPCtoRemovalList(npcGetter, npcsToRemove);
+                    AddNPCtoRemovalList(npcGetter, npcsToRemove, logger);
                 }
             }
         }
@@ -63,17 +63,17 @@ public class HeadPartFunctions
         }
     }
 
-    public static void AddNPCtoRemovalList(INpcGetter npcGetter, HashSet<FormKey> npcsToRemove)
+    public static void AddNPCtoRemovalList(INpcGetter npcGetter, HashSet<FormKey> npcsToRemove, Logger logger)
     {
         var npcString = Logger.GetNPCLogReportingString(npcGetter);
-        Logger.LogMessage("Reverting headparts of NPC " + npcString + " because no face texture was assigned by SynthEBD and no default face texture exists in its RACE record.");
+        logger.LogMessage("Reverting headparts of NPC " + npcString + " because no face texture was assigned by SynthEBD and no default face texture exists in its RACE record.");
         npcsToRemove.Add(npcGetter.FormKey);
     }
 
-    public static void AddNPCtoRemovalList_WNAM(INpcGetter npcGetter, HashSet<FormKey> npcsToRemove)
+    public static void AddNPCtoRemovalList_WNAM(INpcGetter npcGetter, HashSet<FormKey> npcsToRemove, Logger logger)
     {
         var npcString = Logger.GetNPCLogReportingString(npcGetter);
-        Logger.LogMessage("Reverting headparts of NPC " + npcString + " because no face texture was assigned by SynthEBD or its original plugin, but the NPC has a WNAM so SynthEBD HeadPart assignment would cause a neck seam.");
+        logger.LogMessage("Reverting headparts of NPC " + npcString + " because no face texture was assigned by SynthEBD or its original plugin, but the NPC has a WNAM so SynthEBD HeadPart assignment would cause a neck seam.");
         npcsToRemove.Add(npcGetter.FormKey);
     }
 }

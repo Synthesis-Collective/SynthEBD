@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
+using static SynthEBD.VM_BodyShapeDescriptor;
 
 namespace SynthEBD;
 
@@ -6,18 +7,18 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
 {
     public delegate VM_BodyShapeDescriptorCreationMenu Factory(IHasAttributeGroupMenu parentConfig);
     
-    public VM_BodyShapeDescriptorCreationMenu(IHasAttributeGroupMenu parentConfig, VM_Settings_General generalSettings)
+    public VM_BodyShapeDescriptorCreationMenu(IHasAttributeGroupMenu parentConfig, VM_Settings_General generalSettings, VM_BodyShapeDescriptorCreator descriptorCreator)
     {
-        this.CurrentlyDisplayedTemplateDescriptorShell = new VM_BodyShapeDescriptorShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), generalSettings.RaceGroupings, parentConfig);
+        CurrentlyDisplayedTemplateDescriptorShell = descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), generalSettings.RaceGroupings, parentConfig);
 
-        AddTemplateDescriptorShell = new SynthEBD.RelayCommand(
+        AddTemplateDescriptorShell = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.TemplateDescriptors.Add(new VM_BodyShapeDescriptorShell(this.TemplateDescriptors, generalSettings.RaceGroupings, parentConfig))
+            execute: _ => TemplateDescriptors.Add(descriptorCreator.CreateNewShell(TemplateDescriptors, generalSettings.RaceGroupings, parentConfig))
         );
 
-        RemoveTemplateDescriptorShell = new SynthEBD.RelayCommand(
+        RemoveTemplateDescriptorShell = new RelayCommand(
             canExecute: _ => true,
-            execute: x => this.TemplateDescriptors.Remove((VM_BodyShapeDescriptorShell)x)
+            execute: x => TemplateDescriptors.Remove((VM_BodyShapeDescriptorShell)x)
         );
     }
 

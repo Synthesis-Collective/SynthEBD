@@ -15,8 +15,11 @@ namespace SynthEBD
 {
     public class VM_AttributeValidator : VM
     {
-        public VM_AttributeValidator(VM_NPCAttribute trialAttribute, ObservableCollection<VM_AttributeGroup> attGroupVMs)
+        private readonly AttributeMatcher _attributeMatcher;
+        public VM_AttributeValidator(VM_NPCAttribute trialAttribute, ObservableCollection<VM_AttributeGroup> attGroupVMs, AttributeMatcher attributeMatcher)
         {
+            _attributeMatcher = attributeMatcher;
+
             PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
@@ -55,7 +58,7 @@ namespace SynthEBD
 
             if (lk.TryResolve<INpcGetter>(NPCformkey, out var npc))
             {
-                AttributeMatcher.MatchNPCtoAttributeList(attList, npc, AttributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog, null);
+                _attributeMatcher.MatchNPCtoAttributeList(attList, npc, AttributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog, null);
                 HasRestrictions = hasAttributeRestrictions;
                 MatchesRestrictions = matchesAttributeRestrictions;
                 MatchedLog = matchLog;

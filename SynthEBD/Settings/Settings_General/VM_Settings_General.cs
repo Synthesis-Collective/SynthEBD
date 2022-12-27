@@ -13,16 +13,24 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
 {
     public SaveLoader SaveLoader { get; set; }
     private bool _bFirstRun { get; set;} = false;
+    private readonly Patcher _patcher;
+    private readonly SettingsIO_General _generalIO;
     public VM_Settings_General(
         VM_SettingsModManager modManagerSettings,
-        PatcherSettingsProvider settingsProvider)
+        PatcherSettingsSourceProvider settingsProvider,
+        VM_AttributeGroupMenu.Factory attributeGroupFactory,
+        SettingsIO_General generalIO,
+        Patcher patcher)
     {
-        AttributeGroupMenu = new VM_AttributeGroupMenu(null, false);
+        _patcher = patcher;
+        _generalIO = generalIO;
+
+        AttributeGroupMenu = attributeGroupFactory(null, false);
 
         if (settingsProvider.SourceSettings.Value.Initialized)
         {
-            this.bLoadSettingsFromDataFolder = settingsProvider.SourceSettings.Value.LoadFromDataDir;
-            this.PortableSettingsFolder = settingsProvider.SourceSettings.Value.PortableSettingsFolder;
+            bLoadSettingsFromDataFolder = settingsProvider.SourceSettings.Value.LoadFromDataDir;
+            PortableSettingsFolder = settingsProvider.SourceSettings.Value.PortableSettingsFolder;
         }
 
         this.WhenAnyValue(x => x.bShowToolTips)
@@ -36,38 +44,36 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
 
         AddRaceAlias = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.raceAliases.Add(new VM_raceAlias(new RaceAlias(), this))
+            execute: _ => raceAliases.Add(new VM_raceAlias(new RaceAlias(), this))
         );
 
         AddRaceGrouping = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.RaceGroupings.Add(new VM_RaceGrouping(new RaceGrouping(), this))
+            execute: _ => RaceGroupings.Add(new VM_RaceGrouping(new RaceGrouping(), this))
         );
 
         AddLinkedNPCNameExclusion = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.LinkedNameExclusions.Add(new VM_CollectionMemberString("", this.LinkedNameExclusions))
+            execute: _ => LinkedNameExclusions.Add(new VM_CollectionMemberString("", this.LinkedNameExclusions))
         );
 
         AddLinkedNPCGroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.LinkedNPCGroups.Add(new VM_LinkedNPCGroup())
+            execute: _ => LinkedNPCGroups.Add(new VM_LinkedNPCGroup())
         );
 
         RemoveLinkedNPCGroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: x => this.LinkedNPCGroups.Remove((VM_LinkedNPCGroup)x)
+            execute: x => LinkedNPCGroups.Remove((VM_LinkedNPCGroup)x)
         );
 
         this.WhenAnyValue(x => x.bLoadSettingsFromDataFolder).Skip(1).Subscribe(x =>
         {
-            System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;
-            Patcher.ResolvePatchableRaces();
+            _patcher.ResolvePatchableRaces();
             SaveLoader.Reinitialize();
-            System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.Default;
         });
 
-        SelectOutputFolder = new SynthEBD.RelayCommand(
+        SelectOutputFolder = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ =>
                 {
@@ -78,7 +84,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
                 }
                 );
 
-        ClearOutputFolder = new SynthEBD.RelayCommand(
+        ClearOutputFolder = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ =>
                 {
@@ -86,7 +92,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
                 }
                 );
 
-        SelectPortableSettingsFolder = new SynthEBD.RelayCommand(
+        SelectPortableSettingsFolder = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -120,7 +126,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
             }
         );
 
-        ClearPortableSettingsFolder = new SynthEBD.RelayCommand(
+        ClearPortableSettingsFolder = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -182,7 +188,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     public RelayCommand SelectPortableSettingsFolder { get; }
     public RelayCommand ClearPortableSettingsFolder { get; }
     
-    public static void GetViewModelFromModel(VM_Settings_General viewModel, PatcherSettingsProvider patcherSettingsProvider)
+    public static void GetViewModelFromModel(VM_Settings_General viewModel, PatcherSettingsSourceProvider patcherSettingsProvider)
     {
         var model = PatcherSettings.General;
         viewModel.OutputDataFolder = model.OutputDataFolder;
@@ -259,10 +265,10 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         PatcherSettings.General = model;
     }
 
-    private void SwitchPortableSettingsFolder(string folderPath, PatcherSettingsProvider settingsProvider)
+    private void SwitchPortableSettingsFolder(string folderPath, PatcherSettingsSourceProvider settingsProvider)
     {
         PortableSettingsFolder = folderPath;
-        SettingsIO_General.DumpVMandSave(this);
+        _generalIO.DumpVMandSave(this);
         settingsProvider.SetNewDataDir(PortableSettingsFolder);
         SaveLoader.Reinitialize();
     }

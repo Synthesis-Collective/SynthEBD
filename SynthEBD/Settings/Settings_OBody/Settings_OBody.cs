@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Newtonsoft.Json;
 using System.Xml.Linq;
 
@@ -12,6 +12,11 @@ public enum AutoBodySelectionMode
 
 public class Settings_OBody
 {
+    private readonly SettingsIO_OBody _oBodyIO;
+    public Settings_OBody(SettingsIO_OBody oBodyIO)
+    {
+        _oBodyIO = oBodyIO;
+    }
     public List<BodySlideSetting> BodySlidesMale { get; set; } = new();
     public List<BodySlideSetting> BodySlidesFemale { get; set; } = new();
     public HashSet<BodyShapeDescriptor> TemplateDescriptors { get; set; } = new()
@@ -41,7 +46,7 @@ public class Settings_OBody
         if (!MaleSliderGroups.Any()) { MaleSliderGroups = new HashSet<string>() { "HIMBO" }; }
         if (!FemaleSliderGroups.Any()) { FemaleSliderGroups = new HashSet<string>() { "CBBE", "3BBB", "3BA", "UNP", "Unified UNP", "BHUNP 3BBB" }; }
 
-        var defaultAnnotationDict = SettingsIO_OBody.LoadDefaultBodySlideAnnotation();
+        var defaultAnnotationDict = _oBodyIO.LoadDefaultBodySlideAnnotation();
 
         CurrentlyExistingBodySlides.Clear();
         List<BodySlideSetting> currentBodySlides = new List<BodySlideSetting>();

@@ -6,10 +6,10 @@ using ReactiveUI;
 
 namespace SynthEBD;
 
-public class Paths
+public class SynthEBDPaths
 {
-    private static readonly string SynthEBDexeDirPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
-    public static readonly string SettingsSourcePath = Path.Combine(SynthEBDexeDirPath, "Settings", "SettingsSource.json");
+    private static string RootPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+    public static string SettingsSourcePath => Path.Combine(RootPath, "Settings", "SettingsSource.json");
 
     private const string settingsDirRelPath = "Settings";
     private const string assetsDirRelPath = "Asset Packs";
@@ -18,21 +18,26 @@ public class Paths
     private const string NPCConfigDirRelPath = "NPC Configuration";
     private const string recordTemplatesDirRelPath = "Record Templates";
 
-    private static readonly string settingsDirPath = Path.Combine(SynthEBDexeDirPath, settingsDirRelPath);
+    private static readonly string settingsDirPath = Path.Combine(RootPath, settingsDirRelPath);
 
-    public Paths(
+    public static void SetRootPath(string rootPath)
+    {
+        RootPath = rootPath;
+    }
+
+    public SynthEBDPaths(
         PatcherEnvironmentProvider environmentProvider,
-        PatcherSettingsProvider settingsProvider,
+        PatcherSettingsSourceProvider settingsSourceProvider,
         VM_Settings_General generalSettings)
     {
         // create relevant paths if necessary - only in the "home" directory. To avoid inadvertent clutter in the data folder, user must create these directories manually in their data folder
 
-        string settingsDirPath = Path.Combine(SynthEBDexeDirPath, settingsDirRelPath);
-        string assetsDirPath = Path.Combine(SynthEBDexeDirPath, assetsDirRelPath);
-        string heightsDirPath = Path.Combine(SynthEBDexeDirPath, heightsDirRelPath);
-        string bodyGenDirPath = Path.Combine(SynthEBDexeDirPath, bodyGenDirRelPath);
-        string NPCConfigDirPath = Path.Combine(SynthEBDexeDirPath, NPCConfigDirRelPath);
-        string recordTemplatesDirPath = Path.Combine(SynthEBDexeDirPath, recordTemplatesDirRelPath);
+        string settingsDirPath = Path.Combine(RootPath, settingsDirRelPath);
+        string assetsDirPath = Path.Combine(RootPath, assetsDirRelPath);
+        string heightsDirPath = Path.Combine(RootPath, heightsDirRelPath);
+        string bodyGenDirPath = Path.Combine(RootPath, bodyGenDirRelPath);
+        string NPCConfigDirPath = Path.Combine(RootPath, NPCConfigDirRelPath);
+        string recordTemplatesDirPath = Path.Combine(RootPath, recordTemplatesDirRelPath);
 
         if (Directory.Exists(settingsDirPath) == false)
         {
@@ -59,9 +64,9 @@ public class Paths
             Directory.CreateDirectory(recordTemplatesDirPath);
         }
 
-        if (settingsProvider.SourceSettings.Value.Initialized && settingsProvider.SourceSettings.Value.LoadFromDataDir)
+        if (settingsSourceProvider.SourceSettings.Value.Initialized && settingsSourceProvider.SourceSettings.Value.LoadFromDataDir)
         {
-            RelativePath = settingsProvider.SourceSettings.Value.PortableSettingsFolder;
+            RelativePath = settingsSourceProvider.SourceSettings.Value.PortableSettingsFolder;
         }
 
         Observable.CombineLatest(
@@ -84,7 +89,7 @@ public class Paths
                     }
                     else
                     {
-                        return SynthEBDexeDirPath;
+                        return RootPath;
                     }
                 })
             .Subscribe(x => RelativePath = x);
@@ -103,8 +108,8 @@ public class Paths
     }
 
     private string RelativePath { get; set; } 
-    public string LogFolderPath { get; set; } = Path.Combine(SynthEBDexeDirPath, "Logs");
-    public string ResourcesFolderPath { get; set; } = Path.Combine(SynthEBDexeDirPath, "Resources");
+    public string LogFolderPath { get; set; } = Path.Combine(RootPath, "Logs");
+    public string ResourcesFolderPath { get; set; } = Path.Combine(RootPath, "Resources");
     public string GeneralSettingsPath => Path.Combine(RelativePath, settingsDirRelPath, "GeneralSettings.json");
     public string TexMeshSettingsPath => Path.Combine(RelativePath, settingsDirRelPath, "TexMeshSettings.json");
     public string AssetPackDirPath => Path.Combine(RelativePath, assetsDirRelPath);
@@ -130,6 +135,6 @@ public class Paths
     public string GetFallBackPath(string path)
     {
         var suffix = path.Remove(0, RelativePath.Length).Trim(Path.PathSeparator);
-        return Path.Join(SynthEBDexeDirPath, suffix);
+        return Path.Join(RootPath, suffix);
     }
 }

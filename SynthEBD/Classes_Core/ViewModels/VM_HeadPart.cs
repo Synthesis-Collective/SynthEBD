@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
@@ -10,16 +10,21 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media;
+using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD
 {
     public class VM_HeadPart : VM
     {
-        public VM_HeadPart(FormKey headPartFormKey, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig)
+        private readonly VM_NPCAttributeCreator _attributeCreator;
+        public delegate VM_HeadPart Factory(FormKey headPartFormKey, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig);
+        public VM_HeadPart(FormKey headPartFormKey, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig, VM_NPCAttributeCreator attributeCreator, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
+            _attributeCreator = attributeCreator;
+
             FormKey = headPartFormKey;
-            this.AllowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(bodyShapeDescriptors, raceGroupingVMs, parentConfig);
-            this.DisallowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(bodyShapeDescriptors, raceGroupingVMs, parentConfig);
+            this.AllowedBodySlideDescriptors = descriptorSelectionFactory(bodyShapeDescriptors, raceGroupingVMs, parentConfig);
+            this.DisallowedBodySlideDescriptors = descriptorSelectionFactory(bodyShapeDescriptors, raceGroupingVMs, parentConfig);
             this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
             this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
@@ -32,12 +37,12 @@ namespace SynthEBD
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.AllowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.AllowedAttributes, true, null, ParentConfig.AttributeGroupMenu.Groups))
+                execute: _ => this.AllowedAttributes.Add(_attributeCreator.CreateNewFromUI(AllowedAttributes, true, null, ParentConfig.AttributeGroupMenu.Groups))
             );
 
             AddDisallowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.DisallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.DisallowedAttributes, false, null, ParentConfig.AttributeGroupMenu.Groups))
+                execute: _ => this.DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, ParentConfig.AttributeGroupMenu.Groups))
             );
 
             DeleteMe = new SynthEBD.RelayCommand(
@@ -104,9 +109,9 @@ namespace SynthEBD
         public SolidColorBrush BorderColor { get; set; } = new SolidColorBrush(Colors.Green);
         public string StatusString { get; set; } = string.Empty;
 
-        public static VM_HeadPart GetViewModelFromModel(HeadPartSetting model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AttributeGroupMenu attributeGroupMenu, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, VM_Settings_Headparts parentConfig, ObservableCollection<VM_HeadPart> parentCollection)
+        public static VM_HeadPart GetViewModelFromModel(HeadPartSetting model, VM_HeadPart.Factory headPartFactory, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AttributeGroupMenu attributeGroupMenu, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, VM_Settings_Headparts parentConfig, ObservableCollection<VM_HeadPart> parentCollection, VM_NPCAttributeCreator creator, Logger logger, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
-            var viewModel = new VM_HeadPart(model.HeadPartFormKey, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig);
+            var viewModel = headPartFactory(model.HeadPartFormKey, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig);
             viewModel.FormKey = model.HeadPartFormKey;
             viewModel.Label = EditorIDHandler.GetEditorIDSafely<IHeadPartGetter>(viewModel.FormKey);
             viewModel.bAllowFemale = model.bAllowFemale;
@@ -115,16 +120,16 @@ namespace SynthEBD
             viewModel.AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, raceGroupingVMs);
             viewModel.DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
             viewModel.DisallowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.DisallowedRaceGroupings, raceGroupingVMs);
-            viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, attributeGroupMenu.Groups, true, null);
-            viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, attributeGroupMenu.Groups, false, null);
+            viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, attributeGroupMenu.Groups, true, null, creator, logger);
+            viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, attributeGroupMenu.Groups, false, null, creator, logger);
             foreach (var x in viewModel.DisallowedAttributes) { x.DisplayForceIfOption = false; }
             viewModel.bAllowUnique = model.bAllowUnique;
             viewModel.bAllowNonUnique = model.bAllowNonUnique;
             viewModel.bAllowRandom = model.bAllowRandom;
             viewModel.ProbabilityWeighting = model.ProbabilityWeighting;
             viewModel.WeightRange = model.WeightRange;
-            viewModel.AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, bodyShapeDescriptors, raceGroupingVMs, parentConfig);
-            viewModel.DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, bodyShapeDescriptors, raceGroupingVMs, parentConfig);
+            viewModel.AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, bodyShapeDescriptors, raceGroupingVMs, parentConfig, descriptorSelectionFactory);
+            viewModel.DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, bodyShapeDescriptors, raceGroupingVMs, parentConfig, descriptorSelectionFactory);
             return viewModel;
         }
 

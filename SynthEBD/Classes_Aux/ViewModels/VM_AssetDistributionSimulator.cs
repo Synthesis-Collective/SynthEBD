@@ -16,11 +16,24 @@ namespace SynthEBD
 {
     public class VM_AssetDistributionSimulator : VM
     {
-        public VM_AssetDistributionSimulator(VM_SettingsTexMesh texMesh, VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI)
+        private readonly Logger _logger;
+        private readonly SynthEBDPaths _paths;
+        private readonly DictionaryMapper _dictionaryMapper;
+        private readonly AssetAndBodyShapeSelector _assetAndBodyShapeSelector;
+        private readonly SettingsIO_OBody _oBodyIO;
+        public delegate VM_AssetDistributionSimulator Factory();
+        public VM_AssetDistributionSimulator(VM_SettingsTexMesh texMesh, VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI, Logger logger, SynthEBDPaths paths, DictionaryMapper dictionaryMapper, AssetAndBodyShapeSelector assetAndBodyShapeSelector, SettingsIO_OBody oBodyIO)
         {
+            _logger = logger;
+            _paths = paths;
+            _dictionaryMapper = dictionaryMapper;
+            _assetAndBodyShapeSelector = assetAndBodyShapeSelector;
+            _oBodyIO = oBodyIO;
+
             PrimaryAPs = texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.Primary && x.IsSelected).Select(x => VM_AssetPack.DumpViewModelToModel(x)).ToHashSet();
             MixInAPs = texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.MixIn && x.IsSelected).Select(x => VM_AssetPack.DumpViewModelToModel(x)).ToHashSet();
-            VM_SettingsOBody.DumpViewModelToModel(OBodySettings, oBody);
+            OBodySettings = new(_oBodyIO);
+            OBodySettings = oBody.DumpViewModelToModel();
             VM_BlockListUI.DumpViewModelToModel(blockListUI, BlockList);
             VM_SettingsBodyGen.DumpViewModelToModel(bodyGen, new(), BodyGenConfigs);
 
@@ -37,7 +50,7 @@ namespace SynthEBD
                 }
             });
 
-            SimulatePrimary = new SynthEBD.RelayCommand(
+            SimulatePrimary = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -54,7 +67,7 @@ namespace SynthEBD
         public HashSet<AssetPack> PrimaryAPs { get; set; } = new();
         public HashSet<AssetPack> MixInAPs { get; set; } = new();
         public BodyGenConfigs BodyGenConfigs { get; set; } = new();
-        public Settings_OBody OBodySettings { get; set; } = new();
+        public Settings_OBody OBodySettings { get; set; }
         public BlockList BlockList { get; set; } = new();
         public int Repetitions { get; set; } = 100;
         public string TextReport { get; set; } = string.Empty;
@@ -66,7 +79,7 @@ namespace SynthEBD
             if (PrimaryAPs is null || !PrimaryAPs.Any()) { return; }
             if (NPCformKey.IsNull) { return; }
 
-            var flattenedAssetPacks = PrimaryAPs.Where(x => x.Gender == NPCinfo.Gender).Select(x => FlattenedAssetPack.FlattenAssetPack(x)).ToHashSet();
+            var flattenedAssetPacks = PrimaryAPs.Where(x => x.Gender == NPCinfo.Gender).Select(x => FlattenedAssetPack.FlattenAssetPack(x, _dictionaryMapper)).ToHashSet();
 
             var blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(BlockList, NPCformKey);
             var blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(BlockList, NPCformKey);
@@ -83,9 +96,9 @@ namespace SynthEBD
                 {
                     PatcherSettings.General.VerboseModeDetailedAttributes = true;
                     NPCinfo.Report.LogCurrentNPC = true;
-                    Logger.InitializeNewReport(NPCinfo);
+                    _logger.InitializeNewReport(NPCinfo);
                 }
-                var chosenCombination = AssetAndBodyShapeSelector.GenerateCombinationWithBodyShape(flattenedAssetPacks, BodyGenConfigs, OBodySettings, new AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment(), NPCinfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, new());
+                var chosenCombination = _assetAndBodyShapeSelector.GenerateCombinationWithBodyShape(flattenedAssetPacks, BodyGenConfigs, OBodySettings, new AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment(), NPCinfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, new());
                 combinations.Add(chosenCombination);
                 if (i == Repetitions - 1)
                 {
@@ -181,7 +194,7 @@ namespace SynthEBD
                 var log = npcInfo.Report.RootElement.ToString();
 
                 string startStr = "Filtering subgroups within asset pack: " + assetPackName;
-                var split1 = log.Split(startStr);
+                var split1 = log.Split(startStr).ToArray();
                 if (split1.Length < 2) { ExplainStr = "Could not parse the log."; return; }
 
                 string endStr = "</AssetPack>";

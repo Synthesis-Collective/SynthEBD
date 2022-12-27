@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda;
+using Mutagen.Bethesda;
 using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
@@ -6,8 +6,13 @@ using System.Text.RegularExpressions;
 
 namespace SynthEBD;
 
-class Converters
+public class Converters
 {
+    private readonly Logger _logger;
+    public Converters(Logger logger)
+    {
+        _logger = logger;
+    }
     public static FormKey RaceEDID2FormKey(string EDID)
     {
         var env = PatcherEnvironmentProvider.Instance.Environment;
@@ -29,7 +34,7 @@ class Converters
         return new FormKey();
     }
 
-    public static string CreateNPCDispNameFromFormKey(FormKey NPCFormKey)
+    public string CreateNPCDispNameFromFormKey(FormKey NPCFormKey)
     {
         var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
 
@@ -47,11 +52,11 @@ class Converters
             return subName + " (" + NPCFormKey.ToString() + ")";
         }
 
-        Logger.LogError("Could not resolve NPC with FormKey " + NPCFormKey.ToString() + " in the current load order");
+        _logger.LogError("Could not resolve NPC with FormKey " + NPCFormKey.ToString() + " in the current load order");
         return "";
     }
 
-    public static HashSet<NPCAttribute> StringArraysToAttributes(List<string[]> arrList)
+    public HashSet<NPCAttribute> StringArraysToAttributes(List<string[]> arrList)
     {
         HashSet<NPCAttribute> h = new HashSet<NPCAttribute>();
 
@@ -203,7 +208,7 @@ class Converters
         return h;
     }
 
-    public static FormKey GetFormKeyFromxEditFormIDString(string str, IGameEnvironment<ISkyrimMod, ISkyrimModGetter> env)
+    public FormKey GetFormKeyFromxEditFormIDString(string str, IGameEnvironment<ISkyrimMod, ISkyrimModGetter> env)
     {
         FormKey output = new FormKey();
         var pattern = @"\[(.*?)\]"; // get text between square brackets - str will look like "Beggar \"Beggar\" [CLAS:0001327B]"
@@ -211,7 +216,7 @@ class Converters
 
         if (matches.Count == 0)
         {
-            Logger.LogError("Could not parse " + str + " as a FormID");
+            _logger.LogError("Could not parse " + str + " as a FormID");
             return output;
         }
 
@@ -220,7 +225,7 @@ class Converters
         string[] split =  subStr.Split(':');
         if (split.Length != 2)
         {
-            Logger.LogError("Could not parse " + str + " as a FormID");
+            _logger.LogError("Could not parse " + str + " as a FormID");
             return output;
         }
 
@@ -228,7 +233,7 @@ class Converters
 
         if (formID.Length != 8)
         {
-            Logger.LogError("Could not parse " + str + " as a FormID");
+            _logger.LogError("Could not parse " + str + " as a FormID");
             return output;
         }
 
@@ -242,7 +247,7 @@ class Converters
         }
         catch
         {
-            Logger.LogError("Could not parse " + str + " as a FormID");
+            _logger.LogError("Could not parse " + str + " as a FormID");
             return output;
         }
 
@@ -256,14 +261,14 @@ class Converters
         }
         catch
         {
-            Logger.LogError("Could not create FormKey " + fkString + " from FormID " + str);
+            _logger.LogError("Could not create FormKey " + fkString + " from FormID " + str);
             return output;
         }
 
         return output;
     }
 
-    public static FormKey zEBDSignatureToFormKey(string rootPlugin, string formID, IGameEnvironment<ISkyrimMod, ISkyrimModGetter> env)
+    public FormKey zEBDSignatureToFormKey(string rootPlugin, string formID, IGameEnvironment<ISkyrimMod, ISkyrimModGetter> env)
     {
         string fkString = "";
         FormKey output = new FormKey();
@@ -277,7 +282,7 @@ class Converters
                     case 6: fkString = formID + ":" + plugin.ModKey.FileName; break;
                     case 8: fkString = formID.Substring(2, 6) + ":" + plugin.ModKey.FileName; break;
                     default:
-                        Logger.LogError("Could not convert zEBD FormKey Signature " + fkString + " to FormKey");
+                        _logger.LogError("Could not convert zEBD FormKey Signature " + fkString + " to FormKey");
                         break;
                 }
             }
@@ -289,7 +294,7 @@ class Converters
         }
         catch
         {
-            Logger.LogError("Could not convert zEBD FormKey Signature " + fkString + " to FormKey");
+            _logger.LogError("Could not convert zEBD FormKey Signature " + fkString + " to FormKey");
         }
 
         return output;
@@ -323,7 +328,7 @@ class Converters
     /// </summary>
     /// <param name="allowedAttributes"></param>
     /// <param name="forceIfAttributes"></param>
-    public static void zEBDForceIfAttributesToAllowed(HashSet<NPCAttribute> allowedAttributes, HashSet<NPCAttribute> forceIfAttributes)
+    public static void ImportzEBDForceIfAttributes(HashSet<NPCAttribute> allowedAttributes, HashSet<NPCAttribute> forceIfAttributes)
     {
         foreach (var ofa in forceIfAttributes)
         {

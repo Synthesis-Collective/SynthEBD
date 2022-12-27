@@ -13,7 +13,8 @@ namespace SynthEBD;
 /// </summary>
 public partial class App : Application
 {
-    
+    private SynthEBDPaths _paths;
+    /*
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -27,7 +28,7 @@ public partial class App : Application
             .Wait();
     }
 
-    public static int OpenForSettings(IOpenForSettingsState state)
+    public int OpenForSettings(IOpenForSettingsState state)
     {
         /*
         var builder = new ContainerBuilder();
@@ -38,6 +39,8 @@ public partial class App : Application
         this.DataContext = mvm;
         mvm.Init();
         */
+
+    /*
         var builder = new ContainerBuilder();
         builder.RegisterModule<MainModule>();
         builder.RegisterInstance(new OpenForSettingsWrapper(state)).AsImplementedInterfaces();
@@ -46,8 +49,8 @@ public partial class App : Application
         var window = new MainWindow();
         var mainVM = container.Resolve<MainWindow_ViewModel>();
         window.DataContext = mainVM;
-
-        //PatcherSettings.Paths.SetRootPath("");
+        _paths = mainVM._paths;
+        //_paths.SetRootPath("");
 
         window.Show();
         window.CenterAround(state.RecommendedOpenLocation);
@@ -55,15 +58,16 @@ public partial class App : Application
         return 0;
     }
 
-    public static int StandaloneOpen()
+    public int StandaloneOpen()
     {
         var builder = new ContainerBuilder();
         builder.RegisterModule<MainModule>();
         builder.RegisterType<StandaloneRunStateProvider>().AsImplementedInterfaces();
         var container = builder.Build();
-
+        var mainVM = container.Resolve<MainWindow_ViewModel>();
+        _paths = mainVM._paths;
         var window = new MainWindow();
-        window.DataContext = container.Resolve<MainWindow_ViewModel>();
+        window.DataContext = mainVM;
         window.Show();
 
         return 0;
@@ -74,10 +78,10 @@ public partial class App : Application
         /*
          * 
          * 
-         */
+         *
     }
+    */
     
-    /*
     void App_Startup(object sender, StartupEventArgs e)
     {
         // Application is running
@@ -99,7 +103,7 @@ public partial class App : Application
         }
         mainWindow.Show();
     }
-    */
+    
     private void Application_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {
         StringBuilder sb = new();
@@ -107,7 +111,7 @@ public partial class App : Application
         sb.AppendLine(ExceptionLogger.GetExceptionStack(e.Exception, ""));
         sb.AppendLine();
         sb.AppendLine("Patcher Settings Creation Log:");
-        sb.AppendLine(PatcherSettingsProvider.SettingsLog.ToString());
+        sb.AppendLine(PatcherSettingsSourceProvider.SettingsLog.ToString());
         sb.AppendLine();
         sb.AppendLine("Patcher Environment Creation Log:");
         sb.AppendLine(PatcherEnvironmentProvider.Instance.EnvironmentLog.ToString());
@@ -115,8 +119,8 @@ public partial class App : Application
         var errorMessage = sb.ToString();
         CustomMessageBox.DisplayNotificationOK("SynthEBD has crashed.", errorMessage);
 
-        var path = System.IO.Path.Combine(PatcherSettings.Paths.LogFolderPath, "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
-        PatcherIO.WriteTextFile(path, errorMessage).Wait();
+        var path = System.IO.Path.Combine(_paths.LogFolderPath, "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
+        PatcherIO.WriteTextFileStatic(path, errorMessage).Wait();
 
         e.Handled = true;
     }

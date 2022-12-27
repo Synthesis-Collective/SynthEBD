@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using Z.Expressions;
 using Mutagen.Bethesda.Plugins;
@@ -22,11 +22,17 @@ public class ObjectInfo
 }
 public class RecordPathParser
 {
-    public static bool GetObjectAtPath(dynamic rootObj, IMajorRecordGetter rootRecord, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj) // rootObj is the object relative to which the path is to be traversed. rootRecord is the parent record of the entire tree - this may be the same as rootObj, but rootObj may be a sub-object of rootRecord
+    private readonly Logger _logger;
+    public RecordPathParser(Logger logger)
+    {
+        _logger = logger;
+    }
+
+    public bool GetObjectAtPath(dynamic rootObj, IMajorRecordGetter rootRecord, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj) // rootObj is the object relative to which the path is to be traversed. rootRecord is the parent record of the entire tree - this may be the same as rootObj, but rootObj may be a sub-object of rootRecord
     {
         return GetObjectAtPath(rootObj, rootRecord, relativePath, objectCache, linkCache, suppressMissingPathErrors, errorCaption, out outputObj, out ObjectInfo _);
     }
-    public static bool GetObjectAtPath(dynamic rootObj, IMajorRecordGetter rootRecord, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out ObjectInfo outputObjInfo) // rootObj is the object relative to which the path is to be traversed. rootRecord is the parent record of the entire tree - this may be the same as rootObj, but rootObj may be a sub-object of rootRecord
+    public bool GetObjectAtPath(dynamic rootObj, IMajorRecordGetter rootRecord, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out ObjectInfo outputObjInfo) // rootObj is the object relative to which the path is to be traversed. rootRecord is the parent record of the entire tree - this may be the same as rootObj, but rootObj may be a sub-object of rootRecord
     {
         outputObj = null;
         outputObjInfo = new ObjectInfo();
@@ -139,7 +145,7 @@ public class RecordPathParser
         return true;
     }
 
-    public static bool GetObjectCollectionAtPath(dynamic rootObj, IMajorRecordGetter rootRecord, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> outputObjectCollection)
+    public bool GetObjectCollectionAtPath(dynamic rootObj, IMajorRecordGetter rootRecord, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> outputObjectCollection)
     {
         if (rootObj == null)
         {
@@ -245,7 +251,7 @@ public class RecordPathParser
         return outputObjectCollection.Any();
     }
 
-    public static bool GetNearestParentGetter(IMajorRecordGetter rootGetter, string path, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, bool suppressMissingPathErrors, string errorCaption, out IMajorRecordGetter parentRecordGetter, out string relativePath)
+    public bool GetNearestParentGetter(IMajorRecordGetter rootGetter, string path, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, bool suppressMissingPathErrors, string errorCaption, out IMajorRecordGetter parentRecordGetter, out string relativePath)
     {
         string[] splitPath = SplitPath(path);
         dynamic currentObj = rootGetter;
@@ -280,11 +286,11 @@ public class RecordPathParser
 
         return true;
     }
-    private static bool GetArrayObjectAtSpecifier(dynamic currentObj, string arrIndex, IMajorRecordGetter rootRecord, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj)
+    private bool GetArrayObjectAtSpecifier(dynamic currentObj, string arrIndex, IMajorRecordGetter rootRecord, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj)
     {
         return GetArrayObjectAtIndex(currentObj, arrIndex, rootRecord, linkCache, suppressMissingPathErrors, errorCaption, out outputObj, out int? _);
     }
-    private static bool GetArrayObjectAtIndex(dynamic currentObj, string arrIndex, IMajorRecordGetter rootRecord, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out int? indexInParent)
+    private bool GetArrayObjectAtIndex(dynamic currentObj, string arrIndex, IMajorRecordGetter rootRecord, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out int? indexInParent)
     {
         outputObj = null;
         indexInParent = null;
@@ -292,7 +298,7 @@ public class RecordPathParser
         var collectionObj = currentObj as IReadOnlyList<dynamic>;
         if (collectionObj == null)
         {
-            Logger.LogError("Could not cast " + currentObj.GetType() + "as an XXX");
+            _logger.LogError("Could not cast " + currentObj.GetType() + "as an XXX");
             return false;
         }
 
@@ -308,7 +314,7 @@ public class RecordPathParser
             {
                 if (!suppressMissingPathErrors)
                 {
-                    Logger.LogError(errorCaption + ": Could not get object at [" + arrIndex + "] because the " + currentObj.GetType() + " does not have an element at this index.");
+                    _logger.LogError(errorCaption + ": Could not get object at [" + arrIndex + "] because the " + currentObj.GetType() + " does not have an element at this index.");
                 }
                 return false;
             }
@@ -321,7 +327,7 @@ public class RecordPathParser
             {
                 if (!suppressMissingPathErrors)
                 {
-                    Logger.LogError(errorCaption + ": Could not get object at [" + arrIndex + "] because " + currentObj.GetType() + " does not have an element that matches this condition.");
+                    _logger.LogError(errorCaption + ": Could not get object at [" + arrIndex + "] because " + currentObj.GetType() + " does not have an element that matches this condition.");
                 }
                 return false;
             }
@@ -330,14 +336,14 @@ public class RecordPathParser
         return true;
     }
 
-    private static bool GetArrayObjectCollectionAtIndex(dynamic currentObj, string arrIndex, IMajorRecordGetter rootRecord, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> outputObjectCollection)
+    private bool GetArrayObjectCollectionAtIndex(dynamic currentObj, string arrIndex, IMajorRecordGetter rootRecord, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> outputObjectCollection)
     {
         outputObjectCollection.Clear();
 
         var collectionObj = currentObj as IReadOnlyList<dynamic>;
         if (collectionObj == null)
         {
-            Logger.LogError("Could not cast " + currentObj.GetType() + "as an IReadOnlyList");
+            _logger.LogError("Could not cast " + currentObj.GetType() + "as an IReadOnlyList");
             return false;
         }
 
@@ -352,7 +358,7 @@ public class RecordPathParser
             else
             {
                 string currentSubPath = "[" + arrIndex + "]";
-                Logger.LogError("Could not get object at " + currentSubPath + " because the " + currentObj.GetType() + " does not have an element at index " + iIndex);
+                _logger.LogError("Could not get object at " + currentSubPath + " because the " + currentObj.GetType() + " does not have an element at index " + iIndex);
                 return false;
             }
         }
@@ -375,7 +381,7 @@ public class RecordPathParser
             else
             {
                 string currentSubPath = "[" + arrIndex + "]";
-                Logger.LogError("Could not get object at " + currentSubPath + " because " + currentObj.GetType() + " does not have an element that matches condition: " + arrIndex);
+                _logger.LogError("Could not get object at " + currentSubPath + " because " + currentObj.GetType() + " does not have an element that matches condition: " + arrIndex);
                 return false;
             }
         }
@@ -643,7 +649,7 @@ public class RecordPathParser
         return matchConditionStr;
     }
 
-    private static bool MatchRace(dynamic rootRecord, dynamic npcDyn, string toMatchPathStr)
+    private bool MatchRace(dynamic rootRecord, dynamic npcDyn, string toMatchPathStr)
     {
         var npc = npcDyn as INpcGetter;
         if (npc == null) { return false; }
@@ -691,7 +697,7 @@ public class RecordPathParser
         return false;
     }
 
-    private static bool ChooseWhichArrayObject(IReadOnlyList<dynamic> variants, string matchConditionStr, IMajorRecordGetter rootRecord, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out int? indexInParent)
+    private bool ChooseWhichArrayObject(IReadOnlyList<dynamic> variants, string matchConditionStr, IMajorRecordGetter rootRecord, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out int? indexInParent)
     {
         outputObj = null;
         indexInParent = null;
@@ -797,7 +803,7 @@ public class RecordPathParser
         return false;
     }
 
-    private static bool ChooseSelectedArrayObjects(IReadOnlyList<dynamic> variants, IMajorRecordGetter rootRecord, string matchConditionStr, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> matchedObjects)
+    private bool ChooseSelectedArrayObjects(IReadOnlyList<dynamic> variants, IMajorRecordGetter rootRecord, string matchConditionStr, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> matchedObjects)
     {
         var arrayMatchConditions = ArrayPathCondition.GetConditionsFromString(matchConditionStr, out bool parsed);
         if (!parsed)
@@ -847,7 +853,7 @@ public class RecordPathParser
                 }
                 else if (candidateObjIsRecord) // warn if the object is a record but the corresponding Form couldn't be resolved
                 {
-                    Logger.LogError("Could not resolve record for array member object " + objFormKey.Value.ToString());
+                    _logger.LogError("Could not resolve record for array member object " + objFormKey.Value.ToString());
                     skipToNext = true;
                     break;
                 }

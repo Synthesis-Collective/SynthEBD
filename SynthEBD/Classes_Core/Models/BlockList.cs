@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
@@ -48,27 +48,32 @@ public class BlockedPlugin
     };
 }
 
-    public class zEBDBlockList
+public class zEBDBlockList
+{
+    private Converters _converters;
+    public zEBDBlockList(Converters converters)
     {
+        _converters = converters;
+    }
     public HashSet<zEBDBlockedNPC> blockedNPCs { get; set; } = new();
     public HashSet<zEBDBlockedPlugin> blockedPlugins { get; set; } = new();
 
-    public static BlockList ToSynthEBD(zEBDBlockList zList)
+    public BlockList ToSynthEBD()
     {
         BlockList sList = new BlockList();
         var env = PatcherEnvironmentProvider.Instance.Environment;
 
-        foreach (var npc in zList.blockedNPCs)
+        foreach (var npc in blockedNPCs)
         {
             BlockedNPC blockedNPC = new BlockedNPC();
-            blockedNPC.FormKey = Converters.zEBDSignatureToFormKey(npc.rootPlugin, npc.formID, env);
+            blockedNPC.FormKey = _converters.zEBDSignatureToFormKey(npc.rootPlugin, npc.formID, env);
             blockedNPC.Assets = npc.bBlockAssets;
             blockedNPC.Height = npc.bBlockHeight;
             blockedNPC.BodyShape = npc.bBlockBodyGen;
             sList.NPCs.Add(blockedNPC);
         }
 
-        foreach (var plugin in zList.blockedPlugins)
+        foreach (var plugin in blockedPlugins)
         {
             BlockedPlugin blockedPlugin = new BlockedPlugin();
             blockedPlugin.ModKey = ModKey.FromNameAndExtension(plugin.name);

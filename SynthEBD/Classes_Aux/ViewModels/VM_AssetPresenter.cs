@@ -1,4 +1,4 @@
-﻿using ReactiveUI;
+using ReactiveUI;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -14,9 +14,12 @@ namespace SynthEBD
 {
     public class VM_AssetPresenter : VM
     {
-        public VM_AssetPresenter(VM_SettingsTexMesh parent)
+        private readonly Logger _logger;
+        public VM_AssetPresenter(VM_SettingsTexMesh parent, Logger logger)
         {
             ParentUI = parent;
+
+            _logger = logger;
 
             this.WhenAnyValue(
                 x => x.AssetPack.DisplayedSubgroup.ImagePaths,
@@ -69,7 +72,7 @@ namespace SynthEBD
                 catch (Exception ex)
                 {
                     string errorStr = "Failed to load preview image from Subgroup " + sourcedImagePath.PrimarySource + " : " + sourcedImagePath.Path + Environment.NewLine + ExceptionLogger.GetExceptionStack(ex, "");
-                    Logger.LogMessage(errorStr);
+                    _logger.LogMessage(errorStr);
                 }
             }
             return;

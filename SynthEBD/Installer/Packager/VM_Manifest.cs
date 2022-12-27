@@ -11,8 +11,10 @@ namespace SynthEBD
 {
     public class VM_Manifest : VM
     {
-        public VM_Manifest()
+        private readonly Logger _logger;
+        public VM_Manifest(Logger logger)
         {
+            _logger = logger;
             VM_PackagerOption root = new(Options, this, true);
             Options.Add(root);
             SelectedNode = root;
@@ -46,7 +48,7 @@ namespace SynthEBD
                         JSONhandler<Manifest>.SaveJSONFile(model, dest, out bool success, out string exceptionStr);
                         if (success)
                         {
-                            Logger.CallTimedNotifyStatusUpdateAsync("Saved to " + path, 3);
+                            _logger.CallTimedNotifyStatusUpdateAsync("Saved to " + path, 3);
                         }
                         else
                         {

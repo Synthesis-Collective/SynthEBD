@@ -1,9 +1,14 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 
 namespace SynthEBD;
 
 public class DictionaryMapper
 {
+    private readonly Logger _logger;
+    public DictionaryMapper(Logger logger)
+    {
+        _logger = logger;
+    }
     public static Dictionary<Tuple<FormKey, Gender>, HashSet<FlattenedAssetPack>> GetAssetPacksByRaceGender(HashSet<FlattenedAssetPack> flattenedAssetPacks, List<FormKey> patchableRaces)
     {
         Dictionary<Tuple<FormKey, Gender>, HashSet<FlattenedAssetPack>> apDict = new Dictionary<Tuple<FormKey, Gender>, HashSet<FlattenedAssetPack>>();
@@ -122,7 +127,7 @@ public class DictionaryMapper
         return result;
     }
 
-    public static Dictionary<int, HashSet<string>> RequiredOrExcludedSubgroupsToDictionary(HashSet<string> sgList, List<AssetPack.Subgroup> subgroupHierarchy)
+    public Dictionary<int, HashSet<string>> RequiredOrExcludedSubgroupsToDictionary(HashSet<string> sgList, List<AssetPack.Subgroup> subgroupHierarchy)
     {
         Dictionary<int, HashSet<string>> dict = new Dictionary<int, HashSet<string>>();
 
@@ -146,14 +151,14 @@ public class DictionaryMapper
     }
 
 
-    private static int GetSubgroupTopLevelIndex(string subgroupID, List<AssetPack.Subgroup> subgroupHierarchy)
+    private int GetSubgroupTopLevelIndex(string subgroupID, List<AssetPack.Subgroup> subgroupHierarchy)
     {
         for (int i = 0; i < subgroupHierarchy.Count; i++)
         {
             if (CurrentSubgroupContainsID(subgroupID, subgroupHierarchy[i])) { return i; }
         }
 
-        Logger.LogError("Error: DictionaryMapper.GetSubgroupTopLevelIndex() could not find the top-level subgroup of the subgroup with ID " + subgroupID + ". Please report this issue.");
+        _logger.LogError("Error: DictionaryMapper.GetSubgroupTopLevelIndex() could not find the top-level subgroup of the subgroup with ID " + subgroupID + ". Please report this issue.");
         return -1;
     }
 

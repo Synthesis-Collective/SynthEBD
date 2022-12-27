@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using System.Collections.ObjectModel;
 using ReactiveUI;
 using Mutagen.Bethesda.Skyrim;
@@ -7,8 +7,11 @@ namespace SynthEBD;
 
 public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
 {
-    public VM_ConsistencyAssignment()
+    private readonly Logger _logger;
+    public VM_ConsistencyAssignment(Logger logger)
     {
+        _logger = logger;
+
         this.WhenAnyValue(x => x.AssetPackName).Subscribe(x => AssetPackAssigned = AssetPackName != null && AssetPackName.Any());
         this.WhenAnyValue(x => x.BodySlidePreset).Subscribe(x => BodySlideAssigned = BodySlidePreset != null && BodySlidePreset.Any());
         this.WhenAnyValue(x => x.Height).Subscribe(x => HeightAssigned = Height != null && Height.Any());
@@ -62,9 +65,9 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
     public bool HeightAssigned { get; set; } = false;
     public Gender Gender { get; set; } // only needs to satisfy the HeadPart assignment view model.
 
-    public static VM_ConsistencyAssignment GetViewModelFromModel(NPCAssignment model, ObservableCollection<VM_AssetPack> AssetPackVMs)
+    public static VM_ConsistencyAssignment GetViewModelFromModel(NPCAssignment model, ObservableCollection<VM_AssetPack> AssetPackVMs, Logger logger)
     {
-        VM_ConsistencyAssignment viewModel = new VM_ConsistencyAssignment();
+        VM_ConsistencyAssignment viewModel = new VM_ConsistencyAssignment(logger);
         viewModel.AssetPackName = model.AssetPackName;
         viewModel.SubgroupIDs = new ObservableCollection<VM_CollectionMemberString>();
         if (model.SubgroupIDs != null)
@@ -125,45 +128,45 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         return viewModel;
     }
 
-    public static NPCAssignment DumpViewModelToModel(VM_ConsistencyAssignment viewModel)
+    public NPCAssignment DumpViewModelToModel()
     {
         NPCAssignment model = new NPCAssignment();
-        model.AssetPackName = viewModel.AssetPackName;
-        model.SubgroupIDs = viewModel.SubgroupIDs.Select(x => x.Content).ToList();
+        model.AssetPackName = AssetPackName;
+        model.SubgroupIDs = SubgroupIDs.Select(x => x.Content).ToList();
         if (model.SubgroupIDs.Count == 0) { model.SubgroupIDs = null; }
         model.MixInAssignments.Clear();
-        foreach (var mixInVM in viewModel.MixInAssignments)
+        foreach (var mixInVM in MixInAssignments)
         {
             model.MixInAssignments.Add(new NPCAssignment.MixInAssignment() { AssetPackName = mixInVM.AssetPackName, SubgroupIDs = mixInVM.SubgroupIDs.Select(x => x.Content).ToList() });
         }
         model.AssetReplacerAssignments.Clear();
-        foreach (var replacer in viewModel.AssetReplacements)
+        foreach (var replacer in AssetReplacements)
         {
             model.AssetReplacerAssignments.Add(VM_AssetReplacementAssignment.DumpViewModelToModel(replacer));
         }
-        model.BodyGenMorphNames = viewModel.BodyGenMorphNames.Select(x => x.Content).ToList();
+        model.BodyGenMorphNames = BodyGenMorphNames.Select(x => x.Content).ToList();
         if (model.BodyGenMorphNames.Count == 0) { model.BodyGenMorphNames = null; }
-        model.BodySlidePreset = viewModel.BodySlidePreset;
-        if (viewModel.Height == "")
+        model.BodySlidePreset = BodySlidePreset;
+        if (Height == "")
         {
             model.Height = null;
         }
-        else if (float.TryParse(viewModel.Height, out var height))
+        else if (float.TryParse(Height, out var height))
         {
             model.Height = height;
         }
         else
         {
-            Logger.LogError("Error parsing consistency assignment " + viewModel.DispName + ". Cannot parse height: " + viewModel.Height);
+            _logger.LogError("Error parsing consistency assignment " + DispName + ". Cannot parse height: " + Height);
         }
 
-        foreach (var headPartType in viewModel.HeadParts.Keys)
+        foreach (var headPartType in HeadParts.Keys)
         {
-            model.HeadParts[headPartType] = viewModel.HeadParts[headPartType].DumpToModel();
+            model.HeadParts[headPartType] = HeadParts[headPartType].DumpToModel();
         }
 
-        model.DispName = viewModel.DispName;
-        model.NPCFormKey = viewModel.NPCFormKey;
+        model.DispName = DispName;
+        model.NPCFormKey = NPCFormKey;
         return model;
     }
 

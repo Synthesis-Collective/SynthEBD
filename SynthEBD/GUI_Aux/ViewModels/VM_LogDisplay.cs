@@ -20,17 +20,17 @@ public class VM_LogDisplay : VM
     {
         _logger = logger;
         _displayedItemVm = displayedItemVm;
-        logger.PropertyChanged += RefreshDisp;
+        _logger.PropertyChanged += RefreshDisp;
         
         // Switch to log display if any errors
-        logger.LoggedError.Subscribe(_ =>
+        _logger.LoggedError.Subscribe(_ =>
         {
             SwitchViewToLogDisplay();
         });
 
         Clear = new RelayCommand(
             canExecute: _ => true,
-            execute: x => logger.LogString = ""
+            execute: x => _logger.LogString = ""
         );
 
         Copy = new RelayCommand(
@@ -39,11 +39,11 @@ public class VM_LogDisplay : VM
             {
                 try
                 {
-                    System.Windows.Clipboard.SetText(logger.LogString);
+                    System.Windows.Clipboard.SetText(_logger.LogString);
                 }
                 catch
                 {
-                    Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not copy log to clipboard", ErrorType.Error, 3);
+                    _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not copy log to clipboard", ErrorType.Error, 3);
                 }
             }
         );
@@ -64,11 +64,11 @@ public class VM_LogDisplay : VM
                 {
                     try
                     {
-                        System.IO.File.WriteAllText(dialog.FileName, logger.LogString);
+                        System.IO.File.WriteAllText(dialog.FileName, _logger.LogString);
                     }
                     catch
                     {
-                        Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not write log to file", ErrorType.Error, 3);
+                        _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not write log to file", ErrorType.Error, 3);
                     }
                 }
             }

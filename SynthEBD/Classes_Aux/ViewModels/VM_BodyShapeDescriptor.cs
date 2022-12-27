@@ -1,16 +1,19 @@
-﻿using ReactiveUI;
+using ReactiveUI;
 using System.Collections.ObjectModel;
 
 namespace SynthEBD;
 
 public class VM_BodyShapeDescriptor : VM
 {
-    public VM_BodyShapeDescriptor(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
+    private VM_BodyShapeDescriptorRules.Factory _rulesFactory;
+    public delegate VM_BodyShapeDescriptor Factory(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig);
+    public VM_BodyShapeDescriptor(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, VM_BodyShapeDescriptorRules.Factory rulesFactory)
     {
-        this.ParentShell = parentShell;
-        AssociatedRules = new VM_BodyShapeDescriptorRules(this, raceGroupingVMs, parentConfig);
+        _rulesFactory = rulesFactory;
+        ParentShell = parentShell;
+        AssociatedRules = _rulesFactory(this, raceGroupingVMs, parentConfig);
 
-        RemoveDescriptorValue = new SynthEBD.RelayCommand(
+        RemoveDescriptorValue = new RelayCommand(
             canExecute: _ => true,
             execute: _ => this.ParentShell.Descriptors.Remove(this)
         );
@@ -23,19 +26,41 @@ public class VM_BodyShapeDescriptor : VM
 
     public RelayCommand RemoveDescriptorValue { get; }
 
+    public class VM_BodyShapeDescriptorCreator
+    {
+        private readonly VM_BodyShapeDescriptor.Factory _descriptorFactory;
+        private readonly VM_BodyShapeDescriptorShell.Factory _shellFactory;
+        private readonly VM_BodyShapeDescriptorRules.Factory _rulesFactory;
+
+        public VM_BodyShapeDescriptorCreator(Factory factory, VM_BodyShapeDescriptorShell.Factory shellFactory, VM_BodyShapeDescriptorRules.Factory rulesFactory)
+        {
+            _descriptorFactory = factory;
+            _shellFactory = shellFactory;
+            _rulesFactory = rulesFactory;
+        }
+        public VM_BodyShapeDescriptor CreateNew(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
+        {
+            return _descriptorFactory(parentShell, raceGroupingVMs, parentConfig);
+        }
+        public VM_BodyShapeDescriptorShell CreateNewShell(ObservableCollection<VM_BodyShapeDescriptorShell> parentCollection, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig)
+        {
+            return _shellFactory(parentCollection, raceGroupings, parentConfig);
+        }
+    }
+
     public void CopyInViewModelFromModel(BodyShapeDescriptor model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
     {
         Value = model.ID.Value;
         Signature = model.ID.Category + ": " + model.ID.Value;
-        AssociatedRules = new VM_BodyShapeDescriptorRules(this, raceGroupingVMs, parentConfig);
+        AssociatedRules = _rulesFactory(this, raceGroupingVMs, parentConfig);
         AssociatedRules.CopyInViewModelFromModel(model.AssociatedRules, raceGroupingVMs);
     }
 
     public static BodyShapeDescriptor DumpViewModeltoModel(VM_BodyShapeDescriptor viewModel)
     {
         BodyShapeDescriptor model = new BodyShapeDescriptor(); 
-        model.ID = new(){ Category = viewModel.ParentShell.Category, Value = viewModel.Value };
-        model.AssociatedRules = (VM_BodyShapeDescriptorRules.DumpViewModelToModel(viewModel.AssociatedRules));
+        model.ID = new() { Category = viewModel.ParentShell.Category, Value = viewModel.Value };
+        model.AssociatedRules = viewModel.AssociatedRules.DumpViewModelToModel();
         return model;
     }
 

@@ -61,7 +61,7 @@ public class zEBDSpecificNPCAssignment
         public string topLevelSubgroup { get; set; }
     }
 
-    public static HashSet<NPCAssignment> ToSynthEBDNPCAssignments(HashSet<zEBDSpecificNPCAssignment> inputSet)
+    public static HashSet<NPCAssignment> ToSynthEBDNPCAssignments(HashSet<zEBDSpecificNPCAssignment> inputSet, Logger logger, Converters converters)
     {
         var outputSet = new HashSet<NPCAssignment>();
         var env = PatcherEnvironmentProvider.Instance.Environment;
@@ -69,7 +69,7 @@ public class zEBDSpecificNPCAssignment
         foreach (var z in inputSet)
         {
             NPCAssignment s = new NPCAssignment();
-            s.NPCFormKey = Converters.zEBDSignatureToFormKey(z.rootPlugin, z.formID, env);
+            s.NPCFormKey = converters.zEBDSignatureToFormKey(z.rootPlugin, z.formID, env);
             s.AssetPackName = z.forcedAssetPack;
             foreach (var zFS in z.forcedSubgroups)
             {
@@ -82,7 +82,7 @@ public class zEBDSpecificNPCAssignment
             }
             else
             {
-                Logger.LogError("Error in zEBD Specific NPC Assignment: Cannot interpret height" + z.forcedHeight);
+                logger.LogError("Error in zEBD Specific NPC Assignment: Cannot interpret height" + z.forcedHeight);
             }
 
             s.BodyGenMorphNames = z.forcedBodyGenMorphs;

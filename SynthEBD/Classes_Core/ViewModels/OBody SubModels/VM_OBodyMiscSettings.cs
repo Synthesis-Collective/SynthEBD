@@ -1,11 +1,17 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 
 namespace SynthEBD;
 
 public class VM_OBodyMiscSettings : VM
 {
-    public VM_OBodyMiscSettings()
+    private readonly Logger _logger;
+    private readonly RaceMenuIniHandler _raceMenuHandler;
+    public delegate VM_OBodyMiscSettings Factory();
+    public VM_OBodyMiscSettings(Logger logger, RaceMenuIniHandler raceMenuHandler)
     {
+        _logger = logger;
+        _raceMenuHandler = raceMenuHandler;
+
         AddMaleSliderGroup = new RelayCommand(
             canExecute: _ => true,
             execute: _ => MaleBodySlideGroups.Add(new VM_CollectionMemberString("", MaleBodySlideGroups))
@@ -15,33 +21,35 @@ public class VM_OBodyMiscSettings : VM
             canExecute: _ => true,
             execute: _ => FemaleBodySlideGroups.Add(new VM_CollectionMemberString("", FemaleBodySlideGroups))
         );
+
+        SetRaceMenuINI = new(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                if (_raceMenuHandler.SetRaceMenuIniForBodySlide())
+                {
+                    _logger.CallTimedLogErrorWithStatusUpdateAsync("RaceMenu Ini set successfully", ErrorType.Warning, 2); // Warning yellow font is easier to see than green
+                }
+                else
+                {
+                    _logger.LogErrorWithStatusUpdate("Error encountered trying to set RaceMenu's ini.", ErrorType.Error);
+                }
+            }
+        );
     }
 
     public ObservableCollection<VM_CollectionMemberString> MaleBodySlideGroups { get; set; } = new();
     public ObservableCollection<VM_CollectionMemberString> FemaleBodySlideGroups { get; set; } = new();
     public bool UseVerboseScripts { get; set; } = false;
     public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
-    public RelayCommand SetRaceMenuINI { get; } = new(
-        canExecute: _ => true,
-        execute: _ =>
-        {
-            if (RaceMenuIniHandler.SetRaceMenuIniForBodySlide())
-            {
-                Logger.CallTimedLogErrorWithStatusUpdateAsync("RaceMenu Ini set successfully", ErrorType.Warning, 2); // Warning yellow font is easier to see than green
-            }
-            else
-            {
-                Logger.LogErrorWithStatusUpdate("Error encountered trying to set RaceMenu's ini.", ErrorType.Error);
-            }
-        }
-    );
+    public RelayCommand SetRaceMenuINI { get; set; }
 
     public RelayCommand AddMaleSliderGroup { get; set; }
     public RelayCommand AddFemaleSliderGroup { get; set; }
 
-    public static VM_OBodyMiscSettings GetViewModelFromModel(Settings_OBody model)
+    public VM_OBodyMiscSettings GetViewModelFromModel(Settings_OBody model)
     {
-        VM_OBodyMiscSettings viewModel = new VM_OBodyMiscSettings();
+        VM_OBodyMiscSettings viewModel = new VM_OBodyMiscSettings(_logger, _raceMenuHandler);
         viewModel.MaleBodySlideGroups.Clear();
         foreach (var g in model.MaleSliderGroups)
         {

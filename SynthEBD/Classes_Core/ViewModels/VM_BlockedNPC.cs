@@ -10,13 +10,15 @@ namespace SynthEBD;
 
 public class VM_BlockedNPC : VM
 {
-    public VM_BlockedNPC()
+    private readonly Converters _converters;
+    public VM_BlockedNPC(Converters converters)
     {
+        _converters = converters;
         this.WhenAnyValue(x => x.FormKey).Subscribe(x =>
         {
             if (!FormKey.IsNull)
             {
-                DispName = Converters.CreateNPCDispNameFromFormKey(FormKey);
+                DispName = _converters.CreateNPCDispNameFromFormKey(FormKey);
             }
         });
 
@@ -50,10 +52,10 @@ public class VM_BlockedNPC : VM
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
 
-    public static VM_BlockedNPC GetViewModelFromModel(BlockedNPC model)
+    public static VM_BlockedNPC GetViewModelFromModel(BlockedNPC model, Converters converters)
     {
-        VM_BlockedNPC viewModel = new VM_BlockedNPC();
-        viewModel.DispName = Converters.CreateNPCDispNameFromFormKey(model.FormKey);
+        VM_BlockedNPC viewModel = new VM_BlockedNPC(converters);
+        //viewModel.DispName = CreateNPCDispNameFromFormKey(model.FormKey, converters);
         viewModel.FormKey = model.FormKey;
         viewModel.Assets = model.Assets;
         viewModel.Height = model.Height;

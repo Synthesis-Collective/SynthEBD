@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda;
+using Mutagen.Bethesda;
 using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;

@@ -5,16 +5,16 @@ namespace SynthEBD;
 
 public class VM_BodySlidesMenu : VM
 {
-    public VM_BodySlidesMenu(VM_SettingsOBody parentVM, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
+    public VM_BodySlidesMenu(VM_SettingsOBody parentVM, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodySlideSetting.Factory bodySlideFactory)
     {
-        AddPreset = new SynthEBD.RelayCommand(
+        AddPreset = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => CurrentlyDisplayedBodySlides.Add(new VM_BodySlideSetting(parentVM.DescriptorUI, raceGroupingVMs, this.CurrentlyDisplayedBodySlides, parentVM))
+            execute: _ => CurrentlyDisplayedBodySlides.Add(bodySlideFactory(parentVM.DescriptorUI, raceGroupingVMs, this.CurrentlyDisplayedBodySlides))
         );
 
-        RemovePreset = new SynthEBD.RelayCommand(
+        RemovePreset = new RelayCommand(
             canExecute: _ => true,
-            execute: x => this.CurrentlyDisplayedBodySlides.Remove((VM_BodySlideSetting)x)
+            execute: x => CurrentlyDisplayedBodySlides.Remove((VM_BodySlideSetting)x)
         );
 
         CurrentlyDisplayedBodySlides = BodySlidesFemale;

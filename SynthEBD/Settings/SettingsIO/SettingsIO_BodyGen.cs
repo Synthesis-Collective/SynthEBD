@@ -4,52 +4,61 @@ using System.IO;
 
 namespace SynthEBD;
 
-class SettingsIO_BodyGen
+public class SettingsIO_BodyGen
 {
-    public static Settings_BodyGen LoadBodyGenSettings(out bool loadSuccess)
+    private readonly Logger _logger;
+    private readonly SynthEBDPaths _paths;
+    private readonly Converters _converters;
+    public SettingsIO_BodyGen(Logger logger, SynthEBDPaths paths, Converters converters)
+    {
+        _logger = logger;
+        _paths = paths;
+        _converters = converters;
+    }
+    public Settings_BodyGen LoadBodyGenSettings(out bool loadSuccess)
     {
         Settings_BodyGen bodygenSettings = new Settings_BodyGen();
 
         loadSuccess = true;
 
-        if (File.Exists(PatcherSettings.Paths.BodyGenSettingsPath))
+        if (File.Exists(_paths.BodyGenSettingsPath))
         {
-            bodygenSettings = JSONhandler<Settings_BodyGen>.LoadJSONFile(PatcherSettings.Paths.BodyGenSettingsPath, out loadSuccess, out string exceptionStr);
+            bodygenSettings = JSONhandler<Settings_BodyGen>.LoadJSONFile(_paths.BodyGenSettingsPath, out loadSuccess, out string exceptionStr);
             if (!loadSuccess)
             {
-                Logger.LogError("Could not load BodyGen settings. Error: " + exceptionStr);
+                _logger.LogError("Could not load BodyGen settings. Error: " + exceptionStr);
             }
         }
-        else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenSettingsPath)))
+        else if (File.Exists(_paths.GetFallBackPath(_paths.BodyGenSettingsPath)))
         {
-            bodygenSettings = JSONhandler<Settings_BodyGen>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenSettingsPath), out loadSuccess, out string exceptionStr);
+            bodygenSettings = JSONhandler<Settings_BodyGen>.LoadJSONFile(_paths.GetFallBackPath(_paths.BodyGenSettingsPath), out loadSuccess, out string exceptionStr);
             if (!loadSuccess)
             {
-                Logger.LogError("Could not load BodyGen settings. Error: " + exceptionStr);
+                _logger.LogError("Could not load BodyGen settings. Error: " + exceptionStr);
             }
         }
 
         return bodygenSettings;
     }
 
-    public static BodyGenConfigs LoadBodyGenConfigs(List<RaceGrouping> raceGroupings, out bool loadSuccess)
+    public BodyGenConfigs LoadBodyGenConfigs(List<RaceGrouping> raceGroupings, out bool loadSuccess)
     {
         string[] empty = new string[0];
         return LoadBodyGenConfigs(empty, PatcherSettings.General.RaceGroupings, out loadSuccess);
     }
-    public static BodyGenConfigs LoadBodyGenConfigs(string[] filePaths, List<RaceGrouping> raceGroupings, out bool loadSuccess)
+    public BodyGenConfigs LoadBodyGenConfigs(string[] filePaths, List<RaceGrouping> raceGroupings, out bool loadSuccess)
     {
         BodyGenConfigs loadedPacks = new BodyGenConfigs();
 
         loadSuccess = true;
 
-        if (!filePaths.Any() && Directory.Exists(PatcherSettings.Paths.BodyGenConfigDirPath))
+        if (!filePaths.Any() && Directory.Exists(_paths.BodyGenConfigDirPath))
         {
-            filePaths = Directory.GetFiles(PatcherSettings.Paths.BodyGenConfigDirPath, "*.json");
+            filePaths = Directory.GetFiles(_paths.BodyGenConfigDirPath, "*.json");
         }
-        else if (!filePaths.Any() && Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath)))
+        else if (!filePaths.Any() && Directory.Exists(_paths.GetFallBackPath(_paths.BodyGenConfigDirPath)))
         {
-            filePaths = Directory.GetFiles(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath), "*.json");
+            filePaths = Directory.GetFiles(_paths.GetFallBackPath(_paths.BodyGenConfigDirPath), "*.json");
         }
 
         foreach (string s in filePaths)
@@ -62,7 +71,7 @@ class SettingsIO_BodyGen
                 // handle zEBD deserialization here because the zEBD BodyGenConfig uses key "params" which is reserved in C#
                 string text = File.ReadAllText(s);
                 text = text.Replace("params", "specs");
-                zEBDBodyGenConfig zEBDconfig = new zEBDBodyGenConfig();
+                zEBDBodyGenConfig zEBDconfig = new zEBDBodyGenConfig(_logger, _converters);
                 bool deserializationSuccess = false;
                 try
                 {
@@ -75,12 +84,12 @@ class SettingsIO_BodyGen
                 }
                 if (!deserializationSuccess)
                 {
-                    Logger.LogMessage("Could not deserialize BodyGen config at " + s + " as SynthEBD or zEBD BodyGen config. Error: " + exceptionStr);
+                    _logger.LogMessage("Could not deserialize BodyGen config at " + s + " as SynthEBD or zEBD BodyGen config. Error: " + exceptionStr);
                     loadSuccess = false;
                     continue;
                 }
 
-                var convertedPair = zEBDBodyGenConfig.ToSynthEBDConfig(zEBDconfig, raceGroupings, s);
+                var convertedPair = zEBDconfig.ToSynthEBDConfig(raceGroupings, s);
                 if (convertedPair.bMaleInitialized)
                 {
                     loadedPacks.Male.Add(convertedPair.Male);
@@ -93,7 +102,7 @@ class SettingsIO_BodyGen
                 // assign file paths depending on if the source file was split
                 if (!convertedPair.bMaleInitialized && !convertedPair.bFemaleInitialized)
                 {
-                    Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not parse zEBD BodyGen Config file at " + s, ErrorType.Warning, 5);
+                    _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not parse zEBD BodyGen Config file at " + s, ErrorType.Warning, 5);
                 }
                 else if (convertedPair.bMaleInitialized && !convertedPair.bFemaleInitialized)
                 {
@@ -118,14 +127,14 @@ class SettingsIO_BodyGen
                     }
                     catch
                     {
-                        Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not delete zEBD bodygen config file after conversion to SynthEBD format: " + s, ErrorType.Warning, 5);
+                        _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not delete zEBD bodygen config file after conversion to SynthEBD format: " + s, ErrorType.Warning, 5);
                     }
                 }
             }
 
             if (synthEBDconfig is null)
             {
-                Logger.LogError("Could not read BodyGen Config File at " + s);
+                _logger.LogError("Could not read BodyGen Config File at " + s);
                 continue;
             }
 
@@ -166,7 +175,7 @@ class SettingsIO_BodyGen
         return loadedPacks;
     }
 
-    public static void SaveBodyGenConfigs(HashSet<BodyGenConfig> bodyGenConfigs, out bool saveSuccess)
+    public void SaveBodyGenConfigs(HashSet<BodyGenConfig> bodyGenConfigs, out bool saveSuccess)
     {
         saveSuccess = true;
         foreach (var bgConfig in bodyGenConfigs)
@@ -179,16 +188,16 @@ class SettingsIO_BodyGen
         }
     }
 
-    public static void SaveBodyGenConfig(BodyGenConfig bgConfig, out bool saveSuccess)
+    public void SaveBodyGenConfig(BodyGenConfig bgConfig, out bool saveSuccess)
     {
         saveSuccess = true; 
-        if (!string.IsNullOrWhiteSpace(bgConfig.FilePath) && bgConfig.FilePath.StartsWith(PatcherSettings.Paths.BodyGenConfigDirPath, StringComparison.InvariantCultureIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(bgConfig.FilePath) && bgConfig.FilePath.StartsWith(_paths.BodyGenConfigDirPath, StringComparison.InvariantCultureIgnoreCase))
         {
             JSONhandler<BodyGenConfig>.SaveJSONFile(bgConfig, bgConfig.FilePath, out bool success, out string exceptionStr);
             if (!success)
             {
                 saveSuccess = false;
-                Logger.LogError("Could not save BodyGen Config. Error: " + exceptionStr);
+                _logger.LogError("Could not save BodyGen Config. Error: " + exceptionStr);
             }
         }
         else
@@ -196,21 +205,21 @@ class SettingsIO_BodyGen
             string newPath = "";
             if (IO_Aux.IsValidFilename(bgConfig.Label))
             {
-                PatcherIO.CreateDirectoryIfNeeded(PatcherSettings.Paths.BodyGenConfigDirPath, PatcherIO.PathType.Directory);
-                if (Directory.Exists(PatcherSettings.Paths.BodyGenConfigDirPath))
+                PatcherIO.CreateDirectoryIfNeeded(_paths.BodyGenConfigDirPath, PatcherIO.PathType.Directory);
+                if (Directory.Exists(_paths.BodyGenConfigDirPath))
                 {
-                    newPath = Path.Combine(PatcherSettings.Paths.BodyGenConfigDirPath, bgConfig.Label + ".json");
+                    newPath = Path.Combine(_paths.BodyGenConfigDirPath, bgConfig.Label + ".json");
                 }
-                else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath)))
+                else if (Directory.Exists(_paths.GetFallBackPath(_paths.BodyGenConfigDirPath)))
                 {
-                    newPath = Path.Combine(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath), bgConfig.Label + ".json");
+                    newPath = Path.Combine(_paths.GetFallBackPath(_paths.BodyGenConfigDirPath), bgConfig.Label + ".json");
                 }
 
                 JSONhandler<BodyGenConfig>.SaveJSONFile(bgConfig, newPath, out bool success, out string exceptionStr);
                 if (!success)
                 {
                     saveSuccess = false;
-                    Logger.LogError("Could not save BodyGen Config. Error: " + exceptionStr);
+                    _logger.LogError("Could not save BodyGen Config. Error: " + exceptionStr);
                 }
             }
 
@@ -221,13 +230,13 @@ class SettingsIO_BodyGen
                 dialog.DefaultExt = ".json"; // Default file extension
                 dialog.Filter = "JSON files (.json|*.json"; // Filter files by extension
 
-                if (Directory.Exists(PatcherSettings.Paths.BodyGenConfigDirPath))
+                if (Directory.Exists(_paths.BodyGenConfigDirPath))
                 {
-                    dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.BodyGenConfigDirPath);
+                    dialog.InitialDirectory = Path.GetFullPath(_paths.BodyGenConfigDirPath);
                 }
-                else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath)))
+                else if (Directory.Exists(_paths.GetFallBackPath(_paths.BodyGenConfigDirPath)))
                 {
-                    dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BodyGenConfigDirPath));
+                    dialog.InitialDirectory = Path.GetFullPath(_paths.GetFallBackPath(_paths.BodyGenConfigDirPath));
                 }
 
                 dialog.RestoreDirectory = true;
@@ -242,14 +251,14 @@ class SettingsIO_BodyGen
                     if (!success)
                     {
                         saveSuccess = false;
-                        Logger.LogError("Could not save BodyGen Config. Error: " + exceptionStr);
+                        _logger.LogError("Could not save BodyGen Config. Error: " + exceptionStr);
                     }
                 }
             }
         }
     }
 
-    public static HashSet<BodyGenConfig.BodyGenTemplate> LoadTemplatesINI(string loadPath)
+    public HashSet<BodyGenConfig.BodyGenTemplate> LoadTemplatesINI(string loadPath)
     {
         var newTemplates = new HashSet<BodyGenConfig.BodyGenTemplate>();
         if (File.Exists(loadPath))
@@ -273,7 +282,7 @@ class SettingsIO_BodyGen
         return newTemplates;
     }
 
-    public static HashSet<Tuple<FormKey, string>> LoadMorphsINI(string loadPath)
+    public HashSet<Tuple<FormKey, string>> LoadMorphsINI(string loadPath)
     {
         var loadedAssignments = new HashSet<Tuple<FormKey, string>>();
         if (File.Exists(loadPath))

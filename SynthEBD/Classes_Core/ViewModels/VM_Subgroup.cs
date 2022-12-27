@@ -11,14 +11,19 @@ using ReactiveUI;
 using GongSolutions.Wpf.DragDrop;
 using DynamicData.Binding;
 using System.Text.RegularExpressions;
+using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD;
 
 public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 {
+    private readonly Logger _logger;
+    private readonly SynthEBDPaths _paths;
     private readonly VM_SettingsOBody _oBody;
+    private readonly VM_NPCAttributeCreator _attributeCreator;
     private readonly Factory _selfFactory;
     private readonly VM_FilePathReplacement.Factory _filePathReplacementFactory;
+    private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
 
     public delegate VM_Subgroup Factory(
         ObservableCollection<VM_RaceGrouping> raceGroupingVMs,
@@ -27,55 +32,63 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         VM_Subgroup parentSubgroup,
         bool setExplicitReferenceNPC);
     
-    public VM_Subgroup(
+    public VM_Subgroup(Logger logger,
+        SynthEBDPaths paths,
         ObservableCollection<VM_RaceGrouping> raceGroupingVMs,
         ObservableCollection<VM_Subgroup> parentCollection,
         VM_AssetPack parentAssetPack, 
         VM_Subgroup parentSubgroup,
         bool setExplicitReferenceNPC,
         VM_SettingsOBody oBody,
+        VM_NPCAttributeCreator attributeCreator,
         Factory selfFactory,
-        VM_FilePathReplacement.Factory filePathReplacementFactory)
+        VM_FilePathReplacement.Factory filePathReplacementFactory,
+        VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
+        _logger = logger;
+        _paths = paths;
         _oBody = oBody;
+        _attributeCreator = attributeCreator;
         _selfFactory = selfFactory;
         _filePathReplacementFactory = filePathReplacementFactory;
+        _descriptorSelectionFactory = descriptorSelectionFactory;
+
         SubscribedRaceGroupings = raceGroupingVMs;
         SetExplicitReferenceNPC = setExplicitReferenceNPC;
         ParentAssetPack = parentAssetPack;
 
-        this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
-        this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
+        AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
+        DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
         if (parentAssetPack.TrackedBodyGenConfig != null)
         {
-            this.AllowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
-            this.DisallowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
+            AllowedBodyGenDescriptors = _descriptorSelectionFactory(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
+            DisallowedBodyGenDescriptors = _descriptorSelectionFactory(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
         }
-        AllowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
-        DisallowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
+        AllowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
+        DisallowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
 
         PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => LinkCache = x)
             .DisposeWith(this);
         
         //UI-related
-        this.ParentCollection = parentCollection;
-        this.ParentSubgroup = parentSubgroup;
-        this.RequiredSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(RequiredSubgroups, SubgroupListBox.Required));
-        this.ExcludedSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(ExcludedSubgroups, SubgroupListBox.Excluded));
+        ParentCollection = parentCollection;
+        ParentSubgroup = parentSubgroup;
+        RequiredSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(RequiredSubgroups, SubgroupListBox.Required));
+        ExcludedSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(ExcludedSubgroups, SubgroupListBox.Excluded));
 
         // must be set after Parent Asset Pack
         if (SetExplicitReferenceNPC)
         {
-            this.PathsMenu = new VM_FilePathReplacementMenu(this, SetExplicitReferenceNPC, this.LinkCache);
+            PathsMenu = new VM_FilePathReplacementMenu(this, SetExplicitReferenceNPC, LinkCache);
         }
         else
         {
-            this.PathsMenu = new VM_FilePathReplacementMenu(this, SetExplicitReferenceNPC, parentAssetPack.RecordTemplateLinkCache);
-            parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => this.PathsMenu.ReferenceLinkCache = parentAssetPack.RecordTemplateLinkCache);
+            PathsMenu = new VM_FilePathReplacementMenu(this, SetExplicitReferenceNPC, parentAssetPack.RecordTemplateLinkCache);
+            parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => PathsMenu.ReferenceLinkCache = parentAssetPack.RecordTemplateLinkCache);
         }
 
-        this.PathsMenu.Paths.ToObservableChangeSet().Subscribe(x => GetDDSPaths(ImagePaths));
+        PathsMenu.Paths.ToObservableChangeSet().Subscribe(x => GetDDSPaths(ImagePaths));
         this.WhenAnyValue(x => x.ParentAssetPack, x => x.ParentSubgroup).Subscribe(x => GetDDSPaths(ImagePaths));
 
         AutoGenerateID(false, 0);
@@ -97,42 +110,42 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 
         AddAllowedAttribute = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.AllowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.AllowedAttributes, true, null, parentAssetPack.AttributeGroupMenu.Groups))
+            execute: _ => AllowedAttributes.Add(_attributeCreator.CreateNewFromUI(AllowedAttributes, true, null, parentAssetPack.AttributeGroupMenu.Groups))
         );
 
         AddDisallowedAttribute = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.DisallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.DisallowedAttributes, false, null, parentAssetPack.AttributeGroupMenu.Groups))
+            execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, parentAssetPack.AttributeGroupMenu.Groups))
         );
 
         AddNPCKeyword = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.AddKeywords.Add(new VM_CollectionMemberString("", this.AddKeywords))
+            execute: _ => AddKeywords.Add(new VM_CollectionMemberString("", AddKeywords))
         );
 
         AddPath = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.PathsMenu.Paths.Add(filePathReplacementFactory(this.PathsMenu))
+            execute: _ => PathsMenu.Paths.Add(filePathReplacementFactory(PathsMenu))
         );
 
         AddSubgroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.Subgroups.Add(selfFactory(raceGroupingVMs, this.Subgroups, this.ParentAssetPack, this, setExplicitReferenceNPC))
+            execute: _ => Subgroups.Add(selfFactory(raceGroupingVMs, Subgroups, ParentAssetPack, this, setExplicitReferenceNPC))
         );
 
         DeleteMe = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.ParentCollection.Remove(this)
+            execute: _ => ParentCollection.Remove(this)
         );
 
         DeleteRequiredSubgroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute:  x => { this.RequiredSubgroups.Remove((VM_Subgroup)x); RefreshListBoxLabel(this.RequiredSubgroups, SubgroupListBox.Required); }
+            execute:  x => { RequiredSubgroups.Remove((VM_Subgroup)x); RefreshListBoxLabel(RequiredSubgroups, SubgroupListBox.Required); }
         );
 
         DeleteExcludedSubgroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: x => { this.ExcludedSubgroups.Remove((VM_Subgroup)x); RefreshListBoxLabel(this.ExcludedSubgroups, SubgroupListBox.Excluded); }
+            execute: x => { ExcludedSubgroups.Remove((VM_Subgroup)x); RefreshListBoxLabel(ExcludedSubgroups, SubgroupListBox.Excluded); }
         );
     }
 
@@ -202,8 +215,8 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, generalSettingsVM.RaceGroupings);
         DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
         DisallowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.DisallowedRaceGroupings, generalSettingsVM.RaceGroupings);
-        AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, true, null);
-        DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, false, null);
+        AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, true, null, _attributeCreator, _logger);
+        DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, false, null, _attributeCreator, _logger);
         foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
         AllowUnique = model.AllowUnique;
         AllowNonUnique = model.AllowNonUnique;
@@ -218,12 +231,12 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 
         if (ParentAssetPack.TrackedBodyGenConfig != null)
         {
-            AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodyGenDescriptors, ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
-            DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodyGenDescriptors, ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
+            AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodyGenDescriptors, ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, _descriptorSelectionFactory);
+            DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodyGenDescriptors, ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, _descriptorSelectionFactory);
         }
 
-        AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
-        DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
+        AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, _descriptorSelectionFactory);
+        DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, _descriptorSelectionFactory);
 
         foreach (var sg in model.Subgroups)
         {
@@ -296,10 +309,10 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 
     public void RefreshTrackedBodyShapeDescriptors()
     {
-        if (this.ParentAssetPack.TrackedBodyGenConfig != null)
+        if (ParentAssetPack.TrackedBodyGenConfig != null)
         {
-            this.AllowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(this.ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
-            this.DisallowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(this.ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
+            AllowedBodyGenDescriptors = _descriptorSelectionFactory(ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
+            DisallowedBodyGenDescriptors = _descriptorSelectionFactory(ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
         }
     }
 
@@ -417,7 +430,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
                         appendCount++;
                         if (appendCount > 100)
                         {
-                            Logger.LogError("Could not auto-generated ID for subgroup " + newID);
+                            _logger.LogError("Could not auto-generated ID for subgroup " + newID);
                             break;
                         }
                     }
@@ -648,45 +661,45 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 
     public object Clone()
     {
-        return this.Clone(this.ParentCollection);
+        return Clone(ParentCollection);
     }
 
     public object Clone(ObservableCollection<VM_Subgroup> parentCollection)
     {
-        var clone = _selfFactory(this.SubscribedRaceGroupings, parentCollection, this.ParentAssetPack, this, this.SetExplicitReferenceNPC);
-        clone.AddKeywords = new ObservableCollection<VM_CollectionMemberString>(this.AddKeywords);
-        clone.AllowedAttributes = new ObservableCollection<VM_NPCAttribute>(this.AllowedAttributes);
-        clone.DisallowedAttributes = new ObservableCollection<VM_NPCAttribute>(this.DisallowedAttributes);
-        if (this.AllowedBodyGenDescriptors is not null)
+        var clone = _selfFactory(SubscribedRaceGroupings, parentCollection, ParentAssetPack, this, SetExplicitReferenceNPC);
+        clone.AddKeywords = new ObservableCollection<VM_CollectionMemberString>(AddKeywords);
+        clone.AllowedAttributes = new ObservableCollection<VM_NPCAttribute>(AllowedAttributes);
+        clone.DisallowedAttributes = new ObservableCollection<VM_NPCAttribute>(DisallowedAttributes);
+        if (AllowedBodyGenDescriptors is not null)
         {
-            clone.AllowedBodyGenDescriptors = this.AllowedBodyGenDescriptors.Clone();
+            clone.AllowedBodyGenDescriptors = AllowedBodyGenDescriptors.Clone();
         }
-        if (this.DisallowedBodyGenDescriptors is not null)
+        if (DisallowedBodyGenDescriptors is not null)
         {
-            clone.DisallowedBodyGenDescriptors = this.DisallowedBodyGenDescriptors.Clone();
+            clone.DisallowedBodyGenDescriptors = DisallowedBodyGenDescriptors.Clone();
         }
-        clone.AllowedBodySlideDescriptors = this.AllowedBodySlideDescriptors.Clone();
-        clone.DisallowedBodySlideDescriptors = this.DisallowedBodySlideDescriptors.Clone();
-        clone.AllowedRaceGroupings = this.AllowedRaceGroupings.Clone();
-        clone.DisallowedRaceGroupings = this.DisallowedRaceGroupings.Clone();
-        clone.AllowedRaces = new ObservableCollection<FormKey>(this.AllowedRaces);
-        clone.DisallowedRaces = new ObservableCollection<FormKey>(this.DisallowedRaces);
-        clone.AllowUnique = this.AllowUnique;
-        clone.AllowNonUnique = this.AllowNonUnique;
-        clone.DistributionEnabled = this.DistributionEnabled;
-        clone.ID = this.ID;
-        clone.Name = this.Name;
+        clone.AllowedBodySlideDescriptors = AllowedBodySlideDescriptors.Clone();
+        clone.DisallowedBodySlideDescriptors = DisallowedBodySlideDescriptors.Clone();
+        clone.AllowedRaceGroupings = AllowedRaceGroupings.Clone();
+        clone.DisallowedRaceGroupings = DisallowedRaceGroupings.Clone();
+        clone.AllowedRaces = new ObservableCollection<FormKey>(AllowedRaces);
+        clone.DisallowedRaces = new ObservableCollection<FormKey>(DisallowedRaces);
+        clone.AllowUnique = AllowUnique;
+        clone.AllowNonUnique = AllowNonUnique;
+        clone.DistributionEnabled = DistributionEnabled;
+        clone.ID = ID;
+        clone.Name = Name;
         clone.RequiredSubgroupIDs = new HashSet<string>(RequiredSubgroupIDs);
         clone.ExcludedSubgroupIDs = new HashSet<string>(ExcludedSubgroupIDs);
-        clone.RequiredSubgroups = new ObservableCollection<VM_Subgroup>(this.RequiredSubgroups);
-        clone.ExcludedSubgroups = new ObservableCollection<VM_Subgroup>(this.ExcludedSubgroups);
-        clone.WeightRange = this.WeightRange.Clone();
-        clone.ProbabilityWeighting = this.ProbabilityWeighting;
-        clone.PathsMenu = this.PathsMenu.Clone();
+        clone.RequiredSubgroups = new ObservableCollection<VM_Subgroup>(RequiredSubgroups);
+        clone.ExcludedSubgroups = new ObservableCollection<VM_Subgroup>(ExcludedSubgroups);
+        clone.WeightRange = WeightRange.Clone();
+        clone.ProbabilityWeighting = ProbabilityWeighting;
+        clone.PathsMenu = PathsMenu.Clone();
         clone.GetDDSPaths(clone.ImagePaths);
 
         clone.Subgroups.Clear();
-        foreach (var subgroup in this.Subgroups)
+        foreach (var subgroup in Subgroups)
         {
             clone.Subgroups.Add(subgroup.Clone(clone.Subgroups) as VM_Subgroup);
         }

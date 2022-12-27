@@ -1,29 +1,36 @@
-﻿using System.IO;
+using System.IO;
 
 namespace SynthEBD;
 
-class SettingsIO_SpecificNPCAssignments
+public class SettingsIO_SpecificNPCAssignments
 {
-    public static HashSet<NPCAssignment> LoadAssignments(out bool loadSuccess)
+    private readonly Logger _logger;
+    private readonly SynthEBDPaths _paths;
+    public SettingsIO_SpecificNPCAssignments(Logger logger, SynthEBDPaths paths)
+    {
+        _logger = logger;
+        _paths = paths;
+    }
+    public HashSet<NPCAssignment> LoadAssignments(out bool loadSuccess)
     {
         HashSet<NPCAssignment> specificNPCAssignments = new HashSet<NPCAssignment>();
 
         loadSuccess = true;
 
-        if (File.Exists(PatcherSettings.Paths.SpecificNPCAssignmentsPath))
+        if (File.Exists(_paths.SpecificNPCAssignmentsPath))
         {
-            specificNPCAssignments = JSONhandler<HashSet<NPCAssignment>>.LoadJSONFile(PatcherSettings.Paths.SpecificNPCAssignmentsPath, out loadSuccess, out string exceptionStr);
+            specificNPCAssignments = JSONhandler<HashSet<NPCAssignment>>.LoadJSONFile(_paths.SpecificNPCAssignmentsPath, out loadSuccess, out string exceptionStr);
             if (!loadSuccess)
             {
-                Logger.LogError("Could not parse Specific NPC Assignments. Error: " + exceptionStr);
+                _logger.LogError("Could not parse Specific NPC Assignments. Error: " + exceptionStr);
             }
         }
-        else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.SpecificNPCAssignmentsPath)))
+        else if (File.Exists(_paths.GetFallBackPath(_paths.SpecificNPCAssignmentsPath)))
         {
-            specificNPCAssignments = JSONhandler<HashSet<NPCAssignment>>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.SpecificNPCAssignmentsPath), out loadSuccess, out string exceptionStr);
+            specificNPCAssignments = JSONhandler<HashSet<NPCAssignment>>.LoadJSONFile(_paths.GetFallBackPath(_paths.SpecificNPCAssignmentsPath), out loadSuccess, out string exceptionStr);
             if (!loadSuccess)
             {
-                Logger.LogError("Could not parse Specific NPC Assignments. Error: " + exceptionStr);
+                _logger.LogError("Could not parse Specific NPC Assignments. Error: " + exceptionStr);
             }
         }
         // note: No need to alert user if Specific NPC Assignments can't be loaded - it won't be available until assignments are made in UI
@@ -31,13 +38,13 @@ class SettingsIO_SpecificNPCAssignments
         return specificNPCAssignments;
     }
 
-    public static void SaveAssignments(HashSet<NPCAssignment> assignments, out bool saveSuccess)
+    public void SaveAssignments(HashSet<NPCAssignment> assignments, out bool saveSuccess)
     {
-        JSONhandler<HashSet<NPCAssignment>>.SaveJSONFile(assignments, PatcherSettings.Paths.SpecificNPCAssignmentsPath, out saveSuccess, out string exceptionStr);
+        JSONhandler<HashSet<NPCAssignment>>.SaveJSONFile(assignments, _paths.SpecificNPCAssignmentsPath, out saveSuccess, out string exceptionStr);
         if (!saveSuccess)
         {
-            Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Specific NPC Assignments to " + PatcherSettings.Paths.SpecificNPCAssignmentsPath, ErrorType.Error, 5);
-            Logger.LogMessage("Could not save Specific NPC Assignments. Error: " + exceptionStr);
+            _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Specific NPC Assignments to " + _paths.SpecificNPCAssignmentsPath, ErrorType.Error, 5);
+            _logger.LogMessage("Could not save Specific NPC Assignments. Error: " + exceptionStr);
         }
     }
 }

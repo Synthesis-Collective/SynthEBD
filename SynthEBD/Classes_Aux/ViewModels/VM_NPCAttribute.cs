@@ -8,24 +8,27 @@ using Noggog;
 using ReactiveUI;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Printing;
 using System.Reactive;
 using System.Reactive.Linq;
 using System.Windows.Media;
 using static SynthEBD.RecordIntellisense;
+using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD;
 
 public class VM_NPCAttribute : VM
 {
-    public VM_NPCAttribute(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups)
+    public delegate VM_NPCAttribute Factory(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups);
+    public VM_NPCAttribute(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, VM_NPCAttributeCreator creator, AttributeMatcher attributeMatcher)
     {
-        this.ParentCollection = parentCollection;
-        this.GroupedSubAttributes.CollectionChanged += TrimEmptyAttributes;
+        ParentCollection = parentCollection;
+        GroupedSubAttributes.CollectionChanged += TrimEmptyAttributes;
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
-        AddToParent = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Add(CreateNewFromUI(parentCollection, this.DisplayForceIfOption, this.DisplayForceIfWeight, attributeGroups)));
+        AddToParent = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Add(creator.CreateNewFromUI(ParentCollection, DisplayForceIfOption, DisplayForceIfWeight, attributeGroups)));
         Validate = new RelayCommand(canExecute: _ => true, execute: _ => { 
-            var validator = new VM_AttributeValidator(this, attributeGroups);
+            var validator = new VM_AttributeValidator(this, attributeGroups, attributeMatcher);
             Window_AttributeValidator window = new Window_AttributeValidator();
             window.DataContext = validator;
             window.ShowDialog();
@@ -40,61 +43,87 @@ public class VM_NPCAttribute : VM
     public bool? DisplayForceIfWeight { get; set; }
     public ObservableCollection<VM_NPCAttribute> ParentCollection { get; set; }
 
-    public static VM_NPCAttribute CreateNewFromUI(ObservableCollection<VM_NPCAttribute> parentCollection, bool displayForceIfOption, bool? displayForceIfWeight, ObservableCollection<VM_AttributeGroup> attributeGroups)
+    public class VM_NPCAttributeCreator
     {
-        VM_NPCAttribute newAtt = new VM_NPCAttribute(parentCollection, attributeGroups);
-        VM_NPCAttributeShell startingShell = new VM_NPCAttributeShell(newAtt, displayForceIfOption, displayForceIfWeight, attributeGroups);
-        VM_NPCAttributeClass startingAttributeGroup = new VM_NPCAttributeClass(newAtt, startingShell);
-        startingShell.Type = NPCAttributeType.Class;
-        startingShell.Attribute = startingAttributeGroup;
-        startingShell.InitializedVMcache[startingShell.Type] = startingShell.Attribute;
-        newAtt.GroupedSubAttributes.Add(startingShell);
-        newAtt.DisplayForceIfOption = displayForceIfOption;
-        newAtt.DisplayForceIfWeight = displayForceIfWeight;
-        return newAtt;
+        private readonly VM_NPCAttribute.Factory _attributeFactory;
+        private readonly VM_NPCAttributeShell.Factory _shellFactory;
+        private readonly VM_NPCAttributeCustom.Factory _customAttributeFactory;
+
+        public VM_NPCAttributeCreator(Factory factory, VM_NPCAttributeShell.Factory shellFactory, VM_NPCAttributeCustom.Factory customAttributeFactory)
+        {
+            _attributeFactory = factory;
+            _shellFactory = shellFactory;
+            _customAttributeFactory = customAttributeFactory;   
+        }
+        public VM_NPCAttribute CreateNew(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups)
+        {
+            return _attributeFactory(parentCollection, attributeGroups);
+        }
+        public VM_NPCAttribute CreateNewFromUI(ObservableCollection<VM_NPCAttribute> parentCollection, bool displayForceIfOption, bool? displayForceIfWeight, ObservableCollection<VM_AttributeGroup> attributeGroups)
+        {
+            var newAtt = _attributeFactory(parentCollection, attributeGroups);
+            VM_NPCAttributeShell startingShell = _shellFactory(newAtt, displayForceIfOption, displayForceIfWeight, attributeGroups);
+            VM_NPCAttributeClass startingAttributeGroup = new VM_NPCAttributeClass(newAtt, startingShell);
+            startingShell.Type = NPCAttributeType.Class;
+            startingShell.Attribute = startingAttributeGroup;
+            startingShell.InitializedVMcache[startingShell.Type] = startingShell.Attribute;
+            newAtt.GroupedSubAttributes.Add(startingShell);
+            newAtt.DisplayForceIfOption = displayForceIfOption;
+            newAtt.DisplayForceIfWeight = displayForceIfWeight;
+            return newAtt;
+        }
+        public VM_NPCAttributeShell CreateNewShell(VM_NPCAttribute parentVM, bool displayForceIfOption, bool? displayForceIfWeight, ObservableCollection<VM_AttributeGroup> attributeGroups)
+        {
+            return _shellFactory(parentVM, displayForceIfOption, displayForceIfWeight, attributeGroups);
+        }
+
+        public VM_NPCAttributeCustom CreateNewCustomAttribute(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+        {
+            return _customAttributeFactory(parentVM, parentShell);
+        }
     }
 
     public void TrimEmptyAttributes(object sender, NotifyCollectionChangedEventArgs e)
     {
         if (this.GroupedSubAttributes.Count == 0)
         {
-            this.ParentCollection.Remove(this);
+            ParentCollection.Remove(this);
         }
     }
 
-    public static ObservableCollection<VM_NPCAttribute> GetViewModelsFromModels(HashSet<NPCAttribute> models, ObservableCollection<VM_AttributeGroup> attributeGroups, bool displayForceIfOption, bool? displayForceIfWeight)
+    public static ObservableCollection<VM_NPCAttribute> GetViewModelsFromModels(HashSet<NPCAttribute> models, ObservableCollection<VM_AttributeGroup> attributeGroups, bool displayForceIfOption, bool? displayForceIfWeight, VM_NPCAttributeCreator creator, Logger logger)
     {
         ObservableCollection<VM_NPCAttribute> oc = new ObservableCollection<VM_NPCAttribute>();
         foreach (var m in models)
         {
-            oc.Add(GetViewModelFromModel(m, oc, attributeGroups, displayForceIfOption, displayForceIfWeight));
+            oc.Add(GetViewModelFromModel(m, oc, attributeGroups, displayForceIfOption, displayForceIfWeight, creator, logger));
         }
         return oc;
     } 
 
-    public static VM_NPCAttribute GetViewModelFromModel(NPCAttribute model, ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, bool displayForceIfOption, bool? displayForceIfWeight)
+    public static VM_NPCAttribute GetViewModelFromModel(NPCAttribute model, ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, bool displayForceIfOption, bool? displayForceIfWeight, VM_NPCAttributeCreator creator, Logger logger)
     {
-        VM_NPCAttribute viewModel = new VM_NPCAttribute(parentCollection, attributeGroups);
+        VM_NPCAttribute viewModel = creator.CreateNew(parentCollection, attributeGroups);
         viewModel.DisplayForceIfOption = displayForceIfOption;
         viewModel.DisplayForceIfWeight = displayForceIfWeight;
         foreach (var attributeShellModel in model.SubAttributes)
         {
-            var shellVM = new VM_NPCAttributeShell(viewModel, displayForceIfOption, displayForceIfWeight, attributeGroups);
+            var shellVM = creator.CreateNewShell(viewModel, displayForceIfOption, displayForceIfWeight, attributeGroups);
             shellVM.Type = attributeShellModel.Type;
             switch (attributeShellModel.Type)
             {
                 case NPCAttributeType.Class: shellVM.Attribute = VM_NPCAttributeClass.GetViewModelFromModel((NPCAttributeClass)attributeShellModel, viewModel, shellVM); break;
-                case NPCAttributeType.Custom: shellVM.Attribute = VM_NPCAttributeCustom.GetViewModelFromModel((NPCAttributeCustom)attributeShellModel, viewModel, shellVM); break;
+                case NPCAttributeType.Custom: shellVM.Attribute = VM_NPCAttributeCustom.GetViewModelFromModel((NPCAttributeCustom)attributeShellModel, viewModel, shellVM, creator); break;
                 case NPCAttributeType.Faction: shellVM.Attribute = VM_NPCAttributeFactions.GetViewModelFromModel((NPCAttributeFactions)attributeShellModel, viewModel, shellVM); break;
                 case NPCAttributeType.FaceTexture: shellVM.Attribute = VM_NPCAttributeFaceTexture.GetViewModelFromModel((NPCAttributeFaceTexture)attributeShellModel, viewModel, shellVM); break;
-                case NPCAttributeType.Misc: shellVM.Attribute = VM_NPCAttributeMisc.getViewModelFromModel((NPCAttributeMisc)attributeShellModel, viewModel, shellVM); break;
-                case NPCAttributeType.Mod: shellVM.Attribute = VM_NPCAttributeMod.getViewModelFromModel((NPCAttributeMod)attributeShellModel, viewModel, shellVM); break;
-                case NPCAttributeType.NPC: shellVM.Attribute = VM_NPCAttributeNPC.getViewModelFromModel((NPCAttributeNPC)attributeShellModel, viewModel, shellVM); break;
-                case NPCAttributeType.Race: shellVM.Attribute = VM_NPCAttributeRace.getViewModelFromModel((NPCAttributeRace)attributeShellModel, viewModel, shellVM); break;
+                case NPCAttributeType.Misc: shellVM.Attribute = VM_NPCAttributeMisc.GetViewModelFromModel((NPCAttributeMisc)attributeShellModel, viewModel, shellVM); break;
+                case NPCAttributeType.Mod: shellVM.Attribute = VM_NPCAttributeMod.GetViewModelFromModel((NPCAttributeMod)attributeShellModel, viewModel, shellVM); break;
+                case NPCAttributeType.NPC: shellVM.Attribute = VM_NPCAttributeNPC.GetViewModelFromModel((NPCAttributeNPC)attributeShellModel, viewModel, shellVM); break;
+                case NPCAttributeType.Race: shellVM.Attribute = VM_NPCAttributeRace.GetViewModelFromModel((NPCAttributeRace)attributeShellModel, viewModel, shellVM); break;
                 case NPCAttributeType.VoiceType: shellVM.Attribute = VM_NPCAttributeVoiceType.GetViewModelFromModel((NPCAttributeVoiceType)attributeShellModel, viewModel, shellVM); break;
                 case NPCAttributeType.Group: shellVM.Attribute = VM_NPCAttributeGroup.GetViewModelFromModel((NPCAttributeGroup)attributeShellModel, viewModel, shellVM, attributeGroups); break; // Setting the checkbox selections MUST be done in the calling function after all `attributeGroups` view models have been created from their corresponding model (otherwise the required checkbox entry may not yet exist). This is done in VM_AttributeGroupMenu.GetViewModelFromModels().
-                default: 
-                    Logger.LogError("Could not determine attribute type of NPC Attribute " + attributeShellModel.Type.ToString() + ". Ignoring this attribute.");
+                default:
+                    logger.LogError("Could not determine attribute type of NPC Attribute " + attributeShellModel.Type.ToString() + ". Ignoring this attribute.");
                     break;
             }
             shellVM.InitializedVMcache[shellVM.Type] = shellVM.Attribute;
@@ -140,10 +169,18 @@ public class VM_NPCAttribute : VM
 
 public class VM_NPCAttributeShell : VM
 {
-    public VM_NPCAttributeShell(VM_NPCAttribute parentVM, bool displayForceIfOption, bool? displayForceIfWeight, ObservableCollection<VM_AttributeGroup> attributeGroups)
+    private readonly AttributeMatcher _attributeMatcher;
+    private readonly RecordIntellisense _recordIntellisense;
+    public delegate VM_NPCAttributeShell Factory(VM_NPCAttribute parentVM, bool displayForceIfOption, bool? displayForceIfWeight, ObservableCollection<VM_AttributeGroup> attributeGroups);
+    private Factory _selfFactory;
+    public VM_NPCAttributeShell(VM_NPCAttribute parentVM, bool displayForceIfOption, bool? displayForceIfWeight, ObservableCollection<VM_AttributeGroup> attributeGroups, AttributeMatcher attributeMatcher, RecordIntellisense recordIntellisense, Factory selfFactory)
     {
-        this.Attribute = new VM_NPCAttributeClass(parentVM, this);
-        this.DisplayForceIfOption = displayForceIfOption;
+        _attributeMatcher = attributeMatcher;
+        _recordIntellisense = recordIntellisense;
+        _selfFactory = selfFactory;
+
+        Attribute = new VM_NPCAttributeClass(parentVM, this);
+        DisplayForceIfOption = displayForceIfOption;
 
         this.WhenAnyValue(x => x.ForceModeStr).Subscribe(x =>
         {
@@ -159,9 +196,9 @@ public class VM_NPCAttributeShell : VM
         );
        
 
-        AddAdditionalSubAttributeToParent = new SynthEBD.RelayCommand(
+        AddAdditionalSubAttributeToParent = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => parentVM.GroupedSubAttributes.Add(new VM_NPCAttributeShell(parentVM, this.DisplayForceIfOption, this.DisplayForceIfWeight, attributeGroups))
+            execute: _ => parentVM.GroupedSubAttributes.Add(_selfFactory(parentVM, DisplayForceIfOption, DisplayForceIfWeight, attributeGroups))
         );
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(this));
@@ -226,7 +263,7 @@ public class VM_NPCAttributeShell : VM
             switch (type)
             {
                 case NPCAttributeType.Class: this.Attribute = new VM_NPCAttributeClass(parentVM, this); break;
-                case NPCAttributeType.Custom: this.Attribute = new VM_NPCAttributeCustom(parentVM, this); break;
+                case NPCAttributeType.Custom: this.Attribute = new VM_NPCAttributeCustom(parentVM, this, _attributeMatcher, _recordIntellisense); break;
                 case NPCAttributeType.FaceTexture: this.Attribute = new VM_NPCAttributeFaceTexture(parentVM, this); break;
                 case NPCAttributeType.Faction: this.Attribute = new VM_NPCAttributeFactions(parentVM, this); break;
                 case NPCAttributeType.Group: this.Attribute = new VM_NPCAttributeGroup(parentVM, this, attributeGroups); break;
@@ -328,8 +365,14 @@ public class VM_NPCAttributeClass : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsRecordIntellisense
 {
-    public VM_NPCAttributeCustom(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+    private AttributeMatcher _attributeMatcher;
+    private RecordIntellisense _recordIntellisense;
+    public delegate VM_NPCAttributeCustom Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
+    public VM_NPCAttributeCustom(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, AttributeMatcher attributeMatcher, RecordIntellisense recordIntellisense)
     {
+        _attributeMatcher = attributeMatcher;
+        _recordIntellisense = recordIntellisense;
+
         foreach (var reg in Loqui.LoquiRegistration.StaticRegister.Registrations.Where(x => x.ProtocolKey.Namespace == "Skyrim").Where(x => x.GetterType.IsAssignableTo(typeof(Mutagen.Bethesda.Plugins.Records.IMajorRecordGetter))))
         {
             ValueGetterTypes.Add(reg.Name, reg.GetterType);
@@ -339,7 +382,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         ParentShell = parentShell;
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
 
-        InitializeSubscriptions(this);
+        _recordIntellisense.InitializeSubscriptions(this);
 
         this.WhenAnyValue(x => x.CustomType).Subscribe(x => UpdateValueDisplay());
 
@@ -381,11 +424,11 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
-    public System.Windows.Media.SolidColorBrush StatusFontColor { get; set; } = new(Colors.White);
+    public SolidColorBrush StatusFontColor { get; set; } = new(Colors.White);
 
-    public static VM_NPCAttributeCustom GetViewModelFromModel(NPCAttributeCustom model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+    public static VM_NPCAttributeCustom GetViewModelFromModel(NPCAttributeCustom model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeCreator creator)
     {
-        var viewModel = new VM_NPCAttributeCustom(parentVM, parentShell);
+        var viewModel = creator.CreateNewCustomAttribute(parentVM, parentShell);
         viewModel.ChosenComparator = model.Comparator;
         viewModel.CustomType = model.CustomType;
         viewModel.IntellisensedPath = model.Path;
@@ -457,7 +500,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
                 EvalResult = "Error: can't resolve reference NPC.";
                 this.StatusFontColor = new SolidColorBrush(Colors.Red);
             }
-            bool matched = AttributeMatcher.EvaluateCustomAttribute(refNPC, DumpViewModelToModel(this, VM_NPCAttributeShell.AttributeAllowStr), LinkCache, out string dispMessage);
+            bool matched = _attributeMatcher.EvaluateCustomAttribute(refNPC, DumpViewModelToModel(this, VM_NPCAttributeShell.AttributeAllowStr), LinkCache, out string dispMessage);
             if (matched)
             {
                 EvalResult = "Matched!";
@@ -611,7 +654,7 @@ public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IRaceGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
 
-    public static VM_NPCAttributeRace getViewModelFromModel(NPCAttributeRace model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+    public static VM_NPCAttributeRace GetViewModelFromModel(NPCAttributeRace model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
         var newAtt = new VM_NPCAttributeRace(parentVM, parentShell);
         newAtt.RaceFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
@@ -656,7 +699,7 @@ public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
 
-    public static VM_NPCAttributeMisc getViewModelFromModel(NPCAttributeMisc model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+    public static VM_NPCAttributeMisc GetViewModelFromModel(NPCAttributeMisc model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
         var newAtt = new VM_NPCAttributeMisc(parentVM, parentShell);
         newAtt.Unique = model.Unique;
@@ -723,7 +766,7 @@ public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
 
-    public static VM_NPCAttributeMod getViewModelFromModel(NPCAttributeMod model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+    public static VM_NPCAttributeMod GetViewModelFromModel(NPCAttributeMod model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
         var newAtt = new VM_NPCAttributeMod(parentVM, parentShell);
         newAtt.ModKeys = new(model.ModKeys);
@@ -761,7 +804,7 @@ public class VM_NPCAttributeNPC : VM, ISubAttributeViewModel
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
 
-    public static VM_NPCAttributeNPC getViewModelFromModel(NPCAttributeNPC model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+    public static VM_NPCAttributeNPC GetViewModelFromModel(NPCAttributeNPC model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
     {
         var newAtt = new VM_NPCAttributeNPC(parentVM, parentShell);
         newAtt.NPCFormKeys = new ObservableCollection<FormKey>(model.FormKeys);

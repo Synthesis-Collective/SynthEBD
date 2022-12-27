@@ -1,27 +1,32 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Reactive.Linq;
 using DynamicData;
 using DynamicData.Binding;
 using ReactiveUI;
+using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD;
 
 public class VM_AttributeGroup : VM
 {
-    public VM_AttributeGroup(VM_AttributeGroupMenu parent)
+    private readonly VM_NPCAttributeCreator _attributeCreator;
+    private readonly Logger _logger;
+    public VM_AttributeGroup(VM_AttributeGroupMenu parent, VM_NPCAttributeCreator attributeCreator, Logger logger)
     {
         ParentMenu = parent;
+        _attributeCreator = attributeCreator;
+        _logger = logger;
 
-        Remove = new SynthEBD.RelayCommand(
+        Remove = new RelayCommand(
             canExecute: _ => true,
             execute: _ => ParentMenu.Groups.Remove(this)
         );
 
-        AddAttribute = new SynthEBD.RelayCommand(
+        AddAttribute = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => Attributes.Add(VM_NPCAttribute.CreateNewFromUI(Attributes, false, true, parent.Groups))
+            execute: _ => Attributes.Add(_attributeCreator.CreateNewFromUI(Attributes, false, true, parent.Groups))
         );
 
         Attributes.ToObservableChangeSet().TransformMany(x => x.GroupedSubAttributes).Transform(
@@ -71,7 +76,7 @@ public class VM_AttributeGroup : VM
     public void CopyInViewModelFromModel(AttributeGroup model, VM_AttributeGroupMenu parentMenu)
     {
         this.Label = model.Label;
-        this.Attributes = VM_NPCAttribute.GetViewModelsFromModels(model.Attributes, parentMenu.Groups, false, true);
+        this.Attributes = VM_NPCAttribute.GetViewModelsFromModels(model.Attributes, parentMenu.Groups, false, true, _attributeCreator, _logger);
         this.Attributes_Bak = new ObservableCollection<VM_NPCAttribute>(this.Attributes);
     }
 
@@ -83,10 +88,10 @@ public class VM_AttributeGroup : VM
         return model;
     }
 
-    public static VM_AttributeGroup Copy(VM_AttributeGroup toCopy, VM_AttributeGroupMenu newParentMenu)
+    public VM_AttributeGroup Copy(VM_AttributeGroupMenu newParentMenu)
     {
-        var model = DumpViewModelToModel(toCopy);
-        var copy = new VM_AttributeGroup(newParentMenu);
+        var model = DumpViewModelToModel(this);
+        var copy = new VM_AttributeGroup(newParentMenu, _attributeCreator, _logger);
         copy.CopyInViewModelFromModel(model, newParentMenu);
         return copy;
     }

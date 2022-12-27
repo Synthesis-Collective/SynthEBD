@@ -9,21 +9,30 @@ namespace SynthEBD
 {
     public class EBDScripts
     {
-        public static void ApplyFixedScripts()
+        private readonly Logger _logger;
+        private readonly SynthEBDPaths _paths;
+        private readonly PatcherIO _patcherIO;
+        public EBDScripts(Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
+        {
+            _logger = logger;
+            _paths = paths;
+            _patcherIO = patcherIO; 
+        }
+        public void ApplyFixedScripts()
         {
             string sourcePath = String.Empty;
             if ((PatcherEnvironmentProvider.Instance.Environment.GameRelease == Mutagen.Bethesda.GameRelease.SkyrimSE && !PatcherSettings.TexMesh.bFixedScriptsOldSKSEversion) || PatcherEnvironmentProvider.Instance.Environment.GameRelease == Mutagen.Bethesda.GameRelease.EnderalSE)
             {
-                Logger.LogMessage("Applying fixed EBD script (for SSE 1.5.97 or newer)");
-                sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "EBD Code", "SSE", "EBDGlobalFuncs.pex");
+                _logger.LogMessage("Applying fixed EBD script (for SSE 1.5.97 or newer)");
+                sourcePath = Path.Combine(_paths.ResourcesFolderPath, "EBD Code", "SSE", "EBDGlobalFuncs.pex");
             }
             else
             {
-                Logger.LogMessage("Applying fixed EBD script (for VR or SSE < 1.5.97)");
-                sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "EBD Code", "VR", "EBDGlobalFuncs.pex");
+                _logger.LogMessage("Applying fixed EBD script (for VR or SSE < 1.5.97)");
+                sourcePath = Path.Combine(_paths.ResourcesFolderPath, "EBD Code", "VR", "EBDGlobalFuncs.pex");
             }
-            string destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "EBDGlobalFuncs.pex");
-            PatcherIO.TryCopyResourceFile(sourcePath, destPath);
+            string destPath = Path.Combine(_paths.OutputDataFolder, "Scripts", "EBDGlobalFuncs.pex");
+            _patcherIO.TryCopyResourceFile(sourcePath, destPath);
         }
     }
 }

@@ -1,8 +1,6 @@
 using ReactiveUI;
 using System.Collections.ObjectModel;
 using System.Windows.Forms;
-using System.Windows.Media;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.Tab;
 
 namespace SynthEBD;
 
@@ -10,6 +8,10 @@ public class VM_SettingsTexMesh : VM
 {
     public SaveLoader SaveLoader { get; set; }
     private List<string> InstalledConfigsInCurrentSession = new List<string>();
+    private readonly Logger _logger;
+    private readonly SynthEBDPaths _paths;
+    private readonly ConfigInstaller _configInstaller;
+    private readonly VM_AssetDistributionSimulator.Factory _simulatorFactory;
 
     public VM_SettingsTexMesh(
         MainState state,
@@ -19,21 +21,30 @@ public class VM_SettingsTexMesh : VM
         VM_BlockListUI blockListUI,
         VM_SettingsModManager modManager,
         VM_AssetPack.Factory assetPackFactory,
-        VM_Subgroup.Factory subgroupFactory)
+        VM_Subgroup.Factory subgroupFactory,
+        Logger logger,
+        SynthEBDPaths paths,
+        ConfigInstaller configInstaller,
+        SettingsIO_AssetPack assetIO,
+        VM_AssetDistributionSimulator.Factory simulatorFactory)
     {
         _generalSettingsVM = general;
+        _logger = logger;
+        _paths = paths;
+        _configInstaller = configInstaller;
+        _simulatorFactory = simulatorFactory;
 
         this.WhenAnyValue(x => x.bApplyFixedScripts, x => x._generalSettingsVM.Environment.SkyrimVersion).Subscribe(_ => UpdateSKSESelectionVisibility());
 
-        AddTrimPath = new SynthEBD.RelayCommand(
+        AddTrimPath = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.TrimPaths.Add(new TrimPath())
+            execute: _ => TrimPaths.Add(new TrimPath())
         );
-        RemoveTrimPath = new SynthEBD.RelayCommand(
+        RemoveTrimPath = new RelayCommand(
             canExecute: _ => true,
-            execute: x => this.TrimPaths.Remove((TrimPath)x)
+            execute: x => TrimPaths.Remove((TrimPath)x)
         );
-        ValidateAll = new SynthEBD.RelayCommand(
+        ValidateAll = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -41,8 +52,7 @@ public class VM_SettingsTexMesh : VM
                 BodyGenConfigs bgConfigs = new();
                 bgConfigs.Male = bodyGen.MaleConfigs.Select(x => VM_BodyGenConfig.DumpViewModelToModel(x)).ToHashSet();
                 bgConfigs.Female = bodyGen.FemaleConfigs.Select(x => VM_BodyGenConfig.DumpViewModelToModel(x)).ToHashSet();
-                Settings_OBody oBodySettings = new();
-                VM_SettingsOBody.DumpViewModelToModel(oBodySettings, oBody);
+                Settings_OBody oBodySettings = oBody.DumpViewModelToModel();
 
                 if (!AssetPacks.Any())
                 {
@@ -54,12 +64,12 @@ public class VM_SettingsTexMesh : VM
                 }
                 else
                 {
-                    Logger.LogError(String.Join(Environment.NewLine, errors));
+                    _logger.LogError(String.Join(Environment.NewLine, errors));
                 }
             }
         );
 
-        AddNewAssetPackConfigFile = new SynthEBD.RelayCommand(
+        AddNewAssetPackConfigFile = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -73,23 +83,23 @@ public class VM_SettingsTexMesh : VM
             }
         );
 
-        CreateConfigArchive = new SynthEBD.RelayCommand(
+        CreateConfigArchive = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
                 var packagerWindow = new Window_ConfigPackager();
-                var packagerVM = new VM_Manifest();
+                var packagerVM = new VM_Manifest(_logger);
                 packagerWindow.DataContext = packagerVM;
                 packagerWindow.ShowDialog();
             }
         );
 
-        InstallFromArchive = new SynthEBD.RelayCommand(
+        InstallFromArchive = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
                 modManager.UpdatePatcherSettings(); // make sure mod manager integration is synced w/ latest settings
-                var installedConfigs = ConfigInstaller.InstallConfigFile();
+                var installedConfigs = _configInstaller.InstallConfigFile();
                 if (installedConfigs.Any())
                 {
                     RefreshInstalledConfigs(installedConfigs);
@@ -97,16 +107,16 @@ public class VM_SettingsTexMesh : VM
             }
         );
 
-        InstallFromJson = new SynthEBD.RelayCommand(
+        InstallFromJson = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
-                if (IO_Aux.SelectFile(PatcherSettings.Paths.AssetPackDirPath, "Config files (*.json)|*.json", "Select the config json file", out string path))
+                if (IO_Aux.SelectFile(_paths.AssetPackDirPath, "Config files (*.json)|*.json", "Select the config json file", out string path))
                 {
-                    var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, state.RecordTemplatePlugins, state.BodyGenConfigs, out bool loadSuccess);
+                    var newAssetPack = assetIO.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, state.RecordTemplatePlugins, state.BodyGenConfigs, out bool loadSuccess);
                     if (loadSuccess)
                     {
-                        newAssetPack.FilePath = System.IO.Path.Combine(PatcherSettings.Paths.AssetPackDirPath, System.IO.Path.GetFileName(newAssetPack.FilePath)); // overwrite existing filepath so it doesn't get deleted from source
+                        newAssetPack.FilePath = System.IO.Path.Combine(_paths.AssetPackDirPath, System.IO.Path.GetFileName(newAssetPack.FilePath)); // overwrite existing filepath so it doesn't get deleted from source
                         var newAssetPackVM = assetPackFactory();
                         newAssetPackVM.CopyInViewModelFromModel(newAssetPack);
                         newAssetPackVM.IsSelected = true;
@@ -116,7 +126,7 @@ public class VM_SettingsTexMesh : VM
             }
         );
 
-        SplitScreenToggle = new SynthEBD.RelayCommand(
+        SplitScreenToggle = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -125,10 +135,10 @@ public class VM_SettingsTexMesh : VM
             }
         );
 
-        AssetPresenterPrimary = new VM_AssetPresenter(this);
-        AssetPresenterSecondary = new VM_AssetPresenter(this);
+        AssetPresenterPrimary = new VM_AssetPresenter(this, logger);
+        AssetPresenterSecondary = new VM_AssetPresenter(this, logger);
 
-        SelectConfigsAll = new SynthEBD.RelayCommand(
+        SelectConfigsAll = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -136,7 +146,7 @@ public class VM_SettingsTexMesh : VM
             }
         );
 
-        SelectConfigsNone = new SynthEBD.RelayCommand(
+        SelectConfigsNone = new RelayCommand(
            canExecute: _ => true,
            execute: _ =>
            {
@@ -144,11 +154,11 @@ public class VM_SettingsTexMesh : VM
            }
        );
 
-        SimulateDistribution = new SynthEBD.RelayCommand(
+        SimulateDistribution = new RelayCommand(
            canExecute: _ => true,
            execute: _ =>
            {
-               SimulateAssetAssignment(bodyGen, oBody, blockListUI);
+               SimulateAssetAssignment();
            }
        );
     }
@@ -262,11 +272,11 @@ public class VM_SettingsTexMesh : VM
     public void RefreshInstalledConfigs(List<string> installedConfigs)
     {
         InstalledConfigsInCurrentSession.AddRange(installedConfigs);
-        //Logger.ArchiveStatus();
-        //Task.Run(() => Logger.UpdateStatusAsync("Refreshing loaded settings - please wait.", false));
+        //_logger.ArchiveStatus();
+        //Task.Run(() => _logger.UpdateStatusAsync("Refreshing loaded settings - please wait.", false));
         Cursor.Current = Cursors.WaitCursor;
         SaveLoader.SaveAndRefreshPlugins();
-        //Logger.UnarchiveStatus();
+        //_logger.UnarchiveStatus();
         foreach (var newConfig in AssetPacks.Where(x => InstalledConfigsInCurrentSession.Contains(x.GroupName)))
         {
             newConfig.IsSelected = true;
@@ -279,10 +289,10 @@ public class VM_SettingsTexMesh : VM
         DisplayedAssetPackStr = string.Join(" | ", AssetPacks.Where(x => x.IsSelected).Select(x => x.ShortName));
     }
 
-    public void SimulateAssetAssignment(VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI)
+    public void SimulateAssetAssignment()
     {
         Window_AssetDistributionSimulator simWindow = new();
-        VM_AssetDistributionSimulator distributionSimulator = new(this, bodyGen, oBody, blockListUI);
+        VM_AssetDistributionSimulator distributionSimulator = _simulatorFactory();
         simWindow.DataContext = distributionSimulator;
         simWindow.ShowDialog();
     }

@@ -3,20 +3,21 @@ using System.Text;
 
 namespace SynthEBD;
 
-public class PatcherSettingsProvider
+public class PatcherSettingsSourceProvider
 {
     public Lazy<LoadSource> SourceSettings { get; }
     public static StringBuilder SettingsLog { get; } = new();
+    public string ErrorString;
 
-    public PatcherSettingsProvider()
+    public PatcherSettingsSourceProvider()
     {
         SourceSettings = new Lazy<LoadSource>(() =>
         {
-            if (File.Exists(Paths.SettingsSourcePath))
+            if (File.Exists(SynthEBDPaths.SettingsSourcePath))
             {
-                SettingsLog.AppendLine("Found settings source path at " + Paths.SettingsSourcePath);
+                SettingsLog.AppendLine("Found settings source path at " + SynthEBDPaths.SettingsSourcePath);
 
-                var source = JSONhandler<LoadSource>.LoadJSONFile(Paths.SettingsSourcePath, out bool loadSuccess,
+                var source = JSONhandler<LoadSource>.LoadJSONFile(SynthEBDPaths.SettingsSourcePath, out bool loadSuccess,
                     out string exceptionStr);
                 if (loadSuccess)
                 {
@@ -31,13 +32,13 @@ public class PatcherSettingsProvider
                 else
                 {
                     SettingsLog.AppendLine("Could not load Settings Source. Error: " + exceptionStr);
-                    Logger.LogError("Could not load Settings Source. Error: " + exceptionStr);
+                    ErrorString = "Could not load Settings Source. Error: " + exceptionStr;
                     return new();
                 }
             }
             else
             {
-                SettingsLog.AppendLine("Did not find settings source path at " + Paths.SettingsSourcePath);
+                SettingsLog.AppendLine("Did not find settings source path at " + SynthEBDPaths.SettingsSourcePath);
                 SettingsLog.AppendLine("Using default environment and patcher settings locations.");
                 return new();
             }  

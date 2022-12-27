@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using ReactiveUI;
@@ -18,9 +18,13 @@ namespace SynthEBD
 {
     public class VM_HeadPartImport : VM
     {
-        public VM_HeadPartImport(VM_Settings_Headparts parentMenu)
+        private readonly Logger _logger;
+        private readonly VM_HeadPart.Factory _headPartFactory;
+        public VM_HeadPartImport(VM_Settings_Headparts parentMenu, Logger logger, VM_HeadPart.Factory headPartFactory)
         {
             ParentMenu = parentMenu;
+            _logger = logger;
+            _headPartFactory = headPartFactory;
 
             PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
             .Subscribe(x => lk = x)
@@ -54,7 +58,7 @@ namespace SynthEBD
             this.Imports[HeadPart.TypeEnum.Misc].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Misc));
             this.Imports[HeadPart.TypeEnum.Scars].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Scars));
 
-            Import = new SynthEBD.RelayCommand(
+            Import = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => ImportSelections()
             );
@@ -213,12 +217,15 @@ namespace SynthEBD
                 CustomMessageBox.DisplayNotificationOK("Duplicate Imports", "The following head parts were previously imported and will be skipped: " + Environment.NewLine + String.Join(Environment.NewLine, skippedImports));
             }
 
-            Logger.CallTimedNotifyStatusUpdateAsync("Imported " + importCount + " head parts.", 5);
+            _logger.CallTimedNotifyStatusUpdateAsync("Imported " + importCount + " head parts.", 5);
         }
 
-        public static VM_HeadPart ImportHeadPart(IHeadPartGetter headPart, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig)
+        public VM_HeadPart ImportHeadPart(IHeadPartGetter headPart, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig)
         {
-            var imported = new VM_HeadPart(headPart.FormKey, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig) { Label = EditorIDHandler.GetEditorIDSafely(headPart), bAllowMale = headPart.Flags.HasFlag(HeadPart.Flag.Male), bAllowFemale = headPart.Flags.HasFlag(HeadPart.Flag.Female) };
+            var imported = _headPartFactory(headPart.FormKey, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig);
+            imported.Label = EditorIDHandler.GetEditorIDSafely(headPart);
+            imported.bAllowMale = headPart.Flags.HasFlag(HeadPart.Flag.Male);
+            imported.bAllowFemale = headPart.Flags.HasFlag(HeadPart.Flag.Female);
 
             if (parentConfig.ImportMenu.bRespectHeadPartRaces && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IFormListGetter>(headPart.ValidRaces.FormKey, out var raceFormList) && raceFormList.Items.Any())
             {

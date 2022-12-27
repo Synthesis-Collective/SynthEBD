@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
@@ -9,36 +9,40 @@ namespace SynthEBD;
 
 public class VM_HeightConfig : VM
 {
-    public VM_HeightConfig()
+    private readonly Logger _logger;
+    public delegate VM_HeightConfig Factory();
+    public VM_HeightConfig(Logger logger, SettingsIO_Height heightIO)
     {
-        AddHeightAssignment = new SynthEBD.RelayCommand(
+        _logger = logger;
+
+        AddHeightAssignment = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.HeightAssignments.Add(new VM_HeightAssignment(this.HeightAssignments))
+            execute: _ => HeightAssignments.Add(new VM_HeightAssignment(HeightAssignments))
         );
 
-        SetAllDistModes = new SynthEBD.RelayCommand(
+        SetAllDistModes = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
-                foreach (var assignment in this.HeightAssignments)
+                foreach (var assignment in HeightAssignments)
                 {
-                    assignment.DistributionMode = this.GlobalDistMode;
+                    assignment.DistributionMode = GlobalDistMode;
                 }
             }
         );
 
-        Save = new SynthEBD.RelayCommand(
+        Save = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
-                SettingsIO_Height.SaveHeightConfig(DumpViewModelToModel(this), out bool saveSuccess);
+                heightIO.SaveHeightConfig(DumpViewModelToModel(), out bool saveSuccess);
                 if (saveSuccess)
                 {
-                    Logger.CallTimedNotifyStatusUpdateAsync(Label + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                    _logger.CallTimedNotifyStatusUpdateAsync(Label + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
                 }
                 else
                 {
-                    Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save " + Label + ".", ErrorType.Error, 5);
+                    _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save " + Label + ".", ErrorType.Error, 5);
                 }
             }
         );
@@ -53,11 +57,11 @@ public class VM_HeightConfig : VM
     public RelayCommand SetAllDistModes { get; }
     public RelayCommand Save { get; }
 
-    public static void GetViewModelsFromModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models)
+    public static void GetViewModelsFromModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models, VM_HeightConfig.Factory factory)
     {
         for (int i = 0; i < models.Count; i++)
         {
-            var vm = new VM_HeightConfig();
+            var vm = factory();
             vm.Label = models[i].Label;
             vm.HeightAssignments = VM_HeightAssignment.GetViewModelsFromModels(models[i].HeightAssignments);
             vm.SubscribedHeightConfig = models[i];
@@ -67,21 +71,21 @@ public class VM_HeightConfig : VM
         }
     }
 
-    public static void DumpViewModelsToModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models)
+    public static void DumpViewModelsToModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models, Logger logger)
     {
         models.Clear();
         foreach (var vm in viewModels)
         {
-            models.Add(DumpViewModelToModel(vm));
+            models.Add(vm.DumpViewModelToModel());
         }
     }
 
-    public static HeightConfig DumpViewModelToModel(VM_HeightConfig viewModel)
+    public HeightConfig DumpViewModelToModel()
     {
         var model = new HeightConfig();
-        model.Label = viewModel.Label;
-        VM_HeightAssignment.DumpViewModelsToModels(model.HeightAssignments, viewModel.HeightAssignments);
-        model.FilePath = viewModel.SourcePath;
+        model.Label = Label;
+        model.HeightAssignments = VM_HeightAssignment.DumpViewModelsToModels(model.HeightAssignments, HeightAssignments, _logger);
+        model.FilePath = SourcePath;
         return model;
     }
 }
@@ -127,7 +131,7 @@ public class VM_HeightAssignment : VM
         return viewModels;
     }
 
-    public static HashSet<HeightAssignment> DumpViewModelsToModels(HashSet<HeightAssignment> models, ObservableCollection<VM_HeightAssignment> viewModels)
+    public static HashSet<HeightAssignment> DumpViewModelsToModels(HashSet<HeightAssignment> models, ObservableCollection<VM_HeightAssignment> viewModels, Logger logger)
     {
         foreach (var vm in viewModels)
         {
@@ -141,7 +145,7 @@ public class VM_HeightAssignment : VM
             }
             else
             {
-                Logger.LogError("Cannot parse male height " + vm.MaleHeightBase + " for Height Assignment: " + ha.Label);
+                logger.LogError("Cannot parse male height " + vm.MaleHeightBase + " for Height Assignment: " + ha.Label);
             }
 
             if (float.TryParse(vm.FemaleHeightBase, out var femaleHeight))
@@ -150,7 +154,7 @@ public class VM_HeightAssignment : VM
             }
             else
             {
-                Logger.LogError("Cannot parse female height " + vm.FemaleHeightBase + " for Height Assignment: " + ha.Label);
+                logger.LogError("Cannot parse female height " + vm.FemaleHeightBase + " for Height Assignment: " + ha.Label);
             }
 
             if (float.TryParse(vm.MaleHeightRange, out var maleHeightRange))
@@ -159,7 +163,7 @@ public class VM_HeightAssignment : VM
             }
             else
             {
-                Logger.LogError("Cannot parse male height range " + vm.MaleHeightRange + " for Height Assignment: " + ha.Label);
+                logger.LogError("Cannot parse male height range " + vm.MaleHeightRange + " for Height Assignment: " + ha.Label);
             }
 
             if (float.TryParse(vm.FemaleHeightRange, out var femaleHeightRange))
@@ -168,7 +172,7 @@ public class VM_HeightAssignment : VM
             }
             else
             {
-                Logger.LogError("Cannot parse female height range " + vm.FemaleHeightRange + " for Height Assignment: " + ha.Label);
+                logger.LogError("Cannot parse female height range " + vm.FemaleHeightRange + " for Height Assignment: " + ha.Label);
             }
 
             models.Add(ha);

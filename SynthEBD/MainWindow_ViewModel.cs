@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Windows;
 
 namespace SynthEBD;
@@ -8,6 +8,8 @@ public class MainWindow_ViewModel : VM
     private readonly SaveLoader _saveLoader;
     private readonly VM_Settings_General _settingsGeneral;
     private readonly VM_NavPanel _navPanel;
+    private readonly Logger _logger;
+    public readonly SynthEBDPaths _paths; // must be accessible to App.xaml.cs for crash logging
 
     public DisplayedItemVm Display { get; }
     public VM_RunButton RunButtonVM { get; }
@@ -22,19 +24,19 @@ public class MainWindow_ViewModel : VM
         VM_StatusBar statusBar,
         VM_NavPanel navPanel,
         VM_RunButton runButton,
-        Paths paths,
+        SynthEBDPaths paths,
         PatcherEnvironmentProvider patcherEnvironmentProvider)
     {
         _saveLoader = saveLoader;
         _settingsGeneral = settingsGeneral;
         _navPanel = navPanel;
-        Logger.Instance = logger;
+        _logger = logger;
         Display = display;
         StatusBarVM = statusBar;
         RunButtonVM = runButton;
         NavViewModel = _navPanel;
         PatcherEnvironmentProvider.Instance = patcherEnvironmentProvider;
-        PatcherSettings.Paths = paths;
+        _paths = paths;
 
         // Start on the settings VM
         Display.DisplayedViewModel = _settingsGeneral;

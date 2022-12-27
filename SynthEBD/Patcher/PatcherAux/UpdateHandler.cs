@@ -10,17 +10,24 @@ namespace SynthEBD
 {
     public class UpdateHandler // handles backward compatibility for previous SynthEBD versions
     {
-        public static void CleanSPIDiniHeadParts()
+        private readonly SynthEBDPaths _paths;
+        private readonly PatcherIO _patcherIO;
+        public UpdateHandler(SynthEBDPaths paths, PatcherIO patcherIO)
         {
-            PatcherIO.TryDeleteFile(Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBDHeadPartDistributor_DISTR.ini"));
+            _paths = paths;
+            _patcherIO = patcherIO; 
         }
-        public static void CleanSPIDiniOBody()
+        public void CleanSPIDiniHeadParts()
         {
-            PatcherIO.TryDeleteFile(Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini"));
+            _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBDHeadPartDistributor_DISTR.ini"));
         }
-        public static void CleanOldBodySlideDict()
+        public void CleanSPIDiniOBody()
         {
-            PatcherIO.TryDeleteFile(Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "BodySlideDict.json"));
+            _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini"));
+        }
+        public void CleanOldBodySlideDict()
+        {
+            _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBD", "BodySlideDict.json"));
         }
     }
 }

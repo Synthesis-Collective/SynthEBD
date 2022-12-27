@@ -6,6 +6,14 @@ namespace SynthEBD;
 
 public class AttributeMatcher
 {
+    private readonly Logger _logger;
+    private readonly RecordPathParser _recordPathParser;
+    public AttributeMatcher(Logger logger, RecordPathParser recordPathParser)
+    {
+        _logger = logger;
+        _recordPathParser = recordPathParser;
+    }
+
     /// <summary>
     ///  Evaluates a list of NPCAttributes to determine if the given NPC matches any. Note that attributes of ForceType "Restrict" or "ForceIfAndRestrict" must be matched, while ForceType "ForceIf" does not need to be matched
     /// </summary>
@@ -19,7 +27,7 @@ public class AttributeMatcher
     /// <param name="unmatchedLog">"Output: Log of unmatched Attributes</param>
     /// <param name="unmatchedLog">"Output: Log of matched ForceIf Attributes and their respective weights</param>
     /// <param name="overrideForceIf">"overrideForceIf: if not null, overrides the AttributeForcing on all sub-attributes (allows Group type attributes to forward its own forcing to recursive calls)</param>
-    public static void MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, HashSet<AttributeGroup> attributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog, AttributeForcing? overrideForceIf)
+    public void MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, HashSet<AttributeGroup> attributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog, AttributeForcing? overrideForceIf)
     {
         hasAttributeRestrictions = false;
         matchesAttributeRestrictions = false;
@@ -89,7 +97,7 @@ public class AttributeMatcher
                         var groupAttribute = (NPCAttributeGroup)subAttribute;
                         foreach (string selectedGroup in groupAttribute.SelectedLabels)
                         {
-                            var attributeGroup = NPCAttribute.GetAttributeGroupByLabel(selectedGroup, attributeGroups);
+                            var attributeGroup = NPCAttribute.GetAttributeGroupByLabel(selectedGroup, attributeGroups, _logger);
                             if (attributeGroup == null)
                             {
                                 subAttributeMatched = false;
@@ -228,10 +236,10 @@ public class AttributeMatcher
         return;
     }
 
-    public static bool EvaluateCustomAttribute(INpcGetter npc, NPCAttributeCustom attribute, ILinkCache linkCache, out string dispMessage)
+    public bool EvaluateCustomAttribute(INpcGetter npc, NPCAttributeCustom attribute, ILinkCache linkCache, out string dispMessage)
     {
         var resolvedObjects = new List<dynamic>();
-        bool success = RecordPathParser.GetObjectCollectionAtPath(npc, npc, attribute.Path, new Dictionary<string, dynamic>(), linkCache, true, Logger.GetNPCLogNameString(npc), resolvedObjects);
+        bool success = _recordPathParser.GetObjectCollectionAtPath(npc, npc, attribute.Path, new Dictionary<string, dynamic>(), linkCache, true, Logger.GetNPCLogNameString(npc), resolvedObjects);
         dispMessage = "";
 
         bool currentTypeMatched = false;

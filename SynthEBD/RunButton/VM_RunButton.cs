@@ -6,18 +6,24 @@ public class VM_RunButton : VM
 {
     private readonly VM_SettingsTexMesh _texMeshSettingsVm;
     private readonly MainState _state;
+    private readonly MiscValidation _miscValidation;
+    private readonly Logger _logger;
 
     public VM_RunButton(
         VM_SettingsTexMesh texMeshSettingsVM, 
         VM_ConsistencyUI consistencyUi,
         VM_Settings_Headparts headParts,
         MainState state,
-        SaveLoader saveLoader, 
+        SaveLoader saveLoader,
+        MiscValidation miscValidation,
+        Logger logger,
         VM_LogDisplay logDisplay,
         Func<Patcher> getPatcher)
     {
         _texMeshSettingsVm = texMeshSettingsVM;
         _state = state;
+        _miscValidation = miscValidation;
+        _logger = logger;
         // synchronous version for debugging only
         /*
         ClickRun = new SynthEBD.RelayCommand(
@@ -45,9 +51,9 @@ public class VM_RunButton : VM
                 saveLoader.DumpViewModelsToModels();
                 if (!PreRunValidation()) { return; }
                 if (HasBeenRun) { PatcherEnvironmentProvider.Instance.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.
-                Logger.ClearStatusError();
+                _logger.ClearStatusError();
                 await Task.Run(() => getPatcher().RunPatcher());
-                VM_ConsistencyUI.GetViewModelsFromModels(state.Consistency, consistencyUi.Assignments, texMeshSettingsVM.AssetPacks, headParts); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
+                VM_ConsistencyUI.GetViewModelsFromModels(state.Consistency, consistencyUi.Assignments, texMeshSettingsVM.AssetPacks, headParts, _logger); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
                 HasBeenRun = true;
             });
     }
@@ -62,14 +68,14 @@ public class VM_RunButton : VM
 
         if (PatcherSettings.General.bChangeMeshesOrTextures)
         {
-            if (!MiscValidation.VerifyEBDInstalled())
+            if (!_miscValidation.VerifyEBDInstalled())
             {
                 valid = false;
             }
 
             if (!_texMeshSettingsVm.ValidateAllConfigs(_state.BodyGenConfigs, PatcherSettings.OBody, out var configErrors)) // check config files for errors
             {
-                Logger.LogMessage(configErrors);
+                _logger.LogMessage(configErrors);
                 valid = false;
             }
 
@@ -77,15 +83,15 @@ public class VM_RunButton : VM
 
         if (PatcherSettings.General.BodySelectionMode != BodyShapeSelectionMode.None)
         {
-            if (!MiscValidation.VerifyRaceMenuInstalled(env.DataFolderPath))
+            if (!_miscValidation.VerifyRaceMenuInstalled(env.DataFolderPath))
             {
                 valid = false;
             }
-            else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !MiscValidation.VerifyRaceMenuIniForBodyGen())
+            else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !_miscValidation.VerifyRaceMenuIniForBodyGen())
             {
                 valid = false;
             }
-            else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !MiscValidation.VerifyRaceMenuIniForBodySlide())
+            else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !_miscValidation.VerifyRaceMenuIniForBodySlide())
             {
                 valid = false;
             }
@@ -94,35 +100,35 @@ public class VM_RunButton : VM
             {
                 if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.OBody)
                 {
-                    if (!MiscValidation.VerifyOBodyInstalled(env.DataFolderPath))
+                    if (!_miscValidation.VerifyOBodyInstalled(env.DataFolderPath))
                     {
                         valid = false;
                     }
 
-                    if (!MiscValidation.VerifyJContainersInstalled(env.DataFolderPath, false))
+                    if (!_miscValidation.VerifyJContainersInstalled(env.DataFolderPath, false))
                     {
                         valid = false;
                     }
                 }
                 else if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.AutoBody)
                 {
-                    if (!MiscValidation.VerifyAutoBodyInstalled(env.DataFolderPath))
+                    if (!_miscValidation.VerifyAutoBodyInstalled(env.DataFolderPath))
                     {
                         valid = false;
                     }
 
-                    if (PatcherSettings.OBody.AutoBodySelectionMode == AutoBodySelectionMode.JSON && !MiscValidation.VerifyJContainersInstalled(env.DataFolderPath, false))
+                    if (PatcherSettings.OBody.AutoBodySelectionMode == AutoBodySelectionMode.JSON && !_miscValidation.VerifyJContainersInstalled(env.DataFolderPath, false))
                     {
                         valid = false;
                     }
                 }
 
-                if (!MiscValidation.VerifyBodySlideAnnotations(PatcherSettings.OBody))
+                if (!_miscValidation.VerifyBodySlideAnnotations(PatcherSettings.OBody))
                 {
                     valid = false;
                 }
 
-                if (!MiscValidation.VerifyGeneratedTriFilesForOBody(PatcherSettings.OBody))
+                if (!_miscValidation.VerifyGeneratedTriFilesForOBody(PatcherSettings.OBody))
                 {
                     valid = false;
                 }
@@ -134,12 +140,12 @@ public class VM_RunButton : VM
             }
             else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
             {
-                if (!MiscValidation.VerifyBodyGenAnnotations(_state.AssetPacks, _state.BodyGenConfigs))
+                if (!_miscValidation.VerifyBodyGenAnnotations(_state.AssetPacks, _state.BodyGenConfigs))
                 {
                     valid = false;
                 }
 
-                if (!MiscValidation.VerifyGeneratedTriFilesForBodyGen(_state.AssetPacks, _state.BodyGenConfigs))
+                if (!_miscValidation.VerifyGeneratedTriFilesForBodyGen(_state.AssetPacks, _state.BodyGenConfigs))
                 {
                     valid = false;
                 }
@@ -148,7 +154,7 @@ public class VM_RunButton : VM
 
         if (PatcherSettings.General.bChangeHeadParts)
         {
-            if (!MiscValidation.VerifyEBDInstalled())
+            if (!_miscValidation.VerifyEBDInstalled())
             {
                 valid = false;
             }
@@ -158,7 +164,7 @@ public class VM_RunButton : VM
             //    valid = false;
             //}
 
-            if (!MiscValidation.VerifyJContainersInstalled(env.DataFolderPath, false))
+            if (!_miscValidation.VerifyJContainersInstalled(env.DataFolderPath, false))
             {
                 valid = false;
             }
@@ -166,7 +172,7 @@ public class VM_RunButton : VM
 
         if (!valid)
         {
-            Logger.LogErrorWithStatusUpdate("Could not run the patcher. Please correct the errors above.", ErrorType.Error);
+            _logger.LogErrorWithStatusUpdate("Could not run the patcher. Please correct the errors above.", ErrorType.Error);
         }
 
         return valid;

@@ -5,6 +5,11 @@ namespace SynthEBD;
 
 public class BodyShapeDescriptorRules
 {
+    private AttributeMatcher _attributeMatcher;
+    public BodyShapeDescriptorRules(AttributeMatcher attributeMatcher)
+    {
+        _attributeMatcher = attributeMatcher;
+    }
     public HashSet<FormKey> AllowedRaces { get; set; } = new();
     public HashSet<FormKey> DisallowedRaces { get; set; } = new();
     public HashSet<string> AllowedRaceGroupings { get; set; } = new();
@@ -20,7 +25,7 @@ public class BodyShapeDescriptorRules
     [JsonIgnore]
     public int MatchedForceIfCount { get; set; } = 0;
 
-    public static bool NPCisValid(BodyShapeDescriptor descriptor, HashSet<AttributeGroup> attributeGroups, NPCInfo npcInfo, out string reportStr)
+    public bool NPCisValid(BodyShapeDescriptor descriptor, HashSet<AttributeGroup> attributeGroups, NPCInfo npcInfo, out string reportStr)
     {
         reportStr = "";
         // Allow unique NPCs
@@ -60,7 +65,7 @@ public class BodyShapeDescriptorRules
 
         // Allowed and Forced Attributes
         descriptor.AssociatedRules.MatchedForceIfCount = 0;
-        AttributeMatcher.MatchNPCtoAttributeList(descriptor.AssociatedRules.AllowedAttributes, npcInfo.NPC, attributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
+        _attributeMatcher.MatchNPCtoAttributeList(descriptor.AssociatedRules.AllowedAttributes, npcInfo.NPC, attributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
         if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
             reportStr = descriptor.ID + " have the following allowed attributes of which none are matched to the NPC: " + unmatchedLog;
@@ -77,7 +82,7 @@ public class BodyShapeDescriptorRules
         }
 
         // Disallowed Attributes
-        AttributeMatcher.MatchNPCtoAttributeList(descriptor.AssociatedRules.DisallowedAttributes, npcInfo.NPC, attributeGroups, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _, null);
+        _attributeMatcher.MatchNPCtoAttributeList(descriptor.AssociatedRules.DisallowedAttributes, npcInfo.NPC, attributeGroups, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _, null);
         if (hasAttributeRestrictions && matchesAttributeRestrictions)
         {
             reportStr = descriptor.ID + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog;

@@ -1,8 +1,13 @@
-﻿namespace SynthEBD;
+namespace SynthEBD;
 
-class FileDialogs
+public class FileDialogs
 {
-    public static bool ConfirmFileDeletion(string path, string filetype)
+    private readonly Logger _logger;
+    public FileDialogs(Logger logger)
+    {
+        _logger = logger;
+    }
+    public bool ConfirmFileDeletion(string path, string filetype)
     {
         if (CustomMessageBox.DisplayNotificationYesNo("Confirm Deletion", "Are you sure you want to permanently delete this " + filetype + "?"))
         {
@@ -16,7 +21,7 @@ class FileDialogs
             }
             catch
             {
-                Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not delete file at " + path, ErrorType.Warning, 5);
+                _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not delete file at " + path, ErrorType.Warning, 5);
                 return false;
             }
         }

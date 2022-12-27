@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Plugins;
@@ -21,16 +21,18 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
     [Reactive] public SkyrimMod OutputMod { get; set; }
     public IGameEnvironment<ISkyrimMod, ISkyrimModGetter> Environment { get; private set; }
     public StringBuilder EnvironmentLog { get; } = new();
+    public readonly Logger _logger;
 
     private void LogEnvironmentEvent(string logString)
     {
         EnvironmentLog.AppendLine(logString);
     }
 
-    public PatcherEnvironmentProvider(PatcherSettingsProvider settingsProvider)
+    public PatcherEnvironmentProvider(PatcherSettingsSourceProvider settingsProvider, Logger logger)
     {
-        // initialize paths
+        _logger = logger;
         var sourceSettings = settingsProvider.SourceSettings.Value;
+        // initialize paths
         if (sourceSettings.Initialized)
         {
             if (!string.IsNullOrWhiteSpace(sourceSettings.GameEnvironmentDirectory))
@@ -81,7 +83,7 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
             Environment = builder
                 .TransformModListings(x =>
                     x.OnlyEnabledAndExisting().
-                    RemoveModAndDependents(PatchFileName, verbose: true))
+                    RemoveModAndDependents(PatchFileName, verbose: true, _logger))
                     .WithOutputMod(OutputMod)
                 .Build();
             built = true;
@@ -125,7 +127,7 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
 
 public static class LoadOrderExtensions
 {
-    public static IEnumerable<IModListingGetter<ISkyrimModGetter>> RemoveModAndDependents(this IEnumerable<IModListingGetter<ISkyrimModGetter>> listedOrder, string outputModName, bool verbose)
+    public static IEnumerable<IModListingGetter<ISkyrimModGetter>> RemoveModAndDependents(this IEnumerable<IModListingGetter<ISkyrimModGetter>> listedOrder, string outputModName, bool verbose, Logger logger)
     {
         List<IModListingGetter<ISkyrimModGetter>> filteredLoadOrder = new List<IModListingGetter<ISkyrimModGetter>>();
         HashSet<string> removedMods = new HashSet<string>();
@@ -137,7 +139,7 @@ public static class LoadOrderExtensions
 
             if (masterFiles.Contains(outputModName, StringComparer.OrdinalIgnoreCase)) 
             {
-                if (verbose) { Logger.CallTimedLogErrorWithStatusUpdateAsync(mod.ModKey.FileName.String + " will not be patched because it is mastered to a previous version of " + outputModName, ErrorType.Warning, 2); };
+                if (verbose) { logger.CallTimedLogErrorWithStatusUpdateAsync(mod.ModKey.FileName.String + " will not be patched because it is mastered to a previous version of " + outputModName, ErrorType.Warning, 2); };
                 removedMods.Add(mod.ModKey.FileName.String);
                 continue;
             }
@@ -153,7 +155,7 @@ public static class LoadOrderExtensions
             }
             if (isRemovedDependent)
             {
-                if (verbose) { Logger.CallTimedLogErrorWithStatusUpdateAsync(mod.ModKey.FileName + " will not be patched because it is mastered to a mod which is mastered to a previous version of " + outputModName, ErrorType.Warning, 2); }
+                if (verbose) { logger.CallTimedLogErrorWithStatusUpdateAsync(mod.ModKey.FileName + " will not be patched because it is mastered to a mod which is mastered to a previous version of " + outputModName, ErrorType.Warning, 2); }
                 continue;
             }
 

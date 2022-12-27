@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,15 +9,22 @@ namespace SynthEBD
 {
     public class CommonScripts
     {
-        public static void CopyAllToOutputFolder()
+        private readonly SynthEBDPaths _paths;
+        private readonly PatcherIO _patcherIO;
+        public CommonScripts(SynthEBDPaths paths, PatcherIO patcherIO)
         {
-            string sourcePath1 = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "Common Scripts", "SynthEBDcLib.pex");
-            string destPath1 = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDcLib.pex");
-            PatcherIO.TryCopyResourceFile(sourcePath1, destPath1);
+            _paths = paths;
+            _patcherIO = patcherIO;
+        }
+        public void CopyAllToOutputFolder()
+        {
+            string sourcePath1 = Path.Combine(_paths.ResourcesFolderPath, "Common Scripts", "SynthEBDcLib.pex");
+            string destPath1 = Path.Combine(_paths.OutputDataFolder, "Scripts", "SynthEBDcLib.pex");
+            _patcherIO.TryCopyResourceFile(sourcePath1, destPath1);
 
-            string sourcePath2 = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "Common Scripts", "SynthEBDCommonFuncs.pex");
-            string destPath2 = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDCommonFuncs.pex");
-            PatcherIO.TryCopyResourceFile(sourcePath2, destPath2);
+            string sourcePath2 = Path.Combine(_paths.ResourcesFolderPath, "Common Scripts", "SynthEBDCommonFuncs.pex");
+            string destPath2 = Path.Combine(_paths.OutputDataFolder, "Scripts", "SynthEBDCommonFuncs.pex");
+            _patcherIO.TryCopyResourceFile(sourcePath2, destPath2);
         }
     }
 }

@@ -1,58 +1,82 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
+using System.Printing;
 using System.Windows.Input;
+using static SynthEBD.VM_BodyShapeDescriptor;
 
 namespace SynthEBD;
 
 public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
 {
     public delegate VM_BodyGenConfig Factory(ObservableCollection<VM_BodyGenConfig> parentCollection);
-    
+    private readonly VM_AttributeGroupMenu.Factory _attributeGroupMenuFactory;
+    private readonly Logger _logger;
+    private readonly RaceMenuIniHandler _raceMenuHandler;
+    private readonly SettingsIO_BodyGen _bodyGenIO;
+    private readonly VM_BodyShapeDescriptorCreator _descriptorCreator;
+    private readonly VM_BodyGenTemplateMenu.Factory _templateMenuFactory;
+    private readonly VM_BodyGenTemplate.Factory _templateFactory;
     public VM_BodyGenConfig(
         ObservableCollection<VM_BodyGenConfig> parentCollection,
         VM_Settings_General generalSettingsVM,
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
         VM_BodyShapeDescriptorCreationMenu.Factory bodyShapeDescriptorCreationMenuFactory,
-        VM_SettingsBodyGen bodyGenSettingsVM)
+        VM_SettingsBodyGen bodyGenSettingsVM,
+        VM_AttributeGroupMenu.Factory attributeGroupMenuFactory,
+        Logger logger,
+        RaceMenuIniHandler raceMenuHandler,
+        SettingsIO_BodyGen bodyGenIO,
+        VM_BodyShapeDescriptorCreator descriptorCreator,
+        VM_BodyGenTemplateMenu.Factory templateMenuFactory,
+        VM_BodyGenTemplate.Factory templateFactory)
     {
-        this.GroupUI = new VM_BodyGenGroupsMenu(this);
-        this.GroupMappingUI = new VM_BodyGenGroupMappingMenu(this.GroupUI, generalSettingsVM.RaceGroupings);
-        this.DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this);
-        this.TemplateMorphUI = new VM_BodyGenTemplateMenu(this, generalSettingsVM.RaceGroupings);
-        this.DisplayedUI = this.TemplateMorphUI;
-        this.AttributeGroupMenu = new VM_AttributeGroupMenu(generalSettingsVM.AttributeGroupMenu, true);
-        this.ParentCollection = parentCollection;
+        _logger = logger;
+        _raceMenuHandler = raceMenuHandler;
+        _attributeGroupMenuFactory = attributeGroupMenuFactory;
+        _bodyGenIO = bodyGenIO;
+        _descriptorCreator = descriptorCreator;
+        _templateMenuFactory = templateMenuFactory;
+        _templateFactory = templateFactory;
+
+        GroupUI = new VM_BodyGenGroupsMenu(this);
+        GroupMappingUI = new VM_BodyGenGroupMappingMenu(GroupUI, generalSettingsVM.RaceGroupings);
+        DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this);
+        TemplateMorphUI = _templateMenuFactory(this, generalSettingsVM.RaceGroupings);
+        DisplayedUI = TemplateMorphUI;
+        AttributeGroupMenu = _attributeGroupMenuFactory(generalSettingsVM.AttributeGroupMenu, true);
+        MiscMenu = new(_logger, _raceMenuHandler);
+        ParentCollection = parentCollection;
 
         if (TemplateMorphUI.Templates.Any())
         {
             TemplateMorphUI.CurrentlyDisplayedTemplate = TemplateMorphUI.Templates.First();
         }
 
-        ClickTemplateMenu = new SynthEBD.RelayCommand(
+        ClickTemplateMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.DisplayedUI = this.TemplateMorphUI
+            execute: _ => DisplayedUI = TemplateMorphUI
         );
 
-        ClickGroupMappingMenu = new SynthEBD.RelayCommand(
+        ClickGroupMappingMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.DisplayedUI = this.GroupMappingUI
+            execute: _ => DisplayedUI = GroupMappingUI
         );
         ClickDescriptorMenu = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.DisplayedUI = this.DescriptorUI
+            execute: _ => DisplayedUI = DescriptorUI
         );
-        ClickGroupsMenu = new SynthEBD.RelayCommand(
+        ClickGroupsMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.DisplayedUI = this.GroupUI
+            execute: _ => DisplayedUI = GroupUI
         );
-        ClickAttributeGroupsMenu = new SynthEBD.RelayCommand(
+        ClickAttributeGroupsMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.DisplayedUI = this.AttributeGroupMenu
+            execute: _ => DisplayedUI = AttributeGroupMenu
         );
-        ClickMiscMenu = new SynthEBD.RelayCommand(
+        ClickMiscMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.DisplayedUI = this.MiscMenu
+            execute: _ => DisplayedUI = MiscMenu
         );
-        ClickDelete = new SynthEBD.RelayCommand(
+        ClickDelete = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -102,25 +126,25 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
                     }
                     catch
                     {
-                        Logger.LogError("Could not delete file at " + this.SourcePath);
-                        Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not delete BodyGen Config", ErrorType.Error, 5);
+                        _logger.LogError("Could not delete file at " + SourcePath);
+                        _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not delete BodyGen Config", ErrorType.Error, 5);
                     }
                 }
             }
         );
 
-        Save = new SynthEBD.RelayCommand(
+        Save = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
-                SettingsIO_BodyGen.SaveBodyGenConfig(DumpViewModelToModel(this), out bool saveSuccess);
+                _bodyGenIO.SaveBodyGenConfig(DumpViewModelToModel(this), out bool saveSuccess);
                 if (saveSuccess)
                 {
-                    Logger.CallTimedNotifyStatusUpdateAsync(Label + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                    _logger.CallTimedNotifyStatusUpdateAsync(Label + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
                 }
                 else
                 {
-                    Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save " + Label + ".", ErrorType.Error, 5);
+                    _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save " + Label + ".", ErrorType.Error, 5);
                 }
             }
         );
@@ -133,7 +157,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
     public VM_BodyGenTemplateMenu TemplateMorphUI { get; set; }
 
     public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
-    public VM_BodyGenMiscMenu MiscMenu { get; set; } = new();
+    public VM_BodyGenMiscMenu MiscMenu { get; set; }
     public ObservableCollection<VM_BodyGenConfig> ParentCollection { get; set; }
 
     public string SourcePath { get; set; }
@@ -171,12 +195,12 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
             GroupMappingUI.DisplayedMapping = GroupMappingUI.RacialTemplateGroupMap.First();
         }
 
-        DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, generalSettingsVM.RaceGroupings, this);
+        DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, generalSettingsVM.RaceGroupings, this, _descriptorCreator);
 
         foreach (var descriptor in model.TemplateDescriptors)
         {
-            var subVm = new VM_BodyShapeDescriptor(
-                new VM_BodyShapeDescriptorShell(
+            var subVm = _descriptorCreator.CreateNew(
+                _descriptorCreator.CreateNewShell(
                     new ObservableCollection<VM_BodyShapeDescriptorShell>(), generalSettingsVM.RaceGroupings, this),
                 generalSettingsVM.RaceGroupings, 
                 this);
@@ -186,7 +210,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
 
         foreach (var template in model.Templates)
         {
-            var templateVM = new VM_BodyGenTemplate(GroupUI.TemplateGroups, DescriptorUI, generalSettingsVM.RaceGroupings, TemplateMorphUI.Templates, this);
+            var templateVM = _templateFactory(GroupUI.TemplateGroups, DescriptorUI, generalSettingsVM.RaceGroupings, TemplateMorphUI.Templates, this);
             templateVM.CopyInViewModelFromModel(template, DescriptorUI, generalSettingsVM.RaceGroupings);
             TemplateMorphUI.Templates.Add(templateVM);
         }

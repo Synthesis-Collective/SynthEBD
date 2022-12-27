@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Newtonsoft.Json;
 
 namespace SynthEBD;
@@ -70,6 +70,13 @@ public class zEBDSplitBodyGenConfig
 }
 public class zEBDBodyGenConfig
 {
+    private Logger _logger;
+    private Converters _converters;
+    public zEBDBodyGenConfig(Logger logger, Converters converters)
+    {
+        _logger = logger;
+        _converters = converters;
+    }
     public HashSet<racialSettings> racialSettingsFemale { get; set; } = new();
     public HashSet<racialSettings> racialSettingsMale { get; set; } = new();
     public HashSet<BodyGenTemplate> templates { get; set; } = new();
@@ -109,7 +116,7 @@ public class zEBDBodyGenConfig
         public string[] weightRange { get; set; } = new string[] { null, null };
     }
 
-    public static zEBDSplitBodyGenConfig ToSynthEBDConfig(zEBDBodyGenConfig zConfig, List<RaceGrouping> raceGroupings, string filePath)
+    public zEBDSplitBodyGenConfig ToSynthEBDConfig(List<RaceGrouping> raceGroupings, string filePath)
     {
         zEBDSplitBodyGenConfig converted = new zEBDSplitBodyGenConfig();
 
@@ -120,18 +127,18 @@ public class zEBDBodyGenConfig
         HashSet<string> usedFemaleGroups = new HashSet<string>();
 
         // handle female section
-        if (zConfig.racialSettingsFemale.Count > 0)
+        if (racialSettingsFemale.Count > 0)
         {
-            foreach (var rs in zConfig.racialSettingsFemale)
+            foreach (var rs in racialSettingsFemale)
             {
                 converted.Female.RacialTemplateGroupMap.Add(zEBDBodyGenRacialSettingsToSynthEBD(rs, usedFemaleGroups));
             }
 
-            foreach (var zTemplate in zConfig.templates)
+            foreach (var zTemplate in templates)
             {
                 if (zTemplate.gender == "female")
                 {
-                    converted.Female.Templates.Add(zEBDBodyGenRacialTemplateToSynthEBD(zTemplate, raceGroupings, usedFemaleDescriptors));
+                    converted.Female.Templates.Add(ToSynthEBDTemplate(zTemplate, raceGroupings, usedFemaleDescriptors));
                 }
             }
 
@@ -141,18 +148,18 @@ public class zEBDBodyGenConfig
         }
 
         // handle male section
-        if (zConfig.racialSettingsMale.Count > 0)
+        if (racialSettingsMale.Count > 0)
         {
-            foreach (var rs in zConfig.racialSettingsMale)
+            foreach (var rs in racialSettingsMale)
             {
                 converted.Male.RacialTemplateGroupMap.Add(zEBDBodyGenRacialSettingsToSynthEBD(rs, usedMaleGroups));
             }
 
-            foreach (var zTemplate in zConfig.templates)
+            foreach (var zTemplate in templates)
             {
                 if (zTemplate.gender == "male")
                 {
-                    converted.Male.Templates.Add(zEBDBodyGenRacialTemplateToSynthEBD(zTemplate, raceGroupings, usedMaleDescriptors));
+                    converted.Male.Templates.Add(ToSynthEBDTemplate(zTemplate, raceGroupings, usedMaleDescriptors));
                 }
             }
 
@@ -189,7 +196,7 @@ public class zEBDBodyGenConfig
         return newRS;
     }
 
-    public static BodyGenConfig.BodyGenTemplate zEBDBodyGenRacialTemplateToSynthEBD(zEBDBodyGenConfig.BodyGenTemplate zTemplate, List<RaceGrouping> raceGroupings, List<BodyShapeDescriptor.LabelSignature> usedDescriptors)
+    public BodyGenConfig.BodyGenTemplate ToSynthEBDTemplate(BodyGenTemplate zTemplate, List<RaceGrouping> raceGroupings, List<BodyShapeDescriptor.LabelSignature> usedDescriptors)
     {
         BodyGenConfig.BodyGenTemplate newTemplate = new BodyGenConfig.BodyGenTemplate();
 
@@ -199,7 +206,7 @@ public class zEBDBodyGenConfig
         newTemplate.MemberOfTemplateGroups = zTemplate.groups;
         foreach (string d in zTemplate.descriptors)
         {
-            if (BodyShapeDescriptor.LabelSignature.FromString(d, out BodyShapeDescriptor.LabelSignature descriptor))
+            if (BodyShapeDescriptor.LabelSignature.FromString(d, out BodyShapeDescriptor.LabelSignature descriptor, _logger))
             {
                 if (!usedDescriptors.Any(n => n.Equals(descriptor)))
                 {
@@ -259,9 +266,9 @@ public class zEBDBodyGenConfig
             }
         }
 
-        newTemplate.AllowedAttributes = Converters.StringArraysToAttributes(zTemplate.allowedAttributes);
-        newTemplate.DisallowedAttributes = Converters.StringArraysToAttributes(zTemplate.disallowedAttributes);
-        Converters.zEBDForceIfAttributesToAllowed(newTemplate.AllowedAttributes, Converters.StringArraysToAttributes(zTemplate.forceIfAttributes));
+        newTemplate.AllowedAttributes = _converters.StringArraysToAttributes(zTemplate.allowedAttributes);
+        newTemplate.DisallowedAttributes = _converters.StringArraysToAttributes(zTemplate.disallowedAttributes);
+        Converters.ImportzEBDForceIfAttributes(newTemplate.AllowedAttributes, _converters.StringArraysToAttributes(zTemplate.forceIfAttributes));
 
         newTemplate.WeightRange = Converters.StringArrayToWeightRange(zTemplate.weightRange);
 

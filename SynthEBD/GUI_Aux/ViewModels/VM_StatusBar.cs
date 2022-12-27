@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Windows.Media;
 
 namespace SynthEBD;
@@ -10,7 +10,7 @@ public class VM_StatusBar : VM
     public VM_StatusBar(Logger logger)
     {
         _logger = logger;
-        logger.PropertyChanged += RefreshDisp;
+        _logger.PropertyChanged += RefreshDisp;
     }
 
     public string DispString { get; set; } = "";

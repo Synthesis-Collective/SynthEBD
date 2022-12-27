@@ -13,7 +13,19 @@ namespace SynthEBD;
 
 public class ConfigInstaller
 {
-    public static List<string> InstallConfigFile()
+    private readonly Logger _logger;
+    private readonly SynthEBDPaths _paths;
+    private readonly SettingsIO_AssetPack _assetPackIO;
+    private readonly SettingsIO_BodyGen _bodyGenIO;
+
+    public ConfigInstaller(Logger logger, SynthEBDPaths synthEBDPaths, SettingsIO_AssetPack assetPackIO, SettingsIO_BodyGen bodyGenIO)
+    {
+        _logger = logger;
+        _paths = synthEBDPaths;
+        _assetPackIO = assetPackIO;
+        _bodyGenIO = bodyGenIO;
+    }
+    public List<string> InstallConfigFile()
     {
         var installedConfigs = new List<string>();
         if (PatcherSettings.ModManagerIntegration.ModManagerType != ModManager.None && string.IsNullOrWhiteSpace(PatcherSettings.ModManagerIntegration.CurrentInstallationFolder))
@@ -22,7 +34,7 @@ public class ConfigInstaller
             return installedConfigs;
         }
 
-        if (!IO_Aux.SelectFile(PatcherSettings.Paths.AssetPackDirPath, "Archive Files (*.7z;*.zip;*.rar)|*.7z;*.zip;*.rar|" + "All files (*.*)|*.*", "Select config archive", out string path))
+        if (!IO_Aux.SelectFile(_paths.AssetPackDirPath, "Archive Files (*.7z;*.zip;*.rar)|*.7z;*.zip;*.rar|" + "All files (*.*)|*.*", "Select config archive", out string path))
         {
             return installedConfigs;
         }
@@ -35,7 +47,7 @@ public class ConfigInstaller
         }
         catch (Exception ex)
         {
-            Logger.LogError("Could not create or access the temp folder at " + tempFolderPath + ". Details: " + ex.Message);
+            _logger.LogError("Could not create or access the temp folder at " + tempFolderPath + ". Details: " + ex.Message);
             return installedConfigs;
         }
 
@@ -62,7 +74,7 @@ public class ConfigInstaller
         if (!parsed)
         {
             CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse Manifest.json in " + tempFolderPath + ". Installation aborted.");
-            Logger.LogError(exceptionStr);
+            _logger.LogError(exceptionStr);
             return installedConfigs;
         }
         else if (!ValidateManifest(manifest))
@@ -93,7 +105,7 @@ public class ConfigInstaller
         {
             recordTemplatePaths.Add(Path.Combine(tempFolderPath, rtPath));
         }
-        List<SkyrimMod> validationRecordTemplates = SettingsIO_AssetPack.LoadRecordTemplates(recordTemplatePaths, out bool loadSuccess);
+        List<SkyrimMod> validationRecordTemplates = _assetPackIO.LoadRecordTemplates(recordTemplatePaths, out bool loadSuccess);
         if (!loadSuccess)
         {
             CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse all Record Template Plugins at " + string.Join(", ", recordTemplatePaths) + ". Installation aborted.");
@@ -106,7 +118,7 @@ public class ConfigInstaller
         {
             bodyGenConfigPaths.Add(Path.Combine(tempFolderPath, bgPath));
         }
-        BodyGenConfigs validationBG = SettingsIO_BodyGen.LoadBodyGenConfigs(bodyGenConfigPaths.ToArray(), PatcherSettings.General.RaceGroupings, out loadSuccess);
+        BodyGenConfigs validationBG = _bodyGenIO.LoadBodyGenConfigs(bodyGenConfigPaths.ToArray(), PatcherSettings.General.RaceGroupings, out loadSuccess);
         if (!loadSuccess)
         {
             CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse all BodyGen configs at " + string.Join(", ", bodyGenConfigPaths) + ". Installation aborted.");
@@ -124,14 +136,14 @@ public class ConfigInstaller
         foreach (var configPath in manifest.AssetPackPaths)
         {
             string extractedPath = Path.Combine(tempFolderPath, configPath);
-            var validationAP = SettingsIO_AssetPack.LoadAssetPack(extractedPath, PatcherSettings.General.RaceGroupings, validationRecordTemplates, validationBG, out loadSuccess);
+            var validationAP = _assetPackIO.LoadAssetPack(extractedPath, PatcherSettings.General.RaceGroupings, validationRecordTemplates, validationBG, out loadSuccess);
             if (!loadSuccess)
             {
                 CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse Asset Pack " + configPath + ". Installation aborted.");
                 continue;
             }
 
-            string destinationPath = Path.Combine(PatcherSettings.Paths.AssetPackDirPath, validationAP.GroupName + ".json");
+            string destinationPath = Path.Combine(_paths.AssetPackDirPath, validationAP.GroupName + ".json");
 
             if (!HandleLongFilePaths(validationAP, manifest, out assetPathMapping))
             {
@@ -141,7 +153,7 @@ public class ConfigInstaller
             if (!File.Exists(destinationPath))
             {
                 validationAP.FilePath = destinationPath;
-                SettingsIO_AssetPack.SaveAssetPack(validationAP, out bool saveSuccess); // save as Json instead of moving in case the referenced paths were modified by HandleLongFilePaths()
+                _assetPackIO.SaveAssetPack(validationAP, out bool saveSuccess); // save as Json instead of moving in case the referenced paths were modified by HandleLongFilePaths()
                 if (!saveSuccess)
                 {
                     CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not save Asset Pack to " + destinationPath + ". Installation aborted.");
@@ -157,26 +169,13 @@ public class ConfigInstaller
             referencedFilePaths.UnionWith(GetAssetPackSourcePaths(validationAP));
 
             installedConfigs.Add(validationAP.GroupName);
-
-            /*
-            //test
-            var referencedPaths = GetAssetPackSourcePaths(validationAP.Subgroups, new HashSet<string>());
-            SimulatedDirectory testDir = new SimulatedDirectory(manifest.DestinationModFolder);
-            foreach (var p in referencedPaths)
-            {
-                SimulatedDirectory.CreateFile(testDir, p);
-            }
-            string debug = "";
-            //end test
-            */
-            //}
         }
         #endregion
 
         #region move bodygen configs
         foreach (var bgPath in manifest.BodyGenConfigPaths)
         {
-            string destPath = Path.Combine(PatcherSettings.Paths.BodyGenConfigDirPath, Path.GetFileName(bgPath));
+            string destPath = Path.Combine(_paths.BodyGenConfigDirPath, Path.GetFileName(bgPath));
             if (!File.Exists(destPath))
             {
                 string sourcePath = Path.Combine(tempFolderPath, bgPath);
@@ -199,7 +198,7 @@ public class ConfigInstaller
         #region Move record templates
         foreach (var templatePath in manifest.RecordTemplatePaths)
         {
-            string destPath = Path.Combine(PatcherSettings.Paths.RecordTemplatesDirPath, Path.GetFileName(templatePath));
+            string destPath = Path.Combine(_paths.RecordTemplatesDirPath, Path.GetFileName(templatePath));
             if (!File.Exists(destPath))
             {
                 string sourcePath = Path.Combine(tempFolderPath, templatePath);
@@ -226,16 +225,16 @@ public class ConfigInstaller
 
         #region move dependency files
 
-        //System.Windows.Application.Current.Dispatcher.InvokeAsync(async () => await Logger.ArchiveStatusAsync());
-        //_ = Logger.ArchiveStatusAsync();
-        //System.Windows.Application.Current.Dispatcher.InvokeAsync(async () => await Logger.UpdateStatusAsync("Extracting mods - please wait.", false));
-        //_ = Logger.UpdateStatusAsync("Extracting mods - please wait.", false);
+        //System.Windows.Application.Current.Dispatcher.InvokeAsync(async () => await _logger.ArchiveStatusAsync());
+        //_ = _logger.ArchiveStatusAsync();
+        //System.Windows.Application.Current.Dispatcher.InvokeAsync(async () => await _logger.UpdateStatusAsync("Extracting mods - please wait.", false));
+        //_ = _logger.UpdateStatusAsync("Extracting mods - please wait.", false);
         foreach(string dependencyArchive in installerVM.DownloadMenu.DownloadInfo.Select(x => x.Path))
         {
             ExtractArchiveNew(dependencyArchive, tempFolderPath, false);
         }
-        //System.Windows.Application.Current.Dispatcher.InvokeAsync(async () => await Logger.UnarchiveStatusAsync());
-        //_ = Logger.DeArchiveStatusAsync();
+        //System.Windows.Application.Current.Dispatcher.InvokeAsync(async () => await _logger.UnarchiveStatusAsync());
+        //_ = _logger.DeArchiveStatusAsync();
 
         List<string> missingFiles = new List<string>();
         Dictionary<string, string> reversedAssetPathMapping = new Dictionary<string, string>();
@@ -276,7 +275,7 @@ public class ConfigInstaller
                     catch (Exception ex)
                     {
                         assetPathCopyErrors = true;
-                        Logger.LogError("Could not create or access directory " + destinationFullPath + ": " + ex.Message);
+                        _logger.LogError("Could not create or access directory " + destinationFullPath + ": " + ex.Message);
                     }
 
                     try
@@ -286,7 +285,7 @@ public class ConfigInstaller
                     catch (Exception ex)
                     {
                         assetPathCopyErrors = true;
-                        Logger.LogError("Could not move " + extractedFullPath + " to " + destinationFullPath + ": " + ex.Message);
+                        _logger.LogError("Could not move " + extractedFullPath + " to " + destinationFullPath + ": " + ex.Message);
                     }
                 }
             }
@@ -311,7 +310,7 @@ public class ConfigInstaller
                     catch (Exception ex)
                     {
                         assetPathCopyErrors = true;
-                        Logger.LogError("Could not create or access directory " + destinationFullPath + ": " + ex.Message);
+                        _logger.LogError("Could not create or access directory " + destinationFullPath + ": " + ex.Message);
                     }
 
                     try
@@ -321,7 +320,7 @@ public class ConfigInstaller
                     catch (Exception ex)
                     {
                         assetPathCopyErrors = true;
-                        Logger.LogError("Could not move " + extractedFullPath + " to " + destinationFullPath + ": " + ex.Message);
+                        _logger.LogError("Could not move " + extractedFullPath + " to " + destinationFullPath + ": " + ex.Message);
                     }
                 }
             }
@@ -397,11 +396,11 @@ public class ConfigInstaller
         return true;
     }
 
-    private static bool ExtractArchiveNew(string archivePath, string destinationPath, bool hideWindow)
+    private bool ExtractArchiveNew(string archivePath, string destinationPath, bool hideWindow)
     {
         try
         {
-            var sevenZipPath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "7Zip",
+            var sevenZipPath = Path.Combine(_paths.ResourcesFolderPath, "7Zip",
                         Environment.Is64BitProcess ? "x64" : "x86", "7za.exe");
 
             ProcessStartInfo pro = new ProcessStartInfo();

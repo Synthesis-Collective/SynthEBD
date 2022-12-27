@@ -5,31 +5,57 @@ namespace SynthEBD;
 
 public class VM_SpecificNPCAssignmentsUI : VM
 {
+    private readonly Logger _logger;
+    private readonly SynthEBDPaths _paths;
+    private readonly VM_SpecificNPCAssignment.Factory _specificNpcAssignmentFactory;
+    private readonly VM_SettingsTexMesh _texMeshSettings;
+    private readonly VM_SettingsBodyGen _bodyGenSettings; 
+    private readonly VM_Settings_Headparts _headPartSettings;
+    private readonly VM_AssetPack.Factory _assetPackFactory;
+    private readonly Converters _converters;
+    private readonly SettingsIO_SpecificNPCAssignments _specificAssignmentIO;
+    private readonly SettingsIO_BodyGen _bodyGenIO;
+
     public VM_SpecificNPCAssignmentsUI(
         VM_SettingsTexMesh texMeshSettings,
         VM_SettingsBodyGen bodyGenSettings, 
         VM_Settings_General generalSettingsVM,
         VM_Settings_Headparts headPartSettings,
         VM_AssetPack.Factory assetPackFactory, 
-        VM_SpecificNPCAssignment.Factory specificNpcAssignmentFactory)
+        VM_SpecificNPCAssignment.Factory specificNpcAssignmentFactory,
+        Logger logger,
+        Converters converters,
+        SettingsIO_SpecificNPCAssignments specificAssignmentIO,
+        SettingsIO_BodyGen bodyGenIO)
     {
-        this.BodyGenSettings = bodyGenSettings;
-        this.TexMeshSettings = texMeshSettings;
-        this.SubscribedGeneralSettings = generalSettingsVM;
+        _logger = logger;
+        _converters = converters;
+        _specificAssignmentIO = specificAssignmentIO;
+        _bodyGenIO = bodyGenIO;
+        _specificNpcAssignmentFactory = specificNpcAssignmentFactory;
+        _assetPackFactory = assetPackFactory;
 
-        AddAssignment = new SynthEBD.RelayCommand(
+        _texMeshSettings = texMeshSettings;
+        _bodyGenSettings = bodyGenSettings;
+        _headPartSettings = headPartSettings;
+
+        BodyGenSettings = bodyGenSettings;
+        TexMeshSettings = texMeshSettings;
+        SubscribedGeneralSettings = generalSettingsVM;
+
+        AddAssignment = new RelayCommand(
             canExecute: _ => true,
             execute: _ => this.Assignments.Add(specificNpcAssignmentFactory())
         );
 
-        RemoveAssignment = new SynthEBD.RelayCommand(
+        RemoveAssignment = new RelayCommand(
             canExecute: _ => true,
             execute: x => this.Assignments.Remove((VM_SpecificNPCAssignment)x)
         );
 
-        ImportFromZEBDcommand = new SynthEBD.RelayCommand(
+        ImportFromZEBDcommand = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => ImportFromZEBD(assetPackFactory, texMeshSettings, bodyGenSettings, headPartSettings, specificNpcAssignmentFactory)
+            execute: _ => ImportFromZEBD()
         );
 
         ImportBodyGenMorphsIni = new SynthEBD.RelayCommand(
@@ -43,7 +69,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
                         return;
                     }
 
-                    var assignmentTuples = SettingsIO_BodyGen.LoadMorphsINI(morphsPath);
+                    var assignmentTuples = _bodyGenIO.LoadMorphsINI(morphsPath);
                     foreach (var assignment in assignmentTuples)
                     {
                         if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<INpcGetter>(assignment.Item1, out var npcGetter))
@@ -77,12 +103,12 @@ public class VM_SpecificNPCAssignmentsUI : VM
 
                             if (morphs.Any())
                             {
-                                var specificAssignment = this.Assignments.FirstOrDefault(x => x.NPCFormKey.Equals(assignment.Item1));
+                                var specificAssignment = Assignments.FirstOrDefault(x => x.NPCFormKey.Equals(assignment.Item1));
                                 if (specificAssignment == null)
                                 {
                                     specificAssignment = specificNpcAssignmentFactory();
                                     specificAssignment.NPCFormKey = assignment.Item1;
-                                    specificAssignment.DispName = Converters.CreateNPCDispNameFromFormKey(assignment.Item1);
+                                    specificAssignment.DispName = _converters.CreateNPCDispNameFromFormKey(assignment.Item1);
                                     Assignments.Add(specificAssignment);
                                 }
                                 foreach (var morph in morphs) { specificAssignment.ForcedBodyGenMorphs.Add(morph); }
@@ -93,20 +119,20 @@ public class VM_SpecificNPCAssignmentsUI : VM
             }
         );
 
-        Save = new SynthEBD.RelayCommand(
+        Save = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
                 HashSet<NPCAssignment> modelsToSave = new HashSet<NPCAssignment>();
                 DumpViewModelToModels(this, modelsToSave);
-                SettingsIO_SpecificNPCAssignments.SaveAssignments(modelsToSave, out bool saveSuccess);
+                _specificAssignmentIO.SaveAssignments(modelsToSave, out bool saveSuccess);
                 if (saveSuccess)
                 {
-                    Logger.CallTimedNotifyStatusUpdateAsync("Specific NPC Assignments Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                    _logger.CallTimedNotifyStatusUpdateAsync("Specific NPC Assignments Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
                 }
                 else
                 {
-                    Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Specific NPC Assignments.", ErrorType.Error, 5);
+                    _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Specific NPC Assignments.", ErrorType.Error, 5);
                 }
             }
         );
@@ -138,13 +164,14 @@ public class VM_SpecificNPCAssignmentsUI : VM
         VM_Settings_Headparts headParts,
         VM_SpecificNPCAssignment.Factory specificNpcAssignmentFactory,
         VM_SpecificNPCAssignmentsUI viewModel, 
-        HashSet<NPCAssignment> models)
+        HashSet<NPCAssignment> models,
+        Logger logger,
+        Converters converters)
     {
         viewModel.Assignments.Clear();
         foreach (var assignment in models)
         {
-            viewModel.Assignments.Add(
-                VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, assetPackFactory, texMesh, bodyGen, headParts, specificNpcAssignmentFactory));
+            viewModel.Assignments.Add(VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, assetPackFactory, texMesh, bodyGen, headParts, specificNpcAssignmentFactory, logger, converters));
         }
     }
 
@@ -153,16 +180,11 @@ public class VM_SpecificNPCAssignmentsUI : VM
         models.Clear();
         foreach (var vm in viewModel.Assignments.Where(x => x is not null)) // null check needed for when user leaves blank specific assignment
         {
-            models.Add(VM_SpecificNPCAssignment.DumpViewModelToModel(vm));
+            models.Add(vm.DumpViewModelToModel());
         }
     }
 
-    public void ImportFromZEBD(
-        VM_AssetPack.Factory assetPackFactory, 
-        VM_SettingsTexMesh texMesh,
-        VM_SettingsBodyGen bodyGen,
-        VM_Settings_Headparts headparts,
-        VM_SpecificNPCAssignment.Factory specificNpcAssignmentFactory)
+    public void ImportFromZEBD()
     {
         // Configure open file dialog box
         var dialog = new Microsoft.Win32.OpenFileDialog();
@@ -182,11 +204,11 @@ public class VM_SpecificNPCAssignmentsUI : VM
             var zSpecificNPCAssignments = JSONhandler<HashSet<zEBDSpecificNPCAssignment>>.LoadJSONFile(filename, out bool loadSuccess, out string exceptionStr);
             if (loadSuccess)
             {
-                var newModels = zEBDSpecificNPCAssignment.ToSynthEBDNPCAssignments(zSpecificNPCAssignments);
+                var newModels = zEBDSpecificNPCAssignment.ToSynthEBDNPCAssignments(zSpecificNPCAssignments, _logger, _converters);
 
                 foreach (var model in newModels)
                 {
-                    var assignmentVM = VM_SpecificNPCAssignment.GetViewModelFromModel(model, assetPackFactory, texMesh, bodyGen, headparts, specificNpcAssignmentFactory);
+                    var assignmentVM = VM_SpecificNPCAssignment.GetViewModelFromModel(model, _assetPackFactory, _texMeshSettings, _bodyGenSettings, _headPartSettings, _specificNpcAssignmentFactory, _logger, _converters);
                     if (assignmentVM != null) // null if the imported NPC doesn't exist in the current load order
                     {
                         this.Assignments.Add(assignmentVM);
@@ -195,7 +217,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
             }
             else
             {
-                Logger.LogError("Could not parse zEBD Specific NPC Assignments. Error: " + exceptionStr);
+                _logger.LogError("Could not parse zEBD Specific NPC Assignments. Error: " + exceptionStr);
             }
         }
     }

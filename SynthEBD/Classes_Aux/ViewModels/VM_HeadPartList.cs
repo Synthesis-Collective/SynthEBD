@@ -9,21 +9,37 @@ using System.Reactive;
 using System.Reactive.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD
 {
     public class VM_HeadPartList : VM
     {
-        public VM_HeadPartList(HeadPart.TypeEnum type, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig, VM_SettingsOBody oBody)
+        private readonly Logger _logger;
+        private readonly VM_Settings_Headparts _headPartMenuVM;
+        private readonly VM_NPCAttributeCreator _attributeCreator;
+        private readonly VM_SettingsOBody _oBodySettings;
+        private readonly VM_HeadPart.Factory _headPartFactory;
+        private readonly VM_HeadPartCategoryRules.Factory _headPartCategoryRulesFactory;
+        private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
+        public delegate VM_HeadPartList Factory(HeadPart.TypeEnum type, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig);
+        public VM_HeadPartList(HeadPart.TypeEnum type, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts headPartMenuVM, VM_SettingsOBody oBodyMenuVM, VM_NPCAttributeCreator attributeCreator, Logger logger, VM_HeadPart.Factory headPartFactory, VM_HeadPartCategoryRules.Factory headPartCategoryRulesFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
+            _logger = logger;
+            _headPartMenuVM = headPartMenuVM;
+            _attributeCreator = attributeCreator;
+            _oBodySettings = oBodyMenuVM;
+            _headPartFactory = headPartFactory;
+            _headPartCategoryRulesFactory = headPartCategoryRulesFactory;
+            _descriptorSelectionFactory = descriptorSelectionFactory;
+
             HeadPartType = type;
-            DisplayedRuleSet = new(raceGroupingVMs, parentConfig, oBody);
+            DisplayedRuleSet = _headPartCategoryRulesFactory(raceGroupingVMs, headPartMenuVM);
 
             Alphabetizer = new(HeadPartList, x => x.Label, new(System.Windows.Media.Colors.MediumPurple));
 
             this.WhenAnyValue(x => x.GenderToggle).Subscribe(x => UpdateList());
             HeadPartList.ToObservableChangeSet().Subscribe(_ => UpdateList());
-
         }
 
         public ObservableCollection<VM_HeadPart> HeadPartList { get; set; } = new();
@@ -46,14 +62,14 @@ namespace SynthEBD
             }
         }
 
-        public void CopyInFromModel(Settings_HeadPartType model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AttributeGroupMenu attributeGroupMenu, VM_Settings_Headparts parentConfig, VM_SettingsOBody oBody)
+        public void CopyInFromModel(Settings_HeadPartType model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AttributeGroupMenu attributeGroupMenu)
         {
             foreach (var hp in model.HeadParts)
             {
-                HeadPartList.Add(VM_HeadPart.GetViewModelFromModel(hp, raceGroupingVMs, attributeGroupMenu, oBody.DescriptorUI, parentConfig, HeadPartList));
+                HeadPartList.Add(VM_HeadPart.GetViewModelFromModel(hp, _headPartFactory, raceGroupingVMs, attributeGroupMenu, _oBodySettings.DescriptorUI, _headPartMenuVM, HeadPartList, _attributeCreator, _logger, _descriptorSelectionFactory));
             }
 
-            DisplayedRuleSet = VM_HeadPartCategoryRules.GetViewModelFromModel(model, raceGroupingVMs, attributeGroupMenu, parentConfig, oBody);
+            DisplayedRuleSet = VM_HeadPartCategoryRules.GetViewModelFromModel(model, raceGroupingVMs, attributeGroupMenu, _headPartMenuVM, _oBodySettings, _attributeCreator, _logger, _headPartCategoryRulesFactory, _descriptorSelectionFactory);
         }
 
         public void DumpToModel(Settings_HeadPartType model)

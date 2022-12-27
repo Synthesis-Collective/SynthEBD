@@ -1,18 +1,27 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
 using ReactiveUI;
+using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD;
 
 public class VM_BodyShapeDescriptorRules : VM
 {
-    public VM_BodyShapeDescriptorRules(VM_BodyShapeDescriptor descriptor, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
+    private Logger _logger;
+    private VM_NPCAttributeCreator _attributeCreator;
+    private AttributeMatcher _attributeMatcher;
+    public delegate VM_BodyShapeDescriptorRules Factory(VM_BodyShapeDescriptor descriptor, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig);
+    public VM_BodyShapeDescriptorRules(VM_BodyShapeDescriptor descriptor, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, Logger logger, VM_NPCAttributeCreator creator, AttributeMatcher attributeMatcher)
     {
-        this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
-        this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+        _logger = logger;
+        _attributeCreator = creator;
+        _attributeMatcher = attributeMatcher;
+
+        AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+        DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
         ParentConfig = parentConfig;
         
@@ -20,14 +29,14 @@ public class VM_BodyShapeDescriptorRules : VM
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-        AddAllowedAttribute = new SynthEBD.RelayCommand(
+        AddAllowedAttribute = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.AllowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.AllowedAttributes, true, null, ParentConfig.AttributeGroupMenu.Groups))
+            execute: _ => AllowedAttributes.Add(_attributeCreator.CreateNewFromUI(this.AllowedAttributes, true, null, ParentConfig.AttributeGroupMenu.Groups))
         );
 
-        AddDisallowedAttribute = new SynthEBD.RelayCommand(
+        AddDisallowedAttribute = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.DisallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.DisallowedAttributes, false, null, ParentConfig.AttributeGroupMenu.Groups))
+            execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(this.DisallowedAttributes, false, null, ParentConfig.AttributeGroupMenu.Groups))
         );
     }
 
@@ -42,10 +51,7 @@ public class VM_BodyShapeDescriptorRules : VM
     public bool bAllowRandom { get; set; } = true;
     public double ProbabilityWeighting { get; set; } = 1;
     public NPCWeightRange WeightRange { get; set; } = new();
-
     IHasAttributeGroupMenu ParentConfig { get; set; }
-
-    
     public ILinkCache lk { get; private set; }
     
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
@@ -78,8 +84,8 @@ public class VM_BodyShapeDescriptorRules : VM
             else { grouping.IsSelected = false; }
         }
 
-        AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null);
-        DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null);
+        AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null, _attributeCreator, _logger);
+        DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null, _attributeCreator, _logger);
         foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
         bAllowUnique = model.AllowUnique;
         bAllowNonUnique = model.AllowNonUnique;
@@ -88,20 +94,20 @@ public class VM_BodyShapeDescriptorRules : VM
         WeightRange = model.WeightRange;
     }
 
-    public static BodyShapeDescriptorRules DumpViewModelToModel(VM_BodyShapeDescriptorRules viewModel)
+    public BodyShapeDescriptorRules DumpViewModelToModel()
     {
-        BodyShapeDescriptorRules model = new BodyShapeDescriptorRules();
-        model.AllowedRaces = viewModel.AllowedRaces.ToHashSet();
-        model.AllowedRaceGroupings = viewModel.AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
-        model.DisallowedRaces = viewModel.DisallowedRaces.ToHashSet();
-        model.DisallowedRaceGroupings = viewModel.DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
-        model.AllowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.AllowedAttributes);
-        model.DisallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.DisallowedAttributes);
-        model.AllowUnique = viewModel.bAllowUnique;
-        model.AllowNonUnique = viewModel.bAllowNonUnique;
-        model.AllowRandom = viewModel.bAllowRandom;
-        model.ProbabilityWeighting = viewModel.ProbabilityWeighting;
-        model.WeightRange = viewModel.WeightRange;
+        BodyShapeDescriptorRules model = new BodyShapeDescriptorRules(_attributeMatcher);
+        model.AllowedRaces = AllowedRaces.ToHashSet();
+        model.AllowedRaceGroupings = AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
+        model.DisallowedRaces = DisallowedRaces.ToHashSet();
+        model.DisallowedRaceGroupings = DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
+        model.AllowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(AllowedAttributes);
+        model.DisallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(DisallowedAttributes);
+        model.AllowUnique = bAllowUnique;
+        model.AllowNonUnique = bAllowNonUnique;
+        model.AllowRandom = bAllowRandom;
+        model.ProbabilityWeighting = ProbabilityWeighting;
+        model.WeightRange = WeightRange;
         return model;
     }
 }

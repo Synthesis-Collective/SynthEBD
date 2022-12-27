@@ -13,13 +13,55 @@ public class Patcher
     private readonly VM_StatusBar _statusBar;
     private readonly CombinationLog _combinationLog;
     private readonly PatcherEnvironmentProvider _environmentProvider;
+    private readonly SynthEBDPaths _paths;
+    private readonly Logger _logger;
+    private readonly AssetAndBodyShapeSelector _assetAndBodyShapeSelector;
+    private readonly AssetSelector _assetSelector;
+    private readonly RecordGenerator _recordGenerator;
+    private readonly RecordPathParser _recordPathParser;
+    private readonly BodyGenSelector _bodyGenSelector;
+    private readonly BodyGenWriter _bodyGenWriter;
+    private readonly HeightPatcher _heightPatcher;
+    private readonly OBodySelector _oBodySelector;
+    private readonly OBodyWriter _oBodyWriter;
+    private readonly HeadPartSelector _headPartSelector;
+    private readonly HeadPartWriter _headPartWriter;
+    private readonly CommonScripts _commonScripts;
+    private readonly EBDScripts _EBDScripts;
+    private readonly JContainersDomain _jContainersDomain;
+    private readonly QuestInit _questInit;
+    private readonly DictionaryMapper _dictionaryMapper;
+    private readonly UpdateHandler _updateHandler;
+    private readonly MiscValidation _miscValidation;
+    private readonly PatcherIO _patcherIO;
 
-    public Patcher(MainState state, VM_StatusBar statusBar, CombinationLog combinationLog, PatcherEnvironmentProvider environmentProvider)
+    public Patcher(MainState state, VM_StatusBar statusBar, CombinationLog combinationLog, PatcherEnvironmentProvider environmentProvider, SynthEBDPaths paths, Logger logger, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO)
     {
         _state = state;
         _statusBar = statusBar;
         _combinationLog = combinationLog;
         _environmentProvider = environmentProvider;
+        _paths = paths;
+        _logger = logger;
+        _assetAndBodyShapeSelector = assetAndBodyShapeSelector;
+        _assetSelector = assetSelector;
+        _recordGenerator = recordGenerator;
+        _recordPathParser = recordPathParser;
+        _bodyGenSelector = bodyGenSelector;
+        _bodyGenWriter = bodyGenWriter;
+        _heightPatcher = heightPatcher;
+        _oBodySelector = oBodySelector;
+        _oBodyWriter = oBodyWriter;
+        _headPartSelector = headPartSelector;
+        _headPartWriter = headPartWriter;
+        _commonScripts = commonScripts;
+        _EBDScripts = ebdScripts;
+        _jContainersDomain = jContainersDomain;
+        _questInit = questInit;
+        _dictionaryMapper = dictionaryMapper;
+        _updateHandler = updateHandler;
+        _miscValidation = miscValidation;    
+        _patcherIO = patcherIO;
     }
 
     //Synchronous version for debugging only
@@ -36,16 +78,16 @@ public class Patcher
         HashSet<INpcGetter> skippedLinkedNPCs = new HashSet<INpcGetter>();
 
         // Script copying: All scripts are copied to the output folder even if the respective patcher functionality is unused. Script activity is controlled by a global variable. This prevents potential nastiness from missing script files if user toggles patcher functionalities
-        CommonScripts.CopyAllToOutputFolder();
-        OBodyWriter.CopyBodySlideScript();
-        HeadPartWriter.CopyHeadPartScript();
-        JContainersDomain.CreateSynthEBDDomain();
-        QuestInit.WriteQuestSeqFile();
+        _commonScripts.CopyAllToOutputFolder();
+        _oBodyWriter.CopyBodySlideScript();
+        _headPartWriter.CopyHeadPartScript();
+        _jContainersDomain.CreateSynthEBDDomain();
+        _questInit.WriteQuestSeqFile();
 
         // UI Pre-patching tasks:
-        Logger.UpdateStatus("Patching", false);
-        Logger.StartTimer();
-        Logger.Instance.PatcherExecutionStart = DateTime.Now;
+        _logger.UpdateStatus("Patching", false);
+        _logger.StartTimer();
+        _logger.PatcherExecutionStart = DateTime.Now;
         _statusBar.IsPatching = true;
 
         // Asset Pre-patching tasks:
@@ -58,14 +100,14 @@ public class Patcher
         {
             UpdateRecordTemplateAdditonalRaces(assetPacks, _state.RecordTemplateLinkCache, _state.RecordTemplatePlugins);
             HashSet<FlattenedAssetPack> flattenedAssetPacks = new HashSet<FlattenedAssetPack>();
-            flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x)).ToHashSet();
+            flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x, _dictionaryMapper)).ToHashSet();
             PathTrimmer.TrimFlattenedAssetPacks(flattenedAssetPacks, PatcherSettings.TexMesh.TrimPaths.ToHashSet());
             availableAssetPacks = new CategorizedFlattenedAssetPacks(flattenedAssetPacks);
 
             EBDCoreRecords.CreateCoreRecords(outputMod, out EBDFaceKW, out EBDScriptKW, out EBDHelperSpell);
             ApplyRacialSpell.ApplySpell(outputMod, EBDHelperSpell);
 
-            if (PatcherSettings.TexMesh.bApplyFixedScripts) { EBDScripts.ApplyFixedScripts(); }
+            if (PatcherSettings.TexMesh.bApplyFixedScripts) { _EBDScripts.ApplyFixedScripts(); }
 
             RecordGenerator.Reinitialize();
             _combinationLog.Reinitialize();
@@ -78,14 +120,14 @@ public class Patcher
         BodyGenTracker = new BodyGenAssignmentTracker();
 
         // BodySlide Pre-patching tasks:
-        OBodyWriter.ClearOutputForJsonMode();
+        _oBodyWriter.ClearOutputForJsonMode();
         var gEnableBodySlideScript = outputMod.Globals.AddNewShort();
         gEnableBodySlideScript.EditorID = "SynthEBD_BodySlideScriptActive";
         gEnableBodySlideScript.Data = 0; // default to 0; patcher will change later if one of several conditions are met
         var gBodySlideVerboseMode = outputMod.Globals.AddNewShort();
         gBodySlideVerboseMode.EditorID = "SynthEBD_BodySlideVerboseMode";
         gBodySlideVerboseMode.Data = Convert.ToInt16(PatcherSettings.OBody.bUseVerboseScripts);
-        OBodyWriter.CreateBodySlideLoaderQuest(outputMod, gEnableBodySlideScript, gBodySlideVerboseMode);
+        _oBodyWriter.CreateBodySlideLoaderQuest(outputMod, gEnableBodySlideScript, gBodySlideVerboseMode);
         Spell bodySlideAssignmentSpell = OBodyWriter.CreateOBodyAssignmentSpell(outputMod, gBodySlideVerboseMode);
 
         // Mutual BodyGen/BodySlide Pre-patching tasks:
@@ -94,11 +136,11 @@ public class Patcher
         string serializatonException, deserializationException;
 
         BodyGenConfigs copiedBodyGenConfigs = JSONhandler<BodyGenConfigs>.Deserialize(JSONhandler<BodyGenConfigs>.Serialize(_state.BodyGenConfigs, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
-        if (!serializationSuccess) { Logger.LogMessage("Error serializing BodyGen configs. Exception: " + serializatonException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
-        if (!deserializationSuccess) { Logger.LogMessage("Error deserializing BodyGen configs. Exception: " + deserializationException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
+        if (!serializationSuccess) { _logger.LogMessage("Error serializing BodyGen configs. Exception: " + serializatonException); _logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
+        if (!deserializationSuccess) { _logger.LogMessage("Error deserializing BodyGen configs. Exception: " + deserializationException); _logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
         Settings_OBody copiedOBodySettings = JSONhandler<Settings_OBody>.Deserialize(JSONhandler<Settings_OBody>.Serialize(PatcherSettings.OBody, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
-        if (!serializationSuccess) { Logger.LogMessage("Error serializing OBody Settings. Exception: " + serializatonException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
-        if (!deserializationSuccess) { Logger.LogMessage("Error deserializing OBody Settings. Exception: " + deserializationException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
+        if (!serializationSuccess) { _logger.LogMessage("Error serializing OBody Settings. Exception: " + serializatonException); _logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
+        if (!deserializationSuccess) { _logger.LogMessage("Error deserializing OBody Settings. Exception: " + deserializationException); _logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
         copiedOBodySettings.CurrentlyExistingBodySlides = PatcherSettings.OBody.CurrentlyExistingBodySlides; // JSONIgnored so doesn't get serialized/deserialized
 
         if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
@@ -118,14 +160,14 @@ public class Patcher
 
             if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.AutoBody && PatcherSettings.OBody.AutoBodySelectionMode == AutoBodySelectionMode.INI)
             {
-                OBodyWriter.ClearOutputForIniMode();
+                _oBodyWriter.ClearOutputForIniMode();
             }
             else
             {
                 //OBodyWriter.WriteBodySlideSPIDIni(bodySlideAssignmentSpell, copiedOBodySettings, outputMod);
-                UpdateHandler.CleanSPIDiniOBody();
+                _updateHandler.CleanSPIDiniOBody();
                 ApplyRacialSpell.ApplySpell(outputMod, bodySlideAssignmentSpell);
-                UpdateHandler.CleanOldBodySlideDict();
+                _updateHandler.CleanOldBodySlideDict();
                 gEnableBodySlideScript.Data = 1;
             }
         }
@@ -137,16 +179,16 @@ public class Patcher
             currentHeightConfig = _state.HeightConfigs.Where(x => x.Label == PatcherSettings.Height.SelectedHeightConfig).FirstOrDefault();
             if (currentHeightConfig == null)
             {
-                Logger.LogError("Could not find selected Height Config:" + PatcherSettings.Height.SelectedHeightConfig + ". Heights will not be assigned.");
+                _logger.LogError("Could not find selected Height Config:" + PatcherSettings.Height.SelectedHeightConfig + ". Heights will not be assigned.");
             }
             else
             {
-                HeightPatcher.AssignRacialHeight(currentHeightConfig, outputMod);
+                _heightPatcher.AssignRacialHeight(currentHeightConfig, outputMod);
             }
         }
 
         // HeadPart Pre-patching tasks:
-        HeadPartWriter.CleanPreviousOutputs();
+        _headPartWriter.CleanPreviousOutputs();
         var gEnableHeadParts = outputMod.Globals.AddNewShort();
         gEnableHeadParts.EditorID = "SynthEBD_HeadPartScriptActive";
         gEnableHeadParts.Data = 0; // default to 0; patcher will change later if one of several conditions are met
@@ -154,15 +196,15 @@ public class Patcher
         gHeadpartsVerboseMode.EditorID = "SynthEBD_HeadPartsVerboseMode";
         gHeadpartsVerboseMode.Data = Convert.ToInt16(PatcherSettings.HeadParts.bUseVerboseScripts);
 
-        HeadPartWriter.CreateHeadPartLoaderQuest(outputMod, gEnableHeadParts, gHeadpartsVerboseMode);
+        _headPartWriter.CreateHeadPartLoaderQuest(outputMod, gEnableHeadParts, gHeadpartsVerboseMode);
         Spell headPartAssignmentSpell = HeadPartWriter.CreateHeadPartAssignmentSpell(outputMod, gHeadpartsVerboseMode);
         //HeadPartWriter.WriteHeadPartSPIDIni(headPartAssignmentSpell);
-        UpdateHandler.CleanSPIDiniHeadParts();
+        _updateHandler.CleanSPIDiniHeadParts();
         ApplyRacialSpell.ApplySpell(outputMod, headPartAssignmentSpell);
 
         var copiedHeadPartSettings = JSONhandler<Settings_Headparts>.Deserialize(JSONhandler<Settings_Headparts>.Serialize(PatcherSettings.HeadParts, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
-        if (!serializationSuccess) { Logger.LogMessage("Error serializing Head Part configs. Exception: " + serializatonException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
-        if (!deserializationSuccess) { Logger.LogMessage("Error deserializing Head Part configs. Exception: " + deserializationException); Logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
+        if (!serializationSuccess) { _logger.LogMessage("Error serializing Head Part configs. Exception: " + serializatonException); _logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
+        if (!deserializationSuccess) { _logger.LogMessage("Error deserializing Head Part configs. Exception: " + deserializationException); _logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
 
         if (PatcherSettings.General.bChangeHeadParts)
         {
@@ -187,7 +229,7 @@ public class Patcher
             }
             if (removedHeadParts)
             {
-                Logger.LogMessage("Some head parts will not be distributed because they are no longer present in your load order.");
+                _logger.LogMessage("Some head parts will not be distributed because they are no longer present in your load order.");
             } 
 
             HeadPartPreprocessing.CompilePresetRaces(copiedHeadPartSettings);
@@ -208,9 +250,9 @@ public class Patcher
         // Finish assigning non-primary linked NPCs
         MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
 
-        Logger.StopTimer();
-        Logger.LogMessage("Finished patching in " + Logger.GetEllapsedTime());
-        Logger.UpdateStatus("Finished Patching in " + Logger.GetEllapsedTime(), false);
+        _logger.StopTimer();
+        _logger.LogMessage("Finished patching in " + _logger.GetEllapsedTime());
+        _logger.UpdateStatus("Finished Patching in " + _logger.GetEllapsedTime(), false);
 
         if (PatcherSettings.General.bChangeMeshesOrTextures)
         {
@@ -219,17 +261,17 @@ public class Patcher
 
         if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
         {
-            BodyGenWriter.WriteBodyGenOutputs(copiedBodyGenConfigs);
+            _bodyGenWriter.WriteBodyGenOutputs(copiedBodyGenConfigs, _paths.OutputDataFolder);
         }
         else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
         {
             if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.AutoBody && PatcherSettings.OBody.AutoBodySelectionMode == AutoBodySelectionMode.INI)
             {
-                OBodyWriter.WriteAssignmentIni();
+                _oBodyWriter.WriteAssignmentIni();
             }
             else
             {
-                OBodyWriter.WriteAssignmentDictionary();
+                _oBodyWriter.WriteAssignmentDictionary();
             }
         }
 
@@ -241,29 +283,29 @@ public class Patcher
                 /*
                 if (!MiscValidation.VerifySPIDInstalled(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, true))
                 {
-                    Logger.LogMessage("WARNING: Your Asset Packs have generated new headparts whose distribution requires Spell Perk Item Distributor, which was not detected in your data folder. NPCs will not receive their new headparts until this is installed.");
+                    _logger.LogMessage("WARNING: Your Asset Packs have generated new headparts whose distribution requires Spell Perk Item Distributor, which was not detected in your data folder. NPCs will not receive their new headparts until this is installed.");
                     validation = false;
                 }*/
 
-                if (!MiscValidation.VerifyJContainersInstalled(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, true))
+                if (!_miscValidation.VerifyJContainersInstalled(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, true))
                 {
-                    Logger.LogMessage("WARNING: Your Asset Packs have generated new headparts whose distribution requires JContainers, which was not detected in your data folder. NPCs will not receive their new headparts until this is installed.");
+                    _logger.LogMessage("WARNING: Your Asset Packs have generated new headparts whose distribution requires JContainers, which was not detected in your data folder. NPCs will not receive their new headparts until this is installed.");
                     validation = false;
                 }
 
                 if (!validation)
                 {
-                    Logger.CallTimedLogErrorWithStatusUpdateAsync("WARNING: Missing dependencies for Asset-Generated Headparts. See Log.", ErrorType.Warning, 5);
+                    _logger.CallTimedLogErrorWithStatusUpdateAsync("WARNING: Missing dependencies for Asset-Generated Headparts. See Log.", ErrorType.Warning, 5);
                 }
             }
 
-            HeadPartFunctions.ApplyNeededFaceTextures(HeadPartTracker, outputMod);
+            HeadPartFunctions.ApplyNeededFaceTextures(HeadPartTracker, outputMod, _logger);
             gEnableHeadParts.Data = 1;
-            HeadPartWriter.WriteAssignmentDictionary();
+            _headPartWriter.WriteAssignmentDictionary();
         }
 
-        string patchOutputPath = System.IO.Path.Combine(PatcherSettings.Paths.OutputDataFolder, PatcherSettings.General.PatchFileName + ".esp");
-        PatcherIO.WritePatch(patchOutputPath, outputMod);
+        string patchOutputPath = System.IO.Path.Combine(_paths.OutputDataFolder, PatcherSettings.General.PatchFileName + ".esp");
+        _patcherIO.WritePatch(patchOutputPath, outputMod);
 
         _statusBar.IsPatching = false;
     }
@@ -272,9 +314,9 @@ public class Patcher
 
     public static Dictionary<string, Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>> UniqueAssignmentsByName = new Dictionary<string, Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>>();
 
-    private static void timer_Tick(object sender, EventArgs e)
+    private void timer_Tick(object sender, EventArgs e)
     {
-        Logger.UpdateStatus("Finished Patching", false);
+        _logger.UpdateStatus("Finished Patching", false);
     }
 
     public class CategorizedFlattenedAssetPacks
@@ -355,14 +397,14 @@ public class Patcher
             #region Detailed logging
             if (PatcherSettings.General.VerboseModeNPClist.Contains(npc.FormKey) || PatcherSettings.General.bVerboseModeAssetsAll || PatcherSettings.General.bVerboseModeAssetsNoncompliant)
             {
-                Logger.TriggerNPCReporting(currentNPCInfo);
+                _logger.TriggerNPCReporting(currentNPCInfo);
             }
             if (PatcherSettings.General.VerboseModeNPClist.Contains(npc.FormKey) || PatcherSettings.General.bVerboseModeAssetsAll)
             {
-                Logger.TriggerNPCReportingSave(currentNPCInfo);
+                _logger.TriggerNPCReportingSave(currentNPCInfo);
             }
 
-            Logger.InitializeNewReport(currentNPCInfo);
+            _logger.InitializeNewReport(currentNPCInfo);
             #endregion
 
             #region Block List
@@ -405,7 +447,7 @@ public class Patcher
                         break;
                 }
 
-                assignedPrimaryComboAndBodyShape = AssetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, primaryAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, null);
+                assignedPrimaryComboAndBodyShape = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, primaryAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, null);
                 if (assetsAssigned)
                 {
                     assignedCombinations.Add(assignedPrimaryComboAndBodyShape.AssignedCombination);
@@ -438,8 +480,8 @@ public class Patcher
                 case BodyShapeSelectionMode.BodyGen:
                     if (!blockBodyShape && PatcherSettings.General.PatchableRaces.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && BodyGenSelector.BodyGenAvailableForGender(currentNPCInfo.Gender, bodyGenConfigs))
                     {
-                        Logger.LogReport("Assigning a BodyGen morph independently of Asset Combination", false, currentNPCInfo);
-                        var assignedMorphs = BodyGenSelector.SelectMorphs(currentNPCInfo, out bool success, bodyGenConfigs, null, out _);
+                        _logger.LogReport("Assigning a BodyGen morph independently of Asset Combination", false, currentNPCInfo);
+                        var assignedMorphs = _bodyGenSelector.SelectMorphs(currentNPCInfo, out bool success, bodyGenConfigs, null, out _);
                         if (success)
                         {
                             BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedMorphs.Select(x => x.Label).ToList());
@@ -448,15 +490,15 @@ public class Patcher
                         }
                         else
                         {
-                            Logger.LogReport("Could not independently assign a BodyGen Morph.", true, currentNPCInfo);
+                            _logger.LogReport("Could not independently assign a BodyGen Morph.", true, currentNPCInfo);
                         }
                     }
                     break;
                 case BodyShapeSelectionMode.BodySlide:
-                    if (!blockBodyShape && PatcherSettings.General.PatchableRaces.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && OBodySelector.CurrentNPCHasAvailablePresets(currentNPCInfo, oBodySettings))
+                    if (!blockBodyShape && PatcherSettings.General.PatchableRaces.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && _oBodySelector.CurrentNPCHasAvailablePresets(currentNPCInfo, oBodySettings))
                     {
-                        Logger.LogReport("Assigning a BodySlide preset independently of Asset Combination", false, currentNPCInfo);
-                        assignedBodySlide = OBodySelector.SelectBodySlidePreset(currentNPCInfo, out bool success, oBodySettings, null, out _);
+                        _logger.LogReport("Assigning a BodySlide preset independently of Asset Combination", false, currentNPCInfo);
+                        assignedBodySlide = _oBodySelector.SelectBodySlidePreset(currentNPCInfo, out bool success, oBodySettings, null, out _);
                         if (success)
                         {
                             BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedBodySlide.Label);
@@ -465,7 +507,7 @@ public class Patcher
                         }
                         else
                         {
-                            Logger.LogReport("Could not independently assign a BodySlide preset.", true, currentNPCInfo);
+                            _logger.LogReport("Could not independently assign a BodySlide preset.", true, currentNPCInfo);
                         }
                     }
                     break;
@@ -481,7 +523,7 @@ public class Patcher
                 bool mixInAssigned = false;
                 foreach (var mixInConfig in mixInAssetPacks)
                 {
-                    var assignedMixIn = AssetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out mixInAssigned, out _, new HashSet<FlattenedAssetPack>() { mixInConfig }, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn, assignedPrimaryComboAndBodyShape);
+                    var assignedMixIn = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out mixInAssigned, out _, new HashSet<FlattenedAssetPack>() { mixInConfig }, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn, assignedPrimaryComboAndBodyShape);
                     if (mixInAssigned)
                     {
                         assignedCombinations.Add(assignedMixIn.AssignedCombination);
@@ -497,12 +539,12 @@ public class Patcher
                 {
                     foreach (var combination in assignedCombinations)
                     {
-                        assetReplacerCombinations.UnionWith(AssetSelector.SelectAssetReplacers(combination.AssetPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
+                        assetReplacerCombinations.UnionWith(_assetSelector.SelectAssetReplacers(combination.AssetPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
                     }
                 }
                 foreach (var replacerOnlyPack in mixInAssetPacks.Where(x => !x.Subgroups.Any() && x.AssetReplacerGroups.Any())) // add asset replacers from mix-in asset packs that ONLY have replacer assets, since they won't be contained in assignedCombinations
                 {
-                    assetReplacerCombinations.UnionWith(AssetSelector.SelectAssetReplacers(replacerOnlyPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
+                    assetReplacerCombinations.UnionWith(_assetSelector.SelectAssetReplacers(replacerOnlyPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
                 }
                 assignedCombinations.AddRange(assetReplacerCombinations);
                 #endregion
@@ -513,7 +555,7 @@ public class Patcher
                     var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
                     var npcObjectMap = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", npcRecord } };
                     var assignedPaths = new List<FilePathReplacementParsed>(); // for logging only
-                    RecordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, _state.RecordTemplateLinkCache, npcObjectMap, objectCaches, outputMod, assignedPaths, generatedHeadParts);
+                    _recordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, _state.RecordTemplateLinkCache, npcObjectMap, objectCaches, outputMod, assignedPaths, generatedHeadParts);
                     _combinationLog.LogAssignment(currentNPCInfo, assignedCombinations, assignedPaths);
                     if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
                     npcRecord.Keywords.Add(EBDFaceKW);
@@ -536,7 +578,7 @@ public class Patcher
             #region Height assignment
             if (PatcherSettings.General.bChangeHeight && !blockHeight && PatcherSettings.General.PatchableRaces.Contains(currentNPCInfo.HeightRace))
             {
-                HeightPatcher.AssignNPCHeight(currentNPCInfo, currentHeightConfig, outputMod);
+                _heightPatcher.AssignNPCHeight(currentNPCInfo, currentHeightConfig, outputMod);
             }
             #endregion
 
@@ -544,7 +586,7 @@ public class Patcher
             HeadPartSelection assignedHeadParts = new();
             if (PatcherSettings.General.bChangeHeadParts)
             {
-                assignedHeadParts = HeadPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, assignedBodySlide);
+                assignedHeadParts = _headPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, assignedBodySlide);
             }
 
             if (PatcherSettings.General.bChangeMeshesOrTextures) // needs to be done regardless of PatcherSettings.General.bChangeHeadParts status
@@ -563,11 +605,11 @@ public class Patcher
             }
             #endregion
 
-            Logger.SaveReport(currentNPCInfo);
+            _logger.SaveReport(currentNPCInfo);
         }
     }
 
-    private static void UpdateRecordTemplateAdditonalRaces(List<AssetPack> assetPacks, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins)
+    private void UpdateRecordTemplateAdditonalRaces(List<AssetPack> assetPacks, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins)
     {
         Dictionary<string, HashSet<string>> patchedTemplates = new Dictionary<string, HashSet<string>>();
 
@@ -584,7 +626,7 @@ public class Patcher
         }
     }
 
-    private static void SetRecordTemplateAdditionalRaces(HashSet<string> additionalRacesPaths, FormKey templateFK, HashSet<FormKey> racesToAdd, Dictionary<string, HashSet<string>> alreadyPatchedTemplates, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins)
+    private void SetRecordTemplateAdditionalRaces(HashSet<string> additionalRacesPaths, FormKey templateFK, HashSet<FormKey> racesToAdd, Dictionary<string, HashSet<string>> alreadyPatchedTemplates, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins)
     {
         foreach (var path in additionalRacesPaths)
         {
@@ -596,25 +638,25 @@ public class Patcher
             var templateMod = recordTemplatePlugins.Where(x => x.ModKey.ToString() == templateFK.ModKey.ToString()).FirstOrDefault();
             if (templateMod == null)
             {
-                Logger.LogError("Could not find record template plugin " + templateFK.ToString());
+                _logger.LogError("Could not find record template plugin " + templateFK.ToString());
             }
 
             if (recordTemplateLinkCache.TryResolve<INpcGetter>(templateFK, out var template))
             {
                 try
                 {
-                    if (!RecordPathParser.GetNearestParentGetter(template, path, recordTemplateLinkCache, false, Logger.GetNPCLogNameString(template), out IMajorRecordGetter parentRecordGetter, out string relativePath))
+                    if (!_recordPathParser.GetNearestParentGetter(template, path, recordTemplateLinkCache, false, Logger.GetNPCLogNameString(template), out IMajorRecordGetter parentRecordGetter, out string relativePath))
                     {
                         continue;
                     }
 
                     var parentRecord = RecordGenerator.GetOrAddGenericRecordAsOverride(parentRecordGetter, templateMod);
 
-                    if (RecordPathParser.GetObjectAtPath(parentRecord, template, relativePath, new Dictionary<string, dynamic>(), recordTemplateLinkCache, false, Logger.GetNPCLogNameString(template), out dynamic additionalRaces))
+                    if (_recordPathParser.GetObjectAtPath(parentRecord, template, relativePath, new Dictionary<string, dynamic>(), recordTemplateLinkCache, false, Logger.GetNPCLogNameString(template), out dynamic additionalRaces))
                     {
                         foreach (var race in racesToAdd)
                         {
-                            additionalRaces.Add(race.AsLink<IRaceGetter>());
+                            additionalRaces.Add(race.ToLink<IRaceGetter>());
                         }
                     }
                     if (!alreadyPatchedTemplates.ContainsKey(templateFK.ToString()))
@@ -625,22 +667,22 @@ public class Patcher
                 }
                 catch
                 {
-                    Logger.LogError("Could not patch additional races expected at " + path + " in template NPC " + Logger.GetNPCLogNameString(template));
+                    _logger.LogError("Could not patch additional races expected at " + path + " in template NPC " + Logger.GetNPCLogNameString(template));
                     continue;
                 }
             }
             else
             {
-                Logger.LogError("Could not resolve template NPC " + templateFK.ToString());
+                _logger.LogError("Could not resolve template NPC " + templateFK.ToString());
             }
         }
     }
 
-    public static void ResolvePatchableRaces()
+    public void ResolvePatchableRaces()
     {
         if (PatcherEnvironmentProvider.Instance.Environment.LinkCache is null)
         {
-            Logger.LogError("Error: Link cache is null.");
+            _logger.LogError("Error: Link cache is null.");
             return;
         }
 
@@ -679,25 +721,25 @@ public class Patcher
         };
     }
 
-    public static void SetGeneratedHeadPart(HeadPart hp, Dictionary<HeadPart.TypeEnum, HeadPart> dict, NPCInfo npcInfo)
+    public void SetGeneratedHeadPart(HeadPart hp, Dictionary<HeadPart.TypeEnum, HeadPart> dict, NPCInfo npcInfo)
     {
         if (hp.Type != null)
         {
             if (npcInfo.BlockedNPCEntry.HeadParts && npcInfo.BlockedNPCEntry.HeadPartTypes[hp.Type.Value])
             {
-                Logger.LogReport(hp.Type.Value.ToString() + " assignment is blocked for current NPC.", false, npcInfo);
+                _logger.LogReport(hp.Type.Value.ToString() + " assignment is blocked for current NPC.", false, npcInfo);
                 return;
             }
             if (npcInfo.BlockedPluginEntry.HeadParts && npcInfo.BlockedPluginEntry.HeadPartTypes[hp.Type.Value])
             {
-                Logger.LogReport(hp.Type.Value.ToString() + " assignment is blocked for current NPC's plugin.", false, npcInfo);
+                _logger.LogReport(hp.Type.Value.ToString() + " assignment is blocked for current NPC's plugin.", false, npcInfo);
                 return;
             }
             dict[hp.Type.Value] = hp;
         }
         else
         {
-            Logger.LogMessage("Cannot assign a head part replacer for head part " + EditorIDHandler.GetEditorIDSafely(hp) + " because it does not have a specified Type.");
+            _logger.LogMessage("Cannot assign a head part replacer for head part " + EditorIDHandler.GetEditorIDSafely(hp) + " because it does not have a specified Type.");
         }
     }
 

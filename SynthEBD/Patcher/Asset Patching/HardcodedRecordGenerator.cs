@@ -10,7 +10,15 @@ namespace SynthEBD;
 
 public class HardcodedRecordGenerator
 {
-    public static void CategorizePaths(List<SubgroupCombination> combinations, NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, HashSet<FilePathReplacementParsed> wnamPaths, HashSet<FilePathReplacementParsed> headtexPaths, List<FilePathReplacementParsed> nonHardcodedPaths, out int longestPathLength, bool doNotHardCode)
+    private readonly Logger _logger;
+    private readonly RecordGenerator _recordGenerator;
+    public HardcodedRecordGenerator(Logger logger, RecordGenerator recordGenerator)
+    {
+        _logger = logger;
+        _recordGenerator = recordGenerator;
+    }
+
+    public void CategorizePaths(List<SubgroupCombination> combinations, NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, HashSet<FilePathReplacementParsed> wnamPaths, HashSet<FilePathReplacementParsed> headtexPaths, List<FilePathReplacementParsed> nonHardcodedPaths, out int longestPathLength, bool doNotHardCode, Patcher patcher)
     {
         longestPathLength = 0;
         foreach (var combination in combinations)
@@ -19,7 +27,7 @@ public class HardcodedRecordGenerator
             {
                 foreach (var path in subgroup.Paths)
                 {
-                    var parsed = new FilePathReplacementParsed(path, npcInfo, combination.AssetPack, recordTemplateLinkCache, combination);
+                    var parsed = new FilePathReplacementParsed(path, npcInfo, combination.AssetPack, recordTemplateLinkCache, combination, _logger);
 
                     if (!PatcherSettings.TexMesh.bChangeNPCTextures && path.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase)) { continue; }
                     if (!PatcherSettings.TexMesh.bChangeNPCMeshes && path.Source.EndsWith(".nif", StringComparison.OrdinalIgnoreCase)) { continue; }
@@ -65,7 +73,7 @@ public class HardcodedRecordGenerator
         return longestPath;
     }
 
-    public static void AssignHardcodedRecords(HashSet<FilePathReplacementParsed> wnamPaths, HashSet<FilePathReplacementParsed> headtexPaths, NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, SkyrimMod outputMod)
+    public void AssignHardcodedRecords(HashSet<FilePathReplacementParsed> wnamPaths, HashSet<FilePathReplacementParsed> headtexPaths, NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, SkyrimMod outputMod)
     {
         if (headtexPaths.Any())
         {
@@ -93,7 +101,7 @@ public class HardcodedRecordGenerator
 
         return template;
     }
-    public static IMajorRecord AssignHeadTexture(NPCInfo npcInfo, SkyrimMod outputMod, ILinkCache<ISkyrimMod, ISkyrimModGetter> mainLinkCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> templateLinkCache, HashSet<FilePathReplacementParsed> paths, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches)
+    public IMajorRecord AssignHeadTexture(NPCInfo npcInfo, SkyrimMod outputMod, ILinkCache<ISkyrimMod, ISkyrimModGetter> mainLinkCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> templateLinkCache, HashSet<FilePathReplacementParsed> paths, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches)
     {
         var patchedNPC = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
 
@@ -128,7 +136,7 @@ public class HardcodedRecordGenerator
         }
         else
         {
-            Logger.LogReport("Could not resolve a head texture from NPC " + Logger.GetNPCLogNameString(npcInfo.NPC) + " or its corresponding record template.", true, npcInfo);
+            _logger.LogReport("Could not resolve a head texture from NPC " + Logger.GetNPCLogNameString(npcInfo.NPC) + " or its corresponding record template.", true, npcInfo);
             return null;
         }
 
@@ -151,7 +159,7 @@ public class HardcodedRecordGenerator
 
             if (additionalGenericPaths.Any())
             {
-                RecordGenerator.AssignGenericAssetPaths(npcInfo, additionalGenericPaths, patchedNPC, templateLinkCache, outputMod, GetLongestPath(additionalGenericPaths), true, false, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>(), Patcher.GetBlankHeadPartAssignment());
+                _recordGenerator.AssignGenericAssetPaths(npcInfo, additionalGenericPaths, patchedNPC, templateLinkCache, outputMod, GetLongestPath(additionalGenericPaths), true, false, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>(), Patcher.GetBlankHeadPartAssignment());
             }
         }
 
@@ -161,7 +169,7 @@ public class HardcodedRecordGenerator
         return headTex;
     }
 
-    private static Armor AssignBodyTextures(NPCInfo npcInfo, SkyrimMod outputMod, ILinkCache<ISkyrimMod, ISkyrimModGetter> mainLinkCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> templateLinkCache, HashSet<FilePathReplacementParsed> paths, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches)
+    private Armor AssignBodyTextures(NPCInfo npcInfo, SkyrimMod outputMod, ILinkCache<ISkyrimMod, ISkyrimModGetter> mainLinkCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> templateLinkCache, HashSet<FilePathReplacementParsed> paths, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches)
     {
         Armor newSkin = null;
         bool assignedFromTemplate = false;
@@ -198,7 +206,7 @@ public class HardcodedRecordGenerator
         }
         else
         {
-            Logger.LogReport("Could not resolve a body texture from NPC " + npcInfo.LogIDstring + " or its corresponding record template.", true, npcInfo);
+            _logger.LogReport("Could not resolve a body texture from NPC " + npcInfo.LogIDstring + " or its corresponding record template.", true, npcInfo);
             outputMod.Armors.Remove(newSkin);
             return null;
         }
@@ -282,7 +290,7 @@ public class HardcodedRecordGenerator
             }
             if (genericArmorAddonPaths.Any())
             {
-                RecordGenerator.AssignGenericAssetPaths(npcInfo, genericArmorAddonPaths, patchedNPC, templateLinkCache, outputMod, GetLongestPath(genericArmorAddonPaths), true, false, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>(), Patcher.GetBlankHeadPartAssignment());
+                _recordGenerator.AssignGenericAssetPaths(npcInfo, genericArmorAddonPaths, patchedNPC, templateLinkCache, outputMod, GetLongestPath(genericArmorAddonPaths), true, false, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>(), Patcher.GetBlankHeadPartAssignment());
             }
         }
         else // if record is one that has previously been generated, update any SynthEBD-generated armature to ensure that the current NPC's race is present within the Additional Races collection.
@@ -310,7 +318,7 @@ public class HardcodedRecordGenerator
         Tail
     }
 
-    private static ArmorAddon AssignArmorAddon(Npc targetNPC, Armor parentArmorRecord, NPCInfo npcInfo, SkyrimMod outputMod, ILinkCache<ISkyrimMod, ISkyrimModGetter> mainLinkCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> templateLinkCache, HashSet<FilePathReplacementParsed> hardcodedPaths, List<FilePathReplacementParsed> additionalGenericPaths, ArmorAddonType type, string subPath, HashSet<string> currentRaceIDstrs, bool parentAssignedFromTemplate, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches)
+    private ArmorAddon AssignArmorAddon(Npc targetNPC, Armor parentArmorRecord, NPCInfo npcInfo, SkyrimMod outputMod, ILinkCache<ISkyrimMod, ISkyrimModGetter> mainLinkCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> templateLinkCache, HashSet<FilePathReplacementParsed> hardcodedPaths, List<FilePathReplacementParsed> additionalGenericPaths, ArmorAddonType type, string subPath, HashSet<string> currentRaceIDstrs, bool parentAssignedFromTemplate, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches)
     {
         ArmorAddon newArmorAddon = null;
         IArmorAddonGetter sourceArmorAddon;
@@ -358,7 +366,7 @@ public class HardcodedRecordGenerator
 
         if (sourceArmorAddon == null)
         {
-            Logger.LogReport("Could not resolve " + type.ToString() + " armature for NPC " + npcInfo.LogIDstring + " or its template.", true, npcInfo);
+            _logger.LogReport("Could not resolve " + type.ToString() + " armature for NPC " + npcInfo.LogIDstring + " or its template.", true, npcInfo);
         }
         else if (replaceExistingArmature == false)
         {
@@ -380,13 +388,13 @@ public class HardcodedRecordGenerator
 
         if (additionalGenericPaths.Any())
         {
-            RecordGenerator.AssignGenericAssetPaths(npcInfo, additionalGenericPaths, targetNPC, templateLinkCache, outputMod, GetLongestPath(additionalGenericPaths), true, false, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>(), Patcher.GetBlankHeadPartAssignment());
+            _recordGenerator.AssignGenericAssetPaths(npcInfo, additionalGenericPaths, targetNPC, templateLinkCache, outputMod, GetLongestPath(additionalGenericPaths), true, false, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>(), Patcher.GetBlankHeadPartAssignment());
         }
 
         return newArmorAddon;
     }
 
-    private static HashSet<IArmorAddonGetter> GetAvailableArmature(IArmorGetter parentArmor, ILinkCache mainLinkCache, ILinkCache templateLinkCache, bool checkMainLinkCache, bool checkTemplateLinkCache)
+    private HashSet<IArmorAddonGetter> GetAvailableArmature(IArmorGetter parentArmor, ILinkCache mainLinkCache, ILinkCache templateLinkCache, bool checkMainLinkCache, bool checkTemplateLinkCache)
     {
         HashSet<IArmorAddonGetter> candidateAAs = new HashSet<IArmorAddonGetter>();
         foreach (var aa in parentArmor.Armature)
@@ -403,7 +411,7 @@ public class HardcodedRecordGenerator
         return candidateAAs;
     }
 
-    private static TextureSet AssignSkinTexture(ArmorAddon parentArmorAddonRecord, bool parentAssignedFromTemplate, NPCInfo npcInfo, SkyrimMod outputMod, ILinkCache<ISkyrimMod, ISkyrimModGetter> mainLinkCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> templateLinkCache, HashSet<FilePathReplacementParsed> paths, string subPath, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches)
+    private TextureSet AssignSkinTexture(ArmorAddon parentArmorAddonRecord, bool parentAssignedFromTemplate, NPCInfo npcInfo, SkyrimMod outputMod, ILinkCache<ISkyrimMod, ISkyrimModGetter> mainLinkCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> templateLinkCache, HashSet<FilePathReplacementParsed> paths, string subPath, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches)
     {
         INpcGetter templateNPC = GetTemplateForHardcodedAssignments(paths, WornArmorPaths, subPath);
 
@@ -438,7 +446,7 @@ public class HardcodedRecordGenerator
         // no reason to try getting texture from record template because if one existed it would be inherited along with parentArmorAddonRecord
         else
         {
-            Logger.LogReport("Could not resolve a skin texture from NPC " + Logger.GetNPCLogNameString(npcInfo.NPC) + " or its corresponding record template.", true, npcInfo);
+            _logger.LogReport("Could not resolve a skin texture from NPC " + Logger.GetNPCLogNameString(npcInfo.NPC) + " or its corresponding record template.", true, npcInfo);
             return null;
         }
 
@@ -575,11 +583,11 @@ public class HardcodedRecordGenerator
         }
     }
 
-    public static void ReplacerCombinationToRecords(SubgroupCombination combination, NPCInfo npcInfo, SkyrimMod outputMod, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts)
+    public void ReplacerCombinationToRecords(SubgroupCombination combination, NPCInfo npcInfo, SkyrimMod outputMod, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, Patcher patcher)
     {
         if (combination.DestinationType == SubgroupCombination.DestinationSpecifier.HeadPartFormKey)
         {
-            AssignKnownHeadPartReplacer(combination, npcInfo.NPC, outputMod, generatedHeadParts, npcInfo);
+            AssignKnownHeadPartReplacer(combination, npcInfo.NPC, outputMod, generatedHeadParts, npcInfo, patcher);
         }
         else if (combination.DestinationType == SubgroupCombination.DestinationSpecifier.Generic)
         {
@@ -590,7 +598,7 @@ public class HardcodedRecordGenerator
             {
                 foreach (var path in subgroup.Paths)
                 {
-                    var parsed = new FilePathReplacementParsed(path, npcInfo, combination.AssetPack, recordTemplateLinkCache, combination);
+                    var parsed = new FilePathReplacementParsed(path, npcInfo, combination.AssetPack, recordTemplateLinkCache, combination, _logger);
 
                     nonHardcodedPaths.Add(parsed);
                     if (parsed.Destination.Length > longestPath)
@@ -602,15 +610,15 @@ public class HardcodedRecordGenerator
             if (nonHardcodedPaths.Any())
             {
                 var currentNPC = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
-                RecordGenerator.AssignGenericAssetPaths(npcInfo, nonHardcodedPaths, currentNPC, null, outputMod, longestPath, false, true, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>(), generatedHeadParts);
+                _recordGenerator.AssignGenericAssetPaths(npcInfo, nonHardcodedPaths, currentNPC, null, outputMod, longestPath, false, true, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>(), generatedHeadParts);
             }
         }
         else if (combination.DestinationType != SubgroupCombination.DestinationSpecifier.Main)
         {
-            AssignSpecialCaseAssetReplacer(combination, npcInfo.NPC, outputMod, generatedHeadParts, npcInfo);
+            AssignSpecialCaseAssetReplacer(combination, npcInfo.NPC, outputMod, generatedHeadParts, npcInfo, patcher);
         }
     }
-    private static void AssignKnownHeadPartReplacer(SubgroupCombination subgroupCombination, INpcGetter npcGetter, SkyrimMod outputMod, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, NPCInfo npcInfo)
+    private static void AssignKnownHeadPartReplacer(SubgroupCombination subgroupCombination, INpcGetter npcGetter, SkyrimMod outputMod, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, NPCInfo npcInfo, Patcher patcher)
     {
         var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
         var headPart = npc.HeadParts.Where(x => x.FormKey == subgroupCombination.ReplacerDestinationFormKey).FirstOrDefault();
@@ -628,7 +636,7 @@ public class HardcodedRecordGenerator
                 if (RecordGenerator.TryGetModifiedRecord(pathSignature, npc.HeadParts[i].FormKey, out HeadPart existingReplacer))
                 {
                     //npc.HeadParts[i] = existingReplacer.AsLinkGetter();
-                    Patcher.SetGeneratedHeadPart(existingReplacer, generatedHeadParts, npcInfo);
+                    patcher.SetGeneratedHeadPart(existingReplacer, generatedHeadParts, npcInfo);
                 }
                 else if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(npc.HeadParts[i].FormKey, out var hpGetter) && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<ITextureSetGetter>(hpGetter.TextureSet.FormKey, out var tsGetter))
                 {
@@ -660,8 +668,7 @@ public class HardcodedRecordGenerator
 
                     RecordGenerator.AddModifiedRecordToDictionary(pathSignature, npc.HeadParts[i].FormKey, copiedHP);
 
-                    //npc.HeadParts[i] = copiedHP.AsLinkGetter();
-                    Patcher.SetGeneratedHeadPart(copiedHP, generatedHeadParts, npcInfo);
+                    patcher.SetGeneratedHeadPart(copiedHP, generatedHeadParts, npcInfo);
                 }
                 else
                 {
@@ -671,18 +678,18 @@ public class HardcodedRecordGenerator
         }
     }
 
-    private static void AssignSpecialCaseAssetReplacer(SubgroupCombination subgroupCombination, INpcGetter npcGetter, SkyrimMod outputMod, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, NPCInfo npcInfo)
+    private static void AssignSpecialCaseAssetReplacer(SubgroupCombination subgroupCombination, INpcGetter npcGetter, SkyrimMod outputMod, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, NPCInfo npcInfo, Patcher patcher)
     {
         var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
         switch (subgroupCombination.DestinationType)
         {
-            case SubgroupCombination.DestinationSpecifier.MarksFemaleHumanoid04RightGashR: AssignHeadPartByDiffusePath(subgroupCombination, npc, outputMod, "actors\\character\\female\\facedetails\\facefemalerightsidegash_04.dds", generatedHeadParts, npcInfo); break;
-            case SubgroupCombination.DestinationSpecifier.MarksFemaleHumanoid06RightGashR: AssignHeadPartByDiffusePath(subgroupCombination, npc, outputMod, "actors\\character\\female\\facedetails\\facefemalerightsidegash_06.dds", generatedHeadParts, npcInfo); break;
+            case SubgroupCombination.DestinationSpecifier.MarksFemaleHumanoid04RightGashR: AssignHeadPartByDiffusePath(subgroupCombination, npc, outputMod, "actors\\character\\female\\facedetails\\facefemalerightsidegash_04.dds", generatedHeadParts, npcInfo, patcher); break;
+            case SubgroupCombination.DestinationSpecifier.MarksFemaleHumanoid06RightGashR: AssignHeadPartByDiffusePath(subgroupCombination, npc, outputMod, "actors\\character\\female\\facedetails\\facefemalerightsidegash_06.dds", generatedHeadParts, npcInfo, patcher); break;
             default: break; // Warn user
         }
     }
 
-    private static void AssignHeadPartByDiffusePath(SubgroupCombination subgroupCombination, Npc npc, SkyrimMod outputMod, string diffusePath, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, NPCInfo npcInfo)
+    private static void AssignHeadPartByDiffusePath(SubgroupCombination subgroupCombination, Npc npc, SkyrimMod outputMod, string diffusePath, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, NPCInfo npcInfo, Patcher patcher)
     {
         var pathSignature = new HashSet<string>();
         foreach (var subgroup in subgroupCombination.ContainedSubgroups)
@@ -695,7 +702,7 @@ public class HardcodedRecordGenerator
             if (RecordGenerator.TryGetModifiedRecord(pathSignature, npc.HeadParts[i].FormKey, out HeadPart existingReplacer))
             {
                 //npc.HeadParts[i] = existingReplacer.AsLinkGetter();
-                Patcher.SetGeneratedHeadPart(existingReplacer, generatedHeadParts, npcInfo);
+                patcher.SetGeneratedHeadPart(existingReplacer, generatedHeadParts, npcInfo);
             }
             else if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(npc.HeadParts[i].FormKey, out var hpGetter) && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<ITextureSetGetter>(hpGetter.TextureSet.FormKey, out var tsGetter) && tsGetter.Diffuse == diffusePath)
             {
@@ -725,8 +732,7 @@ public class HardcodedRecordGenerator
 
                 RecordGenerator.AddModifiedRecordToDictionary(pathSignature, npc.HeadParts[i].FormKey, copiedHP);
 
-                //npc.HeadParts[i] = copiedHP.AsLinkGetter();
-                Patcher.SetGeneratedHeadPart(copiedHP, generatedHeadParts, npcInfo);
+                patcher.SetGeneratedHeadPart(copiedHP, generatedHeadParts, npcInfo);
             }
         }
     }

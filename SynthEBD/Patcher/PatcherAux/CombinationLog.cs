@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using System.Diagnostics.CodeAnalysis;
 
 namespace SynthEBD;
@@ -6,10 +6,17 @@ namespace SynthEBD;
 public class CombinationLog
 {
     private readonly PatcherEnvironmentProvider _environmentProvider;
+    private readonly Logger _logger;
+    private readonly PatcherIO _patcherIO;
+    private readonly SynthEBDPaths _paths;
 
-    public CombinationLog(PatcherEnvironmentProvider environmentProvider)
+    public CombinationLog(PatcherEnvironmentProvider environmentProvider, Logger logger, PatcherIO patcherIO, SynthEBDPaths paths)
     {
         _environmentProvider = environmentProvider;
+        _logger = logger;
+        _patcherIO = patcherIO;
+        _paths = paths;
+
         AssignedPrimaryCombinations = new Dictionary<string, List<CombinationInfo>>();
         AssignedMixInCombinations = new Dictionary<string, List<CombinationInfo>>();
         AssignedReplacerCombinations = new Dictionary<string, List<CombinationInfo>>();
@@ -28,7 +35,7 @@ public class CombinationLog
     public void WriteToFile()
     {
         if (!PatcherSettings.TexMesh.bGenerateAssignmentLog) { return; }
-        string outputFile = System.IO.Path.Combine(PatcherSettings.Paths.LogFolderPath, Logger.Instance.PatcherExecutionStart.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture), "Generated Combinations.txt");
+        string outputFile = System.IO.Path.Combine(_paths.LogFolderPath, _logger.PatcherExecutionStart.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture), "Generated Combinations.txt");
 
         List<string> output = new List<string>();
 
@@ -41,7 +48,7 @@ public class CombinationLog
         output.Add("----------------Replacer Combinations:----------------" + Environment.NewLine);
         FormatCombinationInfoOutput(AssignedReplacerCombinations, output);
 
-        Task.Run(() => PatcherIO.WriteTextFile(outputFile, output));
+        Task.Run(() => _patcherIO.WriteTextFile(outputFile, output));
     }
 
     public void FormatCombinationInfoOutput(Dictionary<string, List<CombinationInfo>> combinationInfo, List<string> fileContents)
@@ -125,7 +132,7 @@ public class CombinationLog
                 combinationDict.Add(combination.AssetPackName, currentAssetPackCombinations);
             }
 
-            if (!combination.Signature.Contains(':')) { Logger.LogError("Couldn't record combination with signature: " + combination.Signature); continue; }
+            if (!combination.Signature.Contains(':')) { _logger.LogError("Couldn't record combination with signature: " + combination.Signature); continue; }
 
             string currentSubgroupIDs = combination.Signature.Split(':')[1];
             var currentCombinationRecord = currentAssetPackCombinations.Where(x => x.SubgroupIDs == currentSubgroupIDs).FirstOrDefault();

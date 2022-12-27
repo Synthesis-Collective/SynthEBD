@@ -12,6 +12,15 @@ public partial class MainWindow : MahApps.Metro.Controls.MetroWindow
     {
         InitializeComponent();
 
+        var builder = new ContainerBuilder();
+        builder.RegisterModule<MainModule>();
+        var container = builder.Build();
+        var logger = container.Resolve<Logger>();
+        PatcherEnvironmentProvider.Instance = container.Resolve<PatcherEnvironmentProvider>();
+        var mvm = container.Resolve<MainWindow_ViewModel>();
+        this.DataContext = mvm;
+        mvm.Init();
+
         //https://stackoverflow.com/questions/25426930/how-can-i-set-wpf-window-size-is-25-percent-of-relative-monitor-screen
 
         var toolbarHeight = SystemParameters.PrimaryScreenHeight - SystemParameters.FullPrimaryScreenHeight - SystemParameters.WindowCaptionHeight;

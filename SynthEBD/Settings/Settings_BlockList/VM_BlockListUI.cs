@@ -1,15 +1,22 @@
-﻿using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Skyrim;
 using System.Collections.ObjectModel;
 
 namespace SynthEBD;
 
 public class VM_BlockListUI : VM
 {
-    public VM_BlockListUI()
+    private readonly Logger _logger;
+    private readonly SettingsIO_BlockList _blockListIO;
+    private readonly Converters _converters;
+    public VM_BlockListUI(Logger logger, SettingsIO_BlockList blockListIO, Converters converters)
     {
+        _logger = logger;
+        _blockListIO = blockListIO;
+        _converters = converters;
+
         AddBlockedNPC = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: x => this.BlockedNPCs.Add(new VM_BlockedNPC())
+            execute: x => this.BlockedNPCs.Add(new VM_BlockedNPC(_converters))
         );
 
         RemoveBlockedNPC = new SynthEBD.RelayCommand(
@@ -32,20 +39,20 @@ public class VM_BlockListUI : VM
             execute: _ => ImportFromZEBD()
         );
 
-        Save = new SynthEBD.RelayCommand(
+        Save = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
                 var tmpModel = new BlockList ();
                 DumpViewModelToModel(this, tmpModel);
-                SettingsIO_BlockList.SaveBlockList(tmpModel, out bool saveSuccess);
+                _blockListIO.SaveBlockList(tmpModel, out bool saveSuccess);
                 if (saveSuccess)
                 {
-                    Logger.CallTimedNotifyStatusUpdateAsync("BlockList Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                    _logger.CallTimedNotifyStatusUpdateAsync("BlockList Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
                 }
                 else
                 {
-                    Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Block List.", ErrorType.Error, 5);
+                    _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Block List.", ErrorType.Error, 5);
                 }
             }
         );
@@ -64,12 +71,12 @@ public class VM_BlockListUI : VM
     public RelayCommand ImportFromZEBDcommand { get; set; }
     public RelayCommand Save { get; }
 
-    public static void GetViewModelFromModel(BlockList model, VM_BlockListUI viewModel)
+    public static void GetViewModelFromModel(BlockList model, VM_BlockListUI viewModel, Converters converters)
     {
         viewModel.BlockedNPCs.Clear();
         foreach (var blockedNPC in model.NPCs)
         {
-            viewModel.BlockedNPCs.Add(VM_BlockedNPC.GetViewModelFromModel(blockedNPC));
+            viewModel.BlockedNPCs.Add(VM_BlockedNPC.GetViewModelFromModel(blockedNPC, converters));
         }
 
         viewModel.BlockedPlugins.Clear();
@@ -113,12 +120,12 @@ public class VM_BlockListUI : VM
             var loadedZList = JSONhandler<zEBDBlockList>.LoadJSONFile(filename, out bool parsed, out string exceptionStr);
             if (parsed)
             {
-                var loadedList = zEBDBlockList.ToSynthEBD(loadedZList);
-                GetViewModelFromModel(loadedList, this);
+                var loadedList = loadedZList.ToSynthEBD();
+                GetViewModelFromModel(loadedList, this, _converters);
             }
             else
             {
-                Logger.LogError("Block list parsing failed with the following exception: " + exceptionStr);
+                _logger.LogError("Block list parsing failed with the following exception: " + exceptionStr);
             }
         }
     }

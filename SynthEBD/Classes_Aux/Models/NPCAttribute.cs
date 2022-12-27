@@ -30,7 +30,7 @@ public class NPCAttribute
         return true;
     }
 
-    public static AttributeGroup GetAttributeGroupByLabel(string label, HashSet<AttributeGroup> groupDefinitions)
+    public static AttributeGroup GetAttributeGroupByLabel(string label, HashSet<AttributeGroup> groupDefinitions, Logger logger)
     {
         if (PatcherSettings.General.OverwritePluginAttGroups)
         {
@@ -47,7 +47,7 @@ public class NPCAttribute
         {
             return matchedPluginGroup;
         }
-        Logger.LogMessage("Could not find Attribute Group " + label + " in any group definition");
+        logger.LogMessage("Could not find Attribute Group " + label + " in any group definition");
         return null;
     }
 

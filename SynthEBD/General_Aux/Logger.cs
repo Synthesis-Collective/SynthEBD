@@ -6,6 +6,8 @@ using System.Windows.Media;
 using System.Xml.Linq;
 using Mutagen.Bethesda.Plugins;
 using Noggog;
+using System.Reflection;
+using System.IO;
 
 namespace SynthEBD;
 
@@ -13,11 +15,12 @@ public sealed class Logger : VM
 {
     private readonly DisplayedItemVm _displayedItemVm;
     private readonly VM_LogDisplay _logDisplay;
-    private static Logger instance;
+    private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
+    private readonly PatcherIO _patcherIO;
     public string StatusString { get; set; }
     public string BackupStatusString { get; set; }
     public string LogString { get; set; }
-
+    private string _logFolderPath { get; set; } = "";
     public SolidColorBrush StatusColor { get; set; }
     public SolidColorBrush BackupStatusColor { get; set; }
 
@@ -49,33 +52,46 @@ public sealed class Logger : VM
         public int CurrentLayer;
     }
 
-    public Logger()
+    public Logger(PatcherEnvironmentProvider patcherEnvironmentProvider, PatcherIO patcherIO)
     {
-        this.StatusColor = this.ReadyColor;
-        this.StatusString = this.ReadyString;
+        StatusColor = ReadyColor;
+        StatusString = ReadyString;
+        _patcherEnvironmentProvider = patcherEnvironmentProvider;
+        _patcherIO = patcherIO;
+
+        // set default log path
+        var assemblyPath = Assembly.GetEntryAssembly().Location;
+        if (assemblyPath != null)
+        {
+            _logFolderPath = Path.Combine(Path.GetDirectoryName(assemblyPath), "Logs");
+        }
+        
     }
 
-    public static Logger Instance;
-
-    public static void LogMessage(string message)
+    public void SetLogPath(string path)
     {
-        Instance.LogString += message + Environment.NewLine;
+        _logFolderPath = path;
     }
 
-    public static void LogMessage(IEnumerable<string> messages)
+    public void LogMessage(string message)
+    {
+        LogString += message + Environment.NewLine;
+    }
+
+    public void LogMessage(IEnumerable<string> messages)
     {
         foreach (var message in messages)
         {
-            Instance.LogString += message + Environment.NewLine;
+            LogString += message + Environment.NewLine;
         }
     }
 
-    public static void TriggerNPCReporting(NPCInfo npcInfo)
+    public void TriggerNPCReporting(NPCInfo npcInfo)
     {
         npcInfo.Report.LogCurrentNPC = true;
     }
 
-    public static void TriggerNPCReportingSave(NPCInfo npcInfo)
+    public void TriggerNPCReportingSave(NPCInfo npcInfo)
     {
         if (npcInfo.Report.LogCurrentNPC)
         {
@@ -83,7 +99,7 @@ public sealed class Logger : VM
         }
     }
 
-    public static void InitializeNewReport(NPCInfo npcInfo)
+    public void InitializeNewReport(NPCInfo npcInfo)
     {
         if (npcInfo.Report.LogCurrentNPC)
         {
@@ -93,26 +109,26 @@ public sealed class Logger : VM
 
             LogReport("Patching NPC " + npcInfo.Report.NameString, false, npcInfo);
 
-            if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.AssetsRace, out var assetsRaceGetter))
+            if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.AssetsRace, out var assetsRaceGetter))
             {
                 LogReport("Assets race: " + EditorIDHandler.GetEditorIDSafely(assetsRaceGetter), false, npcInfo); ;
             }
-            if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.BodyShapeRace, out var bodyRaceGetter))
+            if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.BodyShapeRace, out var bodyRaceGetter))
             {
                 LogReport("Body Shape race: " + EditorIDHandler.GetEditorIDSafely(bodyRaceGetter), false, npcInfo);
             }
-            if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.HeightRace, out var heightRaceGetter))
+            if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.HeightRace, out var heightRaceGetter))
             {
                 LogReport("Height race: " + EditorIDHandler.GetEditorIDSafely(heightRaceGetter), false, npcInfo);
             }
-            if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.HeadPartsRace, out var headPartsRaceGetter))
+            if (_patcherEnvironmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.HeadPartsRace, out var headPartsRaceGetter))
             {
                 LogReport("Head Parts race: " + EditorIDHandler.GetEditorIDSafely(headPartsRaceGetter), false, npcInfo);
             }
         }
     }
 
-    public static void OpenReportSubsection(string header, NPCInfo npcInfo)
+    public void OpenReportSubsection(string header, NPCInfo npcInfo)
     {
         if (npcInfo.Report.LogCurrentNPC)
         {
@@ -123,7 +139,7 @@ public sealed class Logger : VM
         }
     }
 
-    public static void LogReport(string message, bool triggerSave, NPCInfo npcInfo) // detailed operation log; not reflected on screen
+    public void LogReport(string message, bool triggerSave, NPCInfo npcInfo) // detailed operation log; not reflected on screen
     {
         if (npcInfo.Report.LogCurrentNPC)
         {
@@ -136,7 +152,7 @@ public sealed class Logger : VM
         }
     }
 
-    private static void AddStringToReport(XElement element, string value)
+    private void AddStringToReport(XElement element, string value)
     {
         var split = value.Trim().Split(Environment.NewLine);
 
@@ -152,7 +168,7 @@ public sealed class Logger : VM
         }
     }
 
-    public static void CloseReportSubsection(NPCInfo npcInfo)
+    public void CloseReportSubsection(NPCInfo npcInfo)
     {
         if (npcInfo.Report.LogCurrentNPC)
         {
@@ -160,7 +176,7 @@ public sealed class Logger : VM
         }
     }
 
-    public static void CloseReportSubsectionsTo(string label, NPCInfo npcInfo)
+    public void CloseReportSubsectionsTo(string label, NPCInfo npcInfo)
     {
         if (npcInfo.Report.LogCurrentNPC)
         {
@@ -171,7 +187,7 @@ public sealed class Logger : VM
         }
     }
 
-    public static void CloseReportSubsectionsToParentOf(string label, NPCInfo npcInfo)
+    public void CloseReportSubsectionsToParentOf(string label, NPCInfo npcInfo)
     {
         if (npcInfo.Report.LogCurrentNPC)
         {
@@ -183,18 +199,18 @@ public sealed class Logger : VM
         }
     }
 
-    public static void SaveReport(NPCInfo npcInfo)
+    public void SaveReport(NPCInfo npcInfo)
     {
         if (npcInfo.Report.LogCurrentNPC)
         {
             if (npcInfo.Report.SaveCurrentNPCLog)
             {
-                string outputFile = System.IO.Path.Combine(PatcherSettings.Paths.LogFolderPath, Logger.Instance.PatcherExecutionStart.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture), npcInfo.Report.NameString + ".xml");
+                string outputFile = System.IO.Path.Combine(_logFolderPath, PatcherExecutionStart.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture), npcInfo.Report.NameString + ".xml");
 
                 XDocument output = new XDocument();
                 output.Add(npcInfo.Report.RootElement);
 
-                Task.Run(() => PatcherIO.WriteTextFile(outputFile, FormatLogStringIndents(output.ToString())));
+                Task.Run(() => _patcherIO.WriteTextFile(outputFile, FormatLogStringIndents(output.ToString())));
             }
         }
     }
@@ -244,10 +260,10 @@ public sealed class Logger : VM
         }
     }
 
-    public static void LogError(string error)
+    public void LogError(string error)
     {
-        Instance.LogString += error + Environment.NewLine;
-        Instance._loggedError.OnNext(Unit.Default);
+        LogString += error + Environment.NewLine;
+        _loggedError.OnNext(Unit.Default);
     }
     public static string SpreadFlattenedAssetPack(FlattenedAssetPack ap, int index, bool indentAtIndex)
     {
@@ -260,85 +276,85 @@ public sealed class Logger : VM
         return spread;
     }
 
-    public static void LogErrorWithStatusUpdate(string error, ErrorType type)
+    public void LogErrorWithStatusUpdate(string error, ErrorType type)
     {
-        Instance.LogString += error + Environment.NewLine;
-        Instance.StatusString = error;
+        LogString += error + Environment.NewLine;
+        StatusString = error;
         switch (type)
         {
             case ErrorType.Warning:
-                Instance.StatusColor = Instance.WarningColor;
+                StatusColor = WarningColor;
                 break;
             case ErrorType.Error:
-                Instance._loggedError.OnNext(Unit.Default);
-                Instance.StatusColor = Instance.ErrorColor;
+                _loggedError.OnNext(Unit.Default);
+                StatusColor = ErrorColor;
                 break;
         }
     }
 
-    public static void UpdateStatus(string message, bool triggerWarning)
+    public void UpdateStatus(string message, bool triggerWarning)
     {
-        Instance.StatusString = message;
+        StatusString = message;
         if (triggerWarning)
         {
-            Instance.StatusColor = Instance.WarningColor;
+            StatusColor = WarningColor;
         }
     }
 
-    public static void UpdateStatus(string message, SolidColorBrush newColor)
+    public void UpdateStatus(string message, SolidColorBrush newColor)
     {
-        Instance.StatusString = message;
-        Instance.StatusColor = newColor;
+        StatusString = message;
+        StatusColor = newColor;
     }
 
-    public static async Task UpdateStatusAsync(string message, bool triggerWarning)
+    public async Task UpdateStatusAsync(string message, bool triggerWarning)
     {
         await Task.Run(() => _UpdateStatusAsync(message, triggerWarning));
     }
 
-    private static async Task _UpdateStatusAsync(string message, bool triggerWarning)
+    private async Task _UpdateStatusAsync(string message, bool triggerWarning)
     {
-        Instance.StatusString = message;
+        StatusString = message;
         if (triggerWarning)
         {
-            Instance.StatusColor = Instance.WarningColor;
+            StatusColor = WarningColor;
         }
     }
 
-    public static async Task ArchiveStatusAsync()
+    public async Task ArchiveStatusAsync()
     {
         await Task.Run(() => _ArchiveStatusAsync());
     }
 
-    private static async Task _ArchiveStatusAsync()
+    private async Task _ArchiveStatusAsync()
     {
-        Instance.BackupStatusString = Instance.StatusString;
-        Instance.BackupStatusColor = Instance.StatusColor;
+        BackupStatusString = StatusString;
+        BackupStatusColor = StatusColor;
     }
-    public static void ArchiveStatus()
+    public void ArchiveStatus()
     {
-        Instance.BackupStatusString = Instance.StatusString;
-        Instance.BackupStatusColor = Instance.StatusColor;
+        BackupStatusString = StatusString;
+        BackupStatusColor = StatusColor;
     }
 
-    public static async Task UnarchiveStatusAsync()
+    public async Task UnarchiveStatusAsync()
     {
         await Task.Run(() => _DeArchiveStatusAsync());
     }
 
-    private static async Task _DeArchiveStatusAsync()
+    private async Task _DeArchiveStatusAsync()
     {
-        Instance.StatusString = Instance.BackupStatusString;
-        Instance.StatusColor = Instance.BackupStatusColor;
+        StatusString = BackupStatusString;
+        StatusColor = BackupStatusColor;
     }
 
-    public static void UnarchiveStatus()
+    public void UnarchiveStatus()
     {
-        Instance.StatusString = Instance.BackupStatusString;
-        Instance.StatusColor = Instance.BackupStatusColor;
+        StatusString = BackupStatusString;
+        StatusColor = BackupStatusColor;
     }
 
-    public static void TimedNotifyStatusUpdate(string error, ErrorType type, int durationSec)
+    public void TimedNotifyStatusUpdate(string error, ErrorType type, int durationSec)
     {
         ArchiveStatus();
         LogErrorWithStatusUpdate(error, type);
@@ -351,22 +367,22 @@ public sealed class Logger : VM
         UnarchiveStatus();
     }
 
-    public static void CallTimedLogErrorWithStatusUpdateAsync(string error, ErrorType type, int durationSec)
+    public void CallTimedLogErrorWithStatusUpdateAsync(string error, ErrorType type, int durationSec)
     {
         Task.Run(() => TimedLogErrorWithStatusUpdateAsync(error, type, durationSec));
     }
 
-    public static void CallTimedNotifyStatusUpdateAsync(string message, int durationSec)
+    public void CallTimedNotifyStatusUpdateAsync(string message, int durationSec)
     {
         Task.Run(() => TimedNotifyStatusUpdateAsync(message, durationSec));
     }
 
-    public static void CallTimedNotifyStatusUpdateAsync(string message, int durationSec, SolidColorBrush textColor)
+    public void CallTimedNotifyStatusUpdateAsync(string message, int durationSec, SolidColorBrush textColor)
     {
         Task.Run(() => TimedNotifyStatusUpdateAsync(message, durationSec, textColor));
     }
 
-    private static async Task TimedLogErrorWithStatusUpdateAsync(string error, ErrorType type, int durationSec)
+    private async Task TimedLogErrorWithStatusUpdateAsync(string error, ErrorType type, int durationSec)
     {
         ArchiveStatus();
         LogErrorWithStatusUpdate(error, type);
@@ -378,7 +394,7 @@ public sealed class Logger : VM
         UnarchiveStatus();
     }
 
-    private static async Task TimedNotifyStatusUpdateAsync(string message, int durationSec)
+    private async Task TimedNotifyStatusUpdateAsync(string message, int durationSec)
     {
         ArchiveStatus();
         UpdateStatus(message, false);
@@ -390,7 +406,7 @@ public sealed class Logger : VM
         UnarchiveStatus();
     }
 
-    private static async Task TimedNotifyStatusUpdateAsync(string message, int durationSec, SolidColorBrush textColor)
+    private async Task TimedNotifyStatusUpdateAsync(string message, int durationSec, SolidColorBrush textColor)
     {
         ArchiveStatus();
         UpdateStatus(message, textColor);
@@ -402,35 +418,35 @@ public sealed class Logger : VM
         UnarchiveStatus();
     }
 
-    public static void ClearStatusError()
+    public void ClearStatusError()
     {
-        Instance.StatusString = Instance.ReadyString;
-        Instance.StatusColor = Instance.ReadyColor;
+        StatusString = ReadyString;
+        StatusColor = ReadyColor;
     }
-    public static void StartTimer()
+    public void StartTimer()
     {
-        Instance.UpdateTimer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Background, System.Windows.Application.Current.Dispatcher); // arguments here are forcing the dispatcher to run on the UI thread (otherwise UpdateTimer.Tick fires on a different thread and gets missed by the UI, so the event handler is never called).
-        Instance.EllapsedTimer = new System.Diagnostics.Stopwatch();
-        Instance.UpdateTimer.Interval = TimeSpan.FromSeconds(1);
-        Instance.UpdateTimer.Tick += timer_Tick;
-        Instance.UpdateTimer.Start();
-        Instance.EllapsedTimer.Start();
-    }
-
-    public static void StopTimer()
-    {
-        Instance.EllapsedTimer.Stop();
-        Instance.UpdateTimer.Stop();
+        UpdateTimer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Background, System.Windows.Application.Current.Dispatcher); // arguments here are forcing the dispatcher to run on the UI thread (otherwise UpdateTimer.Tick fires on a different thread and gets missed by the UI, so the event handler is never called).
+        EllapsedTimer = new System.Diagnostics.Stopwatch();
+        UpdateTimer.Interval = TimeSpan.FromSeconds(1);
+        UpdateTimer.Tick += timer_Tick;
+        UpdateTimer.Start();
+        EllapsedTimer.Start();
     }
 
-    private static void timer_Tick(object sender, EventArgs e)
+    public void StopTimer()
+    {
+        EllapsedTimer.Stop();
+        UpdateTimer.Stop();
+    }
+
+    private void timer_Tick(object sender, EventArgs e)
     {
         UpdateStatus("Patching: " + GetEllapsedTime(), false);
     }
 
-    public static string GetEllapsedTime()
+    public string GetEllapsedTime()
     {
-        TimeSpan ts = Instance.EllapsedTimer.Elapsed;
+        TimeSpan ts = EllapsedTimer.Elapsed;
         return string.Format("{0:D2}:{1:D2}:{2:D2}", ts.Hours, ts.Minutes, ts.Seconds);
     }
 

@@ -1,47 +1,56 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
 using ReactiveUI;
+using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD;
 
 public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
 {
     private readonly VM_SettingsOBody _oBody;
+    private readonly Logger _logger;
+    private readonly VM_NPCAttributeCreator _attributeCreator;
+    private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
+    public delegate VM_ConfigDistributionRules Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack);
 
-    public VM_ConfigDistributionRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack, VM_SettingsOBody oBody)
+    public VM_ConfigDistributionRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack, VM_SettingsOBody oBody, Logger logger, VM_NPCAttributeCreator attributeCreator, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
         _oBody = oBody;
+        _logger = logger;
+        _attributeCreator = attributeCreator;
+        _descriptorSelectionFactory = descriptorSelectionFactory;
+
         SubscribedRaceGroupings = raceGroupingVMs;
         ParentAssetPack = parentAssetPack;
 
-        this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
-        this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
+        AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
+        DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
         if (parentAssetPack.TrackedBodyGenConfig != null)
         {
-            this.AllowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
-            this.DisallowedBodyGenDescriptors = new VM_BodyShapeDescriptorSelectionMenu(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
+            AllowedBodyGenDescriptors = _descriptorSelectionFactory(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
+            DisallowedBodyGenDescriptors = _descriptorSelectionFactory(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
         }
-        AllowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
-        DisallowedBodySlideDescriptors = new VM_BodyShapeDescriptorSelectionMenu(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
+        AllowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
+        DisallowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
 
         //UI-related
 
-        AddAllowedAttribute = new SynthEBD.RelayCommand(
+        AddAllowedAttribute = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.AllowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.AllowedAttributes, true, null, parentAssetPack.AttributeGroupMenu.Groups))
+            execute: _ => AllowedAttributes.Add(_attributeCreator.CreateNewFromUI(AllowedAttributes, true, null, parentAssetPack.AttributeGroupMenu.Groups))
         );
 
-        AddDisallowedAttribute = new SynthEBD.RelayCommand(
+        AddDisallowedAttribute = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.DisallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.DisallowedAttributes, false, null, parentAssetPack.AttributeGroupMenu.Groups))
+            execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, parentAssetPack.AttributeGroupMenu.Groups))
         );
 
-        AddNPCKeyword = new SynthEBD.RelayCommand(
+        AddNPCKeyword = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.AddKeywords.Add(new VM_CollectionMemberString("", this.AddKeywords))
+            execute: _ => AddKeywords.Add(new VM_CollectionMemberString("", this.AddKeywords))
         );
         
         PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
@@ -83,8 +92,8 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
             AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, raceGroupingVMs);
             DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
             DisallowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.DisallowedRaceGroupings, raceGroupingVMs);
-            AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, true, null);
-            DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, false, null);
+            AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, true, null, _attributeCreator, _logger);
+            DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, false, null, _attributeCreator, _logger);
             foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
             AllowUnique = model.AllowUnique;
             AllowNonUnique = model.AllowNonUnique;
@@ -94,12 +103,12 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
 
             if (parentAssetPack.TrackedBodyGenConfig != null)
             {
-                AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
-                DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
+                AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, _descriptorSelectionFactory);
+                DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, _descriptorSelectionFactory);
             }
 
-            AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
-            DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
+            AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, _descriptorSelectionFactory);
+            DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, _descriptorSelectionFactory);
         }
     }
 
