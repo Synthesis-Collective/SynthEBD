@@ -20,7 +20,7 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
         OBodyDescriptors = oBodySettings.DescriptorUI;
 
         BodyShapeMode = generalSettingsVM.BodySelectionMode;
-        //generalSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
+        generalSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
 
         DisplayedMenu = ImportMenu;
 
