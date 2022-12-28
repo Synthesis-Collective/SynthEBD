@@ -36,6 +36,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         VM_SettingsTexMesh texMesh,
         VM_Settings_Headparts headParts,
         VM_AssetPack.Factory assetPackFactory,
+        VM_BodySlideSetting.Factory bodySlideFactory,
         VM_SpecificNPCAssignment.Factory specificNPCAssignmentFactory,
         Converters converters)
     {
@@ -47,6 +48,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         _oBodySettings = oBody;
         _headPartSettings = headParts;
         _assetPackFactory = assetPackFactory;
+        _bodySlideFactory = bodySlideFactory;
         _specificNPCAssignmentFactory = specificNPCAssignmentFactory;
         _converters = converters;
         SubscribedGeneralSettings = general;

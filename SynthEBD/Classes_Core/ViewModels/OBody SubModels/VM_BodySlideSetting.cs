@@ -16,6 +16,7 @@ public class VM_BodySlideSetting : VM
     private readonly Logger _logger;
     private readonly VM_BodySlideSetting.Factory _selfFactory;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
+
     public delegate VM_BodySlideSetting Factory(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection);
     public VM_BodySlideSetting(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {

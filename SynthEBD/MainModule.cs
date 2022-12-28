@@ -58,7 +58,6 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_BodyGenMiscMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_OBodyMiscSettings>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodyShapeDescriptorCreationMenu>().AsSelf().SingleInstance();
-        builder.RegisterType<VM_BodyShapeDescriptorSelectionMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_HeadPartImport>().AsSelf().SingleInstance()
             .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
 
@@ -127,8 +126,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_ConfigDistributionRules>().AsSelf();
         builder.RegisterType<VM_BodyShapeDescriptor>().AsSelf();
         builder.RegisterType<VM_BodyShapeDescriptorShell>().AsSelf();
-        builder.RegisterType<VM_BodyShapeDescriptorCreationMenu>().AsSelf();
         builder.RegisterType<VM_BodyShapeDescriptorRules>().AsSelf();
+        builder.RegisterType<VM_BodyShapeDescriptorSelectionMenu>().AsSelf();
         builder.RegisterType<VM_BodySlideSetting>().AsSelf();
         builder.RegisterType<VM_AssetPackDirectReplacerMenu>().AsSelf();
         builder.RegisterType<VM_AssetReplacerGroup>().AsSelf();
