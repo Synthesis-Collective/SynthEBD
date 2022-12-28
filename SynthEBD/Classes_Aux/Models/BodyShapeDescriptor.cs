@@ -19,12 +19,12 @@ public class BodyShapeDescriptor
         }
         else
         {
-            this.ID = new() { Category = category, Value = Value };
+            ID = new() { Category = category, Value = Value };
         }
     }
 
     public LabelSignature ID { get; set; } = new();
-    public BodyShapeDescriptorRules AssociatedRules { get; set; }
+    public BodyShapeDescriptorRules AssociatedRules { get; set; } = new();
 
     public bool MapsTo(Object obj)
     {
@@ -118,9 +118,9 @@ public class BodyShapeDescriptor
         }
     }
 
-    public bool PermitNPC(NPCInfo npcInfo, HashSet<AttributeGroup> attributeGroups, out string reportStr)
+    public bool PermitNPC(NPCInfo npcInfo, HashSet<AttributeGroup> attributeGroups, AttributeMatcher attMatcher, out string reportStr)
     {
-        return this.AssociatedRules.NPCisValid(this, attributeGroups, npcInfo, out reportStr);
+        return this.AssociatedRules.NPCisValid(this, attributeGroups, npcInfo, attMatcher, out reportStr);
     }
 
     public static bool DescriptorsMatch(Dictionary<string, HashSet<string>> DescriptorSet, HashSet<LabelSignature> shapeDescriptors, out string firstMatch)

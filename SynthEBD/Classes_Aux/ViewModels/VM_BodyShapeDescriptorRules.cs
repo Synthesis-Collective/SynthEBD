@@ -96,7 +96,7 @@ public class VM_BodyShapeDescriptorRules : VM
 
     public BodyShapeDescriptorRules DumpViewModelToModel()
     {
-        BodyShapeDescriptorRules model = new BodyShapeDescriptorRules(_attributeMatcher);
+        BodyShapeDescriptorRules model = new();
         model.AllowedRaces = AllowedRaces.ToHashSet();
         model.AllowedRaceGroupings = AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
         model.DisallowedRaces = DisallowedRaces.ToHashSet();

@@ -246,7 +246,7 @@ public class OBodySelector
             var associatedDescriptor = oBodySettings.TemplateDescriptors.Where(x => x.ID.MapsTo(descriptorLabel)).FirstOrDefault();
             if (associatedDescriptor is not null)
             {
-                if (associatedDescriptor.PermitNPC(npcInfo, oBodySettings.AttributeGroups, out string reportStr))
+                if (associatedDescriptor.PermitNPC(npcInfo, oBodySettings.AttributeGroups, _attributeMatcher, out string reportStr))
                 {
                     if (associatedDescriptor.AssociatedRules.MatchedForceIfCount > 0)
                     {

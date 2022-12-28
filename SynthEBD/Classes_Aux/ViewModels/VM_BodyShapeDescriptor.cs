@@ -15,7 +15,7 @@ public class VM_BodyShapeDescriptor : VM
 
         RemoveDescriptorValue = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.ParentShell.Descriptors.Remove(this)
+            execute: _ => ParentShell.Descriptors.Remove(this)
         );
     }
     public string Value { get; set; } = "";
