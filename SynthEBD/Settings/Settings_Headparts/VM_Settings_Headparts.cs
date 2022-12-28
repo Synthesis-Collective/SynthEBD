@@ -11,9 +11,9 @@ namespace SynthEBD;
 
 public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
 {
-    public VM_Settings_Headparts(VM_Settings_General generalSettingsVM, VM_SettingsOBody oBodySettings, VM_HeadPartImport headPartImportVM, VM_HeadPartList.Factory listFactory, VM_HeadPart.Factory headPartFactory, Logger logger)
+    public VM_Settings_Headparts(VM_Settings_General generalSettingsVM, VM_SettingsOBody oBodySettings, VM_HeadPartList.Factory listFactory, VM_HeadPart.Factory headPartFactory, Logger logger)
     {
-        ImportMenu = headPartImportVM;
+        ImportMenu = new VM_HeadPartImport(this, logger, headPartFactory);
         SettingsMenu = new();
         AttributeGroupMenu = generalSettingsVM.AttributeGroupMenu;
         RaceGroupings = generalSettingsVM.RaceGroupings;
@@ -26,13 +26,13 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
 
         Types = new()
         {
-            { HeadPart.TypeEnum.Eyebrows, listFactory(HeadPart.TypeEnum.Eyebrows, generalSettingsVM.RaceGroupings) },
-            { HeadPart.TypeEnum.Eyes, listFactory(HeadPart.TypeEnum.Eyes, generalSettingsVM.RaceGroupings) },
-            { HeadPart.TypeEnum.Face, listFactory(HeadPart.TypeEnum.Face, generalSettingsVM.RaceGroupings) },
-            { HeadPart.TypeEnum.FacialHair, listFactory(HeadPart.TypeEnum.FacialHair, generalSettingsVM.RaceGroupings) },
-            { HeadPart.TypeEnum.Hair, listFactory(HeadPart.TypeEnum.Hair, generalSettingsVM.RaceGroupings) },
-            { HeadPart.TypeEnum.Misc, listFactory(HeadPart.TypeEnum.Misc, generalSettingsVM.RaceGroupings) },
-            { HeadPart.TypeEnum.Scars, listFactory(HeadPart.TypeEnum.Scars, generalSettingsVM.RaceGroupings) }
+            { HeadPart.TypeEnum.Eyebrows, listFactory(generalSettingsVM.RaceGroupings, this) },
+            { HeadPart.TypeEnum.Eyes, listFactory(generalSettingsVM.RaceGroupings, this) },
+            { HeadPart.TypeEnum.Face, listFactory(generalSettingsVM.RaceGroupings, this) },
+            { HeadPart.TypeEnum.FacialHair, listFactory(generalSettingsVM.RaceGroupings, this) },
+            { HeadPart.TypeEnum.Hair, listFactory(generalSettingsVM.RaceGroupings, this) },
+            { HeadPart.TypeEnum.Misc, listFactory(generalSettingsVM.RaceGroupings, this) },
+            { HeadPart.TypeEnum.Scars, listFactory(generalSettingsVM.RaceGroupings, this) }
         };
 
         ViewImportMenu = new RelayCommand(

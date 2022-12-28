@@ -139,6 +139,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_AttributeValidator>().AsSelf();
         builder.RegisterType<VM_Manifest>().AsSelf();
         builder.RegisterType<VM_BlockedNPC>().AsSelf();
+        builder.RegisterType<VM_RaceGrouping>().AsSelf();
 
         //Non-UI
         builder.RegisterType<CombinationLog>().AsSelf();
@@ -150,5 +151,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<ZEBDAssetPack>().AsSelf();
         builder.RegisterType<ZEBDAssetPack.ZEBDSubgroup>().AsSelf();
         builder.RegisterType<BodyShapeDescriptorRules>().AsSelf();
+
+        //Misc
+        builder.RegisterType<Mutagen.Bethesda.Skyrim.HeadPart>().AsSelf();
     }
 }

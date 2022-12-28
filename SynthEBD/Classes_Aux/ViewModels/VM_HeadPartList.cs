@@ -22,9 +22,8 @@ namespace SynthEBD
         private readonly VM_HeadPart.Factory _headPartFactory;
         private readonly VM_HeadPartCategoryRules.Factory _headPartCategoryRulesFactory;
         private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
-        public delegate VM_HeadPartList Factory(HeadPart.TypeEnum type, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
-        public VM_HeadPartList(HeadPart.TypeEnum type, 
-            ObservableCollection<VM_RaceGrouping> raceGroupingVMs, 
+        public delegate VM_HeadPartList Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts headPartMenuVM);
+        public VM_HeadPartList(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, 
             VM_Settings_Headparts headPartMenuVM, 
             VM_SettingsOBody oBodyMenuVM, 
             VM_NPCAttributeCreator attributeCreator,
@@ -41,8 +40,7 @@ namespace SynthEBD
             _headPartCategoryRulesFactory = headPartCategoryRulesFactory;
             _descriptorSelectionFactory = descriptorSelectionFactory;
 
-            HeadPartType = type;
-            DisplayedRuleSet = _headPartCategoryRulesFactory(raceGroupingVMs);
+            DisplayedRuleSet = _headPartCategoryRulesFactory(raceGroupingVMs, _headPartMenuVM);
 
             Alphabetizer = new(HeadPartList, x => x.Label, new(System.Windows.Media.Colors.MediumPurple));
 
@@ -55,7 +53,6 @@ namespace SynthEBD
         public VM_HeadPart DisplayedHeadPart { get; set; } // for reference only - currently not used for anything but may be useful at some point to be able to tell which headpart category this instance of VM_HeadPartList is for.
         public VM_HeadPartCategoryRules DisplayedRuleSet { get; set; }
         public DisplayGender GenderToggle { get; set; } = DisplayGender.Both; 
-        private HeadPart.TypeEnum HeadPartType { get; set; }
         public VM_Alphabetizer<VM_HeadPart, string> Alphabetizer { get; set; }
 
         public void UpdateList()

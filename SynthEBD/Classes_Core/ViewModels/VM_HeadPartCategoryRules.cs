@@ -16,7 +16,7 @@ namespace SynthEBD
     public class VM_HeadPartCategoryRules : VM
     {
         private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
-        public delegate VM_HeadPartCategoryRules Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
+        public delegate VM_HeadPartCategoryRules Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig);
         public VM_HeadPartCategoryRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig, VM_SettingsOBody oBody, VM_NPCAttributeCreator creator, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
             _descriptorSelectionFactory = descriptorSelectionFactory;
@@ -65,7 +65,7 @@ namespace SynthEBD
 
         public static VM_HeadPartCategoryRules GetViewModelFromModel(Settings_HeadPartType model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AttributeGroupMenu attributeGroupMenu, VM_Settings_Headparts parentConfig, VM_SettingsOBody oBody, VM_NPCAttributeCreator creator, Logger logger, VM_HeadPartCategoryRules.Factory rulesFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
-            VM_HeadPartCategoryRules viewModel = rulesFactory(raceGroupingVMs);
+            VM_HeadPartCategoryRules viewModel = rulesFactory(raceGroupingVMs, parentConfig);
             viewModel.bAllowFemale = model.bAllowFemale;
             viewModel.bAllowMale = model.bAllowMale;
             viewModel.bRestrictToNPCsWithThisType = model.bRestrictToNPCsWithThisType;
