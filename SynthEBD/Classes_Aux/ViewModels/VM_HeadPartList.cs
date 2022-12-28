@@ -23,7 +23,15 @@ namespace SynthEBD
         private readonly VM_HeadPartCategoryRules.Factory _headPartCategoryRulesFactory;
         private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
         public delegate VM_HeadPartList Factory(HeadPart.TypeEnum type, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
-        public VM_HeadPartList(HeadPart.TypeEnum type, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts headPartMenuVM, VM_SettingsOBody oBodyMenuVM, VM_NPCAttributeCreator attributeCreator, Logger logger, VM_HeadPart.Factory headPartFactory, VM_HeadPartCategoryRules.Factory headPartCategoryRulesFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+        public VM_HeadPartList(HeadPart.TypeEnum type, 
+            ObservableCollection<VM_RaceGrouping> raceGroupingVMs, 
+            VM_Settings_Headparts headPartMenuVM, 
+            VM_SettingsOBody oBodyMenuVM, 
+            VM_NPCAttributeCreator attributeCreator,
+            Logger logger, 
+            VM_HeadPart.Factory headPartFactory, 
+            VM_HeadPartCategoryRules.Factory headPartCategoryRulesFactory, 
+            VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
             _logger = logger;
             _headPartMenuVM = headPartMenuVM;
@@ -34,7 +42,7 @@ namespace SynthEBD
             _descriptorSelectionFactory = descriptorSelectionFactory;
 
             HeadPartType = type;
-            DisplayedRuleSet = _headPartCategoryRulesFactory(raceGroupingVMs, headPartMenuVM);
+            DisplayedRuleSet = _headPartCategoryRulesFactory(raceGroupingVMs);
 
             Alphabetizer = new(HeadPartList, x => x.Label, new(System.Windows.Media.Colors.MediumPurple));
 

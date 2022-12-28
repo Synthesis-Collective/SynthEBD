@@ -16,7 +16,7 @@ namespace SynthEBD
     public class VM_HeadPartCategoryRules : VM
     {
         private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
-        public delegate VM_HeadPartCategoryRules Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig);
+        public delegate VM_HeadPartCategoryRules Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
         public VM_HeadPartCategoryRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig, VM_SettingsOBody oBody, VM_NPCAttributeCreator creator, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
             _descriptorSelectionFactory = descriptorSelectionFactory;
@@ -26,20 +26,18 @@ namespace SynthEBD
             AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
             DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
-            ParentConfig = parentConfig;
-
             PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
                 .Subscribe(x => lk = x)
                 .DisposeWith(this);
 
-            AddAllowedAttribute = new SynthEBD.RelayCommand(
+            AddAllowedAttribute = new RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.AllowedAttributes.Add(creator.CreateNewFromUI(AllowedAttributes, true, null, ParentConfig.AttributeGroupMenu.Groups))
+                execute: _ => AllowedAttributes.Add(creator.CreateNewFromUI(AllowedAttributes, true, null, parentConfig.AttributeGroupMenu.Groups))
             );
 
-            AddDisallowedAttribute = new SynthEBD.RelayCommand(
+            AddDisallowedAttribute = new RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.DisallowedAttributes.Add(creator.CreateNewFromUI(DisallowedAttributes, false, null, ParentConfig.AttributeGroupMenu.Groups))
+                execute: _ => DisallowedAttributes.Add(creator.CreateNewFromUI(DisallowedAttributes, false, null, parentConfig.AttributeGroupMenu.Groups))
             );
         }
         public bool bAllowFemale { get; set; } = true;
@@ -62,13 +60,12 @@ namespace SynthEBD
         public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
         public RelayCommand AddAllowedAttribute { get; }
         public RelayCommand AddDisallowedAttribute { get; }
-        public VM_Settings_Headparts ParentConfig { get; set; }
         public VM_BodyShapeDescriptorSelectionMenu AllowedBodySlideDescriptors { get; set; }
         public VM_BodyShapeDescriptorSelectionMenu DisallowedBodySlideDescriptors { get; set; }
 
         public static VM_HeadPartCategoryRules GetViewModelFromModel(Settings_HeadPartType model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AttributeGroupMenu attributeGroupMenu, VM_Settings_Headparts parentConfig, VM_SettingsOBody oBody, VM_NPCAttributeCreator creator, Logger logger, VM_HeadPartCategoryRules.Factory rulesFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
-            VM_HeadPartCategoryRules viewModel = rulesFactory(raceGroupingVMs, parentConfig);
+            VM_HeadPartCategoryRules viewModel = rulesFactory(raceGroupingVMs);
             viewModel.bAllowFemale = model.bAllowFemale;
             viewModel.bAllowMale = model.bAllowMale;
             viewModel.bRestrictToNPCsWithThisType = model.bRestrictToNPCsWithThisType;
