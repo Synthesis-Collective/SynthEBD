@@ -102,8 +102,7 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
     }
 
     public object DisplayedMenu { get; set; }
-    public VM_HeadPartImport ImportMenu { get; set; } 
-    public VM_HeadPartList DisplayedHeadParts { get; set; } 
+    public VM_HeadPartImport ImportMenu { get; set; }
     public Dictionary<HeadPart.TypeEnum, VM_HeadPartList> Types { get; set; }
     public VM_AttributeGroupMenu AttributeGroupMenu { get; }
     public VM_HeadPartMiscSettings SettingsMenu { get; }
