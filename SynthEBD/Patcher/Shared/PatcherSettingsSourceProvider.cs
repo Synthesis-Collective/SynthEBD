@@ -5,25 +5,25 @@ namespace SynthEBD;
 
 public class PatcherSettingsSourceProvider
 {
-    public Lazy<LoadSource> SourceSettings { get; }
+    public Lazy<PatcherSettingsSource> SettingsSource { get; }
     public static StringBuilder SettingsLog { get; } = new();
     public string ErrorString;
+    public string SourcePath { get; set; }
 
-    public PatcherSettingsSourceProvider()
+    public PatcherSettingsSourceProvider(string sourcePath)
     {
-        SourceSettings = new Lazy<LoadSource>(() =>
+        SourcePath = sourcePath;
+        SettingsSource = new Lazy<PatcherSettingsSource>(() =>
         {
-            if (File.Exists(SynthEBDPaths.SettingsSourcePath))
+            if (File.Exists(sourcePath))
             {
-                SettingsLog.AppendLine("Found settings source path at " + SynthEBDPaths.SettingsSourcePath);
+                SettingsLog.AppendLine("Found settings source path at " + sourcePath);
 
-                var source = JSONhandler<LoadSource>.LoadJSONFile(SynthEBDPaths.SettingsSourcePath, out bool loadSuccess,
+                var source = JSONhandler<PatcherSettingsSource>.LoadJSONFile(sourcePath, out bool loadSuccess,
                     out string exceptionStr);
                 if (loadSuccess)
                 {
-                    SettingsLog.AppendLine("Source Settings: ");
-                    SettingsLog.AppendLine("Skyrim Version: " + source.SkyrimVersion);
-                    SettingsLog.AppendLine("Game Environment Directory: " + source.GameEnvironmentDirectory);
+                    SettingsLog.AppendLine("Source Settings: ");;
                     SettingsLog.AppendLine("Load Settings from Portable Folder: " + source.LoadFromDataDir);
                     SettingsLog.AppendLine("Portable Folder Location: " + source.PortableSettingsFolder);
                     source.Initialized = true;
@@ -38,7 +38,7 @@ public class PatcherSettingsSourceProvider
             }
             else
             {
-                SettingsLog.AppendLine("Did not find settings source path at " + SynthEBDPaths.SettingsSourcePath);
+                SettingsLog.AppendLine("Did not find settings source path at " + sourcePath);
                 SettingsLog.AppendLine("Using default environment and patcher settings locations.");
                 return new();
             }  
@@ -47,14 +47,14 @@ public class PatcherSettingsSourceProvider
 
     public void SetNewDataDir(string newDir)
     {
-        SourceSettings.Value.PortableSettingsFolder = newDir;
+        SettingsSource.Value.PortableSettingsFolder = newDir;
         if (string.IsNullOrWhiteSpace(newDir))
         {
-            SourceSettings.Value.LoadFromDataDir = false;
+            SettingsSource.Value.LoadFromDataDir = false;
         }
         else
         {
-            SourceSettings.Value.LoadFromDataDir = true;
+            SettingsSource.Value.LoadFromDataDir = true;
         }
     }
 }

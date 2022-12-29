@@ -11,58 +11,68 @@ namespace SynthEBD;
 
 public class VM_Settings_General : VM, IHasAttributeGroupMenu
 {
+    private readonly IStateProvider _stateProvider;
     public SaveLoader SaveLoader { get; set; }
     private bool _bFirstRun { get; set;} = false;
     private readonly Patcher _patcher;
     private readonly SettingsIO_General _generalIO;
+    private readonly VM_RaceAlias.Factory _aliasFactory;
+    private readonly VM_RaceGrouping.Factory _groupingFactory;
+    private readonly VM_LinkedNPCGroup.Factory _linkedNPCFactory;
     public VM_Settings_General(
         VM_SettingsModManager modManagerSettings,
         PatcherSettingsSourceProvider settingsProvider,
         VM_AttributeGroupMenu.Factory attributeGroupFactory,
+        VM_RaceAlias.Factory aliasFactory,
+        VM_RaceGrouping.Factory groupingFactory,
+        VM_LinkedNPCGroup.Factory linkedNPCFactory,
         SettingsIO_General generalIO,
-        Patcher patcher)
+        Patcher patcher,
+        IStateProvider stateProvider)
     {
+        _stateProvider = stateProvider;
         _patcher = patcher;
         _generalIO = generalIO;
+        _aliasFactory = aliasFactory;
+        _groupingFactory = groupingFactory;
+        _linkedNPCFactory = linkedNPCFactory;
 
         AttributeGroupMenu = attributeGroupFactory(null, false);
 
-        if (settingsProvider.SourceSettings.Value.Initialized)
+        if (settingsProvider.SettingsSource.Value.Initialized)
         {
-            bLoadSettingsFromDataFolder = settingsProvider.SourceSettings.Value.LoadFromDataDir;
-            PortableSettingsFolder = settingsProvider.SourceSettings.Value.PortableSettingsFolder;
+            bLoadSettingsFromDataFolder = settingsProvider.SettingsSource.Value.LoadFromDataDir;
+            PortableSettingsFolder = settingsProvider.SettingsSource.Value.PortableSettingsFolder;
         }
 
         this.WhenAnyValue(x => x.bShowToolTips)
             .Subscribe(x => TooltipController.Instance.DisplayToolTips = x);
-        
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+
+        _stateProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.SkyrimVersion).Skip(1).Subscribe(_ => PatcherEnvironmentProvider.Instance.GameDataFolder = String.Empty);
-
-        AddRaceAlias = new SynthEBD.RelayCommand(
+        AddRaceAlias = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => raceAliases.Add(new VM_raceAlias(new RaceAlias(), this))
+            execute: _ => raceAliases.Add(_aliasFactory(new RaceAlias(), this))
         );
 
-        AddRaceGrouping = new SynthEBD.RelayCommand(
+        AddRaceGrouping = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => RaceGroupings.Add(new VM_RaceGrouping(new RaceGrouping(), this))
+            execute: _ => RaceGroupings.Add(_groupingFactory(new RaceGrouping(), this))
         );
 
-        AddLinkedNPCNameExclusion = new SynthEBD.RelayCommand(
+        AddLinkedNPCNameExclusion = new RelayCommand(
             canExecute: _ => true,
             execute: _ => LinkedNameExclusions.Add(new VM_CollectionMemberString("", this.LinkedNameExclusions))
         );
 
-        AddLinkedNPCGroup = new SynthEBD.RelayCommand(
+        AddLinkedNPCGroup = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => LinkedNPCGroups.Add(new VM_LinkedNPCGroup())
+            execute: _ => LinkedNPCGroups.Add(_linkedNPCFactory())
         );
 
-        RemoveLinkedNPCGroup = new SynthEBD.RelayCommand(
+        RemoveLinkedNPCGroup = new RelayCommand(
             canExecute: _ => true,
             execute: x => LinkedNPCGroups.Remove((VM_LinkedNPCGroup)x)
         );
@@ -77,7 +87,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    if (IO_Aux.SelectFolder(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, out var tmpFolder))
+                    if (IO_Aux.SelectFolder(_stateProvider.DataFolderPath, out var tmpFolder))
                     {
                         OutputDataFolder = tmpFolder;
                     }
@@ -149,7 +159,6 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     public string OutputDataFolder { get; set; } = "";
     public bool bShowToolTips { get;  set;} = true;
     public bool bChangeMeshesOrTextures { get; set;  } = true;
-    public PatcherEnvironmentProvider Environment { get; set; }
     public BodyShapeSelectionMode BodySelectionMode { get; set;  } = BodyShapeSelectionMode.None;
     public BodySlideSelectionMode BSSelectionMode { get; set; } = BodySlideSelectionMode.OBody;
     public bool ExcludePlayerCharacter { get; set; } = true;
@@ -168,7 +177,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     public bool bLoadSettingsFromDataFolder { get; set;  } = false;
     public ObservableCollection<FormKey> patchableRaces { get; set; } = new();
 
-    public ObservableCollection<VM_raceAlias> raceAliases { get; set;  } = new();
+    public ObservableCollection<VM_RaceAlias> raceAliases { get; set;  } = new();
 
     public RelayCommand AddRaceAlias { get; }
 
@@ -188,7 +197,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     public RelayCommand SelectPortableSettingsFolder { get; }
     public RelayCommand ClearPortableSettingsFolder { get; }
     
-    public static void GetViewModelFromModel(VM_Settings_General viewModel, PatcherSettingsSourceProvider patcherSettingsProvider)
+    public static void GetViewModelFromModel(VM_Settings_General viewModel, PatcherSettingsSourceProvider patcherSettingsProvider, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, VM_RaceGrouping.Factory raceGroupingFactory, ILinkCache linkCache)
     {
         var model = PatcherSettings.General;
         viewModel.OutputDataFolder = model.OutputDataFolder;
@@ -203,21 +212,20 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         viewModel.ExcludePresets = model.ExcludePresets;
         viewModel.bLinkNPCsWithSameName = model.bLinkNPCsWithSameName;
         viewModel.LinkedNameExclusions = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(model.LinkedNPCNameExclusions);
-        viewModel.LinkedNPCGroups = VM_LinkedNPCGroup.GetViewModelsFromModels(model.LinkedNPCGroups);
-        viewModel.Environment.PatchFileName = model.PatchFileName;
+        viewModel.LinkedNPCGroups = VM_LinkedNPCGroup.GetViewModelsFromModels(model.LinkedNPCGroups, linkedNPCFactory, linkCache);
         viewModel.bVerboseModeAssetsNoncompliant = model.bVerboseModeAssetsNoncompliant;
         viewModel.bVerboseModeAssetsAll = model.bVerboseModeAssetsAll;
         viewModel.verboseModeNPClist = new ObservableCollection<FormKey>(model.VerboseModeNPClist);
         viewModel.VerboseModeDetailedAttributes = model.VerboseModeDetailedAttributes;
         viewModel.patchableRaces = new ObservableCollection<FormKey>(model.PatchableRaces);
-        viewModel.raceAliases = VM_raceAlias.GetViewModelsFromModels(model.RaceAliases, viewModel);
-        viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, viewModel);
+        viewModel.raceAliases = VM_RaceAlias.GetViewModelsFromModels(model.RaceAliases, viewModel, aliasFactory);
+        viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, viewModel, raceGroupingFactory);
         viewModel.AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
         viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;
 
-        if (patcherSettingsProvider.SourceSettings.Value.Initialized)
+        if (patcherSettingsProvider.SettingsSource.Value.Initialized)
         {
-            viewModel.PortableSettingsFolder = patcherSettingsProvider.SourceSettings.Value.PortableSettingsFolder;
+            viewModel.PortableSettingsFolder = patcherSettingsProvider.SettingsSource.Value.PortableSettingsFolder;
         }
 
         viewModel._bFirstRun = model.bFirstRun;
@@ -238,7 +246,6 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         model.bLinkNPCsWithSameName = viewModel.bLinkNPCsWithSameName;
         model.LinkedNPCNameExclusions = viewModel.LinkedNameExclusions.Select(x => x.Content).ToList();
         VM_LinkedNPCGroup.DumpViewModelsToModels(model.LinkedNPCGroups, viewModel.LinkedNPCGroups);
-        model.PatchFileName = viewModel.Environment.PatchFileName;
         model.bVerboseModeAssetsNoncompliant = viewModel.bVerboseModeAssetsNoncompliant;
         model.bVerboseModeAssetsAll = viewModel.bVerboseModeAssetsAll;
         model.VerboseModeNPClist = viewModel.verboseModeNPClist.ToList();
@@ -248,7 +255,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         model.RaceAliases.Clear();
         foreach (var x in viewModel.raceAliases)
         {
-            model.RaceAliases.Add(VM_raceAlias.DumpViewModelToModel(x));
+            model.RaceAliases.Add(VM_RaceAlias.DumpViewModelToModel(x));
         }
 
         model.RaceGroupings.Clear();

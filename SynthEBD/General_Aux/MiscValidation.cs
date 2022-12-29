@@ -5,11 +5,13 @@ namespace SynthEBD;
 
 public class MiscValidation
 {
+    private readonly IStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly RaceMenuIniHandler _raceMenuHandler;
-    public MiscValidation(Logger logger, SynthEBDPaths paths, RaceMenuIniHandler raceMenuHandler)
+    public MiscValidation(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, RaceMenuIniHandler raceMenuHandler)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
         _paths = paths;
         _raceMenuHandler = raceMenuHandler;
@@ -18,14 +20,14 @@ public class MiscValidation
     {
         bool verified = true;
 
-        string helperScriptPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "Scripts", "EBDHelperScript.pex");
+        string helperScriptPath = Path.Combine(_stateProvider.DataFolderPath, "Scripts", "EBDHelperScript.pex");
         if (!File.Exists(helperScriptPath))
         {
             _logger.LogMessage("Could not find EBDHelperScript.pex from EveryBody's Different Redone SSE at " + helperScriptPath);
             verified = false;
         }
 
-        string globalScriptPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "Scripts", "EBDGlobalFuncs.pex");
+        string globalScriptPath = Path.Combine(_stateProvider.DataFolderPath, "Scripts", "EBDGlobalFuncs.pex");
         if (!File.Exists(globalScriptPath))
         {
             _logger.LogMessage("Could not find EBDGlobalFuncs.pex from EveryBody's Different Redone SSE at " + globalScriptPath);
@@ -141,9 +143,9 @@ public class MiscValidation
         string dllPathSE_AE = Path.Combine(dataFolderPath, "SKSE", "Plugins", "JContainers64.dll");
         string dllPathVR = Path.Combine(dataFolderPath, "SKSE", "Plugins", "JContainersVR.dll");
 
-        var currentSkyrimVersion = PatcherEnvironmentProvider.Instance.Environment.GameRelease;
-        bool checkSE = currentSkyrimVersion == Mutagen.Bethesda.GameRelease.SkyrimSE || currentSkyrimVersion == Mutagen.Bethesda.GameRelease.EnderalSE; // not sure if JContainers actually works with Enderal
-        bool checkVR = currentSkyrimVersion == Mutagen.Bethesda.GameRelease.SkyrimVR;
+        var currentSkyrimVersion = _stateProvider.SkyrimVersion;
+        bool checkSE = currentSkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimSE || currentSkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.EnderalSE; // not sure if JContainers actually works with Enderal
+        bool checkVR = currentSkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimVR;
 
         if ((checkSE && !File.Exists(dllPathSE_AE)) || (checkVR && !File.Exists(dllPathVR)))
         {
@@ -261,7 +263,7 @@ public class MiscValidation
         bool valid = true;
         if (oBodySettings.BodySlidesMale.Where(x => x.AllowRandom && oBodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).Any())
         {
-            string triPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
+            string triPath = Path.Combine(_stateProvider.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
             if (!File.Exists(triPath))
             {
                 valid = false;
@@ -271,7 +273,7 @@ public class MiscValidation
 
         if (oBodySettings.BodySlidesFemale.Where(x => x.AllowRandom && oBodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).Any())
         {
-            string triPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
+            string triPath = Path.Combine(_stateProvider.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
             if (!File.Exists(triPath))
             {
                 valid = false;
@@ -294,7 +296,7 @@ public class MiscValidation
 
         if (hasMaleConfigs)
         {
-            string triPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
+            string triPath = Path.Combine(_stateProvider.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
             if (!File.Exists(triPath))
             {
                 valid = false;
@@ -303,7 +305,7 @@ public class MiscValidation
         }
         if (hasFemaleConfigs)
         {
-            string triPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
+            string triPath = Path.Combine(_stateProvider.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
             if (!File.Exists(triPath))
             {
                 valid = false;

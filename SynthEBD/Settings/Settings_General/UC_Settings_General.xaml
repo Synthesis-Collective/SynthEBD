@@ -178,7 +178,7 @@
                     </Grid.RowDefinitions>
                     <ItemsControl Grid.Row="0"  ItemsSource="{Binding raceAliases, UpdateSourceTrigger=PropertyChanged}">
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="{x:Type local:VM_raceAlias}">
+                            <DataTemplate DataType="{x:Type local:VM_RaceAlias}">
                                 <local:UC_RaceAlias Background="Black" Margin="0 0 0 10"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

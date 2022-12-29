@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
@@ -52,18 +52,20 @@ public class VM_AssetPackDirectReplacerMenu : VM
 
 public class VM_AssetReplacerGroup : VM
 {
+    private readonly IStateProvider _stateProvider;
     private readonly VM_Settings_General _generalSettingsVm;
     private readonly VM_Subgroup.Factory _subGroupFactory;
 
     public delegate VM_AssetReplacerGroup Factory(VM_AssetPackDirectReplacerMenu parent);
     
-    public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, VM_Settings_General generalSettingsVM, VM_Subgroup.Factory subGroupFactory)
+    public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, IStateProvider stateProvider, VM_Settings_General generalSettingsVM, VM_Subgroup.Factory subGroupFactory)
     {
+        _stateProvider = stateProvider;
         _generalSettingsVm = generalSettingsVM;
         _subGroupFactory = subGroupFactory;
-        this.ParentMenu = parent;
-        
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        ParentMenu = parent;
+
+        _stateProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 

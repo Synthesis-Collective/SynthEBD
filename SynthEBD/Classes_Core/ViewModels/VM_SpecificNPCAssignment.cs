@@ -15,6 +15,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 {
     public delegate VM_SpecificNPCAssignment Factory();
 
+    private IStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly VM_Settings_General _generalSettings;
@@ -25,9 +26,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     private readonly VM_SpecificNPCAssignment.Factory _specificNPCAssignmentFactory;
     private readonly VM_AssetPack.Factory _assetPackFactory;
     private readonly VM_BodySlideSetting.Factory _bodySlideFactory;
+    private readonly VM_HeadPartAssignment.Factory _headPartFactory;
     private readonly Converters _converters;
 
     public VM_SpecificNPCAssignment(
+        IStateProvider stateProvider,
         Logger logger, 
         SynthEBDPaths paths,
         VM_Settings_General general,
@@ -37,9 +40,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         VM_Settings_Headparts headParts,
         VM_AssetPack.Factory assetPackFactory,
         VM_BodySlideSetting.Factory bodySlideFactory,
+        VM_HeadPartAssignment.Factory headPartFactory,
         VM_SpecificNPCAssignment.Factory specificNPCAssignmentFactory,
         Converters converters)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
         _paths = paths;
         _generalSettings = general;
@@ -49,6 +54,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         _headPartSettings = headParts;
         _assetPackFactory = assetPackFactory;
         _bodySlideFactory = bodySlideFactory;
+        _headPartFactory = headPartFactory;
         _specificNPCAssignmentFactory = specificNPCAssignmentFactory;
         _converters = converters;
         SubscribedGeneralSettings = general;
@@ -56,7 +62,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         SubscribedBodyGenSettings = bodyGen;
         SubscribedHeadPartSettings = headParts;
 
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _stateProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
@@ -88,44 +94,44 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
         HeadParts = new()
         {
-            { HeadPart.TypeEnum.Eyebrows, new VM_HeadPartAssignment(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.Eyebrows, this, this) },
-            { HeadPart.TypeEnum.Eyes, new VM_HeadPartAssignment(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.Eyes, this, this) },
-            { HeadPart.TypeEnum.Face, new VM_HeadPartAssignment(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.Face, this, this) },
-            { HeadPart.TypeEnum.FacialHair, new VM_HeadPartAssignment(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.FacialHair, this, this) },
-            { HeadPart.TypeEnum.Hair, new VM_HeadPartAssignment(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.Hair, this, this) },
-            { HeadPart.TypeEnum.Misc, new VM_HeadPartAssignment(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.Misc, this, this) },
-            { HeadPart.TypeEnum.Scars, new VM_HeadPartAssignment(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.Scars, this, this) }
+            { HeadPart.TypeEnum.Eyebrows, _headPartFactory(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.Eyebrows, this, this) },
+            { HeadPart.TypeEnum.Eyes, _headPartFactory(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.Eyes, this, this) },
+            { HeadPart.TypeEnum.Face, _headPartFactory(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.Face, this, this) },
+            { HeadPart.TypeEnum.FacialHair, _headPartFactory(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.FacialHair, this, this) },
+            { HeadPart.TypeEnum.Hair, _headPartFactory(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.Hair, this, this) },
+            { HeadPart.TypeEnum.Misc, _headPartFactory(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.Misc, this, this) },
+            { HeadPart.TypeEnum.Scars, _headPartFactory(null, SubscribedHeadPartSettings, HeadPart.TypeEnum.Scars, this, this) }
         };
 
-        DeleteForcedAssetPack = new SynthEBD.RelayCommand(
+        DeleteForcedAssetPack = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {
-                this.ForcedSubgroups.Clear();
-                this.ForcedAssetPack = null;
+                ForcedSubgroups.Clear();
+                ForcedAssetPack = null;
             }
         );
-        DeleteForcedSubgroup = new SynthEBD.RelayCommand(
+        DeleteForcedSubgroup = new RelayCommand(
             canExecute: _ => true,
-            execute: x => this.ForcedSubgroups.Remove((VM_Subgroup)x)
+            execute: x => ForcedSubgroups.Remove((VM_Subgroup)x)
         );
 
-        DeleteForcedMorph = new SynthEBD.RelayCommand(
+        DeleteForcedMorph = new RelayCommand(
             canExecute: _ => true,
-            execute: x => this.ForcedBodyGenMorphs.Remove((VM_BodyGenTemplate)x)
+            execute: x => ForcedBodyGenMorphs.Remove((VM_BodyGenTemplate)x)
         );
 
-        AddForcedMixIn = new SynthEBD.RelayCommand(
+        AddForcedMixIn = new RelayCommand(
             canExecute: _ => true,
-            execute: x => this.ForcedMixIns.Add(new VM_MixInSpecificAssignment(this, assetPackFactory, ForcedMixIns))
+            execute: x => ForcedMixIns.Add(new VM_MixInSpecificAssignment(this, assetPackFactory, ForcedMixIns))
         );
 
-        AddForcedReplacer = new SynthEBD.RelayCommand(
+        AddForcedReplacer = new RelayCommand(
             canExecute: _ => true,
-            execute: x => this.ForcedAssetReplacements.Add(new VM_AssetReplacementAssignment(ForcedAssetPack, ForcedAssetReplacements))
+            execute: x => ForcedAssetReplacements.Add(new VM_AssetReplacementAssignment(ForcedAssetPack, ForcedAssetReplacements))
         );
 
-        DeleteForcedMixInSubgroup = new SynthEBD.RelayCommand(
+        DeleteForcedMixInSubgroup = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {
@@ -194,7 +200,8 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         VM_Settings_Headparts headParts,
         Factory specificNpcAssignmentFactory, 
         Logger logger,
-        Converters converters)
+        Converters converters,
+        IStateProvider stateProvider)
     {
         var viewModel = specificNpcAssignmentFactory();
         viewModel.NPCFormKey = model.NPCFormKey;
@@ -206,12 +213,12 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
         var npcFormLink = new FormLink<INpcGetter>(viewModel.NPCFormKey);
 
-        if (!npcFormLink.TryResolve(PatcherEnvironmentProvider.Instance.Environment.LinkCache, out var npcRecord))
+        if (!npcFormLink.TryResolve(stateProvider.LinkCache, out var npcRecord))
         {
             logger.LogError("Warning: the target NPC of the Specific NPC Assignment with FormKey " + viewModel.NPCFormKey.ToString() + " was not found in the current load order.");
         }
 
-        viewModel.Gender = GetGender(viewModel.NPCFormKey, logger);
+        viewModel.Gender = GetGender(viewModel.NPCFormKey, logger, stateProvider);
 
         bool assetPackFound = false;
         if (model.AssetPackName.Length == 0) { assetPackFound = true; }
@@ -300,7 +307,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             if (!model.HeadParts.ContainsKey(headPartType)) { model.HeadParts.Add(headPartType, new()); }
             else
             {
-                viewModel.HeadParts[headPartType] = VM_HeadPartAssignment.GetViewModelFromModel(model.HeadParts[headPartType], headPartType, headParts, viewModel, viewModel);
+                viewModel.HeadParts[headPartType] = VM_HeadPartAssignment.GetViewModelFromModel(model.HeadParts[headPartType], headPartType, headParts, viewModel, viewModel, stateProvider);
             }
         }
 
@@ -579,7 +586,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         }
 
         this.DispName = _converters.CreateNPCDispNameFromFormKey(this.NPCFormKey);
-        this.Gender = GetGender(this.NPCFormKey, _logger);
+        this.Gender = GetGender(this.NPCFormKey, _logger, _stateProvider);
 
         UpdateAvailableAssetPacks(this);
         UpdateAvailableSubgroups(this);
@@ -599,11 +606,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         this.Gender = GetGender(this.NPCFormKey);
     }*/
 
-    public static Gender GetGender (FormKey NPCFormKey, Logger logger)
+    public static Gender GetGender (FormKey NPCFormKey, Logger logger, IStateProvider stateProvider)
     {
         var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
 
-        if (npcFormLink.TryResolve(PatcherEnvironmentProvider.Instance.Environment.LinkCache, out var npcRecord))
+        if (npcFormLink.TryResolve(stateProvider.LinkCache, out var npcRecord))
         {
             if (npcRecord.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Female))
             {

@@ -8,13 +8,15 @@ namespace SynthEBD;
 
 public class VM_SettingsHeight : VM
 {
+    private readonly IStateProvider _stateProvider;
     private readonly VM_HeightConfig.Factory _configFactory;
-    public VM_SettingsHeight(PatcherEnvironmentProvider environmentProvider, FileDialogs fileDialogs, VM_HeightConfig.Factory configFactory)
+    public VM_SettingsHeight(IStateProvider stateProvider, FileDialogs fileDialogs, VM_HeightConfig.Factory configFactory)
     {
+        _stateProvider = stateProvider;
         _configFactory = configFactory;
         SelectedHeightConfig = _configFactory();
 
-        environmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
+        _stateProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
         

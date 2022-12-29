@@ -12,6 +12,11 @@ public enum AutoBodySelectionMode
 
 public class Settings_OBody
 {
+    private readonly IStateProvider _stateProvider;
+    public Settings_OBody(IStateProvider stateProvider)
+    {
+        _stateProvider = stateProvider;
+    }
     public List<BodySlideSetting> BodySlidesMale { get; set; } = new();
     public List<BodySlideSetting> BodySlidesFemale { get; set; } = new();
     public HashSet<BodyShapeDescriptor> TemplateDescriptors { get; set; } = new()
@@ -45,7 +50,7 @@ public class Settings_OBody
 
         CurrentlyExistingBodySlides.Clear();
         List<BodySlideSetting> currentBodySlides = new List<BodySlideSetting>();
-        string loadFolder = System.IO.Path.Join(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "CalienteTools\\BodySlide\\SliderPresets");
+        string loadFolder = System.IO.Path.Join(_stateProvider.DataFolderPath, "CalienteTools\\BodySlide\\SliderPresets");
         if (System.IO.Directory.Exists(loadFolder))
         {
             var xmlFilePaths = System.IO.Directory.GetFiles(loadFolder, "*.xml");

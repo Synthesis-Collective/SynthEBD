@@ -5,12 +5,14 @@ namespace SynthEBD;
 
 public class HeightPatcher
 {
+    private readonly IStateProvider _stateProvider;
     private readonly Logger _logger;
-    public HeightPatcher(Logger logger)
+    public HeightPatcher(IStateProvider stateProvider, Logger logger)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
     }
-    public void AssignNPCHeight(NPCInfo npcInfo, HeightConfig heightConfig, SkyrimMod outputMod)
+    public void AssignNPCHeight(NPCInfo npcInfo, HeightConfig heightConfig, ISkyrimMod outputMod)
     {
         Npc npc = null;
         float assignedHeight = 1;
@@ -139,7 +141,7 @@ public class HeightPatcher
         _logger.CloseReportSubsection(npcInfo);
     }
 
-    public void AssignRacialHeight(HeightConfig heightConfig, SkyrimMod outputMod)
+    public void AssignRacialHeight(HeightConfig heightConfig, ISkyrimMod outputMod)
     {
         Race patchedRace = null;
         HeightAssignment heightRacialSetting = null;
@@ -148,12 +150,12 @@ public class HeightPatcher
         if (heightConfig == null) { return; }
         if (!PatcherSettings.Height.bChangeRaceHeight) { return; }
 
-        foreach (var race in PatcherEnvironmentProvider.Instance.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
+        foreach (var race in _stateProvider.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
         {
             patchedRace = null;
             raceAlias = PatcherSettings.General.RaceAliases.Where(x => x.Race == race.FormKey && x.bApplyToHeight).FirstOrDefault();
                
-            if (raceAlias != null && PatcherSettings.General.PatchableRaces.Contains(raceAlias.AliasRace) && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(raceAlias.AliasRace, out var raceAliasGetter))
+            if (raceAlias != null && PatcherSettings.General.PatchableRaces.Contains(raceAlias.AliasRace) && _stateProvider.LinkCache.TryResolve<IRaceGetter>(raceAlias.AliasRace, out var raceAliasGetter))
             {
                 heightRacialSetting = heightConfig.HeightAssignments.Where(x => x.Races.Contains(raceAlias.AliasRace)).FirstOrDefault();
 

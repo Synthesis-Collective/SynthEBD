@@ -10,12 +10,14 @@ namespace SynthEBD;
 
 public class VM_BodyShapeDescriptorRules : VM
 {
+    private IStateProvider _stateProvider;
     private Logger _logger;
     private VM_NPCAttributeCreator _attributeCreator;
     private AttributeMatcher _attributeMatcher;
     public delegate VM_BodyShapeDescriptorRules Factory(VM_BodyShapeDescriptor descriptor, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig);
-    public VM_BodyShapeDescriptorRules(VM_BodyShapeDescriptor descriptor, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, Logger logger, VM_NPCAttributeCreator creator, AttributeMatcher attributeMatcher)
+    public VM_BodyShapeDescriptorRules(VM_BodyShapeDescriptor descriptor, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, IStateProvider stateProvider, Logger logger, VM_NPCAttributeCreator creator, AttributeMatcher attributeMatcher)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
         _attributeCreator = creator;
         _attributeMatcher = attributeMatcher;
@@ -24,19 +26,19 @@ public class VM_BodyShapeDescriptorRules : VM
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
         ParentConfig = parentConfig;
-        
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+
+        _stateProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
         AddAllowedAttribute = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => AllowedAttributes.Add(_attributeCreator.CreateNewFromUI(this.AllowedAttributes, true, null, ParentConfig.AttributeGroupMenu.Groups))
+            execute: _ => AllowedAttributes.Add(_attributeCreator.CreateNewFromUI(AllowedAttributes, true, null, ParentConfig.AttributeGroupMenu.Groups))
         );
 
         AddDisallowedAttribute = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(this.DisallowedAttributes, false, null, ParentConfig.AttributeGroupMenu.Groups))
+            execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, ParentConfig.AttributeGroupMenu.Groups))
         );
     }
 
@@ -84,8 +86,8 @@ public class VM_BodyShapeDescriptorRules : VM
             else { grouping.IsSelected = false; }
         }
 
-        AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null, _attributeCreator, _logger);
-        DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null, _attributeCreator, _logger);
+        AllowedAttributes = _attributeCreator.GetViewModelsFromModels(model.AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null);
+        DisallowedAttributes = _attributeCreator.GetViewModelsFromModels(model.DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null);
         foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
         bAllowUnique = model.AllowUnique;
         bAllowNonUnique = model.AllowNonUnique;

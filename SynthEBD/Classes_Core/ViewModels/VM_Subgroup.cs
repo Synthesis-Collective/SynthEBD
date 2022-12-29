@@ -17,6 +17,7 @@ namespace SynthEBD;
 
 public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 {
+    private readonly IStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly VM_SettingsOBody _oBody;
@@ -32,7 +33,8 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         VM_Subgroup parentSubgroup,
         bool setExplicitReferenceNPC);
     
-    public VM_Subgroup(Logger logger,
+    public VM_Subgroup(IStateProvider stateProvider,
+        Logger logger,
         SynthEBDPaths paths,
         ObservableCollection<VM_RaceGrouping> raceGroupingVMs,
         ObservableCollection<VM_Subgroup> parentCollection,
@@ -45,6 +47,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         VM_FilePathReplacement.Factory filePathReplacementFactory,
         VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
         _paths = paths;
         _oBody = oBody;
@@ -67,7 +70,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         AllowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
         DisallowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
 
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _stateProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => LinkCache = x)
             .DisposeWith(this);
         
@@ -215,8 +218,8 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, generalSettingsVM.RaceGroupings);
         DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
         DisallowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.DisallowedRaceGroupings, generalSettingsVM.RaceGroupings);
-        AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, true, null, _attributeCreator, _logger);
-        DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, false, null, _attributeCreator, _logger);
+        AllowedAttributes = _attributeCreator.GetViewModelsFromModels(model.AllowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, true, null);
+        DisallowedAttributes = _attributeCreator.GetViewModelsFromModels(model.DisallowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, false, null);
         foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
         AllowUnique = model.AllowUnique;
         AllowNonUnique = model.AllowNonUnique;
@@ -278,9 +281,9 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
     }
     public void GetDDSPaths(ObservableCollection<ImagePreviewHandler.ImagePathWithSource> paths)
     {
-        var ddsPaths = PathsMenu.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, x.Source)))
+        var ddsPaths = PathsMenu.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(_stateProvider.DataFolderPath, x.Source)))
             .Select(x => x.Source)
-            .Select(x => System.IO.Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, x))
+            .Select(x => System.IO.Path.Combine(_stateProvider.DataFolderPath, x))
             .ToHashSet();
         foreach (var path in ddsPaths)
         {

@@ -55,12 +55,12 @@ public class PatcherIO
         }
         catch(Exception e)
         {
-            var error = ExceptionLogger.GetExceptionStack(e, "");
+            var error = ExceptionLogger.GetExceptionStack(e);
             CustomMessageBox.DisplayNotificationOK("Could not save text file", "Error: could not save text file to " + path + ". Exception: " + Environment.NewLine + error);
         }
     }
 
-    public static void WritePatch(string patchOutputPath, SkyrimMod outputMod, Logger logger)
+    public static void WritePatch(string patchOutputPath, ISkyrimMod outputMod, Logger logger, IStateProvider stateProvider)
     {
         string errStr = "";
         if (File.Exists(patchOutputPath))
@@ -71,7 +71,7 @@ public class PatcherIO
             }
             catch (Exception e)
             {
-                errStr = ExceptionLogger.GetExceptionStack(e, errStr);
+                errStr = ExceptionLogger.GetExceptionStack(e);
                 logger.LogMessage("Failed to delete previous version of patch. Error: " + Environment.NewLine + errStr);
                 logger.LogErrorWithStatusUpdate("Could not write output file to " + patchOutputPath, ErrorType.Error);
                 return;
@@ -82,14 +82,14 @@ public class PatcherIO
         {
             var writeParams = new Mutagen.Bethesda.Plugins.Binary.Parameters.BinaryWriteParameters()
             {
-                MastersListOrdering = new Mutagen.Bethesda.Plugins.Binary.Parameters.MastersListOrderingByLoadOrder(PatcherEnvironmentProvider.Instance.Environment.LoadOrder)
+                MastersListOrdering = new Mutagen.Bethesda.Plugins.Binary.Parameters.MastersListOrderingByLoadOrder(stateProvider.LoadOrder)
             };
             outputMod.WriteToBinary(patchOutputPath, writeParams);
             logger.LogMessage("Wrote output file at " + patchOutputPath + ".");
         }
         catch (Exception e)
         {
-            errStr = ExceptionLogger.GetExceptionStack(e, errStr);
+            errStr = ExceptionLogger.GetExceptionStack(e);
             logger.LogMessage("Failed to write new patch. Error: " + Environment.NewLine + errStr);
             logger.LogErrorWithStatusUpdate("Could not write output file to " + patchOutputPath, ErrorType.Error); 
         };
@@ -124,7 +124,7 @@ public class PatcherIO
             catch (Exception e)
             {
                 logger.LogErrorWithStatusUpdate("Could not delete file - see log", ErrorType.Warning);
-                string error = ExceptionLogger.GetExceptionStack(e, "");
+                string error = ExceptionLogger.GetExceptionStack(e);
                 logger.LogMessage("Could not delete file: " + path + Environment.NewLine + error);
                 return false;
             }
@@ -143,7 +143,7 @@ public class PatcherIO
             catch (Exception e)
             {
                 logger.LogErrorWithStatusUpdate("Could not delete directory - see log", ErrorType.Warning);
-                string error = ExceptionLogger.GetExceptionStack(e, "");
+                string error = ExceptionLogger.GetExceptionStack(e);
                 logger.LogMessage("Could not delete directory: " + path + Environment.NewLine + error);
                 return false;
             }

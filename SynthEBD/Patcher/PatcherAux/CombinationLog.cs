@@ -5,17 +5,19 @@ namespace SynthEBD;
 
 public class CombinationLog
 {
-    private readonly PatcherEnvironmentProvider _environmentProvider;
+    private readonly IStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly PatcherIO _patcherIO;
     private readonly SynthEBDPaths _paths;
+    private readonly Converters _converters;
 
-    public CombinationLog(PatcherEnvironmentProvider environmentProvider, Logger logger, PatcherIO patcherIO, SynthEBDPaths paths)
+    public CombinationLog(IStateProvider stateProvider, Logger logger, PatcherIO patcherIO, SynthEBDPaths paths, Converters converters)
     {
-        _environmentProvider = environmentProvider;
+        _stateProvider = stateProvider;
         _logger = logger;
         _patcherIO = patcherIO;
         _paths = paths;
+        _converters = converters;
 
         AssignedPrimaryCombinations = new Dictionary<string, List<CombinationInfo>>();
         AssignedMixInCombinations = new Dictionary<string, List<CombinationInfo>>();
@@ -78,7 +80,7 @@ public class CombinationLog
 
                 foreach (var record in combination.AssignedRecords)
                 {
-                    if (Converters.FormKeyStringToFormIDString(record.FormKey, out string formID))
+                    if (_converters.FormKeyStringToFormIDString(record.FormKey, out string formID))
                     {
                         fileContents.Add("\t\t\t" + (record.EditorID) + " (" + formID + ")"); // not a Mutagen record; EditorID will never be null
                     }
@@ -92,7 +94,7 @@ public class CombinationLog
     {
         foreach (var containedFormLink in recordInfo.SubRecords)
         {
-            if (_environmentProvider.Environment.LinkCache.TryResolve(containedFormLink.FormKey, containedFormLink.Type, out var resolvedSubRecord))
+            if (_stateProvider.LinkCache.TryResolve(containedFormLink.FormKey, containedFormLink.Type, out var resolvedSubRecord))
             {
                 var loggedSubRecord = new GeneratedRecordInfo() { EditorID =  EditorIDHandler.GetEditorIDSafely(resolvedSubRecord), FormKey = resolvedSubRecord.FormKey.ToString(), SubRecords = resolvedSubRecord.EnumerateFormLinks().Where(x => x.FormKey.ModKey == resolvedSubRecord.FormKey.ModKey).ToHashSet() };
                     

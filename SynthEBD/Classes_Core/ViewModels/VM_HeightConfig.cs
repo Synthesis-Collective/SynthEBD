@@ -9,15 +9,19 @@ namespace SynthEBD;
 
 public class VM_HeightConfig : VM
 {
+    private readonly IStateProvider _stateProvider;
     private readonly Logger _logger;
+    private readonly VM_HeightAssignment.Factory _assignmentFactory;
     public delegate VM_HeightConfig Factory();
-    public VM_HeightConfig(Logger logger, SettingsIO_Height heightIO)
+    public VM_HeightConfig(IStateProvider stateProvider, Logger logger, SettingsIO_Height heightIO, VM_HeightAssignment.Factory assignmentFactory)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
+        _assignmentFactory = assignmentFactory;
 
         AddHeightAssignment = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => HeightAssignments.Add(new VM_HeightAssignment(HeightAssignments))
+            execute: _ => HeightAssignments.Add(_assignmentFactory(HeightAssignments))
         );
 
         SetAllDistModes = new RelayCommand(
@@ -57,13 +61,13 @@ public class VM_HeightConfig : VM
     public RelayCommand SetAllDistModes { get; }
     public RelayCommand Save { get; }
 
-    public static void GetViewModelsFromModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models, VM_HeightConfig.Factory factory)
+    public static void GetViewModelsFromModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models, VM_HeightConfig.Factory configFactory, VM_HeightAssignment.Factory assignmentFactory)
     {
         for (int i = 0; i < models.Count; i++)
         {
-            var vm = factory();
+            var vm = configFactory();
             vm.Label = models[i].Label;
-            vm.HeightAssignments = VM_HeightAssignment.GetViewModelsFromModels(models[i].HeightAssignments);
+            vm.HeightAssignments = VM_HeightAssignment.GetViewModelsFromModels(models[i].HeightAssignments, assignmentFactory);
             vm.SubscribedHeightConfig = models[i];
             vm.SourcePath = models[i].FilePath;
 
@@ -91,11 +95,14 @@ public class VM_HeightConfig : VM
 }
 public class VM_HeightAssignment : VM
 {
-    public VM_HeightAssignment(ObservableCollection<VM_HeightAssignment> parentCollection)
+    private readonly IStateProvider _stateProvider;
+    public delegate VM_HeightAssignment Factory(ObservableCollection<VM_HeightAssignment> parentCollection);
+    public VM_HeightAssignment(ObservableCollection<VM_HeightAssignment> parentCollection, IStateProvider stateProvider)
     {
+        _stateProvider = stateProvider;
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _stateProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
     }
@@ -112,12 +119,12 @@ public class VM_HeightAssignment : VM
     public ILinkCache lk { get; private set; }
     public RelayCommand DeleteCommand { get; }
 
-    public static ObservableCollection<VM_HeightAssignment> GetViewModelsFromModels(HashSet<HeightAssignment> models)
+    public static ObservableCollection<VM_HeightAssignment> GetViewModelsFromModels(HashSet<HeightAssignment> models, VM_HeightAssignment.Factory factory)
     {
         ObservableCollection<VM_HeightAssignment> viewModels = new ObservableCollection<VM_HeightAssignment>();
         foreach (var model in models)
         {
-            var vm = new VM_HeightAssignment(viewModels);
+            var vm = factory(viewModels);
             vm.Label = model.Label;
             vm.Races = new ObservableCollection<FormKey>(model.Races);
             vm.MaleHeightBase = model.HeightMale.ToString();

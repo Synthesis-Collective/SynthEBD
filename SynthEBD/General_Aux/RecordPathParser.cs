@@ -22,9 +22,11 @@ public class ObjectInfo
 }
 public class RecordPathParser
 {
+    private readonly IStateProvider _stateProvider; 
     private readonly Logger _logger;
-    public RecordPathParser(Logger logger)
+    public RecordPathParser(IStateProvider stateProvider, Logger logger)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
     }
 
@@ -668,7 +670,7 @@ public class RecordPathParser
 
         foreach (var matchPath in toMatch)
         {
-            if (GetObjectAtPath(rootRecord, npc, matchPath, subObjectCache, PatcherEnvironmentProvider.Instance.Environment.LinkCache, true, "", out dynamic outputObj))
+            if (GetObjectAtPath(rootRecord, npc, matchPath, subObjectCache, _stateProvider.LinkCache, true, "", out dynamic outputObj))
             {
                 var objCollection = outputObj as System.Collections.IEnumerable;
 

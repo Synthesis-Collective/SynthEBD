@@ -13,7 +13,9 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
     private readonly RaceMenuIniHandler _raceMenuHandler;
     private readonly SettingsIO_BodyGen _bodyGenIO;
     private readonly VM_BodyShapeDescriptorCreator _descriptorCreator;
+    private readonly VM_BodyGenGroupMappingMenu.Factory _groupMappingMenuFactory;
     private readonly VM_BodyGenTemplateMenu.Factory _templateMenuFactory;
+    private readonly VM_BodyGenRacialMapping.Factory _mappingFactory;
     private readonly VM_BodyGenTemplate.Factory _templateFactory;
     public VM_BodyGenConfig(
         ObservableCollection<VM_BodyGenConfig> parentCollection,
@@ -25,20 +27,24 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
         Logger logger,
         RaceMenuIniHandler raceMenuHandler,
         SettingsIO_BodyGen bodyGenIO,
+        VM_BodyGenGroupMappingMenu.Factory groupMappingMenuFactory,
         VM_BodyShapeDescriptorCreator descriptorCreator,
         VM_BodyGenTemplateMenu.Factory templateMenuFactory,
+        VM_BodyGenRacialMapping.Factory mappingFactory,
         VM_BodyGenTemplate.Factory templateFactory)
     {
         _logger = logger;
         _raceMenuHandler = raceMenuHandler;
         _attributeGroupMenuFactory = attributeGroupMenuFactory;
         _bodyGenIO = bodyGenIO;
+        _groupMappingMenuFactory = groupMappingMenuFactory;
         _descriptorCreator = descriptorCreator;
         _templateMenuFactory = templateMenuFactory;
+        _mappingFactory = mappingFactory;
         _templateFactory = templateFactory;
 
         GroupUI = new VM_BodyGenGroupsMenu(this);
-        GroupMappingUI = new VM_BodyGenGroupMappingMenu(GroupUI, generalSettingsVM.RaceGroupings);
+        GroupMappingUI = _groupMappingMenuFactory(GroupUI, generalSettingsVM.RaceGroupings);
         DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this);
         TemplateMorphUI = _templateMenuFactory(this, generalSettingsVM.RaceGroupings);
         DisplayedUI = TemplateMorphUI;
@@ -187,7 +193,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
 
         foreach (var RTG in model.RacialTemplateGroupMap)
         {
-            GroupMappingUI.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.GetViewModelFromModel(RTG, GroupUI, generalSettingsVM.RaceGroupings));
+            GroupMappingUI.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.GetViewModelFromModel(RTG, GroupUI, generalSettingsVM.RaceGroupings, _mappingFactory));
         }
         
         if (GroupMappingUI.RacialTemplateGroupMap.Any())

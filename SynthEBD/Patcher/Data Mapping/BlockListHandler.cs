@@ -1,4 +1,6 @@
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
+using Mutagen.Bethesda.Plugins.Order;
 using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
@@ -21,9 +23,9 @@ class BlockListHandler
     }
 
         
-    public static BlockedPlugin GetCurrentPluginBlockStatus(BlockList blockList, FormKey npcFormKey)
+    public static BlockedPlugin GetCurrentPluginBlockStatus(BlockList blockList, FormKey npcFormKey, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {
-        var contexts = PatcherEnvironmentProvider.Instance.Environment.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npcFormKey).ToList(); // [0] is winning override. [Last] is source plugin
+        var contexts = linkCache.ResolveAllContexts<INpc, INpcGetter>(npcFormKey).ToList(); // [0] is winning override. [Last] is source plugin
 
         var output = new BlockedPlugin();
         output.Assets = false;

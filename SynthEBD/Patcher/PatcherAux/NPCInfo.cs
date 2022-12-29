@@ -1,4 +1,5 @@
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using static System.Windows.Forms.AxHost;
 
@@ -6,7 +7,7 @@ namespace SynthEBD;
 
 public class NPCInfo
 {
-    public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, HashSet<NPCAssignment> specificNPCAssignments, Dictionary<string, NPCAssignment> consistency, BlockList blockList)
+    public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, HashSet<NPCAssignment> specificNPCAssignments, Dictionary<string, NPCAssignment> consistency, BlockList blockList, IStateProvider stateProvider)
     {
         this.NPC = npc;
         this.LogIDstring = Logger.GetNPCLogNameString(npc);
@@ -64,7 +65,7 @@ public class NPCInfo
         {
             foreach (var headpartFK in npc.HeadParts)
             {
-                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headpartFK.FormKey, out IHeadPartGetter headPart))
+                if (stateProvider.LinkCache.TryResolve<IHeadPartGetter>(headpartFK.FormKey, out IHeadPartGetter headPart))
                 {
                     ExistingHeadParts.Add(headPart);
                 }
@@ -72,7 +73,7 @@ public class NPCInfo
         }
 
         BlockedNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(blockList, npc.FormKey);
-        BlockedPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey);
+        BlockedPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey, stateProvider.LinkCache);
 
         Report = new Logger.NPCReport(this);
     }

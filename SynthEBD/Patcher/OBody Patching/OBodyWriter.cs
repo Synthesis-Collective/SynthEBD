@@ -18,7 +18,7 @@ public class OBodyWriter
         _patcherIO = patcherIO;
     }
 
-    public static Spell CreateOBodyAssignmentSpell(SkyrimMod outputMod, GlobalShort gBodySlideVerboseMode)
+    public static Spell CreateOBodyAssignmentSpell(ISkyrimMod outputMod, GlobalShort gBodySlideVerboseMode)
     {
         // create MGEF first
         MagicEffect MGEFApplyBodySlide = outputMod.MagicEffects.AddNew();
@@ -67,7 +67,7 @@ public class OBodyWriter
         return SPELApplyBodySlide;
     }
 
-    public void CreateBodySlideLoaderQuest(SkyrimMod outputMod, GlobalShort gEnableBodySlideScript, GlobalShort gBodySlideVerboseMode)
+    public void CreateBodySlideLoaderQuest(ISkyrimMod outputMod, GlobalShort gEnableBodySlideScript, GlobalShort gBodySlideVerboseMode)
     {
         Quest bsLoaderQuest = outputMod.Quests.AddNew();
         bsLoaderQuest.Name = "Loads SynthEBD BodySlide Assignments";

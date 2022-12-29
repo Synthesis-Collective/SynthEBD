@@ -16,7 +16,6 @@ public partial class MainWindow : MahApps.Metro.Controls.MetroWindow
         builder.RegisterModule<MainModule>();
         var container = builder.Build();
         var logger = container.Resolve<Logger>();
-        PatcherEnvironmentProvider.Instance = container.Resolve<PatcherEnvironmentProvider>();
         var mvm = container.Resolve<MainWindow_ViewModel>();
         this.DataContext = mvm;
         mvm.Init();

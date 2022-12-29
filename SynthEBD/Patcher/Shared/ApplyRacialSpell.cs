@@ -6,14 +6,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Mutagen.Bethesda.Plugins.Cache;
 
 namespace SynthEBD
 {
     public class ApplyRacialSpell
     {
-        public static void ApplySpell(SkyrimMod outputMod, Spell spell)
+        public static void ApplySpell(ISkyrimMod outputMod, Spell spell, ILinkCache linkCache)
         {
-            foreach (var raceGetter in CompilePatchableRaces())
+            foreach (var raceGetter in CompilePatchableRaces(linkCache))
             {
                 if (PatcherSettings.General.PatchableRaces.Contains(raceGetter.FormKey))
                 {
@@ -27,7 +28,7 @@ namespace SynthEBD
             }
         }
 
-        public static HashSet<IRaceGetter> CompilePatchableRaces() // combines explicit patchable races, race groupings, and aliases
+        public static HashSet<IRaceGetter> CompilePatchableRaces(ILinkCache linkCache) // combines explicit patchable races, race groupings, and aliases
         {
             HashSet<FormKey> raceFKs = new();
             foreach (var pr in PatcherSettings.General.PatchableRaces)
@@ -60,7 +61,7 @@ namespace SynthEBD
             HashSet<IRaceGetter> races = new();
             foreach (var formKey in raceFKs)
             {
-                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(formKey, out var raceGetter) && raceGetter is not null)
+                if (linkCache.TryResolve<IRaceGetter>(formKey, out var raceGetter) && raceGetter is not null)
                 {
                     races.Add(raceGetter);
                 }

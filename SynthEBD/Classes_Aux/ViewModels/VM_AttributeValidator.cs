@@ -15,12 +15,14 @@ namespace SynthEBD
 {
     public class VM_AttributeValidator : VM
     {
+        private readonly IStateProvider _stateProvider;
         private readonly AttributeMatcher _attributeMatcher;
-        public VM_AttributeValidator(VM_NPCAttribute trialAttribute, ObservableCollection<VM_AttributeGroup> attGroupVMs, AttributeMatcher attributeMatcher)
+        public VM_AttributeValidator(VM_NPCAttribute trialAttribute, ObservableCollection<VM_AttributeGroup> attGroupVMs, IStateProvider stateProvider, AttributeMatcher attributeMatcher)
         {
+            _stateProvider = stateProvider;
             _attributeMatcher = attributeMatcher;
 
-            PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            _stateProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
@@ -50,8 +52,6 @@ namespace SynthEBD
         public string MatchedLog { get; set; }
         public string UnMatchedLog { get; set; }
         public string ForceIfLog { get; set; }
-
-
         public void TestNPC()
         {
             var attList = new HashSet<NPCAttribute>() { TrialAttribute };

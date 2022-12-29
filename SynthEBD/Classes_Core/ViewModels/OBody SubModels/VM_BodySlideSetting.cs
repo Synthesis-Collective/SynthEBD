@@ -11,6 +11,7 @@ namespace SynthEBD;
 
 public class VM_BodySlideSetting : VM
 {
+    private IStateProvider _stateProvider;
     public VM_SettingsOBody ParentMenuVM;
     private readonly VM_NPCAttributeCreator _attributeCreator;
     private readonly Logger _logger;
@@ -18,9 +19,10 @@ public class VM_BodySlideSetting : VM
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
 
     public delegate VM_BodySlideSetting Factory(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection);
-    public VM_BodySlideSetting(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+    public VM_BodySlideSetting(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, IStateProvider stateProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
         ParentMenuVM = oBodySettingsVM;
+        _stateProvider = stateProvider;
         _attributeCreator = attributeCreator;
         _logger = logger;
         _selfFactory = selfFactory;
@@ -31,8 +33,8 @@ public class VM_BodySlideSetting : VM
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
         ParentCollection = parentCollection;
-        
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+
+        _stateProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
@@ -186,8 +188,8 @@ public class VM_BodySlideSetting : VM
             else { grouping.IsSelected = false; }
         }
 
-        viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, viewModel.ParentMenuVM.AttributeGroupMenu.Groups, true, null, attCreator, logger);
-        viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, viewModel.ParentMenuVM.AttributeGroupMenu.Groups, false, null, attCreator, logger);
+        viewModel.AllowedAttributes = attCreator.GetViewModelsFromModels(model.AllowedAttributes, viewModel.ParentMenuVM.AttributeGroupMenu.Groups, true, null);
+        viewModel.DisallowedAttributes = attCreator.GetViewModelsFromModels(model.DisallowedAttributes, viewModel.ParentMenuVM.AttributeGroupMenu.Groups, false, null);
         foreach (var x in viewModel.DisallowedAttributes) { x.DisplayForceIfOption = false; }
         viewModel.bAllowUnique = model.AllowUnique;
         viewModel.bAllowNonUnique = model.AllowNonUnique;

@@ -7,34 +7,36 @@ public class VM_BlockListUI : VM
 {
     private readonly Logger _logger;
     private readonly SettingsIO_BlockList _blockListIO;
-    private readonly Converters _converters;
-    public VM_BlockListUI(Logger logger, SettingsIO_BlockList blockListIO, Converters converters)
+    private readonly VM_BlockedNPC.Factory _blockedNPCFactory;
+    private readonly VM_BlockedPlugin.Factory _blockedPluginFactory;
+    public VM_BlockListUI(Logger logger, SettingsIO_BlockList blockListIO, VM_BlockedNPC.Factory blockedNPCFactory, VM_BlockedPlugin.Factory blockedPluginFactory)
     {
         _logger = logger;
         _blockListIO = blockListIO;
-        _converters = converters;
+        _blockedNPCFactory = blockedNPCFactory;
+        _blockedPluginFactory = blockedPluginFactory;
 
-        AddBlockedNPC = new SynthEBD.RelayCommand(
+        AddBlockedNPC = new RelayCommand(
             canExecute: _ => true,
-            execute: x => this.BlockedNPCs.Add(new VM_BlockedNPC(_converters))
+            execute: x => BlockedNPCs.Add(blockedNPCFactory())
         );
 
-        RemoveBlockedNPC = new SynthEBD.RelayCommand(
+        RemoveBlockedNPC = new RelayCommand(
             canExecute: _ => true,
-            execute: x => this.BlockedNPCs.Remove((VM_BlockedNPC)x)
+            execute: x => BlockedNPCs.Remove((VM_BlockedNPC)x)
         );
 
-        AddBlockedPlugin = new SynthEBD.RelayCommand(
+        AddBlockedPlugin = new RelayCommand(
             canExecute: _ => true,
-            execute: x => this.BlockedPlugins.Add(new VM_BlockedPlugin())
+            execute: x => BlockedPlugins.Add(_blockedPluginFactory())
         );
 
-        RemoveBlockedPlugin = new SynthEBD.RelayCommand(
+        RemoveBlockedPlugin = new RelayCommand(
             canExecute: _ => true,
-            execute: x => this.BlockedPlugins.Remove((VM_BlockedPlugin)x)
+            execute: x => BlockedPlugins.Remove((VM_BlockedPlugin)x)
         );
 
-        ImportFromZEBDcommand = new SynthEBD.RelayCommand(
+        ImportFromZEBDcommand = new RelayCommand(
             canExecute: _ => true,
             execute: _ => ImportFromZEBD()
         );
@@ -71,18 +73,18 @@ public class VM_BlockListUI : VM
     public RelayCommand ImportFromZEBDcommand { get; set; }
     public RelayCommand Save { get; }
 
-    public static void GetViewModelFromModel(BlockList model, VM_BlockListUI viewModel, Converters converters)
+    public static void GetViewModelFromModel(BlockList model, VM_BlockListUI viewModel, VM_BlockedNPC.Factory blockedNPCFactory, VM_BlockedPlugin.Factory blockedPluginFactory)
     {
         viewModel.BlockedNPCs.Clear();
         foreach (var blockedNPC in model.NPCs)
         {
-            viewModel.BlockedNPCs.Add(VM_BlockedNPC.GetViewModelFromModel(blockedNPC, converters));
+            viewModel.BlockedNPCs.Add(VM_BlockedNPC.GetViewModelFromModel(blockedNPC, blockedNPCFactory));
         }
 
         viewModel.BlockedPlugins.Clear();
         foreach (var blockedPlugin in model.Plugins)
         {
-            viewModel.BlockedPlugins.Add(VM_BlockedPlugin.GetViewModelFromModel(blockedPlugin));
+            viewModel.BlockedPlugins.Add(VM_BlockedPlugin.GetViewModelFromModel(blockedPlugin, blockedPluginFactory));
         }
     }
 
@@ -121,7 +123,7 @@ public class VM_BlockListUI : VM
             if (parsed)
             {
                 var loadedList = loadedZList.ToSynthEBD();
-                GetViewModelFromModel(loadedList, this, _converters);
+                GetViewModelFromModel(loadedList, this, _blockedNPCFactory, _blockedPluginFactory);
             }
             else
             {

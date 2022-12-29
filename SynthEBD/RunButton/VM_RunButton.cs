@@ -4,6 +4,7 @@ namespace SynthEBD;
 
 public class VM_RunButton : VM
 {
+    private readonly StandaloneRunStateProvider _stateProvider;
     private readonly VM_SettingsTexMesh _texMeshSettingsVm;
     private readonly MainState _state;
     private readonly MiscValidation _miscValidation;
@@ -50,7 +51,7 @@ public class VM_RunButton : VM
                 logDisplay.SwitchViewToLogDisplay();
                 saveLoader.DumpViewModelsToModels();
                 if (!PreRunValidation()) { return; }
-                if (HasBeenRun) { PatcherEnvironmentProvider.Instance.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.
+                if (HasBeenRun) { _stateProvider.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.
                 _logger.ClearStatusError();
                 await Task.Run(() => getPatcher().RunPatcher());
                 VM_ConsistencyUI.GetViewModelsFromModels(state.Consistency, consistencyUi.Assignments, texMeshSettingsVM.AssetPacks, headParts, _logger); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
@@ -64,7 +65,6 @@ public class VM_RunButton : VM
     public bool PreRunValidation()
     {
         bool valid = true;
-        var env = PatcherEnvironmentProvider.Instance.Environment;
 
         if (PatcherSettings.General.bChangeMeshesOrTextures)
         {
@@ -83,7 +83,7 @@ public class VM_RunButton : VM
 
         if (PatcherSettings.General.BodySelectionMode != BodyShapeSelectionMode.None)
         {
-            if (!_miscValidation.VerifyRaceMenuInstalled(env.DataFolderPath))
+            if (!_miscValidation.VerifyRaceMenuInstalled(_stateProvider.DataFolderPath))
             {
                 valid = false;
             }
@@ -100,24 +100,24 @@ public class VM_RunButton : VM
             {
                 if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.OBody)
                 {
-                    if (!_miscValidation.VerifyOBodyInstalled(env.DataFolderPath))
+                    if (!_miscValidation.VerifyOBodyInstalled(_stateProvider.DataFolderPath))
                     {
                         valid = false;
                     }
 
-                    if (!_miscValidation.VerifyJContainersInstalled(env.DataFolderPath, false))
+                    if (!_miscValidation.VerifyJContainersInstalled(_stateProvider.DataFolderPath, false))
                     {
                         valid = false;
                     }
                 }
                 else if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.AutoBody)
                 {
-                    if (!_miscValidation.VerifyAutoBodyInstalled(env.DataFolderPath))
+                    if (!_miscValidation.VerifyAutoBodyInstalled(_stateProvider.DataFolderPath))
                     {
                         valid = false;
                     }
 
-                    if (PatcherSettings.OBody.AutoBodySelectionMode == AutoBodySelectionMode.JSON && !_miscValidation.VerifyJContainersInstalled(env.DataFolderPath, false))
+                    if (PatcherSettings.OBody.AutoBodySelectionMode == AutoBodySelectionMode.JSON && !_miscValidation.VerifyJContainersInstalled(_stateProvider.DataFolderPath, false))
                     {
                         valid = false;
                     }
@@ -164,7 +164,7 @@ public class VM_RunButton : VM
             //    valid = false;
             //}
 
-            if (!_miscValidation.VerifyJContainersInstalled(env.DataFolderPath, false))
+            if (!_miscValidation.VerifyJContainersInstalled(_stateProvider.DataFolderPath, false))
             {
                 valid = false;
             }

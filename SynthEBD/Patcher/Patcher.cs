@@ -9,10 +9,10 @@ namespace SynthEBD;
 
 public class Patcher
 {
+    private readonly IOutputStateProvider _stateProvider;
     private readonly MainState _state;
     private readonly VM_StatusBar _statusBar;
     private readonly CombinationLog _combinationLog;
-    private readonly PatcherEnvironmentProvider _environmentProvider;
     private readonly SynthEBDPaths _paths;
     private readonly Logger _logger;
     private readonly AssetAndBodyShapeSelector _assetAndBodyShapeSelector;
@@ -35,15 +35,13 @@ public class Patcher
     private readonly UpdateHandler _updateHandler;
     private readonly MiscValidation _miscValidation;
     private readonly PatcherIO _patcherIO;
-    private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
 
-    public Patcher(MainState state, VM_StatusBar statusBar, CombinationLog combinationLog, PatcherEnvironmentProvider environmentProvider, SynthEBDPaths paths, Logger logger, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO)
+    public Patcher(IOutputStateProvider stateProvider, MainState state, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO)
     {
-        _patcherEnvironmentProvider = environmentProvider;
+        _stateProvider = stateProvider;
         _state = state;
         _statusBar = statusBar;
         _combinationLog = combinationLog;
-        _environmentProvider = environmentProvider;
         _paths = paths;
         _logger = logger;
         _assetAndBodyShapeSelector = assetAndBodyShapeSelector;
@@ -73,8 +71,8 @@ public class Patcher
     public async Task RunPatcher()
     {
         // General pre-patching tasks: 
-        var outputMod = _environmentProvider.OutputMod;
-        var allNPCs = PatcherEnvironmentProvider.Instance.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
+        var outputMod = _stateProvider.OutputMod;
+        var allNPCs = _stateProvider.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
         ResolvePatchableRaces();
         UniqueAssignmentsByName.Clear();
         UniqueNPCData.UniqueNameExclusions = PatcherSettings.General.LinkedNPCNameExclusions.ToHashSet();
@@ -109,7 +107,7 @@ public class Patcher
             availableAssetPacks = new CategorizedFlattenedAssetPacks(flattenedAssetPacks);
 
             EBDCoreRecords.CreateCoreRecords(outputMod, out EBDFaceKW, out EBDScriptKW, out EBDHelperSpell);
-            ApplyRacialSpell.ApplySpell(outputMod, EBDHelperSpell);
+            ApplyRacialSpell.ApplySpell(outputMod, EBDHelperSpell, _stateProvider.LinkCache);
 
             if (PatcherSettings.TexMesh.bApplyFixedScripts) { _EBDScripts.ApplyFixedScripts(); }
 
@@ -118,7 +116,7 @@ public class Patcher
 
             HasAssetDerivedHeadParts = false;
         }
-        FacePartCompliance facePartComplianceMaintainer = new();
+        FacePartCompliance facePartComplianceMaintainer = new(_stateProvider);
 
         // BodyGen Pre-patching tasks:
         BodyGenTracker = new BodyGenAssignmentTracker();
@@ -170,7 +168,7 @@ public class Patcher
             {
                 //OBodyWriter.WriteBodySlideSPIDIni(bodySlideAssignmentSpell, copiedOBodySettings, outputMod);
                 _updateHandler.CleanSPIDiniOBody();
-                ApplyRacialSpell.ApplySpell(outputMod, bodySlideAssignmentSpell);
+                ApplyRacialSpell.ApplySpell(outputMod, bodySlideAssignmentSpell, _stateProvider.LinkCache);
                 _updateHandler.CleanOldBodySlideDict();
                 gEnableBodySlideScript.Data = 1;
             }
@@ -204,7 +202,7 @@ public class Patcher
         Spell headPartAssignmentSpell = HeadPartWriter.CreateHeadPartAssignmentSpell(outputMod, gHeadpartsVerboseMode);
         //HeadPartWriter.WriteHeadPartSPIDIni(headPartAssignmentSpell);
         _updateHandler.CleanSPIDiniHeadParts();
-        ApplyRacialSpell.ApplySpell(outputMod, headPartAssignmentSpell);
+        ApplyRacialSpell.ApplySpell(outputMod, headPartAssignmentSpell, _stateProvider.LinkCache);
 
         var copiedHeadPartSettings = JSONhandler<Settings_Headparts>.Deserialize(JSONhandler<Settings_Headparts>.Serialize(PatcherSettings.HeadParts, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
         if (!serializationSuccess) { _logger.LogMessage("Error serializing Head Part configs. Exception: " + serializatonException); _logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
@@ -219,7 +217,7 @@ public class Patcher
                 for (int i = 0; i < typeSettings.HeadParts.Count; i++)
                 {
                     var headPartSetting = typeSettings.HeadParts[i];
-                    if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartSetting.HeadPartFormKey, out var headPartGetter))
+                    if (_stateProvider.LinkCache.TryResolve<IHeadPartGetter>(headPartSetting.HeadPartFormKey, out var headPartGetter))
                     {
                         headPartSetting.ResolvedHeadPart = headPartGetter;
                     }
@@ -291,7 +289,7 @@ public class Patcher
                     validation = false;
                 }*/
 
-                if (!_miscValidation.VerifyJContainersInstalled(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, true))
+                if (!_miscValidation.VerifyJContainersInstalled(_stateProvider.DataFolderPath, true))
                 {
                     _logger.LogMessage("WARNING: Your Asset Packs have generated new headparts whose distribution requires JContainers, which was not detected in your data folder. NPCs will not receive their new headparts until this is installed.");
                     validation = false;
@@ -303,13 +301,13 @@ public class Patcher
                 }
             }
 
-            HeadPartFunctions.ApplyNeededFaceTextures(HeadPartTracker, outputMod, _logger);
+            HeadPartFunctions.ApplyNeededFaceTextures(HeadPartTracker, outputMod, _logger, _stateProvider.LinkCache);
             gEnableHeadParts.Data = 1;
             _headPartWriter.WriteAssignmentDictionary();
         }
 
         string patchOutputPath = System.IO.Path.Combine(_paths.OutputDataFolder, PatcherSettings.General.PatchFileName + ".esp");
-        PatcherIO.WritePatch(patchOutputPath, outputMod, _logger);
+        PatcherIO.WritePatch(patchOutputPath, outputMod, _logger, _stateProvider);
 
         _statusBar.IsPatching = false;
     }
@@ -339,7 +337,7 @@ public class Patcher
     }
 
     private void MainLoop(
-        IEnumerable<INpcGetter> npcCollection, bool skipLinkedSecondaryNPCs, SkyrimMod outputMod,
+        IEnumerable<INpcGetter> npcCollection, bool skipLinkedSecondaryNPCs, ISkyrimMod outputMod,
         CategorizedFlattenedAssetPacks sortedAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings,
         HeightConfig currentHeightConfig, Settings_Headparts headPartSettings, int npcCounter,
         HashSet<LinkedNPCGroupInfo> generatedLinkGroups, HashSet<INpcGetter> skippedLinkedNPCs,
@@ -408,7 +406,7 @@ public class Patcher
                 _logger.TriggerNPCReportingSave(currentNPCInfo);
             }
 
-            _logger.InitializeNewReport(currentNPCInfo, _patcherEnvironmentProvider);
+            _logger.InitializeNewReport(currentNPCInfo);
             #endregion
 
             #region Block List
@@ -576,7 +574,7 @@ public class Patcher
 
             if (PatcherSettings.TexMesh.bForceVanillaBodyMeshPath)
             {
-                AssetSelector.SetVanillaBodyPath(currentNPCInfo, outputMod);
+                AssetSelector.SetVanillaBodyPath(currentNPCInfo, outputMod, _stateProvider.LinkCache);
             }
 
             #region Height assignment
@@ -605,7 +603,7 @@ public class Patcher
             #region final functions
             if (facePartComplianceMaintainer.RequiresComplianceCheck && (assignedCombinations.Any() || assignedHeadParts.HasAssignment()))
             {
-                facePartComplianceMaintainer.CheckAndFixFaceName(currentNPCInfo, PatcherEnvironmentProvider.Instance.Environment.LinkCache, outputMod);
+                facePartComplianceMaintainer.CheckAndFixFaceName(currentNPCInfo, _stateProvider.LinkCache, outputMod);
             }
             #endregion
 
@@ -684,7 +682,7 @@ public class Patcher
 
     public void ResolvePatchableRaces()
     {
-        if (PatcherEnvironmentProvider.Instance.Environment.LinkCache is null)
+        if (_stateProvider.LinkCache is null)
         {
             _logger.LogError("Error: Link cache is null.");
             return;
@@ -693,12 +691,12 @@ public class Patcher
         PatchableRaces = new HashSet<IFormLinkGetter<IRaceGetter>>();
         foreach (var raceFK in PatcherSettings.General.PatchableRaces)
         {
-            if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
+            if (_stateProvider.LinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
             {
                 PatchableRaces.Add(raceGetter.ToLinkGetter());
             }
         }
-        PatchableRaces.Add(Skyrim.Race.DefaultRace.Resolve(PatcherEnvironmentProvider.Instance.Environment.LinkCache).ToLinkGetter());
+        PatchableRaces.Add(Skyrim.Race.DefaultRace.Resolve(_stateProvider.LinkCache).ToLinkGetter());
     }
 
     public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker(); // tracks unique selected morphs so that only assigned morphs are written to the generated templates.ini

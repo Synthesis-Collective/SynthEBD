@@ -133,7 +133,7 @@ namespace SynthEBD
             }
             catch (Exception ex)
             {
-                var errorString = ExceptionLogger.GetExceptionStack(ex, "");
+                var errorString = ExceptionLogger.GetExceptionStack(ex);
                 CurrentError = "Environment creation failed with error:" + System.Environment.NewLine + errorString;
                 if (errorString.StartsWith("Could not locate plugins file"))
                 {

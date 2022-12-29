@@ -4,10 +4,12 @@ namespace SynthEBD;
 
 public class SettingsIO_General
 {
+    private readonly IStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
-    public SettingsIO_General(Logger logger, SynthEBDPaths paths)
+    public SettingsIO_General(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
         _paths = paths;
     }
@@ -18,7 +20,7 @@ public class SettingsIO_General
             PatcherSettings.General = JSONhandler<Settings_General>.LoadJSONFile(_paths.GeneralSettingsPath, out loadSuccess, out string exceptionStr);
             if(loadSuccess && string.IsNullOrWhiteSpace(_paths.OutputDataFolder))
             {
-                _paths.OutputDataFolder = PatcherEnvironmentProvider.Instance.Environment.DataFolderPath;
+                _paths.OutputDataFolder = _stateProvider.DataFolderPath;
             }
             else if (!loadSuccess)
             {

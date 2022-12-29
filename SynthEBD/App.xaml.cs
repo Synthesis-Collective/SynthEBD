@@ -1,10 +1,16 @@
 using Autofac;
+using K4os.Compression.LZ4.Internal;
 using Mutagen.Bethesda.Skyrim;
 using Mutagen.Bethesda.Synthesis;
 using Mutagen.Bethesda.Synthesis.WPF;
 using Noggog.WPF;
+using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Windows;
+using static System.Formats.Asn1.AsnWriter;
+using static System.Windows.Forms.AxHost;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace SynthEBD;
 
@@ -13,8 +19,14 @@ namespace SynthEBD;
 /// </summary>
 public partial class App : Application
 {
-    private SynthEBDPaths _paths;
-    /*
+    private IStateProvider _stateProvider;
+    private PatcherSettingsSourceProvider _settingsSourceProvider;
+    private PatcherEnvironmentSourceProvider _environmentSourceProvider;
+
+    private readonly string _standaloneSourceDirName = "Settings";
+    private readonly string _settingsSourceName = "SettingsSource.json";
+    private readonly string _environmentSourceName = "EnvironmentSource.json";
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -28,59 +40,58 @@ public partial class App : Application
             .Wait();
     }
 
+
     public int OpenForSettings(IOpenForSettingsState state)
     {
-        /*
         var builder = new ContainerBuilder();
         builder.RegisterModule<MainModule>();
-        var container = builder.Build();
-        PatcherEnvironmentProvider.Instance = container.Resolve<PatcherEnvironmentProvider>();
-        var mvm = container.Resolve<MainWindow_ViewModel>();
-        this.DataContext = mvm;
-        mvm.Init();
-        */
 
-    /*
-        var builder = new ContainerBuilder();
-        builder.RegisterModule<MainModule>();
+        builder.RegisterType<PatcherSettingsSourceProvider>();
         builder.RegisterInstance(new OpenForSettingsWrapper(state)).AsImplementedInterfaces();
         var container = builder.Build();
+
+        _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, _settingsSourceName)));
+        _stateProvider = container.Resolve<IStateProvider>();
 
         var window = new MainWindow();
         var mainVM = container.Resolve<MainWindow_ViewModel>();
         window.DataContext = mainVM;
-        _paths = mainVM._paths;
-        //_paths.SetRootPath("");
-
+        mainVM.Init();
         window.Show();
         window.CenterAround(state.RecommendedOpenLocation);
-
         return 0;
     }
 
     public int StandaloneOpen()
     {
+        var assembly = Assembly.GetEntryAssembly() ?? throw new ArgumentNullException();
+        var rootPath = Path.GetDirectoryName(assembly.Location);
+
         var builder = new ContainerBuilder();
         builder.RegisterModule<MainModule>();
-        builder.RegisterType<StandaloneRunStateProvider>().AsImplementedInterfaces();
+        builder.RegisterType<PatcherSettingsSourceProvider>();
+        builder.RegisterType<PatcherEnvironmentSourceProvider>();
+
         var container = builder.Build();
+        _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(rootPath, _standaloneSourceDirName, _settingsSourceName)));
+        _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(rootPath, _standaloneSourceDirName, _environmentSourceName)));
+
+        _stateProvider = container.Resolve<IStateProvider>();
+
+        builder.RegisterType<StandaloneRunStateProvider>().AsImplementedInterfaces();
         var mainVM = container.Resolve<MainWindow_ViewModel>();
-        _paths = mainVM._paths;
         var window = new MainWindow();
         window.DataContext = mainVM;
         window.Show();
 
         return 0;
     }
-
+    
     private async Task RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
     {
-        /*
-         * 
-         * 
-         *
+
     }
-    */
+    
     
     void App_Startup(object sender, StartupEventArgs e)
     {
@@ -108,18 +119,18 @@ public partial class App : Application
     {
         StringBuilder sb = new();
         sb.AppendLine("SynthEBD has crashed with the following error:");
-        sb.AppendLine(ExceptionLogger.GetExceptionStack(e.Exception, ""));
+        sb.AppendLine(ExceptionLogger.GetExceptionStack(e.Exception));
+        sb.AppendLine();
+        sb.AppendLine("Patcher Environment Creation Log:");
+        sb.AppendLine(PatcherEnvironmentSourceProvider.SettingsLog.ToString());
         sb.AppendLine();
         sb.AppendLine("Patcher Settings Creation Log:");
         sb.AppendLine(PatcherSettingsSourceProvider.SettingsLog.ToString());
-        sb.AppendLine();
-        sb.AppendLine("Patcher Environment Creation Log:");
-        sb.AppendLine(PatcherEnvironmentProvider.Instance.EnvironmentLog.ToString());
 
         var errorMessage = sb.ToString();
         CustomMessageBox.DisplayNotificationOK("SynthEBD has crashed.", errorMessage);
 
-        var path = System.IO.Path.Combine(_paths.LogFolderPath, "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
+        var path = Path.Combine(_stateProvider.LogFolderPath, "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
         PatcherIO.WriteTextFileStatic(path, errorMessage).Wait();
 
         e.Handled = true;

@@ -1,4 +1,5 @@
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using System;
 using System.Collections.Generic;
@@ -10,11 +11,13 @@ namespace SynthEBD
 {
     public class AssetReplacerSelector
     {
+        private readonly IStateProvider _stateProvider;
         private readonly AssetAndBodyShapeSelector _abSelector;
         private readonly RecordPathParser _recordPathParser;
         private readonly DictionaryMapper _dictionaryMapper;
-        public AssetReplacerSelector(AssetAndBodyShapeSelector abSelector, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper)
+        public AssetReplacerSelector(IStateProvider stateProvider, AssetAndBodyShapeSelector abSelector, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper)
         {
+            _stateProvider = stateProvider;
             _abSelector = abSelector;
             _recordPathParser = recordPathParser;
             _dictionaryMapper = dictionaryMapper;
@@ -52,13 +55,13 @@ namespace SynthEBD
                 }
                 else if (destinationType != SubgroupCombination.DestinationSpecifier.Generic)
                 {
-                    assignReplacer = CheckIfReplacerTargetExists(destinationType, npcInfo.NPC);
+                    assignReplacer = CheckIfReplacerTargetExists(destinationType, npcInfo.NPC, _stateProvider.LinkCache);
                 }
                 else // destinationType = SubgroupCombination.DestinationSpecifier.Generic
                 {
                     foreach (string destPath in targetPaths)
                     {
-                        if (!(_recordPathParser.GetObjectAtPath(npcInfo.NPC, npcInfo.NPC, destPath, new Dictionary<string, dynamic>(), PatcherEnvironmentProvider.Instance.Environment.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out dynamic objAtPath) && objAtPath is not null))
+                        if (!(_recordPathParser.GetObjectAtPath(npcInfo.NPC, npcInfo.NPC, destPath, new Dictionary<string, dynamic>(), _stateProvider.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out dynamic objAtPath) && objAtPath is not null))
                         {
                             assignReplacer = false;
                             break;
@@ -102,12 +105,12 @@ namespace SynthEBD
             return SubgroupCombination.DestinationSpecifier.Generic;
         }
 
-        public static bool CheckIfReplacerTargetExists(SubgroupCombination.DestinationSpecifier specifier, INpcGetter npc)
+        public static bool CheckIfReplacerTargetExists(SubgroupCombination.DestinationSpecifier specifier, INpcGetter npc, ILinkCache linkCache)
         {
             switch (specifier)
             {
-                case SubgroupCombination.DestinationSpecifier.MarksFemaleHumanoid04RightGashR: return HasSpecialHeadPartTexture(npc, "actors\\character\\female\\facedetails\\facefemalerightsidegash_04.dds"); // none of the vanilla records use this texture so can't check for FormKey
-                case SubgroupCombination.DestinationSpecifier.MarksFemaleHumanoid06RightGashR: return HasSpecialHeadPartTexture(npc, "actors\\character\\female\\facedetails\\facefemalerightsidegash_06.dds"); // none of the vanilla records use this texture so can't check for FormKey
+                case SubgroupCombination.DestinationSpecifier.MarksFemaleHumanoid04RightGashR: return HasSpecialHeadPartTexture(npc, "actors\\character\\female\\facedetails\\facefemalerightsidegash_04.dds", linkCache); // none of the vanilla records use this texture so can't check for FormKey
+                case SubgroupCombination.DestinationSpecifier.MarksFemaleHumanoid06RightGashR: return HasSpecialHeadPartTexture(npc, "actors\\character\\female\\facedetails\\facefemalerightsidegash_06.dds", linkCache); // none of the vanilla records use this texture so can't check for FormKey
                 default: return false;
             }
         }
@@ -117,11 +120,11 @@ namespace SynthEBD
             return npc.HeadParts.Where(x => x.FormKey == specifierFK).Any();
         }
 
-        public static bool HasSpecialHeadPartTexture(INpcGetter npc, string diffusePath)
+        public static bool HasSpecialHeadPartTexture(INpcGetter npc, string diffusePath, ILinkCache linkCache)
         {
             foreach (var part in npc.HeadParts)
             {
-                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(part.FormKey, out var headPartGetter) && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<ITextureSetGetter>(headPartGetter.TextureSet.FormKey, out var headPartTextureSetGetter) && headPartTextureSetGetter.Diffuse.DataRelativePath.Equals(diffusePath, StringComparison.OrdinalIgnoreCase))
+                if (linkCache.TryResolve<IHeadPartGetter>(part.FormKey, out var headPartGetter) && linkCache.TryResolve<ITextureSetGetter>(headPartGetter.TextureSet.FormKey, out var headPartTextureSetGetter) && headPartTextureSetGetter.Diffuse.DataRelativePath.Equals(diffusePath, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }

@@ -5,10 +5,14 @@ namespace SynthEBD;
 
 public class VM_SettingsBodyGen : VM
 {
+    private readonly VM_BodyGenRacialMapping.Factory _mappingFactory;
     public VM_SettingsBodyGen(
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
+        VM_BodyGenRacialMapping.Factory mappingFactory,
         VM_Settings_General generalSettingsVM)
     {
+        _mappingFactory = mappingFactory;
+
         DisplayMaleConfig = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -205,7 +209,7 @@ public class VM_SettingsBodyGen : VM
         var starterGroup = new VM_CollectionMemberString("Group 1", newConfig.GroupUI.TemplateGroups);
         newConfig.GroupUI.TemplateGroups.Add(starterGroup);
 
-        var starterMapping = new VM_BodyGenRacialMapping(newConfig.GroupUI, generalSettingsVM.RaceGroupings);
+        var starterMapping = _mappingFactory(newConfig.GroupUI, generalSettingsVM.RaceGroupings);
         starterMapping.Label = "Mapping 1";
         var humanoidRaces = starterMapping.RaceGroupings.RaceGroupingSelections.Where(x => x.SubscribedMasterRaceGrouping.Label.Equals("humanoid", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
         if (humanoidRaces != null)

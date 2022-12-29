@@ -1,6 +1,7 @@
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Order;
 using Mutagen.Bethesda.Skyrim;
 using System.Text.RegularExpressions;
 
@@ -8,16 +9,16 @@ namespace SynthEBD;
 
 public class Converters
 {
+    private readonly IStateProvider _stateProvider;
     private readonly Logger _logger;
-    public Converters(Logger logger)
+    public Converters(IStateProvider stateProvider, Logger logger)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
     }
-    public static FormKey RaceEDID2FormKey(string EDID)
+    public static FormKey RaceEDID2FormKey(string EDID, IStateProvider stateProvider)
     {
-        var env = PatcherEnvironmentProvider.Instance.Environment;
-
-        foreach (var plugin in env.LoadOrder.ListedOrder)
+        foreach (var plugin in stateProvider.LoadOrder.ListedOrder)
         {
             if (plugin.Mod != null && plugin.Mod.Races != null)
             {
@@ -38,7 +39,7 @@ public class Converters
     {
         var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
 
-        if (npcFormLink.TryResolve(PatcherEnvironmentProvider.Instance.Environment.LinkCache, out var npcRecord))
+        if (npcFormLink.TryResolve(_stateProvider.LinkCache, out var npcRecord))
         {
             string subName = "";
             if (npcRecord.Name != null && !string.IsNullOrEmpty(npcRecord.Name.ToString()))
@@ -60,8 +61,6 @@ public class Converters
     {
         HashSet<NPCAttribute> h = new HashSet<NPCAttribute>();
 
-        var env = PatcherEnvironmentProvider.Instance.Environment;
-
         //temporary storage lists for grouping attributes of same type
         HashSet<FormKey> classAttributes = new HashSet<FormKey>();
         HashSet<FormKey> faceTextureAttributes = new HashSet<FormKey>();
@@ -80,7 +79,7 @@ public class Converters
             switch(type)
             {
                 case "CNAM":
-                    tmpFK = GetFormKeyFromxEditFormIDString(value, env);
+                    tmpFK = GetFormKeyFromxEditFormIDString(value);
                     if (tmpFK.IsNull == false)
                     {
                         classAttributes.Add(tmpFK);
@@ -88,7 +87,7 @@ public class Converters
                     break;
 
                 case "CNAM\\FULL":
-                    foreach (var classGetter in env.LoadOrder.PriorityOrder.Class().WinningContextOverrides().ToList())
+                    foreach (var classGetter in _stateProvider.LoadOrder.PriorityOrder.Class().WinningContextOverrides().ToList())
                     {
                         if (classGetter.Record.Name.ToString() == value)
                         {
@@ -98,7 +97,7 @@ public class Converters
                     break;
 
                 case "FTST":
-                    tmpFK = GetFormKeyFromxEditFormIDString(value, env);
+                    tmpFK = GetFormKeyFromxEditFormIDString(value);
                     if (tmpFK.IsNull == false)
                     {
                         faceTextureAttributes.Add(tmpFK);
@@ -106,7 +105,7 @@ public class Converters
                     break;
 
                 case "Factions\\*\\Faction":
-                    tmpFK = GetFormKeyFromxEditFormIDString(value, env);
+                    tmpFK = GetFormKeyFromxEditFormIDString(value);
                     if (tmpFK.IsNull == false)
                     {
                         factionAttributes.Add(tmpFK);
@@ -114,7 +113,7 @@ public class Converters
                     break;
 
                 case "FULL - Name":
-                    foreach (var npcGetter in env.LoadOrder.PriorityOrder.Npc().WinningContextOverrides().ToList())
+                    foreach (var npcGetter in _stateProvider.LoadOrder.PriorityOrder.Npc().WinningContextOverrides().ToList())
                     {
                         if (npcGetter.Record.Name.ToString() == value)
                         {
@@ -124,7 +123,7 @@ public class Converters
                     break;
 
                 case "EDID":
-                    foreach (var npcGetter in env.LoadOrder.PriorityOrder.Npc().WinningContextOverrides().ToList())
+                    foreach (var npcGetter in _stateProvider.LoadOrder.PriorityOrder.Npc().WinningContextOverrides().ToList())
                     {
                         if (npcGetter.Record.EditorID != null && npcGetter.Record.EditorID.ToString() == value)
                         {
@@ -134,7 +133,7 @@ public class Converters
                     break;
 
                 case "RNAM":
-                    tmpFK = GetFormKeyFromxEditFormIDString(value, env);
+                    tmpFK = GetFormKeyFromxEditFormIDString(value);
                     if (tmpFK.IsNull == false)
                     {
                         raceAttributes.Add(tmpFK);
@@ -142,7 +141,7 @@ public class Converters
                     break;
 
                 case "VTCK":
-                    tmpFK = GetFormKeyFromxEditFormIDString(value, env);
+                    tmpFK = GetFormKeyFromxEditFormIDString(value);
                     if (tmpFK.IsNull == false)
                     {
                         voiceTypeAttributes.Add(tmpFK);
@@ -208,7 +207,7 @@ public class Converters
         return h;
     }
 
-    public FormKey GetFormKeyFromxEditFormIDString(string str, IGameEnvironment<ISkyrimMod, ISkyrimModGetter> env)
+    public FormKey GetFormKeyFromxEditFormIDString(string str)
     {
         FormKey output = new FormKey();
         var pattern = @"\[(.*?)\]"; // get text between square brackets - str will look like "Beggar \"Beggar\" [CLAS:0001327B]"
@@ -243,7 +242,7 @@ public class Converters
         try
         {
             iModIndex = int.Parse(modIndex, System.Globalization.NumberStyles.HexNumber); // https://theburningmonk.com/2010/02/converting-hex-to-int-in-csharp/
-            pluginNameAndExtension = env.LoadOrder[iModIndex].ModKey.FileName;
+            pluginNameAndExtension = _stateProvider.LoadOrder[iModIndex].ModKey.FileName;
         }
         catch
         {
@@ -268,12 +267,12 @@ public class Converters
         return output;
     }
 
-    public FormKey zEBDSignatureToFormKey(string rootPlugin, string formID, IGameEnvironment<ISkyrimMod, ISkyrimModGetter> env)
+    public FormKey zEBDSignatureToFormKey(string rootPlugin, string formID, IStateProvider stateProvider)
     {
         string fkString = "";
         FormKey output = new FormKey();
 
-        foreach (var plugin in env.LoadOrder.ListedOrder)
+        foreach (var plugin in stateProvider.LoadOrder.ListedOrder)
         {
             if (plugin.ModKey.FileName.String.ToLower() == rootPlugin.ToLower())
             {
@@ -356,7 +355,7 @@ public class Converters
         }
     }
 
-    public static bool FormKeyStringToFormIDString(string formKeyString, out string formIDstr)
+    public bool FormKeyStringToFormIDString(string formKeyString, out string formIDstr)
     {
         formIDstr = string.Empty;
         var split = formKeyString.Split(':');
@@ -364,13 +363,13 @@ public class Converters
 
         if (split[1] == PatcherSettings.General.PatchFileName + ".esp")
         {
-            formIDstr = PatcherEnvironmentProvider.Instance.Environment.LoadOrder.ListedOrder.Count().ToString("X"); // format FormID assuming the generated patch will be last in the load order
+            formIDstr = _stateProvider.LoadOrder.ListedOrder.Count().ToString("X"); // format FormID assuming the generated patch will be last in the load order
         }
         else
         {
-            for (int i = 0; i < PatcherEnvironmentProvider.Instance.Environment.LoadOrder.ListedOrder.Count(); i++)
+            for (int i = 0; i < _stateProvider.LoadOrder.ListedOrder.Count(); i++)
             {
-                var currentListing = PatcherEnvironmentProvider.Instance.Environment.LoadOrder.ListedOrder.ElementAt(i);
+                var currentListing = _stateProvider.LoadOrder.ListedOrder.ElementAt(i);
                 if (currentListing.ModKey.FileName == split[1])
                 {
                     formIDstr = i.ToString("X"); // https://www.delftstack.com/howto/csharp/integer-to-hexadecimal-in-csharp/

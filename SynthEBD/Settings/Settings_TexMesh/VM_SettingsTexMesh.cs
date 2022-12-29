@@ -1,5 +1,7 @@
 using ReactiveUI;
+using Noggog;
 using System.Collections.ObjectModel;
+using System.Reactive.Linq;
 using System.Windows.Forms;
 
 namespace SynthEBD;
@@ -12,6 +14,7 @@ public class VM_SettingsTexMesh : VM
     private readonly SynthEBDPaths _paths;
     private readonly ConfigInstaller _configInstaller;
     private readonly VM_AssetDistributionSimulator.Factory _simulatorFactory;
+    private readonly IStateProvider _stateProvider;
 
     public VM_SettingsTexMesh(
         MainState state,
@@ -22,6 +25,7 @@ public class VM_SettingsTexMesh : VM
         VM_SettingsModManager modManager,
         VM_AssetPack.Factory assetPackFactory,
         VM_Subgroup.Factory subgroupFactory,
+        IStateProvider stateProvider,
         Logger logger,
         SynthEBDPaths paths,
         ConfigInstaller configInstaller,
@@ -33,8 +37,13 @@ public class VM_SettingsTexMesh : VM
         _paths = paths;
         _configInstaller = configInstaller;
         _simulatorFactory = simulatorFactory;
+        _stateProvider = stateProvider;
 
-        this.WhenAnyValue(x => x.bApplyFixedScripts, x => x._generalSettingsVM.Environment.SkyrimVersion).Subscribe(_ => UpdateSKSESelectionVisibility());
+        Observable.CombineLatest(
+                this.WhenAnyValue(x => x.bApplyFixedScripts),
+                _stateProvider.WhenAnyValue(x => x.SkyrimVersion),
+                (_, _) => { return 0; })
+            .Subscribe(_ => UpdateSKSESelectionVisibility());
 
         AddTrimPath = new RelayCommand(
             canExecute: _ => true,
@@ -299,7 +308,7 @@ public class VM_SettingsTexMesh : VM
 
     private void UpdateSKSESelectionVisibility()
     {
-        if (bApplyFixedScripts && _generalSettingsVM.Environment.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimSE)
+        if (bApplyFixedScripts && _stateProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimSE)
         {
             bShowSKSEversionOptions = true;
         }

@@ -5,6 +5,7 @@ namespace SynthEBD;
 
 public class VM_SpecificNPCAssignmentsUI : VM
 {
+    private readonly IStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly VM_SpecificNPCAssignment.Factory _specificNpcAssignmentFactory;
@@ -17,6 +18,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
     private readonly SettingsIO_BodyGen _bodyGenIO;
 
     public VM_SpecificNPCAssignmentsUI(
+        IStateProvider stateProvider,
         VM_SettingsTexMesh texMeshSettings,
         VM_SettingsBodyGen bodyGenSettings, 
         VM_Settings_General generalSettingsVM,
@@ -28,6 +30,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
         SettingsIO_SpecificNPCAssignments specificAssignmentIO,
         SettingsIO_BodyGen bodyGenIO)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
         _converters = converters;
         _specificAssignmentIO = specificAssignmentIO;
@@ -72,7 +75,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
                     var assignmentTuples = _bodyGenIO.LoadMorphsINI(morphsPath);
                     foreach (var assignment in assignmentTuples)
                     {
-                        if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<INpcGetter>(assignment.Item1, out var npcGetter))
+                        if (_stateProvider.LinkCache.TryResolve<INpcGetter>(assignment.Item1, out var npcGetter))
                         {
                             var morphNames = assignment.Item2.Split('|').Select(s => s.Trim());
                             var morphs = new List<VM_BodyGenTemplate>();
@@ -166,12 +169,13 @@ public class VM_SpecificNPCAssignmentsUI : VM
         VM_SpecificNPCAssignmentsUI viewModel, 
         HashSet<NPCAssignment> models,
         Logger logger,
-        Converters converters)
+        Converters converters,
+        IStateProvider stateProvider)
     {
         viewModel.Assignments.Clear();
         foreach (var assignment in models)
         {
-            viewModel.Assignments.Add(VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, assetPackFactory, texMesh, bodyGen, headParts, specificNpcAssignmentFactory, logger, converters));
+            viewModel.Assignments.Add(VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, assetPackFactory, texMesh, bodyGen, headParts, specificNpcAssignmentFactory, logger, converters, stateProvider));
         }
     }
 
@@ -204,11 +208,11 @@ public class VM_SpecificNPCAssignmentsUI : VM
             var zSpecificNPCAssignments = JSONhandler<HashSet<zEBDSpecificNPCAssignment>>.LoadJSONFile(filename, out bool loadSuccess, out string exceptionStr);
             if (loadSuccess)
             {
-                var newModels = zEBDSpecificNPCAssignment.ToSynthEBDNPCAssignments(zSpecificNPCAssignments, _logger, _converters);
+                var newModels = zEBDSpecificNPCAssignment.ToSynthEBDNPCAssignments(zSpecificNPCAssignments, _logger, _converters, _stateProvider);
 
                 foreach (var model in newModels)
                 {
-                    var assignmentVM = VM_SpecificNPCAssignment.GetViewModelFromModel(model, _assetPackFactory, _texMeshSettings, _bodyGenSettings, _headPartSettings, _specificNpcAssignmentFactory, _logger, _converters);
+                    var assignmentVM = VM_SpecificNPCAssignment.GetViewModelFromModel(model, _assetPackFactory, _texMeshSettings, _bodyGenSettings, _headPartSettings, _specificNpcAssignmentFactory, _logger, _converters, _stateProvider);
                     if (assignmentVM != null) // null if the imported NPC doesn't exist in the current load order
                     {
                         this.Assignments.Add(assignmentVM);

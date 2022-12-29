@@ -6,10 +6,12 @@ namespace SynthEBD;
 
 public class AttributeMatcher
 {
+    private readonly IStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly RecordPathParser _recordPathParser;
-    public AttributeMatcher(Logger logger, RecordPathParser recordPathParser)
+    public AttributeMatcher(IStateProvider stateProvider, Logger logger, RecordPathParser recordPathParser)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
         _recordPathParser = recordPathParser;
     }
@@ -61,7 +63,7 @@ public class AttributeMatcher
 
                     case NPCAttributeType.Custom:
                         var customAttribute = (NPCAttributeCustom)subAttribute;
-                        if (!EvaluateCustomAttribute(npc, customAttribute, PatcherEnvironmentProvider.Instance.Environment.LinkCache, out _))
+                        if (!EvaluateCustomAttribute(npc, customAttribute, _stateProvider.LinkCache, out _))
                         {
                             subAttributeMatched = false;
                         }
@@ -162,7 +164,7 @@ public class AttributeMatcher
                                 if (!ModKeyHashSetComparer.Contains(modAttribute.ModKeys, npc.FormKey.ModKey)) { subAttributeMatched = false; }
                                 break;
                             case ModAttributeEnum.PatchedBy:
-                                var contexts = PatcherEnvironmentProvider.Instance.Environment.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npc.FormKey).Where(x => !x.ModKey.Equals(npc.FormKey.ModKey)); // contexts[0] is winning override. [Last] is source plugin. Omit the source plugin
+                                var contexts = _stateProvider.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npc.FormKey).Where(x => !x.ModKey.Equals(npc.FormKey.ModKey)); // contexts[0] is winning override. [Last] is source plugin. Omit the source plugin
                                 bool foundContext = false;
                                 foreach (var context in contexts)
                                 {

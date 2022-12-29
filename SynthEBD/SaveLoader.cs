@@ -7,6 +7,7 @@ namespace SynthEBD;
 public class SaveLoader
 {
     // Some are public properties to allow for circular IoC dependencies
+    private readonly IStateProvider _stateProvider;
     private readonly MainState _state;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
@@ -23,10 +24,16 @@ public class SaveLoader
     private readonly VM_OBodyMiscSettings.Factory _oBodyMiscSettingsFactory;
     private readonly VM_ConsistencyUI _consistencyUi;
     private readonly VM_BlockListUI _blockList;
+    private readonly VM_RaceAlias.Factory _raceAliasFactory;
+    private readonly VM_RaceGrouping.Factory _raceGroupingFactory;
+    private readonly VM_LinkedNPCGroup.Factory _linkedNPCFactory;
     private readonly VM_BodyGenConfig.Factory _bodyGenConfigFactory;
     private readonly VM_BodySlideSetting.Factory _bodySlideFactory;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
+    private readonly VM_HeightAssignment.Factory _heightAssignmentFactory;
     private readonly VM_SpecificNPCAssignment.Factory _specificNpcAssignmentFactory;
+    private readonly VM_BlockedNPC.Factory _blockedNPCFactory;
+    private readonly VM_BlockedPlugin.Factory _blockedPluginFactory;
     private readonly VM_SpecificNPCAssignmentsUI _npcAssignmentsUi;
     private readonly PatcherSettingsSourceProvider _patcherSettingsProvider;
     private readonly Patcher _patcher;
@@ -44,6 +51,7 @@ public class SaveLoader
     private readonly VM_NPCAttributeCreator _attributeCreator;
 
     public SaveLoader(
+        IStateProvider stateProvider,
         MainState state,
         VM_AssetPack.Factory assetPackFactory,
         VM_HeightConfig.Factory heightConfigFactory,
@@ -55,10 +63,16 @@ public class SaveLoader
         VM_Settings_Headparts headParts,
         VM_ConsistencyUI consistencyUi,
         VM_BlockListUI blockList,
+        VM_RaceAlias.Factory raceAliasFactory,
+        VM_RaceGrouping.Factory raceGroupingFactory,
+        VM_LinkedNPCGroup.Factory linkedNPCFactory,
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
         VM_BodySlideSetting.Factory bodySlideFactory,
         VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory,
+        VM_HeightAssignment.Factory heightAssignmentFactory,
         VM_SpecificNPCAssignment.Factory specificNpcAssignmentFactory,
+        VM_BlockedNPC.Factory blockedNPCFactory,
+        VM_BlockedPlugin.Factory blockedPluginFactory,
         VM_SpecificNPCAssignmentsUI npcAssignmentsUi,
         PatcherSettingsSourceProvider patcherSettingsProvider,
         Logger logger,
@@ -77,6 +91,7 @@ public class SaveLoader
         Converters converters,
         VM_NPCAttributeCreator attributeCreator)
     {
+        _stateProvider = stateProvider;
         _state = state;
         _logger = logger;
         _paths = paths;
@@ -89,10 +104,16 @@ public class SaveLoader
         _oBodyMiscSettingsFactory = oBodyMiscSettingsFactory;
         _consistencyUi = consistencyUi;
         _blockList = blockList;
+        _raceAliasFactory = raceAliasFactory;
+        _raceGroupingFactory = raceGroupingFactory;
+        _linkedNPCFactory = linkedNPCFactory;
         _bodyGenConfigFactory = bodyGenConfigFactory;
         _bodySlideFactory = bodySlideFactory;
         _descriptorSelectionFactory = descriptorSelectionFactory;
+        _heightAssignmentFactory = heightAssignmentFactory;
         _specificNpcAssignmentFactory = specificNpcAssignmentFactory;
+        _blockedNPCFactory = blockedNPCFactory;
+        _blockedPluginFactory = blockedPluginFactory;
         _npcAssignmentsUi = npcAssignmentsUi;
         _patcherSettingsProvider = patcherSettingsProvider;
         _patcher = patcher;
@@ -139,7 +160,7 @@ public class SaveLoader
     {
         // Load general settings
         _generalIO.LoadGeneralSettings(out var loadSuccess);
-        VM_Settings_General.GetViewModelFromModel(General, _patcherSettingsProvider);
+        VM_Settings_General.GetViewModelFromModel(General, _patcherSettingsProvider, _raceAliasFactory, _linkedNPCFactory, _raceGroupingFactory, _stateProvider.LinkCache);
 
         // Initialize patchable races from general settings (required by some UI elements)
         _patcher.ResolvePatchableRaces();
@@ -162,7 +183,7 @@ public class SaveLoader
 
         // load BlockList
         _state.BlockList = _blockListIO.LoadBlockList(out loadSuccess);
-        VM_BlockListUI.GetViewModelFromModel(_state.BlockList, _blockList, _converters);
+        VM_BlockListUI.GetViewModelFromModel(_state.BlockList, _blockList, _blockedNPCFactory, _blockedPluginFactory);
 
         // load Mod Manager Integration
         PatcherSettings.ModManagerIntegration = _modManagerIO.LoadModManagerSettings(out loadSuccess);
@@ -188,7 +209,7 @@ public class SaveLoader
         // load heights
         _state.HeightConfigs = _heightIO.LoadHeightConfigs(out loadSuccess);
 
-        VM_HeightConfig.GetViewModelsFromModels(_settingsHeight.AvailableHeightConfigs, _state.HeightConfigs, _heightConfigFactory);
+        VM_HeightConfig.GetViewModelsFromModels(_settingsHeight.AvailableHeightConfigs, _state.HeightConfigs, _heightConfigFactory, _heightAssignmentFactory);
         VM_SettingsHeight.GetViewModelFromModel(_settingsHeight, PatcherSettings.Height); /// must do after populating configs
     }
 
@@ -207,7 +228,8 @@ public class SaveLoader
             _npcAssignmentsUi,
             _state.SpecificNPCAssignments,
             _logger,
-            _converters);
+            _converters,
+            _stateProvider);
 
         // Load Consistency (must load after plugin view models)
         _state.Consistency = _miscIO.LoadConsistency(out loadSuccess);
@@ -338,7 +360,7 @@ public class SaveLoader
             _logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
         }
 
-        SettingsIO_Misc.SaveSettingsSource(General, out saveSuccess, out exceptionStr);
+        SettingsIO_Misc.SaveSettingsSource(General, _stateProvider, out saveSuccess, out exceptionStr);
         if (!saveSuccess) 
         {
             captionStr = "Error saving Load Source Settings: ";

@@ -12,17 +12,15 @@ public class SettingsIO_Misc
         _paths = paths;
     }
 
-    public static void SaveSettingsSource(VM_Settings_General generalSettings, out bool saveSuccess, out string exceptionStr)
+    public static void SaveSettingsSource(VM_Settings_General generalSettings, PatcherSettingsSourceProvider settingsSourceProvider, out bool saveSuccess, out string exceptionStr)
     {
-        LoadSource source = new LoadSource()
+        PatcherSettingsSource source = new PatcherSettingsSource()
         {
-            GameEnvironmentDirectory = PatcherEnvironmentProvider.Instance.GameDataFolder, 
             LoadFromDataDir = generalSettings.bLoadSettingsFromDataFolder,
             PortableSettingsFolder = generalSettings.PortableSettingsFolder, 
-            SkyrimVersion = PatcherEnvironmentProvider.Instance.SkyrimVersion,
             Initialized = true,
         };
-        JSONhandler<LoadSource>.SaveJSONFile(source, SynthEBDPaths.SettingsSourcePath, out saveSuccess, out exceptionStr);
+        JSONhandler<PatcherSettingsSource>.SaveJSONFile(source, settingsSourceProvider.SourcePath, out saveSuccess, out exceptionStr);
     }
 
     public Dictionary<string, NPCAssignment> LoadConsistency(out bool loadSuccess)

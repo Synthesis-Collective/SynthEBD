@@ -17,13 +17,14 @@ public class ConfigInstaller
     private readonly SynthEBDPaths _paths;
     private readonly SettingsIO_AssetPack _assetPackIO;
     private readonly SettingsIO_BodyGen _bodyGenIO;
-
-    public ConfigInstaller(Logger logger, SynthEBDPaths synthEBDPaths, SettingsIO_AssetPack assetPackIO, SettingsIO_BodyGen bodyGenIO)
+    private readonly IStateProvider _stateProvider;
+    public ConfigInstaller(Logger logger, SynthEBDPaths synthEBDPaths, SettingsIO_AssetPack assetPackIO, SettingsIO_BodyGen bodyGenIO, IStateProvider stateProvider)
     {
         _logger = logger;
         _paths = synthEBDPaths;
         _assetPackIO = assetPackIO;
         _bodyGenIO = bodyGenIO;
+        _stateProvider = stateProvider;
     }
     public List<string> InstallConfigFile()
     {
@@ -60,7 +61,7 @@ public class ConfigInstaller
         }
         catch (Exception ex)
         {
-            CustomMessageBox.DisplayNotificationOK("Installation failed", "Archive extraction failed. This may be because the resulting file paths were too long. Try moving your Temp Folder in Mod Manager Integration to a short path such as your desktop. Installation aborted. Exception Message: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(ex, ""));
+            CustomMessageBox.DisplayNotificationOK("Installation failed", "Archive extraction failed. This may be because the resulting file paths were too long. Try moving your Temp Folder in Mod Manager Integration to a short path such as your desktop. Installation aborted. Exception Message: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(ex));
         }
 
         string manifestPath = Path.Combine(tempFolderPath, "Manifest.json");
@@ -413,7 +414,7 @@ public class ConfigInstaller
 
         catch (Exception e)
         {
-            CustomMessageBox.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " failed with message: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(e, ""));
+            CustomMessageBox.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " failed with message: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(e));
             return false;
         }
         return true;   
@@ -490,7 +491,7 @@ public class ConfigInstaller
         return collectedPaths;
     }
 
-    public static bool HandleLongFilePaths(AssetPack assetPack, Manifest manifest, out Dictionary<string, string> pathMap)
+    public bool HandleLongFilePaths(AssetPack assetPack, Manifest manifest, out Dictionary<string, string> pathMap)
     {
         pathMap = new Dictionary<string, string>();
         int pathLengthLimit = 260;
@@ -524,7 +525,7 @@ public class ConfigInstaller
         return true;
     }
 
-    public static int GetLongestPathLength(AssetPack assetPack, Manifest manifest, out string longestPath)
+    public int GetLongestPathLength(AssetPack assetPack, Manifest manifest, out string longestPath)
     {
         longestPath = "";
             
@@ -565,13 +566,13 @@ public class ConfigInstaller
         }
     }
 
-    public static string GenerateInstalledPath(string extractedSubPath, Manifest manifest)
+    public string GenerateInstalledPath(string extractedSubPath, Manifest manifest)
     {
         if (GetExpectedDataFolderFromExtension(extractedSubPath, manifest, out string extensionFolder))
         {
             if (PatcherSettings.ModManagerIntegration.ModManagerType == ModManager.None)
             {
-                return Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, extensionFolder, manifest.ConfigPrefix, extractedSubPath);
+                return Path.Combine(_stateProvider.DataFolderPath, extensionFolder, manifest.ConfigPrefix, extractedSubPath);
             }
             else
             {
@@ -582,7 +583,7 @@ public class ConfigInstaller
         {
             if (PatcherSettings.ModManagerIntegration.ModManagerType == ModManager.None)
             {
-                return Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, extractedSubPath);
+                return Path.Combine(_stateProvider.DataFolderPath, extractedSubPath);
             }
             else
             {

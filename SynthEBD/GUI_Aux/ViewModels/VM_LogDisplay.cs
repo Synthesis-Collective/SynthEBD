@@ -1,10 +1,11 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using Mutagen.Bethesda.Environments;
 
 namespace SynthEBD;
 
 public class VM_LogDisplay : VM
 {
+    private readonly IStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly DisplayedItemVm _displayedItemVm;
     public string DispString { get; set; } = "";
@@ -15,9 +16,11 @@ public class VM_LogDisplay : VM
     public RelayCommand ShowEnvironment { get; set; }
 
     public VM_LogDisplay(
+        IStateProvider stateProvider,
         Logger logger,
         DisplayedItemVm displayedItemVm)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
         _displayedItemVm = displayedItemVm;
         _logger.PropertyChanged += RefreshDisp;
@@ -76,7 +79,7 @@ public class VM_LogDisplay : VM
 
         ShowEnvironment = new RelayCommand(
             canExecute: _ => true,
-            execute: x => PrintEnvironment(PatcherEnvironmentProvider.Instance.Environment)
+            execute: x => PrintState()
         );
     }
 
@@ -85,15 +88,15 @@ public class VM_LogDisplay : VM
         this.DispString = _logger.LogString;
     }
 
-    public void PrintEnvironment(IGameEnvironment environment)
+    public void PrintState()
     {
-        _logger.LogString += "Data Folder: " + environment.DataFolderPath + Environment.NewLine;
-        _logger.LogString += "Load Order Source: " + environment.LoadOrderFilePath + Environment.NewLine;
-        _logger.LogString += "Creation Club Listings: " + environment.CreationClubListingsFilePath + Environment.NewLine;
-        _logger.LogString += "Game Release: " + environment.GameRelease.ToString() + Environment.NewLine;
+        _logger.LogString += "Data Folder: " + _stateProvider.DataFolderPath + Environment.NewLine;
+        _logger.LogString += "Load Order Source: " + _stateProvider.LoadOrderFilePath + Environment.NewLine;
+        _logger.LogString += "Creation Club Listings: " + _stateProvider.CreationClubListingsFilePath + Environment.NewLine;
+        _logger.LogString += "Game Release: " + _stateProvider.SkyrimVersion.ToString() + Environment.NewLine;
         _logger.LogString += "Load Order: " + Environment.NewLine;
 
-        foreach (var mod in environment.LoadOrder.ListedOrder)
+        foreach (var mod in _stateProvider.LoadOrder.ListedOrder)
         {
             var dispStr = "(";
             if (mod.Enabled)

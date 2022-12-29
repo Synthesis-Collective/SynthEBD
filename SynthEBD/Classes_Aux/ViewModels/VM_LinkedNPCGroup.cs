@@ -12,14 +12,17 @@ namespace SynthEBD;
 
 public class VM_LinkedNPCGroup : VM
 {
-    public VM_LinkedNPCGroup()
+    private readonly IStateProvider _stateProvider;
+    public delegate VM_LinkedNPCGroup Factory();
+    public VM_LinkedNPCGroup(IStateProvider stateProvider)
     {
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _stateProvider = stateProvider;
+        _stateProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
         Observable.CombineLatest(
-                this.NPCFormKeys.ToObservableChangeSet()
+                NPCFormKeys.ToObservableChangeSet()
                     .QueryWhenChanged(q => q),
                 this.WhenAnyValue(x => x.lk),
             (formKeys, linkCache) =>
@@ -48,19 +51,19 @@ public class VM_LinkedNPCGroup : VM
 
     public IReadOnlyCollection<string> PrimaryCandidates { get; private set; }
 
-    public static ObservableCollection<VM_LinkedNPCGroup> GetViewModelsFromModels(List<LinkedNPCGroup> models)
+    public static ObservableCollection<VM_LinkedNPCGroup> GetViewModelsFromModels(List<LinkedNPCGroup> models, VM_LinkedNPCGroup.Factory factory, ILinkCache linkCache)
     {
         var viewModels = new ObservableCollection<VM_LinkedNPCGroup>();
         foreach (var m in models)
         {
-            VM_LinkedNPCGroup vm = new VM_LinkedNPCGroup();
+            VM_LinkedNPCGroup vm = factory();
             vm.GroupName = m.GroupName;
             vm.NPCFormKeys.SetTo(m.NPCFormKeys, checkEquality: false);
-            if ((m.Primary == null || m.Primary.IsNull) && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<INpcGetter>(m.NPCFormKeys.FirstOrDefault(), out var primaryNPC))
+            if ((m.Primary == null || m.Primary.IsNull) && linkCache.TryResolve<INpcGetter>(m.NPCFormKeys.FirstOrDefault(), out var primaryNPC))
             {
                 vm.Primary = Logger.GetNPCLogNameString(primaryNPC);
             }
-            else if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<INpcGetter>(m.Primary, out var assignedPrimary))
+            else if (linkCache.TryResolve<INpcGetter>(m.Primary, out var assignedPrimary))
             {
                 vm.Primary = Logger.GetNPCLogNameString(assignedPrimary);
             }

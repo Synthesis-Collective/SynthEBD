@@ -50,9 +50,11 @@ public class BlockedPlugin
 
 public class zEBDBlockList
 {
+    private IStateProvider _stateProvider;
     private Converters _converters;
-    public zEBDBlockList(Converters converters)
+    public zEBDBlockList(IStateProvider stateProvider, Converters converters)
     {
+        _stateProvider = stateProvider;
         _converters = converters;
     }
     public HashSet<zEBDBlockedNPC> blockedNPCs { get; set; } = new();
@@ -61,12 +63,11 @@ public class zEBDBlockList
     public BlockList ToSynthEBD()
     {
         BlockList sList = new BlockList();
-        var env = PatcherEnvironmentProvider.Instance.Environment;
 
         foreach (var npc in blockedNPCs)
         {
             BlockedNPC blockedNPC = new BlockedNPC();
-            blockedNPC.FormKey = _converters.zEBDSignatureToFormKey(npc.rootPlugin, npc.formID, env);
+            blockedNPC.FormKey = _converters.zEBDSignatureToFormKey(npc.rootPlugin, npc.formID, _stateProvider);
             blockedNPC.Assets = npc.bBlockAssets;
             blockedNPC.Height = npc.bBlockHeight;
             blockedNPC.BodyShape = npc.bBlockBodyGen;

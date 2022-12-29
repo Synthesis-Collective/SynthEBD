@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
@@ -9,12 +9,15 @@ namespace SynthEBD;
 
 public class VM_RaceGrouping : VM
 {
-    public VM_RaceGrouping(RaceGrouping raceGrouping, VM_Settings_General parentVM)
+    private readonly IStateProvider _stateProvider;
+    public delegate VM_RaceGrouping Factory(RaceGrouping raceGrouping, VM_Settings_General parentVM);
+    public VM_RaceGrouping(RaceGrouping raceGrouping, VM_Settings_General parentVM, IStateProvider stateProvider)
     {
-        this.Label = raceGrouping.Label;
-        this.Races = new ObservableCollection<FormKey>(raceGrouping.Races);
+        _stateProvider = stateProvider;
+        Label = raceGrouping.Label;
+        Races = new ObservableCollection<FormKey>(raceGrouping.Races);
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _stateProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
@@ -27,13 +30,13 @@ public class VM_RaceGrouping : VM
     public VM_Settings_General ParentVM { get; set; }
     public RelayCommand DeleteCommand { get; }
 
-    public static ObservableCollection<VM_RaceGrouping> GetViewModelsFromModels(List<RaceGrouping> models, VM_Settings_General parentVM)
+    public static ObservableCollection<VM_RaceGrouping> GetViewModelsFromModels(List<RaceGrouping> models, VM_Settings_General parentVM, VM_RaceGrouping.Factory factory)
     {
         var RGVM = new ObservableCollection<VM_RaceGrouping>();
 
         foreach (var x in models)
         {
-            var y = new VM_RaceGrouping(x, parentVM);
+            var y = factory(x, parentVM);
             RGVM.Add(y);
         }
 

@@ -10,14 +10,16 @@ namespace SynthEBD;
 
 public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
 {
+    private readonly IStateProvider _stateProvider;
     private readonly VM_SettingsOBody _oBody;
     private readonly Logger _logger;
     private readonly VM_NPCAttributeCreator _attributeCreator;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
     public delegate VM_ConfigDistributionRules Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack);
 
-    public VM_ConfigDistributionRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack, VM_SettingsOBody oBody, Logger logger, VM_NPCAttributeCreator attributeCreator, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+    public VM_ConfigDistributionRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack, IStateProvider stateProvider, VM_SettingsOBody oBody, Logger logger, VM_NPCAttributeCreator attributeCreator, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
+        _stateProvider = stateProvider;
         _oBody = oBody;
         _logger = logger;
         _attributeCreator = attributeCreator;
@@ -53,7 +55,7 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
             execute: _ => AddKeywords.Add(new VM_CollectionMemberString("", this.AddKeywords))
         );
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _stateProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => LinkCache = x)
             .DisposeWith(this);
     }
@@ -92,8 +94,8 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
             AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, raceGroupingVMs);
             DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
             DisallowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.DisallowedRaceGroupings, raceGroupingVMs);
-            AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, true, null, _attributeCreator, _logger);
-            DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, false, null, _attributeCreator, _logger);
+            AllowedAttributes = _attributeCreator.GetViewModelsFromModels(model.AllowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, true, null);
+            DisallowedAttributes = _attributeCreator.GetViewModelsFromModels(model.DisallowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, false, null);
             foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
             AllowUnique = model.AllowUnique;
             AllowNonUnique = model.AllowNonUnique;

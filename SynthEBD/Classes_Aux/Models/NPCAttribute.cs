@@ -1,5 +1,6 @@
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Aspects;
+using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
 
@@ -124,10 +125,10 @@ public class NPCAttribute
         return mergedAttributes;
     }
 
-    public static string FormKeyToLogStringNamed<T>(FormKey fk) where T: class, IMajorRecordGetter, INamedGetter
+    public static string FormKeyToLogStringNamed<T>(FormKey fk, ILinkCache linkCache) where T: class, IMajorRecordGetter, INamedGetter
     {
         string output = fk.ToString();
-        if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<T>(fk, out var getter))
+        if (linkCache.TryResolve<T>(fk, out var getter))
         {
             if (getter.Name != null && !string.IsNullOrWhiteSpace(getter.Name.ToString()))
             {
@@ -141,10 +142,10 @@ public class NPCAttribute
         return output;
     }
 
-    public static string FormKeyToLogStringUnnamed<T>(FormKey fk) where T : class, IMajorRecordGetter
+    public static string FormKeyToLogStringUnnamed<T>(FormKey fk, ILinkCache linkCache) where T : class, IMajorRecordGetter
     {
         string output = fk.ToString();
-        if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<T>(fk, out var getter) && getter.EditorID != null && !string.IsNullOrWhiteSpace(getter.EditorID))
+        if (linkCache.TryResolve<T>(fk, out var getter) && getter.EditorID != null && !string.IsNullOrWhiteSpace(getter.EditorID))
         {
             output = getter.EditorID;
         }

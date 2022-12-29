@@ -1,16 +1,17 @@
-﻿namespace SynthEBD;
+namespace SynthEBD;
 
 public class Settings_ModManager
 {
-    public Settings_ModManager()
+    public Settings_ModManager(IStateProvider stateProvider)
     {
+        DefaultInstallationFolder = stateProvider.DataFolderPath;
         CurrentInstallationFolder = DefaultInstallationFolder;
     }
 
     public ModManager ModManagerType { get; set; } = ModManager.None;
     public MO2 MO2Settings { get; set; } = new();
     public Vortex VortexSettings { get; set; } = new();
-    public string DefaultInstallationFolder { get; set; } = PatcherEnvironmentProvider.Instance.Environment.DataFolderPath;
+    public string DefaultInstallationFolder { get; set; }
     public string CurrentInstallationFolder { get; set; }
     public string TempExtractionFolder { get; set; } = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location), "Temp");
     public int FilePathLimit { get; set; } = 260;

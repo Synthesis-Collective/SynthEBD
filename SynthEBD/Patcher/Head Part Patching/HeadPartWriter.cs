@@ -22,7 +22,7 @@ namespace SynthEBD
             _paths = paths;
             _patcherIO = patcherIO;
         }
-        public static Spell CreateHeadPartAssignmentSpell(SkyrimMod outputMod, GlobalShort gHeadpartsVerboseMode)
+        public static Spell CreateHeadPartAssignmentSpell(ISkyrimMod outputMod, GlobalShort gHeadpartsVerboseMode)
         {
             // create MGEF
             MagicEffect MGEFApplyHeadParts = outputMod.MagicEffects.AddNew();
@@ -65,7 +65,7 @@ namespace SynthEBD
             return SPELApplyHeadParts;
         }
 
-        public void CreateHeadPartLoaderQuest(SkyrimMod outputMod, GlobalShort gEnableHeadParts, GlobalShort gHeadpartsVerboseMode)
+        public void CreateHeadPartLoaderQuest(ISkyrimMod outputMod, GlobalShort gEnableHeadParts, GlobalShort gHeadpartsVerboseMode)
         {
             Quest hpLoaderQuest = outputMod.Quests.AddNew();
             hpLoaderQuest.Name = "Loads SynthEBD Head Part Assignments";

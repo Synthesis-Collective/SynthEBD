@@ -1,3 +1,4 @@
+/*
 using System.Text;
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Environments;
@@ -31,7 +32,7 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
     public PatcherEnvironmentProvider(PatcherSettingsSourceProvider settingsProvider, Logger logger)
     {
         _logger = logger;
-        var sourceSettings = settingsProvider.SourceSettings.Value;
+        var sourceSettings = settingsProvider.SettingsSource.Value;
         // initialize paths
         if (sourceSettings.Initialized)
         {
@@ -80,18 +81,24 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
 
         try
         {
+            string notificationStr = "";
             Environment = builder
                 .TransformModListings(x =>
                     x.OnlyEnabledAndExisting().
-                    RemoveModAndDependents(PatchFileName, verbose: true, _logger))
+                    RemoveModAndDependents(PatchFileName, verbose: true, out notificationStr))
                     .WithOutputMod(OutputMod)
                 .Build();
             built = true;
+            if (!notificationStr.IsNullOrEmpty())
+            {
+                LogEnvironmentEvent(notificationStr);
+            }
             LogEnvironmentEvent("Environment created successfully");
         }
-        catch
+        catch (Exception ex)
         {
             LogEnvironmentEvent("Environment was NOT successfully created");
+            LogEnvironmentEvent(ExceptionLogger.GetExceptionStack(ex));
             built = false;
         }
 
@@ -125,42 +132,4 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
     }
 }
 
-public static class LoadOrderExtensions
-{
-    public static IEnumerable<IModListingGetter<ISkyrimModGetter>> RemoveModAndDependents(this IEnumerable<IModListingGetter<ISkyrimModGetter>> listedOrder, string outputModName, bool verbose, Logger logger)
-    {
-        List<IModListingGetter<ISkyrimModGetter>> filteredLoadOrder = new List<IModListingGetter<ISkyrimModGetter>>();
-        HashSet<string> removedMods = new HashSet<string>();
-        foreach (var mod in listedOrder)
-        {
-            if (mod.ModKey.FileName == outputModName) { continue; }
-
-            var masterFiles = mod.Mod.ModHeader.MasterReferences.Select(x => x.Master.ToString());
-
-            if (masterFiles.Contains(outputModName, StringComparer.OrdinalIgnoreCase)) 
-            {
-                if (verbose) { logger.CallTimedLogErrorWithStatusUpdateAsync(mod.ModKey.FileName.String + " will not be patched because it is mastered to a previous version of " + outputModName, ErrorType.Warning, 2); };
-                removedMods.Add(mod.ModKey.FileName.String);
-                continue;
-            }
-
-            bool isRemovedDependent = false;
-            foreach (var removedMod in removedMods)
-            {
-                if (masterFiles.Contains(removedMod, StringComparer.OrdinalIgnoreCase))
-                {
-                    isRemovedDependent = true;
-                    break;
-                }
-            }
-            if (isRemovedDependent)
-            {
-                if (verbose) { logger.CallTimedLogErrorWithStatusUpdateAsync(mod.ModKey.FileName + " will not be patched because it is mastered to a mod which is mastered to a previous version of " + outputModName, ErrorType.Warning, 2); }
-                continue;
-            }
-
-            filteredLoadOrder.Add(mod);
-        }
-        return filteredLoadOrder;
-    }
-}
+*/

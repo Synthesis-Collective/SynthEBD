@@ -11,8 +11,11 @@ namespace SynthEBD;
 
 public class VM_BlockedPlugin : VM
 {
-    public VM_BlockedPlugin()
+    private IStateProvider _stateProvider;
+    public delegate VM_BlockedPlugin Factory();
+    public VM_BlockedPlugin(IStateProvider stateProvider)
     {
+        _stateProvider = stateProvider;
         this.WhenAnyValue(x => x.ModKey).Subscribe(x =>
         {
             if (!ModKey.IsNull)
@@ -21,11 +24,11 @@ public class VM_BlockedPlugin : VM
             }
         });
 
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _stateProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LoadOrder)
+        _stateProvider.WhenAnyValue(x => x.LoadOrder)
             .Subscribe(x => LoadOrder = x)
             .DisposeWith(this);
 
@@ -56,9 +59,9 @@ public class VM_BlockedPlugin : VM
     public ILinkCache lk { get; private set; }
     public ILoadOrderGetter LoadOrder { get; private set; }
 
-    public static VM_BlockedPlugin GetViewModelFromModel(BlockedPlugin model)
+    public static VM_BlockedPlugin GetViewModelFromModel(BlockedPlugin model, VM_BlockedPlugin.Factory factory)
     {
-        VM_BlockedPlugin viewModel = new VM_BlockedPlugin();
+        VM_BlockedPlugin viewModel = factory();
         viewModel.DispName = model.ModKey.FileName;
         viewModel.ModKey = model.ModKey;
         viewModel.Assets = model.Assets;

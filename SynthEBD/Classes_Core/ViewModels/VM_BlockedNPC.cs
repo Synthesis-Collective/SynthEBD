@@ -10,9 +10,12 @@ namespace SynthEBD;
 
 public class VM_BlockedNPC : VM
 {
+    private readonly IStateProvider _stateProvider;
     private readonly Converters _converters;
-    public VM_BlockedNPC(Converters converters)
+    public delegate VM_BlockedNPC Factory();
+    public VM_BlockedNPC(IStateProvider stateProvider, Converters converters)
     {
+        _stateProvider = stateProvider;
         _converters = converters;
         this.WhenAnyValue(x => x.FormKey).Subscribe(x =>
         {
@@ -22,7 +25,7 @@ public class VM_BlockedNPC : VM
             }
         });
 
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _stateProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
@@ -52,9 +55,9 @@ public class VM_BlockedNPC : VM
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
 
-    public static VM_BlockedNPC GetViewModelFromModel(BlockedNPC model, Converters converters)
+    public static VM_BlockedNPC GetViewModelFromModel(BlockedNPC model, VM_BlockedNPC.Factory factory)
     {
-        VM_BlockedNPC viewModel = new VM_BlockedNPC(converters);
+        VM_BlockedNPC viewModel = factory();
         //viewModel.DispName = CreateNPCDispNameFromFormKey(model.FormKey, converters);
         viewModel.FormKey = model.FormKey;
         viewModel.Assets = model.Assets;

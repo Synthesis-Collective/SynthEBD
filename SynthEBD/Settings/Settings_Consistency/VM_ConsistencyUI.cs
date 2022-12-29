@@ -10,19 +10,21 @@ namespace SynthEBD;
 
 public class VM_ConsistencyUI : VM
 {
+    private readonly IStateProvider _stateProvider;
     public readonly Logger _logger;
 
-    public VM_ConsistencyUI(Logger logger)
+    public VM_ConsistencyUI(IStateProvider stateProvider, Logger logger)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
 
         this.PropertyChanged += RefereshCurrentAssignment;
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _stateProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-        DeleteCurrentNPC = new SynthEBD.RelayCommand(
+        DeleteCurrentNPC = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {
@@ -31,7 +33,7 @@ public class VM_ConsistencyUI : VM
             }
         );
 
-        DeleteAllAssets = new SynthEBD.RelayCommand(
+        DeleteAllAssets = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {
@@ -46,7 +48,7 @@ public class VM_ConsistencyUI : VM
             }
         );
 
-        DeleteAllBodyShape = new SynthEBD.RelayCommand(
+        DeleteAllBodyShape = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {
@@ -59,7 +61,7 @@ public class VM_ConsistencyUI : VM
             }
         );
 
-        DeleteAllHeight = new SynthEBD.RelayCommand(
+        DeleteAllHeight = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {
@@ -71,7 +73,7 @@ public class VM_ConsistencyUI : VM
             }
         );
 
-        DeleteAllHeadParts = new SynthEBD.RelayCommand(
+        DeleteAllHeadParts = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {
@@ -89,14 +91,14 @@ public class VM_ConsistencyUI : VM
             }
         );
 
-        DeleteAllNPCs = new SynthEBD.RelayCommand(
+        DeleteAllNPCs = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {
                 if (CustomMessageBox.DisplayNotificationYesNo("Confirmation", "Are you sure you want to completely clear the consistency file?"))
                 {
-                    this.CurrentlyDisplayedAssignment = null;
-                    this.Assignments.Clear();
+                    CurrentlyDisplayedAssignment = null;
+                    Assignments.Clear();
                 }
                 _logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared all consistency", ErrorType.Warning, 2);
             }
@@ -119,7 +121,7 @@ public class VM_ConsistencyUI : VM
 
     public void RefereshCurrentAssignment(object sender, PropertyChangedEventArgs e)
     {
-        this.CurrentlyDisplayedAssignment = this.Assignments.Where(x => x.NPCFormKey.ToString() == SelectedNPCFormKey.ToString()).FirstOrDefault();
+        CurrentlyDisplayedAssignment = this.Assignments.Where(x => x.NPCFormKey.ToString() == SelectedNPCFormKey.ToString()).FirstOrDefault();
     }
 
     public static void GetViewModelsFromModels(Dictionary<string, NPCAssignment> models, ObservableCollection<VM_ConsistencyAssignment> viewModels, ObservableCollection<VM_AssetPack> AssetPackVMs, VM_Settings_Headparts headParts, Logger logger)

@@ -15,6 +15,7 @@ public sealed class Logger : VM
 {
     private readonly DisplayedItemVm _displayedItemVm;
     private readonly VM_LogDisplay _logDisplay;
+    private readonly IStateProvider _stateProvider;
     private readonly PatcherIO _patcherIO;
     public string StatusString { get; set; }
     public string BackupStatusString { get; set; }
@@ -51,11 +52,12 @@ public sealed class Logger : VM
         public int CurrentLayer;
     }
 
-    public Logger(PatcherIO patcherIO)
+    public Logger(PatcherIO patcherIO, IStateProvider stateProvider)
     {
         StatusColor = ReadyColor;
         StatusString = ReadyString;
         _patcherIO = patcherIO;
+        _stateProvider = stateProvider;
 
         // set default log path
         var assemblyPath = Assembly.GetEntryAssembly().Location;
@@ -97,7 +99,7 @@ public sealed class Logger : VM
         }
     }
 
-    public void InitializeNewReport(NPCInfo npcInfo, PatcherEnvironmentProvider environmentProvider)
+    public void InitializeNewReport(NPCInfo npcInfo)
     {
         if (npcInfo.Report.LogCurrentNPC)
         {
@@ -107,19 +109,19 @@ public sealed class Logger : VM
 
             LogReport("Patching NPC " + npcInfo.Report.NameString, false, npcInfo);
 
-            if (environmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.AssetsRace, out var assetsRaceGetter))
+            if (_stateProvider.LinkCache.TryResolve<IRaceGetter>(npcInfo.AssetsRace, out var assetsRaceGetter))
             {
                 LogReport("Assets race: " + EditorIDHandler.GetEditorIDSafely(assetsRaceGetter), false, npcInfo); ;
             }
-            if (environmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.BodyShapeRace, out var bodyRaceGetter))
+            if (_stateProvider.LinkCache.TryResolve<IRaceGetter>(npcInfo.BodyShapeRace, out var bodyRaceGetter))
             {
                 LogReport("Body Shape race: " + EditorIDHandler.GetEditorIDSafely(bodyRaceGetter), false, npcInfo);
             }
-            if (environmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.HeightRace, out var heightRaceGetter))
+            if (_stateProvider.LinkCache.TryResolve<IRaceGetter>(npcInfo.HeightRace, out var heightRaceGetter))
             {
                 LogReport("Height race: " + EditorIDHandler.GetEditorIDSafely(heightRaceGetter), false, npcInfo);
             }
-            if (environmentProvider.Environment.LinkCache.TryResolve<IRaceGetter>(npcInfo.HeadPartsRace, out var headPartsRaceGetter))
+            if (_stateProvider.LinkCache.TryResolve<IRaceGetter>(npcInfo.HeadPartsRace, out var headPartsRaceGetter))
             {
                 LogReport("Head Parts race: " + EditorIDHandler.GetEditorIDSafely(headPartsRaceGetter), false, npcInfo);
             }

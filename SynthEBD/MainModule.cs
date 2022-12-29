@@ -72,8 +72,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<Patcher>().AsSelf().SingleInstance();    
         builder.RegisterType<SaveLoader>().AsSelf().SingleInstance()
             .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
-        builder.RegisterType<PatcherEnvironmentProvider>().AsSelf().SingleInstance()
-            .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
+        //builder.RegisterType<PatcherEnvironmentProvider>().AsSelf().SingleInstance()
+        //    .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
         builder.RegisterType<SynthEBDPaths>().AsSelf().SingleInstance()
             .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
         builder.RegisterType<UpdateHandler>().AsSelf().SingleInstance();

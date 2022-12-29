@@ -71,7 +71,7 @@ namespace SynthEBD
                 }
                 catch (Exception ex)
                 {
-                    string errorStr = "Failed to load preview image from Subgroup " + sourcedImagePath.PrimarySource + " : " + sourcedImagePath.Path + Environment.NewLine + ExceptionLogger.GetExceptionStack(ex, "");
+                    string errorStr = "Failed to load preview image from Subgroup " + sourcedImagePath.PrimarySource + " : " + sourcedImagePath.Path + Environment.NewLine + ExceptionLogger.GetExceptionStack(ex);
                     _logger.LogMessage(errorStr);
                 }
             }

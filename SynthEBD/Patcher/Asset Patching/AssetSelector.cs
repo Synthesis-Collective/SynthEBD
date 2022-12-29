@@ -1,18 +1,21 @@
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
 public class AssetSelector
 {
+    private readonly IStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly AttributeMatcher _attributeMatcher;
     private readonly RecordPathParser _recordPathParser;
     private readonly DictionaryMapper _dictionaryMapper;
-    public AssetSelector(Logger logger, SynthEBDPaths paths, AttributeMatcher attributeMatcher, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper)
+    public AssetSelector(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, AttributeMatcher attributeMatcher, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
         _paths = paths;
         _attributeMatcher = attributeMatcher;
@@ -609,14 +612,14 @@ public class AssetSelector
         // Allowed Races
         if (!subgroup.AllowedRacesIsEmpty && !subgroup.AllowedRaces.Contains(npcInfo.AssetsRace))
         {
-            _logger.LogReport(reportString + "is invalid because its allowed races (" + Logger.GetRaceListLogStrings(subgroup.AllowedRaces, PatcherEnvironmentProvider.Instance.Environment.LinkCache) +") do not include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, PatcherEnvironmentProvider.Instance.Environment.LinkCache) + ")", false, npcInfo);
+            _logger.LogReport(reportString + "is invalid because its allowed races (" + Logger.GetRaceListLogStrings(subgroup.AllowedRaces, _stateProvider.LinkCache) +") do not include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, _stateProvider.LinkCache) + ")", false, npcInfo);
             return false;
         }
 
         // Disallowed Races
         if (subgroup.DisallowedRaces.Contains(npcInfo.AssetsRace))
         {
-            _logger.LogReport(reportString + "is invalid because its disallowed races (" + Logger.GetRaceListLogStrings(subgroup.DisallowedRaces, PatcherEnvironmentProvider.Instance.Environment.LinkCache) + ") include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, PatcherEnvironmentProvider.Instance.Environment.LinkCache) + ")", false, npcInfo);
+            _logger.LogReport(reportString + "is invalid because its disallowed races (" + Logger.GetRaceListLogStrings(subgroup.DisallowedRaces, _stateProvider.LinkCache) + ") include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, _stateProvider.LinkCache) + ")", false, npcInfo);
             return false;
         }
 
@@ -894,13 +897,13 @@ public class AssetSelector
 
     public static string[] BaseGamePlugins = new string[] { "Skyrim.esm", "Update.esm", "Dawnguard.esm", "HearthFires.esm", "Dragonborn.esm" };
 
-    public static void SetVanillaBodyPath(NPCInfo npcInfo, SkyrimMod outputMod)
+    public static void SetVanillaBodyPath(NPCInfo npcInfo, ISkyrimMod outputMod, ILinkCache linkCache)
     {
-        if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<INpcGetter>(npcInfo.NPC.FormKey, out var npcWinningRecord) && npcWinningRecord.WornArmor != null && !npcWinningRecord.WornArmor.IsNull && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IArmorGetter>(npcWinningRecord.WornArmor.FormKey, out var skin))
+        if (linkCache.TryResolve<INpcGetter>(npcInfo.NPC.FormKey, out var npcWinningRecord) && npcWinningRecord.WornArmor != null && !npcWinningRecord.WornArmor.IsNull && linkCache.TryResolve<IArmorGetter>(npcWinningRecord.WornArmor.FormKey, out var skin))
         {
             foreach (var armaLinkGetter in skin.Armature)
             {
-                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IArmorAddonGetter>(armaLinkGetter.FormKey, out var armaGetter) && armaGetter.BodyTemplate != null && armaGetter.WorldModel != null && (Patcher.PatchableRaces.Contains(armaGetter.Race) || npcWinningRecord.Race.Equals(armaGetter.Race) || armaGetter.AdditionalRaces.Contains(npcWinningRecord.Race.FormKey)) && DefaultBodyMeshPaths.ContainsKey(npcInfo.Gender) && DefaultBodyMeshPaths[npcInfo.Gender] != null)
+                if (linkCache.TryResolve<IArmorAddonGetter>(armaLinkGetter.FormKey, out var armaGetter) && armaGetter.BodyTemplate != null && armaGetter.WorldModel != null && (Patcher.PatchableRaces.Contains(armaGetter.Race) || npcWinningRecord.Race.Equals(armaGetter.Race) || armaGetter.AdditionalRaces.Contains(npcWinningRecord.Race.FormKey)) && DefaultBodyMeshPaths.ContainsKey(npcInfo.Gender) && DefaultBodyMeshPaths[npcInfo.Gender] != null)
                 {
                     var matchedEntry = DefaultBodyMeshPaths[npcInfo.Gender].Where(x => armaGetter.BodyTemplate.FirstPersonFlags.HasFlag(x.Key)).FirstOrDefault();
                     if (matchedEntry.Value != null)

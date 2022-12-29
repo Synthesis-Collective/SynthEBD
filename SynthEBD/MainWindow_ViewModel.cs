@@ -24,8 +24,7 @@ public class MainWindow_ViewModel : VM
         VM_StatusBar statusBar,
         VM_NavPanel navPanel,
         VM_RunButton runButton,
-        SynthEBDPaths paths,
-        PatcherEnvironmentProvider patcherEnvironmentProvider)
+        SynthEBDPaths paths)
     {
         _saveLoader = saveLoader;
         _settingsGeneral = settingsGeneral;
@@ -35,7 +34,6 @@ public class MainWindow_ViewModel : VM
         StatusBarVM = statusBar;
         RunButtonVM = runButton;
         NavViewModel = _navPanel;
-        PatcherEnvironmentProvider.Instance = patcherEnvironmentProvider;
         _paths = paths;
 
         // Start on the settings VM

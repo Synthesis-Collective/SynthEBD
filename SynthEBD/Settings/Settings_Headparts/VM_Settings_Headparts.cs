@@ -11,9 +11,10 @@ namespace SynthEBD;
 
 public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
 {
-    public VM_Settings_Headparts(VM_Settings_General generalSettingsVM, VM_SettingsOBody oBodySettings, VM_HeadPartList.Factory listFactory, VM_HeadPart.Factory headPartFactory, Logger logger)
+    private IStateProvider _stateProvider;
+    public VM_Settings_Headparts(VM_Settings_General generalSettingsVM, VM_SettingsOBody oBodySettings, VM_HeadPartList.Factory listFactory, VM_HeadPart.Factory headPartFactory, Logger logger, IStateProvider stateProvider)
     {
-        ImportMenu = new VM_HeadPartImport(this, logger, headPartFactory);
+        ImportMenu = new VM_HeadPartImport(this, logger, stateProvider, headPartFactory);
         SettingsMenu = new();
         AttributeGroupMenu = generalSettingsVM.AttributeGroupMenu;
         RaceGroupings = generalSettingsVM.RaceGroupings;

@@ -1,17 +1,18 @@
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
 public class HeadPartFunctions
 {
-    public static void ApplyNeededFaceTextures(Dictionary<FormKey, HeadPartSelection> headPartAssignemnts, SkyrimMod outputMod, Logger logger) // The EBD Papyrus scripts require a head texture to be assigned in order to process headparts. If none was assigned by SynthEBD, assign the default head texture for the NPC's race
+    public static void ApplyNeededFaceTextures(Dictionary<FormKey, HeadPartSelection> headPartAssignemnts, ISkyrimMod outputMod, Logger logger, ILinkCache linkCache) // The EBD Papyrus scripts require a head texture to be assigned in order to process headparts. If none was assigned by SynthEBD, assign the default head texture for the NPC's race
     {
         HashSet<FormKey> npcsToRemove = new();
         foreach (var npcFormKey in headPartAssignemnts.Keys)
         {
-            if(!PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<INpcGetter>(npcFormKey, out var npcGetter))
+            if(!linkCache.TryResolve<INpcGetter>(npcFormKey, out var npcGetter))
             {
                 continue; // this pretty much can't happen
             }
@@ -21,7 +22,7 @@ public class HeadPartFunctions
                 {
                     AddNPCtoRemovalList_WNAM(npcGetter, npcsToRemove, logger);
                 }
-                if (npcGetter.Race != null && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(npcGetter.Race.FormKey, out var raceGetter))
+                if (npcGetter.Race != null && linkCache.TryResolve<IRaceGetter>(npcGetter.Race.FormKey, out var raceGetter))
                 {
                     var gender = NPCInfo.GetGender(npcGetter);
                     switch (gender)

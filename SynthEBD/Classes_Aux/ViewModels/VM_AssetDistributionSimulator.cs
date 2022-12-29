@@ -16,16 +16,16 @@ namespace SynthEBD
 {
     public class VM_AssetDistributionSimulator : VM
     {
-        private readonly PatcherEnvironmentProvider _patcherEnvironmentProvider;
+        private readonly IStateProvider _stateProvider;
         private readonly Logger _logger;
         private readonly SynthEBDPaths _paths;
         private readonly DictionaryMapper _dictionaryMapper;
         private readonly AssetAndBodyShapeSelector _assetAndBodyShapeSelector;
         private readonly SettingsIO_OBody _oBodyIO;
         public delegate VM_AssetDistributionSimulator Factory();
-        public VM_AssetDistributionSimulator(VM_SettingsTexMesh texMesh, VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI, PatcherEnvironmentProvider patcherEnvironmentProvider, Logger logger, SynthEBDPaths paths, DictionaryMapper dictionaryMapper, AssetAndBodyShapeSelector assetAndBodyShapeSelector, SettingsIO_OBody oBodyIO)
+        public VM_AssetDistributionSimulator(VM_SettingsTexMesh texMesh, VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI, IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, DictionaryMapper dictionaryMapper, AssetAndBodyShapeSelector assetAndBodyShapeSelector, SettingsIO_OBody oBodyIO)
         {
-            _patcherEnvironmentProvider = patcherEnvironmentProvider;
+            _stateProvider = stateProvider;
             _logger = logger;
             _paths = paths;
             _dictionaryMapper = dictionaryMapper;
@@ -34,12 +34,12 @@ namespace SynthEBD
 
             PrimaryAPs = texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.Primary && x.IsSelected).Select(x => VM_AssetPack.DumpViewModelToModel(x)).ToHashSet();
             MixInAPs = texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.MixIn && x.IsSelected).Select(x => VM_AssetPack.DumpViewModelToModel(x)).ToHashSet();
-            OBodySettings = new();
+            OBodySettings = new(_stateProvider);
             OBodySettings = oBody.DumpViewModelToModel();
             VM_BlockListUI.DumpViewModelToModel(blockListUI, BlockList);
             VM_SettingsBodyGen.DumpViewModelToModel(bodyGen, new(), BodyGenConfigs);
 
-            PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            _stateProvider.WhenAnyValue(x => x.LinkCache)
                 .Subscribe(x => lk = x)
                 .DisposeWith(this);
 
@@ -48,7 +48,7 @@ namespace SynthEBD
                 if (lk.TryResolve<INpcGetter>(NPCformKey, out var npcGetter))
                 {
                     NPCgetter = npcGetter;
-                    NPCinfo = new NPCInfo(npcGetter, new(), new(), new(), new(), new());
+                    NPCinfo = new NPCInfo(npcGetter, new(), new(), new(), new(), new(), _stateProvider);
                 }
             });
 
@@ -84,7 +84,7 @@ namespace SynthEBD
             var flattenedAssetPacks = PrimaryAPs.Where(x => x.Gender == NPCinfo.Gender).Select(x => FlattenedAssetPack.FlattenAssetPack(x, _dictionaryMapper)).ToHashSet();
 
             var blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(BlockList, NPCformKey);
-            var blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(BlockList, NPCformKey);
+            var blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(BlockList, NPCformKey, _stateProvider.LinkCache);
             var blockBodyShape = false;
             if (blockListNPCEntry.BodyShape || blockListPluginEntry.BodyShape || !OBodyPreprocessing.NPCIsEligibleForBodySlide(NPCgetter)) { blockBodyShape = true; }
 
@@ -98,7 +98,7 @@ namespace SynthEBD
                 {
                     PatcherSettings.General.VerboseModeDetailedAttributes = true;
                     NPCinfo.Report.LogCurrentNPC = true;
-                    _logger.InitializeNewReport(NPCinfo, _patcherEnvironmentProvider);
+                    _logger.InitializeNewReport(NPCinfo);
                 }
                 var chosenCombination = _assetAndBodyShapeSelector.GenerateCombinationWithBodyShape(flattenedAssetPacks, BodyGenConfigs, OBodySettings, new AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment(), NPCinfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, new());
                 combinations.Add(chosenCombination);
