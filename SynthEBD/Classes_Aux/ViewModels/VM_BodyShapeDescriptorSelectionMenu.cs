@@ -11,7 +11,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
     public delegate VM_BodyShapeDescriptorSelectionMenu Factory(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig);
     public VM_BodyShapeDescriptorSelectionMenu(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, VM_BodyShapeDescriptorCreator descriptorCreator, VM_BodyShapeDescriptorSelectionMenu.Factory selfFactory)
     {
-        this._selfFactory = selfFactory;
+        _selfFactory = selfFactory;
 
         TrackedMenu = trackedMenu;
         TrackedRaceGroupings = raceGroupingVMs;

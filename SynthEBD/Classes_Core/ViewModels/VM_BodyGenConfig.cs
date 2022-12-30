@@ -66,7 +66,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
             canExecute: _ => true,
             execute: _ => DisplayedUI = GroupMappingUI
         );
-        ClickDescriptorMenu = new SynthEBD.RelayCommand(
+        ClickDescriptorMenu = new RelayCommand(
             canExecute: _ => true,
             execute: _ => DisplayedUI = DescriptorUI
         );
@@ -90,9 +90,9 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
                 {
                     try
                     {
-                        if (System.IO.File.Exists(this.SourcePath))
+                        if (System.IO.File.Exists(SourcePath))
                         {
-                            System.IO.File.Delete(this.SourcePath);
+                            System.IO.File.Delete(SourcePath);
                         }
                         if (ParentCollection.Contains(this)) // false if user tries to delete a new blank view model
                         {
@@ -161,13 +161,10 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
     public VM_BodyGenGroupsMenu GroupUI { get; set; }
     public VM_BodyShapeDescriptorCreationMenu DescriptorUI { get; set; }
     public VM_BodyGenTemplateMenu TemplateMorphUI { get; set; }
-
     public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
     public VM_BodyGenMiscMenu MiscMenu { get; set; }
     public ObservableCollection<VM_BodyGenConfig> ParentCollection { get; set; }
-
     public string SourcePath { get; set; }
-
     public ICommand ClickTemplateMenu { get; }
     public ICommand ClickGroupMappingMenu { get; }
     public ICommand ClickDescriptorMenu { get; }
@@ -176,12 +173,14 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
     public ICommand ClickMiscMenu { get; }
     public ICommand ClickDelete { get; }
     public RelayCommand Save { get; }
-
     public string Label { get; set; } = "";
     public Gender Gender { get; set; } = Gender.Female;
 
+    public bool IsLoadingFromViewModel { get; set; } = false;
+
     public void CopyInViewModelFromModel(BodyGenConfig model, VM_Settings_General generalSettingsVM)
     {
+        IsLoadingFromViewModel = true;
         Label = model.Label;
         Gender = model.Gender;
 
@@ -224,6 +223,12 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
         AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
 
         SourcePath = model.FilePath;
+        IsLoadingFromViewModel = false;
+        // set the Template "other tempate groups" fields now that all templates and groups have loaded in.
+        foreach (var tempateVM in TemplateMorphUI.Templates)
+        {
+            tempateVM.UpdateThisOtherGroupsTemplateCollection();
+        }
     }
 
     public static BodyGenConfig DumpViewModelToModel(VM_BodyGenConfig viewModel)

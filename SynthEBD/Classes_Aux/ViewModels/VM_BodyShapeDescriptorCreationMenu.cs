@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using static SynthEBD.VM_BodyShapeDescriptor;
 
 namespace SynthEBD;
 
@@ -7,7 +6,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
 {
     public delegate VM_BodyShapeDescriptorCreationMenu Factory(IHasAttributeGroupMenu parentConfig);
     
-    public VM_BodyShapeDescriptorCreationMenu(IHasAttributeGroupMenu parentConfig, VM_Settings_General generalSettings, VM_BodyShapeDescriptorCreator descriptorCreator)
+    public VM_BodyShapeDescriptorCreationMenu(IHasAttributeGroupMenu parentConfig, VM_Settings_General generalSettings, VM_BodyShapeDescriptor.VM_BodyShapeDescriptorCreator descriptorCreator)
     {
         CurrentlyDisplayedTemplateDescriptorShell = descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), generalSettings.RaceGroupings, parentConfig);
 

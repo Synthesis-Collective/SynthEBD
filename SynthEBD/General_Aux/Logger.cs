@@ -19,7 +19,9 @@ public sealed class Logger : VM
     private readonly PatcherIO _patcherIO;
     public string StatusString { get; set; }
     public string BackupStatusString { get; set; }
-    public string LogString { get; set; }
+    private List<string> LoggedEvents { get; set; } = new();
+    //public string LogString { get; set; }
+    public string LogString => string.Join(Environment.NewLine, LoggedEvents);
     private string _logFolderPath { get; set; } = "";
     public SolidColorBrush StatusColor { get; set; }
     public SolidColorBrush BackupStatusColor { get; set; }
@@ -75,15 +77,22 @@ public sealed class Logger : VM
 
     public void LogMessage(string message)
     {
-        LogString += message + Environment.NewLine;
+        LoggedEvents.Add(message);
+        //LogString += message + Environment.NewLine;
     }
 
     public void LogMessage(IEnumerable<string> messages)
     {
         foreach (var message in messages)
         {
-            LogString += message + Environment.NewLine;
+            LoggedEvents.Add(message);
+            //LogString += message + Environment.NewLine;
         }
+    }
+
+    public void Clear()
+    {
+        LoggedEvents.Clear();
     }
 
     public void TriggerNPCReporting(NPCInfo npcInfo)
@@ -262,7 +271,8 @@ public sealed class Logger : VM
 
     public void LogError(string error)
     {
-        LogString += error + Environment.NewLine;
+        LoggedEvents.Add(error);
+        //LogString += error + Environment.NewLine;
         _loggedError.OnNext(Unit.Default);
     }
     public static string SpreadFlattenedAssetPack(FlattenedAssetPack ap, int index, bool indentAtIndex)
@@ -278,7 +288,8 @@ public sealed class Logger : VM
 
     public void LogErrorWithStatusUpdate(string error, ErrorType type)
     {
-        LogString += error + Environment.NewLine;
+        LoggedEvents.Add(error);
+        //LogString += error + Environment.NewLine;
         StatusString = error;
         switch (type)
         {

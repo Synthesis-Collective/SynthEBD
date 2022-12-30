@@ -94,7 +94,7 @@ public class VM_BodyGenTemplate : VM
         ParentConfig = parentConfig;
         ParentCollection = parentCollection;
 
-        parentCollection.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection());
+        ParentCollection.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection());
         SubscribedTemplateGroups.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection());
         GroupSelectionCheckList.CollectionMemberStrings.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection());
 
@@ -233,6 +233,11 @@ public class VM_BodyGenTemplate : VM
 
     public ObservableCollection<VM_BodyGenTemplate> UpdateThisOtherGroupsTemplateCollection()
     {
+        if (ParentConfig.IsLoadingFromViewModel)
+        {
+            return new(); // skip this when the parent BodyGen Config view model is being loaded in because every added Template will trigger this evaluation. 
+        }
+        _logger.LogMessage(Label + " UpdateThisOtherGroupsTemplateCollection");
         var updatedCollection = new ObservableCollection<VM_BodyGenTemplate>();
         var excludedCollection = new ObservableCollection<VM_BodyGenTemplate>();
 
@@ -266,7 +271,7 @@ public class VM_BodyGenTemplate : VM
             }    
         }
 
-        this.OtherGroupsTemplateCollection = updatedCollection;
+        OtherGroupsTemplateCollection = updatedCollection;
 
         return excludedCollection;
     }

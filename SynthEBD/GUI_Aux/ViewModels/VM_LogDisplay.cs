@@ -1,5 +1,7 @@
 using System.ComponentModel;
+using DynamicData;
 using Mutagen.Bethesda.Environments;
+using Noggog;
 
 namespace SynthEBD;
 
@@ -33,7 +35,7 @@ public class VM_LogDisplay : VM
 
         Clear = new RelayCommand(
             canExecute: _ => true,
-            execute: x => _logger.LogString = ""
+            execute: x => _logger.Clear() //_logger.LogString = ""
         );
 
         Copy = new RelayCommand(
@@ -90,11 +92,19 @@ public class VM_LogDisplay : VM
 
     public void PrintState()
     {
+        /*
         _logger.LogString += "Data Folder: " + _stateProvider.DataFolderPath + Environment.NewLine;
         _logger.LogString += "Load Order Source: " + _stateProvider.LoadOrderFilePath + Environment.NewLine;
         _logger.LogString += "Creation Club Listings: " + _stateProvider.CreationClubListingsFilePath + Environment.NewLine;
         _logger.LogString += "Game Release: " + _stateProvider.SkyrimVersion.ToString() + Environment.NewLine;
         _logger.LogString += "Load Order: " + Environment.NewLine;
+        */
+        _logger.LogMessage("Data Folder: " + _stateProvider.DataFolderPath);
+        _logger.LogMessage("Load Order Source: " + _stateProvider.LoadOrderFilePath);
+        _logger.LogMessage("Creation Club Listings: " + _stateProvider.CreationClubListingsFilePath);
+        _logger.LogMessage("Game Release: " + _stateProvider.SkyrimVersion.ToString());
+        _logger.LogMessage("Load Order: ");
+
 
         foreach (var mod in _stateProvider.LoadOrder.ListedOrder)
         {
@@ -108,7 +118,8 @@ public class VM_LogDisplay : VM
                 dispStr += "-) ";
             }
             dispStr += mod.ModKey.FileName;
-            _logger.LogString += dispStr + Environment.NewLine;
+            //_logger.LogString += dispStr + Environment.NewLine;
+            _logger.LogMessage(dispStr);
         }
         DispString = _logger.LogString;
     }

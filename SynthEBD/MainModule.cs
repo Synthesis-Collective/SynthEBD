@@ -54,11 +54,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_AssetDistributionSimulator>().AsSelf().SingleInstance();
         
         // UI components (sub-menus)
-        builder.RegisterType<VM_BodyGenTemplateMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodyGenMiscMenu>().AsSelf().SingleInstance();
-        builder.RegisterType<VM_BodyGenGroupMappingMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_OBodyMiscSettings>().AsSelf().SingleInstance();
-        builder.RegisterType<VM_BodyShapeDescriptorCreationMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_HeadPartImport>().AsSelf().SingleInstance()
             .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
 
@@ -119,7 +116,9 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_ConsistencyAssignment>().AsSelf();
         builder.RegisterType<VM_AttributeGroupMenu>().AsSelf();
         builder.RegisterType<VM_BodyGenConfig>().AsSelf();
+        builder.RegisterType<VM_BodyGenGroupMappingMenu>().AsSelf();
         builder.RegisterType<VM_BodyGenRacialMapping>().AsSelf();
+        builder.RegisterType<VM_BodyGenTemplateMenu>().AsSelf();
         builder.RegisterType<VM_BodyGenTemplate>().AsSelf();
         builder.RegisterType<VM_HeightConfig>().AsSelf();
         builder.RegisterType<VM_HeightAssignment>().AsSelf();
@@ -131,6 +130,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_BodyShapeDescriptor>().AsSelf();
         builder.RegisterType<VM_BodyShapeDescriptorShell>().AsSelf();
         builder.RegisterType<VM_BodyShapeDescriptorRules>().AsSelf();
+        builder.RegisterType<VM_BodyShapeDescriptorCreationMenu>().AsSelf();
         builder.RegisterType<VM_BodyShapeDescriptorSelectionMenu>().AsSelf();
         builder.RegisterType<VM_BodySlideSetting>().AsSelf();
         builder.RegisterType<VM_AssetPackDirectReplacerMenu>().AsSelf();
