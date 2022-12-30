@@ -17,13 +17,13 @@ public class MainModule : Autofac.Module
         //IO
         builder.RegisterType<PatcherIO>().AsSelf().SingleInstance();
         builder.RegisterType<IO_Aux>().AsSelf().SingleInstance();
-        builder.RegisterType<SettingsIO_General>().AsSelf().SingleInstance();
+        builder.RegisterType<SettingsIO_General>().AsSelf().SingleInstance().AsImplementedInterfaces();
         builder.RegisterType<SettingsIO_AssetPack>().AsSelf().SingleInstance();
         builder.RegisterType<SettingsIO_BodyGen>().AsSelf().SingleInstance();
-        builder.RegisterType<SettingsIO_OBody>().AsSelf().SingleInstance();
+        builder.RegisterType<SettingsIO_OBody>().AsSelf().SingleInstance().AsImplementedInterfaces();
         builder.RegisterType<SettingsIO_SpecificNPCAssignments>().AsSelf().SingleInstance();
         builder.RegisterType<SettingsIO_BlockList>().AsSelf().SingleInstance();
-        builder.RegisterType<SettingsIO_HeadParts>().AsSelf().SingleInstance();
+        builder.RegisterType<SettingsIO_HeadParts>().AsSelf().SingleInstance().AsImplementedInterfaces();
         builder.RegisterType<SettingsIO_Height>().AsSelf().SingleInstance();
         builder.RegisterType<SettingsIO_ModManager>().AsSelf().SingleInstance();
         builder.RegisterType<SettingsIO_Misc>().AsSelf().SingleInstance();
@@ -37,15 +37,12 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_StatusBar>().AsSelf().SingleInstance();
         builder.RegisterType<VM_NavPanel>().AsSelf().SingleInstance();
         builder.RegisterType<VM_RunButton>().AsSelf().SingleInstance();
-        builder.RegisterType<VM_Settings_General>().AsSelf().SingleInstance()
-            .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
-        builder.RegisterType<VM_SettingsTexMesh>().AsSelf().SingleInstance()
-            .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
+        builder.RegisterType<VM_Settings_General>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_SettingsTexMesh>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsBodyGen>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsOBody>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsHeight>().AsSelf().SingleInstance();
-        builder.RegisterType<VM_Settings_Headparts>().AsSelf().SingleInstance()
-            .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
+        builder.RegisterType<VM_Settings_Headparts>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsModManager>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BlockListUI>().AsSelf().SingleInstance();
         builder.RegisterType<VM_ConsistencyUI>().AsSelf().SingleInstance();
@@ -56,24 +53,20 @@ public class MainModule : Autofac.Module
         // UI components (sub-menus)
         builder.RegisterType<VM_BodyGenMiscMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_OBodyMiscSettings>().AsSelf().SingleInstance();
-        builder.RegisterType<VM_HeadPartImport>().AsSelf().SingleInstance()
-            .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
+        builder.RegisterType<VM_HeadPartImport>().AsSelf().SingleInstance();
 
         // UI Infrastructure
         builder.RegisterType<VM_NPCAttributeCreator>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodyShapeDescriptorCreator>().AsSelf().SingleInstance();
 
         // Back End Infrastructure
-        builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance()
-            .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
+        builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();
         builder.RegisterType<MainState>().AsSelf().SingleInstance();
-        builder.RegisterType<Patcher>().AsSelf().SingleInstance();    
-        builder.RegisterType<SaveLoader>().AsSelf().SingleInstance()
-            .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
+        builder.RegisterType<Patcher>().AsSelf().SingleInstance();
+        builder.RegisterType<SaveLoader>().AsSelf().SingleInstance();
         //builder.RegisterType<PatcherEnvironmentProvider>().AsSelf().SingleInstance()
         //    .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
-        builder.RegisterType<SynthEBDPaths>().AsSelf().SingleInstance()
-            .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
+        builder.RegisterType<SynthEBDPaths>().AsSelf().SingleInstance();
         builder.RegisterType<UpdateHandler>().AsSelf().SingleInstance();
         builder.RegisterType<BSAHandler>().AsSelf().SingleInstance();
         builder.RegisterType<RaceMenuIniHandler>().AsSelf().SingleInstance();
@@ -109,13 +102,13 @@ public class MainModule : Autofac.Module
 
         // Non-singletons
         //UI
-        builder.RegisterType<VM_AssetPack>().AsSelf();
+        builder.RegisterType<VM_AssetPack>().AsSelf().AsImplementedInterfaces();
         builder.RegisterType<VM_AssetPresenter>().AsSelf();
         builder.RegisterType<VM_Subgroup>().AsSelf();
         builder.RegisterType<VM_SpecificNPCAssignment>().AsSelf();
         builder.RegisterType<VM_ConsistencyAssignment>().AsSelf();
         builder.RegisterType<VM_AttributeGroupMenu>().AsSelf();
-        builder.RegisterType<VM_BodyGenConfig>().AsSelf();
+        builder.RegisterType<VM_BodyGenConfig>().AsSelf().AsImplementedInterfaces();
         builder.RegisterType<VM_BodyGenGroupMappingMenu>().AsSelf();
         builder.RegisterType<VM_BodyGenRacialMapping>().AsSelf();
         builder.RegisterType<VM_BodyGenTemplateMenu>().AsSelf();

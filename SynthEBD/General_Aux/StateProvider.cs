@@ -138,6 +138,7 @@ public class StandaloneRunStateProvider : VM, IOutputStateProvider
             LogEnvironmentEvent("Environment created successfully");
             CreationClubListingsFilePath = _environment.CreationClubListingsFilePath;
             LoadOrderFilePath = _environment.LoadOrderFilePath;
+            DataFolderPath = _environment.DataFolderPath; // If a custom data folder path was provided it will not change. If no custom data folder path was provided, this will set it to the default path.
         }
         catch (Exception ex)
         {

@@ -8,6 +8,7 @@ namespace SynthEBD;
 public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
 {
     public delegate VM_BodyGenConfig Factory(ObservableCollection<VM_BodyGenConfig> parentCollection);
+
     private readonly VM_AttributeGroupMenu.Factory _attributeGroupMenuFactory;
     private readonly Logger _logger;
     private readonly RaceMenuIniHandler _raceMenuHandler;

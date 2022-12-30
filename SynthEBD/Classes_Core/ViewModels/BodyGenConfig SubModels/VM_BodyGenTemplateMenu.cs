@@ -237,7 +237,7 @@ public class VM_BodyGenTemplate : VM
         {
             return new(); // skip this when the parent BodyGen Config view model is being loaded in because every added Template will trigger this evaluation. 
         }
-        _logger.LogMessage(Label + " UpdateThisOtherGroupsTemplateCollection");
+
         var updatedCollection = new ObservableCollection<VM_BodyGenTemplate>();
         var excludedCollection = new ObservableCollection<VM_BodyGenTemplate>();
 

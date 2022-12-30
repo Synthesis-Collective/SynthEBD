@@ -35,7 +35,7 @@ public class VM_LogDisplay : VM
 
         Clear = new RelayCommand(
             canExecute: _ => true,
-            execute: x => _logger.Clear() //_logger.LogString = ""
+            execute: x => _logger.Clear()
         );
 
         Copy = new RelayCommand(

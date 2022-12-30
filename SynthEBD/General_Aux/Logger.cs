@@ -20,7 +20,6 @@ public sealed class Logger : VM
     public string StatusString { get; set; }
     public string BackupStatusString { get; set; }
     private List<string> LoggedEvents { get; set; } = new();
-    //public string LogString { get; set; }
     public string LogString => string.Join(Environment.NewLine, LoggedEvents);
     private string _logFolderPath { get; set; } = "";
     public SolidColorBrush StatusColor { get; set; }
@@ -78,7 +77,6 @@ public sealed class Logger : VM
     public void LogMessage(string message)
     {
         LoggedEvents.Add(message);
-        //LogString += message + Environment.NewLine;
     }
 
     public void LogMessage(IEnumerable<string> messages)
@@ -86,7 +84,6 @@ public sealed class Logger : VM
         foreach (var message in messages)
         {
             LoggedEvents.Add(message);
-            //LogString += message + Environment.NewLine;
         }
     }
 
@@ -272,7 +269,6 @@ public sealed class Logger : VM
     public void LogError(string error)
     {
         LoggedEvents.Add(error);
-        //LogString += error + Environment.NewLine;
         _loggedError.OnNext(Unit.Default);
     }
     public static string SpreadFlattenedAssetPack(FlattenedAssetPack ap, int index, bool indentAtIndex)

@@ -11,6 +11,7 @@ public class VM_RunButton : VM
     private readonly Logger _logger;
 
     public VM_RunButton(
+        StandaloneRunStateProvider stateProvider,
         VM_SettingsTexMesh texMeshSettingsVM, 
         VM_ConsistencyUI consistencyUi,
         VM_Settings_Headparts headParts,
@@ -21,6 +22,7 @@ public class VM_RunButton : VM
         VM_LogDisplay logDisplay,
         Func<Patcher> getPatcher)
     {
+        _stateProvider = stateProvider;
         _texMeshSettingsVm = texMeshSettingsVM;
         _state = state;
         _miscValidation = miscValidation;
