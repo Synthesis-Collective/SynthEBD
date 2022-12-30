@@ -360,7 +360,7 @@ public class Patcher
         {
             npcCounter++;
 
-            var currentNPCInfo = new NPCInfo(npc, linkedGroupsHashSet, generatedLinkGroups, _state.SpecificNPCAssignments, _state.Consistency, _state.BlockList);
+            var currentNPCInfo = new NPCInfo(npc, linkedGroupsHashSet, generatedLinkGroups, _state.SpecificNPCAssignments, _state.Consistency, _state.BlockList, _stateProvider);
             if (!currentNPCInfo.IsPatchable)
             {
                 continue;

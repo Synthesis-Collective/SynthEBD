@@ -76,7 +76,7 @@ public class VM_AttributeGroup : VM
     public void CopyInViewModelFromModel(AttributeGroup model, VM_AttributeGroupMenu parentMenu)
     {
         this.Label = model.Label;
-        this.Attributes = VM_NPCAttribute.GetViewModelsFromModels(model.Attributes, parentMenu.Groups, false, true, _attributeCreator, _logger);
+        this.Attributes = _attributeCreator.GetViewModelsFromModels(model.Attributes, parentMenu.Groups, false, true);
         this.Attributes_Bak = new ObservableCollection<VM_NPCAttribute>(this.Attributes);
     }
 

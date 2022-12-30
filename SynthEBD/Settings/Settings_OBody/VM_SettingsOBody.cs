@@ -13,6 +13,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     private readonly VM_BodySlideSetting.Factory _bodySlideFactory;
     private readonly AttributeMatcher _attributeMatcher;
     private readonly Logger _logger;
+    private readonly IStateProvider _stateProvider;
     public VM_SettingsOBody(
         VM_Settings_General generalSettingsVM,
         VM_BodyShapeDescriptorCreationMenu.Factory bodyShapeDescriptorCreationMenuFactory,
@@ -22,7 +23,8 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         VM_BodySlideSetting.Factory bodySlideFactory,
         SettingsIO_OBody oBodyIO,
         AttributeMatcher attributeMatcher,
-        Logger logger)
+        Logger logger,
+        IStateProvider stateProvider)
     {
         _oBodyIO = oBodyIO;
         _miscSettingsFactory = miscSettingsFactory;
@@ -31,6 +33,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         _bodySlideFactory = bodySlideFactory;
         _attributeMatcher = attributeMatcher;
         _logger = logger;
+        _stateProvider = stateProvider;
 
         DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this);
         BodySlidesUI = new VM_BodySlidesMenu(this, generalSettingsVM.RaceGroupings, _bodySlideFactory);
@@ -112,7 +115,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
     public Settings_OBody DumpViewModelToModel()
     {
-        Settings_OBody model = new();
+        Settings_OBody model = new(_stateProvider);
         model.TemplateDescriptors = VM_BodyShapeDescriptorShell.DumpViewModelsToModels(DescriptorUI.TemplateDescriptors);
 
         model.BodySlidesMale.Clear();

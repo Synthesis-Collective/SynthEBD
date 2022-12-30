@@ -203,7 +203,7 @@ public class AttributeMatcher
                 if (!subAttributeMatched && subAttribute.ForceMode != AttributeForcing.ForceIf && (overrideForceIf == null || overrideForceIf.Value != AttributeForcing.ForceIf)) //  "ForceIf" mode does not cause attribute to fail matching because it implies the user does not want this sub-attribute to restrict distribute (otherwise it would be ForceIfAndRestrict) 
                 {
                     if (unmatchedLog.Any()) { unmatchedLog += " | "; }
-                    unmatchedLog += subAttribute.ToLogString();
+                    unmatchedLog += subAttribute.ToLogString(_stateProvider.LinkCache);
                     break; // stop evaluating sub-attributes if one sub-attribute isn't matched
                 }
                 else if (subAttributeMatched && (subAttribute.ForceMode == AttributeForcing.ForceIf || subAttribute.ForceMode == AttributeForcing.ForceIfAndRestrict || forceIfFromOverride)) 
@@ -226,12 +226,12 @@ public class AttributeMatcher
 
             if (matchesAttributeRestrictions)
             {
-                matchLog += "\n" + attribute.ToLogString();
+                matchLog += "\n" + attribute.ToLogString(_stateProvider.LinkCache);
             }
 
             if (currentAttributeForceIfWeight > 0)
             {
-                forceIfLog += "\n" + attribute.ToLogString() + " (Weighting: " + currentAttributeForceIfWeight + ")";
+                forceIfLog += "\n" + attribute.ToLogString(_stateProvider.LinkCache) + " (Weighting: " + currentAttributeForceIfWeight + ")";
             }
         }
 

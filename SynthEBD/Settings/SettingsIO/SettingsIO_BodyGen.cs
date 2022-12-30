@@ -6,11 +6,13 @@ namespace SynthEBD;
 
 public class SettingsIO_BodyGen
 {
+    private readonly IStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly Converters _converters;
-    public SettingsIO_BodyGen(Logger logger, SynthEBDPaths paths, Converters converters)
+    public SettingsIO_BodyGen(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, Converters converters)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
         _paths = paths;
         _converters = converters;
@@ -71,7 +73,7 @@ public class SettingsIO_BodyGen
                 // handle zEBD deserialization here because the zEBD BodyGenConfig uses key "params" which is reserved in C#
                 string text = File.ReadAllText(s);
                 text = text.Replace("params", "specs");
-                zEBDBodyGenConfig zEBDconfig = new zEBDBodyGenConfig(_logger, _converters);
+                zEBDBodyGenConfig zEBDconfig = new zEBDBodyGenConfig(_stateProvider, _logger, _converters);
                 bool deserializationSuccess = false;
                 try
                 {

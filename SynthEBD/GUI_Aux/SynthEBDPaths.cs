@@ -8,7 +8,7 @@ namespace SynthEBD;
 
 public class SynthEBDPaths : VM
 {
-    //private static string RootPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+    private string _rootPath;
     //public static string SettingsSourcePath => Path.Combine(RootPath, "Settings", "SettingsSource.json");
 
     private const string settingsDirRelPath = "Settings";
@@ -28,18 +28,17 @@ public class SynthEBDPaths : VM
     //}
 
     public SynthEBDPaths(
-        IStateProvider stateProvider,
         PatcherSettingsSourceProvider settingsSourceProvider)
     {
-        //_stateProvider = stateProvider;
+        _rootPath = settingsSourceProvider.SettingsRootPath;
         // create relevant paths if necessary - only in the "home" directory. To avoid inadvertent clutter in the data folder, user must create these directories manually in their data folder
 
-        string settingsDirPath = Path.Combine(RootPath, settingsDirRelPath);
-        string assetsDirPath = Path.Combine(RootPath, assetsDirRelPath);
-        string heightsDirPath = Path.Combine(RootPath, heightsDirRelPath);
-        string bodyGenDirPath = Path.Combine(RootPath, bodyGenDirRelPath);
-        string NPCConfigDirPath = Path.Combine(RootPath, NPCConfigDirRelPath);
-        string recordTemplatesDirPath = Path.Combine(RootPath, recordTemplatesDirRelPath);
+        string settingsDirPath = Path.Combine(_rootPath, settingsDirRelPath);
+        string assetsDirPath = Path.Combine(_rootPath, assetsDirRelPath);
+        string heightsDirPath = Path.Combine(_rootPath, heightsDirRelPath);
+        string bodyGenDirPath = Path.Combine(_rootPath, bodyGenDirRelPath);
+        string NPCConfigDirPath = Path.Combine(_rootPath, NPCConfigDirRelPath);
+        string recordTemplatesDirPath = Path.Combine(_rootPath, recordTemplatesDirRelPath);
 
         if (Directory.Exists(settingsDirPath) == false)
         {
@@ -68,7 +67,7 @@ public class SynthEBDPaths : VM
 
         if (settingsSourceProvider.SettingsSource.Value.Initialized && settingsSourceProvider.SettingsSource.Value.LoadFromDataDir)
         {
-            RootPath = settingsSourceProvider.SettingsSource.Value.PortableSettingsFolder;
+            _rootPath = settingsSourceProvider.SettingsSource.Value.PortableSettingsFolder;
         }
 
         /*
@@ -111,34 +110,33 @@ public class SynthEBDPaths : VM
         */
     }
 
-    public string RootPath { get; set; }
-    public string LogFolderPath => Path.Combine(RootPath, "Logs");
-    public string ResourcesFolderPath => Path.Combine(RootPath, "Resources");
-    public string GeneralSettingsPath => Path.Combine(RootPath, settingsDirRelPath, "GeneralSettings.json");
-    public string TexMeshSettingsPath => Path.Combine(RootPath, settingsDirRelPath, "TexMeshSettings.json");
-    public string AssetPackDirPath => Path.Combine(RootPath, assetsDirRelPath);
-    public string HeightSettingsPath => Path.Combine(RootPath, settingsDirRelPath, "HeightSettings.json");
-    public string HeightConfigDirPath => Path.Combine(RootPath, heightsDirRelPath);
-    public string BodyGenSettingsPath => Path.Combine(RootPath, settingsDirRelPath, "BodyGenSettings.json");
-    public string BodyGenConfigDirPath => Path.Combine(RootPath, bodyGenDirRelPath);
-    public string OBodySettingsPath => Path.Combine(RootPath, settingsDirRelPath, "OBodySettings.json");
-    public string HeadPartsSettingsPath => Path.Combine(RootPath, settingsDirRelPath, "HeadPartSettings.json");
-    public string MaleTemplateGroupsPath => Path.Combine(RootPath, settingsDirRelPath, "SliderGroupGenders", "Male.json");
-    public string FemaleTemplateGroupsPath => Path.Combine(RootPath, settingsDirRelPath, "SliderGroupGenders", "Female.json");
-    public string ConsistencyPath => Path.Combine(RootPath, NPCConfigDirRelPath, "Consistency.json");
-    public string SpecificNPCAssignmentsPath => Path.Combine(RootPath, NPCConfigDirRelPath, "Specific NPC Assignments.json");
-    public string BlockListPath => Path.Combine(RootPath, NPCConfigDirRelPath, "BlockList.json");
-    public string LinkedNPCNameExclusionsPath => Path.Combine(RootPath, settingsDirRelPath, "LinkedNPCNameExclusions.json");
-    public string LinkedNPCsPath => Path.Combine(RootPath, settingsDirRelPath, "LinkedNPCs.json");
-    public string TrimPathsPath => Path.Combine(RootPath, settingsDirRelPath, "TrimPathsByExtension.json");
-    public string RecordReplacerSpecifiersPath => Path.Combine(RootPath, settingsDirRelPath, "RecordReplacerSpecifiers.json");
-    public string RecordTemplatesDirPath => Path.Combine(RootPath, recordTemplatesDirRelPath);
-    public string ModManagerSettingsPath => Path.Combine(RootPath, settingsDirRelPath, "ModManagerSettings.json");
+    public string LogFolderPath => Path.Combine(_rootPath, "Logs");
+    public string ResourcesFolderPath => Path.Combine(_rootPath, "Resources");
+    public string GeneralSettingsPath => Path.Combine(_rootPath, settingsDirRelPath, "GeneralSettings.json");
+    public string TexMeshSettingsPath => Path.Combine(_rootPath, settingsDirRelPath, "TexMeshSettings.json");
+    public string AssetPackDirPath => Path.Combine(_rootPath, assetsDirRelPath);
+    public string HeightSettingsPath => Path.Combine(_rootPath, settingsDirRelPath, "HeightSettings.json");
+    public string HeightConfigDirPath => Path.Combine(_rootPath, heightsDirRelPath);
+    public string BodyGenSettingsPath => Path.Combine(_rootPath, settingsDirRelPath, "BodyGenSettings.json");
+    public string BodyGenConfigDirPath => Path.Combine(_rootPath, bodyGenDirRelPath);
+    public string OBodySettingsPath => Path.Combine(_rootPath, settingsDirRelPath, "OBodySettings.json");
+    public string HeadPartsSettingsPath => Path.Combine(_rootPath, settingsDirRelPath, "HeadPartSettings.json");
+    public string MaleTemplateGroupsPath => Path.Combine(_rootPath, settingsDirRelPath, "SliderGroupGenders", "Male.json");
+    public string FemaleTemplateGroupsPath => Path.Combine(_rootPath, settingsDirRelPath, "SliderGroupGenders", "Female.json");
+    public string ConsistencyPath => Path.Combine(_rootPath, NPCConfigDirRelPath, "Consistency.json");
+    public string SpecificNPCAssignmentsPath => Path.Combine(_rootPath, NPCConfigDirRelPath, "Specific NPC Assignments.json");
+    public string BlockListPath => Path.Combine(_rootPath, NPCConfigDirRelPath, "BlockList.json");
+    public string LinkedNPCNameExclusionsPath => Path.Combine(_rootPath, settingsDirRelPath, "LinkedNPCNameExclusions.json");
+    public string LinkedNPCsPath => Path.Combine(_rootPath, settingsDirRelPath, "LinkedNPCs.json");
+    public string TrimPathsPath => Path.Combine(_rootPath, settingsDirRelPath, "TrimPathsByExtension.json");
+    public string RecordReplacerSpecifiersPath => Path.Combine(_rootPath, settingsDirRelPath, "RecordReplacerSpecifiers.json");
+    public string RecordTemplatesDirPath => Path.Combine(_rootPath, recordTemplatesDirRelPath);
+    public string ModManagerSettingsPath => Path.Combine(_rootPath, settingsDirRelPath, "ModManagerSettings.json");
     public string OutputDataFolder { get; set; }
 
     public string GetFallBackPath(string path)
     {
-        var suffix = path.Remove(0, RootPath.Length).Trim(Path.PathSeparator);
-        return Path.Join(RootPath, suffix);
+        var suffix = path.Remove(0, _rootPath.Length).Trim(Path.PathSeparator);
+        return Path.Join(_rootPath, suffix);
     }
 }

@@ -70,10 +70,12 @@ public class zEBDSplitBodyGenConfig
 }
 public class zEBDBodyGenConfig
 {
-    private Logger _logger;
-    private Converters _converters;
-    public zEBDBodyGenConfig(Logger logger, Converters converters)
+    private readonly IStateProvider _stateProvider;
+    private readonly Logger _logger;
+    private readonly Converters _converters;
+    public zEBDBodyGenConfig(IStateProvider stateProvider, Logger logger, Converters converters)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
         _converters = converters;
     }
@@ -171,11 +173,11 @@ public class zEBDBodyGenConfig
         return converted;
     }
 
-    public static BodyGenConfig.RacialMapping zEBDBodyGenRacialSettingsToSynthEBD(zEBDBodyGenConfig.racialSettings rs, HashSet<string> usedGroups)
+    public BodyGenConfig.RacialMapping zEBDBodyGenRacialSettingsToSynthEBD(zEBDBodyGenConfig.racialSettings rs, HashSet<string> usedGroups)
     {
         BodyGenConfig.RacialMapping newRS = new BodyGenConfig.RacialMapping();
         newRS.Label = rs.EDID;
-        newRS.Races = new HashSet<FormKey> { Converters.RaceEDID2FormKey(rs.EDID) };
+        newRS.Races = new HashSet<FormKey> { Converters.RaceEDID2FormKey(rs.EDID, _stateProvider) };
         newRS.RaceGroupings = new HashSet<string>();
         newRS.Combinations = new HashSet<BodyGenConfig.RacialMapping.BodyGenCombination>();
         foreach (var combo in rs.combinations)
@@ -233,7 +235,7 @@ public class zEBDBodyGenConfig
             // if not, see if it is a race EditorID
             if (continueSearch == true)
             {
-                FormKey raceFormKey = Converters.RaceEDID2FormKey(id);
+                FormKey raceFormKey = Converters.RaceEDID2FormKey(id, _stateProvider);
                 if (raceFormKey.IsNull == false)
                 {
                     newTemplate.AllowedRaces.Add(raceFormKey);
@@ -258,7 +260,7 @@ public class zEBDBodyGenConfig
             // if not, see if it is a race EditorID
             if (continueSearch == true)
             {
-                FormKey raceFormKey = Converters.RaceEDID2FormKey(id);
+                FormKey raceFormKey = Converters.RaceEDID2FormKey(id, _stateProvider);
                 if (raceFormKey.IsNull == false)
                 {
                     newTemplate.DisallowedRaces.Add(raceFormKey);

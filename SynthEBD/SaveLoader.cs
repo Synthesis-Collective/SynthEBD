@@ -8,6 +8,7 @@ public class SaveLoader
 {
     // Some are public properties to allow for circular IoC dependencies
     private readonly IStateProvider _stateProvider;
+    private readonly PatcherSettingsSourceProvider _patcherSettingsSourceProvider;
     private readonly MainState _state;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
@@ -35,7 +36,6 @@ public class SaveLoader
     private readonly VM_BlockedNPC.Factory _blockedNPCFactory;
     private readonly VM_BlockedPlugin.Factory _blockedPluginFactory;
     private readonly VM_SpecificNPCAssignmentsUI _npcAssignmentsUi;
-    private readonly PatcherSettingsSourceProvider _patcherSettingsProvider;
     private readonly Patcher _patcher;
     private readonly SettingsIO_Misc _miscIO;
     private readonly SettingsIO_General _generalIO;
@@ -74,7 +74,7 @@ public class SaveLoader
         VM_BlockedNPC.Factory blockedNPCFactory,
         VM_BlockedPlugin.Factory blockedPluginFactory,
         VM_SpecificNPCAssignmentsUI npcAssignmentsUi,
-        PatcherSettingsSourceProvider patcherSettingsProvider,
+        PatcherSettingsSourceProvider patcherSettingsSourceProvider,
         Logger logger,
         SynthEBDPaths paths,
         Patcher patcher,
@@ -115,7 +115,7 @@ public class SaveLoader
         _blockedNPCFactory = blockedNPCFactory;
         _blockedPluginFactory = blockedPluginFactory;
         _npcAssignmentsUi = npcAssignmentsUi;
-        _patcherSettingsProvider = patcherSettingsProvider;
+        _patcherSettingsSourceProvider = patcherSettingsSourceProvider;
         _patcher = patcher;
         _miscIO = miscIO;
         _generalIO = generalIO;
@@ -160,7 +160,7 @@ public class SaveLoader
     {
         // Load general settings
         _generalIO.LoadGeneralSettings(out var loadSuccess);
-        VM_Settings_General.GetViewModelFromModel(General, _patcherSettingsProvider, _raceAliasFactory, _linkedNPCFactory, _raceGroupingFactory, _stateProvider.LinkCache);
+        VM_Settings_General.GetViewModelFromModel(General, _patcherSettingsSourceProvider, _raceAliasFactory, _linkedNPCFactory, _raceGroupingFactory, _stateProvider.LinkCache);
 
         // Initialize patchable races from general settings (required by some UI elements)
         _patcher.ResolvePatchableRaces();
@@ -360,7 +360,7 @@ public class SaveLoader
             _logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
         }
 
-        SettingsIO_Misc.SaveSettingsSource(General, _stateProvider, out saveSuccess, out exceptionStr);
+        _patcherSettingsSourceProvider.SaveSettingsSource(General, out saveSuccess, out exceptionStr);
         if (!saveSuccess) 
         {
             captionStr = "Error saving Load Source Settings: ";

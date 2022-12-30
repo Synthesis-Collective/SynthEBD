@@ -19,7 +19,6 @@ namespace SynthEBD;
 /// </summary>
 public partial class App : Application
 {
-    private IStateProvider _stateProvider;
     private PatcherSettingsSourceProvider _settingsSourceProvider;
     private PatcherEnvironmentSourceProvider _environmentSourceProvider;
 
@@ -51,7 +50,6 @@ public partial class App : Application
         var container = builder.Build();
 
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, _settingsSourceName)));
-        _stateProvider = container.Resolve<IStateProvider>();
 
         var window = new MainWindow();
         var mainVM = container.Resolve<MainWindow_ViewModel>();
@@ -68,16 +66,15 @@ public partial class App : Application
         var rootPath = Path.GetDirectoryName(assembly.Location);
 
         var builder = new ContainerBuilder();
+        builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();
+        builder.RegisterType<PatcherEnvironmentSourceProvider>().AsSelf().SingleInstance();
+        builder.RegisterType<StandaloneRunStateProvider>().AsImplementedInterfaces();
         builder.RegisterModule<MainModule>();
-        builder.RegisterType<PatcherSettingsSourceProvider>();
-        builder.RegisterType<PatcherEnvironmentSourceProvider>();
 
         var container = builder.Build();
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(rootPath, _standaloneSourceDirName, _settingsSourceName)));
+        _settingsSourceProvider.SettingsRootPath = Path.Combine(rootPath, _standaloneSourceDirName);
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(rootPath, _standaloneSourceDirName, _environmentSourceName)));
-
-        _stateProvider = container.Resolve<IStateProvider>();
-
         builder.RegisterType<StandaloneRunStateProvider>().AsImplementedInterfaces();
         var mainVM = container.Resolve<MainWindow_ViewModel>();
         var window = new MainWindow();
@@ -90,29 +87,6 @@ public partial class App : Application
     private async Task RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
     {
 
-    }
-    
-    
-    void App_Startup(object sender, StartupEventArgs e)
-    {
-        // Application is running
-        // Process command line args
-        bool startMinimized = false;
-        for (int i = 0; i != e.Args.Length; ++i)
-        {
-            if (e.Args[i] == "/StartMinimized")
-            {
-                startMinimized = true;
-            }
-        }
-
-        // Create main application window, starting minimized if specified
-        MainWindow mainWindow = new MainWindow();
-        if (startMinimized)
-        {
-            mainWindow.WindowState = WindowState.Minimized;
-        }
-        mainWindow.Show();
     }
     
     private void Application_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
@@ -130,7 +104,7 @@ public partial class App : Application
         var errorMessage = sb.ToString();
         CustomMessageBox.DisplayNotificationOK("SynthEBD has crashed.", errorMessage);
 
-        var path = Path.Combine(_stateProvider.LogFolderPath, "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
+        var path = Path.Combine(_settingsSourceProvider.SettingsRootPath, "Logs", "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
         PatcherIO.WriteTextFileStatic(path, errorMessage).Wait();
 
         e.Handled = true;

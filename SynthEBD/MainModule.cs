@@ -118,8 +118,10 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_ConsistencyAssignment>().AsSelf();
         builder.RegisterType<VM_AttributeGroupMenu>().AsSelf();
         builder.RegisterType<VM_BodyGenConfig>().AsSelf();
+        builder.RegisterType<VM_BodyGenRacialMapping>().AsSelf();
         builder.RegisterType<VM_BodyGenTemplate>().AsSelf();
         builder.RegisterType<VM_HeightConfig>().AsSelf();
+        builder.RegisterType<VM_HeightAssignment>().AsSelf();
         builder.RegisterType<VM_HeadPart>().AsSelf();
         builder.RegisterType<VM_HeadPartList>().AsSelf();
         builder.RegisterType<VM_HeadPartCategoryRules>().AsSelf();
@@ -134,11 +136,23 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_FilePathReplacement>().AsSelf();
         builder.RegisterType<VM_NPCAttribute>().AsSelf();
         builder.RegisterType<VM_NPCAttributeShell>().AsSelf();
+        builder.RegisterType<VM_NPCAttributeClass>().AsSelf();
         builder.RegisterType<VM_NPCAttributeCustom>().AsSelf();
+        builder.RegisterType<VM_NPCAttributeFaceTexture>().AsSelf();
+        builder.RegisterType<VM_NPCAttributeFactions>().AsSelf();
+        builder.RegisterType<VM_NPCAttributeGroup>().AsSelf();
+        builder.RegisterType<VM_NPCAttributeMisc>().AsSelf();
+        builder.RegisterType<VM_NPCAttributeMod>().AsSelf();
+        builder.RegisterType<VM_NPCAttributeNPC>().AsSelf();
+        builder.RegisterType<VM_NPCAttributeRace>().AsSelf();
+        builder.RegisterType<VM_NPCAttributeVoiceType>().AsSelf();
         builder.RegisterType<VM_AttributeValidator>().AsSelf();
         builder.RegisterType<VM_Manifest>().AsSelf();
         builder.RegisterType<VM_BlockedNPC>().AsSelf();
+        builder.RegisterType<VM_BlockedPlugin>().AsSelf();
         builder.RegisterType<VM_RaceGrouping>().AsSelf();
+        builder.RegisterType<VM_RaceAlias>().AsSelf();
+        builder.RegisterType<VM_LinkedNPCGroup>().AsSelf();
 
         //Non-UI
         builder.RegisterType<CombinationLog>().AsSelf();

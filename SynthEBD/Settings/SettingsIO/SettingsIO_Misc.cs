@@ -12,17 +12,6 @@ public class SettingsIO_Misc
         _paths = paths;
     }
 
-    public static void SaveSettingsSource(VM_Settings_General generalSettings, PatcherSettingsSourceProvider settingsSourceProvider, out bool saveSuccess, out string exceptionStr)
-    {
-        PatcherSettingsSource source = new PatcherSettingsSource()
-        {
-            LoadFromDataDir = generalSettings.bLoadSettingsFromDataFolder,
-            PortableSettingsFolder = generalSettings.PortableSettingsFolder, 
-            Initialized = true,
-        };
-        JSONhandler<PatcherSettingsSource>.SaveJSONFile(source, settingsSourceProvider.SourcePath, out saveSuccess, out exceptionStr);
-    }
-
     public Dictionary<string, NPCAssignment> LoadConsistency(out bool loadSuccess)
     {
         var loaded = new Dictionary<string, NPCAssignment>();

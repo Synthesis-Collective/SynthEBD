@@ -25,6 +25,9 @@ public interface IStateProvider
     Mode RunMode { get; }
     public string LogFolderPath { get; }
     public SkyrimRelease SkyrimVersion { get; }
+    // Additional properties (for logging only)
+    public string CreationClubListingsFilePath { get; }
+    public string LoadOrderFilePath { get; }
 }
 
 public enum Mode
@@ -38,13 +41,13 @@ public interface IOutputStateProvider : IStateProvider
     ISkyrimMod OutputMod { get; }
 }
 
-public class StandaloneRunStateProvider : IOutputStateProvider
+public class StandaloneRunStateProvider : VM, IOutputStateProvider
 {
     // "Core" state properties and fields
     private IGameEnvironment<ISkyrimMod, ISkyrimModGetter> _environment;
     public ILoadOrderGetter<IModListingGetter<ISkyrimModGetter>> LoadOrder => _environment.LoadOrder;
     public ILinkCache<ISkyrimMod, ISkyrimModGetter> LinkCache => _environment.LinkCache;
-    public SkyrimRelease SkyrimVersion => _environment.GameRelease.ToSkyrimRelease();
+    public SkyrimRelease SkyrimVersion { get; set; }
     public DirectoryPath ExtraSettingsDataPath { get; set; }
     public DirectoryPath InternalDataPath { get; set; }
     public DirectoryPath DataFolderPath { get; set; }
@@ -55,6 +58,9 @@ public class StandaloneRunStateProvider : IOutputStateProvider
     public string OutputModName { get; set; }
     public StringBuilder EnvironmentLog { get; } = new();
     public string LogFolderPath { get; }
+    // Additional properties (for logging only)
+    public string CreationClubListingsFilePath { get; set; }
+    public string LoadOrderFilePath { get; set; }
 
     public StandaloneRunStateProvider(PatcherEnvironmentSourceProvider environmentSourceProvider)
     {
@@ -69,8 +75,13 @@ public class StandaloneRunStateProvider : IOutputStateProvider
         ExtraSettingsDataPath = exeLocation ?? throw new Exception("Could not locate running assembly");
         InternalDataPath = System.IO.Path.Combine(ExtraSettingsDataPath, "InternalData");
 
+        // set defaults
+        SkyrimVersion = SkyrimRelease.SkyrimSE;
+        OutputModName = "SynthEBD";
+        // override default with previous environment settings
         if (environmentSourceProvider.EnvironmentSource.IsValueCreated)
         {
+            SkyrimVersion = environmentSourceProvider.EnvironmentSource.Value.SkyrimVersion;
             if (!environmentSourceProvider.EnvironmentSource.Value.GameEnvironmentDirectory.IsNullOrWhitespace())
             {
                 DataFolderPath = environmentSourceProvider.EnvironmentSource.Value.GameEnvironmentDirectory;
@@ -91,10 +102,6 @@ public class StandaloneRunStateProvider : IOutputStateProvider
     public void UpdateEnvironment()
     {
         LogEnvironmentEvent("Creating Patcher Environment:");
-        OutputMod = null;
-        OutputMod = new SkyrimMod(ModKey.FromName(OutputModName, ModType.Plugin), SkyrimVersion);
-        LogEnvironmentEvent("Output mod: " + OutputMod.ModKey.ToString());
-        LogEnvironmentEvent("Skyrim Version: " + SkyrimVersion.ToString());
         var builder = GameEnvironment.Typical.Builder<ISkyrimMod, ISkyrimModGetter>(SkyrimVersion.ToGameRelease());
         if (!DataFolderPath.ToString().IsNullOrWhitespace())
         {
@@ -105,6 +112,11 @@ public class StandaloneRunStateProvider : IOutputStateProvider
         {
             LogEnvironmentEvent("Game Data Directory: Default");
         }
+
+        LogEnvironmentEvent("Skyrim Version: " + SkyrimVersion.ToString());
+        
+        OutputMod = new SkyrimMod(ModKey.FromName(OutputModName, ModType.Plugin), SkyrimVersion);
+        LogEnvironmentEvent("Output mod: " + OutputMod.ModKey.ToString());
 
         var built = false;
 
@@ -118,11 +130,14 @@ public class StandaloneRunStateProvider : IOutputStateProvider
                     .WithOutputMod(OutputMod)
                 .Build();
             built = true;
+            
             if (!notificationStr.IsNullOrEmpty())
             {
                 LogEnvironmentEvent(notificationStr);
             }
             LogEnvironmentEvent("Environment created successfully");
+            CreationClubListingsFilePath = _environment.CreationClubListingsFilePath;
+            LoadOrderFilePath = _environment.LoadOrderFilePath;
         }
         catch (Exception ex)
         {
@@ -180,6 +195,8 @@ public class OpenForSettingsWrapper : IStateProvider
     public Mode RunMode { get; set; } = Mode.Synthesis;
     public string LogFolderPath => Path.Combine(_state.ExtraSettingsDataPath, "Logs");
     public SkyrimRelease SkyrimVersion => _state.GameRelease.ToSkyrimRelease();
+    public string LoadOrderFilePath => _state.LoadOrderFilePath;
+    public string CreationClubListingsFilePath => _env.Value?.CreationClubListingsFilePath ?? "NULL";
 }
 
 public static class LoadOrderExtensions

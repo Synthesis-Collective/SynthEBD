@@ -150,11 +150,13 @@ public class TintColorSelector : IProbabilityWeighted
 // Backward compatibility classes for loading zEBD settings files and converting to synthEBD
 class ZEBDAssetPack
 {
-    private Logger _logger;
-    private SynthEBDPaths _paths;
-    private PatcherIO _patcherIO;
-    public ZEBDAssetPack(Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
+    private readonly IStateProvider _stateProvider;
+    private readonly Logger _logger;
+    private readonly SynthEBDPaths _paths;
+    private readonly PatcherIO _patcherIO;
+    public ZEBDAssetPack(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
         _paths = paths;
         _patcherIO = patcherIO;
@@ -167,10 +169,12 @@ class ZEBDAssetPack
 
     public class ZEBDSubgroup
     {
+        private readonly IStateProvider _stateProvider;
         private Logger _logger;
         private Converters _converters;
-        public ZEBDSubgroup(Logger logger, Converters converters)
+        public ZEBDSubgroup(IStateProvider stateProvider, Logger logger, Converters converters)
         {
+            _stateProvider = stateProvider;
             _logger = logger;
             _converters = converters;
         }
@@ -274,7 +278,7 @@ class ZEBDAssetPack
                 // if not, see if it is a race EditorID
                 if (continueSearch == true)
                 {
-                    FormKey raceFormKey = Converters.RaceEDID2FormKey(id);
+                    FormKey raceFormKey = Converters.RaceEDID2FormKey(id, _stateProvider);
                     if (raceFormKey.IsNull == false)
                     {
                         s.AllowedRaces.Add(raceFormKey);
@@ -305,7 +309,7 @@ class ZEBDAssetPack
                 // if not, see if it is a race EditorID
                 if (continueSearch == true)
                 {
-                    FormKey raceFormKey = Converters.RaceEDID2FormKey(id);
+                    FormKey raceFormKey = Converters.RaceEDID2FormKey(id, _stateProvider);
                     if (raceFormKey.IsNull == false)
                     {
                         s.DisallowedRaces.Add(raceFormKey);

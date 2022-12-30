@@ -4,16 +4,18 @@ namespace SynthEBD;
 
 public class SettingsIO_OBody
 {
+    private readonly IStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
-    public SettingsIO_OBody(Logger logger, SynthEBDPaths paths)
+    public SettingsIO_OBody(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
         _paths = paths;
     }
     public Settings_OBody LoadOBodySettings(out bool loadSuccess)
     {
-        Settings_OBody oBodySettings = new Settings_OBody();
+        Settings_OBody oBodySettings = new Settings_OBody(_stateProvider);
 
         loadSuccess = true;
 
@@ -36,7 +38,7 @@ public class SettingsIO_OBody
 
         if (oBodySettings == null)
         {
-            oBodySettings = new();
+            oBodySettings = new(_stateProvider);
         }
 
         foreach (var attributeGroup in PatcherSettings.General.AttributeGroups) // add any available attribute groups from the general patcher settings

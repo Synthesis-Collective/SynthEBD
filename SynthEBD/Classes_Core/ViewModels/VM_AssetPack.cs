@@ -24,6 +24,7 @@ public enum AssetPackMenuVisibility
 
 public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgroupViewModels
 {
+    private readonly IStateProvider _stateProvider;
     private readonly MainState _state;
     private readonly VM_SettingsOBody _oBody;
     private readonly VM_Settings_General _general;
@@ -43,6 +44,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public delegate VM_AssetPack Factory();
 
     public VM_AssetPack(
+        IStateProvider stateProvider,
         MainState state,
         VM_SettingsBodyGen bodyGen,
         VM_SettingsOBody oBody,
@@ -61,6 +63,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         VM_NPCAttributeCreator attributeCreator,
         Factory selfFactory)
     {
+        _stateProvider = stateProvider;
         _state = state;
         _oBody = oBody;
         _general = general;
@@ -82,8 +85,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         CurrentBodyGenSettings = bodyGen;
         switch (Gender)
         {
-            case Gender.Female: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.FemaleConfigs; break;
-            case Gender.Male: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.MaleConfigs; break;
+            case Gender.Female: AvailableBodyGenConfigs = CurrentBodyGenSettings.FemaleConfigs; break;
+            case Gender.Male: AvailableBodyGenConfigs = CurrentBodyGenSettings.MaleConfigs; break;
         }
 
         PropertyChanged += RefreshTrackedBodyGenConfig;
@@ -121,27 +124,27 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
         );
 
-        AddAdditionalRecordTemplateAssignment = new SynthEBD.RelayCommand(
+        AddAdditionalRecordTemplateAssignment = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { this.AdditionalRecordTemplateAssignments.Add(new VM_AdditionalRecordTemplate(this.RecordTemplateLinkCache, this.AdditionalRecordTemplateAssignments)); }
+            execute: _ => { AdditionalRecordTemplateAssignments.Add(new VM_AdditionalRecordTemplate(_stateProvider, RecordTemplateLinkCache, AdditionalRecordTemplateAssignments)); }
         );
 
-        AddRecordTemplateAdditionalRacesPath = new SynthEBD.RelayCommand(
+        AddRecordTemplateAdditionalRacesPath = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { this.DefaultRecordTemplateAdditionalRacesPaths.Add(new VM_CollectionMemberString("", this.DefaultRecordTemplateAdditionalRacesPaths)); }
+            execute: _ => { DefaultRecordTemplateAdditionalRacesPaths.Add(new VM_CollectionMemberString("", DefaultRecordTemplateAdditionalRacesPaths)); }
         );
 
-        MergeWithAssetPack = new SynthEBD.RelayCommand(
+        MergeWithAssetPack = new RelayCommand(
             canExecute: _ => true,
             execute: _ => MergeInAssetPack(_paths.LogFolderPath)
         );
 
-        SetDefaultTargetDestPaths = new SynthEBD.RelayCommand(
+        SetDefaultTargetDestPaths = new RelayCommand(
             canExecute: _ => true,
             execute: _ => { SetDefaultTargetPaths(); }
         );
 
-        ValidateButton = new SynthEBD.RelayCommand(
+        ValidateButton = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
 
@@ -368,7 +371,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         DefaultTemplateFK = model.DefaultRecordTemplate;
         foreach(var additionalTemplateAssignment in model.AdditionalRecordTemplateAssignments)
         {
-            var assignmentVM = new VM_AdditionalRecordTemplate(_state.RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
+            var assignmentVM = new VM_AdditionalRecordTemplate(_stateProvider, _state.RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
             assignmentVM.RaceFormKeys = new ObservableCollection<FormKey>(additionalTemplateAssignment.Races);
             assignmentVM.TemplateNPC = additionalTemplateAssignment.TemplateNPC;
             assignmentVM.AdditionalRacesPaths = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(additionalTemplateAssignment.AdditionalRacesPaths);

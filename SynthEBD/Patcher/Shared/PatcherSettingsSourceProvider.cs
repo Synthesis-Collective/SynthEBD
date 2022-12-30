@@ -8,7 +8,8 @@ public class PatcherSettingsSourceProvider
     public Lazy<PatcherSettingsSource> SettingsSource { get; }
     public static StringBuilder SettingsLog { get; } = new();
     public string ErrorString;
-    public string SourcePath { get; set; }
+    public string SourcePath { get; set; } // where to read source from, and save it to
+    public string SettingsRootPath { get; set; } // Where the SynthEBDPaths class should look for its settings files
 
     public PatcherSettingsSourceProvider(string sourcePath)
     {
@@ -43,6 +44,16 @@ public class PatcherSettingsSourceProvider
                 return new();
             }  
         });
+    }
+    public void SaveSettingsSource(VM_Settings_General generalSettings, out bool saveSuccess, out string exceptionStr)
+    {
+        PatcherSettingsSource source = new PatcherSettingsSource()
+        {
+            LoadFromDataDir = generalSettings.bLoadSettingsFromDataFolder,
+            PortableSettingsFolder = generalSettings.PortableSettingsFolder,
+            Initialized = true,
+        };
+        JSONhandler<PatcherSettingsSource>.SaveJSONFile(source, SourcePath, out saveSuccess, out exceptionStr);
     }
 
     public void SetNewDataDir(string newDir)
