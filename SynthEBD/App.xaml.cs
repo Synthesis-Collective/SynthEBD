@@ -46,7 +46,7 @@ public partial class App : Application
         builder.RegisterModule<MainModule>();
 
         builder.RegisterType<PatcherSettingsSourceProvider>();
-        builder.RegisterInstance(new OpenForSettingsWrapper(state)).AsImplementedInterfaces();
+        builder.RegisterInstance(new OpenForSettingsWrapper(state)).AsImplementedInterfaces().SingleInstance();
         var container = builder.Build();
 
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, _settingsSourceName)));
@@ -68,15 +68,20 @@ public partial class App : Application
         var builder = new ContainerBuilder();
         builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();
         builder.RegisterType<PatcherEnvironmentSourceProvider>().AsSelf().SingleInstance();
-        builder.RegisterType<StandaloneRunStateProvider>().AsImplementedInterfaces();
+        //builder.RegisterType<StandaloneRunStateProvider>().AsSelf().SingleInstance();
+        builder.RegisterType<StandaloneRunStateProvider>().AsSelf().AsImplementedInterfaces().SingleInstance();
         builder.RegisterModule<MainModule>();
 
         var container = builder.Build();
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(rootPath, _standaloneSourceDirName, _settingsSourceName)));
         _settingsSourceProvider.SettingsRootPath = Path.Combine(rootPath, _standaloneSourceDirName);
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(rootPath, _standaloneSourceDirName, _environmentSourceName)));
-        builder.RegisterType<StandaloneRunStateProvider>().AsImplementedInterfaces();
+        var state = container.Resolve<StandaloneRunStateProvider>(new NamedParameter("environmentSourceProvider", _environmentSourceProvider));
+
+        //builder.RegisterInstance(state).AsImplementedInterfaces();
+
         var mainVM = container.Resolve<MainWindow_ViewModel>();
+        mainVM.Init();
         var window = new MainWindow();
         window.DataContext = mainVM;
         window.Show();

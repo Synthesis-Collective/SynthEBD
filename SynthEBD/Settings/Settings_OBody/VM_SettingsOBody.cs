@@ -115,7 +115,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
     public Settings_OBody DumpViewModelToModel()
     {
-        Settings_OBody model = new(_stateProvider);
+        Settings_OBody model = new();
         model.TemplateDescriptors = VM_BodyShapeDescriptorShell.DumpViewModelsToModels(DescriptorUI.TemplateDescriptors);
 
         model.BodySlidesMale.Clear();

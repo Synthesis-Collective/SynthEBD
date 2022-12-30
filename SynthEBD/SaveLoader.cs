@@ -173,7 +173,7 @@ public class SaveLoader
 
         // load OBody settings before asset packs - asset packs depend on BodyGen but not vice versa
         PatcherSettings.OBody = _oBodyIO.LoadOBodySettings(out loadSuccess);
-        PatcherSettings.OBody.ImportBodySlides(PatcherSettings.OBody.TemplateDescriptors, _oBodyIO);
+        PatcherSettings.OBody.ImportBodySlides(PatcherSettings.OBody.TemplateDescriptors, _oBodyIO, _stateProvider.DataFolderPath);
 
         // load head part settings
         PatcherSettings.HeadParts = _headpartIO.LoadHeadPartSettings(out loadSuccess);

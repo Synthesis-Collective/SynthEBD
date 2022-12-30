@@ -45,7 +45,7 @@ public class MainWindow_ViewModel : VM
         // Load settings
         _saveLoader.Reinitialize();
 
-        Application.Current.MainWindow.Closing += new CancelEventHandler(MainWindow_Closing);
+        //Application.Current.MainWindow.Closing += new CancelEventHandler(MainWindow_Closing);
 
         ValidateEval();
     }

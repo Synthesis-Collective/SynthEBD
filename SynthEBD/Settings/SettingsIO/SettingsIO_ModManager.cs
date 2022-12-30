@@ -16,7 +16,8 @@ public class SettingsIO_ModManager
 
     public Settings_ModManager LoadModManagerSettings(out bool loadSuccess)
     {
-        Settings_ModManager modManagerSettings = new Settings_ModManager(_stateProvider);
+        Settings_ModManager modManagerSettings = new Settings_ModManager();
+        modManagerSettings.Initialize(_stateProvider);
 
         loadSuccess = true;
 
@@ -25,7 +26,7 @@ public class SettingsIO_ModManager
             modManagerSettings = JSONhandler<Settings_ModManager>.LoadJSONFile(_paths.ModManagerSettingsPath, out loadSuccess, out string exceptionStr);
             if (loadSuccess && string.IsNullOrWhiteSpace(modManagerSettings.CurrentInstallationFolder))
             {
-                modManagerSettings.CurrentInstallationFolder = _stateProvider.DataFolderPath;
+                modManagerSettings.Initialize(_stateProvider); // trigger again; failed deserialization will yield a new settings object
             }
             else if (!loadSuccess)
             {

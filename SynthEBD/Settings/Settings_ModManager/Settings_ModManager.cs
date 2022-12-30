@@ -2,11 +2,6 @@ namespace SynthEBD;
 
 public class Settings_ModManager
 {
-    public Settings_ModManager(IStateProvider stateProvider)
-    {
-        DefaultInstallationFolder = stateProvider.DataFolderPath;
-        CurrentInstallationFolder = DefaultInstallationFolder;
-    }
 
     public ModManager ModManagerType { get; set; } = ModManager.None;
     public MO2 MO2Settings { get; set; } = new();
@@ -15,6 +10,12 @@ public class Settings_ModManager
     public string CurrentInstallationFolder { get; set; }
     public string TempExtractionFolder { get; set; } = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location), "Temp");
     public int FilePathLimit { get; set; } = 260;
+
+    public void Initialize(IStateProvider stateProvider)
+    {
+        DefaultInstallationFolder = stateProvider.DataFolderPath;
+        CurrentInstallationFolder = DefaultInstallationFolder;
+    }
 
     public class MO2
     {

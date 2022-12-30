@@ -5,12 +5,16 @@ namespace SynthEBD;
 
 public class SettingsIO_AssetPack
 {
+    private readonly IStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
-    public SettingsIO_AssetPack(Logger logger, SynthEBDPaths paths)
+    private readonly Converters _converters;
+    public SettingsIO_AssetPack(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, Converters converters)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
         _paths = paths;
+        _converters = converters;
     }
     public Settings_TexMesh LoadTexMeshSettings(out bool loadSuccess)
     {
@@ -81,7 +85,7 @@ public class SettingsIO_AssetPack
             var zEBDconfig = JSONhandler<ZEBDAssetPack>.LoadJSONFile(path, out bool zSuccess, out string zExceptionStr);
             if (zSuccess)
             {
-                synthEBDconfig = zEBDconfig.ToSynthEBDAssetPack(raceGroupings, recordTemplatePlugins, availableBodyGenConfigs);
+                synthEBDconfig = zEBDconfig.ToSynthEBDAssetPack(raceGroupings, recordTemplatePlugins, availableBodyGenConfigs, _stateProvider, _converters, _logger, _paths);
                 loadSuccess = true;
             }
             else

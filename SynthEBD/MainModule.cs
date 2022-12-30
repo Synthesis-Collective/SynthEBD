@@ -56,6 +56,7 @@ public class MainModule : Autofac.Module
         // UI components (sub-menus)
         builder.RegisterType<VM_BodyGenTemplateMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodyGenMiscMenu>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_BodyGenGroupMappingMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_OBodyMiscSettings>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodyShapeDescriptorCreationMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_HeadPartImport>().AsSelf().SingleInstance()
@@ -124,6 +125,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_HeightAssignment>().AsSelf();
         builder.RegisterType<VM_HeadPart>().AsSelf();
         builder.RegisterType<VM_HeadPartList>().AsSelf();
+        builder.RegisterType<VM_HeadPartAssignment>().AsSelf();
         builder.RegisterType<VM_HeadPartCategoryRules>().AsSelf();
         builder.RegisterType<VM_ConfigDistributionRules>().AsSelf();
         builder.RegisterType<VM_BodyShapeDescriptor>().AsSelf();
@@ -154,16 +156,12 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_RaceAlias>().AsSelf();
         builder.RegisterType<VM_LinkedNPCGroup>().AsSelf();
 
-        //Non-UI
+        // DTOs with factories
         builder.RegisterType<CombinationLog>().AsSelf();
-        builder.RegisterType<NPCAttributeCustom>().AsSelf();
         builder.RegisterType<FlattenedAssetPack>().AsSelf();
         builder.RegisterType<FlattenedSubgroup>().AsSelf();
         builder.RegisterType<FlattenedReplacerGroup>().AsSelf();   
         builder.RegisterType<FilePathReplacementParsed>().AsSelf();
-        builder.RegisterType<ZEBDAssetPack>().AsSelf();
-        builder.RegisterType<ZEBDAssetPack.ZEBDSubgroup>().AsSelf();
-        builder.RegisterType<BodyShapeDescriptorRules>().AsSelf();
 
         //Misc
         builder.RegisterType<Mutagen.Bethesda.Skyrim.HeadPart>().AsSelf();
