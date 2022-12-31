@@ -25,6 +25,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
     private readonly Factory _selfFactory;
     private readonly VM_FilePathReplacement.Factory _filePathReplacementFactory;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
+    private readonly UpdateHandler _updateHandler;
 
     public delegate VM_Subgroup Factory(
         ObservableCollection<VM_RaceGrouping> raceGroupingVMs,
@@ -45,7 +46,8 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         VM_NPCAttributeCreator attributeCreator,
         Factory selfFactory,
         VM_FilePathReplacement.Factory filePathReplacementFactory,
-        VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+        VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory,
+        UpdateHandler updateHandler)
     {
         _stateProvider = stateProvider;
         _logger = logger;
@@ -55,6 +57,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         _selfFactory = selfFactory;
         _filePathReplacementFactory = filePathReplacementFactory;
         _descriptorSelectionFactory = descriptorSelectionFactory;
+        _updateHandler = updateHandler;
 
         SubscribedRaceGroupings = raceGroupingVMs;
         SetExplicitReferenceNPC = setExplicitReferenceNPC;
@@ -758,5 +761,48 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         return false;
     }
 
+    public bool CheckForVersionUpdate(Version version)
+    {
+        if (version == Version.v090)
+        {
+            foreach (var path in PathsMenu.Paths)
+            {
+                string lastClass = path.IntellisensedPath.Split('.').Last();
+                if (!path.DestinationExists && _updateHandler.V09PathReplacements.ContainsKey(lastClass))
+                {
+                    return true;
+                }
+            }
 
+            foreach (var subgroup in Subgroups)
+            {
+                if (subgroup.CheckForVersionUpdate(version))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public void PerformVersionUpdate(Version version)
+    {
+        if (version == Version.v090)
+        {
+            foreach (var path in PathsMenu.Paths)
+            {
+                string lastClass = path.IntellisensedPath.Split('.').Last();
+                if (!path.DestinationExists && _updateHandler.V09PathReplacements.ContainsKey(lastClass))
+                {
+                    path.IntellisensedPath = MiscFunctions.ReplaceLastOccurrence(path.IntellisensedPath, lastClass, _updateHandler.V09PathReplacements[lastClass]);
+                }
+            }
+
+            foreach (var subgroup in Subgroups)
+            {
+                subgroup.CheckForVersionUpdate(version);
+            }
+        }
+    }
 }

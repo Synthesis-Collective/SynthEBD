@@ -111,6 +111,7 @@ public class VM_SettingsTexMesh : VM
                 var installedConfigs = _configInstaller.InstallConfigFile();
                 if (installedConfigs.Any())
                 {
+                    ConfigVersionUpdate(Version.v090, installedConfigs);
                     RefreshInstalledConfigs(installedConfigs);
                 }
             }
@@ -129,6 +130,7 @@ public class VM_SettingsTexMesh : VM
                         var newAssetPackVM = assetPackFactory();
                         newAssetPackVM.CopyInViewModelFromModel(newAssetPack);
                         newAssetPackVM.IsSelected = true;
+                        ConfigVersionUpdate(Version.v090, new() { newAssetPackVM.GroupName});
                         AssetPacks.Add(newAssetPackVM);
                     }
                 }
@@ -315,6 +317,44 @@ public class VM_SettingsTexMesh : VM
         else
         {
             bShowSKSEversionOptions = false;
+        }
+    }
+
+    public void ConfigVersionUpdate(Version version, List<string> assetPacks)
+    {
+        List<VM_AssetPack> toUpdate = new();
+
+        HashSet<VM_AssetPack> toSearch = new();
+        if (assetPacks.Any())
+        {
+            toSearch = AssetPacks.Where(x => assetPacks.Contains(x.GroupName)).ToHashSet();
+        }
+        else
+        {
+            toSearch = AssetPacks.ToHashSet();
+        }
+
+        foreach (var ap in toSearch)
+        {
+            if (ap.CheckForVersionUpdate(version))
+            {
+                toUpdate.Add(ap);
+            }
+        }
+
+        if (toUpdate.Any())
+        {
+            string messageStr = "The following Config Files appear to have been generated prior to Version " + version + "." +
+                Environment.NewLine + "Do you want to update them for compatibility with the current SynthEBD version?" +
+                Environment.NewLine + string.Join(Environment.NewLine, toUpdate.Select(x => x.GroupName)) +
+                Environment.NewLine + Environment.NewLine + "Press Yes unless you know what you're doing or SynthEBD may not be able to use these config files.";
+            if(CustomMessageBox.DisplayNotificationYesNo("Config File Update", messageStr))
+            {
+                foreach (var ap in toUpdate)
+                {
+                    ap.PerformVersionUpdate(version);
+                }
+            }
         }
     }
 }

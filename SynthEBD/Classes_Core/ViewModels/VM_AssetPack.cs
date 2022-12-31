@@ -10,6 +10,7 @@ using ReactiveUI;
 using GongSolutions.Wpf.DragDrop;
 using System.Windows.Controls;
 using static SynthEBD.VM_NPCAttribute;
+using Mutagen.Bethesda.FormKeys.SkyrimSE;
 
 namespace SynthEBD;
 
@@ -333,6 +334,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].GroupName);
             texMesh.AssetPacks.Add(viewModel);
         }
+
+        texMesh.ConfigVersionUpdate(Version.v090, new());
     }
     
     public void CopyInViewModelFromModel(AssetPack model)
@@ -930,6 +933,26 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     }
 
     public bool DropInitiatedRightClick { get; set; }
+
+    public bool CheckForVersionUpdate(Version version)
+    {
+        foreach (var subgroup in Subgroups)
+        {
+            if (subgroup.CheckForVersionUpdate(version))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void PerformVersionUpdate(Version version)
+    {
+        foreach (var subgroup in Subgroups)
+        {
+            subgroup.PerformVersionUpdate(version);
+        }
+    }
 }
 
 public interface IHasSubgroupViewModels

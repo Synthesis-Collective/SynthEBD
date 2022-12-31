@@ -110,7 +110,8 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
     public string Source { get; set; } = "";
     public string IntellisensedPath { get; set; } = "";
 
-    public string DestinationAlias { get; set; } = "";
+    public bool SourceExists { get; set; } = false;
+    public bool DestinationExists { get; set; } = false;
 
     public SolidColorBrush SourceBorderColor { get; set; } = new(Colors.Red);
     public SolidColorBrush DestBorderColor { get; set; } = new(Colors.Red);
@@ -156,10 +157,12 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         var searchStr = Path.Combine(_stateProvider.DataFolderPath, this.Source);
         if (LongPathHandler.PathExists(searchStr) || _bsaHandler.ReferencedPathExists(this.Source, out _, out _))
         {
+            SourceExists = true;
             this.SourceBorderColor = new SolidColorBrush(Colors.LightGreen);
         }
         else
         {
+            SourceExists = false;
             this.SourceBorderColor = new SolidColorBrush(Colors.Red);
         }
     }
@@ -168,10 +171,12 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
     {
         if(LinkCache != null && ReferenceNPCFormKey != null && LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC) && _recordPathParser.GetObjectAtPath(refNPC, refNPC, this.IntellisensedPath, new Dictionary<string, dynamic>(), ParentMenu.ReferenceLinkCache, true, Logger.GetNPCLogNameString(refNPC), out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
         {
+            DestinationExists = true;
             this.DestBorderColor = new SolidColorBrush(Colors.LightGreen);
         }
         else
         {
+            DestinationExists = false;
             this.DestBorderColor = new SolidColorBrush(Colors.Red);
         }
     }
