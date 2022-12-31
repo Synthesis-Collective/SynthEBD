@@ -70,10 +70,14 @@ public class StandaloneRunStateProvider : VM, IOutputStateProvider
         {
             exeLocation = Path.GetDirectoryName(assembly.Location);
         }
+        else
+        {
+            throw new Exception("Could not locate running assembly");
+        }
 
         LogFolderPath = Path.Combine(exeLocation, "Logs");
-        ExtraSettingsDataPath = exeLocation ?? throw new Exception("Could not locate running assembly");
-        InternalDataPath = System.IO.Path.Combine(ExtraSettingsDataPath, "InternalData");
+        ExtraSettingsDataPath = Path.Combine(exeLocation, "Settings");
+        InternalDataPath = System.IO.Path.Combine(exeLocation, "InternalData");
 
         // set defaults
         SkyrimVersion = SkyrimRelease.SkyrimSE;

@@ -56,7 +56,7 @@ public class SettingsIO_OBody
     {
         Dictionary<string, HashSet<string>> output = new Dictionary<string, HashSet<string>>();
 
-        string annotationDir = Path.Combine(_paths.ResourcesFolderPath, "Default BodySlide Annotations");
+        string annotationDir = Path.Combine(_stateProvider.InternalDataPath, "Default BodySlide Annotations");
 
         if (Directory.Exists(annotationDir))
         {

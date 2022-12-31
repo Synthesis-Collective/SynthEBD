@@ -401,7 +401,7 @@ public class ConfigInstaller
     {
         try
         {
-            var sevenZipPath = Path.Combine(_paths.ResourcesFolderPath, "7Zip",
+            var sevenZipPath = Path.Combine(_stateProvider.InternalDataPath, "7Zip",
                         Environment.Is64BitProcess ? "x64" : "x86", "7za.exe");
 
             ProcessStartInfo pro = new ProcessStartInfo();

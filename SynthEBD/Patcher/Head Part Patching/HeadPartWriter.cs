@@ -13,11 +13,13 @@ namespace SynthEBD
 {
     public class HeadPartWriter
     {
+        private readonly IStateProvider _stateProvider;
         private readonly Logger _logger;
         private readonly SynthEBDPaths _paths;
         private readonly PatcherIO _patcherIO;
-        public HeadPartWriter(Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
+        public HeadPartWriter(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
         {
+            _stateProvider = stateProvider;
             _logger = logger;
             _paths = paths;
             _patcherIO = patcherIO;
@@ -104,14 +106,14 @@ namespace SynthEBD
             hpLoaderQuest.VirtualMachineAdapter = hpLoaderScriptAdapter;
 
             // copy quest alias script
-            string questAliasSourcePath = Path.Combine(_paths.ResourcesFolderPath, "HeadPartScripts", "SynthEBDHeadPartLoaderPAScript.pex");
+            string questAliasSourcePath = Path.Combine(_stateProvider.InternalDataPath, "HeadPartScripts", "SynthEBDHeadPartLoaderPAScript.pex");
             string questAliasDestPath = Path.Combine(_paths.OutputDataFolder, "Scripts", "SynthEBDHeadPartLoaderPAScript.pex");
             _patcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath, _logger);
         }
 
         public void CopyHeadPartScript()
         {
-            var sourcePath = Path.Combine(_paths.ResourcesFolderPath, "HeadPartScripts", "SynthEBDHeadPartScript.pex");
+            var sourcePath = Path.Combine(_stateProvider.InternalDataPath, "HeadPartScripts", "SynthEBDHeadPartScript.pex");
             var destPath = Path.Combine(_paths.OutputDataFolder, "Scripts", "SynthEBDHeadPartScript.pex");
             _patcherIO.TryCopyResourceFile(sourcePath, destPath, _logger);
         }

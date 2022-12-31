@@ -26,12 +26,12 @@ namespace SynthEBD
             if ((_stateProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimSE && !PatcherSettings.TexMesh.bFixedScriptsOldSKSEversion) || _stateProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.EnderalSE)
             {
                 _logger.LogMessage("Applying fixed EBD script (for SSE 1.5.97 or newer)");
-                sourcePath = Path.Combine(_paths.ResourcesFolderPath, "EBD Code", "SSE", "EBDGlobalFuncs.pex");
+                sourcePath = Path.Combine(_stateProvider.InternalDataPath, "EBD Code", "SSE", "EBDGlobalFuncs.pex");
             }
             else
             {
                 _logger.LogMessage("Applying fixed EBD script (for VR or SSE < 1.5.97)");
-                sourcePath = Path.Combine(_paths.ResourcesFolderPath, "EBD Code", "VR", "EBDGlobalFuncs.pex");
+                sourcePath = Path.Combine(_stateProvider.InternalDataPath, "EBD Code", "VR", "EBDGlobalFuncs.pex");
             }
             string destPath = Path.Combine(_paths.OutputDataFolder, "Scripts", "EBDGlobalFuncs.pex");
             _patcherIO.TryCopyResourceFile(sourcePath, destPath, _logger);

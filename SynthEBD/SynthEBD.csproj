@@ -5,173 +5,169 @@
     <TargetFramework>net6.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <GenerateDocumentationFile>False</GenerateDocumentationFile>
-    <ApplicationIcon>Resources\Visual\SynthEBDicon.ico</ApplicationIcon>
+    <ApplicationIcon>InternalData\Visual\SynthEBDicon.ico</ApplicationIcon>
     <ImplicitUsings>true</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Resources\BodySlideScript - Verbose Versions\**" />
-    <Compile Remove="Resources\BodySlideScripts\Silent\**" />
-    <Compile Remove="Resources\BodySlideScripts\Verbose\**" />
-    <Compile Remove="Resources\BodySlideScript\**" />
-    <Compile Remove="Resources\HeadPartScripts\Silent\**" />
-    <Compile Remove="Resources\HeadPartScripts\Verbose\**" />
-    <EmbeddedResource Remove="Resources\BodySlideScript - Verbose Versions\**" />
-    <EmbeddedResource Remove="Resources\BodySlideScripts\Silent\**" />
-    <EmbeddedResource Remove="Resources\BodySlideScripts\Verbose\**" />
-    <EmbeddedResource Remove="Resources\BodySlideScript\**" />
-    <EmbeddedResource Remove="Resources\HeadPartScripts\Silent\**" />
-    <EmbeddedResource Remove="Resources\HeadPartScripts\Verbose\**" />
-    <None Remove="Resources\BodySlideScript - Verbose Versions\**" />
-    <None Remove="Resources\BodySlideScripts\Silent\**" />
-    <None Remove="Resources\BodySlideScripts\Verbose\**" />
-    <None Remove="Resources\BodySlideScript\**" />
-    <None Remove="Resources\HeadPartScripts\Silent\**" />
-    <None Remove="Resources\HeadPartScripts\Verbose\**" />
-    <Page Remove="Resources\BodySlideScript - Verbose Versions\**" />
-    <Page Remove="Resources\BodySlideScripts\Silent\**" />
-    <Page Remove="Resources\BodySlideScripts\Verbose\**" />
-    <Page Remove="Resources\BodySlideScript\**" />
-    <Page Remove="Resources\HeadPartScripts\Silent\**" />
-    <Page Remove="Resources\HeadPartScripts\Verbose\**" />
+    <Compile Remove="InternalData\BodySlideScripts\Silent\**" />
+    <Compile Remove="InternalData\BodySlideScripts\Verbose\**" />
+    <Compile Remove="InternalData\HeadPartScripts\Silent\**" />
+    <Compile Remove="InternalData\HeadPartScripts\Verbose\**" />
+    <EmbeddedResource Remove="InternalData\BodySlideScripts\Silent\**" />
+    <EmbeddedResource Remove="InternalData\BodySlideScripts\Verbose\**" />
+    <EmbeddedResource Remove="InternalData\HeadPartScripts\Silent\**" />
+    <EmbeddedResource Remove="InternalData\HeadPartScripts\Verbose\**" />
+    <None Remove="InternalData\BodySlideScripts\Silent\**" />
+    <None Remove="InternalData\BodySlideScripts\Verbose\**" />
+    <None Remove="InternalData\HeadPartScripts\Silent\**" />
+    <None Remove="InternalData\HeadPartScripts\Verbose\**" />
+    <Page Remove="InternalData\BodySlideScripts\Silent\**" />
+    <Page Remove="InternalData\BodySlideScripts\Verbose\**" />
+    <Page Remove="InternalData\HeadPartScripts\Silent\**" />
+    <Page Remove="InternalData\HeadPartScripts\Verbose\**" />
   </ItemGroup>
 
   <ItemGroup>
     <None Remove="Height Configurations\Default Config.json" />
+    <None Remove="InternalData\7Zip\x64\7z.dll" />
     <None Remove="Record Templates\Record Templates.esp" />
-    <None Remove="Resources\7Zip\x64\7za.dll" />
-    <None Remove="Resources\7Zip\x64\7za.exe" />
-    <None Remove="Resources\7Zip\x64\7zxa.dll" />
-    <None Remove="Resources\7Zip\x86\7za.dll" />
-    <None Remove="Resources\7Zip\x86\7za.exe" />
-    <None Remove="Resources\7Zip\x86\7zxa.dll" />
-    <None Remove="Resources\BodySlideScripts\Source\SynthEBDBodySlideLoaderPAScript.psc" />
-    <None Remove="Resources\BodySlideScripts\Source\SynthEBDBodySlideScript.psc" />
-    <None Remove="Resources\BodySlideScripts\SynthEBDBodySlideLoaderPAScript.pex" />
-    <None Remove="Resources\BodySlideScripts\SynthEBDBodySlideScript.pex" />
-    <None Remove="Resources\Common Scripts\Source\SynthEBDcLib.psc" />
-    <None Remove="Resources\Common Scripts\Source\SynthEBDCommonFuncs.psc" />
-    <None Remove="Resources\Common Scripts\SynthEBDcLib.pex" />
-    <None Remove="Resources\Common Scripts\SynthEBDCommonFuncs.pex" />
-    <None Remove="Resources\Default BodySlide Annotations\BHUNP 3BBB.csv" />
-    <None Remove="Resources\Default BodySlide Annotations\BHUNP Unified UNP.csv" />
-    <None Remove="Resources\Default BodySlide Annotations\CBBE.csv" />
-    <None Remove="Resources\Default BodySlide Annotations\HIMBO.csv" />
-    <None Remove="Resources\Default BodySlide Annotations\UNP.csv" />
-    <None Remove="Resources\EBD Code\SSE\EBDGlobalFuncs.pex" />
-    <None Remove="Resources\EBD Code\SSE\Source\EBDGlobalFuncs.psc" />
-    <None Remove="Resources\EBD Code\VR\EBDGlobalFuncs.pex" />
-    <None Remove="Resources\EBD Code\VR\Source\EBDGlobalFuncs.psc" />
-    <None Remove="Resources\HeadPartScripts\Source\SynthEBDHeadPartLoaderPAScript.psc" />
-    <None Remove="Resources\HeadPartScripts\Source\SynthEBDHeadPartScript.psc" />
-    <None Remove="Resources\HeadPartScripts\SynthEBDHeadPartLoaderPAScript - Copy.pex" />
-    <None Remove="Resources\HeadPartScripts\SynthEBDHeadPartLoaderPAScript.pex" />
-    <None Remove="Resources\HeadPartScripts\SynthEBDHeadPartLoaderQuestScript.pex" />
-    <None Remove="Resources\HeadPartScripts\SynthEBDHeadPartScript - Copy.pex" />
-    <None Remove="Resources\HeadPartScripts\SynthEBDHeadPartScript.pex" />
-    <None Remove="Resources\JContainers Domain\PSM_SynthEBD.pex" />
-    <None Remove="Resources\JContainers Domain\Source\PSM_SynthEBD.psc" />
-	<None Remove="Resources\QuestSeq\SynthEBD.seq" />
+    <None Remove="InternalData\7Zip\x64\7za.dll" />
+    <None Remove="InternalData\7Zip\x64\7za.exe" />
+    <None Remove="InternalData\7Zip\x64\7zxa.dll" />
+    <None Remove="InternalData\7Zip\x86\7za.dll" />
+    <None Remove="InternalData\7Zip\x86\7za.exe" />
+    <None Remove="InternalData\7Zip\x86\7zxa.dll" />
+    <None Remove="InternalData\BodySlideScripts\Source\SynthEBDBodySlideLoaderPAScript.psc" />
+    <None Remove="InternalData\BodySlideScripts\Source\SynthEBDBodySlideScript.psc" />
+    <None Remove="InternalData\BodySlideScripts\SynthEBDBodySlideLoaderPAScript.pex" />
+    <None Remove="InternalData\BodySlideScripts\SynthEBDBodySlideScript.pex" />
+    <None Remove="InternalData\Common Scripts\Source\SynthEBDcLib.psc" />
+    <None Remove="InternalData\Common Scripts\Source\SynthEBDCommonFuncs.psc" />
+    <None Remove="InternalData\Common Scripts\SynthEBDcLib.pex" />
+    <None Remove="InternalData\Common Scripts\SynthEBDCommonFuncs.pex" />
+    <None Remove="InternalData\Default BodySlide Annotations\BHUNP 3BBB.csv" />
+    <None Remove="InternalData\Default BodySlide Annotations\BHUNP Unified UNP.csv" />
+    <None Remove="InternalData\Default BodySlide Annotations\CBBE.csv" />
+    <None Remove="InternalData\Default BodySlide Annotations\HIMBO.csv" />
+    <None Remove="InternalData\Default BodySlide Annotations\UNP.csv" />
+    <None Remove="InternalData\EBD Code\SSE\EBDGlobalFuncs.pex" />
+    <None Remove="InternalData\EBD Code\SSE\Source\EBDGlobalFuncs.psc" />
+    <None Remove="InternalData\EBD Code\VR\EBDGlobalFuncs.pex" />
+    <None Remove="InternalData\EBD Code\VR\Source\EBDGlobalFuncs.psc" />
+    <None Remove="InternalData\HeadPartScripts\Source\SynthEBDHeadPartLoaderPAScript.psc" />
+    <None Remove="InternalData\HeadPartScripts\Source\SynthEBDHeadPartScript.psc" />
+    <None Remove="InternalData\HeadPartScripts\SynthEBDHeadPartLoaderPAScript - Copy.pex" />
+    <None Remove="InternalData\HeadPartScripts\SynthEBDHeadPartLoaderPAScript.pex" />
+    <None Remove="InternalData\HeadPartScripts\SynthEBDHeadPartLoaderQuestScript.pex" />
+    <None Remove="InternalData\HeadPartScripts\SynthEBDHeadPartScript - Copy.pex" />
+    <None Remove="InternalData\HeadPartScripts\SynthEBDHeadPartScript.pex" />
+    <None Remove="InternalData\JContainers Domain\PSM_SynthEBD.pex" />
+    <None Remove="InternalData\JContainers Domain\Source\PSM_SynthEBD.psc" />
+	<None Remove="InternalData\QuestSeq\SynthEBD.seq" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="Height Configurations\Default Config.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="InternalData\7Zip\x64\7z.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Record Templates\Record Templates.esp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\7Zip\x64\7za.dll">
+    <Content Include="InternalData\7Zip\x64\7za.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\7Zip\x64\7za.exe">
+    <Content Include="InternalData\7Zip\x64\7za.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\7Zip\x64\7zxa.dll">
+    <Content Include="InternalData\7Zip\x64\7zxa.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\7Zip\x86\7za.dll">
+    <Content Include="InternalData\7Zip\x86\7za.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\7Zip\x86\7za.exe">
+    <Content Include="InternalData\7Zip\x86\7za.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\7Zip\x86\7zxa.dll">
+    <Content Include="InternalData\7Zip\x86\7zxa.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\BodySlideScripts\Source\SynthEBDBodySlideLoaderPAScript.psc">
+    <Content Include="InternalData\BodySlideScripts\Source\SynthEBDBodySlideLoaderPAScript.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\BodySlideScripts\Source\SynthEBDBodySlideScript.psc">
+    <Content Include="InternalData\BodySlideScripts\Source\SynthEBDBodySlideScript.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\BodySlideScripts\SynthEBDBodySlideLoaderPAScript.pex">
+    <Content Include="InternalData\BodySlideScripts\SynthEBDBodySlideLoaderPAScript.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\BodySlideScripts\SynthEBDBodySlideScript.pex">
+    <Content Include="InternalData\BodySlideScripts\SynthEBDBodySlideScript.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\Common Scripts\Source\SynthEBDcLib.psc">
+    <Content Include="InternalData\Common Scripts\Source\SynthEBDcLib.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\Common Scripts\Source\SynthEBDCommonFuncs.psc">
+    <Content Include="InternalData\Common Scripts\Source\SynthEBDCommonFuncs.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\Common Scripts\SynthEBDcLib.pex">
+    <Content Include="InternalData\Common Scripts\SynthEBDcLib.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\Common Scripts\SynthEBDCommonFuncs.pex">
+    <Content Include="InternalData\Common Scripts\SynthEBDCommonFuncs.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\EBD Code\SSE\EBDGlobalFuncs.pex">
+    <Content Include="InternalData\EBD Code\SSE\EBDGlobalFuncs.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\EBD Code\SSE\Source\EBDGlobalFuncs.psc">
+    <Content Include="InternalData\EBD Code\SSE\Source\EBDGlobalFuncs.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\EBD Code\VR\EBDGlobalFuncs.pex">
+    <Content Include="InternalData\EBD Code\VR\EBDGlobalFuncs.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\EBD Code\VR\Source\EBDGlobalFuncs.psc">
+    <Content Include="InternalData\EBD Code\VR\Source\EBDGlobalFuncs.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\HeadPartScripts\Source\SynthEBDHeadPartLoaderPAScript.psc">
+    <Content Include="InternalData\HeadPartScripts\Source\SynthEBDHeadPartLoaderPAScript.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\HeadPartScripts\Source\SynthEBDHeadPartScript.psc">
+    <Content Include="InternalData\HeadPartScripts\Source\SynthEBDHeadPartScript.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\HeadPartScripts\SynthEBDHeadPartLoaderPAScript.pex">
+    <Content Include="InternalData\HeadPartScripts\SynthEBDHeadPartLoaderPAScript.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\HeadPartScripts\SynthEBDHeadPartScript.pex">
+    <Content Include="InternalData\HeadPartScripts\SynthEBDHeadPartScript.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\QuestSeq\SynthEBD.seq">
+    <Content Include="InternalData\QuestSeq\SynthEBD.seq">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\Default BodySlide Annotations\BHUNP 3BBB.csv">
+    <Content Include="InternalData\Default BodySlide Annotations\BHUNP 3BBB.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\Default BodySlide Annotations\BHUNP Unified UNP.csv">
+    <Content Include="InternalData\Default BodySlide Annotations\BHUNP Unified UNP.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\Default BodySlide Annotations\CBBE.csv">
+    <Content Include="InternalData\Default BodySlide Annotations\CBBE.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\Default BodySlide Annotations\HIMBO.csv">
+    <Content Include="InternalData\Default BodySlide Annotations\HIMBO.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\Default BodySlide Annotations\UNP.csv">
+    <Content Include="InternalData\Default BodySlide Annotations\UNP.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\JContainers Domain\PSM_SynthEBD.pex">
+    <Content Include="InternalData\JContainers Domain\PSM_SynthEBD.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\JContainers Domain\Source\PSM_SynthEBD.psc">
+    <Content Include="InternalData\JContainers Domain\Source\PSM_SynthEBD.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\Visual\SynthEBDicon.ico" />
+    <Content Include="InternalData\Visual\SynthEBDicon.ico" />
   </ItemGroup>
 
   <ItemGroup>
@@ -207,19 +203,19 @@
   </ItemGroup>
 
   <ItemGroup>
-    <NativeLibs Remove="Resources\7Zip\x86\7za.dll" />
+    <NativeLibs Remove="InternalData\7Zip\x86\7za.dll" />
   </ItemGroup>
 
   <ItemGroup>
-    <NativeLibs Remove="Resources\7Zip\x86\7zxa.dll" />
+    <NativeLibs Remove="InternalData\7Zip\x86\7zxa.dll" />
   </ItemGroup>
 
   <ItemGroup>
-    <NativeLibs Remove="Resources\7Zip\x64\7za.dll" />
+    <NativeLibs Remove="InternalData\7Zip\x64\7za.dll" />
   </ItemGroup>
 
   <ItemGroup>
-    <NativeLibs Remove="Resources\7Zip\x64\7zxa.dll" />
+    <NativeLibs Remove="InternalData\7Zip\x64\7zxa.dll" />
   </ItemGroup>
 
 </Project>

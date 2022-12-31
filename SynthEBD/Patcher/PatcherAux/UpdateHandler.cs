@@ -31,5 +31,14 @@ namespace SynthEBD
         {
             _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBD", "BodySlideDict.json"), _logger);
         }
+
+        public Dictionary<string, string> V09PathReplacements { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "Diffuse", "Diffuse.DataRelativePath" }
+            //{ "Diffuse", "Diffuse.DataRelativePath" }
+            //{ "Diffuse", "Diffuse.DataRelativePath" }
+            //{ "Diffuse", "Diffuse.DataRelativePath" }
+            //{ "Diffuse", "Diffuse.DataRelativePath" }
+        };
     }
 }

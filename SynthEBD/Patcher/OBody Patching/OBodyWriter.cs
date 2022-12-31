@@ -8,11 +8,13 @@ namespace SynthEBD;
 
 public class OBodyWriter
 {
+    private readonly IStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly PatcherIO _patcherIO;
-    public OBodyWriter(Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
+    public OBodyWriter(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
     {
+        _stateProvider = stateProvider;
         _logger = logger;
         _paths = paths;
         _patcherIO = patcherIO;
@@ -114,14 +116,14 @@ public class OBodyWriter
         bsLoaderQuest.VirtualMachineAdapter = bsLoaderScriptAdapter;
 
         // copy quest alias script
-        string questAliasSourcePath = Path.Combine(_paths.ResourcesFolderPath, "BodySlideScripts", "SynthEBDBodySlideLoaderPAScript.pex");
+        string questAliasSourcePath = Path.Combine(_stateProvider.InternalDataPath, "BodySlideScripts", "SynthEBDBodySlideLoaderPAScript.pex");
         string questAliasDestPath = Path.Combine(_paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideLoaderPAScript.pex");
         _patcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath, _logger);
     }
 
     public void CopyBodySlideScript()
     {
-        string sourcePath = Path.Combine(_paths.ResourcesFolderPath, "BodySlideScripts", "SynthEBDBodySlideScript.pex");
+        string sourcePath = Path.Combine(_stateProvider.InternalDataPath, "BodySlideScripts", "SynthEBDBodySlideScript.pex");
         string destPath = Path.Combine(_paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideScript.pex");
         _patcherIO.TryCopyResourceFile(sourcePath, destPath, _logger);
     }

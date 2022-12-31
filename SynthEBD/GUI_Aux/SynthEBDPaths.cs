@@ -111,7 +111,6 @@ public class SynthEBDPaths : VM
     }
 
     public string LogFolderPath => Path.Combine(_rootPath, "Logs");
-    public string ResourcesFolderPath => Path.Combine(_rootPath, "Resources");
     public string GeneralSettingsPath => Path.Combine(_rootPath, settingsDirRelPath, "GeneralSettings.json");
     public string TexMeshSettingsPath => Path.Combine(_rootPath, settingsDirRelPath, "TexMeshSettings.json");
     public string AssetPackDirPath => Path.Combine(_rootPath, assetsDirRelPath);
