@@ -16,11 +16,11 @@ namespace SynthEBD
         public Lazy<StandaloneEnvironmentSource> EnvironmentSource { get; }
         public static StringBuilder SettingsLog { get; } = new();
         public string ErrorString;
-        private string _sourcePath { get; set; }
+        public string SourcePath { get; set; } // where to read source from, and save it to
 
         public PatcherEnvironmentSourceProvider(string sourcePath)
         {
-            _sourcePath = sourcePath;
+            SourcePath = sourcePath;
             EnvironmentSource = new Lazy<StandaloneEnvironmentSource>(() =>
             {
                 if (File.Exists(sourcePath))

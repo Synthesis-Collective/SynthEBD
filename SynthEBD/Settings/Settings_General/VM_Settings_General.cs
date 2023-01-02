@@ -11,7 +11,7 @@ namespace SynthEBD;
 
 public class VM_Settings_General : VM, IHasAttributeGroupMenu
 {
-    private readonly IStateProvider _stateProvider;
+    public IStateProvider StateProvider { get; }
     public SaveLoader SaveLoader { get; set; }
     private bool _bFirstRun { get; set;} = false;
     private readonly Patcher _patcher;
@@ -30,7 +30,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         Patcher patcher,
         IStateProvider stateProvider)
     {
-        _stateProvider = stateProvider;
+        StateProvider = stateProvider;
+        IsStandalone = StateProvider.RunMode == Mode.Standalone;
         _patcher = patcher;
         _generalIO = generalIO;
         _aliasFactory = aliasFactory;
@@ -48,7 +49,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         this.WhenAnyValue(x => x.bShowToolTips)
             .Subscribe(x => TooltipController.Instance.DisplayToolTips = x);
 
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        StateProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
@@ -87,7 +88,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    if (IO_Aux.SelectFolder(_stateProvider.DataFolderPath, out var tmpFolder))
+                    if (IO_Aux.SelectFolder(StateProvider.DataFolderPath, out var tmpFolder))
                     {
                         OutputDataFolder = tmpFolder;
                     }
@@ -149,6 +150,25 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
             }
         );
 
+        SelectGameDataFolder = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                if (IO_Aux.SelectFolder("", out string selectedPath))
+                {
+                    StateProvider.DataFolderPath = selectedPath;
+                }
+            }
+        );
+
+        ClearGameDataFolder = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                StateProvider.DataFolderPath = string.Empty;
+            }
+        );
+
         this.WhenAnyValue(x => x._bFirstRun).Subscribe(x => { 
         if (x) { 
                 ShowFirstRunMessage(); 
@@ -196,6 +216,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     public RelayCommand ClearOutputFolder { get; }
     public RelayCommand SelectPortableSettingsFolder { get; }
     public RelayCommand ClearPortableSettingsFolder { get; }
+    public RelayCommand SelectGameDataFolder { get; }
+    public RelayCommand ClearGameDataFolder { get; }
+    public bool IsStandalone { get; set; }
     
     public static void GetViewModelFromModel(VM_Settings_General viewModel, PatcherSettingsSourceProvider patcherSettingsProvider, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, VM_RaceGrouping.Factory raceGroupingFactory, ILinkCache linkCache)
     {

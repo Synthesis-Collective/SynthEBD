@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace SynthEBD;
 public class StandaloneEnvironmentSource
 {
-    public string OutputModName { get; set; } = "";
+    public string OutputModName { get; set; } = "SynthEBD";
     public string GameEnvironmentDirectory { get; set; } = "";
     public SkyrimRelease SkyrimVersion { get; set; } = SkyrimRelease.SkyrimSE;
 }

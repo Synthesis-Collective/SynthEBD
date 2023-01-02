@@ -10,6 +10,8 @@ using Noggog;
 using System.Text;
 using System.IO;
 using System;
+using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 
 namespace SynthEBD;
 
@@ -21,9 +23,10 @@ public interface IStateProvider
     DirectoryPath ExtraSettingsDataPath { get; }
     DirectoryPath InternalDataPath { get; }
     //Additional properties needed by SynthEBD
-    DirectoryPath DataFolderPath { get; }
+    DirectoryPath DataFolderPath { get; set; }
     Mode RunMode { get; }
     public string LogFolderPath { get; }
+    public string OutputModName { get; set; }
     public SkyrimRelease SkyrimVersion { get; }
     // Additional properties (for logging only)
     public string CreationClubListingsFilePath { get; }
@@ -47,15 +50,15 @@ public class StandaloneRunStateProvider : VM, IOutputStateProvider
     private IGameEnvironment<ISkyrimMod, ISkyrimModGetter> _environment;
     public ILoadOrderGetter<IModListingGetter<ISkyrimModGetter>> LoadOrder => _environment.LoadOrder;
     public ILinkCache<ISkyrimMod, ISkyrimModGetter> LinkCache => _environment.LinkCache;
-    public SkyrimRelease SkyrimVersion { get; set; }
+    [Reactive] public SkyrimRelease SkyrimVersion { get; set; }
     public DirectoryPath ExtraSettingsDataPath { get; set; }
     public DirectoryPath InternalDataPath { get; set; }
-    public DirectoryPath DataFolderPath { get; set; }
+    [Reactive] public DirectoryPath DataFolderPath { get; set; }
     public ISkyrimMod OutputMod { get; set; }
     public Mode RunMode { get; set; } = Mode.Standalone;
 
     // Additional properties for customization
-    public string OutputModName { get; set; }
+    [Reactive] public string OutputModName { get; set; }
     public StringBuilder EnvironmentLog { get; } = new();
     public string LogFolderPath { get; }
     // Additional properties (for logging only)
@@ -79,23 +82,22 @@ public class StandaloneRunStateProvider : VM, IOutputStateProvider
         ExtraSettingsDataPath = Path.Combine(exeLocation, "Settings");
         InternalDataPath = System.IO.Path.Combine(exeLocation, "InternalData");
 
-        // set defaults
-        SkyrimVersion = SkyrimRelease.SkyrimSE;
-        OutputModName = "SynthEBD";
-        // override default with previous environment settings
-        if (environmentSourceProvider.EnvironmentSource.IsValueCreated)
+        SkyrimVersion = environmentSourceProvider.EnvironmentSource.Value.SkyrimVersion;
+        if (!environmentSourceProvider.EnvironmentSource.Value.GameEnvironmentDirectory.IsNullOrWhitespace())
         {
-            SkyrimVersion = environmentSourceProvider.EnvironmentSource.Value.SkyrimVersion;
-            if (!environmentSourceProvider.EnvironmentSource.Value.GameEnvironmentDirectory.IsNullOrWhitespace())
-            {
-                DataFolderPath = environmentSourceProvider.EnvironmentSource.Value.GameEnvironmentDirectory;
-            }
-            if (!environmentSourceProvider.EnvironmentSource.Value.OutputModName.IsNullOrWhitespace())
-            {
-                OutputModName = environmentSourceProvider.EnvironmentSource.Value.OutputModName;
-            }
+            DataFolderPath = environmentSourceProvider.EnvironmentSource.Value.GameEnvironmentDirectory;
+        }
+        if (!environmentSourceProvider.EnvironmentSource.Value.OutputModName.IsNullOrWhitespace())
+        {
+            OutputModName = environmentSourceProvider.EnvironmentSource.Value.OutputModName;
         }
         UpdateEnvironment();
+
+        this.WhenAnyValue(
+                x => x.SkyrimVersion,
+                x => x.OutputModName,
+                x => x.DataFolderPath)
+            .Subscribe(_ => UpdateEnvironment());
     }
 
     private void LogEnvironmentEvent(string logString)
@@ -118,7 +120,8 @@ public class StandaloneRunStateProvider : VM, IOutputStateProvider
         }
 
         LogEnvironmentEvent("Skyrim Version: " + SkyrimVersion.ToString());
-        
+
+        OutputMod = null;
         OutputMod = new SkyrimMod(ModKey.FromName(OutputModName, ModType.Plugin), SkyrimVersion);
         LogEnvironmentEvent("Output mod: " + OutputMod.ModKey.ToString());
 
@@ -167,6 +170,7 @@ public class StandaloneRunStateProvider : VM, IOutputStateProvider
         if (customEnvVM.IsValidated)
         {
             DataFolderPath = customEnvVM.CustomGameDataDir;
+            SkyrimVersion = customEnvVM.SkyrimRelease;
             customEnvVM.TrialEnvironment.LoadOrder.Dispose();
             customEnvVM.TrialEnvironment.LinkCache.Dispose();
             customEnvVM.TrialEnvironment.Dispose(); // free up the output file if it is active in the load order
@@ -190,18 +194,20 @@ public class OpenForSettingsWrapper : IStateProvider
         _state = state;
         _env = new Lazy<IGameEnvironment<ISkyrimMod, ISkyrimModGetter>>(
             () => state.GetEnvironmentState<ISkyrimMod, ISkyrimModGetter>());
+        DataFolderPath = _state.DataFolderPath;
     }
 
     public ILoadOrderGetter<IModListingGetter<ISkyrimModGetter>> LoadOrder => _env.Value.LoadOrder;
     public ILinkCache<ISkyrimMod, ISkyrimModGetter> LinkCache => _env.Value.LinkCache;
     public DirectoryPath ExtraSettingsDataPath => _state.ExtraSettingsDataPath ?? throw new Exception("Could not locate Extra Settings Data Path");
     public DirectoryPath InternalDataPath => _state.InternalDataPath ?? throw new Exception("Could not locate Extra Settings Data Path");
-    public DirectoryPath DataFolderPath => _state.DataFolderPath;
+    public DirectoryPath DataFolderPath { get; set; }
     public Mode RunMode { get; set; } = Mode.Synthesis;
     public string LogFolderPath => Path.Combine(_state.ExtraSettingsDataPath, "Logs");
     public SkyrimRelease SkyrimVersion => _state.GameRelease.ToSkyrimRelease();
     public string LoadOrderFilePath => _state.LoadOrderFilePath;
     public string CreationClubListingsFilePath => _env.Value?.CreationClubListingsFilePath ?? "NULL";
+    public string OutputModName { get; set; } = "NONE";
 }
 
 public static class LoadOrderExtensions

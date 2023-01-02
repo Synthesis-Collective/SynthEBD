@@ -22,10 +22,6 @@ public partial class App : Application
     private PatcherSettingsSourceProvider _settingsSourceProvider;
     private PatcherEnvironmentSourceProvider _environmentSourceProvider;
 
-    private readonly string _standaloneSourceDirName = "Settings";
-    private readonly string _settingsSourceName = "SettingsSource.json";
-    private readonly string _environmentSourceName = "EnvironmentSource.json";
-
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -49,7 +45,7 @@ public partial class App : Application
         builder.RegisterInstance(new OpenForSettingsWrapper(state)).AsImplementedInterfaces().SingleInstance();
         var container = builder.Build();
 
-        _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, _settingsSourceName)));
+        _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
 
         var window = new MainWindow();
         var mainVM = container.Resolve<MainWindow_ViewModel>();
@@ -79,9 +75,9 @@ public partial class App : Application
         builder.RegisterModule<MainModule>();
 
         var container = builder.Build();
-        _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(rootPath, _standaloneSourceDirName, _settingsSourceName)));
-        _settingsSourceProvider.SettingsRootPath = Path.Combine(rootPath, _standaloneSourceDirName);
-        _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(rootPath, _standaloneSourceDirName, _environmentSourceName)));
+        _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(rootPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.SettingsSourceFileName)));
+        _settingsSourceProvider.SettingsRootPath = Path.Combine(rootPath, SynthEBDPaths.StandaloneSourceDirName);
+        _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(rootPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName)));
         var state = container.Resolve<StandaloneRunStateProvider>(new NamedParameter("environmentSourceProvider", _environmentSourceProvider));
 
         //builder.RegisterInstance(state).AsImplementedInterfaces();

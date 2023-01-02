@@ -9,6 +9,7 @@ public class SaveLoader
     // Some are public properties to allow for circular IoC dependencies
     private readonly IStateProvider _stateProvider;
     private readonly PatcherSettingsSourceProvider _patcherSettingsSourceProvider;
+    private readonly PatcherEnvironmentSourceProvider _patcherEnvironmentSourceProvider;
     private readonly MainState _state;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
@@ -79,6 +80,7 @@ public class SaveLoader
         VM_BlockedPlugin.Factory blockedPluginFactory,
         VM_SpecificNPCAssignmentsUI npcAssignmentsUi,
         PatcherSettingsSourceProvider patcherSettingsSourceProvider,
+        PatcherEnvironmentSourceProvider patcherEnvironmentSourceProvider,
         Logger logger,
         SynthEBDPaths paths,
         Patcher patcher,
@@ -124,6 +126,7 @@ public class SaveLoader
         _blockedPluginFactory = blockedPluginFactory;
         _npcAssignmentsUi = npcAssignmentsUi;
         _patcherSettingsSourceProvider = patcherSettingsSourceProvider;
+        _patcherEnvironmentSourceProvider = patcherEnvironmentSourceProvider;
         _patcher = patcher;
         _miscIO = miscIO;
         _generalIO = generalIO;
@@ -373,6 +376,22 @@ public class SaveLoader
         {
             captionStr = "Error saving Load Source Settings: ";
             _logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
+        }
+
+        if (_stateProvider.RunMode == Mode.Standalone)
+        {
+            var envSource = new StandaloneEnvironmentSource()
+            {
+                GameEnvironmentDirectory = _stateProvider.DataFolderPath,
+                SkyrimVersion = _stateProvider.SkyrimVersion,
+                OutputModName = _stateProvider.OutputModName
+            };
+            JSONhandler<StandaloneEnvironmentSource>.SaveJSONFile(envSource, _patcherEnvironmentSourceProvider.SourcePath, out saveSuccess, out exceptionStr);
+            if (!saveSuccess)
+            {
+                captionStr = "Error saving Environment Source Settings: ";
+                _logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
+            }
         }
 
         if (showFinalExceptions)

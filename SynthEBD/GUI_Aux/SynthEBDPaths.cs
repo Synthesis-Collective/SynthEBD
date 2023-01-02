@@ -8,8 +8,11 @@ namespace SynthEBD;
 
 public class SynthEBDPaths : VM
 {
-    private string _rootPath;
-    //public static string SettingsSourcePath => Path.Combine(RootPath, "Settings", "SettingsSource.json");
+    private static string _rootPath = "";
+
+    public static readonly string StandaloneSourceDirName = "Settings";
+    public static readonly string SettingsSourceFileName = "SettingsSource.json";
+    public static readonly string EnvironmentSourceDirName = "EnvironmentSource.json";
 
     private const string settingsDirRelPath = "Settings";
     private const string assetsDirRelPath = "Asset Packs";
@@ -132,6 +135,8 @@ public class SynthEBDPaths : VM
     public string RecordTemplatesDirPath => Path.Combine(_rootPath, recordTemplatesDirRelPath);
     public string ModManagerSettingsPath => Path.Combine(_rootPath, settingsDirRelPath, "ModManagerSettings.json");
     public string OutputDataFolder { get; set; }
+    public string SettingsSourcePath => Path.Combine(_rootPath, StandaloneSourceDirName, SettingsSourceFileName);
+    public string EnvironmentSourcePath => Path.Combine(_rootPath, StandaloneSourceDirName, EnvironmentSourceDirName);
 
     public string GetFallBackPath(string path)
     {
