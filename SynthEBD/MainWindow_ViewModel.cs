@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows;
+using ReactiveUI;
 
 namespace SynthEBD;
 
@@ -45,12 +46,12 @@ public class MainWindow_ViewModel : VM
         // Load settings
         _saveLoader.Reinitialize();
 
-        //Application.Current.MainWindow.Closing += new CancelEventHandler(MainWindow_Closing);
+        Application.Current.Exit += MainWindow_Closing;
 
         ValidateEval();
     }
 
-    void MainWindow_Closing(object sender, CancelEventArgs e)
+    void MainWindow_Closing(object sender, ExitEventArgs e)
     {
         _saveLoader.SaveEntireState();
     }

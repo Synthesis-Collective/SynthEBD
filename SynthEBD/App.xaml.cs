@@ -57,6 +57,12 @@ public partial class App : Application
         mainVM.Init();
         window.Show();
         window.CenterAround(state.RecommendedOpenLocation);
+
+        //special case - MaterialMessageBox causes main window to close if it's called before window.Show(), so have to call this function now
+        var updateHandler = container.Resolve<UpdateHandler>();
+        var texMeshVM = container.Resolve<VM_SettingsTexMesh>();
+        updateHandler.PostWindowShowFunctions(texMeshVM);
+
         return 0;
     }
 
@@ -85,6 +91,11 @@ public partial class App : Application
         var window = new MainWindow();
         window.DataContext = mainVM;
         window.Show();
+
+        //special case - MaterialMessageBox causes main window to close if it's called before window.Show(), so have to call this function now
+        var updateHandler = container.Resolve<UpdateHandler>();
+        var texMeshVM = container.Resolve<VM_SettingsTexMesh>();
+        updateHandler.PostWindowShowFunctions(texMeshVM);
 
         return 0;
     }

@@ -15,6 +15,7 @@ public class JContainersDomain
     private readonly Logger _logger;
     public JContainersDomain(IStateProvider stateProvider, PatcherIO patcherIO, SynthEBDPaths paths, Logger logger)
     {
+        _stateProvider = stateProvider;
         _patcherIO = patcherIO;
         _paths = paths;
         _logger = logger;

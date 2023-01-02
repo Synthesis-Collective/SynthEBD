@@ -988,19 +988,36 @@ public class RecordPathParser
         }
     }
 
-    public static bool SetSubObject(dynamic root, string propertyName, dynamic value)
+    public bool SetSubObject(dynamic root, string propertyName, dynamic value)
     {
         //DEBUGGING SHORT CIRCUIT
         Type type = root.GetType();
         var prop = type.GetProperty(propertyName);
-        if (prop != null)
+        try
         {
-            prop.SetValue(root, value);
-            return true;
+            if (prop != null)
+            {
+                prop.SetValue(root, value);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
-        else
+        catch (Exception e)
         {
-            return false;
+            Type valueType = value.GetType();
+            string exceptionStr = "Error setting object property:" + Environment.NewLine +
+                "Object type: " + type + Environment.NewLine +
+                "Property name: " + propertyName + Environment.NewLine +
+                "Value type " + valueType + Environment.NewLine;
+            if (valueType == typeof(int) || valueType == typeof(float) || valueType == typeof(string))
+            {
+                exceptionStr += "Value: " + value + Environment.NewLine;
+            }
+            exceptionStr += "Exception:" + Environment.NewLine + ExceptionLogger.GetExceptionStack(e);
+            _logger.LogError(exceptionStr);
         }
         //END DEBUGGING
 

@@ -98,7 +98,7 @@ public class RecordGenerator
                 {
                     foreach (var assetAssignment in group)
                     {
-                        RecordPathParser.SetSubObject(rootObj, currentSubPath, assetAssignment.Source);
+                        _recordPathParser.SetSubObject(rootObj, currentSubPath, assetAssignment.Source);
                         currentObj = assetAssignment.Source;
                         assignedPaths.Add(assetAssignment);
                     }
@@ -147,7 +147,7 @@ public class RecordGenerator
                     else if (!currentObjInfo.IsNullFormLink) // if the current object is not a record, copy it directly
                     {
                         currentObj = CopyGenericObject(currentObj); // Make a copy to avoid inadvertently editing other NPCs that share the given object
-                        RecordPathParser.SetSubObject(rootObj, currentSubPath, currentObj);
+                        _recordPathParser.SetSubObject(rootObj, currentSubPath, currentObj);
                     }
                 }
                 #endregion
@@ -164,7 +164,7 @@ public class RecordGenerator
                         }
                         else
                         {
-                            RecordPathParser.SetSubObject(rootObj, currentSubPath, currentObj);
+                            _recordPathParser.SetSubObject(rootObj, currentSubPath, currentObj);
                         }
 
                         assignedPaths.AddRange(group);
@@ -182,7 +182,7 @@ public class RecordGenerator
                         else if (!currentObjInfo.IsNullFormLink)
                         {
                             currentObj = CopyGenericObject(currentObj); // Make a copy to avoid inadvertently editing other NPCs that share the given object
-                            RecordPathParser.SetSubObject(rootObj, currentSubPath, currentObj);
+                            _recordPathParser.SetSubObject(rootObj, currentSubPath, currentObj);
                         }
 
                         AddGeneratedObjectToDictionary(pathSignature, group.Key, templateSignature, currentObj, currentObjInfo.IndexInParentArray);

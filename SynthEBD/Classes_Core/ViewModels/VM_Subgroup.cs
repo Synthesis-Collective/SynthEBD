@@ -801,7 +801,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 
             foreach (var subgroup in Subgroups)
             {
-                subgroup.CheckForVersionUpdate(version);
+                subgroup.PerformVersionUpdate(version);
             }
         }
     }

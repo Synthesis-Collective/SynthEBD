@@ -32,7 +32,6 @@ public class VM_SettingsTexMesh : VM
         SettingsIO_AssetPack assetIO,
         VM_AssetDistributionSimulator.Factory simulatorFactory)
     {
-        _generalSettingsVM = general;
         _logger = logger;
         _paths = paths;
         _configInstaller = configInstaller;
@@ -348,6 +347,7 @@ public class VM_SettingsTexMesh : VM
                 Environment.NewLine + "Do you want to update them for compatibility with the current SynthEBD version?" +
                 Environment.NewLine + string.Join(Environment.NewLine, toUpdate.Select(x => x.GroupName)) +
                 Environment.NewLine + Environment.NewLine + "Press Yes unless you know what you're doing or SynthEBD may not be able to use these config files.";
+            
             if(CustomMessageBox.DisplayNotificationYesNo("Config File Update", messageStr))
             {
                 foreach (var ap in toUpdate)

@@ -11,6 +11,7 @@ using GongSolutions.Wpf.DragDrop;
 using System.Windows.Controls;
 using static SynthEBD.VM_NPCAttribute;
 using Mutagen.Bethesda.FormKeys.SkyrimSE;
+using static SynthEBD.AssetPack;
 
 namespace SynthEBD;
 
@@ -334,8 +335,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].GroupName);
             texMesh.AssetPacks.Add(viewModel);
         }
-
-        texMesh.ConfigVersionUpdate(Version.v090, new());
     }
     
     public void CopyInViewModelFromModel(AssetPack model)
@@ -943,6 +942,17 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 return true;
             }
         }
+
+        foreach (var replacer in ReplacersMenu.ReplacerGroups)
+        {
+            foreach (var subgroup in replacer.Subgroups)
+            {
+                if (subgroup.CheckForVersionUpdate(version))
+                {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
@@ -951,6 +961,14 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         foreach (var subgroup in Subgroups)
         {
             subgroup.PerformVersionUpdate(version);
+        }
+
+        foreach (var replacer in ReplacersMenu.ReplacerGroups)
+        {
+            foreach (var subgroup in replacer.Subgroups)
+            {
+                subgroup.PerformVersionUpdate(version);
+            }
         }
     }
 }

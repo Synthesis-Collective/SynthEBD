@@ -19,6 +19,15 @@ namespace SynthEBD
             _patcherIO = patcherIO; 
             _logger = logger;
         }
+
+        public void PostWindowShowFunctions(VM_SettingsTexMesh texMeshVM)
+        {
+            UpdateAssetPacks(texMeshVM);
+        }
+        private void UpdateAssetPacks(VM_SettingsTexMesh texMeshVM)
+        {
+            texMeshVM.ConfigVersionUpdate(Version.v090, new());
+        }    
         public void CleanSPIDiniHeadParts()
         {
             _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBDHeadPartDistributor_DISTR.ini"), _logger);
@@ -34,11 +43,11 @@ namespace SynthEBD
 
         public Dictionary<string, string> V09PathReplacements { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            { "Diffuse", "Diffuse.DataRelativePath" }
-            //{ "Diffuse", "Diffuse.DataRelativePath" }
-            //{ "Diffuse", "Diffuse.DataRelativePath" }
-            //{ "Diffuse", "Diffuse.DataRelativePath" }
-            //{ "Diffuse", "Diffuse.DataRelativePath" }
+            { "Diffuse", "Diffuse.RawPath" },
+            { "NormalOrGloss", "NormalOrGloss.RawPath" },
+            { "GlowOrDetailMap", "GlowOrDetailMap.RawPath" },
+            { "BacklightMaskOrSpecular", "BacklightMaskOrSpecular.RawPath" },
+            { "Height", "Height.RawPath" }
         };
     }
 }
