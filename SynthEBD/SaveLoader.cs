@@ -146,6 +146,7 @@ public class SaveLoader
     public void Reinitialize()
     {
         System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;
+        LoadAllSettings();
         LoadInitialSettingsViewModels();
         LoadPluginViewModels();
         LoadFinalSettingsViewModels();
@@ -156,6 +157,7 @@ public class SaveLoader
     {
         System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;
         SavePluginViewModels();
+        LoadPlugins();
         LoadPluginViewModels();
         System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.Default;
     }
@@ -167,61 +169,63 @@ public class SaveLoader
         VM_SettingsBodyGen.DumpViewModelToModel(_bodyGenSettingsVM, PatcherSettings.BodyGen, _state.BodyGenConfigs);
     }
 
+    public void LoadAllSettings()
+    {
+        LoadInitialSettings();
+        LoadPlugins();
+        LoadMetaSettings();
+    }
+
+    public void LoadInitialSettings()
+    {
+        _generalIO.LoadGeneralSettings(out var loadSuccess); // Load general settings                                                           
+        _patcher.ResolvePatchableRaces(); // Initialize patchable races from general settings (required by some UI elements)
+        PatcherSettings.TexMesh = _assetIO.LoadTexMeshSettings(out loadSuccess); // Load texture and mesh settings
+        PatcherSettings.BodyGen = _bodyGenIO.LoadBodyGenSettings(out loadSuccess);
+        PatcherSettings.OBody = _oBodyIO.LoadOBodySettings(out loadSuccess);
+        // load OBody settings before asset packs - asset packs depend on BodyGen but not vice versa
+        PatcherSettings.OBody.ImportBodySlides(PatcherSettings.OBody.TemplateDescriptors, _oBodyIO, _stateProvider.DataFolderPath);
+        PatcherSettings.HeadParts = _headpartIO.LoadHeadPartSettings(out loadSuccess); // load head part settings
+        PatcherSettings.Height = _heightIO.LoadHeightSettings(out loadSuccess); // load heights
+        _state.BlockList = _blockListIO.LoadBlockList(out loadSuccess); // load BlockList
+        PatcherSettings.ModManagerIntegration = _modManagerIO.LoadModManagerSettings(out loadSuccess); // load Mod Manager Integration
+    }
+
     public void LoadInitialSettingsViewModels() // view models that should be loaded before plugin VMs
     {
         // Load general settings
-        _generalIO.LoadGeneralSettings(out var loadSuccess);
         VM_Settings_General.GetViewModelFromModel(_generalSettingsVM, _patcherSettingsSourceProvider, _raceAliasFactory, _linkedNPCFactory, _raceGroupingFactory, _stateProvider.LinkCache);
-
-        // Initialize patchable races from general settings (required by some UI elements)
-        _patcher.ResolvePatchableRaces();
-
-        // Load texture and mesh settings
-        PatcherSettings.TexMesh = _assetIO.LoadTexMeshSettings(out loadSuccess);
-        VM_SettingsTexMesh.GetViewModelFromModel(_texMeshSettingsVM, PatcherSettings.TexMesh);
-
-        PatcherSettings.BodyGen = _bodyGenIO.LoadBodyGenSettings(out loadSuccess);
-
-        // load OBody settings before asset packs - asset packs depend on BodyGen but not vice versa
-        PatcherSettings.OBody = _oBodyIO.LoadOBodySettings(out loadSuccess);
-        PatcherSettings.OBody.ImportBodySlides(PatcherSettings.OBody.TemplateDescriptors, _oBodyIO, _stateProvider.DataFolderPath);
-
-        // load head part settings
-        PatcherSettings.HeadParts = _headpartIO.LoadHeadPartSettings(out loadSuccess);
-
-        // load heights
-        PatcherSettings.Height = _heightIO.LoadHeightSettings(out loadSuccess);
-
-        // load BlockList
-        _state.BlockList = _blockListIO.LoadBlockList(out loadSuccess);
+        VM_SettingsTexMesh.GetViewModelFromModel(_texMeshSettingsVM, PatcherSettings.TexMesh);     
         VM_BlockListUI.GetViewModelFromModel(_state.BlockList, _blockList, _blockedNPCFactory, _blockedPluginFactory);
-
-        // load Mod Manager Integration
-        PatcherSettings.ModManagerIntegration = _modManagerIO.LoadModManagerSettings(out loadSuccess);
         VM_SettingsModManager.GetViewModelFromModel(PatcherSettings.ModManagerIntegration, _settingsModManager);
+    }
+
+    public void LoadPlugins()
+    {
+        // load bodygen configs before asset packs - asset packs depend on BodyGen but not vice versa
+        _state.BodyGenConfigs = _bodyGenIO.LoadBodyGenConfigs(PatcherSettings.General.RaceGroupings, out var loadSuccess);
+        _state.RecordTemplatePlugins = _assetIO.LoadRecordTemplates(out loadSuccess);
+        _state.RecordTemplateLinkCache = _state.RecordTemplatePlugins.ToImmutableLinkCache();
+        _state.AssetPacks = _assetIO.LoadAssetPacks(PatcherSettings.General.RaceGroupings, _state.RecordTemplatePlugins, _state.BodyGenConfigs, out loadSuccess); // load asset pack models from json
+        _state.HeightConfigs = _heightIO.LoadHeightConfigs(out loadSuccess); // load heights
     }
 
     public void LoadPluginViewModels()
     {
-        // load bodygen configs before asset packs - asset packs depend on BodyGen but not vice versa
-        _state.BodyGenConfigs = _bodyGenIO.LoadBodyGenConfigs(PatcherSettings.General.RaceGroupings, out var loadSuccess);
         VM_SettingsBodyGen.GetViewModelFromModel(_state.BodyGenConfigs, PatcherSettings.BodyGen, _bodyGenSettingsVM, _bodyGenConfigFactory, _generalSettingsVM);
-
         VM_SettingsOBody.GetViewModelFromModel(PatcherSettings.OBody, _settingsOBody, _generalSettingsVM.RaceGroupings, _bodyShapeDescriptorCreator, _oBodyMiscSettingsFactory, _bodySlideFactory, _descriptorSelectionFactory, _attributeCreator, _logger);
-
-        _state.RecordTemplatePlugins = _assetIO.LoadRecordTemplates(out loadSuccess);
-        _state.RecordTemplateLinkCache = _state.RecordTemplatePlugins.ToImmutableLinkCache();
-
-        // load asset packs
-        _state.AssetPacks = _assetIO.LoadAssetPacks(PatcherSettings.General.RaceGroupings, _state.RecordTemplatePlugins, _state.BodyGenConfigs, out loadSuccess); // load asset pack models from json
+        // load asset packs after BodyGen/BodySlide
         VM_AssetPack.GetViewModelsFromModels(_state.AssetPacks, _texMeshSettingsVM, PatcherSettings.TexMesh, _assetPackFactory); // add asset pack view models to TexMesh shell view model here
         _texMeshSettingsVM.AssetPresenterPrimary.AssetPack = _texMeshSettingsVM.AssetPacks.Where(x => x.GroupName == _texMeshSettingsVM.LastViewedAssetPackName).FirstOrDefault();
-
-        // load heights
-        _state.HeightConfigs = _heightIO.LoadHeightConfigs(out loadSuccess);
-
+        
         VM_HeightConfig.GetViewModelsFromModels(_heightSettingsVM.AvailableHeightConfigs, _state.HeightConfigs, _heightConfigFactory, _heightAssignmentFactory);
         VM_SettingsHeight.GetViewModelFromModel(_heightSettingsVM, PatcherSettings.Height); /// must do after populating configs
+    }
+
+    public void LoadMetaSettings()
+    {
+        _state.SpecificNPCAssignments = _specificNPCassignmentsIO.LoadAssignments(out var loadSuccess);
+        _state.Consistency = _miscIO.LoadConsistency(out loadSuccess);
     }
 
     public void LoadFinalSettingsViewModels() // view models that should be loaded after plugin VMs because they depend on the loaded plugins
@@ -229,7 +233,6 @@ public class SaveLoader
         _headPartSettingsVM.CopyInFromModel(PatcherSettings.HeadParts, _generalSettingsVM.RaceGroupings);
 
         // load specific assignments (must load after plugin view models)
-        _state.SpecificNPCAssignments = _specificNPCassignmentsIO.LoadAssignments(out var loadSuccess);
         VM_SpecificNPCAssignmentsUI.GetViewModelFromModels(
             _assetPackFactory,
             _texMeshSettingsVM,
@@ -243,7 +246,6 @@ public class SaveLoader
             _stateProvider);
 
         // Load Consistency (must load after plugin view models)
-        _state.Consistency = _miscIO.LoadConsistency(out loadSuccess);
         VM_ConsistencyUI.GetViewModelsFromModels(_state.Consistency, _consistencyUi.Assignments, _texMeshSettingsVM.AssetPacks, _headPartSettingsVM, _logger);
     }
 
