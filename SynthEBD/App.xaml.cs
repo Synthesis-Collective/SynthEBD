@@ -46,6 +46,7 @@ public partial class App : Application
         var container = builder.Build();
 
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
+        _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
 
         var window = new MainWindow();
         var mainVM = container.Resolve<MainWindow_ViewModel>();
@@ -98,7 +99,19 @@ public partial class App : Application
     
     private async Task RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
     {
+        var builder = new ContainerBuilder();
+        builder.RegisterType<PatcherSettingsSourceProvider>();
+        builder.RegisterInstance(state).AsImplementedInterfaces().SingleInstance();
+        var container = builder.Build();
 
+        _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
+        _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
+
+        var saveLoader = container.Resolve<SaveLoader>();
+        saveLoader.LoadAllSettings();
+        var patcher = container.Resolve<Patcher>();
+        await patcher.RunPatcher();
+        
     }
 
     

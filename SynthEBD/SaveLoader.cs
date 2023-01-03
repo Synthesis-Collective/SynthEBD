@@ -1,4 +1,5 @@
 using Mutagen.Bethesda.Skyrim;
+using System.Security.Cryptography.X509Certificates;
 using static SynthEBD.VM_BodyShapeDescriptor;
 using static SynthEBD.VM_NPCAttribute;
 
@@ -401,5 +402,10 @@ public class SaveLoader
             string notificationStr = allExceptions;
             CustomMessageBox.DisplayNotificationOK("Errors were encountered upon closing", notificationStr);
         }
+    }
+
+    public void SaveConsistency()
+    {
+        _miscIO.SaveConsistency(_state.Consistency, out _);
     }
 }
