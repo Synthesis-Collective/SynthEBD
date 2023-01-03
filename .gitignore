@@ -37,7 +37,8 @@ bld/
 [Ll]ogs/
 
 # Not 7zip executables
-!SynthEBD/InternalData
+!SynthEBD/InternalData/7Zip/x86
+!SynthEBD/InternalData/7Zip/x64
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
