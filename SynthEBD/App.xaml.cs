@@ -42,6 +42,7 @@ public partial class App : Application
         builder.RegisterModule<MainModule>();
 
         builder.RegisterType<PatcherSettingsSourceProvider>();
+        builder.RegisterType<PatcherEnvironmentSourceProvider>(); 
         builder.RegisterInstance(new OpenForSettingsWrapper(state)).AsImplementedInterfaces().SingleInstance();
         var container = builder.Build();
 
