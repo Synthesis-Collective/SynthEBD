@@ -38,7 +38,7 @@ public class SaveLoader
     private readonly VM_BlockedNPC.Factory _blockedNPCFactory;
     private readonly VM_BlockedPlugin.Factory _blockedPluginFactory;
     private readonly VM_SpecificNPCAssignmentsUI _npcAssignmentsUi;
-    private readonly Patcher _patcher;
+    private readonly PatchableRaceResolver _raceResolver;
     private readonly SettingsIO_Misc _miscIO;
     private readonly SettingsIO_General _generalIO;
     private readonly SettingsIO_AssetPack _assetIO;
@@ -84,7 +84,7 @@ public class SaveLoader
         PatcherEnvironmentSourceProvider patcherEnvironmentSourceProvider,
         Logger logger,
         SynthEBDPaths paths,
-        Patcher patcher,
+        PatchableRaceResolver raceResolver,
         SettingsIO_Misc miscIO,
         SettingsIO_General generalIO,
         SettingsIO_AssetPack assetIO,
@@ -128,7 +128,7 @@ public class SaveLoader
         _npcAssignmentsUi = npcAssignmentsUi;
         _patcherSettingsSourceProvider = patcherSettingsSourceProvider;
         _patcherEnvironmentSourceProvider = patcherEnvironmentSourceProvider;
-        _patcher = patcher;
+        _raceResolver = raceResolver;
         _miscIO = miscIO;
         _generalIO = generalIO;
         _assetIO = assetIO;
@@ -180,7 +180,7 @@ public class SaveLoader
     public void LoadInitialSettings()
     {
         _generalIO.LoadGeneralSettings(out var loadSuccess); // Load general settings                                                           
-        _patcher.ResolvePatchableRaces(); // Initialize patchable races from general settings (required by some UI elements)
+        _raceResolver.ResolvePatchableRaces(); // Initialize patchable races from general settings (required by some UI elements)
         PatcherSettings.TexMesh = _assetIO.LoadTexMeshSettings(out loadSuccess); // Load texture and mesh settings
         PatcherSettings.BodyGen = _bodyGenIO.LoadBodyGenSettings(out loadSuccess);
         PatcherSettings.OBody = _oBodyIO.LoadOBodySettings(out loadSuccess);

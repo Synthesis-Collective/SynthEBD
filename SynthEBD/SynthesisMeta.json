@@ -1,0 +1,13 @@
+{
+  "Nickname": "SynthEBD",
+  "Visibility": "Exclude",
+  "OneLineDescription": "Randomizes NPC Textures, Body Shapes, Heights, and Headparts",
+  "LongDescription": "",
+  "PreferredAutoVersioning": "Default",
+  "RequiredMods": [],
+  "TargetedReleases": [
+    "SkyrimSE",
+    "SkyrimVR",
+    "SkyrimSEGog"
+  ]
+}

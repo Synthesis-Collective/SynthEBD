@@ -13,9 +13,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
 {
     public IStateProvider StateProvider { get; }
     public SaveLoader SaveLoader { get; set; }
-    private bool _bFirstRun { get; set;} = false;
-    private readonly Patcher _patcher;
+    private bool _bFirstRun { get; set; } = false;
     private readonly SettingsIO_General _generalIO;
+    private readonly PatchableRaceResolver _raceResolver;
     private readonly VM_RaceAlias.Factory _aliasFactory;
     private readonly VM_RaceGrouping.Factory _groupingFactory;
     private readonly VM_LinkedNPCGroup.Factory _linkedNPCFactory;
@@ -27,16 +27,21 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         VM_RaceGrouping.Factory groupingFactory,
         VM_LinkedNPCGroup.Factory linkedNPCFactory,
         SettingsIO_General generalIO,
-        Patcher patcher,
+        PatchableRaceResolver raceResolver,
         IStateProvider stateProvider)
     {
         StateProvider = stateProvider;
         IsStandalone = StateProvider.RunMode == Mode.Standalone;
-        _patcher = patcher;
+        _raceResolver = raceResolver;
         _generalIO = generalIO;
         _aliasFactory = aliasFactory;
         _groupingFactory = groupingFactory;
         _linkedNPCFactory = linkedNPCFactory;
+
+        if (IsStandalone)
+        {
+            EnvironmentSettingsVM = new(StateProvider);
+        }
 
         AttributeGroupMenu = attributeGroupFactory(null, false);
 
@@ -80,7 +85,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
 
         this.WhenAnyValue(x => x.bLoadSettingsFromDataFolder).Skip(1).Subscribe(x =>
         {
-            _patcher.ResolvePatchableRaces();
+            _raceResolver.ResolvePatchableRaces();
             SaveLoader.Reinitialize();
         });
 
@@ -150,32 +155,14 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
             }
         );
 
-        SelectGameDataFolder = new RelayCommand(
-            canExecute: _ => true,
-            execute: _ =>
-            {
-                if (IO_Aux.SelectFolder("", out string selectedPath))
-                {
-                    StateProvider.DataFolderPath = selectedPath;
-                }
-            }
-        );
-
-        ClearGameDataFolder = new RelayCommand(
-            canExecute: _ => true,
-            execute: _ =>
-            {
-                StateProvider.DataFolderPath = string.Empty;
-            }
-        );
-
-        this.WhenAnyValue(x => x._bFirstRun).Subscribe(x => { 
-        if (x) { 
-                ShowFirstRunMessage(); 
+        this.WhenAnyValue(x => x._bFirstRun).Subscribe(x => {
+            if (x) {
+                ShowFirstRunMessage();
             }
         });
     }
 
+    public VM_Settings_Environment EnvironmentSettingsVM { get; set; }
     public string OutputDataFolder { get; set; } = "";
     public bool bShowToolTips { get;  set;} = true;
     public bool bChangeMeshesOrTextures { get; set;  } = true;
@@ -216,8 +203,6 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     public RelayCommand ClearOutputFolder { get; }
     public RelayCommand SelectPortableSettingsFolder { get; }
     public RelayCommand ClearPortableSettingsFolder { get; }
-    public RelayCommand SelectGameDataFolder { get; }
-    public RelayCommand ClearGameDataFolder { get; }
     public bool IsStandalone { get; set; }
     
     public static void GetViewModelFromModel(VM_Settings_General viewModel, PatcherSettingsSourceProvider patcherSettingsProvider, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, VM_RaceGrouping.Factory raceGroupingFactory, ILinkCache linkCache)
@@ -307,7 +292,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     {
         string message = @"Welcome to SynthEBD
 If you are using a mod manager, start by going to the Mod Manager Integration menu and setting up your paths.
-If you don't want your patcher outuput going straight to your Data or Overwrite folder, set your desired Output Path in this menu.";
+If you don't want your patcher output going straight to your Data or Overwrite folder, set your desired Output Path in this menu.";
 
         CustomMessageBox.DisplayNotificationOK("", message);
     }

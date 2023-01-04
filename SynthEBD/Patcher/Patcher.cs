@@ -15,6 +15,7 @@ public class Patcher
     private readonly CombinationLog _combinationLog;
     private readonly SynthEBDPaths _paths;
     private readonly Logger _logger;
+    public readonly PatchableRaceResolver _raceResolver;
     private readonly AssetAndBodyShapeSelector _assetAndBodyShapeSelector;
     private readonly AssetSelector _assetSelector;
     private readonly AssetReplacerSelector _assetReplacerSelector;
@@ -36,7 +37,7 @@ public class Patcher
     private readonly MiscValidation _miscValidation;
     private readonly PatcherIO _patcherIO;
 
-    public Patcher(IOutputStateProvider stateProvider, MainState state, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO)
+    public Patcher(IOutputStateProvider stateProvider, MainState state, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO)
     {
         _stateProvider = stateProvider;
         _state = state;
@@ -44,6 +45,7 @@ public class Patcher
         _combinationLog = combinationLog;
         _paths = paths;
         _logger = logger;
+        _raceResolver = raceResolver;
         _assetAndBodyShapeSelector = assetAndBodyShapeSelector;
         _assetSelector = assetSelector;
         _assetReplacerSelector = assetReplacerSelector;
@@ -73,7 +75,7 @@ public class Patcher
         // General pre-patching tasks: 
         var outputMod = _stateProvider.OutputMod;
         var allNPCs = _stateProvider.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
-        ResolvePatchableRaces();
+        _raceResolver.ResolvePatchableRaces();
         UniqueAssignmentsByName.Clear();
         UniqueNPCData.UniqueNameExclusions = PatcherSettings.General.LinkedNPCNameExclusions.ToHashSet();
         HashSet<LinkedNPCGroupInfo> generatedLinkGroups = new HashSet<LinkedNPCGroupInfo>();
@@ -311,8 +313,6 @@ public class Patcher
 
         _statusBar.IsPatching = false;
     }
-
-    public static HashSet<IFormLinkGetter<IRaceGetter>> PatchableRaces;
 
     public static Dictionary<string, Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>> UniqueAssignmentsByName = new Dictionary<string, Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>>();
 
@@ -574,7 +574,7 @@ public class Patcher
 
             if (PatcherSettings.TexMesh.bForceVanillaBodyMeshPath)
             {
-                AssetSelector.SetVanillaBodyPath(currentNPCInfo, outputMod, _stateProvider.LinkCache);
+                _assetSelector.SetVanillaBodyPath(currentNPCInfo, outputMod, _stateProvider.LinkCache);
             }
 
             #region Height assignment
@@ -678,25 +678,6 @@ public class Patcher
                 _logger.LogError("Could not resolve template NPC " + templateFK.ToString());
             }
         }
-    }
-
-    public void ResolvePatchableRaces()
-    {
-        if (_stateProvider.LinkCache is null)
-        {
-            _logger.LogError("Error: Link cache is null.");
-            return;
-        }
-
-        PatchableRaces = new HashSet<IFormLinkGetter<IRaceGetter>>();
-        foreach (var raceFK in PatcherSettings.General.PatchableRaces)
-        {
-            if (_stateProvider.LinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
-            {
-                PatchableRaces.Add(raceGetter.ToLinkGetter());
-            }
-        }
-        PatchableRaces.Add(Skyrim.Race.DefaultRace.Resolve(_stateProvider.LinkCache).ToLinkGetter());
     }
 
     public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker(); // tracks unique selected morphs so that only assigned morphs are written to the generated templates.ini

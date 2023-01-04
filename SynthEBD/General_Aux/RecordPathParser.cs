@@ -24,10 +24,12 @@ public class RecordPathParser
 {
     private readonly IStateProvider _stateProvider; 
     private readonly Logger _logger;
-    public RecordPathParser(IStateProvider stateProvider, Logger logger)
+    private readonly PatchableRaceResolver _raceResolver;
+    public RecordPathParser(IStateProvider stateProvider, Logger logger, PatchableRaceResolver raceResolver)
     {
         _stateProvider = stateProvider;
         _logger = logger;
+        _raceResolver = raceResolver;
     }
 
     public bool GetObjectAtPath(dynamic rootObj, IMajorRecordGetter rootRecord, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj) // rootObj is the object relative to which the path is to be traversed. rootRecord is the parent record of the entire tree - this may be the same as rootObj, but rootObj may be a sub-object of rootRecord
@@ -781,7 +783,7 @@ public class RecordPathParser
             // reference PatchableRaces if necessary
             if (addPatchableRaceArg)
             {
-                evalParameters.Add(Patcher.PatchableRaces);
+                evalParameters.Add(_raceResolver.PatchableRaces);
             }
 
             try
@@ -882,7 +884,7 @@ public class RecordPathParser
             // reference PatchableRaces if necessary
             if (addPatchableRaceArg)
             {
-                evalParameters.Add(Patcher.PatchableRaces);
+                evalParameters.Add(_raceResolver.PatchableRaces);
             }
 
             try

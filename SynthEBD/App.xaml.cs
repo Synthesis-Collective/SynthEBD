@@ -41,12 +41,13 @@ public partial class App : Application
         var builder = new ContainerBuilder();
         builder.RegisterModule<MainModule>();
 
-        builder.RegisterType<PatcherSettingsSourceProvider>();
-        builder.RegisterType<PatcherEnvironmentSourceProvider>(); 
-        builder.RegisterInstance(new OpenForSettingsWrapper(state)).AsImplementedInterfaces().SingleInstance();
+        builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();
+        builder.RegisterType<PatcherEnvironmentSourceProvider>().AsSelf().SingleInstance();
+        builder.RegisterInstance(new OpenForSettingsWrapper(state)).AsSelf().AsImplementedInterfaces().SingleInstance();
         var container = builder.Build();
 
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
+        _settingsSourceProvider.SettingsRootPath = state.ExtraSettingsDataPath;
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
         builder.RegisterModule<MainModule>();
 
@@ -55,7 +56,6 @@ public partial class App : Application
         window.DataContext = mainVM;
         mainVM.Init();
         window.Show();
-        window.CenterAround(state.RecommendedOpenLocation);
 
         //special case - MaterialMessageBox causes main window to close if it's called before window.Show(), so have to call this function now
         var updateHandler = container.Resolve<UpdateHandler>();
@@ -73,7 +73,7 @@ public partial class App : Application
         var builder = new ContainerBuilder();
         builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();
         builder.RegisterType<PatcherEnvironmentSourceProvider>().AsSelf().SingleInstance();
-        //builder.RegisterType<StandaloneRunStateProvider>().AsSelf().SingleInstance();
+
         builder.RegisterType<StandaloneRunStateProvider>().AsSelf().AsImplementedInterfaces().SingleInstance();
         builder.RegisterModule<MainModule>();
 
@@ -102,11 +102,13 @@ public partial class App : Application
     private async Task RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
     {
         var builder = new ContainerBuilder();
-        builder.RegisterType<PatcherSettingsSourceProvider>();
-        builder.RegisterInstance(state).AsImplementedInterfaces().SingleInstance();
+        builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();
+        builder.RegisterType<PatcherEnvironmentSourceProvider>().AsSelf().SingleInstance();
+        builder.RegisterInstance(state).AsSelf().AsImplementedInterfaces().SingleInstance();
         var container = builder.Build();
 
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
+        _settingsSourceProvider.SettingsRootPath = state.ExtraSettingsDataPath;
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
         builder.RegisterModule<MainModule>();
 

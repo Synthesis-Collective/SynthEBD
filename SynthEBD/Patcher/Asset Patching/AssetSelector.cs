@@ -13,7 +13,8 @@ public class AssetSelector
     private readonly AttributeMatcher _attributeMatcher;
     private readonly RecordPathParser _recordPathParser;
     private readonly DictionaryMapper _dictionaryMapper;
-    public AssetSelector(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, AttributeMatcher attributeMatcher, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper)
+    private readonly PatchableRaceResolver _raceResolver;
+    public AssetSelector(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, AttributeMatcher attributeMatcher, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper, PatchableRaceResolver raceResolver)
     {
         _stateProvider = stateProvider;
         _logger = logger;
@@ -21,6 +22,7 @@ public class AssetSelector
         _attributeMatcher = attributeMatcher;
         _recordPathParser = recordPathParser;
         _dictionaryMapper = dictionaryMapper;   
+        _raceResolver = raceResolver;
     }
 
     public SubgroupCombination GenerateCombination(HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo, AssignmentIteration iterationInfo)
@@ -897,13 +899,13 @@ public class AssetSelector
 
     public static string[] BaseGamePlugins = new string[] { "Skyrim.esm", "Update.esm", "Dawnguard.esm", "HearthFires.esm", "Dragonborn.esm" };
 
-    public static void SetVanillaBodyPath(NPCInfo npcInfo, ISkyrimMod outputMod, ILinkCache linkCache)
+    public void SetVanillaBodyPath(NPCInfo npcInfo, ISkyrimMod outputMod, ILinkCache linkCache)
     {
         if (linkCache.TryResolve<INpcGetter>(npcInfo.NPC.FormKey, out var npcWinningRecord) && npcWinningRecord.WornArmor != null && !npcWinningRecord.WornArmor.IsNull && linkCache.TryResolve<IArmorGetter>(npcWinningRecord.WornArmor.FormKey, out var skin))
         {
             foreach (var armaLinkGetter in skin.Armature)
             {
-                if (linkCache.TryResolve<IArmorAddonGetter>(armaLinkGetter.FormKey, out var armaGetter) && armaGetter.BodyTemplate != null && armaGetter.WorldModel != null && (Patcher.PatchableRaces.Contains(armaGetter.Race) || npcWinningRecord.Race.Equals(armaGetter.Race) || armaGetter.AdditionalRaces.Contains(npcWinningRecord.Race.FormKey)) && DefaultBodyMeshPaths.ContainsKey(npcInfo.Gender) && DefaultBodyMeshPaths[npcInfo.Gender] != null)
+                if (linkCache.TryResolve<IArmorAddonGetter>(armaLinkGetter.FormKey, out var armaGetter) && armaGetter.BodyTemplate != null && armaGetter.WorldModel != null && (_raceResolver.PatchableRaces.Contains(armaGetter.Race) || npcWinningRecord.Race.Equals(armaGetter.Race) || armaGetter.AdditionalRaces.Contains(npcWinningRecord.Race.FormKey)) && DefaultBodyMeshPaths.ContainsKey(npcInfo.Gender) && DefaultBodyMeshPaths[npcInfo.Gender] != null)
                 {
                     var matchedEntry = DefaultBodyMeshPaths[npcInfo.Gender].Where(x => armaGetter.BodyTemplate.FirstPersonFlags.HasFlag(x.Key)).FirstOrDefault();
                     if (matchedEntry.Value != null)
