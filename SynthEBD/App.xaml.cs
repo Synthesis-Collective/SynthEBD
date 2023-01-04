@@ -47,6 +47,7 @@ public partial class App : Application
 
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
+        builder.RegisterModule<MainModule>();
 
         var window = new MainWindow();
         var mainVM = container.Resolve<MainWindow_ViewModel>();
@@ -106,6 +107,7 @@ public partial class App : Application
 
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
+        builder.RegisterModule<MainModule>();
 
         var saveLoader = container.Resolve<SaveLoader>();
         saveLoader.LoadAllSettings();
