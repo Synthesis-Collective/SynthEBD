@@ -162,7 +162,6 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         {
             if (x)
             {
-                ShowFirstRunMessage();
                 _firstLaunch.OnFirstLaunch();
             }
         });
@@ -292,14 +291,5 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         _generalIO.DumpVMandSave(this);
         settingsProvider.SetNewDataDir(PortableSettingsFolder);
         SaveLoader.Reinitialize();
-    }
-
-    private void ShowFirstRunMessage()
-    {
-        string message = @"Welcome to SynthEBD
-If you are using a mod manager, start by going to the Mod Manager Integration menu and setting up your paths.
-If you don't want your patcher output going straight to your Data or Overwrite folder, set your desired Output Path in this menu.";
-
-        CustomMessageBox.DisplayNotificationOK("", message);
     }
 }

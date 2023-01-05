@@ -34,6 +34,7 @@ namespace SynthEBD
 
         public void OnFirstLaunch()
         {
+            ShowFirstRunMessage();
             string defaultHeightConfigStartPath = Path.Combine(_stateProvider.InternalDataPath, "FirstLaunchResources", "Default Config.json");
             string defaultHeightConfigDestPath = Path.Combine(_paths.HeightConfigDirPath, "Default Config.json");
             if (!File.Exists(defaultHeightConfigDestPath))
@@ -43,6 +44,7 @@ namespace SynthEBD
                 var newConfig = JSONhandler<HeightConfig>.LoadJSONFile(defaultHeightConfigDestPath, out bool heightConfigLoaded, out string heightError);
                 if (heightConfigLoaded)
                 {
+                    
                     VM_HeightConfig.GetViewModelsFromModels(_heightSettingsVM.AvailableHeightConfigs, new List<HeightConfig>() { newConfig }, _heightConfigFactory, _heightAssignmentFactory);
                 }
                 else
@@ -58,9 +60,10 @@ namespace SynthEBD
             {
                 PatcherIO.CreateDirectoryIfNeeded(defaultRecordTemplatesDestPath, PatcherIO.PathType.File);
                 File.Copy(defaultRecordTemplatesStartPath, defaultRecordTemplatesDestPath, false);
-                _assetIO.LoadRecordTemplates(out bool loadSuccess);
+                var recordTemplates = _assetIO.LoadRecordTemplates(out bool loadSuccess);
                 if (loadSuccess)
                 {
+                    _mainState.RecordTemplatePlugins = recordTemplates;
                     _mainState.RecordTemplateLinkCache = _mainState.RecordTemplatePlugins.ToImmutableLinkCache();
                 }
                 else
@@ -70,5 +73,13 @@ namespace SynthEBD
             }
         }
 
+        private void ShowFirstRunMessage()
+        {
+            string message = @"Welcome to SynthEBD
+If you are using a mod manager, start by going to the Mod Manager Integration menu and setting up your paths.
+If you don't want your patcher output going straight to your Data or Overwrite folder, set your desired Output Path in the General Settings menu.";
+
+            CustomMessageBox.DisplayNotificationOK("", message);
+        }
     }
 }
