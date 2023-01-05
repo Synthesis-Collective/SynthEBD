@@ -28,6 +28,7 @@ public partial class App : Application
 
         SynthesisPipeline.Instance
             .SetOpenForSettings(OpenForSettings)
+            .AddRunnabilityCheck(CanRunPatch)
             .AddPatch<ISkyrimMod, ISkyrimModGetter>(RunPatch)
             .SetTypicalOpen(StandaloneOpen)
             .SetForWpf()
@@ -40,7 +41,6 @@ public partial class App : Application
     {
         var builder = new ContainerBuilder();
         builder.RegisterModule<MainModule>();
-
         builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();
         builder.RegisterType<PatcherEnvironmentSourceProvider>().AsSelf().SingleInstance();
         builder.RegisterInstance(new OpenForSettingsWrapper(state)).AsSelf().AsImplementedInterfaces().SingleInstance();
@@ -49,7 +49,6 @@ public partial class App : Application
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
         _settingsSourceProvider.SettingsRootPath = state.ExtraSettingsDataPath;
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
-        builder.RegisterModule<MainModule>();
 
         var window = new MainWindow();
         var mainVM = container.Resolve<MainWindow_ViewModel>();
@@ -105,21 +104,41 @@ public partial class App : Application
         builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();
         builder.RegisterType<PatcherEnvironmentSourceProvider>().AsSelf().SingleInstance();
         builder.RegisterInstance(state).AsSelf().AsImplementedInterfaces().SingleInstance();
+        builder.RegisterModule<MainModule>();
         var container = builder.Build();
 
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
         _settingsSourceProvider.SettingsRootPath = state.ExtraSettingsDataPath;
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
-        builder.RegisterModule<MainModule>();
 
         var saveLoader = container.Resolve<SaveLoader>();
         saveLoader.LoadAllSettings();
         var patcher = container.Resolve<Patcher>();
-        await patcher.RunPatcher();
-        
+        await patcher.RunPatcher();   
     }
 
-    
+    private static void CanRunPatch(IRunnabilityState state)
+    {
+        var builder = new ContainerBuilder();
+        builder.RegisterModule<MainModule>();
+        builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();
+        builder.RegisterType<PatcherEnvironmentSourceProvider>().AsSelf().SingleInstance();
+        builder.RegisterInstance(new RunnabilitySettingsWrapper(state)).AsSelf().AsImplementedInterfaces().SingleInstance();
+        var container = builder.Build();
+
+        var settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
+        settingsSourceProvider.SettingsRootPath = state.ExtraSettingsDataPath;
+        container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
+        var saveLoader = container.Resolve<SaveLoader>();
+        saveLoader.LoadAllSettings();
+
+        var validation = container.Resolve<PreRunValidation>();
+        if (!validation.ValidatePatcherState())
+        {
+            throw new Exception("Validation failed.");
+        }
+    }
+
     private void Application_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {
         StringBuilder sb = new();

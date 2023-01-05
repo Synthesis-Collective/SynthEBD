@@ -7,7 +7,7 @@ public class VM_RunButton : VM
     private readonly StandaloneRunStateProvider _stateProvider;
     private readonly VM_SettingsTexMesh _texMeshSettingsVm;
     private readonly MainState _state;
-    private readonly MiscValidation _miscValidation;
+    private readonly PreRunValidation _preRunValidation;
     private readonly Logger _logger;
 
     public VM_RunButton(
@@ -17,7 +17,7 @@ public class VM_RunButton : VM
         VM_Settings_Headparts headParts,
         MainState state,
         SaveLoader saveLoader,
-        MiscValidation miscValidation,
+        PreRunValidation preRunValidation,
         Logger logger,
         VM_LogDisplay logDisplay,
         Func<Patcher> getPatcher)
@@ -25,7 +25,7 @@ public class VM_RunButton : VM
         _stateProvider = stateProvider;
         _texMeshSettingsVm = texMeshSettingsVM;
         _state = state;
-        _miscValidation = miscValidation;
+        _preRunValidation = preRunValidation;
         _logger = logger;
         // synchronous version for debugging only
         /*
@@ -52,7 +52,7 @@ public class VM_RunButton : VM
             {
                 logDisplay.SwitchViewToLogDisplay();
                 saveLoader.DumpViewModelsToModels();
-                if (!PreRunValidation()) { return; }
+                if (!_preRunValidation.ValidatePatcherState()) { return; }
                 if (HasBeenRun) { _stateProvider.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.
                 _logger.ClearStatusError();
                 await Task.Run(() => getPatcher().RunPatcher());
@@ -63,120 +63,4 @@ public class VM_RunButton : VM
     public SolidColorBrush BackgroundColor { get; set; } = new(Colors.Green);
     public bool HasBeenRun { get; set; } = false;
     public ReactiveUI.IReactiveCommand ClickRun { get; }
-
-    public bool PreRunValidation()
-    {
-        bool valid = true;
-
-        if (PatcherSettings.General.bChangeMeshesOrTextures)
-        {
-            if (!_miscValidation.VerifyEBDInstalled())
-            {
-                valid = false;
-            }
-
-            if (!_texMeshSettingsVm.ValidateAllConfigs(_state.BodyGenConfigs, PatcherSettings.OBody, out var configErrors)) // check config files for errors
-            {
-                _logger.LogMessage(configErrors);
-                valid = false;
-            }
-
-        }
-
-        if (PatcherSettings.General.BodySelectionMode != BodyShapeSelectionMode.None)
-        {
-            if (!_miscValidation.VerifyRaceMenuInstalled(_stateProvider.DataFolderPath))
-            {
-                valid = false;
-            }
-            else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !_miscValidation.VerifyRaceMenuIniForBodyGen())
-            {
-                valid = false;
-            }
-            else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !_miscValidation.VerifyRaceMenuIniForBodySlide())
-            {
-                valid = false;
-            }
-
-            if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
-            {
-                if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.OBody)
-                {
-                    if (!_miscValidation.VerifyOBodyInstalled(_stateProvider.DataFolderPath))
-                    {
-                        valid = false;
-                    }
-
-                    if (!_miscValidation.VerifyJContainersInstalled(_stateProvider.DataFolderPath, false))
-                    {
-                        valid = false;
-                    }
-                }
-                else if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.AutoBody)
-                {
-                    if (!_miscValidation.VerifyAutoBodyInstalled(_stateProvider.DataFolderPath))
-                    {
-                        valid = false;
-                    }
-
-                    if (PatcherSettings.OBody.AutoBodySelectionMode == AutoBodySelectionMode.JSON && !_miscValidation.VerifyJContainersInstalled(_stateProvider.DataFolderPath, false))
-                    {
-                        valid = false;
-                    }
-                }
-
-                if (!_miscValidation.VerifyBodySlideAnnotations(PatcherSettings.OBody))
-                {
-                    valid = false;
-                }
-
-                if (!_miscValidation.VerifyGeneratedTriFilesForOBody(PatcherSettings.OBody))
-                {
-                    valid = false;
-                }
-
-                //if (!MiscValidation.VerifySPIDInstalled(env.DataFolderPath, false))
-                //{
-                //    valid = false;
-                //}
-            }
-            else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
-            {
-                if (!_miscValidation.VerifyBodyGenAnnotations(_state.AssetPacks, _state.BodyGenConfigs))
-                {
-                    valid = false;
-                }
-
-                if (!_miscValidation.VerifyGeneratedTriFilesForBodyGen(_state.AssetPacks, _state.BodyGenConfigs))
-                {
-                    valid = false;
-                }
-            }
-        }
-
-        if (PatcherSettings.General.bChangeHeadParts)
-        {
-            if (!_miscValidation.VerifyEBDInstalled())
-            {
-                valid = false;
-            }
-
-            //if (!MiscValidation.VerifySPIDInstalled(env.DataFolderPath, false))
-            //{
-            //    valid = false;
-            //}
-
-            if (!_miscValidation.VerifyJContainersInstalled(_stateProvider.DataFolderPath, false))
-            {
-                valid = false;
-            }
-        }
-
-        if (!valid)
-        {
-            _logger.LogErrorWithStatusUpdate("Could not run the patcher. Please correct the errors above.", ErrorType.Error);
-        }
-
-        return valid;
-    }
 }
