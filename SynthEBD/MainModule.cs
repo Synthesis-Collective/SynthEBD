@@ -30,6 +30,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<HeadPartWriter>().AsSelf().SingleInstance();
         builder.RegisterType<OBodyWriter>().AsSelf().SingleInstance();
         builder.RegisterType<BodyGenWriter>().AsSelf().SingleInstance();
+        builder.RegisterType<FirstLaunch>().AsSelf().SingleInstance();
 
         // UI components (main)
         builder.RegisterType<MainWindow_ViewModel>().AsSelf().SingleInstance();

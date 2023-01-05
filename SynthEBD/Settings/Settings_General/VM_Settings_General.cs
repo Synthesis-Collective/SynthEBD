@@ -19,6 +19,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     private readonly VM_RaceAlias.Factory _aliasFactory;
     private readonly VM_RaceGrouping.Factory _groupingFactory;
     private readonly VM_LinkedNPCGroup.Factory _linkedNPCFactory;
+    private readonly FirstLaunch _firstLaunch;
     public VM_Settings_General(
         VM_SettingsModManager modManagerSettings,
         PatcherSettingsSourceProvider settingsProvider,
@@ -28,12 +29,14 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         VM_LinkedNPCGroup.Factory linkedNPCFactory,
         SettingsIO_General generalIO,
         PatchableRaceResolver raceResolver,
-        IStateProvider stateProvider)
+        IStateProvider stateProvider,
+        FirstLaunch firstLaunch)
     {
         StateProvider = stateProvider;
         IsStandalone = StateProvider.RunMode == Mode.Standalone;
         _raceResolver = raceResolver;
         _generalIO = generalIO;
+        _firstLaunch = firstLaunch;
         _aliasFactory = aliasFactory;
         _groupingFactory = groupingFactory;
         _linkedNPCFactory = linkedNPCFactory;
@@ -155,9 +158,12 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
             }
         );
 
-        this.WhenAnyValue(x => x._bFirstRun).Subscribe(x => {
-            if (x) {
+        this.WhenAnyValue(x => x._bFirstRun).Subscribe(x =>
+        {
+            if (x)
+            {
                 ShowFirstRunMessage();
+                _firstLaunch.OnFirstLaunch();
             }
         });
     }

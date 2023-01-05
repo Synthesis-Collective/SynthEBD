@@ -126,11 +126,11 @@ public partial class App : Application
         sb.AppendLine("SynthEBD has crashed with the following error:");
         sb.AppendLine(ExceptionLogger.GetExceptionStack(e.Exception));
         sb.AppendLine();
-        sb.AppendLine("Patcher Environment Creation Log:");
-        sb.AppendLine(PatcherEnvironmentSourceProvider.SettingsLog.ToString());
-        sb.AppendLine();
         sb.AppendLine("Patcher Settings Creation Log:");
         sb.AppendLine(PatcherSettingsSourceProvider.SettingsLog.ToString());
+        sb.AppendLine();
+        sb.AppendLine("Patcher Environment Creation Log:");
+        sb.AppendLine(PatcherEnvironmentSourceProvider.SettingsLog.ToString());
 
         var errorMessage = sb.ToString();
         CustomMessageBox.DisplayNotificationOK("SynthEBD has crashed.", errorMessage);
