@@ -11,6 +11,11 @@ using System.IO;
 
 namespace SynthEBD;
 
+public enum LogMode
+{
+    SynthEBD,
+    Synthesis
+}
 public sealed class Logger : VM
 {
     private readonly DisplayedItemVm _displayedItemVm;
@@ -65,8 +70,7 @@ public sealed class Logger : VM
         if (assemblyPath != null)
         {
             _logFolderPath = Path.Combine(Path.GetDirectoryName(assemblyPath), "Logs");
-        }
-        
+        } 
     }
 
     public void SetLogPath(string path)
@@ -76,14 +80,18 @@ public sealed class Logger : VM
 
     public void LogMessage(string message)
     {
-        LoggedEvents.Add(message);
+        switch (_stateProvider.LoggerMode)
+        {
+            case LogMode.SynthEBD: LoggedEvents.Add(message); break;
+            case LogMode.Synthesis: Console.WriteLine(message); break;
+        }
     }
 
     public void LogMessage(IEnumerable<string> messages)
     {
         foreach (var message in messages)
         {
-            LoggedEvents.Add(message);
+            LogMessage(message);
         }
     }
 
@@ -268,7 +276,11 @@ public sealed class Logger : VM
 
     public void LogError(string error)
     {
-        LoggedEvents.Add(error);
+        switch (_stateProvider.LoggerMode)
+        {
+            case LogMode.SynthEBD: LoggedEvents.Add(error); break;
+            case LogMode.Synthesis: Console.WriteLine(error); break;
+        }
         _loggedError.OnNext(Unit.Default);
     }
     public static string SpreadFlattenedAssetPack(FlattenedAssetPack ap, int index, bool indentAtIndex)

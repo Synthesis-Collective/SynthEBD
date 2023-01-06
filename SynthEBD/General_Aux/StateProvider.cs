@@ -25,6 +25,7 @@ public interface IStateProvider
     //Additional properties needed by SynthEBD
     DirectoryPath DataFolderPath { get; set; }
     Mode RunMode { get; }
+    LogMode LoggerMode { get; }
     public string LogFolderPath { get; }
     public string OutputModName { get; set; }
     public SkyrimRelease SkyrimVersion { get; }
@@ -55,7 +56,8 @@ public class StandaloneRunStateProvider : VM, IOutputStateProvider
     public DirectoryPath InternalDataPath { get; set; }
     [Reactive] public DirectoryPath DataFolderPath { get; set; }
     public ISkyrimMod OutputMod { get; set; }
-    public Mode RunMode { get; set; } = Mode.Standalone;
+    public Mode RunMode { get; } = Mode.Standalone;
+    public LogMode LoggerMode { get; } = LogMode.SynthEBD;
 
     // Additional properties for customization
     [Reactive] public string OutputModName { get; set; }
@@ -202,7 +204,8 @@ public class OpenForSettingsWrapper : IStateProvider
     public DirectoryPath ExtraSettingsDataPath => _state.ExtraSettingsDataPath ?? throw new Exception("Could not locate Extra Settings Data Path");
     public DirectoryPath InternalDataPath => _state.InternalDataPath ?? throw new Exception("Could not locate Internal Data Path");
     public DirectoryPath DataFolderPath { get; set; }
-    public Mode RunMode { get; set; } = Mode.Synthesis;
+    public Mode RunMode { get; } = Mode.Synthesis;
+    public LogMode LoggerMode { get; } = LogMode.SynthEBD;
     public string LogFolderPath => Path.Combine(_state.ExtraSettingsDataPath, "Logs");
     public SkyrimRelease SkyrimVersion => _state.GameRelease.ToSkyrimRelease();
     public string LoadOrderFilePath => _state.LoadOrderFilePath;
@@ -228,7 +231,8 @@ public class RunnabilitySettingsWrapper : IStateProvider
     public DirectoryPath ExtraSettingsDataPath => _state.ExtraSettingsDataPath ?? throw new Exception("Could not locate Extra Settings Data Path");
     public DirectoryPath InternalDataPath => _state.InternalDataPath ?? throw new Exception("Could not locate Internal Data Path");
     public DirectoryPath DataFolderPath { get; set; }
-    public Mode RunMode { get; set; } = Mode.Synthesis;
+    public Mode RunMode { get; } = Mode.Synthesis;
+    public LogMode LoggerMode { get; } = LogMode.Synthesis;
     public string LogFolderPath => Path.Combine(_state.ExtraSettingsDataPath, "Logs");
     public SkyrimRelease SkyrimVersion => _state.GameRelease.ToSkyrimRelease();
     public string LoadOrderFilePath => _state.LoadOrderFilePath;
@@ -253,7 +257,8 @@ public class PatcherStateWrapper : IOutputStateProvider
     public DirectoryPath ExtraSettingsDataPath => _state.ExtraSettingsDataPath ?? throw new Exception("Could not locate Extra Settings Data Path");
     public DirectoryPath InternalDataPath => _state.InternalDataPath ?? throw new Exception("Could not locate Internal Data Path");
     public DirectoryPath DataFolderPath { get; set; }
-    public Mode RunMode { get; set; } = Mode.Synthesis;
+    public Mode RunMode { get; } = Mode.Synthesis;
+    public LogMode LoggerMode { get; } = LogMode.Synthesis;
     public string LogFolderPath => Path.Combine(_state.ExtraSettingsDataPath, "Logs");
     public SkyrimRelease SkyrimVersion => _state.GameRelease.ToSkyrimRelease();
     public string LoadOrderFilePath => _state.LoadOrderFilePath;
