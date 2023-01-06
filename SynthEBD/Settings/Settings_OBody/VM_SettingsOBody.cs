@@ -72,6 +72,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     public RelayCommand ClickDescriptorsMenu { get; }
     public RelayCommand ClickAttributeGroupsMenu { get; }
     public RelayCommand ClickMiscMenu { get; }
+    public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new(); // storage variable - keeps data from model to pass back to model on dump
 
     public static void GetViewModelFromModel(Settings_OBody model, VM_SettingsOBody viewModel, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyShapeDescriptorCreator descriptorCreator, VM_OBodyMiscSettings.Factory miscSettingsFactory, VM_BodySlideSetting.Factory bodySlideFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_NPCAttributeCreator attCreator, Logger logger)
     {
@@ -111,6 +112,8 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         }
 
         viewModel.MiscUI = viewModel.MiscUI.GetViewModelFromModel(model);
+
+        viewModel.CurrentlyExistingBodySlides = model.CurrentlyExistingBodySlides;
     }
 
     public Settings_OBody DumpViewModelToModel()
@@ -132,6 +135,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         VM_AttributeGroupMenu.DumpViewModelToModels(AttributeGroupMenu, model.AttributeGroups);
 
         VM_OBodyMiscSettings.DumpViewModelToModel(model, MiscUI);
+        model.CurrentlyExistingBodySlides = CurrentlyExistingBodySlides;
         return model;
     }
 }
