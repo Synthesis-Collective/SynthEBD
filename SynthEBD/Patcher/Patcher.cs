@@ -73,6 +73,7 @@ public class Patcher
     public async Task RunPatcher()
     {
         // General pre-patching tasks: 
+        _paths.OutputDataFolder = PatcherSettings.General.OutputDataFolder;
         var outputMod = _stateProvider.OutputMod;
         var allNPCs = _stateProvider.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
         _raceResolver.ResolvePatchableRaces();
@@ -308,9 +309,11 @@ public class Patcher
             _headPartWriter.WriteAssignmentDictionary();
         }
 
-        string patchOutputPath = System.IO.Path.Combine(_paths.OutputDataFolder, PatcherSettings.General.PatchFileName + ".esp");
-        PatcherIO.WritePatch(patchOutputPath, outputMod, _logger, _stateProvider);
-
+        if (_stateProvider.RunMode == Mode.Standalone)
+        {
+            string patchOutputPath = System.IO.Path.Combine(_paths.OutputDataFolder, _stateProvider.OutputMod.ModKey.ToString());
+            PatcherIO.WritePatch(patchOutputPath, outputMod, _logger, _stateProvider);
+        }
         _statusBar.IsPatching = false;
     }
 

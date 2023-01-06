@@ -20,6 +20,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     private readonly VM_RaceGrouping.Factory _groupingFactory;
     private readonly VM_LinkedNPCGroup.Factory _linkedNPCFactory;
     private readonly FirstLaunch _firstLaunch;
+    private readonly SynthEBDPaths _paths;
     public VM_Settings_General(
         VM_SettingsModManager modManagerSettings,
         PatcherSettingsSourceProvider settingsProvider,
@@ -30,7 +31,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         SettingsIO_General generalIO,
         PatchableRaceResolver raceResolver,
         IStateProvider stateProvider,
-        FirstLaunch firstLaunch)
+        FirstLaunch firstLaunch,
+        SynthEBDPaths paths)
     {
         StateProvider = stateProvider;
         IsStandalone = StateProvider.RunMode == Mode.Standalone;
@@ -40,6 +42,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         _aliasFactory = aliasFactory;
         _groupingFactory = groupingFactory;
         _linkedNPCFactory = linkedNPCFactory;
+        _paths = paths;
 
         if (IsStandalone)
         {
@@ -165,6 +168,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
                 _firstLaunch.OnFirstLaunch();
             }
         });
+
+        this.WhenAnyValue(x => x.OutputDataFolder).Subscribe(x => _paths.OutputDataFolder = x);
     }
 
     public VM_Settings_Environment EnvironmentSettingsVM { get; set; }
