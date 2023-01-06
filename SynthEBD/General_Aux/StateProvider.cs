@@ -206,8 +206,8 @@ public class OpenForSettingsWrapper : IStateProvider
     public string LogFolderPath => Path.Combine(_state.ExtraSettingsDataPath, "Logs");
     public SkyrimRelease SkyrimVersion => _state.GameRelease.ToSkyrimRelease();
     public string LoadOrderFilePath => _state.LoadOrderFilePath;
-    public string CreationClubListingsFilePath => _env.Value?.CreationClubListingsFilePath ?? "NULL";
-    public string OutputModName { get; set; } = "NONE";
+    public string CreationClubListingsFilePath => _env.Value?.CreationClubListingsFilePath ?? "Not Available";
+    public string OutputModName { get; set; } = "Not Available";
 }
 
 public class RunnabilitySettingsWrapper : IStateProvider
@@ -232,8 +232,34 @@ public class RunnabilitySettingsWrapper : IStateProvider
     public string LogFolderPath => Path.Combine(_state.ExtraSettingsDataPath, "Logs");
     public SkyrimRelease SkyrimVersion => _state.GameRelease.ToSkyrimRelease();
     public string LoadOrderFilePath => _state.LoadOrderFilePath;
-    public string CreationClubListingsFilePath => _env.Value?.CreationClubListingsFilePath ?? "NULL";
-    public string OutputModName { get; set; } = "NONE";
+    public string CreationClubListingsFilePath => _env.Value?.CreationClubListingsFilePath ?? "Not Available";
+    public string OutputModName { get; set; } = "Not Available";
+}
+
+public class PatcherStateWrapper : IOutputStateProvider
+{
+    private readonly IPatcherState<ISkyrimMod, ISkyrimModGetter> _state;
+
+    public PatcherStateWrapper(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
+    {
+        _state = state;
+        DataFolderPath = _state.DataFolderPath;
+        OutputModName = _state.PatchMod.ModKey.FileName;
+        OutputMod = _state.PatchMod;
+    }
+
+    public ILoadOrderGetter<IModListingGetter<ISkyrimModGetter>> LoadOrder => _state.LoadOrder;
+    public ILinkCache<ISkyrimMod, ISkyrimModGetter> LinkCache => _state.LinkCache;
+    public DirectoryPath ExtraSettingsDataPath => _state.ExtraSettingsDataPath ?? throw new Exception("Could not locate Extra Settings Data Path");
+    public DirectoryPath InternalDataPath => _state.InternalDataPath ?? throw new Exception("Could not locate Internal Data Path");
+    public DirectoryPath DataFolderPath { get; set; }
+    public Mode RunMode { get; set; } = Mode.Synthesis;
+    public string LogFolderPath => Path.Combine(_state.ExtraSettingsDataPath, "Logs");
+    public SkyrimRelease SkyrimVersion => _state.GameRelease.ToSkyrimRelease();
+    public string LoadOrderFilePath => _state.LoadOrderFilePath;
+    public string CreationClubListingsFilePath => "Not Available";
+    public string OutputModName { get; set; }
+    public ISkyrimMod OutputMod { get; set; }
 }
 
 public static class LoadOrderExtensions

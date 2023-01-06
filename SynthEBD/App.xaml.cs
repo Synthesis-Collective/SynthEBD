@@ -36,34 +36,6 @@ public partial class App : Application
             .Wait();
     }
 
-
-    public int OpenForSettings(IOpenForSettingsState state)
-    {
-        var builder = new ContainerBuilder();
-        builder.RegisterModule<MainModule>();
-        builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();
-        builder.RegisterType<PatcherEnvironmentSourceProvider>().AsSelf().SingleInstance();
-        builder.RegisterInstance(new OpenForSettingsWrapper(state)).AsSelf().AsImplementedInterfaces().SingleInstance();
-        var container = builder.Build();
-
-        _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
-        _settingsSourceProvider.SettingsRootPath = state.ExtraSettingsDataPath;
-        _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
-
-        var window = new MainWindow();
-        var mainVM = container.Resolve<MainWindow_ViewModel>();
-        window.DataContext = mainVM;
-        mainVM.Init();
-        window.Show();
-
-        //special case - MaterialMessageBox causes main window to close if it's called before window.Show(), so have to call this function now
-        var updateHandler = container.Resolve<UpdateHandler>();
-        var texMeshVM = container.Resolve<VM_SettingsTexMesh>();
-        updateHandler.PostWindowShowFunctions(texMeshVM);
-
-        return 0;
-    }
-
     public int StandaloneOpen()
     {
         var assembly = Assembly.GetEntryAssembly() ?? throw new ArgumentNullException();
@@ -97,24 +69,32 @@ public partial class App : Application
 
         return 0;
     }
-    
-    private async Task RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
+
+    public int OpenForSettings(IOpenForSettingsState state)
     {
         var builder = new ContainerBuilder();
+        builder.RegisterModule<MainModule>();
         builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();
         builder.RegisterType<PatcherEnvironmentSourceProvider>().AsSelf().SingleInstance();
-        builder.RegisterInstance(state).AsSelf().AsImplementedInterfaces().SingleInstance();
-        builder.RegisterModule<MainModule>();
+        builder.RegisterInstance(new OpenForSettingsWrapper(state)).AsSelf().AsImplementedInterfaces().SingleInstance();
         var container = builder.Build();
 
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
         _settingsSourceProvider.SettingsRootPath = state.ExtraSettingsDataPath;
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
 
-        var saveLoader = container.Resolve<SaveLoader>();
-        saveLoader.LoadAllSettings();
-        var patcher = container.Resolve<Patcher>();
-        await patcher.RunPatcher();   
+        var window = new MainWindow();
+        var mainVM = container.Resolve<MainWindow_ViewModel>();
+        window.DataContext = mainVM;
+        mainVM.Init();
+        window.Show();
+
+        //special case - MaterialMessageBox causes main window to close if it's called before window.Show(), so have to call this function now
+        var updateHandler = container.Resolve<UpdateHandler>();
+        var texMeshVM = container.Resolve<VM_SettingsTexMesh>();
+        updateHandler.PostWindowShowFunctions(texMeshVM);
+
+        return 0;
     }
 
     private static void CanRunPatch(IRunnabilityState state)
@@ -137,6 +117,25 @@ public partial class App : Application
         {
             throw new Exception("Validation failed.");
         }
+    }
+
+    private async Task RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
+    {
+        var builder = new ContainerBuilder();
+        builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();
+        builder.RegisterType<PatcherEnvironmentSourceProvider>().AsSelf().SingleInstance();
+        builder.RegisterInstance(new PatcherStateWrapper(state)).AsSelf().AsImplementedInterfaces().SingleInstance();
+        builder.RegisterModule<MainModule>();
+        var container = builder.Build();
+
+        _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
+        _settingsSourceProvider.SettingsRootPath = state.ExtraSettingsDataPath;
+        _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
+
+        var saveLoader = container.Resolve<SaveLoader>();
+        saveLoader.LoadAllSettings();
+        var patcher = container.Resolve<Patcher>();
+        await patcher.RunPatcher();
     }
 
     private void Application_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
