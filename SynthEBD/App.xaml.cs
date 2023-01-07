@@ -115,7 +115,7 @@ public partial class App : Application
         var validation = container.Resolve<PreRunValidation>();
         if (!validation.ValidatePatcherState())
         {
-            throw new Exception("Validation failed.");
+            throw new Exception("SynthEBD Validation Failed. See logged messages above.");
         }
     }
 
