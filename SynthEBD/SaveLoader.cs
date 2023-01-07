@@ -1,5 +1,6 @@
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
+using System.Reactive.Linq;
 using System.Security.Cryptography.X509Certificates;
 using static SynthEBD.VM_BodyShapeDescriptor;
 using static SynthEBD.VM_NPCAttribute;
@@ -146,12 +147,14 @@ public class SaveLoader : VM
         _attributeCreator = attributeCreator;
         _headPartSettingsVM = headParts;
 
-        _patcherSettingsSourceProvider.WhenAnyValue(x => x.SettingsRootPath).Subscribe(_ => {
-            if (_isTrackingRootFolder)
-            {
+        Observable.CombineLatest(
+                _patcherSettingsSourceProvider.WhenAnyValue(x => x.UsePortableSettings),
+                _patcherSettingsSourceProvider.WhenAnyValue(x => x.PortableSettingsFolder),
+                (_, _) => { return 0; })
+            .Subscribe(_ => {
                 Reinitialize();
-            }
-        });
+            });
+
     }
 
     public void TrackRootFolder()
@@ -388,7 +391,7 @@ public class SaveLoader : VM
             _logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
         }
 
-        _patcherSettingsSourceProvider.SaveSettingsSource(_generalSettingsVM, out saveSuccess, out exceptionStr);
+        _patcherSettingsSourceProvider.SaveSettingsSource(out saveSuccess, out exceptionStr);
         if (!saveSuccess) 
         {
             captionStr = "Error saving Load Source Settings: ";

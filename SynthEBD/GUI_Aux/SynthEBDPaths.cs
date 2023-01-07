@@ -41,9 +41,10 @@ public class SynthEBDPaths : VM
         GetRootPath();
 
         Observable.CombineLatest(
-                settingsSourceProvider.WhenAnyValue(x => x.SettingsSource.UsePortableSettings),
-                settingsSourceProvider.WhenAnyValue(x => x.SettingsSource.PortableSettingsFolder),
+                _settingsSourceProvider.WhenAnyValue(x => x.UsePortableSettings),
+                _settingsSourceProvider.WhenAnyValue(x => x.PortableSettingsFolder),
                 (_, _) => { return 0; })
+            .Skip(1) // don't re-evaluate during initialization
             .Subscribe(_ => {
                 GetRootPath();
             });
@@ -150,25 +151,25 @@ public class SynthEBDPaths : VM
     public string GetFallBackPath(string path)
     {
         var suffix = path.Remove(0, _rootPath.Length).Trim(Path.PathSeparator);
-        return Path.Join(_rootPath, suffix);
+        return Path.Join(_settingsSourceProvider.DefaultSettingsRootPath, suffix);
     }
 
     public void GetRootPath()
     {
-        if (_settingsSourceProvider.SettingsSource.Initialized && _settingsSourceProvider.SettingsSource.UsePortableSettings)
+        if (_settingsSourceProvider.Initialized && _settingsSourceProvider.UsePortableSettings)
         {
-            if (!_settingsSourceProvider.SettingsSource.PortableSettingsFolder.IsNullOrWhitespace())
+            if (!_settingsSourceProvider.PortableSettingsFolder.IsNullOrWhitespace())
             {
                 _rootPath = _settingsSourceProvider.SettingsRootPath;
             }
             else
             {
-                _rootPath = _stateProvider.DataFolderPath;
+                _rootPath = Path.Combine(_stateProvider.DataFolderPath, "SynthEBD");
             }
         }
         else
         {
-            _rootPath = _settingsSourceProvider.SettingsRootPath; // is already synced to SourcePath
+            _rootPath = _settingsSourceProvider.DefaultSettingsRootPath; // is already synced to SourcePath
         }
     }
 }

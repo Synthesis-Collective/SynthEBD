@@ -63,6 +63,7 @@ public class VM_HeightConfig : VM
 
     public static void GetViewModelsFromModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models, VM_HeightConfig.Factory configFactory, VM_HeightAssignment.Factory assignmentFactory)
     {
+        viewModels.Clear();
         for (int i = 0; i < models.Count; i++)
         {
             var vm = configFactory();

@@ -99,6 +99,9 @@ public class VM_SettingsBodyGen : VM
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
         VM_Settings_General generalSettingsVM)
     {
+        viewModel.FemaleConfigs.Clear();
+        viewModel.MaleConfigs.Clear();
+
         foreach(var config in configModels.Female)
         {
             var subConfig = bodyGenConfigFactory(viewModel.FemaleConfigs);

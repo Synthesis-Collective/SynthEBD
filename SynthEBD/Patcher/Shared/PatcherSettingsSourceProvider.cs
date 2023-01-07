@@ -4,17 +4,24 @@ using System.Text;
 
 namespace SynthEBD;
 
-public class PatcherSettingsSourceProvider
+public class PatcherSettingsSourceProvider : VM
 {
-    public PatcherSettingsSource SettingsSource { get; } = new();
+    //public PatcherSettingsSource SettingsSource { get; } = new();
     public static StringBuilder SettingsLog { get; } = new();
     public string ErrorString;
     public string SettingsSourcePath { get; set; } // where to read source from, and save it to
     public string SettingsRootPath { get; set; } // Where the SynthEBDPaths class should look for its settings files
+    public string DefaultSettingsRootPath { get; set; } // Either the application directory or the Synthesis extra settings folder, depending on how UI is launched.
+
+    // Loaded from DTO
+    public bool Initialized { get; set; } = false;
+    public bool UsePortableSettings { get; set; } = false;
+    public string PortableSettingsFolder { get; set; } = "";
 
     public PatcherSettingsSourceProvider(string sourcePath)
     {
         SettingsSourcePath = sourcePath;
+        DefaultSettingsRootPath = Path.GetDirectoryName(sourcePath);
 
         if (File.Exists(sourcePath))
         {
@@ -27,7 +34,9 @@ public class PatcherSettingsSourceProvider
                 SettingsLog.AppendLine("Source Settings: "); ;
                 SettingsLog.AppendLine("Load Settings from Portable Folder: " + source.UsePortableSettings);
                 SettingsLog.AppendLine("Portable Folder Location: " + source.PortableSettingsFolder);
-                SettingsSource = source;
+                Initialized = source.Initialized;
+                UsePortableSettings = source.UsePortableSettings;
+                PortableSettingsFolder = source.PortableSettingsFolder;
             }
             else
             {
@@ -35,36 +44,31 @@ public class PatcherSettingsSourceProvider
                 ErrorString = "Could not load Settings Source. Error: " + exceptionStr;
             }
 
-            if (SettingsSource.UsePortableSettings && !SettingsSource.PortableSettingsFolder.IsNullOrWhitespace() && Directory.Exists(SettingsSource.PortableSettingsFolder))
+            if (UsePortableSettings && !PortableSettingsFolder.IsNullOrWhitespace() && Directory.Exists(PortableSettingsFolder))
             {
                 SettingsRootPath = source.PortableSettingsFolder;
             }
             else
             {
-                SettingsRootPath = Path.GetDirectoryName(sourcePath);
+                SettingsRootPath = DefaultSettingsRootPath;
             }
         }
         else
         {
             SettingsLog.AppendLine("Did not find settings source path at " + sourcePath);
             SettingsLog.AppendLine("Using default environment and patcher settings locations.");
-            SettingsRootPath = Path.GetDirectoryName(sourcePath);
+            SettingsRootPath = DefaultSettingsRootPath;
         }
-        SettingsSource.Initialized = true;
+        Initialized = true;
     }
-    public void SaveSettingsSource(VM_Settings_General generalSettings, out bool saveSuccess, out string exceptionStr)
+    public void SaveSettingsSource(out bool saveSuccess, out string exceptionStr)
     {
         PatcherSettingsSource source = new PatcherSettingsSource()
         {
-            UsePortableSettings = generalSettings.bLoadSettingsFromDataFolder,
-            PortableSettingsFolder = generalSettings.PortableSettingsFolder,
+            UsePortableSettings = UsePortableSettings,
+            PortableSettingsFolder = PortableSettingsFolder,
             Initialized = true,
         };
         JSONhandler<PatcherSettingsSource>.SaveJSONFile(source, SettingsSourcePath, out saveSuccess, out exceptionStr);
-    }
-
-    public void SetPortableSettingsDir(string newDir)
-    {
-        SettingsSource.PortableSettingsFolder = newDir;
     }
 }

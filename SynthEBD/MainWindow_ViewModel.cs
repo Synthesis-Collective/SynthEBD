@@ -53,7 +53,7 @@ public class MainWindow_ViewModel : VM
     public void Init()
     {
         // Load settings
-        _saveLoader.Reinitialize();
+        //_saveLoader.Reinitialize();
         _saveLoader.TrackRootFolder(); // respond to portable settings folder updates now that initial settings are loaded.
 
         Application.Current.Exit += MainWindow_Closing;
