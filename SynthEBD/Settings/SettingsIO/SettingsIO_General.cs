@@ -36,6 +36,10 @@ public class SettingsIO_General
 
     public void DumpVMandSave(VM_Settings_General generalSettingsVM)
     {
+        if (PatcherSettings.General == null)
+        {
+            return;
+        }
         VM_Settings_General.DumpViewModelToModel(generalSettingsVM, PatcherSettings.General);
         JSONhandler<Settings_General>.SaveJSONFile(PatcherSettings.General, _paths.GeneralSettingsPath, out bool saveSuccess, out string exceptionStr);
         if (!saveSuccess) { _logger.LogMessage("Error saving General Settings: " + exceptionStr); }

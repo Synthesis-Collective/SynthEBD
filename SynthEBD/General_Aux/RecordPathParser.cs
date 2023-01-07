@@ -25,11 +25,13 @@ public class RecordPathParser
     private readonly IStateProvider _stateProvider; 
     private readonly Logger _logger;
     private readonly PatchableRaceResolver _raceResolver;
-    public RecordPathParser(IStateProvider stateProvider, Logger logger, PatchableRaceResolver raceResolver)
+    private readonly CustomMessageBox _customMessageBox;
+    public RecordPathParser(IStateProvider stateProvider, Logger logger, PatchableRaceResolver raceResolver, CustomMessageBox customMessageBox)
     {
         _stateProvider = stateProvider;
         _logger = logger;
         _raceResolver = raceResolver;
+        _customMessageBox = customMessageBox;
     }
 
     public bool GetObjectAtPath(dynamic rootObj, IMajorRecordGetter rootRecord, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj) // rootObj is the object relative to which the path is to be traversed. rootRecord is the parent record of the entire tree - this may be the same as rootObj, but rootObj may be a sub-object of rootRecord
@@ -799,7 +801,7 @@ public class RecordPathParser
             {
                 if (ex.Message.StartsWith("ERROR_005") && !MainWindow_ViewModel.EvalMessageTriggered)
                 {
-                    MainWindow_ViewModel.DisplayEvalErrorMessage();
+                    _customMessageBox.DisplayEvalErrorMessage();
                 }
                 return false; // should only happen when user is screwing around with UI
             }

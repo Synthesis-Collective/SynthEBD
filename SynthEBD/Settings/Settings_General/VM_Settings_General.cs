@@ -12,10 +12,9 @@ namespace SynthEBD;
 public class VM_Settings_General : VM, IHasAttributeGroupMenu
 {
     public IStateProvider StateProvider { get; }
-    public SaveLoader SaveLoader { get; set; }
     private bool _bFirstRun { get; set; } = false;
     private readonly SettingsIO_General _generalIO;
-    private readonly PatchableRaceResolver _raceResolver;
+    private readonly PatcherSettingsSourceProvider _settingsSourceProvider;
     private readonly VM_RaceAlias.Factory _aliasFactory;
     private readonly VM_RaceGrouping.Factory _groupingFactory;
     private readonly VM_LinkedNPCGroup.Factory _linkedNPCFactory;
@@ -29,14 +28,13 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         VM_RaceGrouping.Factory groupingFactory,
         VM_LinkedNPCGroup.Factory linkedNPCFactory,
         SettingsIO_General generalIO,
-        PatchableRaceResolver raceResolver,
         IStateProvider stateProvider,
         FirstLaunch firstLaunch,
         SynthEBDPaths paths)
     {
         StateProvider = stateProvider;
         IsStandalone = StateProvider.RunMode == Mode.Standalone;
-        _raceResolver = raceResolver;
+        _settingsSourceProvider = settingsProvider;
         _generalIO = generalIO;
         _firstLaunch = firstLaunch;
         _aliasFactory = aliasFactory;
@@ -51,10 +49,10 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
 
         AttributeGroupMenu = attributeGroupFactory(null, false);
 
-        if (settingsProvider.SettingsSource.Value.Initialized)
+        if (settingsProvider.SettingsSource.Initialized)
         {
-            bLoadSettingsFromDataFolder = settingsProvider.SettingsSource.Value.LoadFromDataDir;
-            PortableSettingsFolder = settingsProvider.SettingsSource.Value.PortableSettingsFolder;
+            bLoadSettingsFromDataFolder = settingsProvider.SettingsSource.UsePortableSettings;
+            PortableSettingsFolder = settingsProvider.SettingsSource.PortableSettingsFolder;
         }
 
         this.WhenAnyValue(x => x.bShowToolTips)
@@ -89,10 +87,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
             execute: x => LinkedNPCGroups.Remove((VM_LinkedNPCGroup)x)
         );
 
-        this.WhenAnyValue(x => x.bLoadSettingsFromDataFolder).Skip(1).Subscribe(x =>
+        this.WhenAnyValue(x => x.bLoadSettingsFromDataFolder).Subscribe(x =>
         {
-            _raceResolver.ResolvePatchableRaces();
-            SaveLoader.Reinitialize();
+            SwitchPortableSettingsFolder(PortableSettingsFolder);
         });
 
         SelectOutputFolder = new RelayCommand(
@@ -142,7 +139,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
                     }
                     else
                     {
-                        SwitchPortableSettingsFolder(selectedPath, settingsProvider);
+                        SwitchPortableSettingsFolder(selectedPath);
                     }
                 }
             }
@@ -157,7 +154,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
                     CustomMessageBox.DisplayNotificationOK("", "There is no settings folder path to clear.");
                     return;
                 }
-                SwitchPortableSettingsFolder(string.Empty, settingsProvider);
+                SwitchPortableSettingsFolder(StateProvider.DataFolderPath);
             }
         );
 
@@ -241,9 +238,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         viewModel.AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
         viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;
 
-        if (patcherSettingsProvider.SettingsSource.Value.Initialized)
+        if (patcherSettingsProvider.SettingsSource.Initialized)
         {
-            viewModel.PortableSettingsFolder = patcherSettingsProvider.SettingsSource.Value.PortableSettingsFolder;
+            viewModel.PortableSettingsFolder = patcherSettingsProvider.SettingsSource.PortableSettingsFolder;
         }
 
         viewModel._bFirstRun = model.bFirstRun;
@@ -290,11 +287,10 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         PatcherSettings.General = model;
     }
 
-    private void SwitchPortableSettingsFolder(string folderPath, PatcherSettingsSourceProvider settingsProvider)
+    private void SwitchPortableSettingsFolder(string folderPath)
     {
         PortableSettingsFolder = folderPath;
         _generalIO.DumpVMandSave(this);
-        settingsProvider.SetNewDataDir(PortableSettingsFolder);
-        SaveLoader.Reinitialize();
+        _settingsSourceProvider.SetPortableSettingsDir(PortableSettingsFolder);
     }
 }

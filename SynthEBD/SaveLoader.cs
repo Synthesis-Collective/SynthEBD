@@ -1,11 +1,12 @@
 using Mutagen.Bethesda.Skyrim;
+using ReactiveUI;
 using System.Security.Cryptography.X509Certificates;
 using static SynthEBD.VM_BodyShapeDescriptor;
 using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD;
 
-public class SaveLoader
+public class SaveLoader : VM
 {
     // Some are public properties to allow for circular IoC dependencies
     private readonly IStateProvider _stateProvider;
@@ -51,6 +52,8 @@ public class SaveLoader
     private readonly SettingsIO_SpecificNPCAssignments _specificNPCassignmentsIO;
     private readonly Converters _converters;
     private readonly VM_NPCAttributeCreator _attributeCreator;
+
+    private bool _isTrackingRootFolder = false;
 
     public SaveLoader(
         IStateProvider stateProvider,
@@ -142,8 +145,19 @@ public class SaveLoader
         _converters = converters;
         _attributeCreator = attributeCreator;
         _headPartSettingsVM = headParts;
+
+        _patcherSettingsSourceProvider.WhenAnyValue(x => x.SettingsRootPath).Subscribe(_ => {
+            if (_isTrackingRootFolder)
+            {
+                Reinitialize();
+            }
+        });
     }
 
+    public void TrackRootFolder()
+    {
+        _isTrackingRootFolder = true;
+    }
     public void Reinitialize()
     {
         System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;

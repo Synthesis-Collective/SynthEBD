@@ -50,7 +50,7 @@ public partial class App : Application
 
         var container = builder.Build();
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(rootPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.SettingsSourceFileName)));
-        _settingsSourceProvider.SettingsRootPath = Path.Combine(rootPath, SynthEBDPaths.StandaloneSourceDirName);
+        // TEST_settingsSourceProvider.SettingsRootPath = Path.Combine(rootPath, SynthEBDPaths.StandaloneSourceDirName);
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(rootPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName)));
         var state = container.Resolve<StandaloneRunStateProvider>(new NamedParameter("environmentSourceProvider", _environmentSourceProvider));
 
@@ -62,7 +62,13 @@ public partial class App : Application
         window.DataContext = mainVM;
         window.Show();
 
-        //special case - MaterialMessageBox causes main window to close if it's called before window.Show(), so have to call this function now
+        var navPanel = container.Resolve<VM_NavPanel>();
+        navPanel.GoToMainMenu();
+
+        var customMessages = container.Resolve<CustomMessageBox>();
+        customMessages.AllowMessageDisplay();
+
+        //special case - MaterialMessageBox causes main window to close if it's called before window.Show(), so have to call these functions now
         var updateHandler = container.Resolve<UpdateHandler>();
         var texMeshVM = container.Resolve<VM_SettingsTexMesh>();
         updateHandler.PostWindowShowFunctions(texMeshVM);
@@ -80,7 +86,7 @@ public partial class App : Application
         var container = builder.Build();
 
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
-        _settingsSourceProvider.SettingsRootPath = state.ExtraSettingsDataPath;
+        // TEST_settingsSourceProvider.SettingsRootPath = state.ExtraSettingsDataPath;
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
 
         var window = new MainWindow();
@@ -89,7 +95,10 @@ public partial class App : Application
         mainVM.Init();
         window.Show();
 
-        //special case - MaterialMessageBox causes main window to close if it's called before window.Show(), so have to call this function now
+        var customMessages = container.Resolve<CustomMessageBox>();
+        customMessages.AllowMessageDisplay();
+
+        //special case - MaterialMessageBox causes main window to close if it's called before window.Show(), so have to call these functions now
         var updateHandler = container.Resolve<UpdateHandler>();
         var texMeshVM = container.Resolve<VM_SettingsTexMesh>();
         updateHandler.PostWindowShowFunctions(texMeshVM);
@@ -107,7 +116,7 @@ public partial class App : Application
         var container = builder.Build();
 
         var settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
-        settingsSourceProvider.SettingsRootPath = state.ExtraSettingsDataPath;
+        // TEST settingsSourceProvider.SettingsRootPath = state.ExtraSettingsDataPath;
         container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
         var saveLoader = container.Resolve<SaveLoader>();
         saveLoader.LoadAllSettings();
@@ -129,7 +138,7 @@ public partial class App : Application
         var container = builder.Build();
 
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
-        _settingsSourceProvider.SettingsRootPath = state.ExtraSettingsDataPath;
+        // TEST_settingsSourceProvider.SettingsRootPath = state.ExtraSettingsDataPath;
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
 
         var saveLoader = container.Resolve<SaveLoader>();

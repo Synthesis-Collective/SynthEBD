@@ -23,7 +23,8 @@ public class SynthEBDPaths : VM
 
     private static readonly string settingsDirPath;
 
-    //private readonly IStateProvider _stateProvider;
+    private readonly PatcherSettingsSourceProvider _settingsSourceProvider;
+    private readonly IStateProvider _stateProvider;
 
     //public static void SetRootPath(string rootPath)
     //{
@@ -31,9 +32,22 @@ public class SynthEBDPaths : VM
     //}
 
     public SynthEBDPaths(
-        PatcherSettingsSourceProvider settingsSourceProvider)
+        PatcherSettingsSourceProvider settingsSourceProvider,
+        IStateProvider stateProvider)
     {
-        _rootPath = settingsSourceProvider.SettingsRootPath;
+        _settingsSourceProvider = settingsSourceProvider;
+        _stateProvider = stateProvider;
+
+        GetRootPath();
+
+        Observable.CombineLatest(
+                settingsSourceProvider.WhenAnyValue(x => x.SettingsSource.UsePortableSettings),
+                settingsSourceProvider.WhenAnyValue(x => x.SettingsSource.PortableSettingsFolder),
+                (_, _) => { return 0; })
+            .Subscribe(_ => {
+                GetRootPath();
+            });
+
         // create relevant paths if necessary - only in the "home" directory. To avoid inadvertent clutter in the data folder, user must create these directories manually in their data folder
 
         string settingsDirPath = Path.Combine(_rootPath, settingsDirRelPath);
@@ -66,11 +80,6 @@ public class SynthEBDPaths : VM
         if (Directory.Exists(recordTemplatesDirPath) == false)
         {
             Directory.CreateDirectory(recordTemplatesDirPath);
-        }
-
-        if (settingsSourceProvider.SettingsSource.Value.Initialized && settingsSourceProvider.SettingsSource.Value.LoadFromDataDir)
-        {
-            _rootPath = settingsSourceProvider.SettingsSource.Value.PortableSettingsFolder;
         }
 
         /*
@@ -142,5 +151,24 @@ public class SynthEBDPaths : VM
     {
         var suffix = path.Remove(0, _rootPath.Length).Trim(Path.PathSeparator);
         return Path.Join(_rootPath, suffix);
+    }
+
+    public void GetRootPath()
+    {
+        if (_settingsSourceProvider.SettingsSource.Initialized && _settingsSourceProvider.SettingsSource.UsePortableSettings)
+        {
+            if (!_settingsSourceProvider.SettingsSource.PortableSettingsFolder.IsNullOrWhitespace())
+            {
+                _rootPath = _settingsSourceProvider.SettingsRootPath;
+            }
+            else
+            {
+                _rootPath = _stateProvider.DataFolderPath;
+            }
+        }
+        else
+        {
+            _rootPath = _settingsSourceProvider.SettingsRootPath; // is already synced to SourcePath
+        }
     }
 }

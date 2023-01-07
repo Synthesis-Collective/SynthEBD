@@ -32,7 +32,7 @@ public class PatcherEnvironmentProvider : Noggog.WPF.ViewModel
     public PatcherEnvironmentProvider(PatcherSettingsSourceProvider settingsProvider, Logger logger)
     {
         _logger = logger;
-        var sourceSettings = settingsProvider.SettingsSource.Value;
+        var sourceSettings = settingsProvider.SettingsSource;
         // initialize paths
         if (sourceSettings.Initialized)
         {

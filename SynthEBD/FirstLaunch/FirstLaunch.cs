@@ -20,7 +20,8 @@ namespace SynthEBD
         private readonly VM_HeightAssignment.Factory _heightAssignmentFactory;
         private readonly SettingsIO_AssetPack _assetIO;
         private readonly MainState _mainState;
-        public FirstLaunch(IStateProvider stateProvider, SynthEBDPaths paths, Logger logger, VM_SettingsHeight heightSettingsVM, SettingsIO_AssetPack assetIO, MainState mainState, VM_HeightConfig.Factory heightConfigFactory, VM_HeightAssignment.Factory heightAssignmentFactory)
+        private readonly CustomMessageBox _customMessageBox;
+        public FirstLaunch(IStateProvider stateProvider, SynthEBDPaths paths, Logger logger, VM_SettingsHeight heightSettingsVM, SettingsIO_AssetPack assetIO, MainState mainState, VM_HeightConfig.Factory heightConfigFactory, VM_HeightAssignment.Factory heightAssignmentFactory, CustomMessageBox customMessageBox)
         {
             _stateProvider = stateProvider;
             _paths = paths;
@@ -30,6 +31,7 @@ namespace SynthEBD
             _mainState = mainState;
             _heightConfigFactory = heightConfigFactory;
             _heightAssignmentFactory = heightAssignmentFactory;
+            _customMessageBox = customMessageBox;
         }
 
         public void OnFirstLaunch()
@@ -79,7 +81,7 @@ namespace SynthEBD
 If you are using a mod manager, start by going to the Mod Manager Integration menu and setting up your paths.
 If you don't want your patcher output going straight to your Data or Overwrite folder, set your desired Output Path in the General Settings menu.";
 
-            CustomMessageBox.DisplayNotificationOK("", message);
+            _customMessageBox.DisplayNotificationOK_WindowSafe("", message);
         }
     }
 }
