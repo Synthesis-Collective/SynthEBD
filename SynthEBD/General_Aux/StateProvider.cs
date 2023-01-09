@@ -171,7 +171,7 @@ public class StandaloneRunStateProvider : VM, IOutputStateProvider
 
         if (customEnvVM.IsValidated)
         {
-            DataFolderPath = customEnvVM.CustomGameDataDir;
+            DataFolderPath = customEnvVM.TrialEnvironment.DataFolderPath;
             SkyrimVersion = customEnvVM.SkyrimRelease;
             customEnvVM.TrialEnvironment.LoadOrder.Dispose();
             customEnvVM.TrialEnvironment.LinkCache.Dispose();
