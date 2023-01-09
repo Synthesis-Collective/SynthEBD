@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.FormKeys.SkyrimSE;
+using Mutagen.Bethesda.FormKeys.SkyrimSE;
 
 namespace SynthEBD;
 
@@ -197,6 +197,87 @@ public class DefaultRaceGroupings
             Skyrim.Race.DarkElfRaceVampire.FormKey,
             Skyrim.Race.HighElfRaceVampire.FormKey,
             Skyrim.Race.WoodElfRaceVampire.FormKey,
+        }
+    };
+
+    public static RaceGrouping Breton = new RaceGrouping()
+    {
+        Label = "Breton",
+        Races = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+        {
+            Skyrim.Race.BretonRace.FormKey,
+            Skyrim.Race.BretonRaceVampire.FormKey
+        }
+    };
+
+    public static RaceGrouping DarkElf = new RaceGrouping()
+    {
+        Label = "Dark Elf",
+        Races = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+        {
+            Skyrim.Race.DarkElfRace.FormKey,
+            Skyrim.Race.DarkElfRaceVampire.FormKey
+        }
+    };
+
+    public static RaceGrouping HighElf = new RaceGrouping()
+    {
+        Label = "High Elf",
+        Races = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+        {
+            Skyrim.Race.HighElfRace.FormKey,
+            Skyrim.Race.HighElfRaceVampire.FormKey
+        }
+    };
+
+    public static RaceGrouping Imperial = new RaceGrouping()
+    {
+        Label = "Imperial",
+        Races = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+        {
+            Skyrim.Race.ImperialRace.FormKey,
+            Skyrim.Race.ImperialRaceVampire.FormKey
+        }
+    };
+
+    public static RaceGrouping Nord = new RaceGrouping()
+    {
+        Label = "Nord",
+        Races = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+        {
+            Skyrim.Race.NordRace.FormKey,
+            Skyrim.Race.NordRaceVampire.FormKey,
+            Skyrim.Race.NordRaceAstrid.FormKey
+        }
+    };
+
+    public static RaceGrouping Orc = new RaceGrouping()
+    {
+        Label = "Orc",
+        Races = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+        {
+            Skyrim.Race.OrcRace.FormKey,
+            Skyrim.Race.OrcRaceVampire.FormKey
+        }
+    };
+
+    public static RaceGrouping Redguard = new RaceGrouping()
+    {
+        Label = "Redguard",
+        Races = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+        {
+            Skyrim.Race.RedguardRace.FormKey,
+            Skyrim.Race.RedguardRaceVampire.FormKey
+        }
+    };
+
+    public static RaceGrouping WoodElf = new RaceGrouping()
+    {
+        Label = "Wood Elf",
+        Races = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+        {
+            Skyrim.Race.WoodElfRace.FormKey,
+            Skyrim.Race.WoodElfRaceVampire.FormKey
         }
     };
 
