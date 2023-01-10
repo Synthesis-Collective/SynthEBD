@@ -84,11 +84,6 @@ namespace SynthEBD
                         }
                     }
 
-                    if (!_miscValidation.VerifyBodySlideAnnotations(PatcherSettings.OBody))
-                    {
-                        valid = false;
-                    }
-
                     if (!_miscValidation.VerifyGeneratedTriFilesForOBody(PatcherSettings.OBody))
                     {
                         valid = false;
@@ -101,11 +96,6 @@ namespace SynthEBD
                 }
                 else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
                 {
-                    if (!_miscValidation.VerifyBodyGenAnnotations(_patcherState.AssetPacks, _patcherState.BodyGenConfigs))
-                    {
-                        valid = false;
-                    }
-
                     if (!_miscValidation.VerifyGeneratedTriFilesForBodyGen(_patcherState.AssetPacks, _patcherState.BodyGenConfigs))
                     {
                         valid = false;

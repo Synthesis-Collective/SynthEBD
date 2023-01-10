@@ -1,5 +1,4 @@
 using Autofac;
-using K4os.Compression.LZ4.Internal;
 using Mutagen.Bethesda.Skyrim;
 using Mutagen.Bethesda.Synthesis;
 using Mutagen.Bethesda.Synthesis.WPF;
@@ -8,9 +7,6 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Windows;
-using static System.Formats.Asn1.AsnWriter;
-using static System.Windows.Forms.AxHost;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace SynthEBD;
 
@@ -143,6 +139,19 @@ public partial class App : Application
 
         var saveLoader = container.Resolve<SaveLoader>();
         saveLoader.LoadAllSettings();
+
+        var miscValidation = container.Resolve<MiscValidation>();
+        var patcherState = container.Resolve<MainState>();
+
+        if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !miscValidation.VerifyBodySlideAnnotations(PatcherSettings.OBody))
+        {
+            return;
+        }
+        else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !miscValidation.VerifyBodyGenAnnotations(patcherState.AssetPacks, patcherState.BodyGenConfigs))
+        {
+            return;
+        }
+
         var patcher = container.Resolve<Patcher>();
         await patcher.RunPatcher();
     }

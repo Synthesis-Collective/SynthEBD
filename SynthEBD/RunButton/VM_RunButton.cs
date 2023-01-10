@@ -1,3 +1,5 @@
+using Mutagen.Bethesda.Synthesis;
+using System;
 using System.Windows.Media;
 
 namespace SynthEBD;
@@ -8,6 +10,7 @@ public class VM_RunButton : VM
     private readonly VM_SettingsTexMesh _texMeshSettingsVm;
     private readonly MainState _state;
     private readonly PreRunValidation _preRunValidation;
+    private readonly MiscValidation _miscValidation;
     private readonly Logger _logger;
 
     public VM_RunButton(
@@ -18,6 +21,7 @@ public class VM_RunButton : VM
         MainState state,
         SaveLoader saveLoader,
         PreRunValidation preRunValidation,
+        MiscValidation miscValidation,
         Logger logger,
         VM_LogDisplay logDisplay,
         Func<Patcher> getPatcher)
@@ -26,6 +30,7 @@ public class VM_RunButton : VM
         _texMeshSettingsVm = texMeshSettingsVM;
         _state = state;
         _preRunValidation = preRunValidation;
+        _miscValidation = miscValidation;
         _logger = logger;
         // synchronous version for debugging only
         /*
@@ -55,6 +60,16 @@ public class VM_RunButton : VM
                 if (!_preRunValidation.ValidatePatcherState()) { return; }
                 if (HasBeenRun) { _stateProvider.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.
                 _logger.ClearStatusError();
+
+                if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !_miscValidation.VerifyBodySlideAnnotations(PatcherSettings.OBody))
+                {
+                    return;
+                }
+                else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !miscValidation.VerifyBodyGenAnnotations(_state.AssetPacks, _state.BodyGenConfigs))
+                {
+                    return;
+                }
+
                 await Task.Run(() => getPatcher().RunPatcher());
                 VM_ConsistencyUI.GetViewModelsFromModels(state.Consistency, consistencyUi.Assignments, texMeshSettingsVM.AssetPacks, headParts, _logger); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
                 HasBeenRun = true;
