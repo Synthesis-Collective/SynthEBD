@@ -18,7 +18,7 @@ public class FlattenedAssetPack
         Type = type;
 
         var configRulesSubgroup = AssetPack.ConfigDistributionRules.CreateInheritanceParent(source.DistributionRules);
-        DistributionRules = new FlattenedSubgroup(configRulesSubgroup, PatcherSettings.General.RaceGroupings, new List<AssetPack.Subgroup>(), this, _dictionaryMapper);
+        DistributionRules = new FlattenedSubgroup(configRulesSubgroup, source.RaceGroupings, new List<AssetPack.Subgroup>(), this, _dictionaryMapper);
     }
 
     public FlattenedAssetPack(string groupName, Gender gender, FormKey defaultRecordTemplate, HashSet<AdditionalRecordTemplate> additionalRecordTemplateAssignments, string associatedBodyGenConfigName, AssetPack source, AssetPackType type, DictionaryMapper dictionaryMapper)
@@ -34,10 +34,10 @@ public class FlattenedAssetPack
         Type = type;
 
         var configRulesSubgroup = AssetPack.ConfigDistributionRules.CreateInheritanceParent(source.DistributionRules);
-        DistributionRules = new FlattenedSubgroup(configRulesSubgroup, PatcherSettings.General.RaceGroupings, new List<AssetPack.Subgroup>(), this, _dictionaryMapper);
+        DistributionRules = new FlattenedSubgroup(configRulesSubgroup, source.RaceGroupings, new List<AssetPack.Subgroup>(), this, _dictionaryMapper);
     }
 
-    public FlattenedAssetPack(AssetPackType type, DictionaryMapper dictionaryMapper)
+    public FlattenedAssetPack(AssetPackType type, DictionaryMapper dictionaryMapper, List<RaceGrouping> sourceRaceGroupings)
     {
         _dictionaryMapper = dictionaryMapper;
 
@@ -48,7 +48,7 @@ public class FlattenedAssetPack
         AssociatedBodyGenConfigName = "";
         Source = new AssetPack();
         Type = type;
-        DistributionRules = new FlattenedSubgroup(new AssetPack.Subgroup(), PatcherSettings.General.RaceGroupings, new List<AssetPack.Subgroup>(), this, _dictionaryMapper);
+        DistributionRules = new FlattenedSubgroup(new AssetPack.Subgroup(), sourceRaceGroupings, new List<AssetPack.Subgroup>(), this, _dictionaryMapper);
     }
 
     public string GroupName { get; set; }
@@ -115,7 +115,7 @@ public class FlattenedAssetPack
 
     public static FlattenedAssetPack CreateVirtualFromReplacerGroup(FlattenedReplacerGroup source, DictionaryMapper dictionaryMapper)
     {
-        FlattenedAssetPack virtualFAP = new FlattenedAssetPack(AssetPackType.ReplacerVirtual, dictionaryMapper);
+        FlattenedAssetPack virtualFAP = new FlattenedAssetPack(AssetPackType.ReplacerVirtual, dictionaryMapper, source.Source.RaceGroupings);
         virtualFAP.GroupName = source.Source.GroupName;
         virtualFAP.ReplacerName = source.Name;
         foreach (var subgroupsAtPos in source.Subgroups)

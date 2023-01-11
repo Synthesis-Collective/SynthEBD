@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SynthEBD.UC_BodyGenConfig"
+<UserControl x:Class="SynthEBD.UC_BodyGenConfig"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -53,6 +53,9 @@
                 </DataTemplate>
                 <DataTemplate DataType="{x:Type local:VM_AttributeGroupMenu}">
                     <local:UC_AttributeGroupMenu/>
+                </DataTemplate>
+                <DataTemplate DataType="{x:Type local:VM_RaceGroupingEditor}">
+                    <local:UC_RaceGroupingEditor/>
                 </DataTemplate>
                 <DataTemplate DataType="{x:Type local:VM_BodyGenMiscMenu}">
                     <local:UC_BodyGenMiscMenu/>

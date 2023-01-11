@@ -25,6 +25,7 @@ public class VM_SettingsTexMesh : VM
         VM_SettingsModManager modManager,
         VM_AssetPack.Factory assetPackFactory,
         VM_Subgroup.Factory subgroupFactory,
+        VM_RaceGrouping.Factory raceGroupingFactory,
         IStateProvider stateProvider,
         Logger logger,
         SynthEBDPaths paths,
@@ -58,8 +59,8 @@ public class VM_SettingsTexMesh : VM
             {
                 // dump view models to models so that latest are available for validation
                 BodyGenConfigs bgConfigs = new();
-                bgConfigs.Male = bodyGen.MaleConfigs.Select(x => VM_BodyGenConfig.DumpViewModelToModel(x)).ToHashSet();
-                bgConfigs.Female = bodyGen.FemaleConfigs.Select(x => VM_BodyGenConfig.DumpViewModelToModel(x)).ToHashSet();
+                bgConfigs.Male = bodyGen.MaleConfigs.Select(x => x.DumpViewModelToModel()).ToHashSet();
+                bgConfigs.Female = bodyGen.FemaleConfigs.Select(x => x.DumpViewModelToModel()).ToHashSet();
                 Settings_OBody oBodySettings = oBody.DumpViewModelToModel();
 
                 if (!AssetPacks.Any())
@@ -82,7 +83,7 @@ public class VM_SettingsTexMesh : VM
             execute: _ =>
             {
                 var newAP = assetPackFactory();
-                var newSG = subgroupFactory(general.RaceGroupings, newAP.Subgroups, newAP, null, false);
+                var newSG = subgroupFactory(general.RaceGroupingEditor.RaceGroupings, newAP.Subgroups, newAP, null, false);
                 newSG.ID = "FS";
                 newSG.Name = "First Subgroup";
                 newAP.Subgroups.Add(newSG);
@@ -127,7 +128,7 @@ public class VM_SettingsTexMesh : VM
                     {
                         newAssetPack.FilePath = System.IO.Path.Combine(_paths.AssetPackDirPath, System.IO.Path.GetFileName(newAssetPack.FilePath)); // overwrite existing filepath so it doesn't get deleted from source
                         var newAssetPackVM = assetPackFactory();
-                        newAssetPackVM.CopyInViewModelFromModel(newAssetPack);
+                        newAssetPackVM.CopyInViewModelFromModel(newAssetPack, general.RaceGroupingEditor.RaceGroupings);
                         newAssetPackVM.IsSelected = true;
                         ConfigVersionUpdate(Version.v090, new() { newAssetPackVM.GroupName});
                         AssetPacks.Add(newAssetPackVM);

@@ -9,14 +9,14 @@ using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_Settings_General : VM, IHasAttributeGroupMenu
+public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingEditor
 {
     public IStateProvider StateProvider { get; }
     public PatcherSettingsSourceProvider SettingsSourceProvider { get; }
     private bool _bFirstRun { get; set; } = false;
     private readonly SettingsIO_General _generalIO;
     private readonly VM_RaceAlias.Factory _aliasFactory;
-    private readonly VM_RaceGrouping.Factory _groupingFactory;
+    private readonly VM_RaceGroupingEditor.Factory _raceGroupingEditorFactory;
     private readonly VM_LinkedNPCGroup.Factory _linkedNPCFactory;
     private readonly FirstLaunch _firstLaunch;
     private readonly SynthEBDPaths _paths;
@@ -25,6 +25,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         PatcherSettingsSourceProvider settingsProvider,
         VM_AttributeGroupMenu.Factory attributeGroupFactory,
         VM_RaceAlias.Factory aliasFactory,
+        VM_RaceGroupingEditor.Factory raceGroupingEditorFactory,
         VM_RaceGrouping.Factory groupingFactory,
         VM_LinkedNPCGroup.Factory linkedNPCFactory,
         SettingsIO_General generalIO,
@@ -38,7 +39,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         _generalIO = generalIO;
         _firstLaunch = firstLaunch;
         _aliasFactory = aliasFactory;
-        _groupingFactory = groupingFactory;
+        _raceGroupingEditorFactory = raceGroupingEditorFactory;
         _linkedNPCFactory = linkedNPCFactory;
         _paths = paths;
 
@@ -48,6 +49,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         }
 
         AttributeGroupMenu = attributeGroupFactory(null, false);
+        RaceGroupingEditor = _raceGroupingEditorFactory(this, false);
 
         this.WhenAnyValue(x => x.bShowToolTips)
             .Subscribe(x => TooltipController.Instance.DisplayToolTips = x);
@@ -59,11 +61,6 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         AddRaceAlias = new RelayCommand(
             canExecute: _ => true,
             execute: _ => raceAliases.Add(_aliasFactory(new RaceAlias(), this))
-        );
-
-        AddRaceGrouping = new RelayCommand(
-            canExecute: _ => true,
-            execute: _ => RaceGroupings.Add(_groupingFactory(new RaceGrouping(), this))
         );
 
         AddLinkedNPCNameExclusion = new RelayCommand(
@@ -177,19 +174,14 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     public ObservableCollection<FormKey> verboseModeNPClist { get; set; } = new();
     public bool VerboseModeDetailedAttributes { get; set; } = false;
     public ObservableCollection<FormKey> patchableRaces { get; set; } = new();
-
+    public VM_RaceGroupingEditor RaceGroupingEditor { get; set; }
     public ObservableCollection<VM_RaceAlias> raceAliases { get; set;  } = new();
-
     public RelayCommand AddRaceAlias { get; }
-
     public VM_AttributeGroupMenu AttributeGroupMenu { get; }
     public bool OverwritePluginAttGroups { get; set; } = true;
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> RacePickerFormKeys { get; } = typeof(IRaceGetter).AsEnumerable();
     public IEnumerable<Type> NPCPickerFormKeys { get; } = typeof(INpcGetter).AsEnumerable();
-
-    public ObservableCollection<VM_RaceGrouping> RaceGroupings { get; set; } = new();
-    public RelayCommand AddRaceGrouping { get; }
     public RelayCommand AddLinkedNPCNameExclusion { get; }
     public RelayCommand AddLinkedNPCGroup { get; }
     public RelayCommand RemoveLinkedNPCGroup { get; }
@@ -199,7 +191,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
     public RelayCommand ClearPortableSettingsFolder { get; }
     public bool IsStandalone { get; set; }
     
-    public static void GetViewModelFromModel(VM_Settings_General viewModel, PatcherSettingsSourceProvider patcherSettingsProvider, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, VM_RaceGrouping.Factory raceGroupingFactory, ILinkCache linkCache)
+    public static void GetViewModelFromModel(VM_Settings_General viewModel, PatcherSettingsSourceProvider patcherSettingsProvider, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, ILinkCache linkCache)
     {
         var model = PatcherSettings.General;
         viewModel.OutputDataFolder = model.OutputDataFolder;
@@ -221,7 +213,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         viewModel.VerboseModeDetailedAttributes = model.VerboseModeDetailedAttributes;
         viewModel.patchableRaces = new ObservableCollection<FormKey>(model.PatchableRaces);
         viewModel.raceAliases = VM_RaceAlias.GetViewModelsFromModels(model.RaceAliases, viewModel, aliasFactory);
-        viewModel.RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(model.RaceGroupings, viewModel, raceGroupingFactory);
+        viewModel.RaceGroupingEditor.CopyInFromModel(model.RaceGroupings, null);
         viewModel.AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
         viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;
 
@@ -248,19 +240,12 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu
         model.VerboseModeNPClist = viewModel.verboseModeNPClist.ToList();
         model.VerboseModeDetailedAttributes = viewModel.VerboseModeDetailedAttributes;
         model.PatchableRaces = viewModel.patchableRaces.ToList();
-
+        model.RaceGroupings = viewModel.RaceGroupingEditor.DumpToModel();
         model.RaceAliases.Clear();
         foreach (var x in viewModel.raceAliases)
         {
             model.RaceAliases.Add(VM_RaceAlias.DumpViewModelToModel(x));
         }
-
-        model.RaceGroupings.Clear();
-        foreach (var x in viewModel.RaceGroupings)
-        {
-            model.RaceGroupings.Add(VM_RaceGrouping.DumpViewModelToModel(x));
-        }
-
         VM_AttributeGroupMenu.DumpViewModelToModels(viewModel.AttributeGroupMenu, model.AttributeGroups);
         model.OverwritePluginAttGroups = viewModel.OverwritePluginAttGroups;
 

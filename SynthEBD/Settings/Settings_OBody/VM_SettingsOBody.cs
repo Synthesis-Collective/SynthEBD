@@ -36,7 +36,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         _stateProvider = stateProvider;
 
         DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this);
-        BodySlidesUI = new VM_BodySlidesMenu(this, generalSettingsVM.RaceGroupings, _bodySlideFactory);
+        BodySlidesUI = new VM_BodySlidesMenu(this, generalSettingsVM.RaceGroupingEditor.RaceGroupings, _bodySlideFactory);
         AttributeGroupMenu = _attributeGroupFactory(generalSettingsVM.AttributeGroupMenu, true);
         MiscUI = miscSettingsFactory();
 

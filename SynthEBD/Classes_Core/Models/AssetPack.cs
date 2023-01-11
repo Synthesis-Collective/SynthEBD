@@ -18,6 +18,7 @@ public class AssetPack : IModelHasSubgroups
     public List<AssetReplacerGroup> ReplacerGroups { get; set; } = new();
     public HashSet<string> DefaultRecordTemplateAdditionalRacesPaths { get; set; } = new();
     public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
+    public List<RaceGrouping> RaceGroupings { get; set; } = new();
     public ConfigDistributionRules DistributionRules { get; set; }
     [Newtonsoft.Json.JsonIgnore]
     public string FilePath { get; set; }
@@ -94,6 +95,28 @@ public class AssetPack : IModelHasSubgroups
         public NPCWeightRange WeightRange { get; set; } = new();
         public List<Subgroup> Subgroups { get; set; } = new();
         public string TopLevelSubgroupID { get; set; } = "";
+
+        public void GetContainedRaceGroupingLabels(HashSet<string> labels)
+        {
+            foreach (var groupLabel in AllowedRaceGroupings)
+            {
+                if (!labels.Contains(groupLabel))
+                {
+                    labels.Add(groupLabel);
+                }
+            }
+            foreach (var groupLabel in DisallowedRaceGroupings)
+            {
+                if (!labels.Contains(groupLabel))
+                {
+                    labels.Add(groupLabel);
+                }
+            }
+            foreach (var subgroup in Subgroups)
+            {
+                subgroup.GetContainedRaceGroupingLabels(labels);
+            }
+        }
     }
 }
 

@@ -212,7 +212,7 @@ public class SaveLoader : VM
     public void LoadInitialSettingsViewModels() // view models that should be loaded before plugin VMs
     {
         // Load general settings
-        VM_Settings_General.GetViewModelFromModel(_generalSettingsVM, _patcherSettingsSourceProvider, _raceAliasFactory, _linkedNPCFactory, _raceGroupingFactory, _stateProvider.LinkCache);
+        VM_Settings_General.GetViewModelFromModel(_generalSettingsVM, _patcherSettingsSourceProvider, _raceAliasFactory, _linkedNPCFactory, _stateProvider.LinkCache);
         VM_SettingsTexMesh.GetViewModelFromModel(_texMeshSettingsVM, PatcherSettings.TexMesh);     
         VM_BlockListUI.GetViewModelFromModel(_state.BlockList, _blockList, _blockedNPCFactory, _blockedPluginFactory);
         VM_SettingsModManager.GetViewModelFromModel(PatcherSettings.ModManagerIntegration, _settingsModManager);
@@ -230,10 +230,10 @@ public class SaveLoader : VM
 
     public void LoadPluginViewModels()
     {
-        VM_SettingsBodyGen.GetViewModelFromModel(_state.BodyGenConfigs, PatcherSettings.BodyGen, _bodyGenSettingsVM, _bodyGenConfigFactory, _generalSettingsVM);
-        VM_SettingsOBody.GetViewModelFromModel(PatcherSettings.OBody, _settingsOBody, _generalSettingsVM.RaceGroupings, _bodyShapeDescriptorCreator, _oBodyMiscSettingsFactory, _bodySlideFactory, _descriptorSelectionFactory, _attributeCreator, _logger);
+        VM_SettingsBodyGen.GetViewModelFromModel(_state.BodyGenConfigs, PatcherSettings.BodyGen, _bodyGenSettingsVM, _bodyGenConfigFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings);
+        VM_SettingsOBody.GetViewModelFromModel(PatcherSettings.OBody, _settingsOBody, _generalSettingsVM.RaceGroupingEditor.RaceGroupings, _bodyShapeDescriptorCreator, _oBodyMiscSettingsFactory, _bodySlideFactory, _descriptorSelectionFactory, _attributeCreator, _logger);
         // load asset packs after BodyGen/BodySlide
-        VM_AssetPack.GetViewModelsFromModels(_state.AssetPacks, _texMeshSettingsVM, PatcherSettings.TexMesh, _assetPackFactory); // add asset pack view models to TexMesh shell view model here
+        VM_AssetPack.GetViewModelsFromModels(_state.AssetPacks, _texMeshSettingsVM, PatcherSettings.TexMesh, _assetPackFactory, _raceGroupingFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings); // add asset pack view models to TexMesh shell view model here
         _texMeshSettingsVM.AssetPresenterPrimary.AssetPack = _texMeshSettingsVM.AssetPacks.Where(x => x.GroupName == _texMeshSettingsVM.LastViewedAssetPackName).FirstOrDefault();
         
         VM_HeightConfig.GetViewModelsFromModels(_heightSettingsVM.AvailableHeightConfigs, _state.HeightConfigs, _heightConfigFactory, _heightAssignmentFactory);
@@ -248,7 +248,7 @@ public class SaveLoader : VM
 
     public void LoadFinalSettingsViewModels() // view models that should be loaded after plugin VMs because they depend on the loaded plugins
     {
-        _headPartSettingsVM.CopyInFromModel(PatcherSettings.HeadParts, _generalSettingsVM.RaceGroupings);
+        _headPartSettingsVM.CopyInFromModel(PatcherSettings.HeadParts, _generalSettingsVM.RaceGroupingEditor.RaceGroupings);
 
         // load specific assignments (must load after plugin view models)
         VM_SpecificNPCAssignmentsUI.GetViewModelFromModels(

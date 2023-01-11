@@ -158,7 +158,6 @@ public class Settings_General
         Skyrim.Race.KhajiitRace.FormKey,
         Skyrim.Race.KhajiitRaceVampire.FormKey,
         Skyrim.Race.ArgonianRace.FormKey,
-
         Skyrim.Race.ArgonianRaceVampire.FormKey
     };
 

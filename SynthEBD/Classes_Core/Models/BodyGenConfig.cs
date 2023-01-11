@@ -18,6 +18,7 @@ public class BodyGenConfig
     public HashSet<string> TemplateGroups { get; set; } = new();
     public HashSet<BodyShapeDescriptor> TemplateDescriptors { get; set; } = new();
     public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
+    public List<RaceGrouping> RaceGroupings { get; set; } = new();
 
     [Newtonsoft.Json.JsonIgnore]
     public string FilePath { get; set; }

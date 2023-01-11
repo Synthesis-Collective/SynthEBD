@@ -75,7 +75,7 @@ public class SettingsIO_AssetPack
         return loadedPacks;
     }
 
-    public AssetPack LoadAssetPack(string path, List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs, out bool loadSuccess)
+    public AssetPack LoadAssetPack(string path, List<RaceGrouping> fallBackRaceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs, out bool loadSuccess)
     {
         var synthEBDconfig = new AssetPack();
 
@@ -85,7 +85,7 @@ public class SettingsIO_AssetPack
             var zEBDconfig = JSONhandler<ZEBDAssetPack>.LoadJSONFile(path, out bool zSuccess, out string zExceptionStr);
             if (zSuccess)
             {
-                synthEBDconfig = zEBDconfig.ToSynthEBDAssetPack(raceGroupings, recordTemplatePlugins, availableBodyGenConfigs, _stateProvider, _converters, _logger, _paths);
+                synthEBDconfig = zEBDconfig.ToSynthEBDAssetPack(fallBackRaceGroupings, recordTemplatePlugins, availableBodyGenConfigs, _stateProvider, _converters, _logger, _paths);
                 loadSuccess = true;
             }
             else

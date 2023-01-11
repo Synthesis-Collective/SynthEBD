@@ -1,3 +1,4 @@
+using Noggog.WPF;
 using System.Collections.ObjectModel;
 using System.Printing;
 using System.Windows.Input;
@@ -5,7 +6,7 @@ using static SynthEBD.VM_BodyShapeDescriptor;
 
 namespace SynthEBD;
 
-public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
+public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEditor
 {
     public delegate VM_BodyGenConfig Factory(ObservableCollection<VM_BodyGenConfig> parentCollection);
 
@@ -32,7 +33,8 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
         VM_BodyShapeDescriptorCreator descriptorCreator,
         VM_BodyGenTemplateMenu.Factory templateMenuFactory,
         VM_BodyGenRacialMapping.Factory mappingFactory,
-        VM_BodyGenTemplate.Factory templateFactory)
+        VM_BodyGenTemplate.Factory templateFactory,
+        VM_RaceGroupingEditor.Factory raceGroupingEditorFactory)
     {
         _logger = logger;
         _raceMenuHandler = raceMenuHandler;
@@ -44,10 +46,11 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
         _mappingFactory = mappingFactory;
         _templateFactory = templateFactory;
 
+        RaceGroupingEditor = raceGroupingEditorFactory(this, true);
         GroupUI = new VM_BodyGenGroupsMenu(this);
-        GroupMappingUI = _groupMappingMenuFactory(GroupUI, generalSettingsVM.RaceGroupings);
+        GroupMappingUI = _groupMappingMenuFactory(GroupUI, RaceGroupingEditor.RaceGroupings);
         DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this);
-        TemplateMorphUI = _templateMenuFactory(this, generalSettingsVM.RaceGroupings);
+        TemplateMorphUI = _templateMenuFactory(this, RaceGroupingEditor.RaceGroupings);
         DisplayedUI = TemplateMorphUI;
         AttributeGroupMenu = _attributeGroupMenuFactory(generalSettingsVM.AttributeGroupMenu, true);
         MiscMenu = new(_logger, _raceMenuHandler);
@@ -78,6 +81,10 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
         ClickAttributeGroupsMenu = new RelayCommand(
             canExecute: _ => true,
             execute: _ => DisplayedUI = AttributeGroupMenu
+        );
+        ClickRaceGroupingsMenu = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => DisplayedUI = RaceGroupingEditor
         );
         ClickMiscMenu = new RelayCommand(
             canExecute: _ => true,
@@ -144,7 +151,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
             canExecute: _ => true,
             execute: _ =>
             {
-                _bodyGenIO.SaveBodyGenConfig(DumpViewModelToModel(this), out bool saveSuccess);
+                _bodyGenIO.SaveBodyGenConfig(DumpViewModelToModel(), out bool saveSuccess);
                 if (saveSuccess)
                 {
                     _logger.CallTimedNotifyStatusUpdateAsync(Label + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
@@ -165,12 +172,14 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
     public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
     public VM_BodyGenMiscMenu MiscMenu { get; set; }
     public ObservableCollection<VM_BodyGenConfig> ParentCollection { get; set; }
+    public VM_RaceGroupingEditor RaceGroupingEditor { get; set; }
     public string SourcePath { get; set; }
     public ICommand ClickTemplateMenu { get; }
     public ICommand ClickGroupMappingMenu { get; }
     public ICommand ClickDescriptorMenu { get; }
     public ICommand ClickGroupsMenu { get; }
     public ICommand ClickAttributeGroupsMenu { get; }
+    public ICommand ClickRaceGroupingsMenu { get; }
     public ICommand ClickMiscMenu { get; }
     public ICommand ClickDelete { get; }
     public RelayCommand Save { get; }
@@ -179,11 +188,14 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
 
     public bool IsLoadingFromViewModel { get; set; } = false;
 
-    public void CopyInViewModelFromModel(BodyGenConfig model, VM_Settings_General generalSettingsVM)
+    public void CopyInViewModelFromModel(BodyGenConfig model, ObservableCollection<VM_RaceGrouping> mainRaceGroupings)
     {
         IsLoadingFromViewModel = true;
         Label = model.Label;
         Gender = model.Gender;
+
+        RaceGroupingEditor.CopyInFromModel(model.RaceGroupings, mainRaceGroupings);
+        //AddFallBackRaceGroupings(model, RaceGroupingEditor.RaceGroupings, mainRaceGroupings); // local RaceGroupings were introduced in v0.9. Prior to that, RaceGroupings were loaded from General Settings. To make sure not to wipe old settings, scan model for old race groupings and add then from General Settings if available.
 
         GroupUI.TemplateGroups = new ObservableCollection<VM_CollectionMemberString>();
         foreach (string group in model.TemplateGroups)
@@ -193,7 +205,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
 
         foreach (var RTG in model.RacialTemplateGroupMap)
         {
-            GroupMappingUI.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.GetViewModelFromModel(RTG, GroupUI, generalSettingsVM.RaceGroupings, _mappingFactory));
+            GroupMappingUI.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.GetViewModelFromModel(RTG, GroupUI, RaceGroupingEditor.RaceGroupings, _mappingFactory));
         }
         
         if (GroupMappingUI.RacialTemplateGroupMap.Any())
@@ -201,23 +213,23 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
             GroupMappingUI.DisplayedMapping = GroupMappingUI.RacialTemplateGroupMap.First();
         }
 
-        DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, generalSettingsVM.RaceGroupings, this, _descriptorCreator);
+        DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, RaceGroupingEditor.RaceGroupings, this, _descriptorCreator);
 
         foreach (var descriptor in model.TemplateDescriptors)
         {
             var subVm = _descriptorCreator.CreateNew(
                 _descriptorCreator.CreateNewShell(
-                    new ObservableCollection<VM_BodyShapeDescriptorShell>(), generalSettingsVM.RaceGroupings, this),
-                generalSettingsVM.RaceGroupings, 
+                    new ObservableCollection<VM_BodyShapeDescriptorShell>(), RaceGroupingEditor.RaceGroupings, this),
+                RaceGroupingEditor.RaceGroupings, 
                 this);
-            subVm.CopyInViewModelFromModel(descriptor, generalSettingsVM.RaceGroupings, this);
+            subVm.CopyInViewModelFromModel(descriptor, RaceGroupingEditor.RaceGroupings, this);
             DescriptorUI.TemplateDescriptorList.Add(subVm);
         }
 
         foreach (var template in model.Templates)
         {
-            var templateVM = _templateFactory(GroupUI.TemplateGroups, DescriptorUI, generalSettingsVM.RaceGroupings, TemplateMorphUI.Templates, this);
-            templateVM.CopyInViewModelFromModel(template, DescriptorUI, generalSettingsVM.RaceGroupings);
+            var templateVM = _templateFactory(GroupUI.TemplateGroups, DescriptorUI, RaceGroupingEditor.RaceGroupings, TemplateMorphUI.Templates, this);
+            templateVM.CopyInViewModelFromModel(template, DescriptorUI, RaceGroupingEditor.RaceGroupings);
             TemplateMorphUI.Templates.Add(templateVM);
         }
 
@@ -232,23 +244,51 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
         }
     }
 
-    public static BodyGenConfig DumpViewModelToModel(VM_BodyGenConfig viewModel)
+    public BodyGenConfig DumpViewModelToModel()
     {
         BodyGenConfig model = new BodyGenConfig();
-        model.Label = viewModel.Label;
-        model.Gender = viewModel.Gender;
-        model.TemplateGroups = viewModel.GroupUI.TemplateGroups.Select(x => x.Content).ToHashSet();
-        foreach (var RTG in viewModel.GroupMappingUI.RacialTemplateGroupMap)
+        model.Label = Label;
+        model.Gender = Gender;
+        model.TemplateGroups = GroupUI.TemplateGroups.Select(x => x.Content).ToHashSet();
+        foreach (var RTG in GroupMappingUI.RacialTemplateGroupMap)
         {
             model.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.DumpViewModelToModel(RTG));
         }
-        model.TemplateDescriptors = VM_BodyShapeDescriptorShell.DumpViewModelsToModels(viewModel.DescriptorUI.TemplateDescriptors);
-        foreach (var template in viewModel.TemplateMorphUI.Templates)
+        model.TemplateDescriptors = VM_BodyShapeDescriptorShell.DumpViewModelsToModels(DescriptorUI.TemplateDescriptors);
+        foreach (var template in TemplateMorphUI.Templates)
         {
             model.Templates.Add(VM_BodyGenTemplate.DumpViewModelToModel(template));
         }
-        VM_AttributeGroupMenu.DumpViewModelToModels(viewModel.AttributeGroupMenu, model.AttributeGroups);
-        model.FilePath = viewModel.SourcePath;
+        VM_AttributeGroupMenu.DumpViewModelToModels(AttributeGroupMenu, model.AttributeGroups);
+        model.RaceGroupings = RaceGroupingEditor.DumpToModel();
+        model.FilePath = SourcePath;
         return model;
+    }
+
+    public void AddFallBackRaceGroupings(BodyGenConfig model, ObservableCollection<VM_RaceGrouping> existingGroupings, ObservableCollection<VM_RaceGrouping> fallBackGroupings)
+    {
+        HashSet<RaceGrouping> addedRaceGroups = new();
+
+        HashSet<string> existingGroupNames = model.RaceGroupings.Select(x => x.Label).ToHashSet();
+        HashSet<string> fallBackGroupNames = fallBackGroupings.Select(x => x.Label).ToHashSet();
+
+        foreach (var template in model.Templates)
+        {
+            foreach (var groupLabel in template.AllowedRaceGroupings)
+            {
+                if (!existingGroupNames.Contains(groupLabel) && fallBackGroupNames.Contains(groupLabel))
+                {
+                    existingGroupings.Add(fallBackGroupings.Where(x => x.Label == groupLabel).First());
+                }
+            }
+
+            foreach (var groupLabel in template.DisallowedRaceGroupings)
+            {
+                if (!existingGroupNames.Contains(groupLabel) && fallBackGroupNames.Contains(groupLabel))
+                {
+                    existingGroupings.Add(fallBackGroupings.Where(x => x.Label == groupLabel).First());
+                }
+            }
+        }
     }
 }

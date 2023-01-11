@@ -28,8 +28,8 @@ public class BodyGenPreprocessing
     {
         foreach (var template in bodyGenConfig.Templates)
         {
-            template.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(template.AllowedRaceGroupings, PatcherSettings.General.RaceGroupings, template.AllowedRaces);
-            template.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(template.DisallowedRaceGroupings, PatcherSettings.General.RaceGroupings, template.DisallowedRaces);
+            template.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(template.AllowedRaceGroupings, bodyGenConfig.RaceGroupings, template.AllowedRaces);
+            template.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(template.DisallowedRaceGroupings, bodyGenConfig.RaceGroupings, template.DisallowedRaces);
         }
     }
 
@@ -37,8 +37,8 @@ public class BodyGenPreprocessing
     {
         foreach (var descriptor in bodyGenConfig.TemplateDescriptors)
         {
-            descriptor.AssociatedRules.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(descriptor.AssociatedRules.AllowedRaceGroupings, PatcherSettings.General.RaceGroupings, descriptor.AssociatedRules.AllowedRaces);
-            descriptor.AssociatedRules.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(descriptor.AssociatedRules.DisallowedRaceGroupings, PatcherSettings.General.RaceGroupings, descriptor.AssociatedRules.DisallowedRaces);
+            descriptor.AssociatedRules.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(descriptor.AssociatedRules.AllowedRaceGroupings, bodyGenConfig.RaceGroupings, descriptor.AssociatedRules.AllowedRaces);
+            descriptor.AssociatedRules.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(descriptor.AssociatedRules.DisallowedRaceGroupings, bodyGenConfig.RaceGroupings, descriptor.AssociatedRules.DisallowedRaces);
         }
     }
 }

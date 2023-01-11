@@ -76,7 +76,7 @@ public class VM_AssetReplacerGroup : VM
 
         AddTopLevelSubgroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.Subgroups.Add(subGroupFactory(parent.ParentAssetPack.RaceGroupingList, Subgroups, parent.ParentAssetPack, null, true))
+            execute: _ => this.Subgroups.Add(subGroupFactory(parent.ParentAssetPack.RaceGroupingEditor.RaceGroupings, Subgroups, parent.ParentAssetPack, null, true))
         );
             
         this.WhenAnyValue(x => x.TemplateNPCFK).Subscribe(x =>
@@ -109,12 +109,12 @@ public class VM_AssetReplacerGroup : VM
         foreach (var sg in model.Subgroups)
         {
             var sgVM = _subGroupFactory(
-                _generalSettingsVm.RaceGroupings,
+                _generalSettingsVm.RaceGroupingEditor.RaceGroupings,
                 Subgroups, 
                 ParentMenu.ParentAssetPack,
                 null,
                 true);
-            sgVM.CopyInViewModelFromModel(sg, _generalSettingsVm);
+            sgVM.CopyInViewModelFromModel(sg);
             SetTemplates(sgVM, TemplateNPCFK);
             Subgroups.Add(sgVM);
         }

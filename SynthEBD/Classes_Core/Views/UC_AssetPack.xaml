@@ -51,10 +51,11 @@
 
         <WrapPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Stretch">
             <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewSubgroupEditor}" IsChecked="True">Subgroup Editor</RadioButton>
-            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewDistRulesEditor}">Whole Config Distribution Rules</RadioButton>
-            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewDirectReplacersEditor}">Direct Asset Replacers</RadioButton>
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewDistRulesEditor}">Config Distribution Rules</RadioButton>
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewDirectReplacersEditor}">Asset Replacers</RadioButton>
             <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewRecordTemplatesEditor}">Record Templates</RadioButton>
             <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewAttributeGroupsEditor}">Attribute Groups</RadioButton>
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewRaceGroupingsEditor}">Race Groupings</RadioButton>
         </WrapPanel>
 
         <Control Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2">
@@ -102,6 +103,15 @@
                                 <Setter.Value>
                                     <ControlTemplate>
                                         <local:UC_AttributeGroupMenu DataContext="{Binding AttributeGroupMenu}"/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding DisplayedMenuType}" Value="{x:Static local:AssetPackMenuVisibility.RaceGroupings}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <local:UC_RaceGroupingEditor DataContext="{Binding RaceGroupingEditor}"/>
                                     </ControlTemplate>
                                 </Setter.Value>
                             </Setter>

@@ -17,7 +17,7 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
         ImportMenu = new VM_HeadPartImport(this, logger, stateProvider, headPartFactory);
         SettingsMenu = new();
         AttributeGroupMenu = generalSettingsVM.AttributeGroupMenu;
-        RaceGroupings = generalSettingsVM.RaceGroupings;
+        RaceGroupings = generalSettingsVM.RaceGroupingEditor.RaceGroupings;
         OBodyDescriptors = oBodySettings.DescriptorUI;
 
         BodyShapeMode = generalSettingsVM.BodySelectionMode;
@@ -27,13 +27,13 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
 
         Types = new()
         {
-            { HeadPart.TypeEnum.Eyebrows, listFactory(generalSettingsVM.RaceGroupings, this) },
-            { HeadPart.TypeEnum.Eyes, listFactory(generalSettingsVM.RaceGroupings, this) },
-            { HeadPart.TypeEnum.Face, listFactory(generalSettingsVM.RaceGroupings, this) },
-            { HeadPart.TypeEnum.FacialHair, listFactory(generalSettingsVM.RaceGroupings, this) },
-            { HeadPart.TypeEnum.Hair, listFactory(generalSettingsVM.RaceGroupings, this) },
-            { HeadPart.TypeEnum.Misc, listFactory(generalSettingsVM.RaceGroupings, this) },
-            { HeadPart.TypeEnum.Scars, listFactory(generalSettingsVM.RaceGroupings, this) }
+            { HeadPart.TypeEnum.Eyebrows, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) },
+            { HeadPart.TypeEnum.Eyes, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) },
+            { HeadPart.TypeEnum.Face, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) },
+            { HeadPart.TypeEnum.FacialHair, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) },
+            { HeadPart.TypeEnum.Hair, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) },
+            { HeadPart.TypeEnum.Misc, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) },
+            { HeadPart.TypeEnum.Scars, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) }
         };
 
         ViewImportMenu = new RelayCommand(

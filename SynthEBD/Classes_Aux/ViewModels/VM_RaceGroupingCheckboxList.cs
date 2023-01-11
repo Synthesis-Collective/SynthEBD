@@ -1,4 +1,4 @@
-﻿using DynamicData.Binding;
+using DynamicData.Binding;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -75,9 +75,9 @@ public class VM_RaceGroupingCheckboxList : VM
     {
         VM_RaceGroupingCheckboxList checkBoxList = new VM_RaceGroupingCheckboxList(allRaceGroupings);
 
-        foreach (var raceGroupingSelection in checkBoxList.RaceGroupingSelections) // loop through all available RaceGroupings
+        foreach (string s in groupingStrings) // loop through all of the RaceGrouping labels stored in the models
         {
-            foreach (string s in groupingStrings) // loop through all of the RaceGrouping labels stored in the models
+            foreach (var raceGroupingSelection in checkBoxList.RaceGroupingSelections) // loop through all available RaceGroupings
             {
                 if (raceGroupingSelection.SubscribedMasterRaceGrouping.Label == s)
                 {

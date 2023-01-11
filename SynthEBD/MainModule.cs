@@ -149,6 +149,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_Manifest>().AsSelf();
         builder.RegisterType<VM_BlockedNPC>().AsSelf();
         builder.RegisterType<VM_BlockedPlugin>().AsSelf();
+        builder.RegisterType<VM_RaceGroupingEditor>().AsSelf();
         builder.RegisterType<VM_RaceGrouping>().AsSelf();
         builder.RegisterType<VM_RaceAlias>().AsSelf();
         builder.RegisterType<VM_LinkedNPCGroup>().AsSelf();

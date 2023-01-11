@@ -59,9 +59,9 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         _descriptorSelectionFactory = descriptorSelectionFactory;
         _updateHandler = updateHandler;
 
-        SubscribedRaceGroupings = raceGroupingVMs;
         SetExplicitReferenceNPC = setExplicitReferenceNPC;
         ParentAssetPack = parentAssetPack;
+        SubscribedRaceGroupings = ParentAssetPack.RaceGroupingEditor.RaceGroupings;
 
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
@@ -209,8 +209,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
     public ObservableCollection<ImagePreviewHandler.ImagePathWithSource> ImagePaths { get; set; } = new();
 
     public void CopyInViewModelFromModel(
-        AssetPack.Subgroup model,
-        VM_Settings_General generalSettingsVM)
+        AssetPack.Subgroup model)
     {
         ID = model.ID;
         Name = model.Name;
@@ -218,9 +217,9 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         DistributionEnabled = model.DistributionEnabled;
         Notes = model.Notes;
         AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
-        AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, generalSettingsVM.RaceGroupings);
+        AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, ParentAssetPack.RaceGroupingEditor.RaceGroupings);
         DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
-        DisallowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.DisallowedRaceGroupings, generalSettingsVM.RaceGroupings);
+        DisallowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.DisallowedRaceGroupings, ParentAssetPack.RaceGroupingEditor.RaceGroupings);
         AllowedAttributes = _attributeCreator.GetViewModelsFromModels(model.AllowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, true, null);
         DisallowedAttributes = _attributeCreator.GetViewModelsFromModels(model.DisallowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, false, null);
         foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
@@ -247,12 +246,12 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         foreach (var sg in model.Subgroups)
         {
             var subVm = _selfFactory(
-                generalSettingsVM.RaceGroupings,
+                ParentAssetPack.RaceGroupingEditor.RaceGroupings,
                 Subgroups,
                 ParentAssetPack,
                 this,
                 SetExplicitReferenceNPC);
-            subVm.CopyInViewModelFromModel(sg, generalSettingsVM);
+            subVm.CopyInViewModelFromModel(sg);
             Subgroups.Add(subVm);
         }
 

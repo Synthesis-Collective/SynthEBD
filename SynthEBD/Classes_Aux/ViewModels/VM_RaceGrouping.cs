@@ -10,10 +10,12 @@ namespace SynthEBD;
 public class VM_RaceGrouping : VM
 {
     private readonly IStateProvider _stateProvider;
-    public delegate VM_RaceGrouping Factory(RaceGrouping raceGrouping, VM_Settings_General parentVM);
-    public VM_RaceGrouping(RaceGrouping raceGrouping, VM_Settings_General parentVM, IStateProvider stateProvider)
+    public delegate VM_RaceGrouping Factory(RaceGrouping raceGrouping, IHasRaceGroupingVMs parentVM);
+    private readonly VM_RaceGrouping.Factory _selfFactory;
+    public VM_RaceGrouping(RaceGrouping raceGrouping, IHasRaceGroupingVMs parentVM, IStateProvider stateProvider, VM_RaceGrouping.Factory selfFactory)
     {
         _stateProvider = stateProvider;
+        _selfFactory = selfFactory;
         Label = raceGrouping.Label;
         Races = new ObservableCollection<FormKey>(raceGrouping.Races);
         
@@ -27,10 +29,10 @@ public class VM_RaceGrouping : VM
     public ObservableCollection<FormKey> Races { get; set; }
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
     public ILinkCache lk { get; private set; }
-    public VM_Settings_General ParentVM { get; set; }
+    public IHasRaceGroupingVMs ParentVM { get; set; }
     public RelayCommand DeleteCommand { get; }
 
-    public static ObservableCollection<VM_RaceGrouping> GetViewModelsFromModels(List<RaceGrouping> models, VM_Settings_General parentVM, VM_RaceGrouping.Factory factory)
+    public static ObservableCollection<VM_RaceGrouping> GetViewModelsFromModels(List<RaceGrouping> models, IHasRaceGroupingVMs parentVM, VM_RaceGrouping.Factory factory)
     {
         var RGVM = new ObservableCollection<VM_RaceGrouping>();
 
@@ -42,13 +44,18 @@ public class VM_RaceGrouping : VM
 
         return RGVM;
     }
-    public static RaceGrouping DumpViewModelToModel(VM_RaceGrouping viewModel)
+    public RaceGrouping DumpViewModelToModel()
     {
         RaceGrouping model = new RaceGrouping();
-        model.Label = viewModel.Label;
-        model.Races = viewModel.Races.ToHashSet();
+        model.Label = Label;
+        model.Races = Races.ToHashSet();
 
         return model;
+    }
+
+    public VM_RaceGrouping Copy(IHasRaceGroupingVMs destination)
+    {
+        return _selfFactory(DumpViewModelToModel(), destination);
     }
 
     public static HashSet<VM_RaceGrouping> CollectionMatchesRaceGrouping(IEnumerable<FormKey> collection, IEnumerable<VM_RaceGrouping> groupings) // returns true if a collection of Race formkeys is identical to an existing race grouping
@@ -74,4 +81,9 @@ public class VM_RaceGrouping : VM
         }
         return matchedGroupings;
     }
+}
+
+public interface IHasRaceGroupingVMs
+{
+    public ObservableCollection<VM_RaceGrouping> RaceGroupings { get; set; }
 }
