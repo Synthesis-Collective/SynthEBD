@@ -18,18 +18,20 @@ public class ConfigInstaller
     private readonly SettingsIO_AssetPack _assetPackIO;
     private readonly SettingsIO_BodyGen _bodyGenIO;
     private readonly IEnvironmentStateProvider _environmentProvider;
-    public ConfigInstaller(Logger logger, SynthEBDPaths synthEBDPaths, SettingsIO_AssetPack assetPackIO, SettingsIO_BodyGen bodyGenIO, IEnvironmentStateProvider environmentProvider)
+    private readonly PatcherState _patcherState;
+    public ConfigInstaller(Logger logger, SynthEBDPaths synthEBDPaths, SettingsIO_AssetPack assetPackIO, SettingsIO_BodyGen bodyGenIO, IEnvironmentStateProvider environmentProvider, PatcherState patcherState)
     {
         _logger = logger;
         _paths = synthEBDPaths;
         _assetPackIO = assetPackIO;
         _bodyGenIO = bodyGenIO;
         _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
     }
     public List<string> InstallConfigFile()
     {
         var installedConfigs = new List<string>();
-        if (PatcherSettings.ModManagerIntegration.ModManagerType != ModManager.None && string.IsNullOrWhiteSpace(PatcherSettings.ModManagerIntegration.CurrentInstallationFolder))
+        if (_patcherState.ModManagerSettings.ModManagerType != ModManager.None && string.IsNullOrWhiteSpace(_patcherState.ModManagerSettings.CurrentInstallationFolder))
         {
             CustomMessageBox.DisplayNotificationOK("Installation failed", "You must set the location of your mod manager's Mods folder before installing a config file archive.");
             return installedConfigs;
@@ -40,7 +42,7 @@ public class ConfigInstaller
             return installedConfigs;
         }
 
-        string tempFolderPath = Path.Combine(PatcherSettings.ModManagerIntegration.TempExtractionFolder, DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture));
+        string tempFolderPath = Path.Combine(_patcherState.ModManagerSettings.TempExtractionFolder, DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture));
             
         try
         {
@@ -93,7 +95,7 @@ public class ConfigInstaller
             return installedConfigs;
         }
 
-        if (PatcherSettings.ModManagerIntegration.ModManagerType != ModManager.None && (manifest.DestinationModFolder == null || string.IsNullOrWhiteSpace(manifest.DestinationModFolder)))
+        if (_patcherState.ModManagerSettings.ModManagerType != ModManager.None && (manifest.DestinationModFolder == null || string.IsNullOrWhiteSpace(manifest.DestinationModFolder)))
         {
             CustomMessageBox.DisplayNotificationOK("Installation warning", "Manifest did not include a destination folder. A new folder called \"New SynthEBD Config\" will appear in your mod list. Pleast rename this folder to something sensible after completing installation.");
             manifest.DestinationModFolder = "New SynthEBD Config";
@@ -119,7 +121,7 @@ public class ConfigInstaller
         {
             bodyGenConfigPaths.Add(Path.Combine(tempFolderPath, bgPath));
         }
-        BodyGenConfigs validationBG = _bodyGenIO.LoadBodyGenConfigs(bodyGenConfigPaths.ToArray(), PatcherSettings.General.RaceGroupings, out loadSuccess);
+        BodyGenConfigs validationBG = _bodyGenIO.LoadBodyGenConfigs(bodyGenConfigPaths.ToArray(), _patcherState.GeneralSettings.RaceGroupings, out loadSuccess);
         if (!loadSuccess)
         {
             CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse all BodyGen configs at " + string.Join(", ", bodyGenConfigPaths) + ". Installation aborted.");
@@ -137,7 +139,7 @@ public class ConfigInstaller
         foreach (var configPath in manifest.AssetPackPaths)
         {
             string extractedPath = Path.Combine(tempFolderPath, configPath);
-            var validationAP = _assetPackIO.LoadAssetPack(extractedPath, PatcherSettings.General.RaceGroupings, validationRecordTemplates, validationBG, out loadSuccess);
+            var validationAP = _assetPackIO.LoadAssetPack(extractedPath, _patcherState.GeneralSettings.RaceGroupings, validationRecordTemplates, validationBG, out loadSuccess);
             if (!loadSuccess)
             {
                 CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse Asset Pack " + configPath + ". Installation aborted.");
@@ -379,7 +381,7 @@ public class ConfigInstaller
             CustomMessageBox.DisplayNotificationOK("Installation warning", "Could not delete the temp folder located at " + tempFolderPath + ". This may be because the folder path or some of the contained file paths exceeded 260 characters. You may delete this folder manually.");
         }
 
-        if (PatcherSettings.ModManagerIntegration.ModManagerType != ModManager.None && referencedFilePaths.Any())
+        if (_patcherState.ModManagerSettings.ModManagerType != ModManager.None && referencedFilePaths.Any())
         {
             CustomMessageBox.DisplayNotificationOK("Installation success", "Installation complete. You will need to restart your mod manager to rebuild the VFS in order for SynthEBD to see the newly installed asset files.");
         }
@@ -387,7 +389,7 @@ public class ConfigInstaller
         return installedConfigs;
     }
 
-    public static bool ValidateManifest(Manifest manifest)
+    public bool ValidateManifest(Manifest manifest)
     {
         if (manifest.ConfigPrefix == null || string.IsNullOrWhiteSpace(manifest.ConfigPrefix))
         {
@@ -420,7 +422,7 @@ public class ConfigInstaller
         return true;   
     }
 
-    private static bool ExtractArchive(string archivePath, string destinationPath)
+    private bool ExtractArchive(string archivePath, string destinationPath)
     {
         Cursor.Current = Cursors.WaitCursor;
         FileInfo archiveInfo = new FileInfo(archivePath);
@@ -468,7 +470,7 @@ public class ConfigInstaller
         }
     }
 
-    public static HashSet<string> GetAssetPackSourcePaths(AssetPack assetPack)
+    public HashSet<string> GetAssetPackSourcePaths(AssetPack assetPack)
     {
         // get paths in main subgroups
         var referencedPaths = GetSubgroupListPaths(assetPack.Subgroups, new HashSet<string>());
@@ -481,7 +483,7 @@ public class ConfigInstaller
         return referencedPaths;
     }
 
-    public static HashSet<string> GetSubgroupListPaths(IEnumerable<AssetPack.Subgroup> subgroups, HashSet<string> collectedPaths)
+    public HashSet<string> GetSubgroupListPaths(IEnumerable<AssetPack.Subgroup> subgroups, HashSet<string> collectedPaths)
     { 
         foreach (var subgroup in subgroups)
         {
@@ -496,11 +498,11 @@ public class ConfigInstaller
         pathMap = new Dictionary<string, string>();
         int pathLengthLimit = 260;
 
-        switch(PatcherSettings.ModManagerIntegration.ModManagerType)
+        switch(_patcherState.ModManagerSettings.ModManagerType)
         {
-            case ModManager.None: pathLengthLimit = PatcherSettings.ModManagerIntegration.FilePathLimit; break;
-            case ModManager.ModOrganizer2: pathLengthLimit = PatcherSettings.ModManagerIntegration.MO2Settings.FilePathLimit; break;
-            case ModManager.Vortex: pathLengthLimit = PatcherSettings.ModManagerIntegration.VortexSettings.FilePathLimit; break;
+            case ModManager.None: pathLengthLimit = _patcherState.ModManagerSettings.FilePathLimit; break;
+            case ModManager.ModOrganizer2: pathLengthLimit = _patcherState.ModManagerSettings.MO2Settings.FilePathLimit; break;
+            case ModManager.Vortex: pathLengthLimit = _patcherState.ModManagerSettings.VortexSettings.FilePathLimit; break;
         }
 
         int originalLongestPathLength = GetLongestPathLength(assetPack, manifest, out string longestPath);
@@ -546,7 +548,7 @@ public class ConfigInstaller
         return longestPath.Length;
     }
 
-    public static bool TryTrimModFolder(Manifest manifest) // currently deprectated - I don't think this is an intuitive functionality but leaving for now as a future consideration.
+    public bool TryTrimModFolder(Manifest manifest) // currently deprectated - I don't think this is an intuitive functionality but leaving for now as a future consideration.
     {
         if (!manifest.DestinationModFolder.Any())
         {
@@ -554,7 +556,7 @@ public class ConfigInstaller
         }
 
         string candidateFolderName = manifest.DestinationModFolder.Remove(manifest.DestinationModFolder.Length - 1, 1);
-        DirectoryInfo destDir = new DirectoryInfo(PatcherSettings.ModManagerIntegration.CurrentInstallationFolder);
+        DirectoryInfo destDir = new DirectoryInfo(_patcherState.ModManagerSettings.CurrentInstallationFolder);
         if (destDir.GetDirectories().Select(x => x.Name).Contains(candidateFolderName))
         {
             return false;
@@ -570,29 +572,29 @@ public class ConfigInstaller
     {
         if (GetExpectedDataFolderFromExtension(extractedSubPath, manifest, out string extensionFolder))
         {
-            if (PatcherSettings.ModManagerIntegration.ModManagerType == ModManager.None)
+            if (_patcherState.ModManagerSettings.ModManagerType == ModManager.None)
             {
                 return Path.Combine(_environmentProvider.DataFolderPath, extensionFolder, manifest.ConfigPrefix, extractedSubPath);
             }
             else
             {
-                return Path.Combine(PatcherSettings.ModManagerIntegration.CurrentInstallationFolder, manifest.DestinationModFolder, extensionFolder, manifest.ConfigPrefix, extractedSubPath);
+                return Path.Combine(_patcherState.ModManagerSettings.CurrentInstallationFolder, manifest.DestinationModFolder, extensionFolder, manifest.ConfigPrefix, extractedSubPath);
             }
         }
         else
         {
-            if (PatcherSettings.ModManagerIntegration.ModManagerType == ModManager.None)
+            if (_patcherState.ModManagerSettings.ModManagerType == ModManager.None)
             {
                 return Path.Combine(_environmentProvider.DataFolderPath, extractedSubPath);
             }
             else
             {
-                return Path.Combine(PatcherSettings.ModManagerIntegration.CurrentInstallationFolder, manifest.DestinationModFolder, extractedSubPath);
+                return Path.Combine(_patcherState.ModManagerSettings.CurrentInstallationFolder, manifest.DestinationModFolder, extractedSubPath);
             }
         }
     }
 
-    public static string GetPathWithoutSynthEBDPrefix(string path, Manifest manifest) // expects path straight from Config file, e.g. textures\\foo\\textures\\blah.dds
+    public string GetPathWithoutSynthEBDPrefix(string path, Manifest manifest) // expects path straight from Config file, e.g. textures\\foo\\textures\\blah.dds
     {
         if(GetExpectedDataFolderFromExtension(path, manifest, out string extensionFolder))
         {
@@ -605,7 +607,7 @@ public class ConfigInstaller
         }
     }
 
-    public static bool GetExpectedDataFolderFromExtension(string path, Manifest manifest, out string extensionFolder)
+    public bool GetExpectedDataFolderFromExtension(string path, Manifest manifest, out string extensionFolder)
     {
         string extension = Path.GetExtension(path).TrimStart('.');
         extensionFolder = "";
@@ -616,7 +618,7 @@ public class ConfigInstaller
         }
         else
         {
-            var trimPath = PatcherSettings.TexMesh.TrimPaths.Where(x => x.Extension.Equals(extension, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+            var trimPath = _patcherState.TexMeshSettings.TrimPaths.Where(x => x.Extension.Equals(extension, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
             if (trimPath is not null)
             {
                 extensionFolder = trimPath.PathToTrim;
@@ -626,7 +628,7 @@ public class ConfigInstaller
         return false;
     }
 
-    public static Dictionary<string, string> RemapDirectoryNames(AssetPack extractedPack, Manifest manifest)
+    public Dictionary<string, string> RemapDirectoryNames(AssetPack extractedPack, Manifest manifest)
     {
         Dictionary<string, string> pathMap = new Dictionary<string, string>();
 
@@ -660,7 +662,7 @@ public class ConfigInstaller
         return pathMap;
     }
 
-    public static void RemapAssetPackPaths(AssetPack assetPack, Dictionary<string, string> pathMap)
+    public void RemapAssetPackPaths(AssetPack assetPack, Dictionary<string, string> pathMap)
     {
         // remap paths in main subgroups
         RemapSubgroupListPaths(assetPack.Subgroups, pathMap);
@@ -672,7 +674,7 @@ public class ConfigInstaller
         }
     }
 
-    public static void RemapSubgroupListPaths(IEnumerable<AssetPack.Subgroup> subgroups, Dictionary<string, string> pathMap)
+    public void RemapSubgroupListPaths(IEnumerable<AssetPack.Subgroup> subgroups, Dictionary<string, string> pathMap)
     {
         foreach (var subgroup in subgroups)
         {
@@ -687,7 +689,7 @@ public class ConfigInstaller
         }
     }
 
-    public static string GenerateRemappedPath(string path, Manifest manifest, string folderName, int fileName)
+    public string GenerateRemappedPath(string path, Manifest manifest, string folderName, int fileName)
     {
         if (GetExpectedDataFolderFromExtension(path, manifest, out string parentFolder))
         {
@@ -706,7 +708,7 @@ public class ConfigInstaller
         TrimmedSubFolders
     }
 
-    public static bool PathStartsWithModName(string path)
+    public bool PathStartsWithModName(string path)
     {
         string[] split = path.Split(Path.DirectorySeparatorChar);
         if (!split.Any())

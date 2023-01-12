@@ -19,16 +19,16 @@ namespace SynthEBD
         private readonly VM_HeightConfig.Factory _heightConfigFactory;
         private readonly VM_HeightAssignment.Factory _heightAssignmentFactory;
         private readonly SettingsIO_AssetPack _assetIO;
-        private readonly MainState _mainState;
+        private readonly PatcherState _patcherState;
         private readonly CustomMessageBox _customMessageBox;
-        public FirstLaunch(IEnvironmentStateProvider environmentProvider, SynthEBDPaths paths, Logger logger, VM_SettingsHeight heightSettingsVM, SettingsIO_AssetPack assetIO, MainState mainState, VM_HeightConfig.Factory heightConfigFactory, VM_HeightAssignment.Factory heightAssignmentFactory, CustomMessageBox customMessageBox)
+        public FirstLaunch(IEnvironmentStateProvider environmentProvider, SynthEBDPaths paths, Logger logger, VM_SettingsHeight heightSettingsVM, SettingsIO_AssetPack assetIO, PatcherState patcherState, VM_HeightConfig.Factory heightConfigFactory, VM_HeightAssignment.Factory heightAssignmentFactory, CustomMessageBox customMessageBox)
         {
             _environmentProvider = environmentProvider;
             _paths = paths;
             _logger = logger;
             _heightSettingsVM = heightSettingsVM;
             _assetIO = assetIO;
-            _mainState = mainState;
+            _patcherState = patcherState;
             _heightConfigFactory = heightConfigFactory;
             _heightAssignmentFactory = heightAssignmentFactory;
             _customMessageBox = customMessageBox;
@@ -65,8 +65,8 @@ namespace SynthEBD
                 var recordTemplates = _assetIO.LoadRecordTemplates(out bool loadSuccess);
                 if (loadSuccess)
                 {
-                    _mainState.RecordTemplatePlugins = recordTemplates;
-                    _mainState.RecordTemplateLinkCache = _mainState.RecordTemplatePlugins.ToImmutableLinkCache();
+                    _patcherState.RecordTemplatePlugins = recordTemplates;
+                    _patcherState.RecordTemplateLinkCache = _patcherState.RecordTemplatePlugins.ToImmutableLinkCache();
                 }
                 else
                 {

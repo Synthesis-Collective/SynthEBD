@@ -7,12 +7,14 @@ namespace SynthEBD;
 public class SettingsIO_BodyGen
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly Converters _converters;
-    public SettingsIO_BodyGen(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths, Converters converters)
+    public SettingsIO_BodyGen(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, Converters converters)
     {
         _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
         _logger = logger;
         _paths = paths;
         _converters = converters;
@@ -46,7 +48,7 @@ public class SettingsIO_BodyGen
     public BodyGenConfigs LoadBodyGenConfigs(List<RaceGrouping> raceGroupings, out bool loadSuccess)
     {
         string[] empty = new string[0];
-        return LoadBodyGenConfigs(empty, PatcherSettings.General.RaceGroupings, out loadSuccess);
+        return LoadBodyGenConfigs(empty, _patcherState.GeneralSettings.RaceGroupings, out loadSuccess);
     }
     public BodyGenConfigs LoadBodyGenConfigs(string[] filePaths, List<RaceGrouping> raceGroupings, out bool loadSuccess)
     {
@@ -154,7 +156,7 @@ public class SettingsIO_BodyGen
 
         foreach (var maleConfig in loadedPacks.Male)
         {
-            foreach (var attributeGroup in PatcherSettings.General.AttributeGroups) // add any available attribute groups from the general patcher settings
+            foreach (var attributeGroup in _patcherState.GeneralSettings.AttributeGroups) // add any available attribute groups from the general patcher settings
             {
                 if (!maleConfig.AttributeGroups.Select(x => x.Label).Contains(attributeGroup.Label))
                 {
@@ -165,7 +167,7 @@ public class SettingsIO_BodyGen
 
         foreach (var femaleConfig in loadedPacks.Male)
         {
-            foreach (var attributeGroup in PatcherSettings.General.AttributeGroups) // add any available attribute groups from the general patcher settings
+            foreach (var attributeGroup in _patcherState.GeneralSettings.AttributeGroups) // add any available attribute groups from the general patcher settings
             {
                 if (!femaleConfig.AttributeGroups.Select(x => x.Label).Contains(attributeGroup.Label))
                 {

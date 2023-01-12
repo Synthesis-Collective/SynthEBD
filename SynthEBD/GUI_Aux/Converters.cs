@@ -11,10 +11,12 @@ public class Converters
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
-    public Converters(IEnvironmentStateProvider environmentProvider, Logger logger)
+    private readonly PatcherState _patcherState;
+    public Converters(IEnvironmentStateProvider environmentProvider, Logger logger, PatcherState patcherState)
     {
         _environmentProvider = environmentProvider;
         _logger = logger;
+        _patcherState = patcherState;
     }
     public static FormKey RaceEDID2FormKey(string EDID, IEnvironmentStateProvider environmentProvider)
     {
@@ -361,7 +363,7 @@ public class Converters
         var split = formKeyString.Split(':');
         if (split.Length != 2) { return false; }
 
-        if (split[1] == PatcherSettings.General.PatchFileName + ".esp")
+        if (split[1] == _patcherState.GeneralSettings.PatchFileName + ".esp")
         {
             formIDstr = _environmentProvider.LoadOrder.ListedOrder.Count().ToString("X"); // format FormID assuming the generated patch will be last in the load order
         }

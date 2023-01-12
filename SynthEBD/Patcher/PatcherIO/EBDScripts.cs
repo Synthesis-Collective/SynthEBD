@@ -10,12 +10,14 @@ namespace SynthEBD
     public class EBDScripts
     {
         private readonly IEnvironmentStateProvider _environmentProvider;
+        private readonly PatcherState _patcherState;
         private readonly Logger _logger;
         private readonly SynthEBDPaths _paths;
         private readonly PatcherIO _patcherIO;
-        public EBDScripts(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
+        public EBDScripts(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
         {
             _environmentProvider = environmentProvider;
+            _patcherState = patcherState;
             _logger = logger;
             _paths = paths;
             _patcherIO = patcherIO; 
@@ -23,7 +25,7 @@ namespace SynthEBD
         public void ApplyFixedScripts()
         {
             string sourcePath = String.Empty;
-            if ((_environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimSE && !PatcherSettings.TexMesh.bFixedScriptsOldSKSEversion) || _environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.EnderalSE)
+            if ((_environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimSE && !_patcherState.TexMeshSettings.bFixedScriptsOldSKSEversion) || _environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.EnderalSE)
             {
                 _logger.LogMessage("Applying fixed EBD script (for SSE 1.5.97 or newer)");
                 sourcePath = Path.Combine(_environmentProvider.InternalDataPath, "EBD Code", "SSE", "EBDGlobalFuncs.pex");

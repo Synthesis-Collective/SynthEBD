@@ -13,12 +13,14 @@ namespace SynthEBD
     {
         private readonly IEnvironmentStateProvider _environmentProvider;
         private readonly AssetAndBodyShapeSelector _abSelector;
+        private readonly AssetSelector _assetSelector;
         private readonly RecordPathParser _recordPathParser;
         private readonly DictionaryMapper _dictionaryMapper;
-        public AssetReplacerSelector(IEnvironmentStateProvider environmentProvider, AssetAndBodyShapeSelector abSelector, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper)
+        public AssetReplacerSelector(IEnvironmentStateProvider environmentProvider, AssetAndBodyShapeSelector abSelector, AssetSelector assetSelector, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper)
         {
             _environmentProvider = environmentProvider;
             _abSelector = abSelector;
+            _assetSelector = assetSelector;
             _recordPathParser = recordPathParser;
             _dictionaryMapper = dictionaryMapper;
         }
@@ -79,7 +81,7 @@ namespace SynthEBD
                         assignedCombination.DestinationType = destinationType;
                         assignedCombination.ReplacerDestinationFormKey = destinationFK;
                         combinations.Add(assignedCombination);
-                        AssetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedCombination, npcInfo, replacerGroup);
+                        _assetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedCombination, npcInfo, replacerGroup);
                     }
                 }
             }

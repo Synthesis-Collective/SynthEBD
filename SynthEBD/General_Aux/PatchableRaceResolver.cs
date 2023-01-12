@@ -13,10 +13,12 @@ namespace SynthEBD
     public class PatchableRaceResolver
     {
         private readonly IEnvironmentStateProvider _environmentProvider;
+        private readonly PatcherState _patcherState;
         private readonly Logger _logger;
-        public PatchableRaceResolver(IEnvironmentStateProvider environmentProvider, Logger logger)
+        public PatchableRaceResolver(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger)
         {
             _environmentProvider = environmentProvider;
+            _patcherState = patcherState;
             _logger = logger;
         }
         
@@ -30,7 +32,7 @@ namespace SynthEBD
             }
 
             PatchableRaces = new();
-            foreach (var raceFK in PatcherSettings.General.PatchableRaces)
+            foreach (var raceFK in _patcherState.GeneralSettings.PatchableRaces)
             {
                 if (_environmentProvider.LinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
                 {

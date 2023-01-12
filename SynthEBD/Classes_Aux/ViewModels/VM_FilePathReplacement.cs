@@ -12,6 +12,7 @@ namespace SynthEBD;
 public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
     private readonly BSAHandler _bsaHandler;
     private readonly RecordIntellisense _recordIntellisense;
     private readonly RecordPathParser _recordPathParser;
@@ -20,9 +21,10 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 
     public delegate VM_FilePathReplacement Factory(VM_FilePathReplacementMenu parentMenu);
     
-    public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu, IEnvironmentStateProvider environmentProvider, BSAHandler bsaHandler, RecordIntellisense recordIntellisense, RecordPathParser recordPathParser, Logger logger, Factory selfFactory)
+    public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, BSAHandler bsaHandler, RecordIntellisense recordIntellisense, RecordPathParser recordPathParser, Logger logger, Factory selfFactory)
     {
         _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
         _bsaHandler = bsaHandler;
         _recordIntellisense = recordIntellisense;
         _recordPathParser = recordPathParser;
@@ -181,10 +183,10 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         }
     }
 
-    private static bool TrimKnownPrefix(string s, out string trimmed)
+    private bool TrimKnownPrefix(string s, out string trimmed)
     {
         trimmed = "";
-        foreach (var trim in PatcherSettings.TexMesh.TrimPaths)
+        foreach (var trim in _patcherState.TexMeshSettings.TrimPaths)
         {
             if (s.Contains(trim.PathToTrim) && s.EndsWith(trim.Extension))
             {

@@ -6,8 +6,12 @@ namespace SynthEBD;
 
 public class VM_SettingsModManager : VM
 {
-    public VM_SettingsModManager()
+    private readonly PatcherState _patcherState;
+    public delegate VM_SettingsModManager Factory();
+    public VM_SettingsModManager(PatcherState patcherState)
     {
+        _patcherState = patcherState;
+
         SelectTempFolder = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -48,9 +52,9 @@ public class VM_SettingsModManager : VM
 
     public void UpdatePatcherSettings()
     {
-        if (this != null && PatcherSettings.ModManagerIntegration != null)
+        if (this != null && _patcherState.ModManagerSettings != null)
         {
-            DumpViewModelToModel(PatcherSettings.ModManagerIntegration, this);
+            DumpViewModelToModel(_patcherState.ModManagerSettings, this);
         }
     }
 

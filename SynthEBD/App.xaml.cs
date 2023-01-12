@@ -17,6 +17,7 @@ public partial class App : Application
 {
     private PatcherSettingsSourceProvider _settingsSourceProvider;
     private PatcherEnvironmentSourceProvider _environmentSourceProvider;
+    private PatcherState _patcherState;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -141,13 +142,13 @@ public partial class App : Application
         saveLoader.LoadAllSettings();
 
         var miscValidation = container.Resolve<MiscValidation>();
-        var patcherState = container.Resolve<MainState>();
+        var patcherState = container.Resolve<PatcherState>();
 
-        if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !miscValidation.VerifyBodySlideAnnotations(PatcherSettings.OBody))
+        if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !miscValidation.VerifyBodySlideAnnotations(_patcherState.OBodySettings))
         {
             return;
         }
-        else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !miscValidation.VerifyBodyGenAnnotations(patcherState.AssetPacks, patcherState.BodyGenConfigs))
+        else if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !miscValidation.VerifyBodyGenAnnotations(patcherState.AssetPacks, patcherState.BodyGenConfigs))
         {
             return;
         }

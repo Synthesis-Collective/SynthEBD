@@ -1,12 +1,17 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 
 namespace SynthEBD;
 
 public class AliasHandler
 {
-    public static FormKey GetAliasTexMesh(FormKey npcRaceFormKey)
+    private readonly PatcherState _patcherState;
+    public AliasHandler(PatcherState patcherState)
     {
-        var alias = PatcherSettings.General.RaceAliases.Where(x => x.bApplyToAssets && x.Race == npcRaceFormKey).Select(x => x.AliasRace).FirstOrDefault();
+        _patcherState = patcherState;
+    }
+    public FormKey GetAliasTexMesh(FormKey npcRaceFormKey)
+    {
+        var alias = _patcherState.GeneralSettings.RaceAliases.Where(x => x.bApplyToAssets && x.Race == npcRaceFormKey).Select(x => x.AliasRace).FirstOrDefault();
 
         if (!alias.IsNull)
         {
@@ -18,9 +23,9 @@ public class AliasHandler
         }
     }
 
-    public static FormKey GetAliasBodyGen(FormKey npcRaceFormKey)
+    public FormKey GetAliasBodyGen(FormKey npcRaceFormKey)
     {
-        var alias = PatcherSettings.General.RaceAliases.Where(x => x.bApplyToBodyGen && x.Race == npcRaceFormKey).Select(x => x.AliasRace).FirstOrDefault();
+        var alias = _patcherState.GeneralSettings.RaceAliases.Where(x => x.bApplyToBodyGen && x.Race == npcRaceFormKey).Select(x => x.AliasRace).FirstOrDefault();
 
         if (!alias.IsNull)
         {
@@ -32,9 +37,9 @@ public class AliasHandler
         }
     }
 
-    public static FormKey GetAliasHeight(FormKey npcRaceFormKey)
+    public FormKey GetAliasHeight(FormKey npcRaceFormKey)
     {
-        var alias = PatcherSettings.General.RaceAliases.Where(x => x.bApplyToHeight && x.Race == npcRaceFormKey).Select(x => x.AliasRace).FirstOrDefault();
+        var alias = _patcherState.GeneralSettings.RaceAliases.Where(x => x.bApplyToHeight && x.Race == npcRaceFormKey).Select(x => x.AliasRace).FirstOrDefault();
 
         if (!alias.IsNull)
         {
@@ -46,9 +51,9 @@ public class AliasHandler
         }
     }
 
-    public static FormKey GetAliasHeadParts(FormKey npcRaceFormKey)
+    public FormKey GetAliasHeadParts(FormKey npcRaceFormKey)
     {
-        var alias = PatcherSettings.General.RaceAliases.Where(x => x.bApplyToHeadParts && x.Race == npcRaceFormKey).Select(x => x.AliasRace).FirstOrDefault();
+        var alias = _patcherState.GeneralSettings.RaceAliases.Where(x => x.bApplyToHeadParts && x.Race == npcRaceFormKey).Select(x => x.AliasRace).FirstOrDefault();
 
         if (!alias.IsNull)
         {

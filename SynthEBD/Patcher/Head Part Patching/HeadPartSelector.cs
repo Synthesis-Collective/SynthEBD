@@ -11,11 +11,13 @@ namespace SynthEBD
     public class HeadPartSelector
     {
         private readonly IEnvironmentStateProvider _environmentProvider;
+        private readonly PatcherState _patcherState;
         private readonly Logger _logger;
         private readonly AttributeMatcher _attributeMatcher;
-        public HeadPartSelector(IEnvironmentStateProvider environmentProvider, Logger logger, AttributeMatcher attributeMatcher)
+        public HeadPartSelector(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, AttributeMatcher attributeMatcher)
         {
             _environmentProvider = environmentProvider;
+            _patcherState = patcherState;
             _logger = logger;
             _attributeMatcher = attributeMatcher;
         }
@@ -30,7 +32,7 @@ namespace SynthEBD
 
             bool recordDataForLinkedUniqueNPCs = false;
             var tempUniqueNPCDataRecorder = UniqueNPCData.CreateHeadPartTracker(); // keeps the actual tracker null until all head parts are assigned.
-            if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts) == null)
+            if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts) == null)
             {
                 recordDataForLinkedUniqueNPCs = true;
             }
@@ -49,11 +51,11 @@ namespace SynthEBD
                 }
 
                 HeadPartConsistency currentConsistency = null;
-                if (PatcherSettings.General.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null)
+                if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null)
                 {
                     currentConsistency = npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType];
                 }
-                IHeadPartGetter selection = AssignHeadPartType(settings.Types[headPartType], PatcherSettings.General.AttributeGroups, headPartType, npcInfo, assignedBodySlide, currentConsistency, out bool randomizedToNone);
+                IHeadPartGetter selection = AssignHeadPartType(settings.Types[headPartType], _patcherState.GeneralSettings.AttributeGroups, headPartType, npcInfo, assignedBodySlide, currentConsistency, out bool randomizedToNone);
                 FormKey? selectedFK = null;
                 if (selection != null) { selectedFK = selection.FormKey; }
                 AllocateHeadPartSelection(selectedFK, headPartType, selectedHeadParts);
@@ -71,7 +73,7 @@ namespace SynthEBD
                 }
 
                 // record new consistency
-                if (PatcherSettings.General.bEnableConsistency)
+                if (_patcherState.GeneralSettings.bEnableConsistency)
                 {
                     if (selection != null)
                     {
@@ -182,7 +184,7 @@ namespace SynthEBD
                 _logger.LogReport("Assigning " + type + ": NONE via the NPC's Link Group.", false, npcInfo);
                 return null;
             }
-            else if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts) != null)
+            else if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts) != null)
             {
                 Dictionary<HeadPart.TypeEnum, IHeadPartGetter> uniqueAssignments = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts);
                 var assignedHeadPart = uniqueAssignments[type];
@@ -486,9 +488,9 @@ namespace SynthEBD
             return true;
         }
 
-        public static void ResolveConflictsWithAssetAssignments(Dictionary<HeadPart.TypeEnum, HeadPart> assetAssignments, HeadPartSelection headPartAssignments)
+        public void ResolveConflictsWithAssetAssignments(Dictionary<HeadPart.TypeEnum, HeadPart> assetAssignments, HeadPartSelection headPartAssignments)
         {
-            foreach (var type in PatcherSettings.HeadParts.SourceConflictWinners.Keys)
+            foreach (var type in _patcherState.HeadPartSettings.SourceConflictWinners.Keys)
             {
                 if (assetAssignments[type] == null) { continue; }
                 
@@ -505,12 +507,12 @@ namespace SynthEBD
             }
         }
 
-        public static FormKey? ResolveConflictWithAssetAssignment(HeadPart assetAssignment, FormKey? headPartAssignment, HeadPart.TypeEnum type)
+        public FormKey? ResolveConflictWithAssetAssignment(HeadPart assetAssignment, FormKey? headPartAssignment, HeadPart.TypeEnum type)
         {
             if (headPartAssignment == null && assetAssignment != null) { return assetAssignment.FormKey; }
             else if (headPartAssignment != null && assetAssignment == null) { return headPartAssignment.Value; }
 
-            var conflictWinner = PatcherSettings.HeadParts.SourceConflictWinners[type];
+            var conflictWinner = _patcherState.HeadPartSettings.SourceConflictWinners[type];
             switch (conflictWinner)
             {
                 case HeadPartSourceCandidate.AssetPack: return assetAssignment.FormKey; 

@@ -497,14 +497,14 @@ public sealed class Logger : VM
         return string.Join(" | ", sections);
     }
 
-    public static string GetRaceListLogStrings(IEnumerable<FormKey> formKeys, Mutagen.Bethesda.Plugins.Cache.ILinkCache lk)
+    public static string GetRaceListLogStrings(IEnumerable<FormKey> formKeys, Mutagen.Bethesda.Plugins.Cache.ILinkCache lk, PatcherState patcherState)
     {
-        return "[" + String.Join(", ", formKeys.Select(x => GetRaceLogString(x, lk))) + "]";
+        return "[" + String.Join(", ", formKeys.Select(x => GetRaceLogString(x, lk, patcherState))) + "]";
     }
 
-    public static string GetRaceLogString(FormKey fk, Mutagen.Bethesda.Plugins.Cache.ILinkCache lk)
+    public static string GetRaceLogString(FormKey fk, Mutagen.Bethesda.Plugins.Cache.ILinkCache lk, PatcherState patcherState)
     {
-        if (!PatcherSettings.General.VerboseModeDetailedAttributes)
+        if (!patcherState.GeneralSettings.VerboseModeDetailedAttributes)
         {
             return fk.ToString();
         }

@@ -6,14 +6,16 @@ namespace SynthEBD;
 public class CombinationLog
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly PatcherIO _patcherIO;
     private readonly SynthEBDPaths _paths;
     private readonly Converters _converters;
 
-    public CombinationLog(IEnvironmentStateProvider environmentProvider, Logger logger, PatcherIO patcherIO, SynthEBDPaths paths, Converters converters)
+    public CombinationLog(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, PatcherIO patcherIO, SynthEBDPaths paths, Converters converters)
     {
         _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
         _logger = logger;
         _patcherIO = patcherIO;
         _paths = paths;
@@ -36,7 +38,7 @@ public class CombinationLog
 
     public void WriteToFile()
     {
-        if (!PatcherSettings.TexMesh.bGenerateAssignmentLog) { return; }
+        if (!_patcherState.TexMeshSettings.bGenerateAssignmentLog) { return; }
         string outputFile = System.IO.Path.Combine(_paths.LogFolderPath, _logger.PatcherExecutionStart.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture), "Generated Combinations.txt");
 
         List<string> output = new List<string>();
@@ -110,7 +112,7 @@ public class CombinationLog
 
     public void LogAssignment(NPCInfo npcInfo, List<SubgroupCombination> combinations, List<FilePathReplacementParsed> assignedPaths)
     {
-        if (!PatcherSettings.TexMesh.bGenerateAssignmentLog) { return; }
+        if (!_patcherState.TexMeshSettings.bGenerateAssignmentLog) { return; }
 
         Dictionary<string, List<CombinationInfo>> combinationDict = null;
 

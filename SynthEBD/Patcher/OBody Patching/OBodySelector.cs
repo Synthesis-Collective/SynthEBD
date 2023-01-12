@@ -2,11 +2,13 @@ namespace SynthEBD;
 
 public class OBodySelector
 {
+    private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly AttributeMatcher _attributeMatcher;
-    public OBodySelector(Logger logger, SynthEBDPaths paths, AttributeMatcher attributeMatcher)
+    public OBodySelector(PatcherState patcherState, Logger logger, SynthEBDPaths paths, AttributeMatcher attributeMatcher)
     {
+        _patcherState = patcherState;
         _logger = logger;
         _paths = paths;
         _attributeMatcher = attributeMatcher;   
@@ -100,7 +102,7 @@ public class OBodySelector
             if (forceIfPresets.Any())
             {
                 #region Consistency (With ForceIf)
-                if (PatcherSettings.General.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && forceIfPresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
+                if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && forceIfPresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
                 {
                     selectedPreset = forceIfPresets.Where(x => x.Label == npcInfo.ConsistencyNPCAssignment.BodySlidePreset).FirstOrDefault();
                     if (selectedPreset is not null)
@@ -121,7 +123,7 @@ public class OBodySelector
             else
             {
                 #region Consistency (Without ForceIf)
-                if (PatcherSettings.General.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && filteredPresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
+                if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && filteredPresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
                 {
                     selectedPreset = filteredPresets.Where(x => x.Label == npcInfo.ConsistencyNPCAssignment.BodySlidePreset).FirstOrDefault();
                     if (selectedPreset is not null)
@@ -154,7 +156,7 @@ public class OBodySelector
             _logger.LogReport("Chose BodySlide Preset: " + selectedPreset.Label, false, npcInfo);
             selectionMade = true;
 
-            if (PatcherSettings.General.bEnableConsistency && selectedPreset.Label != npcInfo.ConsistencyNPCAssignment.BodySlidePreset && availablePresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
+            if (_patcherState.GeneralSettings.bEnableConsistency && selectedPreset.Label != npcInfo.ConsistencyNPCAssignment.BodySlidePreset && availablePresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
             {
                 _logger.LogReport("The consisteny BodySlide preset " + npcInfo.ConsistencyNPCAssignment.BodySlidePreset + " could not be chosen because it no longer complied with the current distribution rules so a new BodySlide was selected.", true, npcInfo);
             }
@@ -216,7 +218,7 @@ public class OBodySelector
 
         // Allowed and Forced Attributes
         candidatePreset.MatchedForceIfCount = 0;
-        _attributeMatcher.MatchNPCtoAttributeList(candidatePreset.AllowedAttributes, npcInfo.NPC, PatcherSettings.OBody.AttributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
+        _attributeMatcher.MatchNPCtoAttributeList(candidatePreset.AllowedAttributes, npcInfo.NPC, _patcherState.OBodySettings.AttributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
         if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
             _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedLog, false, npcInfo);
@@ -233,7 +235,7 @@ public class OBodySelector
         }
 
         // Disallowed Attributes
-        _attributeMatcher.MatchNPCtoAttributeList(candidatePreset.DisallowedAttributes, npcInfo.NPC, PatcherSettings.OBody.AttributeGroups, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _, null);
+        _attributeMatcher.MatchNPCtoAttributeList(candidatePreset.DisallowedAttributes, npcInfo.NPC, _patcherState.OBodySettings.AttributeGroups, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _, null);
         if (hasAttributeRestrictions && matchesAttributeRestrictions)
         {
             _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog, false, npcInfo);
@@ -341,7 +343,7 @@ public class OBodySelector
 
         return false;
     }
-    public static void RecordBodySlideConsistencyAndLinkedNPCs(BodySlideSetting assignedBodySlide, NPCInfo npcInfo)
+    public void RecordBodySlideConsistencyAndLinkedNPCs(BodySlideSetting assignedBodySlide, NPCInfo npcInfo)
     {
         npcInfo.ConsistencyNPCAssignment.BodySlidePreset = assignedBodySlide.Label;
 
@@ -351,7 +353,7 @@ public class OBodySelector
             npcInfo.AssociatedLinkGroup.AssignedBodySlide = assignedBodySlide;
         }
         // assign to unique NPC list if necessary
-        if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedBodySlidePreset == null)
+        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedBodySlidePreset == null)
         {
             Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedBodySlidePreset = assignedBodySlide;
         }

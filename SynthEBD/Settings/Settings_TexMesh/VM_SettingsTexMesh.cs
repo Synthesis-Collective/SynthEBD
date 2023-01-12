@@ -15,9 +15,10 @@ public class VM_SettingsTexMesh : VM
     private readonly ConfigInstaller _configInstaller;
     private readonly VM_AssetDistributionSimulator.Factory _simulatorFactory;
     private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
 
     public VM_SettingsTexMesh(
-        MainState state,
+        PatcherState patcherState,
         VM_Settings_General general,
         VM_SettingsBodyGen bodyGen,
         VM_SettingsOBody oBody,
@@ -38,6 +39,7 @@ public class VM_SettingsTexMesh : VM
         _configInstaller = configInstaller;
         _simulatorFactory = simulatorFactory;
         _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
 
         Observable.CombineLatest(
                 this.WhenAnyValue(x => x.bApplyFixedScripts),
@@ -123,7 +125,7 @@ public class VM_SettingsTexMesh : VM
             {
                 if (IO_Aux.SelectFile(_paths.AssetPackDirPath, "Config files (*.json)|*.json", "Select the config json file", out string path))
                 {
-                    var newAssetPack = assetIO.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, state.RecordTemplatePlugins, state.BodyGenConfigs, out bool loadSuccess);
+                    var newAssetPack = assetIO.LoadAssetPack(path, _patcherState.GeneralSettings.RaceGroupings, patcherState.RecordTemplatePlugins, patcherState.BodyGenConfigs, out bool loadSuccess);
                     if (loadSuccess)
                     {
                         newAssetPack.FilePath = System.IO.Path.Combine(_paths.AssetPackDirPath, System.IO.Path.GetFileName(newAssetPack.FilePath)); // overwrite existing filepath so it doesn't get deleted from source

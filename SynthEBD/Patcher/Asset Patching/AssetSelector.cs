@@ -8,15 +8,17 @@ namespace SynthEBD;
 public class AssetSelector
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly AttributeMatcher _attributeMatcher;
     private readonly RecordPathParser _recordPathParser;
     private readonly DictionaryMapper _dictionaryMapper;
     private readonly PatchableRaceResolver _raceResolver;
-    public AssetSelector(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths, AttributeMatcher attributeMatcher, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper, PatchableRaceResolver raceResolver)
+    public AssetSelector(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, AttributeMatcher attributeMatcher, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper, PatchableRaceResolver raceResolver)
     {
         _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
         _logger = logger;
         _paths = paths;
         _attributeMatcher = attributeMatcher;
@@ -614,14 +616,14 @@ public class AssetSelector
         // Allowed Races
         if (!subgroup.AllowedRacesIsEmpty && !subgroup.AllowedRaces.Contains(npcInfo.AssetsRace))
         {
-            _logger.LogReport(reportString + "is invalid because its allowed races (" + Logger.GetRaceListLogStrings(subgroup.AllowedRaces, _environmentProvider.LinkCache) +") do not include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, _environmentProvider.LinkCache) + ")", false, npcInfo);
+            _logger.LogReport(reportString + "is invalid because its allowed races (" + Logger.GetRaceListLogStrings(subgroup.AllowedRaces, _environmentProvider.LinkCache, _patcherState) +") do not include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, _environmentProvider.LinkCache, _patcherState) + ")", false, npcInfo);
             return false;
         }
 
         // Disallowed Races
         if (subgroup.DisallowedRaces.Contains(npcInfo.AssetsRace))
         {
-            _logger.LogReport(reportString + "is invalid because its disallowed races (" + Logger.GetRaceListLogStrings(subgroup.DisallowedRaces, _environmentProvider.LinkCache) + ") include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, _environmentProvider.LinkCache) + ")", false, npcInfo);
+            _logger.LogReport(reportString + "is invalid because its disallowed races (" + Logger.GetRaceListLogStrings(subgroup.DisallowedRaces, _environmentProvider.LinkCache, _patcherState) + ") include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, _environmentProvider.LinkCache, _patcherState) + ")", false, npcInfo);
             return false;
         }
 
@@ -669,7 +671,7 @@ public class AssetSelector
 
         if (mode != AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary)
         {
-            switch (PatcherSettings.General.BodySelectionMode)
+            switch (_patcherState.GeneralSettings.BodySelectionMode)
             {
                 case BodyShapeSelectionMode.BodyGen:
                     if (currentAssignments != null && currentAssignments.AssignedBodyGenMorphs != null)
@@ -799,9 +801,9 @@ public class AssetSelector
         return true;
     }
 
-    public static void RecordAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo) // Primary 
+    public void RecordAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo) // Primary 
     {
-        if (PatcherSettings.General.bEnableConsistency)
+        if (_patcherState.GeneralSettings.bEnableConsistency)
         {
             npcInfo.ConsistencyNPCAssignment.AssetPackName = assignedCombination.AssetPackName;
             npcInfo.ConsistencyNPCAssignment.SubgroupIDs = assignedCombination.ContainedSubgroups.Where(x => x.Id != AssetPack.ConfigDistributionRules.SubgroupIDString).Select(x => x.Id).ToList();
@@ -811,15 +813,15 @@ public class AssetSelector
             npcInfo.AssociatedLinkGroup.AssignedCombination = assignedCombination;
         }
 
-        if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.PrimaryAssets) == null)
+        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.PrimaryAssets) == null)
         {
             Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedCombination = assignedCombination;
         }
     }
 
-    public static void RecordAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo, string mixInName) // MixIn 
+    public void RecordAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo, string mixInName) // MixIn 
     {
-        if (PatcherSettings.General.bEnableConsistency)
+        if (_patcherState.GeneralSettings.bEnableConsistency)
         {
             var consistencyMixIn = npcInfo.ConsistencyNPCAssignment.MixInAssignments.Where(x => x.AssetPackName == mixInName).FirstOrDefault();
             if (consistencyMixIn == null)
@@ -847,7 +849,7 @@ public class AssetSelector
             }
         }
 
-        if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.MixInAssets) == null)
+        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.MixInAssets) == null)
         {
             if (Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].MixInAssignments.ContainsKey(mixInName))
             {
@@ -860,9 +862,9 @@ public class AssetSelector
         }
     }
 
-    public static void RecordAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo, FlattenedReplacerGroup replacerGroup) // Replacer
+    public void RecordAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo, FlattenedReplacerGroup replacerGroup) // Replacer
     {
-        if (PatcherSettings.General.bEnableConsistency)
+        if (_patcherState.GeneralSettings.bEnableConsistency)
         {
             var existingAssignment = npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.Name).FirstOrDefault();
             if (existingAssignment != null) { existingAssignment.SubgroupIDs = assignedCombination.ContainedSubgroups.Where(x => x.Id != AssetPack.ConfigDistributionRules.SubgroupIDString).Select(x => x.Id).ToList(); }
@@ -875,7 +877,7 @@ public class AssetSelector
             else { npcInfo.AssociatedLinkGroup.ReplacerAssignments.Add(new LinkedNPCGroupInfo.LinkedAssetReplacerAssignment() { GroupName = replacerGroup.Source.GroupName, ReplacerName = replacerGroup.Name, AssignedReplacerCombination = assignedCombination }); }
         }
 
-        if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique)
+        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique)
         {
             List<UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment> linkedAssetReplacerAssignments = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.ReplacerAssets);
             var existingAssignment = linkedAssetReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.Name).FirstOrDefault();
@@ -884,13 +886,13 @@ public class AssetSelector
         }
     }
 
-    public static bool BlockAssetDistributionByExistingAssets(NPCInfo npcInfo)
+    public bool BlockAssetDistributionByExistingAssets(NPCInfo npcInfo)
     {
-        if (!PatcherSettings.TexMesh.bApplyToNPCsWithCustomFaces && npcInfo.NPC.HeadTexture != null && !npcInfo.NPC.HeadTexture.IsNull && !BaseGamePlugins.Contains(npcInfo.NPC.HeadTexture.FormKey.ModKey.FileName.String))
+        if (!_patcherState.TexMeshSettings.bApplyToNPCsWithCustomFaces && npcInfo.NPC.HeadTexture != null && !npcInfo.NPC.HeadTexture.IsNull && !BaseGamePlugins.Contains(npcInfo.NPC.HeadTexture.FormKey.ModKey.FileName.String))
         {
             return true;
         }
-        if (!PatcherSettings.TexMesh.bApplyToNPCsWithCustomSkins && npcInfo.NPC.WornArmor != null && !npcInfo.NPC.WornArmor.IsNull && !BaseGamePlugins.Contains(npcInfo.NPC.WornArmor.FormKey.ModKey.FileName.String))
+        if (!_patcherState.TexMeshSettings.bApplyToNPCsWithCustomSkins && npcInfo.NPC.WornArmor != null && !npcInfo.NPC.WornArmor.IsNull && !BaseGamePlugins.Contains(npcInfo.NPC.WornArmor.FormKey.ModKey.FileName.String))
         {
             return true;
         }

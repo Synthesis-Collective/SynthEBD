@@ -5,10 +5,12 @@ namespace SynthEBD;
 
 public class BodyGenWriter
 {
+    private readonly PatcherState _patcherState;
     private readonly PatcherIO _patcherIO;
     private readonly Logger _logger;
-    public BodyGenWriter(PatcherIO patcherIO, Logger logger)
+    public BodyGenWriter(PatcherState patcherState, PatcherIO patcherIO, Logger logger)
     {
+        _patcherState = patcherState;
         _patcherIO = patcherIO;
         _logger = logger;
     }
@@ -17,7 +19,7 @@ public class BodyGenWriter
         string templates = CompileTemplateINI(bodyGenConfigs);
         string morphs = CompileMorphsINI(bodyGenConfigs);
 
-        string outputDirPath = Path.Combine(outputDataFolder, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.PatchFileName + ".esp");
+        string outputDirPath = Path.Combine(outputDataFolder, "Meshes", "actors", "character", "BodyGenData", _patcherState.GeneralSettings.PatchFileName + ".esp");
         Directory.CreateDirectory(outputDirPath);
 
         string templatePath = Path.Combine(outputDirPath, "templates.ini");

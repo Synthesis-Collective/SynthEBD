@@ -16,11 +16,13 @@ namespace SynthEBD;
 public class HardcodedRecordGenerator
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly HeadPartSelector _headPartSelector;
-    public HardcodedRecordGenerator(IEnvironmentStateProvider environmentProvider, Logger logger, HeadPartSelector headPartSelector)
+    public HardcodedRecordGenerator(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, HeadPartSelector headPartSelector)
     {
         _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
         _logger = logger;
         _headPartSelector = headPartSelector;
     }
@@ -36,8 +38,8 @@ public class HardcodedRecordGenerator
                 {
                     var parsed = new FilePathReplacementParsed(path, npcInfo, combination.AssetPack, recordTemplateLinkCache, combination, _logger);
 
-                    if (!PatcherSettings.TexMesh.bChangeNPCTextures && path.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase)) { continue; }
-                    if (!PatcherSettings.TexMesh.bChangeNPCMeshes && path.Source.EndsWith(".nif", StringComparison.OrdinalIgnoreCase)) { continue; }
+                    if (!_patcherState.TexMeshSettings.bChangeNPCTextures && path.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase)) { continue; }
+                    if (!_patcherState.TexMeshSettings.bChangeNPCMeshes && path.Source.EndsWith(".nif", StringComparison.OrdinalIgnoreCase)) { continue; }
 
                     if (doNotHardCode)
                     {

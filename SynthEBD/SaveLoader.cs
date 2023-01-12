@@ -13,7 +13,7 @@ public class SaveLoader : VM
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherSettingsSourceProvider _patcherSettingsSourceProvider;
     private readonly PatcherEnvironmentSourceProvider _patcherEnvironmentSourceProvider;
-    private readonly MainState _state;
+    private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly VM_AssetPack.Factory _assetPackFactory;
@@ -58,7 +58,7 @@ public class SaveLoader : VM
 
     public SaveLoader(
         IEnvironmentStateProvider environmentProvider,
-        MainState state,
+        PatcherState patcherState,
         VM_Settings_General generalSettings,
         VM_SettingsTexMesh texMeshSettings,
         VM_SettingsBodyGen bodyGenSettings,
@@ -103,7 +103,7 @@ public class SaveLoader : VM
         VM_NPCAttributeCreator attributeCreator)
     {
         _environmentProvider = environmentProvider;
-        _state = state;
+        _patcherState = patcherState;
         _logger = logger;
         _paths = paths;
         _assetPackFactory = assetPackFactory;
@@ -182,9 +182,9 @@ public class SaveLoader : VM
 
     public void SavePluginViewModels()
     {
-        VM_AssetPack.DumpViewModelsToModels(_texMeshSettingsVM.AssetPacks, _state.AssetPacks);
-        VM_HeightConfig.DumpViewModelsToModels(_heightSettingsVM.AvailableHeightConfigs, _state.HeightConfigs, _logger);
-        VM_SettingsBodyGen.DumpViewModelToModel(_bodyGenSettingsVM, PatcherSettings.BodyGen, _state.BodyGenConfigs);
+        VM_AssetPack.DumpViewModelsToModels(_texMeshSettingsVM.AssetPacks, _patcherState.AssetPacks);
+        VM_HeightConfig.DumpViewModelsToModels(_heightSettingsVM.AvailableHeightConfigs, _patcherState.HeightConfigs, _logger);
+        VM_SettingsBodyGen.DumpViewModelToModel(_bodyGenSettingsVM, _patcherState.BodyGenSettings, _patcherState.BodyGenConfigs);
     }
 
     public void LoadAllSettings()
@@ -198,57 +198,57 @@ public class SaveLoader : VM
     {
         _generalIO.LoadGeneralSettings(out var loadSuccess); // Load general settings                                                           
         _raceResolver.ResolvePatchableRaces(); // Initialize patchable races from general settings (required by some UI elements)
-        PatcherSettings.TexMesh = _assetIO.LoadTexMeshSettings(out loadSuccess); // Load texture and mesh settings
-        PatcherSettings.BodyGen = _bodyGenIO.LoadBodyGenSettings(out loadSuccess);
-        PatcherSettings.OBody = _oBodyIO.LoadOBodySettings(out loadSuccess);
+        _patcherState.TexMeshSettings = _assetIO.LoadTexMeshSettings(out loadSuccess); // Load texture and mesh settings
+        _patcherState.BodyGenSettings = _bodyGenIO.LoadBodyGenSettings(out loadSuccess);
+        _patcherState.OBodySettings = _oBodyIO.LoadOBodySettings(out loadSuccess);
         // load OBody settings before asset packs - asset packs depend on BodyGen but not vice versa
-        PatcherSettings.OBody.ImportBodySlides(PatcherSettings.OBody.TemplateDescriptors, _oBodyIO, _environmentProvider.DataFolderPath);
-        PatcherSettings.HeadParts = _headpartIO.LoadHeadPartSettings(out loadSuccess); // load head part settings
-        PatcherSettings.Height = _heightIO.LoadHeightSettings(out loadSuccess); // load heights
-        _state.BlockList = _blockListIO.LoadBlockList(out loadSuccess); // load BlockList
-        PatcherSettings.ModManagerIntegration = _modManagerIO.LoadModManagerSettings(out loadSuccess); // load Mod Manager Integration
+        _patcherState.OBodySettings.ImportBodySlides(_patcherState.OBodySettings.TemplateDescriptors, _oBodyIO, _environmentProvider.DataFolderPath);
+        _patcherState.HeadPartSettings = _headpartIO.LoadHeadPartSettings(out loadSuccess); // load head part settings
+        _patcherState.HeightSettings = _heightIO.LoadHeightSettings(out loadSuccess); // load heights
+        _patcherState.BlockList = _blockListIO.LoadBlockList(out loadSuccess); // load BlockList
+        _patcherState.ModManagerSettings = _modManagerIO.LoadModManagerSettings(out loadSuccess); // load Mod Manager Integration
     }
 
     public void LoadInitialSettingsViewModels() // view models that should be loaded before plugin VMs
     {
         // Load general settings
-        VM_Settings_General.GetViewModelFromModel(_generalSettingsVM, _patcherSettingsSourceProvider, _raceAliasFactory, _linkedNPCFactory, _environmentProvider.LinkCache);
-        VM_SettingsTexMesh.GetViewModelFromModel(_texMeshSettingsVM, PatcherSettings.TexMesh);     
-        VM_BlockListUI.GetViewModelFromModel(_state.BlockList, _blockList, _blockedNPCFactory, _blockedPluginFactory);
-        VM_SettingsModManager.GetViewModelFromModel(PatcherSettings.ModManagerIntegration, _settingsModManager);
+        VM_Settings_General.GetViewModelFromModel(_generalSettingsVM, _patcherSettingsSourceProvider, _patcherState, _raceAliasFactory, _linkedNPCFactory, _environmentProvider.LinkCache);
+        VM_SettingsTexMesh.GetViewModelFromModel(_texMeshSettingsVM, _patcherState.TexMeshSettings);     
+        VM_BlockListUI.GetViewModelFromModel(_patcherState.BlockList, _blockList, _blockedNPCFactory, _blockedPluginFactory);
+        VM_SettingsModManager.GetViewModelFromModel(_patcherState.ModManagerSettings, _settingsModManager);
     }
 
     public void LoadPlugins()
     {
         // load bodygen configs before asset packs - asset packs depend on BodyGen but not vice versa
-        _state.BodyGenConfigs = _bodyGenIO.LoadBodyGenConfigs(PatcherSettings.General.RaceGroupings, out var loadSuccess);
-        _state.RecordTemplatePlugins = _assetIO.LoadRecordTemplates(out loadSuccess);
-        _state.RecordTemplateLinkCache = _state.RecordTemplatePlugins.ToImmutableLinkCache();
-        _state.AssetPacks = _assetIO.LoadAssetPacks(PatcherSettings.General.RaceGroupings, _state.RecordTemplatePlugins, _state.BodyGenConfigs, out loadSuccess); // load asset pack models from json
-        _state.HeightConfigs = _heightIO.LoadHeightConfigs(out loadSuccess); // load heights
+        _patcherState.BodyGenConfigs = _bodyGenIO.LoadBodyGenConfigs(_patcherState.GeneralSettings.RaceGroupings, out var loadSuccess);
+        _patcherState.RecordTemplatePlugins = _assetIO.LoadRecordTemplates(out loadSuccess);
+        _patcherState.RecordTemplateLinkCache = _patcherState.RecordTemplatePlugins.ToImmutableLinkCache();
+        _patcherState.AssetPacks = _assetIO.LoadAssetPacks(_patcherState.GeneralSettings.RaceGroupings, _patcherState.RecordTemplatePlugins, _patcherState.BodyGenConfigs, out loadSuccess); // load asset pack models from json
+        _patcherState.HeightConfigs = _heightIO.LoadHeightConfigs(out loadSuccess); // load heights
     }
 
     public void LoadPluginViewModels()
     {
-        VM_SettingsBodyGen.GetViewModelFromModel(_state.BodyGenConfigs, PatcherSettings.BodyGen, _bodyGenSettingsVM, _bodyGenConfigFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings);
-        VM_SettingsOBody.GetViewModelFromModel(PatcherSettings.OBody, _settingsOBody, _generalSettingsVM.RaceGroupingEditor.RaceGroupings, _bodyShapeDescriptorCreator, _oBodyMiscSettingsFactory, _bodySlideFactory, _descriptorSelectionFactory, _attributeCreator, _logger);
+        VM_SettingsBodyGen.GetViewModelFromModel(_patcherState.BodyGenConfigs, _patcherState.BodyGenSettings, _bodyGenSettingsVM, _bodyGenConfigFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings);
+        VM_SettingsOBody.GetViewModelFromModel(_patcherState.OBodySettings, _settingsOBody, _generalSettingsVM.RaceGroupingEditor.RaceGroupings, _bodyShapeDescriptorCreator, _oBodyMiscSettingsFactory, _bodySlideFactory, _descriptorSelectionFactory, _attributeCreator, _logger);
         // load asset packs after BodyGen/BodySlide
-        VM_AssetPack.GetViewModelsFromModels(_state.AssetPacks, _texMeshSettingsVM, PatcherSettings.TexMesh, _assetPackFactory, _raceGroupingFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings); // add asset pack view models to TexMesh shell view model here
+        VM_AssetPack.GetViewModelsFromModels(_patcherState.AssetPacks, _texMeshSettingsVM, _patcherState.TexMeshSettings, _assetPackFactory, _raceGroupingFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings); // add asset pack view models to TexMesh shell view model here
         _texMeshSettingsVM.AssetPresenterPrimary.AssetPack = _texMeshSettingsVM.AssetPacks.Where(x => x.GroupName == _texMeshSettingsVM.LastViewedAssetPackName).FirstOrDefault();
         
-        VM_HeightConfig.GetViewModelsFromModels(_heightSettingsVM.AvailableHeightConfigs, _state.HeightConfigs, _heightConfigFactory, _heightAssignmentFactory);
-        VM_SettingsHeight.GetViewModelFromModel(_heightSettingsVM, PatcherSettings.Height); /// must do after populating configs
+        VM_HeightConfig.GetViewModelsFromModels(_heightSettingsVM.AvailableHeightConfigs, _patcherState.HeightConfigs, _heightConfigFactory, _heightAssignmentFactory);
+        VM_SettingsHeight.GetViewModelFromModel(_heightSettingsVM, _patcherState.HeightSettings); /// must do after populating configs
     }
 
     public void LoadMetaSettings()
     {
-        _state.SpecificNPCAssignments = _specificNPCassignmentsIO.LoadAssignments(out var loadSuccess);
-        _state.Consistency = _miscIO.LoadConsistency(out loadSuccess);
+        _patcherState.SpecificNPCAssignments = _specificNPCassignmentsIO.LoadAssignments(out var loadSuccess);
+        _patcherState.Consistency = _miscIO.LoadConsistency(out loadSuccess);
     }
 
     public void LoadFinalSettingsViewModels() // view models that should be loaded after plugin VMs because they depend on the loaded plugins
     {
-        _headPartSettingsVM.CopyInFromModel(PatcherSettings.HeadParts, _generalSettingsVM.RaceGroupingEditor.RaceGroupings);
+        _headPartSettingsVM.CopyInFromModel(_patcherState.HeadPartSettings, _generalSettingsVM.RaceGroupingEditor.RaceGroupings);
 
         // load specific assignments (must load after plugin view models)
         VM_SpecificNPCAssignmentsUI.GetViewModelFromModels(
@@ -258,29 +258,29 @@ public class SaveLoader : VM
             _headPartSettingsVM,
             _specificNpcAssignmentFactory,
             _npcAssignmentsUi,
-            _state.SpecificNPCAssignments,
+            _patcherState.SpecificNPCAssignments,
             _logger,
             _converters,
             _environmentProvider);
 
         // Load Consistency (must load after plugin view models)
-        VM_ConsistencyUI.GetViewModelsFromModels(_state.Consistency, _consistencyUi.Assignments, _texMeshSettingsVM.AssetPacks, _headPartSettingsVM, _logger);
+        VM_ConsistencyUI.GetViewModelsFromModels(_patcherState.Consistency, _consistencyUi.Assignments, _texMeshSettingsVM.AssetPacks, _headPartSettingsVM, _logger);
     }
 
     public void DumpViewModelsToModels()
     {
-        VM_Settings_General.DumpViewModelToModel(_generalSettingsVM, PatcherSettings.General);
-        VM_SettingsTexMesh.DumpViewModelToModel(_texMeshSettingsVM, PatcherSettings.TexMesh);
-        VM_AssetPack.DumpViewModelsToModels(_texMeshSettingsVM.AssetPacks, _state.AssetPacks);
-        VM_SettingsHeight.DumpViewModelToModel(_heightSettingsVM, PatcherSettings.Height);
-        VM_HeightConfig.DumpViewModelsToModels(_heightSettingsVM.AvailableHeightConfigs, _state.HeightConfigs, _logger);
-        VM_SettingsBodyGen.DumpViewModelToModel(_bodyGenSettingsVM, PatcherSettings.BodyGen, _state.BodyGenConfigs);
-        PatcherSettings.OBody = _settingsOBody.DumpViewModelToModel();
-        _headPartSettingsVM.DumpViewModelToModel(PatcherSettings.HeadParts);
-        VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(_npcAssignmentsUi, _state.SpecificNPCAssignments);
-        VM_BlockListUI.DumpViewModelToModel(_blockList, _state.BlockList);
-        VM_ConsistencyUI.DumpViewModelsToModels(_consistencyUi.Assignments, _state.Consistency);
-        VM_SettingsModManager.DumpViewModelToModel(PatcherSettings.ModManagerIntegration, _settingsModManager);
+        _generalSettingsVM.DumpViewModelToModel(_generalSettingsVM);
+        VM_SettingsTexMesh.DumpViewModelToModel(_texMeshSettingsVM, _patcherState.TexMeshSettings);
+        VM_AssetPack.DumpViewModelsToModels(_texMeshSettingsVM.AssetPacks, _patcherState.AssetPacks);
+        VM_SettingsHeight.DumpViewModelToModel(_heightSettingsVM, _patcherState.HeightSettings);
+        VM_HeightConfig.DumpViewModelsToModels(_heightSettingsVM.AvailableHeightConfigs, _patcherState.HeightConfigs, _logger);
+        VM_SettingsBodyGen.DumpViewModelToModel(_bodyGenSettingsVM, _patcherState.BodyGenSettings, _patcherState.BodyGenConfigs);
+        _patcherState.OBodySettings = _settingsOBody.DumpViewModelToModel();
+        _headPartSettingsVM.DumpViewModelToModel(_patcherState.HeadPartSettings);
+        VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(_npcAssignmentsUi, _patcherState.SpecificNPCAssignments);
+        VM_BlockListUI.DumpViewModelToModel(_blockList, _patcherState.BlockList);
+        VM_ConsistencyUI.DumpViewModelsToModels(_consistencyUi.Assignments, _patcherState.Consistency);
+        VM_SettingsModManager.DumpViewModelToModel(_patcherState.ModManagerSettings, _settingsModManager);
     }
 
     public void SaveEntireState()
@@ -293,98 +293,98 @@ public class SaveLoader : VM
         string allExceptions = "";
         bool showFinalExceptions = false;
 
-        JSONhandler<Settings_General>.SaveJSONFile(PatcherSettings.General, _paths.GeneralSettingsPath, out saveSuccess, out exceptionStr);
+        JSONhandler<Settings_General>.SaveJSONFile(_patcherState.GeneralSettings, _paths.GeneralSettingsPath, out saveSuccess, out exceptionStr);
         if (!saveSuccess)
         {
             captionStr = "Error saving General Settings: ";
             _logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
         }
 
-        JSONhandler<Settings_TexMesh>.SaveJSONFile(PatcherSettings.TexMesh, _paths.TexMeshSettingsPath, out saveSuccess, out exceptionStr);
+        JSONhandler<Settings_TexMesh>.SaveJSONFile(_patcherState.TexMeshSettings, _paths.TexMeshSettingsPath, out saveSuccess, out exceptionStr);
         if (!saveSuccess) 
         {
             captionStr = "Error saving Texture and Mesh Settings: ";
             _logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
         }
 
-        _assetIO.SaveAssetPacks(_state.AssetPacks, out saveSuccess);
+        _assetIO.SaveAssetPacks(_patcherState.AssetPacks, out saveSuccess);
         if (!saveSuccess) 
         {
             captionStr = "Error saving Asset Packs: ";
             _logger.LogError(captionStr); allExceptions += captionStr + Environment.NewLine; showFinalExceptions = true;
         }
 
-        JSONhandler<Settings_Height>.SaveJSONFile(PatcherSettings.Height, _paths.HeightSettingsPath, out saveSuccess, out exceptionStr);
+        JSONhandler<Settings_Height>.SaveJSONFile(_patcherState.HeightSettings, _paths.HeightSettingsPath, out saveSuccess, out exceptionStr);
         if (!saveSuccess) 
         {
             captionStr = "Error saving Height Settings: ";
             _logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
         }
 
-        _heightIO.SaveHeightConfigs(_state.HeightConfigs, out saveSuccess);
+        _heightIO.SaveHeightConfigs(_patcherState.HeightConfigs, out saveSuccess);
         if (!saveSuccess) 
         {
             captionStr = "Error saving Height Configs: ";
             _logger.LogError(captionStr); allExceptions += captionStr + Environment.NewLine; showFinalExceptions = true;
         }
 
-        JSONhandler<Settings_BodyGen>.SaveJSONFile(PatcherSettings.BodyGen, _paths.BodyGenSettingsPath, out saveSuccess, out exceptionStr);
+        JSONhandler<Settings_BodyGen>.SaveJSONFile(_patcherState.BodyGenSettings, _paths.BodyGenSettingsPath, out saveSuccess, out exceptionStr);
         if (!saveSuccess) 
         {
             captionStr = "Error saving BodyGen Settings: ";
             _logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
         }
 
-        _bodyGenIO.SaveBodyGenConfigs(_state.BodyGenConfigs.Female, out saveSuccess);
+        _bodyGenIO.SaveBodyGenConfigs(_patcherState.BodyGenConfigs.Female, out saveSuccess);
         if (!saveSuccess) 
         {
             captionStr = "Error saving BodyGen configs";
             _logger.LogError(captionStr); allExceptions += captionStr + Environment.NewLine; showFinalExceptions = true;
         }
 
-        _bodyGenIO.SaveBodyGenConfigs(_state.BodyGenConfigs.Male, out saveSuccess);
+        _bodyGenIO.SaveBodyGenConfigs(_patcherState.BodyGenConfigs.Male, out saveSuccess);
         if (!saveSuccess) 
         {
             captionStr = "Error saving BodyGen configs";
             _logger.LogError(captionStr); allExceptions += captionStr + Environment.NewLine; showFinalExceptions = true;
         }
 
-        JSONhandler<Settings_OBody>.SaveJSONFile(PatcherSettings.OBody, _paths.OBodySettingsPath, out saveSuccess, out exceptionStr);
+        JSONhandler<Settings_OBody>.SaveJSONFile(_patcherState.OBodySettings, _paths.OBodySettingsPath, out saveSuccess, out exceptionStr);
         if (!saveSuccess) 
         {
             captionStr = "Error saving OBody/AutoBody Settings: ";
             _logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
         }
 
-        JSONhandler<Settings_Headparts>.SaveJSONFile(PatcherSettings.HeadParts, _paths.HeadPartsSettingsPath, out saveSuccess, out exceptionStr);
+        JSONhandler<Settings_Headparts>.SaveJSONFile(_patcherState.HeadPartSettings, _paths.HeadPartsSettingsPath, out saveSuccess, out exceptionStr);
         if (!saveSuccess) 
         {
             captionStr = "Error saving Head Parts Settings: ";
             _logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
         }
 
-        _miscIO.SaveConsistency(_state.Consistency, out saveSuccess);
+        _miscIO.SaveConsistency(_patcherState.Consistency, out saveSuccess);
         if (!saveSuccess) 
         {
             captionStr = "Error saving Consistency";
             _logger.LogError(captionStr); allExceptions += captionStr + Environment.NewLine; showFinalExceptions = true;
         }
 
-        _specificNPCassignmentsIO.SaveAssignments(_state.SpecificNPCAssignments, out saveSuccess);
+        _specificNPCassignmentsIO.SaveAssignments(_patcherState.SpecificNPCAssignments, out saveSuccess);
         if (!saveSuccess) 
         {
             captionStr = "Error saving Specific NPC Assignments";
             _logger.LogError(captionStr); allExceptions += captionStr + Environment.NewLine; showFinalExceptions = true;
         }
 
-        _blockListIO.SaveBlockList(_state.BlockList, out saveSuccess);
+        _blockListIO.SaveBlockList(_patcherState.BlockList, out saveSuccess);
         if (!saveSuccess) 
         {
             captionStr = "Error saving Block List";
             _logger.LogError(captionStr); allExceptions += captionStr + Environment.NewLine; showFinalExceptions = true;
         }
 
-        JSONhandler<Settings_ModManager>.SaveJSONFile(PatcherSettings.ModManagerIntegration, _paths.ModManagerSettingsPath, out saveSuccess, out exceptionStr);
+        JSONhandler<Settings_ModManager>.SaveJSONFile(_patcherState.ModManagerSettings, _paths.ModManagerSettingsPath, out saveSuccess, out exceptionStr);
         if (!saveSuccess) 
         {
             captionStr = "Error saving Mod Manager Integration Settings: ";
@@ -423,6 +423,6 @@ public class SaveLoader : VM
 
     public void SaveConsistency()
     {
-        _miscIO.SaveConsistency(_state.Consistency, out _);
+        _miscIO.SaveConsistency(_patcherState.Consistency, out _);
     }
 }

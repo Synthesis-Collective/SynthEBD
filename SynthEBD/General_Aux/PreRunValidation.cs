@@ -10,11 +10,11 @@ namespace SynthEBD
     public class PreRunValidation
     {
         private readonly IEnvironmentStateProvider _environmentProvider;
-        private readonly MainState _patcherState;
+        private readonly PatcherState _patcherState;
         private readonly Logger _logger;
         private readonly MiscValidation _miscValidation;
         private readonly VM_SettingsTexMesh _texMeshSettingsVM;
-        public PreRunValidation(IEnvironmentStateProvider environmentProvider, MainState patcherState, Logger logger, MiscValidation miscValidation, VM_SettingsTexMesh texMeshSettingsVM)
+        public PreRunValidation(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, MiscValidation miscValidation, VM_SettingsTexMesh texMeshSettingsVM)
         {
             _environmentProvider = environmentProvider;
             _patcherState = patcherState;
@@ -27,14 +27,14 @@ namespace SynthEBD
         {
             bool valid = true;
 
-            if (PatcherSettings.General.bChangeMeshesOrTextures)
+            if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)
             {
                 if (!_miscValidation.VerifyEBDInstalled())
                 {
                     valid = false;
                 }
 
-                if (!_texMeshSettingsVM.ValidateAllConfigs(_patcherState.BodyGenConfigs, PatcherSettings.OBody, out var configErrors)) // check config files for errors
+                if (!_texMeshSettingsVM.ValidateAllConfigs(_patcherState.BodyGenConfigs, _patcherState.OBodySettings, out var configErrors)) // check config files for errors
                 {
                     _logger.LogMessage(configErrors);
                     valid = false;
@@ -42,24 +42,24 @@ namespace SynthEBD
 
             }
 
-            if (PatcherSettings.General.BodySelectionMode != BodyShapeSelectionMode.None)
+            if (_patcherState.GeneralSettings.BodySelectionMode != BodyShapeSelectionMode.None)
             {
                 if (!_miscValidation.VerifyRaceMenuInstalled(_environmentProvider.DataFolderPath))
                 {
                     valid = false;
                 }
-                else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !_miscValidation.VerifyRaceMenuIniForBodyGen())
+                else if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !_miscValidation.VerifyRaceMenuIniForBodyGen())
                 {
                     valid = false;
                 }
-                else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !_miscValidation.VerifyRaceMenuIniForBodySlide())
+                else if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !_miscValidation.VerifyRaceMenuIniForBodySlide())
                 {
                     valid = false;
                 }
 
-                if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
+                if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
                 {
-                    if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.OBody)
+                    if (_patcherState.GeneralSettings.BSSelectionMode == BodySlideSelectionMode.OBody)
                     {
                         if (!_miscValidation.VerifyOBodyInstalled(_environmentProvider.DataFolderPath))
                         {
@@ -71,20 +71,20 @@ namespace SynthEBD
                             valid = false;
                         }
                     }
-                    else if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.AutoBody)
+                    else if (_patcherState.GeneralSettings.BSSelectionMode == BodySlideSelectionMode.AutoBody)
                     {
                         if (!_miscValidation.VerifyAutoBodyInstalled(_environmentProvider.DataFolderPath))
                         {
                             valid = false;
                         }
 
-                        if (PatcherSettings.OBody.AutoBodySelectionMode == AutoBodySelectionMode.JSON && !_miscValidation.VerifyJContainersInstalled(_environmentProvider.DataFolderPath, false))
+                        if (_patcherState.OBodySettings.AutoBodySelectionMode == AutoBodySelectionMode.JSON && !_miscValidation.VerifyJContainersInstalled(_environmentProvider.DataFolderPath, false))
                         {
                             valid = false;
                         }
                     }
 
-                    if (!_miscValidation.VerifyGeneratedTriFilesForOBody(PatcherSettings.OBody))
+                    if (!_miscValidation.VerifyGeneratedTriFilesForOBody(_patcherState.OBodySettings))
                     {
                         valid = false;
                     }
@@ -94,7 +94,7 @@ namespace SynthEBD
                     //    valid = false;
                     //}
                 }
-                else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
+                else if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
                 {
                     if (!_miscValidation.VerifyGeneratedTriFilesForBodyGen(_patcherState.AssetPacks, _patcherState.BodyGenConfigs))
                     {
@@ -103,7 +103,7 @@ namespace SynthEBD
                 }
             }
 
-            if (PatcherSettings.General.bChangeHeadParts)
+            if (_patcherState.GeneralSettings.bChangeHeadParts)
             {
                 if (!_miscValidation.VerifyEBDInstalled())
                 {

@@ -6,11 +6,13 @@ public class AssetPackValidator
 {
     private readonly BSAHandler _bsaHandler;
     private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
 
-    public AssetPackValidator(BSAHandler bsaHandler, IEnvironmentStateProvider environmentProvider)
+    public AssetPackValidator(BSAHandler bsaHandler, IEnvironmentStateProvider environmentProvider, PatcherState patcherState)
     {
         _bsaHandler = bsaHandler;
         _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
     }
     
     public bool Validate(AssetPack assetPack, List<string> errors, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings)
@@ -36,7 +38,7 @@ public class AssetPackValidator
             isValidated = false;
         }
 
-        if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !string.IsNullOrWhiteSpace(assetPack.AssociatedBodyGenConfigName))
+        if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !string.IsNullOrWhiteSpace(assetPack.AssociatedBodyGenConfigName))
         {
             BodyGenConfig matchedConfig = null;
             switch(assetPack.Gender)
@@ -158,7 +160,7 @@ public class AssetPackValidator
             }
         }
 
-        if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen && bodyGenConfig != null)
+        if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen && bodyGenConfig != null)
         {
             foreach (var descriptor in subgroup.AllowedBodyGenDescriptors)
             {
@@ -178,7 +180,7 @@ public class AssetPackValidator
             }
         }
 
-        else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
+        else if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
         {
             foreach (var descriptor in subgroup.AllowedBodySlideDescriptors)
             {

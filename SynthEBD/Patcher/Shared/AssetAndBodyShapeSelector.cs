@@ -2,13 +2,15 @@ namespace SynthEBD;
 
 public class AssetAndBodyShapeSelector
 {
+    private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly AssetSelector _assetSelector;
     private readonly BodyGenSelector _bodyGenSelector;
     private readonly OBodySelector _oBodySelector;
 
-    public AssetAndBodyShapeSelector(Logger logger, AssetSelector assetSelector, BodyGenSelector bodyGenSelector, OBodySelector oBodySelector)
+    public AssetAndBodyShapeSelector(PatcherState patcherState, Logger logger, AssetSelector assetSelector, BodyGenSelector bodyGenSelector, OBodySelector oBodySelector)
     {
+        _patcherState = patcherState;
         _logger = logger;
         _assetSelector = assetSelector;
         _bodyGenSelector = bodyGenSelector;
@@ -95,7 +97,7 @@ public class AssetAndBodyShapeSelector
 
                 if (!blockBodyShape && mode == AssetPackAssignmentMode.Primary)
                 {
-                    switch (PatcherSettings.General.BodySelectionMode)
+                    switch (_patcherState.GeneralSettings.BodySelectionMode)
                     {
                         case BodyShapeSelectionMode.BodyGen:
                             assignment.AssignedBodyGenMorphs = npcInfo.AssociatedLinkGroup.AssignedMorphs;
@@ -120,7 +122,7 @@ public class AssetAndBodyShapeSelector
                 _logger.LogReport("The linked combination (" + linkedCombination.Signature + ") assigned to the primary Link Group member was incompatible with the Specific Assignments for this NPC. Consider making Specific Assignments only for the primary link group member.", true, npcInfo);
             }
         }
-        else if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique)
+        else if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique)
         {
             SubgroupCombination linkedCombination = null;
             switch (mode)
@@ -150,7 +152,7 @@ public class AssetAndBodyShapeSelector
 
                 if (!blockBodyShape && mode == AssetPackAssignmentMode.Primary)
                 {
-                    switch (PatcherSettings.General.BodySelectionMode)
+                    switch (_patcherState.GeneralSettings.BodySelectionMode)
                     {
                         case BodyShapeSelectionMode.BodyGen:
                             assignment.AssignedBodyGenMorphs = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodyGen);
@@ -177,7 +179,7 @@ public class AssetAndBodyShapeSelector
             _logger.LogReport("Choosing Asset Combination and BodyGen for " + npcInfo.LogIDstring, false, npcInfo);
             chosenCombination = GenerateCombinationWithBodyShape(availableAssetPacks, bodyGenConfigs, oBodySettings, assignment, npcInfo, blockBodyShape, mode, currentAssignments); // chosenMorphs is populated by reference within ChooseRandomCombination
 
-            switch (PatcherSettings.General.BodySelectionMode)
+            switch (_patcherState.GeneralSettings.BodySelectionMode)
             {
                 case BodyShapeSelectionMode.BodyGen: bodyShapeAssigned = assignment.AssignedBodyGenMorphs.Any(); break;
                 case BodyShapeSelectionMode.BodySlide: bodyShapeAssigned = assignment.AssignedOBodyPreset != null; break;
@@ -192,7 +194,7 @@ public class AssetAndBodyShapeSelector
         }
         if (bodyShapeAssigned)
         {
-            switch(PatcherSettings.General.BodySelectionMode)
+            switch(_patcherState.GeneralSettings.BodySelectionMode)
             {
                 case BodyShapeSelectionMode.BodyGen: npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignment.AssignedBodyGenMorphs.Select(x => x.Label).ToList(); break;
                 case BodyShapeSelectionMode.BodySlide: npcInfo.ConsistencyNPCAssignment.BodySlidePreset = assignment.AssignedOBodyPreset.Label; break;
@@ -260,7 +262,7 @@ public class AssetAndBodyShapeSelector
             }
 
             // get a BodyGen assignment
-            if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.None || blockBodyShape || (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !BodyGenSelector.BodyGenAvailableForGender(npcInfo.Gender, bodyGenConfigs)) || (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !_oBodySelector.CurrentNPCHasAvailablePresets(npcInfo, oBodySettings)))
+            if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.None || blockBodyShape || (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !BodyGenSelector.BodyGenAvailableForGender(npcInfo.Gender, bodyGenConfigs)) || (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !_oBodySelector.CurrentNPCHasAvailablePresets(npcInfo, oBodySettings)))
             {
                 combinationIsValid = true;
                 _logger.LogReport("Current combination is accepted without body shape selection.", false, npcInfo);
@@ -269,7 +271,7 @@ public class AssetAndBodyShapeSelector
             {
                 bool bodyShapeAssigned = false;
                 var bodyShapeStatusFlags = new BodyShapeSelectorStatusFlag();
-                switch (PatcherSettings.General.BodySelectionMode)
+                switch (_patcherState.GeneralSettings.BodySelectionMode)
                 {
                     case BodyShapeSelectionMode.BodyGen: candidateMorphs = _bodyGenSelector.SelectMorphs(npcInfo, out bodyShapeAssigned, bodyGenConfigs, assignedCombination, out bodyShapeStatusFlags); break;
                     case BodyShapeSelectionMode.BodySlide: candidatePreset = _oBodySelector.SelectBodySlidePreset(npcInfo, out bodyShapeAssigned, oBodySettings, assignedCombination, out bodyShapeStatusFlags); break;
@@ -278,9 +280,9 @@ public class AssetAndBodyShapeSelector
                 // Decision Tree
 
                 bool npcHasBodyShapeConsistency = false;
-                if (PatcherSettings.General.bEnableConsistency)
+                if (_patcherState.GeneralSettings.bEnableConsistency)
                 {
-                    switch (PatcherSettings.General.BodySelectionMode)
+                    switch (_patcherState.GeneralSettings.BodySelectionMode)
                     {
                         case BodyShapeSelectionMode.BodyGen: npcHasBodyShapeConsistency = npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames.Any(); break;
                         case BodyShapeSelectionMode.BodySlide: npcHasBodyShapeConsistency = npcInfo.ConsistencyNPCAssignment.BodySlidePreset != null && !string.IsNullOrWhiteSpace(npcInfo.ConsistencyNPCAssignment.BodySlidePreset); break;
@@ -293,7 +295,7 @@ public class AssetAndBodyShapeSelector
                     // check if any body shape would be valid for the given NPC without any restrictions from the asset combination
                     _logger.LogReport("Checking if any body shapes would be valid without the restrictions imposed by the current combination.", false, npcInfo);
                     bool bodyShapeAssignable = false;
-                    switch (PatcherSettings.General.BodySelectionMode)
+                    switch (_patcherState.GeneralSettings.BodySelectionMode)
                     {
                         case BodyShapeSelectionMode.BodyGen: candidateMorphs = _bodyGenSelector.SelectMorphs(npcInfo, out bool bodyGenAssignable, bodyGenConfigs, null, out bodyShapeStatusFlags); break;
                         case BodyShapeSelectionMode.BodySlide: candidatePreset = _oBodySelector.SelectBodySlidePreset(npcInfo, out bodyShapeAssigned, oBodySettings, null, out bodyShapeStatusFlags); break;
@@ -319,7 +321,7 @@ public class AssetAndBodyShapeSelector
                 else if (!npcHasBodyShapeConsistency || bodyShapeStatusFlags.HasFlag(BodyShapeSelectorStatusFlag.MatchesConsistency) || bodyShapeStatusFlags.HasFlag(BodyShapeSelectorStatusFlag.ConsistencyMorphIsInvalid))
                 {
                     _logger.LogReport("Current combination is accepted along with the current body shape selection.", false, npcInfo);
-                    switch (PatcherSettings.General.BodySelectionMode)
+                    switch (_patcherState.GeneralSettings.BodySelectionMode)
                     {
                         case BodyShapeSelectionMode.BodyGen: assignment.AssignedBodyGenMorphs.AddRange(candidateMorphs); break;
                         case BodyShapeSelectionMode.BodySlide: assignment.AssignedOBodyPreset = candidatePreset; break;
@@ -334,7 +336,7 @@ public class AssetAndBodyShapeSelector
 
                     if (!firstValidCombinationShapePairInitialized)
                     {
-                        switch (PatcherSettings.General.BodySelectionMode)
+                        switch (_patcherState.GeneralSettings.BodySelectionMode)
                         {
                             case BodyShapeSelectionMode.BodyGen: firstValidCombinationShapePair = new Tuple<SubgroupCombination, object>(assignedCombination, candidateMorphs); break;
                             case BodyShapeSelectionMode.BodySlide: firstValidCombinationShapePair = new Tuple<SubgroupCombination, object>(assignedCombination, candidatePreset); break;
@@ -353,7 +355,7 @@ public class AssetAndBodyShapeSelector
                 _logger.LogReport("Could not assign an asset combination to " + npcInfo.LogIDstring + " that is compatible with its consistency Body Shape. A valid combination was assigned, but Body Shape assignment will be re-randomized.", true, npcInfo);
 
                 assignedCombination = firstValidCombinationShapePair.Item1;
-                switch (PatcherSettings.General.BodySelectionMode)
+                switch (_patcherState.GeneralSettings.BodySelectionMode)
                 {
                     case BodyShapeSelectionMode.BodyGen: assignment.AssignedBodyGenMorphs.AddRange((List<BodyGenConfig.BodyGenTemplate>)firstValidCombinationShapePair.Item2); break;
                     case BodyShapeSelectionMode.BodySlide: assignment.AssignedOBodyPreset = (BodySlideSetting)firstValidCombinationShapePair.Item2; break;

@@ -5,11 +5,13 @@ namespace SynthEBD;
 public class SettingsIO_General
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
-    public SettingsIO_General(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths)
+    public SettingsIO_General(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths)
     {
         _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
         _logger = logger;
         _paths = paths;
     }
@@ -17,7 +19,7 @@ public class SettingsIO_General
     {
         if (File.Exists(_paths.GeneralSettingsPath))
         {
-            PatcherSettings.General = JSONhandler<Settings_General>.LoadJSONFile(_paths.GeneralSettingsPath, out loadSuccess, out string exceptionStr);
+            _patcherState.GeneralSettings = JSONhandler<Settings_General>.LoadJSONFile(_paths.GeneralSettingsPath, out loadSuccess, out string exceptionStr);
             if(loadSuccess && string.IsNullOrWhiteSpace(_paths.OutputDataFolder))
             {
                 _paths.OutputDataFolder = _environmentProvider.DataFolderPath;
@@ -29,19 +31,19 @@ public class SettingsIO_General
         }
         else
         {
-            PatcherSettings.General = new Settings_General();
+            _patcherState.GeneralSettings = new Settings_General();
             loadSuccess = true;
         }
     }
 
     public void DumpVMandSave(VM_Settings_General generalSettingsVM)
     {
-        if (PatcherSettings.General == null)
+        if (_patcherState.GeneralSettings == null)
         {
             return;
         }
-        VM_Settings_General.DumpViewModelToModel(generalSettingsVM, PatcherSettings.General);
-        JSONhandler<Settings_General>.SaveJSONFile(PatcherSettings.General, _paths.GeneralSettingsPath, out bool saveSuccess, out string exceptionStr);
+        generalSettingsVM.DumpViewModelToModel(generalSettingsVM);
+        JSONhandler<Settings_General>.SaveJSONFile(_patcherState.GeneralSettings, _paths.GeneralSettingsPath, out bool saveSuccess, out string exceptionStr);
         if (!saveSuccess) { _logger.LogMessage("Error saving General Settings: " + exceptionStr); }
     }
 }

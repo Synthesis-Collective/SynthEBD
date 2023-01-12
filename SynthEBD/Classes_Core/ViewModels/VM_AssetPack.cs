@@ -30,7 +30,7 @@ public enum AssetPackMenuVisibility
 public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgroupViewModels, IHasRaceGroupingEditor
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
-    private readonly MainState _state;
+    private readonly PatcherState _patcherState;
     private readonly VM_SettingsOBody _oBody;
     private readonly VM_Settings_General _general;
     private readonly VM_BodyGenConfig.Factory _bodyGenConfigFactory;
@@ -51,7 +51,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
     public VM_AssetPack(
         IEnvironmentStateProvider environmentProvider,
-        MainState state,
+        PatcherState state,
         VM_SettingsBodyGen bodyGen,
         VM_SettingsOBody oBody,
         VM_SettingsTexMesh texMesh,
@@ -71,7 +71,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         Factory selfFactory)
     {
         _environmentProvider = environmentProvider;
-        _state = state;
+        _patcherState = state;
         _oBody = oBody;
         _general = general;
         _bodyGenConfigFactory = bodyGenConfigFactory;
@@ -201,7 +201,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         DiscardButton = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
-                var reloaded = _assetPackIO.LoadAssetPack(SourcePath, PatcherSettings.General.RaceGroupings, state.RecordTemplatePlugins, state.BodyGenConfigs, out bool success);
+                var reloaded = _assetPackIO.LoadAssetPack(SourcePath, _patcherState.GeneralSettings.RaceGroupings, state.RecordTemplatePlugins, state.BodyGenConfigs, out bool success);
                 if (!success)
                 {
                     _logger.CallTimedLogErrorWithStatusUpdateAsync(GroupName + " could not be reloaded from drive.", ErrorType.Error, 3);
@@ -390,7 +390,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         DefaultTemplateFK = model.DefaultRecordTemplate;
         foreach(var additionalTemplateAssignment in model.AdditionalRecordTemplateAssignments)
         {
-            var assignmentVM = new VM_AdditionalRecordTemplate(_environmentProvider, _state.RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
+            var assignmentVM = new VM_AdditionalRecordTemplate(_environmentProvider, _patcherState.RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
             assignmentVM.RaceFormKeys = new ObservableCollection<FormKey>(additionalTemplateAssignment.Races);
             assignmentVM.TemplateNPC = additionalTemplateAssignment.TemplateNPC;
             assignmentVM.AdditionalRacesPaths = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(additionalTemplateAssignment.AdditionalRacesPaths);
@@ -557,7 +557,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         if (IO_Aux.SelectFile(assetPackDirPath, "Config files (*.json)|*.json", "Select config file to merge in", out string path))
         {
-            var newAssetPack = _assetPackIO.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, _state.RecordTemplatePlugins, _state.BodyGenConfigs, out bool loadSuccess);
+            var newAssetPack = _assetPackIO.LoadAssetPack(path, _patcherState.GeneralSettings.RaceGroupings, _patcherState.RecordTemplatePlugins, _patcherState.BodyGenConfigs, out bool loadSuccess);
             if (loadSuccess)
             {
                 var newAssetPackVM = _selfFactory();

@@ -15,6 +15,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public PatcherSettingsSourceProvider SettingsSourceProvider { get; }
     private bool _bFirstRun { get; set; } = false;
     private readonly SettingsIO_General _generalIO;
+    private readonly PatcherState _patcherState;
     private readonly VM_RaceAlias.Factory _aliasFactory;
     private readonly VM_RaceGroupingEditor.Factory _raceGroupingEditorFactory;
     private readonly VM_LinkedNPCGroup.Factory _linkedNPCFactory;
@@ -29,6 +30,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         VM_RaceGrouping.Factory groupingFactory,
         VM_LinkedNPCGroup.Factory linkedNPCFactory,
         SettingsIO_General generalIO,
+        PatcherState patcherState,
         IEnvironmentStateProvider environmentProvider,
         FirstLaunch firstLaunch,
         SynthEBDPaths paths)
@@ -37,6 +39,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         IsStandalone = environmentProvider.RunMode == EnvironmentMode.Standalone;
         SettingsSourceProvider = settingsProvider;
         _generalIO = generalIO;
+        _patcherState = patcherState;
         _firstLaunch = firstLaunch;
         _aliasFactory = aliasFactory;
         _raceGroupingEditorFactory = raceGroupingEditorFactory;
@@ -191,9 +194,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public RelayCommand ClearPortableSettingsFolder { get; }
     public bool IsStandalone { get; set; }
     
-    public static void GetViewModelFromModel(VM_Settings_General viewModel, PatcherSettingsSourceProvider patcherSettingsProvider, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, ILinkCache linkCache)
+    public static void GetViewModelFromModel(VM_Settings_General viewModel, PatcherSettingsSourceProvider patcherSettingsProvider, PatcherState patcherState, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, ILinkCache linkCache)
     {
-        var model = PatcherSettings.General;
+        var model = patcherState.GeneralSettings;
         viewModel.OutputDataFolder = model.OutputDataFolder;
         viewModel.bShowToolTips = model.bShowToolTips;
         viewModel.bChangeMeshesOrTextures = model.bChangeMeshesOrTextures;
@@ -219,38 +222,36 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
 
         viewModel._bFirstRun = model.bFirstRun;
     }
-    public static void DumpViewModelToModel(VM_Settings_General viewModel, Settings_General model)
+    public void DumpViewModelToModel(VM_Settings_General viewModel)
     {
-        model.OutputDataFolder = viewModel.OutputDataFolder;
-        model.bShowToolTips = viewModel.bShowToolTips;
-        model.bChangeMeshesOrTextures = viewModel.bChangeMeshesOrTextures;
-        model.BodySelectionMode = viewModel.BodySelectionMode;
-        model.BSSelectionMode = viewModel.BSSelectionMode;
-        model.bChangeHeight = viewModel.bChangeHeight;
-        model.bChangeHeadParts = viewModel.bChangeHeadParts;
-        model.OutputDataFolder = viewModel.OutputDataFolder;
-        model.bEnableConsistency = viewModel.bEnableConsistency;
-        model.ExcludePlayerCharacter = viewModel.ExcludePlayerCharacter;
-        model.ExcludePresets = viewModel.ExcludePresets;
-        model.bLinkNPCsWithSameName = viewModel.bLinkNPCsWithSameName;
-        model.LinkedNPCNameExclusions = viewModel.LinkedNameExclusions.Select(x => x.Content).ToList();
-        VM_LinkedNPCGroup.DumpViewModelsToModels(model.LinkedNPCGroups, viewModel.LinkedNPCGroups);
-        model.bVerboseModeAssetsNoncompliant = viewModel.bVerboseModeAssetsNoncompliant;
-        model.bVerboseModeAssetsAll = viewModel.bVerboseModeAssetsAll;
-        model.VerboseModeNPClist = viewModel.verboseModeNPClist.ToList();
-        model.VerboseModeDetailedAttributes = viewModel.VerboseModeDetailedAttributes;
-        model.PatchableRaces = viewModel.patchableRaces.ToList();
-        model.RaceGroupings = viewModel.RaceGroupingEditor.DumpToModel();
-        model.RaceAliases.Clear();
+        _patcherState.GeneralSettings.OutputDataFolder = viewModel.OutputDataFolder;
+        _patcherState.GeneralSettings.bShowToolTips = viewModel.bShowToolTips;
+        _patcherState.GeneralSettings.bChangeMeshesOrTextures = viewModel.bChangeMeshesOrTextures;
+        _patcherState.GeneralSettings.BodySelectionMode = viewModel.BodySelectionMode;
+        _patcherState.GeneralSettings.BSSelectionMode = viewModel.BSSelectionMode;
+        _patcherState.GeneralSettings.bChangeHeight = viewModel.bChangeHeight;
+        _patcherState.GeneralSettings.bChangeHeadParts = viewModel.bChangeHeadParts;
+        _patcherState.GeneralSettings.OutputDataFolder = viewModel.OutputDataFolder;
+        _patcherState.GeneralSettings.bEnableConsistency = viewModel.bEnableConsistency;
+        _patcherState.GeneralSettings.ExcludePlayerCharacter = viewModel.ExcludePlayerCharacter;
+        _patcherState.GeneralSettings.ExcludePresets = viewModel.ExcludePresets;
+        _patcherState.GeneralSettings.bLinkNPCsWithSameName = viewModel.bLinkNPCsWithSameName;
+        _patcherState.GeneralSettings.LinkedNPCNameExclusions = viewModel.LinkedNameExclusions.Select(x => x.Content).ToList();
+        VM_LinkedNPCGroup.DumpViewModelsToModels(_patcherState.GeneralSettings.LinkedNPCGroups, viewModel.LinkedNPCGroups);
+        _patcherState.GeneralSettings.bVerboseModeAssetsNoncompliant = viewModel.bVerboseModeAssetsNoncompliant;
+        _patcherState.GeneralSettings.bVerboseModeAssetsAll = viewModel.bVerboseModeAssetsAll;
+        _patcherState.GeneralSettings.VerboseModeNPClist = viewModel.verboseModeNPClist.ToList();
+        _patcherState.GeneralSettings.VerboseModeDetailedAttributes = viewModel.VerboseModeDetailedAttributes;
+        _patcherState.GeneralSettings.PatchableRaces = viewModel.patchableRaces.ToList();
+        _patcherState.GeneralSettings.RaceGroupings = viewModel.RaceGroupingEditor.DumpToModel();
+        _patcherState.GeneralSettings.RaceAliases.Clear();
         foreach (var x in viewModel.raceAliases)
         {
-            model.RaceAliases.Add(VM_RaceAlias.DumpViewModelToModel(x));
+            _patcherState.GeneralSettings.RaceAliases.Add(VM_RaceAlias.DumpViewModelToModel(x));
         }
-        VM_AttributeGroupMenu.DumpViewModelToModels(viewModel.AttributeGroupMenu, model.AttributeGroups);
-        model.OverwritePluginAttGroups = viewModel.OverwritePluginAttGroups;
+        VM_AttributeGroupMenu.DumpViewModelToModels(viewModel.AttributeGroupMenu, _patcherState.GeneralSettings.AttributeGroups);
+        _patcherState.GeneralSettings.OverwritePluginAttGroups = viewModel.OverwritePluginAttGroups;
 
-        model.bFirstRun = false;
-
-        PatcherSettings.General = model;
+        _patcherState.GeneralSettings.bFirstRun = false;
     }
 }

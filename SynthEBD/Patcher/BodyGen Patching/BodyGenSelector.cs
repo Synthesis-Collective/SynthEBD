@@ -2,11 +2,13 @@ namespace SynthEBD;
 
 public class BodyGenSelector
 {
+    private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly AttributeMatcher _attributeMatcher;
-    public BodyGenSelector(Logger logger, SynthEBDPaths paths, AttributeMatcher attributeMatcher)
+    public BodyGenSelector(PatcherState patcherState, Logger logger, SynthEBDPaths paths, AttributeMatcher attributeMatcher)
     {
+        _patcherState = patcherState;
         _logger = logger;
         _paths = paths;
         _attributeMatcher = attributeMatcher;  
@@ -37,8 +39,8 @@ public class BodyGenSelector
         {
             switch (npcInfo.Gender)
             {
-                case Gender.Male: currentBodyGenConfig = bodyGenConfigs.Male.Where(x => x.Label == PatcherSettings.BodyGen.CurrentMaleConfig).FirstOrDefault(); break;
-                case Gender.Female: currentBodyGenConfig = bodyGenConfigs.Female.Where(x => x.Label == PatcherSettings.BodyGen.CurrentFemaleConfig).FirstOrDefault(); break;
+                case Gender.Male: currentBodyGenConfig = bodyGenConfigs.Male.Where(x => x.Label == _patcherState.BodyGenSettings.CurrentMaleConfig).FirstOrDefault(); break;
+                case Gender.Female: currentBodyGenConfig = bodyGenConfigs.Female.Where(x => x.Label == _patcherState.BodyGenSettings.CurrentFemaleConfig).FirstOrDefault(); break;
             }
         }
         if (currentBodyGenConfig == null)
@@ -121,7 +123,7 @@ public class BodyGenSelector
         #endregion
 
         #region Consistency
-        if (PatcherSettings.General.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null)
+        if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null)
         {
             availableCombinations = GetConsistencyCombinations(availableCombinations, npcInfo);
         }
@@ -156,7 +158,7 @@ public class BodyGenSelector
         }
         allChosenMorphs[currentBodyGenConfig.Label].UnionWith(chosenMorphNames);
 
-        if (PatcherSettings.General.bEnableConsistency && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null && !npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames.Except(chosenMorphNames).Any()) // https://stackoverflow.com/questions/407729/determine-if-a-sequence-contains-all-elements-of-another-sequence-using-linq
+        if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null && !npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames.Except(chosenMorphNames).Any()) // https://stackoverflow.com/questions/407729/determine-if-a-sequence-contains-all-elements-of-another-sequence-using-linq
         {
             statusFlags |= AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag.MatchesConsistency;
         }
@@ -496,7 +498,7 @@ public class BodyGenSelector
     /// <param name="npcInfo"></param>
     /// <param name="availableTemplates">Set of pre-filtered BodyGen morphs that are compatible with the current NPC</param>
     /// <returns></returns>
-    public static HashSet<GroupCombinationObject> GetAvailableCombinations(BodyGenConfig bodyGenConfig, NPCInfo npcInfo, HashSet<BodyGenConfig.BodyGenTemplate> availableTemplates)
+    public HashSet<GroupCombinationObject> GetAvailableCombinations(BodyGenConfig bodyGenConfig, NPCInfo npcInfo, HashSet<BodyGenConfig.BodyGenTemplate> availableTemplates)
     {
         HashSet<GroupCombinationObject> output = new HashSet<GroupCombinationObject>();
 
@@ -521,7 +523,7 @@ public class BodyGenSelector
             // if Race didn't match, check the template's RaceGroupings to see if they include the NPC's race.
             foreach (var raceGrouping in candidate.RaceGroupings)
             {
-                var collection = PatcherSettings.General.RaceGroupings.Where(x => x.Label == raceGrouping).FirstOrDefault();
+                var collection = _patcherState.GeneralSettings.RaceGroupings.Where(x => x.Label == raceGrouping).FirstOrDefault();
                 if (collection == null) { continue; }
                 if (FormKeyHashSetComparer.Contains(collection.Races, npcInfo.BodyShapeRace))
                 {
@@ -659,7 +661,7 @@ public class BodyGenSelector
         return false;
     }
 
-    public static void RecordBodyGenConsistencyAndLinkedNPCs(List<BodyGenConfig.BodyGenTemplate> assignedMorphs, NPCInfo npcInfo)
+    public void RecordBodyGenConsistencyAndLinkedNPCs(List<BodyGenConfig.BodyGenTemplate> assignedMorphs, NPCInfo npcInfo)
     {
         npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignedMorphs.Select(x => x.Label).ToList();
 
@@ -669,7 +671,7 @@ public class BodyGenSelector
             npcInfo.AssociatedLinkGroup.AssignedMorphs = assignedMorphs;
         }
         // assign to unique NPC list if necessary
-        if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && !Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedMorphs.Any())
+        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && !Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedMorphs.Any())
         {
             Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedMorphs = assignedMorphs;
         }

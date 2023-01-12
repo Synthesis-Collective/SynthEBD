@@ -9,18 +9,20 @@ namespace SynthEBD;
 public class OBodyWriter
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly PatcherIO _patcherIO;
-    public OBodyWriter(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
+    public OBodyWriter(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
     {
         _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
         _logger = logger;
         _paths = paths;
         _patcherIO = patcherIO;
     }
 
-    public static Spell CreateOBodyAssignmentSpell(ISkyrimMod outputMod, GlobalShort gBodySlideVerboseMode)
+    public Spell CreateOBodyAssignmentSpell(ISkyrimMod outputMod, GlobalShort gBodySlideVerboseMode)
     {
         // create MGEF first
         MagicEffect MGEFApplyBodySlide = outputMod.MagicEffects.AddNew();
@@ -40,7 +42,7 @@ public class OBodyWriter
         ScriptEntry ScriptApplyBodySlide = new ScriptEntry() { Name = "SynthEBDBodySlideScript"};
 
         ScriptStringProperty targetModProperty = new ScriptStringProperty() { Name = "TargetMod", Flags = ScriptProperty.Flag.Edited };
-        switch(PatcherSettings.General.BSSelectionMode)
+        switch(_patcherState.GeneralSettings.BSSelectionMode)
         {
             case BodySlideSelectionMode.OBody: targetModProperty.Data = "OBody"; break;
             case BodySlideSelectionMode.AutoBody: targetModProperty.Data = "AutoBody"; break;
@@ -206,7 +208,7 @@ public class OBodyWriter
         HashSet<string> toClear = new HashSet<string>()
         {
             Path.Combine(_paths.OutputDataFolder, "autoBody", "Config", "morphs.ini"),
-            Path.Combine(_paths.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.PatchFileName, "morphs.ini")
+            Path.Combine(_paths.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", _patcherState.GeneralSettings.PatchFileName, "morphs.ini")
         };
 
         foreach (string path in toClear)
@@ -224,7 +226,7 @@ public class OBodyWriter
         {
             //Path.Combine(_paths.OutputDataFolder, "SynthEBD", "BodySlideDict.json"),
             //Path.Combine(_paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini"),
-            Path.Combine(_paths.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.PatchFileName, "morphs.ini"),
+            Path.Combine(_paths.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", _patcherState.GeneralSettings.PatchFileName, "morphs.ini"),
             Path.Combine(_paths.OutputDataFolder, "SynthEBD", "BodySlideAssignments.json")
         };
 

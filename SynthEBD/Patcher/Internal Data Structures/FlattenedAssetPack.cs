@@ -71,7 +71,7 @@ public class FlattenedAssetPack
         ReplacerVirtual
     }
 
-    public static FlattenedAssetPack FlattenAssetPack(AssetPack source, DictionaryMapper dictionaryMapper)
+    public static FlattenedAssetPack FlattenAssetPack(AssetPack source, DictionaryMapper dictionaryMapper, PatcherState patcherState)
     {
         FlattenedAssetPack output = null;
         if (source.ConfigType == SynthEBD.AssetPackType.MixIn)
@@ -86,14 +86,14 @@ public class FlattenedAssetPack
         for (int i = 0; i < source.Subgroups.Count; i++)
         {
             var flattenedSubgroups = new List<FlattenedSubgroup>();
-            FlattenedSubgroup.FlattenSubgroups(source.Subgroups[i], null, flattenedSubgroups, PatcherSettings.General.RaceGroupings, output.GroupName, i,  source.Subgroups, output, dictionaryMapper);
+            FlattenedSubgroup.FlattenSubgroups(source.Subgroups[i], null, flattenedSubgroups, patcherState.GeneralSettings.RaceGroupings, output.GroupName, i,  source.Subgroups, output, dictionaryMapper, patcherState);
             output.Subgroups.Add(flattenedSubgroups);
         }
 
 
         for (int i = 0; i < source.ReplacerGroups.Count; i++)
         {
-            output.AssetReplacerGroups.Add(FlattenedReplacerGroup.FlattenReplacerGroup(source.ReplacerGroups[i], PatcherSettings.General.RaceGroupings, output, dictionaryMapper));
+            output.AssetReplacerGroups.Add(FlattenedReplacerGroup.FlattenReplacerGroup(source.ReplacerGroups[i], patcherState.GeneralSettings.RaceGroupings, output, dictionaryMapper, patcherState));
         }
 
         return output;

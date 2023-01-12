@@ -63,7 +63,7 @@ public class MainModule : Autofac.Module
 
         // Back End Infrastructure
         builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();
-        builder.RegisterType<MainState>().AsSelf().SingleInstance();
+        builder.RegisterType<PatcherState>().AsSelf().SingleInstance();
         builder.RegisterType<Patcher>().AsSelf().SingleInstance();
         builder.RegisterType<SaveLoader>().AsSelf().SingleInstance();
         builder.RegisterType<PatchableRaceResolver>().AsSelf().SingleInstance();
@@ -75,6 +75,9 @@ public class MainModule : Autofac.Module
         builder.RegisterType<BSAHandler>().AsSelf().SingleInstance();
         builder.RegisterType<RaceMenuIniHandler>().AsSelf().SingleInstance();
         builder.RegisterType<DictionaryMapper>().AsSelf().SingleInstance();
+        builder.RegisterType<AliasHandler>().AsSelf().SingleInstance();
+        builder.RegisterType<OBodyPreprocessing>().AsSelf().SingleInstance();
+        builder.RegisterType<HeadPartPreprocessing>().AsSelf().SingleInstance();
         
         builder.RegisterType<ConfigInstaller>().AsSelf().SingleInstance();
         builder.RegisterType<MiscValidation>().AsSelf().SingleInstance();
@@ -160,6 +163,9 @@ public class MainModule : Autofac.Module
         builder.RegisterType<FlattenedSubgroup>().AsSelf();
         builder.RegisterType<FlattenedReplacerGroup>().AsSelf();   
         builder.RegisterType<FilePathReplacementParsed>().AsSelf();
+
+        // Internal types
+        builder.RegisterType<NPCInfo>().AsSelf();
 
         //Misc
         builder.RegisterType<Mutagen.Bethesda.Skyrim.HeadPart>().AsSelf();
