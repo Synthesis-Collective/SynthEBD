@@ -178,6 +178,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public bool VerboseModeDetailedAttributes { get; set; } = false;
     public ObservableCollection<FormKey> patchableRaces { get; set; } = new();
     public VM_RaceGroupingEditor RaceGroupingEditor { get; set; }
+    public bool OverwritePluginRaceGroups { get; set; } = true;
     public ObservableCollection<VM_RaceAlias> raceAliases { get; set;  } = new();
     public RelayCommand AddRaceAlias { get; }
     public VM_AttributeGroupMenu AttributeGroupMenu { get; }
@@ -217,6 +218,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         viewModel.patchableRaces = new ObservableCollection<FormKey>(model.PatchableRaces);
         viewModel.raceAliases = VM_RaceAlias.GetViewModelsFromModels(model.RaceAliases, viewModel, aliasFactory);
         viewModel.RaceGroupingEditor.CopyInFromModel(model.RaceGroupings, null);
+        viewModel.OverwritePluginRaceGroups = model.OverwritePluginRaceGroups;
         viewModel.AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
         viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;
 
@@ -244,6 +246,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         _patcherState.GeneralSettings.VerboseModeDetailedAttributes = viewModel.VerboseModeDetailedAttributes;
         _patcherState.GeneralSettings.PatchableRaces = viewModel.patchableRaces.ToList();
         _patcherState.GeneralSettings.RaceGroupings = viewModel.RaceGroupingEditor.DumpToModel();
+        _patcherState.GeneralSettings.OverwritePluginRaceGroups = viewModel.OverwritePluginRaceGroups;
         _patcherState.GeneralSettings.RaceAliases.Clear();
         foreach (var x in viewModel.raceAliases)
         {

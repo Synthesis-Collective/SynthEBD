@@ -12,13 +12,15 @@ namespace SynthEBD
     public class AssetReplacerSelector
     {
         private readonly IEnvironmentStateProvider _environmentProvider;
+        private readonly PatcherState _patcherState;
         private readonly AssetAndBodyShapeSelector _abSelector;
         private readonly AssetSelector _assetSelector;
         private readonly RecordPathParser _recordPathParser;
         private readonly DictionaryMapper _dictionaryMapper;
-        public AssetReplacerSelector(IEnvironmentStateProvider environmentProvider, AssetAndBodyShapeSelector abSelector, AssetSelector assetSelector, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper)
+        public AssetReplacerSelector(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, AssetAndBodyShapeSelector abSelector, AssetSelector assetSelector, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper)
         {
             _environmentProvider = environmentProvider;
+            _patcherState = patcherState;
             _abSelector = abSelector;
             _assetSelector = assetSelector;
             _recordPathParser = recordPathParser;
@@ -73,7 +75,7 @@ namespace SynthEBD
 
                 if (assignReplacer)
                 {
-                    var virtualFlattenedAssetPack = FlattenedAssetPack.CreateVirtualFromReplacerGroup(replacerGroup, _dictionaryMapper);
+                    var virtualFlattenedAssetPack = FlattenedAssetPack.CreateVirtualFromReplacerGroup(replacerGroup, _dictionaryMapper, _patcherState);
                     var assignedCombination = _abSelector.GenerateCombinationWithBodyShape(new HashSet<FlattenedAssetPack>() { virtualFlattenedAssetPack }, null, null, null, npcInfo, true, AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual, currentAssignments);
 
                     if (assignedCombination != null)

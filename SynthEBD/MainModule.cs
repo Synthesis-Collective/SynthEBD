@@ -76,6 +76,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<RaceMenuIniHandler>().AsSelf().SingleInstance();
         builder.RegisterType<DictionaryMapper>().AsSelf().SingleInstance();
         builder.RegisterType<AliasHandler>().AsSelf().SingleInstance();
+        builder.RegisterType<BodyGenPreprocessing>().AsSelf().SingleInstance();
         builder.RegisterType<OBodyPreprocessing>().AsSelf().SingleInstance();
         builder.RegisterType<HeadPartPreprocessing>().AsSelf().SingleInstance();
         

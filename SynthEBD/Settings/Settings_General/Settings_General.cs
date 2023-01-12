@@ -201,6 +201,8 @@ public class Settings_General
         DefaultRaceGroupings.Argonian
     };
 
+    public bool OverwritePluginRaceGroups { get; set; } = true;
+
     public HashSet<AttributeGroup> AttributeGroups { get; set; } = new()
     {
         DefaultAttributeGroups.CannotHaveDefinition,

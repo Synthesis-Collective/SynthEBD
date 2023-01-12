@@ -21,6 +21,7 @@ public class Patcher
     private readonly AssetReplacerSelector _assetReplacerSelector;
     private readonly RecordGenerator _recordGenerator;
     private readonly RecordPathParser _recordPathParser;
+    private readonly BodyGenPreprocessing _bodyGenPreprocessing;
     private readonly BodyGenSelector _bodyGenSelector;
     private readonly BodyGenWriter _bodyGenWriter;
     private readonly HeightPatcher _heightPatcher;
@@ -40,7 +41,7 @@ public class Patcher
     private readonly PatcherIO _patcherIO;
     private readonly NPCInfo.Factory _npcInfoFactory;
 
-    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory)
+    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -54,6 +55,7 @@ public class Patcher
         _assetReplacerSelector = assetReplacerSelector;
         _recordGenerator = recordGenerator;
         _recordPathParser = recordPathParser;
+        _bodyGenPreprocessing = bodyGenPreprocessing;
         _bodyGenSelector = bodyGenSelector;
         _bodyGenWriter = bodyGenWriter;
         _heightPatcher = heightPatcher;
@@ -157,7 +159,7 @@ public class Patcher
         if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
         {
             // Pre-process some aspects of the configs to improve performance. Mutates the input configs so be sure to use a copy to avoid altering users settings
-            BodyGenPreprocessing.CompileBodyGenRaces(copiedBodyGenConfigs); // descriptor rules compiled here as well
+            _bodyGenPreprocessing.CompileBodyGenRaces(copiedBodyGenConfigs); // descriptor rules compiled here as well
             BodyGenTracker = new BodyGenAssignmentTracker();
         }
         else if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
