@@ -11,7 +11,7 @@ namespace SynthEBD;
 
 public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly BSAHandler _bsaHandler;
     private readonly RecordIntellisense _recordIntellisense;
     private readonly RecordPathParser _recordPathParser;
@@ -20,9 +20,9 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 
     public delegate VM_FilePathReplacement Factory(VM_FilePathReplacementMenu parentMenu);
     
-    public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu, IEnvironmentStateProvider stateProvider, BSAHandler bsaHandler, RecordIntellisense recordIntellisense, RecordPathParser recordPathParser, Logger logger, Factory selfFactory)
+    public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu, IEnvironmentStateProvider environmentProvider, BSAHandler bsaHandler, RecordIntellisense recordIntellisense, RecordPathParser recordPathParser, Logger logger, Factory selfFactory)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _bsaHandler = bsaHandler;
         _recordIntellisense = recordIntellisense;
         _recordPathParser = recordPathParser;
@@ -43,7 +43,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
                 System.Windows.Forms.OpenFileDialog dialog = LongPathHandler.CreateLongPathOpenFileDialog();
                 if (Source != "")
                 {
-                    var initDir = Path.Combine(_stateProvider.DataFolderPath, Path.GetDirectoryName(Source));
+                    var initDir = Path.Combine(_environmentProvider.DataFolderPath, Path.GetDirectoryName(Source));
                     if (Directory.Exists(initDir))
                     {
                         dialog.InitialDirectory = initDir;
@@ -53,9 +53,9 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
                 if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 {
                     // try to figure out the root directory
-                    if (dialog.FileName.Contains(_stateProvider.DataFolderPath))
+                    if (dialog.FileName.Contains(_environmentProvider.DataFolderPath))
                     {
-                        Source = dialog.FileName.Replace(_stateProvider.DataFolderPath, "").TrimStart(Path.DirectorySeparatorChar);
+                        Source = dialog.FileName.Replace(_environmentProvider.DataFolderPath, "").TrimStart(Path.DirectorySeparatorChar);
                     }
                     else if (TrimKnownPrefix(dialog.FileName, out var sourceTrimmed))
                     {
@@ -154,7 +154,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 
     public void RefreshSourceColor()
     {
-        var searchStr = Path.Combine(_stateProvider.DataFolderPath, this.Source);
+        var searchStr = Path.Combine(_environmentProvider.DataFolderPath, this.Source);
         if (LongPathHandler.PathExists(searchStr) || _bsaHandler.ReferencedPathExists(this.Source, out _, out _))
         {
             SourceExists = true;

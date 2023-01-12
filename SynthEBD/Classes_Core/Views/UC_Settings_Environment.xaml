@@ -21,15 +21,15 @@
         </Grid.RowDefinitions>
         
         <TextBlock Grid.Column="0" Grid.Row="0" ToolTip="Name of output file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Output Name</TextBlock>
-        <TextBox Grid.Column="2" Grid.Row="0" Width="150" HorizontalAlignment="Left" Text="{Binding Path=StateProvider.OutputModName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+        <TextBox Grid.Column="2" Grid.Row="0" Width="150" HorizontalAlignment="Left" Text="{Binding Path=EnvironmentProvider.OutputModName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
         <TextBlock Grid.Column="0" Grid.Row="1"  ToolTip="Which Skyrim release is being patched">Skyrim Release</TextBlock>
-        <ComboBox Grid.Column="2" Grid.Row="1" Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding StateProvider.SkyrimVersion}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type Skyrim:SkyrimRelease}}}" IsSynchronizedWithCurrentItem="True"/>
+        <ComboBox Grid.Column="2" Grid.Row="1" Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding EnvironmentProvider.SkyrimVersion}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type Skyrim:SkyrimRelease}}}" IsSynchronizedWithCurrentItem="True"/>
 
         <TextBlock Grid.Column="0" Grid.Row="2"  ToolTip="Find your game data folder (e.g. Steam Library\steamapps\common\Skyrim\Data)">Game Data Directory</TextBlock>
         <StackPanel Grid.Column="2" Grid.Row="2" Orientation="Horizontal">
             <Button VerticalAlignment="Center" Command="{Binding SelectGameDataFolder}" Foreground="LightGreen">Select</Button>
-            <TextBlock Background="Black" HorizontalAlignment="Left" Text="{Binding Path=StateProvider.DataFolderPath, UpdateSourceTrigger=PropertyChanged}"/>
+            <TextBlock Background="Black" HorizontalAlignment="Left" Text="{Binding Path=EnvironmentProvider.DataFolderPath, UpdateSourceTrigger=PropertyChanged}"/>
             <Button VerticalAlignment="Center" Command="{Binding ClearGameDataFolder}" Foreground="Firebrick">Clear</Button>
         </StackPanel>
     </Grid>

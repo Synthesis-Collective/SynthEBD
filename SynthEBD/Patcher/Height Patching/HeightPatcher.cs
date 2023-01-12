@@ -5,11 +5,11 @@ namespace SynthEBD;
 
 public class HeightPatcher
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
-    public HeightPatcher(IEnvironmentStateProvider stateProvider, Logger logger)
+    public HeightPatcher(IEnvironmentStateProvider environmentProvider, Logger logger)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _logger = logger;
     }
     public void AssignNPCHeight(NPCInfo npcInfo, HeightConfig heightConfig, ISkyrimMod outputMod)
@@ -150,12 +150,12 @@ public class HeightPatcher
         if (heightConfig == null) { return; }
         if (!PatcherSettings.Height.bChangeRaceHeight) { return; }
 
-        foreach (var race in _stateProvider.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
+        foreach (var race in _environmentProvider.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
         {
             patchedRace = null;
             raceAlias = PatcherSettings.General.RaceAliases.Where(x => x.Race == race.FormKey && x.bApplyToHeight).FirstOrDefault();
                
-            if (raceAlias != null && PatcherSettings.General.PatchableRaces.Contains(raceAlias.AliasRace) && _stateProvider.LinkCache.TryResolve<IRaceGetter>(raceAlias.AliasRace, out var raceAliasGetter))
+            if (raceAlias != null && PatcherSettings.General.PatchableRaces.Contains(raceAlias.AliasRace) && _environmentProvider.LinkCache.TryResolve<IRaceGetter>(raceAlias.AliasRace, out var raceAliasGetter))
             {
                 heightRacialSetting = heightConfig.HeightAssignments.Where(x => x.Races.Contains(raceAlias.AliasRace)).FirstOrDefault();
 

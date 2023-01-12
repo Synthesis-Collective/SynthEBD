@@ -13,7 +13,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     private readonly VM_BodySlideSetting.Factory _bodySlideFactory;
     private readonly AttributeMatcher _attributeMatcher;
     private readonly Logger _logger;
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     public VM_SettingsOBody(
         VM_Settings_General generalSettingsVM,
         VM_BodyShapeDescriptorCreationMenu.Factory bodyShapeDescriptorCreationMenuFactory,
@@ -24,7 +24,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         SettingsIO_OBody oBodyIO,
         AttributeMatcher attributeMatcher,
         Logger logger,
-        IEnvironmentStateProvider stateProvider)
+        IEnvironmentStateProvider environmentProvider)
     {
         _oBodyIO = oBodyIO;
         _miscSettingsFactory = miscSettingsFactory;
@@ -33,7 +33,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         _bodySlideFactory = bodySlideFactory;
         _attributeMatcher = attributeMatcher;
         _logger = logger;
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
 
         DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this);
         BodySlidesUI = new VM_BodySlidesMenu(this, generalSettingsVM.RaceGroupingEditor.RaceGroupings, _bodySlideFactory);

@@ -7,7 +7,7 @@ namespace SynthEBD;
 
 public class NPCInfo
 {
-    public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, HashSet<NPCAssignment> specificNPCAssignments, Dictionary<string, NPCAssignment> consistency, BlockList blockList, IEnvironmentStateProvider stateProvider)
+    public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, HashSet<NPCAssignment> specificNPCAssignments, Dictionary<string, NPCAssignment> consistency, BlockList blockList, IEnvironmentStateProvider environmentProvider)
     {
         this.NPC = npc;
         this.LogIDstring = Logger.GetNPCLogNameString(npc);
@@ -65,7 +65,7 @@ public class NPCInfo
         {
             foreach (var headpartFK in npc.HeadParts)
             {
-                if (stateProvider.LinkCache.TryResolve<IHeadPartGetter>(headpartFK.FormKey, out IHeadPartGetter headPart))
+                if (environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(headpartFK.FormKey, out IHeadPartGetter headPart))
                 {
                     ExistingHeadParts.Add(headPart);
                 }
@@ -73,7 +73,7 @@ public class NPCInfo
         }
 
         BlockedNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(blockList, npc.FormKey);
-        BlockedPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey, stateProvider.LinkCache);
+        BlockedPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey, environmentProvider.LinkCache);
 
         Report = new Logger.NPCReport(this);
     }

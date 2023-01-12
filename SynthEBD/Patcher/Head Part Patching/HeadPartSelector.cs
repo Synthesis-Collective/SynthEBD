@@ -10,12 +10,12 @@ namespace SynthEBD
 {
     public class HeadPartSelector
     {
-        private readonly IEnvironmentStateProvider _stateProvider;
+        private readonly IEnvironmentStateProvider _environmentProvider;
         private readonly Logger _logger;
         private readonly AttributeMatcher _attributeMatcher;
-        public HeadPartSelector(IEnvironmentStateProvider stateProvider, Logger logger, AttributeMatcher attributeMatcher)
+        public HeadPartSelector(IEnvironmentStateProvider environmentProvider, Logger logger, AttributeMatcher attributeMatcher)
         {
-            _stateProvider = stateProvider;
+            _environmentProvider = environmentProvider;
             _logger = logger;
             _attributeMatcher = attributeMatcher;
         }
@@ -204,7 +204,7 @@ namespace SynthEBD
             IHeadPartGetter consistencyHeadPart = null;
             if (currentConsistency != null && !currentConsistency.FormKey.IsNull)
             {
-                if (!_stateProvider.LinkCache.TryResolve<IHeadPartGetter>(npcInfo.ConsistencyNPCAssignment.HeadParts[type].FormKey, out consistencyHeadPart))
+                if (!_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(npcInfo.ConsistencyNPCAssignment.HeadParts[type].FormKey, out consistencyHeadPart))
                 {
                     _logger.LogReport("The consistency " + type + " head part " + npcInfo.ConsistencyNPCAssignment.HeadParts[type].FormKey.ToString() + " is no longer present in the load order.", true, npcInfo);
                 }

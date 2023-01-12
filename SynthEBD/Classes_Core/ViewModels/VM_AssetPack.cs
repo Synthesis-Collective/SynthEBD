@@ -29,7 +29,7 @@ public enum AssetPackMenuVisibility
 
 public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgroupViewModels, IHasRaceGroupingEditor
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly MainState _state;
     private readonly VM_SettingsOBody _oBody;
     private readonly VM_Settings_General _general;
@@ -50,7 +50,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public delegate VM_AssetPack Factory();
 
     public VM_AssetPack(
-        IEnvironmentStateProvider stateProvider,
+        IEnvironmentStateProvider environmentProvider,
         MainState state,
         VM_SettingsBodyGen bodyGen,
         VM_SettingsOBody oBody,
@@ -70,7 +70,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         VM_RaceGroupingEditor.Factory raceGroupingEditorFactory,
         Factory selfFactory)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _state = state;
         _oBody = oBody;
         _general = general;
@@ -136,7 +136,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         AddAdditionalRecordTemplateAssignment = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { AdditionalRecordTemplateAssignments.Add(new VM_AdditionalRecordTemplate(_stateProvider, RecordTemplateLinkCache, AdditionalRecordTemplateAssignments)); }
+            execute: _ => { AdditionalRecordTemplateAssignments.Add(new VM_AdditionalRecordTemplate(_environmentProvider, RecordTemplateLinkCache, AdditionalRecordTemplateAssignments)); }
         );
 
         AddRecordTemplateAdditionalRacesPath = new RelayCommand(
@@ -390,7 +390,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         DefaultTemplateFK = model.DefaultRecordTemplate;
         foreach(var additionalTemplateAssignment in model.AdditionalRecordTemplateAssignments)
         {
-            var assignmentVM = new VM_AdditionalRecordTemplate(_stateProvider, _state.RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
+            var assignmentVM = new VM_AdditionalRecordTemplate(_environmentProvider, _state.RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
             assignmentVM.RaceFormKeys = new ObservableCollection<FormKey>(additionalTemplateAssignment.Races);
             assignmentVM.TemplateNPC = additionalTemplateAssignment.TemplateNPC;
             assignmentVM.AdditionalRacesPaths = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(additionalTemplateAssignment.AdditionalRacesPaths);

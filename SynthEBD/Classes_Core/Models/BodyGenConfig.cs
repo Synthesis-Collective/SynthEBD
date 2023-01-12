@@ -71,12 +71,12 @@ public class zEBDSplitBodyGenConfig
 }
 public class zEBDBodyGenConfig
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly Converters _converters;
-    public zEBDBodyGenConfig(IEnvironmentStateProvider stateProvider, Logger logger, Converters converters)
+    public zEBDBodyGenConfig(IEnvironmentStateProvider environmentProvider, Logger logger, Converters converters)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _logger = logger;
         _converters = converters;
     }
@@ -178,7 +178,7 @@ public class zEBDBodyGenConfig
     {
         BodyGenConfig.RacialMapping newRS = new BodyGenConfig.RacialMapping();
         newRS.Label = rs.EDID;
-        newRS.Races = new HashSet<FormKey> { Converters.RaceEDID2FormKey(rs.EDID, _stateProvider) };
+        newRS.Races = new HashSet<FormKey> { Converters.RaceEDID2FormKey(rs.EDID, _environmentProvider) };
         newRS.RaceGroupings = new HashSet<string>();
         newRS.Combinations = new HashSet<BodyGenConfig.RacialMapping.BodyGenCombination>();
         foreach (var combo in rs.combinations)
@@ -236,7 +236,7 @@ public class zEBDBodyGenConfig
             // if not, see if it is a race EditorID
             if (continueSearch == true)
             {
-                FormKey raceFormKey = Converters.RaceEDID2FormKey(id, _stateProvider);
+                FormKey raceFormKey = Converters.RaceEDID2FormKey(id, _environmentProvider);
                 if (raceFormKey.IsNull == false)
                 {
                     newTemplate.AllowedRaces.Add(raceFormKey);
@@ -261,7 +261,7 @@ public class zEBDBodyGenConfig
             // if not, see if it is a race EditorID
             if (continueSearch == true)
             {
-                FormKey raceFormKey = Converters.RaceEDID2FormKey(id, _stateProvider);
+                FormKey raceFormKey = Converters.RaceEDID2FormKey(id, _environmentProvider);
                 if (raceFormKey.IsNull == false)
                 {
                     newTemplate.DisallowedRaces.Add(raceFormKey);

@@ -8,14 +8,14 @@ namespace SynthEBD
 {
     public class VM_Settings_Environment
     {
-        public StandaloneRunEnvironmentStateProvider StateProvider { get; set; }
+        public StandaloneRunEnvironmentStateProvider EnvironmentProvider { get; set; }
         public RelayCommand SelectGameDataFolder { get; }
         public RelayCommand ClearGameDataFolder { get; }
         public bool IsStandalone { get; }
-        public VM_Settings_Environment(IEnvironmentStateProvider stateProvider)
+        public VM_Settings_Environment(IEnvironmentStateProvider environmentProvider)
         {
-            StateProvider = stateProvider as StandaloneRunEnvironmentStateProvider;
-            IsStandalone = StateProvider.RunMode == EnvironmentMode.Standalone;
+            EnvironmentProvider = environmentProvider as StandaloneRunEnvironmentStateProvider;
+            IsStandalone = environmentProvider.RunMode == EnvironmentMode.Standalone;
 
             SelectGameDataFolder = new RelayCommand(
                 canExecute: _ => true,
@@ -23,7 +23,7 @@ namespace SynthEBD
                 {
                     if (IO_Aux.SelectFolder("", out string selectedPath))
                     {
-                        StateProvider.DataFolderPath = selectedPath;
+                        environmentProvider.DataFolderPath = selectedPath;
                     }
                 }
             );
@@ -32,7 +32,7 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    StateProvider.DataFolderPath = string.Empty;
+                    environmentProvider.DataFolderPath = string.Empty;
                 }
             );
         }

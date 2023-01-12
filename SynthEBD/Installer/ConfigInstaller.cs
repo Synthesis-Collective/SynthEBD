@@ -17,14 +17,14 @@ public class ConfigInstaller
     private readonly SynthEBDPaths _paths;
     private readonly SettingsIO_AssetPack _assetPackIO;
     private readonly SettingsIO_BodyGen _bodyGenIO;
-    private readonly IEnvironmentStateProvider _stateProvider;
-    public ConfigInstaller(Logger logger, SynthEBDPaths synthEBDPaths, SettingsIO_AssetPack assetPackIO, SettingsIO_BodyGen bodyGenIO, IEnvironmentStateProvider stateProvider)
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    public ConfigInstaller(Logger logger, SynthEBDPaths synthEBDPaths, SettingsIO_AssetPack assetPackIO, SettingsIO_BodyGen bodyGenIO, IEnvironmentStateProvider environmentProvider)
     {
         _logger = logger;
         _paths = synthEBDPaths;
         _assetPackIO = assetPackIO;
         _bodyGenIO = bodyGenIO;
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
     }
     public List<string> InstallConfigFile()
     {
@@ -401,7 +401,7 @@ public class ConfigInstaller
     {
         try
         {
-            var sevenZipPath = Path.Combine(_stateProvider.InternalDataPath, "7Zip",
+            var sevenZipPath = Path.Combine(_environmentProvider.InternalDataPath, "7Zip",
                         Environment.Is64BitProcess ? "x64" : "x86", "7za.exe");
 
             ProcessStartInfo pro = new ProcessStartInfo();
@@ -572,7 +572,7 @@ public class ConfigInstaller
         {
             if (PatcherSettings.ModManagerIntegration.ModManagerType == ModManager.None)
             {
-                return Path.Combine(_stateProvider.DataFolderPath, extensionFolder, manifest.ConfigPrefix, extractedSubPath);
+                return Path.Combine(_environmentProvider.DataFolderPath, extensionFolder, manifest.ConfigPrefix, extractedSubPath);
             }
             else
             {
@@ -583,7 +583,7 @@ public class ConfigInstaller
         {
             if (PatcherSettings.ModManagerIntegration.ModManagerType == ModManager.None)
             {
-                return Path.Combine(_stateProvider.DataFolderPath, extractedSubPath);
+                return Path.Combine(_environmentProvider.DataFolderPath, extractedSubPath);
             }
             else
             {

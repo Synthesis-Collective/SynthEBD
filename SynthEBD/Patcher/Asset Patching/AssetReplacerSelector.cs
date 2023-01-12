@@ -11,13 +11,13 @@ namespace SynthEBD
 {
     public class AssetReplacerSelector
     {
-        private readonly IEnvironmentStateProvider _stateProvider;
+        private readonly IEnvironmentStateProvider _environmentProvider;
         private readonly AssetAndBodyShapeSelector _abSelector;
         private readonly RecordPathParser _recordPathParser;
         private readonly DictionaryMapper _dictionaryMapper;
-        public AssetReplacerSelector(IEnvironmentStateProvider stateProvider, AssetAndBodyShapeSelector abSelector, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper)
+        public AssetReplacerSelector(IEnvironmentStateProvider environmentProvider, AssetAndBodyShapeSelector abSelector, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper)
         {
-            _stateProvider = stateProvider;
+            _environmentProvider = environmentProvider;
             _abSelector = abSelector;
             _recordPathParser = recordPathParser;
             _dictionaryMapper = dictionaryMapper;
@@ -55,13 +55,13 @@ namespace SynthEBD
                 }
                 else if (destinationType != SubgroupCombination.DestinationSpecifier.Generic)
                 {
-                    assignReplacer = CheckIfReplacerTargetExists(destinationType, npcInfo.NPC, _stateProvider.LinkCache);
+                    assignReplacer = CheckIfReplacerTargetExists(destinationType, npcInfo.NPC, _environmentProvider.LinkCache);
                 }
                 else // destinationType = SubgroupCombination.DestinationSpecifier.Generic
                 {
                     foreach (string destPath in targetPaths)
                     {
-                        if (!(_recordPathParser.GetObjectAtPath(npcInfo.NPC, npcInfo.NPC, destPath, new Dictionary<string, dynamic>(), _stateProvider.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out dynamic objAtPath) && objAtPath is not null))
+                        if (!(_recordPathParser.GetObjectAtPath(npcInfo.NPC, npcInfo.NPC, destPath, new Dictionary<string, dynamic>(), _environmentProvider.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out dynamic objAtPath) && objAtPath is not null))
                         {
                             assignReplacer = false;
                             break;

@@ -9,17 +9,17 @@ namespace SynthEBD;
 
 public class VM_RaceGrouping : VM
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     public delegate VM_RaceGrouping Factory(RaceGrouping raceGrouping, IHasRaceGroupingVMs parentVM);
     private readonly VM_RaceGrouping.Factory _selfFactory;
-    public VM_RaceGrouping(RaceGrouping raceGrouping, IHasRaceGroupingVMs parentVM, IEnvironmentStateProvider stateProvider, VM_RaceGrouping.Factory selfFactory)
+    public VM_RaceGrouping(RaceGrouping raceGrouping, IHasRaceGroupingVMs parentVM, IEnvironmentStateProvider environmentProvider, VM_RaceGrouping.Factory selfFactory)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _selfFactory = selfFactory;
         Label = raceGrouping.Label;
         Races = new ObservableCollection<FormKey>(raceGrouping.Races);
         
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 

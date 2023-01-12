@@ -206,7 +206,7 @@ class ZEBDAssetPack
 
         public string hashKey { get; set; }
 
-        public AssetPack.Subgroup ToSynthEBDSubgroup(List<RaceGrouping> raceGroupings, string topLevelSubgroupID, string assetPackName, List<string> conversionErrors, IEnvironmentStateProvider stateProvider, Logger logger, Converters converters)
+        public AssetPack.Subgroup ToSynthEBDSubgroup(List<RaceGrouping> raceGroupings, string topLevelSubgroupID, string assetPackName, List<string> conversionErrors, IEnvironmentStateProvider environmentProvider, Logger logger, Converters converters)
         {
             AssetPack.Subgroup s = new AssetPack.Subgroup();
 
@@ -281,7 +281,7 @@ class ZEBDAssetPack
                 // if not, see if it is a race EditorID
                 if (continueSearch == true)
                 {
-                    FormKey raceFormKey = Converters.RaceEDID2FormKey(id, stateProvider);
+                    FormKey raceFormKey = Converters.RaceEDID2FormKey(id, environmentProvider);
                     if (raceFormKey.IsNull == false)
                     {
                         s.AllowedRaces.Add(raceFormKey);
@@ -312,7 +312,7 @@ class ZEBDAssetPack
                 // if not, see if it is a race EditorID
                 if (continueSearch == true)
                 {
-                    FormKey raceFormKey = Converters.RaceEDID2FormKey(id, stateProvider);
+                    FormKey raceFormKey = Converters.RaceEDID2FormKey(id, environmentProvider);
                     if (raceFormKey.IsNull == false)
                     {
                         s.DisallowedRaces.Add(raceFormKey);
@@ -346,7 +346,7 @@ class ZEBDAssetPack
 
             foreach (var sg in subgroups)
             {
-                s.Subgroups.Add(sg.ToSynthEBDSubgroup(raceGroupings, s.TopLevelSubgroupID, assetPackName, conversionErrors, stateProvider, logger, converters));
+                s.Subgroups.Add(sg.ToSynthEBDSubgroup(raceGroupings, s.TopLevelSubgroupID, assetPackName, conversionErrors, environmentProvider, logger, converters));
             }
 
             return s;
@@ -370,7 +370,7 @@ class ZEBDAssetPack
         };
     }
 
-    public AssetPack ToSynthEBDAssetPack(List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs, IEnvironmentStateProvider stateProvider, Converters converters, Logger logger, SynthEBDPaths paths)
+    public AssetPack ToSynthEBDAssetPack(List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs, IEnvironmentStateProvider environmentProvider, Converters converters, Logger logger, SynthEBDPaths paths)
     {
         List<string> conversionErrors = new List<string>();
         AssetPack s = new AssetPack();
@@ -380,7 +380,7 @@ class ZEBDAssetPack
         s.UserAlert = userAlert;
         foreach (ZEBDSubgroup sg in subgroups)
         {
-            s.Subgroups.Add(sg.ToSynthEBDSubgroup(raceGroupings, "", groupName, conversionErrors, stateProvider, logger, converters));
+            s.Subgroups.Add(sg.ToSynthEBDSubgroup(raceGroupings, "", groupName, conversionErrors, environmentProvider, logger, converters));
         }
 
         // Apply default record templates

@@ -17,7 +17,7 @@ namespace SynthEBD;
 
 public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly VM_SettingsOBody _oBody;
@@ -34,7 +34,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         VM_Subgroup parentSubgroup,
         bool setExplicitReferenceNPC);
     
-    public VM_Subgroup(IEnvironmentStateProvider stateProvider,
+    public VM_Subgroup(IEnvironmentStateProvider environmentProvider,
         Logger logger,
         SynthEBDPaths paths,
         ObservableCollection<VM_RaceGrouping> raceGroupingVMs,
@@ -49,7 +49,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory,
         UpdateHandler updateHandler)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _logger = logger;
         _paths = paths;
         _oBody = oBody;
@@ -73,7 +73,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         AllowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
         DisallowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
 
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => LinkCache = x)
             .DisposeWith(this);
         
@@ -283,9 +283,9 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
     }
     public void GetDDSPaths(ObservableCollection<ImagePreviewHandler.ImagePathWithSource> paths)
     {
-        var ddsPaths = PathsMenu.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(_stateProvider.DataFolderPath, x.Source)))
+        var ddsPaths = PathsMenu.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(_environmentProvider.DataFolderPath, x.Source)))
             .Select(x => x.Source)
-            .Select(x => System.IO.Path.Combine(_stateProvider.DataFolderPath, x))
+            .Select(x => System.IO.Path.Combine(_environmentProvider.DataFolderPath, x))
             .ToHashSet();
         foreach (var path in ddsPaths)
         {

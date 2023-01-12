@@ -14,11 +14,11 @@ public class PathedArchiveReader
 
 public class BSAHandler
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
-    public BSAHandler(IEnvironmentStateProvider stateProvider, Logger logger)
+    public BSAHandler(IEnvironmentStateProvider environmentProvider, Logger logger)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _logger = logger;
     }
     public bool ReferencedPathExists(string expectedFilePath, out bool archiveExists, out string modName)
@@ -42,7 +42,7 @@ public class BSAHandler
             modName = modKeyStr;
         }
 
-        if (_stateProvider.LoadOrder.ListedOrder.Select(x => x.ModKey.ToString()).Contains(modKeyStr))
+        if (_environmentProvider.LoadOrder.ListedOrder.Select(x => x.ModKey.ToString()).Contains(modKeyStr))
         {
             return false;
         }
@@ -78,11 +78,11 @@ public class BSAHandler
         }
         else
         {
-            foreach (var bsaFile in Archive.GetApplicableArchivePaths(_stateProvider.SkyrimVersion.ToGameRelease(), _stateProvider.DataFolderPath, modKey))
+            foreach (var bsaFile in Archive.GetApplicableArchivePaths(_environmentProvider.SkyrimVersion.ToGameRelease(), _environmentProvider.DataFolderPath, modKey))
             {
                 try
                 {
-                    var reader = Archive.CreateReader(_stateProvider.SkyrimVersion.ToGameRelease(), bsaFile);
+                    var reader = Archive.CreateReader(_environmentProvider.SkyrimVersion.ToGameRelease(), bsaFile);
                     if (reader != null)
                     {
                         archiveReaders.Add(reader);
@@ -114,11 +114,11 @@ public class BSAHandler
 
         var readers = new List<PathedArchiveReader>();
 
-        foreach (var bsaFile in Archive.GetApplicableArchivePaths(_stateProvider.SkyrimVersion.ToGameRelease(), currentDataDir, currentPlugin))
+        foreach (var bsaFile in Archive.GetApplicableArchivePaths(_environmentProvider.SkyrimVersion.ToGameRelease(), currentDataDir, currentPlugin))
         {
             try
             {
-                var bsaReader = Archive.CreateReader(_stateProvider.SkyrimVersion.ToGameRelease(), bsaFile);
+                var bsaReader = Archive.CreateReader(_environmentProvider.SkyrimVersion.ToGameRelease(), bsaFile);
                 readers.Add(new PathedArchiveReader() { Reader = bsaReader, FilePath = bsaFile });
             }
             catch

@@ -16,16 +16,16 @@ namespace SynthEBD
 {
     public class VM_AssetDistributionSimulator : VM
     {
-        private readonly IEnvironmentStateProvider _stateProvider;
+        private readonly IEnvironmentStateProvider _environmentProvider;
         private readonly Logger _logger;
         private readonly SynthEBDPaths _paths;
         private readonly DictionaryMapper _dictionaryMapper;
         private readonly AssetAndBodyShapeSelector _assetAndBodyShapeSelector;
         private readonly SettingsIO_OBody _oBodyIO;
         public delegate VM_AssetDistributionSimulator Factory();
-        public VM_AssetDistributionSimulator(VM_SettingsTexMesh texMesh, VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI, IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths, DictionaryMapper dictionaryMapper, AssetAndBodyShapeSelector assetAndBodyShapeSelector, SettingsIO_OBody oBodyIO)
+        public VM_AssetDistributionSimulator(VM_SettingsTexMesh texMesh, VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI, IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths, DictionaryMapper dictionaryMapper, AssetAndBodyShapeSelector assetAndBodyShapeSelector, SettingsIO_OBody oBodyIO)
         {
-            _stateProvider = stateProvider;
+            _environmentProvider = environmentProvider;
             _logger = logger;
             _paths = paths;
             _dictionaryMapper = dictionaryMapper;
@@ -38,7 +38,7 @@ namespace SynthEBD
             VM_BlockListUI.DumpViewModelToModel(blockListUI, BlockList);
             VM_SettingsBodyGen.DumpViewModelToModel(bodyGen, new(), BodyGenConfigs);
 
-            _stateProvider.WhenAnyValue(x => x.LinkCache)
+            _environmentProvider.WhenAnyValue(x => x.LinkCache)
                 .Subscribe(x => lk = x)
                 .DisposeWith(this);
 
@@ -47,7 +47,7 @@ namespace SynthEBD
                 if (lk.TryResolve<INpcGetter>(NPCformKey, out var npcGetter))
                 {
                     NPCgetter = npcGetter;
-                    NPCinfo = new NPCInfo(npcGetter, new(), new(), new(), new(), new(), _stateProvider);
+                    NPCinfo = new NPCInfo(npcGetter, new(), new(), new(), new(), new(), _environmentProvider);
                 }
             });
 
@@ -83,7 +83,7 @@ namespace SynthEBD
             var flattenedAssetPacks = PrimaryAPs.Where(x => x.Gender == NPCinfo.Gender).Select(x => FlattenedAssetPack.FlattenAssetPack(x, _dictionaryMapper)).ToHashSet();
 
             var blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(BlockList, NPCformKey);
-            var blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(BlockList, NPCformKey, _stateProvider.LinkCache);
+            var blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(BlockList, NPCformKey, _environmentProvider.LinkCache);
             var blockBodyShape = false;
             if (blockListNPCEntry.BodyShape || blockListPluginEntry.BodyShape || !OBodyPreprocessing.NPCIsEligibleForBodySlide(NPCgetter)) { blockBodyShape = true; }
 

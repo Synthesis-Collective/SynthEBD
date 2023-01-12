@@ -10,16 +10,16 @@ namespace SynthEBD;
 
 public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly VM_SettingsOBody _oBody;
     private readonly Logger _logger;
     private readonly VM_NPCAttributeCreator _attributeCreator;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
     public delegate VM_ConfigDistributionRules Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack);
 
-    public VM_ConfigDistributionRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack, IEnvironmentStateProvider stateProvider, VM_SettingsOBody oBody, Logger logger, VM_NPCAttributeCreator attributeCreator, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+    public VM_ConfigDistributionRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack, IEnvironmentStateProvider environmentProvider, VM_SettingsOBody oBody, Logger logger, VM_NPCAttributeCreator attributeCreator, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _oBody = oBody;
         _logger = logger;
         _attributeCreator = attributeCreator;
@@ -55,7 +55,7 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
             execute: _ => AddKeywords.Add(new VM_CollectionMemberString("", this.AddKeywords))
         );
         
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => LinkCache = x)
             .DisposeWith(this);
     }

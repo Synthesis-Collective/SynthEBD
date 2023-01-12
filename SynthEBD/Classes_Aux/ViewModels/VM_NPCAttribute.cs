@@ -20,7 +20,7 @@ namespace SynthEBD;
 public class VM_NPCAttribute : VM
 {
     public delegate VM_NPCAttribute Factory(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups);
-    public VM_NPCAttribute(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, VM_NPCAttributeCreator creator, AttributeMatcher attributeMatcher, IEnvironmentStateProvider stateProvider)
+    public VM_NPCAttribute(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, VM_NPCAttributeCreator creator, AttributeMatcher attributeMatcher, IEnvironmentStateProvider environmentProvider)
     {
         ParentCollection = parentCollection;
         GroupedSubAttributes.CollectionChanged += TrimEmptyAttributes;
@@ -28,7 +28,7 @@ public class VM_NPCAttribute : VM
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
         AddToParent = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Add(creator.CreateNewFromUI(ParentCollection, DisplayForceIfOption, DisplayForceIfWeight, attributeGroups)));
         Validate = new RelayCommand(canExecute: _ => true, execute: _ => { 
-            var validator = new VM_AttributeValidator(this, attributeGroups, stateProvider, attributeMatcher);
+            var validator = new VM_AttributeValidator(this, attributeGroups, environmentProvider, attributeMatcher);
             Window_AttributeValidator window = new Window_AttributeValidator();
             window.DataContext = validator;
             window.ShowDialog();
@@ -351,11 +351,11 @@ public interface ISubAttributeViewModel
 
 public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     public delegate VM_NPCAttributeVoiceType Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    public VM_NPCAttributeVoiceType(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider stateProvider)
+    public VM_NPCAttributeVoiceType(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
 
         ParentVM = parentVM;
         ParentShell = parentShell;
@@ -370,7 +370,7 @@ public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
                 }
             }) ;
         
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
     }
@@ -399,15 +399,15 @@ public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeClass : VM, ISubAttributeViewModel
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     public delegate VM_NPCAttributeClass Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    public VM_NPCAttributeClass(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider stateProvider)
+    public VM_NPCAttributeClass(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         ParentVM = parentVM;
         ParentShell = parentShell;
         
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
@@ -436,13 +436,13 @@ public class VM_NPCAttributeClass : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsRecordIntellisense
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private AttributeMatcher _attributeMatcher;
     private RecordIntellisense _recordIntellisense;
     public delegate VM_NPCAttributeCustom Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    public VM_NPCAttributeCustom(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, AttributeMatcher attributeMatcher, RecordIntellisense recordIntellisense, IEnvironmentStateProvider stateProvider)
+    public VM_NPCAttributeCustom(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, AttributeMatcher attributeMatcher, RecordIntellisense recordIntellisense, IEnvironmentStateProvider environmentProvider)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _attributeMatcher = attributeMatcher;
         _recordIntellisense = recordIntellisense;
 
@@ -468,7 +468,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => Evaluate());
         this.WhenAnyValue(x => x.ReferenceNPCFormKey).Subscribe(x => Evaluate());
         
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => LinkCache = x)
             .DisposeWith(this);
     }
@@ -568,7 +568,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         }
         else
         {
-            if (!_stateProvider.LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC))
+            if (!_environmentProvider.LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC))
             {
                 EvalResult = "Error: can't resolve reference NPC.";
                 this.StatusFontColor = new SolidColorBrush(Colors.Red);
@@ -635,15 +635,15 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
 
 public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     public delegate VM_NPCAttributeFactions Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    public VM_NPCAttributeFactions(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider stateProvider)
+    public VM_NPCAttributeFactions(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         ParentVM = parentVM;
         ParentShell = parentShell;
         
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
@@ -676,15 +676,15 @@ public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     public delegate VM_NPCAttributeFaceTexture Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    public VM_NPCAttributeFaceTexture(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider stateProvider)
+    public VM_NPCAttributeFaceTexture(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         ParentVM = parentVM;
         ParentShell = parentShell;
         
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
@@ -714,15 +714,15 @@ public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
 {
-    private IEnvironmentStateProvider _stateProvider;
+    private IEnvironmentStateProvider _environmentProvider;
     public delegate VM_NPCAttributeRace Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    public VM_NPCAttributeRace(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider stateProvider)
+    public VM_NPCAttributeRace(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         ParentVM = parentVM;
         ParentShell = parentShell;
 
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
@@ -752,15 +752,15 @@ public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
 {
-    private IEnvironmentStateProvider _stateProvider;
+    private IEnvironmentStateProvider _environmentProvider;
     public delegate VM_NPCAttributeMisc Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    public VM_NPCAttributeMisc(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider stateProvider)
+    public VM_NPCAttributeMisc(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         ParentVM = parentVM;
         ParentShell = parentShell;
 
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
@@ -825,19 +825,19 @@ public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
 {
-    private IEnvironmentStateProvider _stateProvider;
+    private IEnvironmentStateProvider _environmentProvider;
     public delegate VM_NPCAttributeMod Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    public VM_NPCAttributeMod(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider stateProvider)
+    public VM_NPCAttributeMod(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         ParentVM = parentVM;
         ParentShell = parentShell;
 
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-        _stateProvider.WhenAnyValue(x => x.LoadOrder)
+        _environmentProvider.WhenAnyValue(x => x.LoadOrder)
             .Subscribe(x => LoadOrder = x)
             .DisposeWith(this);
 
@@ -876,16 +876,16 @@ public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeNPC : VM, ISubAttributeViewModel
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     public delegate VM_NPCAttributeNPC Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    public VM_NPCAttributeNPC(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider stateProvider)
+    public VM_NPCAttributeNPC(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
 
         ParentVM = parentVM;
         ParentShell = parentShell;
         
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));

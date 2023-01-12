@@ -9,7 +9,7 @@ namespace SynthEBD;
 
 public class Patcher
 {
-    private readonly IOutputEnvironmentStateProvider _stateProvider;
+    private readonly IOutputEnvironmentStateProvider _environmentProvider;
     private readonly MainState _state;
     private readonly VM_StatusBar _statusBar;
     private readonly CombinationLog _combinationLog;
@@ -37,9 +37,9 @@ public class Patcher
     private readonly MiscValidation _miscValidation;
     private readonly PatcherIO _patcherIO;
 
-    public Patcher(IOutputEnvironmentStateProvider stateProvider, MainState state, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO)
+    public Patcher(IOutputEnvironmentStateProvider environmentProvider, MainState state, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _state = state;
         _statusBar = statusBar;
         _combinationLog = combinationLog;
@@ -74,8 +74,8 @@ public class Patcher
     {
         // General pre-patching tasks: 
         _paths.OutputDataFolder = PatcherSettings.General.OutputDataFolder;
-        var outputMod = _stateProvider.OutputMod;
-        var allNPCs = _stateProvider.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
+        var outputMod = _environmentProvider.OutputMod;
+        var allNPCs = _environmentProvider.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
         _raceResolver.ResolvePatchableRaces();
         UniqueAssignmentsByName.Clear();
         UniqueNPCData.UniqueNameExclusions = PatcherSettings.General.LinkedNPCNameExclusions.ToHashSet();
@@ -110,7 +110,7 @@ public class Patcher
             availableAssetPacks = new CategorizedFlattenedAssetPacks(flattenedAssetPacks);
 
             EBDCoreRecords.CreateCoreRecords(outputMod, out EBDFaceKW, out EBDScriptKW, out EBDHelperSpell);
-            ApplyRacialSpell.ApplySpell(outputMod, EBDHelperSpell, _stateProvider.LinkCache);
+            ApplyRacialSpell.ApplySpell(outputMod, EBDHelperSpell, _environmentProvider.LinkCache);
 
             if (PatcherSettings.TexMesh.bApplyFixedScripts) { _EBDScripts.ApplyFixedScripts(); }
 
@@ -119,7 +119,7 @@ public class Patcher
 
             HasAssetDerivedHeadParts = false;
         }
-        FacePartCompliance facePartComplianceMaintainer = new(_stateProvider);
+        FacePartCompliance facePartComplianceMaintainer = new(_environmentProvider);
 
         // BodyGen Pre-patching tasks:
         BodyGenTracker = new BodyGenAssignmentTracker();
@@ -171,7 +171,7 @@ public class Patcher
             {
                 //OBodyWriter.WriteBodySlideSPIDIni(bodySlideAssignmentSpell, copiedOBodySettings, outputMod);
                 _updateHandler.CleanSPIDiniOBody();
-                ApplyRacialSpell.ApplySpell(outputMod, bodySlideAssignmentSpell, _stateProvider.LinkCache);
+                ApplyRacialSpell.ApplySpell(outputMod, bodySlideAssignmentSpell, _environmentProvider.LinkCache);
                 _updateHandler.CleanOldBodySlideDict();
                 gEnableBodySlideScript.Data = 1;
             }
@@ -205,7 +205,7 @@ public class Patcher
         Spell headPartAssignmentSpell = HeadPartWriter.CreateHeadPartAssignmentSpell(outputMod, gHeadpartsVerboseMode);
         //HeadPartWriter.WriteHeadPartSPIDIni(headPartAssignmentSpell);
         _updateHandler.CleanSPIDiniHeadParts();
-        ApplyRacialSpell.ApplySpell(outputMod, headPartAssignmentSpell, _stateProvider.LinkCache);
+        ApplyRacialSpell.ApplySpell(outputMod, headPartAssignmentSpell, _environmentProvider.LinkCache);
 
         var copiedHeadPartSettings = JSONhandler<Settings_Headparts>.Deserialize(JSONhandler<Settings_Headparts>.Serialize(PatcherSettings.HeadParts, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
         if (!serializationSuccess) { _logger.LogMessage("Error serializing Head Part configs. Exception: " + serializatonException); _logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
@@ -220,7 +220,7 @@ public class Patcher
                 for (int i = 0; i < typeSettings.HeadParts.Count; i++)
                 {
                     var headPartSetting = typeSettings.HeadParts[i];
-                    if (_stateProvider.LinkCache.TryResolve<IHeadPartGetter>(headPartSetting.HeadPartFormKey, out var headPartGetter))
+                    if (_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(headPartSetting.HeadPartFormKey, out var headPartGetter))
                     {
                         headPartSetting.ResolvedHeadPart = headPartGetter;
                     }
@@ -292,7 +292,7 @@ public class Patcher
                     validation = false;
                 }*/
 
-                if (!_miscValidation.VerifyJContainersInstalled(_stateProvider.DataFolderPath, true))
+                if (!_miscValidation.VerifyJContainersInstalled(_environmentProvider.DataFolderPath, true))
                 {
                     _logger.LogMessage("WARNING: Your Asset Packs have generated new headparts whose distribution requires JContainers, which was not detected in your data folder. NPCs will not receive their new headparts until this is installed.");
                     validation = false;
@@ -304,15 +304,15 @@ public class Patcher
                 }
             }
 
-            HeadPartFunctions.ApplyNeededFaceTextures(HeadPartTracker, outputMod, _logger, _stateProvider.LinkCache);
+            HeadPartFunctions.ApplyNeededFaceTextures(HeadPartTracker, outputMod, _logger, _environmentProvider.LinkCache);
             gEnableHeadParts.Data = 1;
             _headPartWriter.WriteAssignmentDictionary();
         }
 
-        if (_stateProvider.RunMode == EnvironmentMode.Standalone)
+        if (_environmentProvider.RunMode == EnvironmentMode.Standalone)
         {
-            string patchOutputPath = System.IO.Path.Combine(_paths.OutputDataFolder, _stateProvider.OutputMod.ModKey.ToString());
-            PatcherIO.WritePatch(patchOutputPath, outputMod, _logger, _stateProvider);
+            string patchOutputPath = System.IO.Path.Combine(_paths.OutputDataFolder, _environmentProvider.OutputMod.ModKey.ToString());
+            PatcherIO.WritePatch(patchOutputPath, outputMod, _logger, _environmentProvider);
         }
         _statusBar.IsPatching = false;
     }
@@ -363,7 +363,7 @@ public class Patcher
         {
             npcCounter++;
 
-            var currentNPCInfo = new NPCInfo(npc, linkedGroupsHashSet, generatedLinkGroups, _state.SpecificNPCAssignments, _state.Consistency, _state.BlockList, _stateProvider);
+            var currentNPCInfo = new NPCInfo(npc, linkedGroupsHashSet, generatedLinkGroups, _state.SpecificNPCAssignments, _state.Consistency, _state.BlockList, _environmentProvider);
             if (!currentNPCInfo.IsPatchable)
             {
                 continue;
@@ -577,7 +577,7 @@ public class Patcher
 
             if (PatcherSettings.TexMesh.bForceVanillaBodyMeshPath)
             {
-                _assetSelector.SetVanillaBodyPath(currentNPCInfo, outputMod, _stateProvider.LinkCache);
+                _assetSelector.SetVanillaBodyPath(currentNPCInfo, outputMod, _environmentProvider.LinkCache);
             }
 
             #region Height assignment
@@ -606,7 +606,7 @@ public class Patcher
             #region final functions
             if (facePartComplianceMaintainer.RequiresComplianceCheck && (assignedCombinations.Any() || assignedHeadParts.HasAssignment()))
             {
-                facePartComplianceMaintainer.CheckAndFixFaceName(currentNPCInfo, _stateProvider.LinkCache, outputMod);
+                facePartComplianceMaintainer.CheckAndFixFaceName(currentNPCInfo, _environmentProvider.LinkCache, outputMod);
             }
             #endregion
 

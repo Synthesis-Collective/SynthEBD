@@ -7,16 +7,16 @@ namespace SynthEBD;
 
 public class AssetSelector
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly AttributeMatcher _attributeMatcher;
     private readonly RecordPathParser _recordPathParser;
     private readonly DictionaryMapper _dictionaryMapper;
     private readonly PatchableRaceResolver _raceResolver;
-    public AssetSelector(IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths, AttributeMatcher attributeMatcher, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper, PatchableRaceResolver raceResolver)
+    public AssetSelector(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths, AttributeMatcher attributeMatcher, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper, PatchableRaceResolver raceResolver)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _logger = logger;
         _paths = paths;
         _attributeMatcher = attributeMatcher;
@@ -614,14 +614,14 @@ public class AssetSelector
         // Allowed Races
         if (!subgroup.AllowedRacesIsEmpty && !subgroup.AllowedRaces.Contains(npcInfo.AssetsRace))
         {
-            _logger.LogReport(reportString + "is invalid because its allowed races (" + Logger.GetRaceListLogStrings(subgroup.AllowedRaces, _stateProvider.LinkCache) +") do not include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, _stateProvider.LinkCache) + ")", false, npcInfo);
+            _logger.LogReport(reportString + "is invalid because its allowed races (" + Logger.GetRaceListLogStrings(subgroup.AllowedRaces, _environmentProvider.LinkCache) +") do not include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, _environmentProvider.LinkCache) + ")", false, npcInfo);
             return false;
         }
 
         // Disallowed Races
         if (subgroup.DisallowedRaces.Contains(npcInfo.AssetsRace))
         {
-            _logger.LogReport(reportString + "is invalid because its disallowed races (" + Logger.GetRaceListLogStrings(subgroup.DisallowedRaces, _stateProvider.LinkCache) + ") include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, _stateProvider.LinkCache) + ")", false, npcInfo);
+            _logger.LogReport(reportString + "is invalid because its disallowed races (" + Logger.GetRaceListLogStrings(subgroup.DisallowedRaces, _environmentProvider.LinkCache) + ") include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, _environmentProvider.LinkCache) + ")", false, npcInfo);
             return false;
         }
 

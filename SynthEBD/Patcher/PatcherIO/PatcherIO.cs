@@ -60,7 +60,7 @@ public class PatcherIO
         }
     }
 
-    public static void WritePatch(string patchOutputPath, ISkyrimMod outputMod, Logger logger, IEnvironmentStateProvider stateProvider)
+    public static void WritePatch(string patchOutputPath, ISkyrimMod outputMod, Logger logger, IEnvironmentStateProvider environmentProvider)
     {
         string errStr = "";
         if (File.Exists(patchOutputPath))
@@ -82,7 +82,7 @@ public class PatcherIO
         {
             var writeParams = new Mutagen.Bethesda.Plugins.Binary.Parameters.BinaryWriteParameters()
             {
-                MastersListOrdering = new Mutagen.Bethesda.Plugins.Binary.Parameters.MastersListOrderingByLoadOrder(stateProvider.LoadOrder)
+                MastersListOrdering = new Mutagen.Bethesda.Plugins.Binary.Parameters.MastersListOrderingByLoadOrder(environmentProvider.LoadOrder)
             };
             outputMod.WriteToBinary(patchOutputPath, writeParams);
             logger.LogMessage("Wrote output file at " + patchOutputPath + ".");

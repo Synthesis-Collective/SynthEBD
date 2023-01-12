@@ -5,15 +5,15 @@ namespace SynthEBD;
 
 public class CombinationLog
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly PatcherIO _patcherIO;
     private readonly SynthEBDPaths _paths;
     private readonly Converters _converters;
 
-    public CombinationLog(IEnvironmentStateProvider stateProvider, Logger logger, PatcherIO patcherIO, SynthEBDPaths paths, Converters converters)
+    public CombinationLog(IEnvironmentStateProvider environmentProvider, Logger logger, PatcherIO patcherIO, SynthEBDPaths paths, Converters converters)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _logger = logger;
         _patcherIO = patcherIO;
         _paths = paths;
@@ -94,7 +94,7 @@ public class CombinationLog
     {
         foreach (var containedFormLink in recordInfo.SubRecords)
         {
-            if (_stateProvider.LinkCache.TryResolve(containedFormLink.FormKey, containedFormLink.Type, out var resolvedSubRecord))
+            if (_environmentProvider.LinkCache.TryResolve(containedFormLink.FormKey, containedFormLink.Type, out var resolvedSubRecord))
             {
                 var loggedSubRecord = new GeneratedRecordInfo() { EditorID =  EditorIDHandler.GetEditorIDSafely(resolvedSubRecord), FormKey = resolvedSubRecord.FormKey.ToString(), SubRecords = resolvedSubRecord.EnumerateFormLinks().Where(x => x.FormKey.ModKey == resolvedSubRecord.FormKey.ModKey).ToHashSet() };
                     

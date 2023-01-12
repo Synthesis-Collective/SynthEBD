@@ -7,7 +7,7 @@ namespace SynthEBD;
 
 public class VM_LogDisplay : VM
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly DisplayedItemVm _displayedItemVm;
     public string DispString { get; set; } = "";
@@ -18,11 +18,11 @@ public class VM_LogDisplay : VM
     public RelayCommand ShowEnvironment { get; set; }
 
     public VM_LogDisplay(
-        IEnvironmentStateProvider stateProvider,
+        IEnvironmentStateProvider environmentProvider,
         Logger logger,
         DisplayedItemVm displayedItemVm)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _logger = logger;
         _displayedItemVm = displayedItemVm;
         _logger.PropertyChanged += RefreshDisp;
@@ -93,20 +93,20 @@ public class VM_LogDisplay : VM
     public void PrintState()
     {
         /*
-        _logger.LogString += "Data Folder: " + _stateProvider.DataFolderPath + Environment.NewLine;
-        _logger.LogString += "Load Order Source: " + _stateProvider.LoadOrderFilePath + Environment.NewLine;
-        _logger.LogString += "Creation Club Listings: " + _stateProvider.CreationClubListingsFilePath + Environment.NewLine;
-        _logger.LogString += "Game Release: " + _stateProvider.SkyrimVersion.ToString() + Environment.NewLine;
+        _logger.LogString += "Data Folder: " + _environmentProvider.DataFolderPath + Environment.NewLine;
+        _logger.LogString += "Load Order Source: " + _environmentProvider.LoadOrderFilePath + Environment.NewLine;
+        _logger.LogString += "Creation Club Listings: " + _environmentProvider.CreationClubListingsFilePath + Environment.NewLine;
+        _logger.LogString += "Game Release: " + _environmentProvider.SkyrimVersion.ToString() + Environment.NewLine;
         _logger.LogString += "Load Order: " + Environment.NewLine;
         */
-        _logger.LogMessage("Data Folder: " + _stateProvider.DataFolderPath);
-        _logger.LogMessage("Load Order Source: " + _stateProvider.LoadOrderFilePath);
-        _logger.LogMessage("Creation Club Listings: " + _stateProvider.CreationClubListingsFilePath);
-        _logger.LogMessage("Game Release: " + _stateProvider.SkyrimVersion.ToString());
+        _logger.LogMessage("Data Folder: " + _environmentProvider.DataFolderPath);
+        _logger.LogMessage("Load Order Source: " + _environmentProvider.LoadOrderFilePath);
+        _logger.LogMessage("Creation Club Listings: " + _environmentProvider.CreationClubListingsFilePath);
+        _logger.LogMessage("Game Release: " + _environmentProvider.SkyrimVersion.ToString());
         _logger.LogMessage("Load Order: ");
 
 
-        foreach (var mod in _stateProvider.LoadOrder.ListedOrder)
+        foreach (var mod in _environmentProvider.LoadOrder.ListedOrder)
         {
             var dispStr = "(";
             if (mod.Enabled)

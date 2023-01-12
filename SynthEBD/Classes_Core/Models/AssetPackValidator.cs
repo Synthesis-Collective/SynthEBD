@@ -5,12 +5,12 @@ namespace SynthEBD;
 public class AssetPackValidator
 {
     private readonly BSAHandler _bsaHandler;
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
 
-    public AssetPackValidator(BSAHandler bsaHandler, IEnvironmentStateProvider stateProvider)
+    public AssetPackValidator(BSAHandler bsaHandler, IEnvironmentStateProvider environmentProvider)
     {
         _bsaHandler = bsaHandler;
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
     }
     
     public bool Validate(AssetPack assetPack, List<string> errors, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings)
@@ -200,7 +200,7 @@ public class AssetPackValidator
 
         foreach (var path in subgroup.Paths)
         {
-            var fullPath = System.IO.Path.Combine(_stateProvider.DataFolderPath, path.Source);
+            var fullPath = System.IO.Path.Combine(_environmentProvider.DataFolderPath, path.Source);
             if (!System.IO.File.Exists(fullPath) && !_bsaHandler.ReferencedPathExists(path.Source, out bool archiveExists, out string modName))
             {
                 string pathError = "No file exists at " + fullPath;

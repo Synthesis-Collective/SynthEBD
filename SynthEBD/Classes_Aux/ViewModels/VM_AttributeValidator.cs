@@ -15,14 +15,14 @@ namespace SynthEBD
 {
     public class VM_AttributeValidator : VM
     {
-        private readonly IEnvironmentStateProvider _stateProvider;
+        private readonly IEnvironmentStateProvider _environmentProvider;
         private readonly AttributeMatcher _attributeMatcher;
-        public VM_AttributeValidator(VM_NPCAttribute trialAttribute, ObservableCollection<VM_AttributeGroup> attGroupVMs, IEnvironmentStateProvider stateProvider, AttributeMatcher attributeMatcher)
+        public VM_AttributeValidator(VM_NPCAttribute trialAttribute, ObservableCollection<VM_AttributeGroup> attGroupVMs, IEnvironmentStateProvider environmentProvider, AttributeMatcher attributeMatcher)
         {
-            _stateProvider = stateProvider;
+            _environmentProvider = environmentProvider;
             _attributeMatcher = attributeMatcher;
 
-            _stateProvider.WhenAnyValue(x => x.LinkCache)
+            _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 

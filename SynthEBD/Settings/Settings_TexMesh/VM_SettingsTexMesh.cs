@@ -14,7 +14,7 @@ public class VM_SettingsTexMesh : VM
     private readonly SynthEBDPaths _paths;
     private readonly ConfigInstaller _configInstaller;
     private readonly VM_AssetDistributionSimulator.Factory _simulatorFactory;
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
 
     public VM_SettingsTexMesh(
         MainState state,
@@ -26,7 +26,7 @@ public class VM_SettingsTexMesh : VM
         VM_AssetPack.Factory assetPackFactory,
         VM_Subgroup.Factory subgroupFactory,
         VM_RaceGrouping.Factory raceGroupingFactory,
-        IEnvironmentStateProvider stateProvider,
+        IEnvironmentStateProvider environmentProvider,
         Logger logger,
         SynthEBDPaths paths,
         ConfigInstaller configInstaller,
@@ -37,11 +37,11 @@ public class VM_SettingsTexMesh : VM
         _paths = paths;
         _configInstaller = configInstaller;
         _simulatorFactory = simulatorFactory;
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
 
         Observable.CombineLatest(
                 this.WhenAnyValue(x => x.bApplyFixedScripts),
-                _stateProvider.WhenAnyValue(x => x.SkyrimVersion),
+                _environmentProvider.WhenAnyValue(x => x.SkyrimVersion),
                 (_, _) => { return 0; })
             .Subscribe(_ => UpdateSKSESelectionVisibility());
 
@@ -310,7 +310,7 @@ public class VM_SettingsTexMesh : VM
 
     private void UpdateSKSESelectionVisibility()
     {
-        if (bApplyFixedScripts && _stateProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimSE)
+        if (bApplyFixedScripts && _environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimSE)
         {
             bShowSKSEversionOptions = true;
         }

@@ -18,21 +18,21 @@ namespace SynthEBD
 {
     public class VM_HeadPartImport : VM
     {
-        private IEnvironmentStateProvider _stateProvider;
+        private IEnvironmentStateProvider _environmentProvider;
         private readonly Logger _logger;
         private readonly VM_HeadPart.Factory _headPartFactory;
-        public VM_HeadPartImport(VM_Settings_Headparts parentMenu, Logger logger, IEnvironmentStateProvider stateProvider, VM_HeadPart.Factory headPartFactory)
+        public VM_HeadPartImport(VM_Settings_Headparts parentMenu, Logger logger, IEnvironmentStateProvider environmentProvider, VM_HeadPart.Factory headPartFactory)
         {
             ParentMenu = parentMenu;
-            _stateProvider = stateProvider;
+            _environmentProvider = environmentProvider;
             _logger = logger;
             _headPartFactory = headPartFactory;
 
-            _stateProvider.WhenAnyValue(x => x.LinkCache)
+            _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-            _stateProvider.WhenAnyValue(x => x.LoadOrder)
+            _environmentProvider.WhenAnyValue(x => x.LoadOrder)
             .Subscribe(x => LoadOrder = x.Where(y => y.Value != null && y.Value.Enabled).Select(x => x.Value.ModKey));
 
             this.WhenAnyValue(
@@ -106,7 +106,7 @@ namespace SynthEBD
         public void UpdateSelections()
         {
             ClearSelections();
-            var mod = _stateProvider.LoadOrder.ListedOrder.Where(x => x.ModKey.Equals(ModtoImport)).FirstOrDefault();
+            var mod = _environmentProvider.LoadOrder.ListedOrder.Where(x => x.ModKey.Equals(ModtoImport)).FirstOrDefault();
             if (mod != null)
             {
                 foreach (var headpart in mod.Mod.HeadParts)
@@ -159,7 +159,7 @@ namespace SynthEBD
             for (int i = 0; i < collection.Count; i++)
             {
                 var headPartFK = collection[i];
-                if (_stateProvider.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
+                if (_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                 {
                     if (!headpart.Type.HasValue)
                     {
@@ -172,7 +172,7 @@ namespace SynthEBD
                 }
                 else
                 {
-                    invalidEditorIDs.Add(EditorIDHandler.GetEditorIDSafely<IHeadPartGetter>(headPartFK, _stateProvider.LinkCache));
+                    invalidEditorIDs.Add(EditorIDHandler.GetEditorIDSafely<IHeadPartGetter>(headPartFK, _environmentProvider.LinkCache));
                 }
             }
 
@@ -198,7 +198,7 @@ namespace SynthEBD
             {
                 foreach (var headPartFK in entry.Value.FormKeys)
                 {
-                    if (_stateProvider.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
+                    if (_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                     {
                         if (!ParentMenu.Types[entry.Key].HeadPartList.Where(x => x.FormKey.Equals(headPartFK)).Any())
                         {
@@ -228,7 +228,7 @@ namespace SynthEBD
             imported.bAllowMale = headPart.Flags.HasFlag(HeadPart.Flag.Male);
             imported.bAllowFemale = headPart.Flags.HasFlag(HeadPart.Flag.Female);
 
-            if (parentConfig.ImportMenu.bRespectHeadPartRaces && _stateProvider.LinkCache.TryResolve<IFormListGetter>(headPart.ValidRaces.FormKey, out var raceFormList) && raceFormList.Items.Any())
+            if (parentConfig.ImportMenu.bRespectHeadPartRaces && _environmentProvider.LinkCache.TryResolve<IFormListGetter>(headPart.ValidRaces.FormKey, out var raceFormList) && raceFormList.Items.Any())
             {
                 var races = raceFormList.Items.Select(x => x.FormKey);
                 var matchedGroupings = VM_RaceGrouping.CollectionMatchesRaceGrouping(races, raceGroupingVMs);

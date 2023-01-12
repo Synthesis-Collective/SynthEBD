@@ -24,7 +24,7 @@ public class SynthEBDPaths : VM
     private static readonly string settingsDirPath;
 
     private readonly PatcherSettingsSourceProvider _settingsSourceProvider;
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
 
     //public static void SetRootPath(string rootPath)
     //{
@@ -33,10 +33,10 @@ public class SynthEBDPaths : VM
 
     public SynthEBDPaths(
         PatcherSettingsSourceProvider settingsSourceProvider,
-        IEnvironmentStateProvider stateProvider)
+        IEnvironmentStateProvider environmentProvider)
     {
         _settingsSourceProvider = settingsSourceProvider;
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
 
         GetRootPath();
 
@@ -164,7 +164,7 @@ public class SynthEBDPaths : VM
             }
             else
             {
-                _rootPath = Path.Combine(_stateProvider.DataFolderPath, "SynthEBD");
+                _rootPath = Path.Combine(_environmentProvider.DataFolderPath, "SynthEBD");
             }
         }
         else

@@ -10,17 +10,17 @@ namespace SynthEBD;
 
 public class VM_ConsistencyUI : VM
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     public readonly Logger _logger;
 
-    public VM_ConsistencyUI(IEnvironmentStateProvider stateProvider, Logger logger)
+    public VM_ConsistencyUI(IEnvironmentStateProvider environmentProvider, Logger logger)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _logger = logger;
 
         this.PropertyChanged += RefereshCurrentAssignment;
         
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 

@@ -12,7 +12,7 @@ namespace SynthEBD
 {
     public class FirstLaunch
     {
-        private readonly IEnvironmentStateProvider _stateProvider;
+        private readonly IEnvironmentStateProvider _environmentProvider;
         private readonly SynthEBDPaths _paths;
         private readonly Logger _logger;
         private readonly VM_SettingsHeight _heightSettingsVM;
@@ -21,9 +21,9 @@ namespace SynthEBD
         private readonly SettingsIO_AssetPack _assetIO;
         private readonly MainState _mainState;
         private readonly CustomMessageBox _customMessageBox;
-        public FirstLaunch(IEnvironmentStateProvider stateProvider, SynthEBDPaths paths, Logger logger, VM_SettingsHeight heightSettingsVM, SettingsIO_AssetPack assetIO, MainState mainState, VM_HeightConfig.Factory heightConfigFactory, VM_HeightAssignment.Factory heightAssignmentFactory, CustomMessageBox customMessageBox)
+        public FirstLaunch(IEnvironmentStateProvider environmentProvider, SynthEBDPaths paths, Logger logger, VM_SettingsHeight heightSettingsVM, SettingsIO_AssetPack assetIO, MainState mainState, VM_HeightConfig.Factory heightConfigFactory, VM_HeightAssignment.Factory heightAssignmentFactory, CustomMessageBox customMessageBox)
         {
-            _stateProvider = stateProvider;
+            _environmentProvider = environmentProvider;
             _paths = paths;
             _logger = logger;
             _heightSettingsVM = heightSettingsVM;
@@ -37,7 +37,7 @@ namespace SynthEBD
         public void OnFirstLaunch()
         {
             ShowFirstRunMessage();
-            string defaultHeightConfigStartPath = Path.Combine(_stateProvider.InternalDataPath, "FirstLaunchResources", "Default Config.json");
+            string defaultHeightConfigStartPath = Path.Combine(_environmentProvider.InternalDataPath, "FirstLaunchResources", "Default Config.json");
             string defaultHeightConfigDestPath = Path.Combine(_paths.HeightConfigDirPath, "Default Config.json");
             if (!File.Exists(defaultHeightConfigDestPath))
             {
@@ -55,7 +55,7 @@ namespace SynthEBD
                 }
             }
 
-            string defaultRecordTemplatesStartPath = Path.Combine(_stateProvider.InternalDataPath, "FirstLaunchResources", "Record Templates.esp");
+            string defaultRecordTemplatesStartPath = Path.Combine(_environmentProvider.InternalDataPath, "FirstLaunchResources", "Record Templates.esp");
             string defaultRecordTemplatesDestPath = Path.Combine(_paths.RecordTemplatesDirPath, "Record Templates.esp");
 
             if (!File.Exists(defaultRecordTemplatesDestPath))

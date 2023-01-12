@@ -9,15 +9,15 @@ namespace SynthEBD;
 
 public class RecordGenerator
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly HardcodedRecordGenerator _hardcodedRecordGenerator;
     private readonly HeadPartSelector _headPartSelector;
     private readonly RecordPathParser _recordPathParser;
-    public RecordGenerator(IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths, HardcodedRecordGenerator hardcodedRecordGenerator, HeadPartSelector headPartSelector, RecordPathParser recordPathParser)
+    public RecordGenerator(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths, HardcodedRecordGenerator hardcodedRecordGenerator, HeadPartSelector headPartSelector, RecordPathParser recordPathParser)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _logger = logger;
         _paths = paths;
         _hardcodedRecordGenerator = hardcodedRecordGenerator;
@@ -112,7 +112,7 @@ public class RecordGenerator
                 }
                 #endregion
                 #region Traverse if NPC Setter record already has object at the current subpath but it has not yet been added to NPC object linkage map
-                else if (EasyNPCHandler.Permits(npcInfo.NPC, currentSubPath) && _recordPathParser.GetObjectAtPath(rootNPC, rootNPC, group.Key, npcObjectMap, _stateProvider.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC) + " (Generated Override)", out currentObj, out currentObjInfo) && !currentObjInfo.IsNullFormLink) // if the current object is a sub-object of a template-derived record, it will not yet have been added to npcObjectMap in a previous iteration (note that it is added during this GetObjectAtPath() call so no need to add it again)
+                else if (EasyNPCHandler.Permits(npcInfo.NPC, currentSubPath) && _recordPathParser.GetObjectAtPath(rootNPC, rootNPC, group.Key, npcObjectMap, _environmentProvider.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC) + " (Generated Override)", out currentObj, out currentObjInfo) && !currentObjInfo.IsNullFormLink) // if the current object is a sub-object of a template-derived record, it will not yet have been added to npcObjectMap in a previous iteration (note that it is added during this GetObjectAtPath() call so no need to add it again)
                 {
                     npcSetterHasObject = true;
                     if (currentObjInfo.HasFormKey) // else does not need handling - if the NPC setter already has a given non-record object along the path, no further action is needed at this path segment.
@@ -135,7 +135,7 @@ public class RecordGenerator
                 }
                 #endregion
                 #region Get object and traverse if the corresponding NPC Getter has an object at the curent subpath
-                else if (EasyNPCHandler.Permits(npcInfo.NPC, currentSubPath) && _recordPathParser.GetObjectAtPath(npcInfo.NPC, npcInfo.NPC, group.Key, objectCaches[npcInfo.NPC.FormKey], _stateProvider.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out currentObj, out currentObjInfo) && !currentObjInfo.IsNullFormLink)
+                else if (EasyNPCHandler.Permits(npcInfo.NPC, currentSubPath) && _recordPathParser.GetObjectAtPath(npcInfo.NPC, npcInfo.NPC, group.Key, objectCaches[npcInfo.NPC.FormKey], _environmentProvider.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out currentObj, out currentObjInfo) && !currentObjInfo.IsNullFormLink)
                 {
                     if (currentObjInfo.HasFormKey)  // if the current object is a record, resolve it
                     {
@@ -325,7 +325,7 @@ public class RecordGenerator
     {
         if (RecordPathParser.PathIsArray(currentSubPath))
         {
-            if (_recordPathParser.GetObjectAtPath(rootObj, rootRecord, currentSubPath, new Dictionary<string, dynamic>(), _stateProvider.LinkCache, true, "", out dynamic _, out ObjectInfo arrayObjInfo))
+            if (_recordPathParser.GetObjectAtPath(rootObj, rootRecord, currentSubPath, new Dictionary<string, dynamic>(), _environmentProvider.LinkCache, true, "", out dynamic _, out ObjectInfo arrayObjInfo))
             {
                 SetRecordInArray(rootObj, arrayObjInfo.IndexInParentArray.Value, record);
             }

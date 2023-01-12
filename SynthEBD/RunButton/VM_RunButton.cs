@@ -6,7 +6,7 @@ namespace SynthEBD;
 
 public class VM_RunButton : VM
 {
-    private readonly StandaloneRunEnvironmentStateProvider _stateProvider;
+    private readonly StandaloneRunEnvironmentStateProvider _environmentProvider;
     private readonly VM_SettingsTexMesh _texMeshSettingsVm;
     private readonly MainState _state;
     private readonly PreRunValidation _preRunValidation;
@@ -14,7 +14,7 @@ public class VM_RunButton : VM
     private readonly Logger _logger;
 
     public VM_RunButton(
-        StandaloneRunEnvironmentStateProvider stateProvider,
+        StandaloneRunEnvironmentStateProvider environmentProvider,
         VM_SettingsTexMesh texMeshSettingsVM, 
         VM_ConsistencyUI consistencyUi,
         VM_Settings_Headparts headParts,
@@ -26,7 +26,7 @@ public class VM_RunButton : VM
         VM_LogDisplay logDisplay,
         Func<Patcher> getPatcher)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _texMeshSettingsVm = texMeshSettingsVM;
         _state = state;
         _preRunValidation = preRunValidation;
@@ -58,7 +58,7 @@ public class VM_RunButton : VM
                 logDisplay.SwitchViewToLogDisplay();
                 saveLoader.DumpViewModelsToModels();
                 if (!_preRunValidation.ValidatePatcherState()) { return; }
-                if (HasBeenRun) { _stateProvider.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.
+                if (HasBeenRun) { _environmentProvider.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.
                 _logger.ClearStatusError();
 
                 if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !_miscValidation.VerifyBodySlideAnnotations(PatcherSettings.OBody))

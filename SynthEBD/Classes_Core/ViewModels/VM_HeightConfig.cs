@@ -9,13 +9,13 @@ namespace SynthEBD;
 
 public class VM_HeightConfig : VM
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly VM_HeightAssignment.Factory _assignmentFactory;
     public delegate VM_HeightConfig Factory();
-    public VM_HeightConfig(IEnvironmentStateProvider stateProvider, Logger logger, SettingsIO_Height heightIO, VM_HeightAssignment.Factory assignmentFactory)
+    public VM_HeightConfig(IEnvironmentStateProvider environmentProvider, Logger logger, SettingsIO_Height heightIO, VM_HeightAssignment.Factory assignmentFactory)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _logger = logger;
         _assignmentFactory = assignmentFactory;
 
@@ -96,14 +96,14 @@ public class VM_HeightConfig : VM
 }
 public class VM_HeightAssignment : VM
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     public delegate VM_HeightAssignment Factory(ObservableCollection<VM_HeightAssignment> parentCollection);
-    public VM_HeightAssignment(ObservableCollection<VM_HeightAssignment> parentCollection, IEnvironmentStateProvider stateProvider)
+    public VM_HeightAssignment(ObservableCollection<VM_HeightAssignment> parentCollection, IEnvironmentStateProvider environmentProvider)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
         
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
     }

@@ -12,12 +12,12 @@ namespace SynthEBD;
 
 public class VM_LinkedNPCGroup : VM
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     public delegate VM_LinkedNPCGroup Factory();
-    public VM_LinkedNPCGroup(IEnvironmentStateProvider stateProvider)
+    public VM_LinkedNPCGroup(IEnvironmentStateProvider environmentProvider)
     {
-        _stateProvider = stateProvider;
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider = environmentProvider;
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 

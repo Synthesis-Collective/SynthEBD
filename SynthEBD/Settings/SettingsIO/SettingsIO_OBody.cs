@@ -4,12 +4,12 @@ namespace SynthEBD;
 
 public class SettingsIO_OBody
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
-    public SettingsIO_OBody(IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths)
+    public SettingsIO_OBody(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _logger = logger;
         _paths = paths;
     }
@@ -56,7 +56,7 @@ public class SettingsIO_OBody
     {
         Dictionary<string, HashSet<string>> output = new Dictionary<string, HashSet<string>>();
 
-        string annotationDir = Path.Combine(_stateProvider.InternalDataPath, "Default BodySlide Annotations");
+        string annotationDir = Path.Combine(_environmentProvider.InternalDataPath, "Default BodySlide Annotations");
 
         if (Directory.Exists(annotationDir))
         {

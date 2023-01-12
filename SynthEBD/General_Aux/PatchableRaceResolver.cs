@@ -12,18 +12,18 @@ namespace SynthEBD
 {
     public class PatchableRaceResolver
     {
-        private readonly IEnvironmentStateProvider _stateProvider;
+        private readonly IEnvironmentStateProvider _environmentProvider;
         private readonly Logger _logger;
-        public PatchableRaceResolver(IEnvironmentStateProvider stateProvider, Logger logger)
+        public PatchableRaceResolver(IEnvironmentStateProvider environmentProvider, Logger logger)
         {
-            _stateProvider = stateProvider;
+            _environmentProvider = environmentProvider;
             _logger = logger;
         }
         
         public HashSet<IFormLinkGetter<IRaceGetter>> PatchableRaces { get; set; } = new();
         public void ResolvePatchableRaces()
         {
-            if (_stateProvider.LinkCache is null)
+            if (_environmentProvider.LinkCache is null)
             {
                 _logger.LogError("Error: Link cache is null.");
                 return;
@@ -32,12 +32,12 @@ namespace SynthEBD
             PatchableRaces = new();
             foreach (var raceFK in PatcherSettings.General.PatchableRaces)
             {
-                if (_stateProvider.LinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
+                if (_environmentProvider.LinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
                 {
                     PatchableRaces.Add(raceGetter.ToLinkGetter());
                 }
             }
-            PatchableRaces.Add(Skyrim.Race.DefaultRace.Resolve(_stateProvider.LinkCache).ToLinkGetter());
+            PatchableRaces.Add(Skyrim.Race.DefaultRace.Resolve(_environmentProvider.LinkCache).ToLinkGetter());
         }
     }
 }

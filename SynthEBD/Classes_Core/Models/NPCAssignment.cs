@@ -61,14 +61,14 @@ public class zEBDSpecificNPCAssignment
         public string topLevelSubgroup { get; set; }
     }
 
-    public static HashSet<NPCAssignment> ToSynthEBDNPCAssignments(HashSet<zEBDSpecificNPCAssignment> inputSet, Logger logger, Converters converters, IEnvironmentStateProvider stateProvider)
+    public static HashSet<NPCAssignment> ToSynthEBDNPCAssignments(HashSet<zEBDSpecificNPCAssignment> inputSet, Logger logger, Converters converters, IEnvironmentStateProvider environmentProvider)
     {
         var outputSet = new HashSet<NPCAssignment>();
 
         foreach (var z in inputSet)
         {
             NPCAssignment s = new NPCAssignment();
-            s.NPCFormKey = converters.zEBDSignatureToFormKey(z.rootPlugin, z.formID, stateProvider);
+            s.NPCFormKey = converters.zEBDSignatureToFormKey(z.rootPlugin, z.formID, environmentProvider);
             s.AssetPackName = z.forcedAssetPack;
             foreach (var zFS in z.forcedSubgroups)
             {

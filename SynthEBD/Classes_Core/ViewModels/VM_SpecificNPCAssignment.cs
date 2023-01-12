@@ -15,7 +15,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 {
     public delegate VM_SpecificNPCAssignment Factory();
 
-    private IEnvironmentStateProvider _stateProvider;
+    private IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly VM_Settings_General _generalSettings;
@@ -30,7 +30,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     private readonly Converters _converters;
 
     public VM_SpecificNPCAssignment(
-        IEnvironmentStateProvider stateProvider,
+        IEnvironmentStateProvider environmentProvider,
         Logger logger, 
         SynthEBDPaths paths,
         VM_Settings_General general,
@@ -44,7 +44,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         VM_SpecificNPCAssignment.Factory specificNPCAssignmentFactory,
         Converters converters)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _logger = logger;
         _paths = paths;
         _generalSettings = general;
@@ -62,7 +62,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         SubscribedBodyGenSettings = bodyGen;
         SubscribedHeadPartSettings = headParts;
 
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
@@ -201,7 +201,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         Factory specificNpcAssignmentFactory, 
         Logger logger,
         Converters converters,
-        IEnvironmentStateProvider stateProvider)
+        IEnvironmentStateProvider environmentProvider)
     {
         var viewModel = specificNpcAssignmentFactory();
         viewModel.NPCFormKey = model.NPCFormKey;
@@ -213,12 +213,12 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
         var npcFormLink = new FormLink<INpcGetter>(viewModel.NPCFormKey);
 
-        if (!npcFormLink.TryResolve(stateProvider.LinkCache, out var npcRecord))
+        if (!npcFormLink.TryResolve(environmentProvider.LinkCache, out var npcRecord))
         {
             logger.LogError("Warning: the target NPC of the Specific NPC Assignment with FormKey " + viewModel.NPCFormKey.ToString() + " was not found in the current load order.");
         }
 
-        viewModel.Gender = GetGender(viewModel.NPCFormKey, logger, stateProvider);
+        viewModel.Gender = GetGender(viewModel.NPCFormKey, logger, environmentProvider);
 
         bool assetPackFound = false;
         if (model.AssetPackName.Length == 0) { assetPackFound = true; }
@@ -307,7 +307,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             if (!model.HeadParts.ContainsKey(headPartType)) { model.HeadParts.Add(headPartType, new()); }
             else
             {
-                viewModel.HeadParts[headPartType] = VM_HeadPartAssignment.GetViewModelFromModel(model.HeadParts[headPartType], headPartType, headParts, viewModel, viewModel, stateProvider);
+                viewModel.HeadParts[headPartType] = VM_HeadPartAssignment.GetViewModelFromModel(model.HeadParts[headPartType], headPartType, headParts, viewModel, viewModel, environmentProvider);
             }
         }
 
@@ -586,7 +586,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         }
 
         this.DispName = _converters.CreateNPCDispNameFromFormKey(this.NPCFormKey);
-        this.Gender = GetGender(this.NPCFormKey, _logger, _stateProvider);
+        this.Gender = GetGender(this.NPCFormKey, _logger, _environmentProvider);
 
         UpdateAvailableAssetPacks(this);
         UpdateAvailableSubgroups(this);
@@ -606,11 +606,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         this.Gender = GetGender(this.NPCFormKey);
     }*/
 
-    public static Gender GetGender (FormKey NPCFormKey, Logger logger, IEnvironmentStateProvider stateProvider)
+    public static Gender GetGender (FormKey NPCFormKey, Logger logger, IEnvironmentStateProvider environmentProvider)
     {
         var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
 
-        if (npcFormLink.TryResolve(stateProvider.LinkCache, out var npcRecord))
+        if (npcFormLink.TryResolve(environmentProvider.LinkCache, out var npcRecord))
         {
             if (npcRecord.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Female))
             {

@@ -15,13 +15,13 @@ namespace SynthEBD
 {
     public class VM_HeadPartCategoryRules : VM
     {
-        private IEnvironmentStateProvider _stateProvider;
+        private IEnvironmentStateProvider _environmentProvider;
         private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
         public readonly VM_Settings_Headparts ParentConfig; // needed for xaml binding
         public delegate VM_HeadPartCategoryRules Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig);
-        public VM_HeadPartCategoryRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig, VM_SettingsOBody oBody, VM_NPCAttributeCreator creator, IEnvironmentStateProvider stateProvider, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+        public VM_HeadPartCategoryRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig, VM_SettingsOBody oBody, VM_NPCAttributeCreator creator, IEnvironmentStateProvider environmentProvider, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
-            _stateProvider = stateProvider;
+            _environmentProvider = environmentProvider;
             _descriptorSelectionFactory = descriptorSelectionFactory;
             ParentConfig = parentConfig;
 
@@ -30,7 +30,7 @@ namespace SynthEBD
             AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
             DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
-            _stateProvider.WhenAnyValue(x => x.LinkCache)
+            _environmentProvider.WhenAnyValue(x => x.LinkCache)
                 .Subscribe(x => lk = x)
                 .DisposeWith(this);
 

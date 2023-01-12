@@ -10,7 +10,7 @@ namespace SynthEBD;
 public class SaveLoader : VM
 {
     // Some are public properties to allow for circular IoC dependencies
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherSettingsSourceProvider _patcherSettingsSourceProvider;
     private readonly PatcherEnvironmentSourceProvider _patcherEnvironmentSourceProvider;
     private readonly MainState _state;
@@ -57,7 +57,7 @@ public class SaveLoader : VM
     private bool _isTrackingRootFolder = false;
 
     public SaveLoader(
-        IEnvironmentStateProvider stateProvider,
+        IEnvironmentStateProvider environmentProvider,
         MainState state,
         VM_Settings_General generalSettings,
         VM_SettingsTexMesh texMeshSettings,
@@ -102,7 +102,7 @@ public class SaveLoader : VM
         Converters converters,
         VM_NPCAttributeCreator attributeCreator)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _state = state;
         _logger = logger;
         _paths = paths;
@@ -202,7 +202,7 @@ public class SaveLoader : VM
         PatcherSettings.BodyGen = _bodyGenIO.LoadBodyGenSettings(out loadSuccess);
         PatcherSettings.OBody = _oBodyIO.LoadOBodySettings(out loadSuccess);
         // load OBody settings before asset packs - asset packs depend on BodyGen but not vice versa
-        PatcherSettings.OBody.ImportBodySlides(PatcherSettings.OBody.TemplateDescriptors, _oBodyIO, _stateProvider.DataFolderPath);
+        PatcherSettings.OBody.ImportBodySlides(PatcherSettings.OBody.TemplateDescriptors, _oBodyIO, _environmentProvider.DataFolderPath);
         PatcherSettings.HeadParts = _headpartIO.LoadHeadPartSettings(out loadSuccess); // load head part settings
         PatcherSettings.Height = _heightIO.LoadHeightSettings(out loadSuccess); // load heights
         _state.BlockList = _blockListIO.LoadBlockList(out loadSuccess); // load BlockList
@@ -212,7 +212,7 @@ public class SaveLoader : VM
     public void LoadInitialSettingsViewModels() // view models that should be loaded before plugin VMs
     {
         // Load general settings
-        VM_Settings_General.GetViewModelFromModel(_generalSettingsVM, _patcherSettingsSourceProvider, _raceAliasFactory, _linkedNPCFactory, _stateProvider.LinkCache);
+        VM_Settings_General.GetViewModelFromModel(_generalSettingsVM, _patcherSettingsSourceProvider, _raceAliasFactory, _linkedNPCFactory, _environmentProvider.LinkCache);
         VM_SettingsTexMesh.GetViewModelFromModel(_texMeshSettingsVM, PatcherSettings.TexMesh);     
         VM_BlockListUI.GetViewModelFromModel(_state.BlockList, _blockList, _blockedNPCFactory, _blockedPluginFactory);
         VM_SettingsModManager.GetViewModelFromModel(PatcherSettings.ModManagerIntegration, _settingsModManager);
@@ -261,7 +261,7 @@ public class SaveLoader : VM
             _state.SpecificNPCAssignments,
             _logger,
             _converters,
-            _stateProvider);
+            _environmentProvider);
 
         // Load Consistency (must load after plugin view models)
         VM_ConsistencyUI.GetViewModelsFromModels(_state.Consistency, _consistencyUi.Assignments, _texMeshSettingsVM.AssetPacks, _headPartSettingsVM, _logger);
@@ -398,13 +398,13 @@ public class SaveLoader : VM
             _logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
         }
 
-        if (_stateProvider.RunMode == EnvironmentMode.Standalone)
+        if (_environmentProvider.RunMode == EnvironmentMode.Standalone)
         {
             var envSource = new StandaloneEnvironmentSource()
             {
-                GameEnvironmentDirectory = _stateProvider.DataFolderPath,
-                SkyrimVersion = _stateProvider.SkyrimVersion,
-                OutputModName = _stateProvider.OutputModName
+                GameEnvironmentDirectory = _environmentProvider.DataFolderPath,
+                SkyrimVersion = _environmentProvider.SkyrimVersion,
+                OutputModName = _environmentProvider.OutputModName
             };
             JSONhandler<StandaloneEnvironmentSource>.SaveJSONFile(envSource, _patcherEnvironmentSourceProvider.SourcePath, out saveSuccess, out exceptionStr);
             if (!saveSuccess)

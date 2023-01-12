@@ -9,14 +9,14 @@ namespace SynthEBD
 {
     public class PreRunValidation
     {
-        private readonly IEnvironmentStateProvider _stateProvider;
+        private readonly IEnvironmentStateProvider _environmentProvider;
         private readonly MainState _patcherState;
         private readonly Logger _logger;
         private readonly MiscValidation _miscValidation;
         private readonly VM_SettingsTexMesh _texMeshSettingsVM;
-        public PreRunValidation(IEnvironmentStateProvider stateProvider, MainState patcherState, Logger logger, MiscValidation miscValidation, VM_SettingsTexMesh texMeshSettingsVM)
+        public PreRunValidation(IEnvironmentStateProvider environmentProvider, MainState patcherState, Logger logger, MiscValidation miscValidation, VM_SettingsTexMesh texMeshSettingsVM)
         {
-            _stateProvider = stateProvider;
+            _environmentProvider = environmentProvider;
             _patcherState = patcherState;
             _logger = logger;
             _miscValidation = miscValidation;
@@ -44,7 +44,7 @@ namespace SynthEBD
 
             if (PatcherSettings.General.BodySelectionMode != BodyShapeSelectionMode.None)
             {
-                if (!_miscValidation.VerifyRaceMenuInstalled(_stateProvider.DataFolderPath))
+                if (!_miscValidation.VerifyRaceMenuInstalled(_environmentProvider.DataFolderPath))
                 {
                     valid = false;
                 }
@@ -61,24 +61,24 @@ namespace SynthEBD
                 {
                     if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.OBody)
                     {
-                        if (!_miscValidation.VerifyOBodyInstalled(_stateProvider.DataFolderPath))
+                        if (!_miscValidation.VerifyOBodyInstalled(_environmentProvider.DataFolderPath))
                         {
                             valid = false;
                         }
 
-                        if (!_miscValidation.VerifyJContainersInstalled(_stateProvider.DataFolderPath, false))
+                        if (!_miscValidation.VerifyJContainersInstalled(_environmentProvider.DataFolderPath, false))
                         {
                             valid = false;
                         }
                     }
                     else if (PatcherSettings.General.BSSelectionMode == BodySlideSelectionMode.AutoBody)
                     {
-                        if (!_miscValidation.VerifyAutoBodyInstalled(_stateProvider.DataFolderPath))
+                        if (!_miscValidation.VerifyAutoBodyInstalled(_environmentProvider.DataFolderPath))
                         {
                             valid = false;
                         }
 
-                        if (PatcherSettings.OBody.AutoBodySelectionMode == AutoBodySelectionMode.JSON && !_miscValidation.VerifyJContainersInstalled(_stateProvider.DataFolderPath, false))
+                        if (PatcherSettings.OBody.AutoBodySelectionMode == AutoBodySelectionMode.JSON && !_miscValidation.VerifyJContainersInstalled(_environmentProvider.DataFolderPath, false))
                         {
                             valid = false;
                         }
@@ -115,7 +115,7 @@ namespace SynthEBD
                 //    valid = false;
                 //}
 
-                if (!_miscValidation.VerifyJContainersInstalled(_stateProvider.DataFolderPath, false))
+                if (!_miscValidation.VerifyJContainersInstalled(_environmentProvider.DataFolderPath, false))
                 {
                     valid = false;
                 }

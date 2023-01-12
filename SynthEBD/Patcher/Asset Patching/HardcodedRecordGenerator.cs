@@ -15,12 +15,12 @@ namespace SynthEBD;
 /// </summary>
 public class HardcodedRecordGenerator
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly HeadPartSelector _headPartSelector;
-    public HardcodedRecordGenerator(IEnvironmentStateProvider stateProvider, Logger logger, HeadPartSelector headPartSelector)
+    public HardcodedRecordGenerator(IEnvironmentStateProvider environmentProvider, Logger logger, HeadPartSelector headPartSelector)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _logger = logger;
         _headPartSelector = headPartSelector;
     }
@@ -84,11 +84,11 @@ public class HardcodedRecordGenerator
     {
         if (headtexPaths.Any())
         {
-            AssignHeadTexture(npcInfo, outputMod, _stateProvider.LinkCache, recordTemplateLinkCache, headtexPaths, npcObjectMap, objectCaches, recordGenerator);
+            AssignHeadTexture(npcInfo, outputMod, _environmentProvider.LinkCache, recordTemplateLinkCache, headtexPaths, npcObjectMap, objectCaches, recordGenerator);
         }
         if (wnamPaths.Any())
         {
-            AssignBodyTextures(npcInfo, outputMod, _stateProvider.LinkCache, recordTemplateLinkCache, wnamPaths, npcObjectMap, objectCaches, recordGenerator);
+            AssignBodyTextures(npcInfo, outputMod, _environmentProvider.LinkCache, recordTemplateLinkCache, wnamPaths, npcObjectMap, objectCaches, recordGenerator);
         }
     }
 
@@ -304,7 +304,7 @@ public class HardcodedRecordGenerator
         {
             foreach (var armatureLink in newSkin.Armature)
             {
-                if (_stateProvider.LinkCache.TryResolve<IArmorAddonGetter>(armatureLink.FormKey, out var armaGetter) && outputMod.ArmorAddons.ContainsKey(armatureLink.FormKey) && !armaGetter.AdditionalRaces.Select(x => x.FormKey.ToString()).Contains(npcInfo.NPC.Race.FormKey.ToString())) // 
+                if (_environmentProvider.LinkCache.TryResolve<IArmorAddonGetter>(armatureLink.FormKey, out var armaGetter) && outputMod.ArmorAddons.ContainsKey(armatureLink.FormKey) && !armaGetter.AdditionalRaces.Select(x => x.FormKey.ToString()).Contains(npcInfo.NPC.Race.FormKey.ToString())) // 
                 {
                     var armature = outputMod.ArmorAddons.GetOrAddAsOverride(armaGetter);
                     armature.AdditionalRaces.Add(npcInfo.NPC.Race);
@@ -594,7 +594,7 @@ public class HardcodedRecordGenerator
     {
         if (combination.DestinationType == SubgroupCombination.DestinationSpecifier.HeadPartFormKey)
         {
-            AssignKnownHeadPartReplacer(combination, npcInfo.NPC, outputMod, generatedHeadParts, npcInfo, _headPartSelector, _stateProvider);
+            AssignKnownHeadPartReplacer(combination, npcInfo.NPC, outputMod, generatedHeadParts, npcInfo, _headPartSelector, _environmentProvider);
         }
         else if (combination.DestinationType == SubgroupCombination.DestinationSpecifier.Generic)
         {
@@ -622,10 +622,10 @@ public class HardcodedRecordGenerator
         }
         else if (combination.DestinationType != SubgroupCombination.DestinationSpecifier.Main)
         {
-            AssignSpecialCaseAssetReplacer(combination, npcInfo.NPC, outputMod, generatedHeadParts, npcInfo, _headPartSelector, _stateProvider);
+            AssignSpecialCaseAssetReplacer(combination, npcInfo.NPC, outputMod, generatedHeadParts, npcInfo, _headPartSelector, _environmentProvider);
         }
     }
-    private static void AssignKnownHeadPartReplacer(SubgroupCombination subgroupCombination, INpcGetter npcGetter, SkyrimMod outputMod, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, NPCInfo npcInfo, HeadPartSelector headPartSelector, IEnvironmentStateProvider stateProvider)
+    private static void AssignKnownHeadPartReplacer(SubgroupCombination subgroupCombination, INpcGetter npcGetter, SkyrimMod outputMod, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, NPCInfo npcInfo, HeadPartSelector headPartSelector, IEnvironmentStateProvider environmentProvider)
     {
         var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
         var headPart = npc.HeadParts.Where(x => x.FormKey == subgroupCombination.ReplacerDestinationFormKey).FirstOrDefault();
@@ -645,7 +645,7 @@ public class HardcodedRecordGenerator
                     //npc.HeadParts[i] = existingReplacer.AsLinkGetter();
                     headPartSelector.SetGeneratedHeadPart(existingReplacer, generatedHeadParts, npcInfo);
                 }
-                else if (stateProvider.LinkCache.TryResolve<IHeadPartGetter>(npc.HeadParts[i].FormKey, out var hpGetter) && stateProvider.LinkCache.TryResolve<ITextureSetGetter>(hpGetter.TextureSet.FormKey, out var tsGetter))
+                else if (environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(npc.HeadParts[i].FormKey, out var hpGetter) && environmentProvider.LinkCache.TryResolve<ITextureSetGetter>(hpGetter.TextureSet.FormKey, out var tsGetter))
                 {
                     var copiedHP = outputMod.HeadParts.AddNew();
                     copiedHP.DeepCopyIn(hpGetter);
@@ -685,18 +685,18 @@ public class HardcodedRecordGenerator
         }
     }
 
-    private static void AssignSpecialCaseAssetReplacer(SubgroupCombination subgroupCombination, INpcGetter npcGetter, SkyrimMod outputMod, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, NPCInfo npcInfo, HeadPartSelector headPartSelector, IEnvironmentStateProvider stateProvider)
+    private static void AssignSpecialCaseAssetReplacer(SubgroupCombination subgroupCombination, INpcGetter npcGetter, SkyrimMod outputMod, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, NPCInfo npcInfo, HeadPartSelector headPartSelector, IEnvironmentStateProvider environmentProvider)
     {
         var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
         switch (subgroupCombination.DestinationType)
         {
-            case SubgroupCombination.DestinationSpecifier.MarksFemaleHumanoid04RightGashR: AssignHeadPartByDiffusePath(subgroupCombination, npc, outputMod, "actors\\character\\female\\facedetails\\facefemalerightsidegash_04.dds", generatedHeadParts, npcInfo, headPartSelector, stateProvider); break;
-            case SubgroupCombination.DestinationSpecifier.MarksFemaleHumanoid06RightGashR: AssignHeadPartByDiffusePath(subgroupCombination, npc, outputMod, "actors\\character\\female\\facedetails\\facefemalerightsidegash_06.dds", generatedHeadParts, npcInfo, headPartSelector, stateProvider); break;
+            case SubgroupCombination.DestinationSpecifier.MarksFemaleHumanoid04RightGashR: AssignHeadPartByDiffusePath(subgroupCombination, npc, outputMod, "actors\\character\\female\\facedetails\\facefemalerightsidegash_04.dds", generatedHeadParts, npcInfo, headPartSelector, environmentProvider); break;
+            case SubgroupCombination.DestinationSpecifier.MarksFemaleHumanoid06RightGashR: AssignHeadPartByDiffusePath(subgroupCombination, npc, outputMod, "actors\\character\\female\\facedetails\\facefemalerightsidegash_06.dds", generatedHeadParts, npcInfo, headPartSelector, environmentProvider); break;
             default: break; // Warn user
         }
     }
 
-    private static void AssignHeadPartByDiffusePath(SubgroupCombination subgroupCombination, Npc npc, SkyrimMod outputMod, string diffusePath, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, NPCInfo npcInfo, HeadPartSelector headPartSelector, IEnvironmentStateProvider stateProvider)
+    private static void AssignHeadPartByDiffusePath(SubgroupCombination subgroupCombination, Npc npc, SkyrimMod outputMod, string diffusePath, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, NPCInfo npcInfo, HeadPartSelector headPartSelector, IEnvironmentStateProvider environmentProvider)
     {
         var pathSignature = new HashSet<string>();
         foreach (var subgroup in subgroupCombination.ContainedSubgroups)
@@ -711,7 +711,7 @@ public class HardcodedRecordGenerator
                 //npc.HeadParts[i] = existingReplacer.AsLinkGetter();
                 headPartSelector.SetGeneratedHeadPart(existingReplacer, generatedHeadParts, npcInfo);
             }
-            else if (stateProvider.LinkCache.TryResolve<IHeadPartGetter>(npc.HeadParts[i].FormKey, out var hpGetter) && stateProvider.LinkCache.TryResolve<ITextureSetGetter>(hpGetter.TextureSet.FormKey, out var tsGetter) && tsGetter.Diffuse == diffusePath)
+            else if (environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(npc.HeadParts[i].FormKey, out var hpGetter) && environmentProvider.LinkCache.TryResolve<ITextureSetGetter>(hpGetter.TextureSet.FormKey, out var tsGetter) && tsGetter.Diffuse == diffusePath)
             {
                 var copiedHP = outputMod.HeadParts.AddNew();
                 copiedHP.DeepCopyIn(hpGetter);

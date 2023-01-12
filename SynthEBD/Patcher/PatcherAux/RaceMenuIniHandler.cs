@@ -4,20 +4,20 @@ namespace SynthEBD;
 
 public class RaceMenuIniHandler
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
-    public RaceMenuIniHandler(IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths)
+    public RaceMenuIniHandler(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _logger = logger;
         _paths = paths;
     }
     public List<string> GetRaceMenuIniContents(out bool success, out string fileName)
     {
         success = false;
-        string iniPath64 = Path.Combine(_stateProvider.DataFolderPath, "SKSE", "Plugins", "skee64.ini");
-        string iniPathVR = Path.Combine(_stateProvider.DataFolderPath, "SKSE", "Plugins", "skeevr.ini");
+        string iniPath64 = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "skee64.ini");
+        string iniPathVR = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "skeevr.ini");
 
         string iniPath = "";
         if (File.Exists(iniPathVR)) { iniPath = iniPathVR; fileName = "skeevr.ini"; }
@@ -270,7 +270,7 @@ public class RaceMenuIniHandler
 
     public bool WriteRaceMenuIni(List<string> contents, string fileName)
     {
-        string iniPath = Path.Combine(_stateProvider.DataFolderPath, "SKSE", "Plugins", fileName);
+        string iniPath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", fileName);
         try
         {
             File.WriteAllText(iniPath, string.Join(Environment.NewLine, contents));

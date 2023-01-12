@@ -9,16 +9,16 @@ namespace SynthEBD;
 
 public class Converters
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
-    public Converters(IEnvironmentStateProvider stateProvider, Logger logger)
+    public Converters(IEnvironmentStateProvider environmentProvider, Logger logger)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _logger = logger;
     }
-    public static FormKey RaceEDID2FormKey(string EDID, IEnvironmentStateProvider stateProvider)
+    public static FormKey RaceEDID2FormKey(string EDID, IEnvironmentStateProvider environmentProvider)
     {
-        foreach (var plugin in stateProvider.LoadOrder.ListedOrder)
+        foreach (var plugin in environmentProvider.LoadOrder.ListedOrder)
         {
             if (plugin.Mod != null && plugin.Mod.Races != null)
             {
@@ -39,7 +39,7 @@ public class Converters
     {
         var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
 
-        if (npcFormLink.TryResolve(_stateProvider.LinkCache, out var npcRecord))
+        if (npcFormLink.TryResolve(_environmentProvider.LinkCache, out var npcRecord))
         {
             string subName = "";
             if (npcRecord.Name != null && !string.IsNullOrEmpty(npcRecord.Name.ToString()))
@@ -87,7 +87,7 @@ public class Converters
                     break;
 
                 case "CNAM\\FULL":
-                    foreach (var classGetter in _stateProvider.LoadOrder.PriorityOrder.Class().WinningContextOverrides().ToList())
+                    foreach (var classGetter in _environmentProvider.LoadOrder.PriorityOrder.Class().WinningContextOverrides().ToList())
                     {
                         if (classGetter.Record.Name.ToString() == value)
                         {
@@ -113,7 +113,7 @@ public class Converters
                     break;
 
                 case "FULL - Name":
-                    foreach (var npcGetter in _stateProvider.LoadOrder.PriorityOrder.Npc().WinningContextOverrides().ToList())
+                    foreach (var npcGetter in _environmentProvider.LoadOrder.PriorityOrder.Npc().WinningContextOverrides().ToList())
                     {
                         if (npcGetter.Record.Name.ToString() == value)
                         {
@@ -123,7 +123,7 @@ public class Converters
                     break;
 
                 case "EDID":
-                    foreach (var npcGetter in _stateProvider.LoadOrder.PriorityOrder.Npc().WinningContextOverrides().ToList())
+                    foreach (var npcGetter in _environmentProvider.LoadOrder.PriorityOrder.Npc().WinningContextOverrides().ToList())
                     {
                         if (npcGetter.Record.EditorID != null && npcGetter.Record.EditorID.ToString() == value)
                         {
@@ -242,7 +242,7 @@ public class Converters
         try
         {
             iModIndex = int.Parse(modIndex, System.Globalization.NumberStyles.HexNumber); // https://theburningmonk.com/2010/02/converting-hex-to-int-in-csharp/
-            pluginNameAndExtension = _stateProvider.LoadOrder[iModIndex].ModKey.FileName;
+            pluginNameAndExtension = _environmentProvider.LoadOrder[iModIndex].ModKey.FileName;
         }
         catch
         {
@@ -267,12 +267,12 @@ public class Converters
         return output;
     }
 
-    public FormKey zEBDSignatureToFormKey(string rootPlugin, string formID, IEnvironmentStateProvider stateProvider)
+    public FormKey zEBDSignatureToFormKey(string rootPlugin, string formID, IEnvironmentStateProvider environmentProvider)
     {
         string fkString = "";
         FormKey output = new FormKey();
 
-        foreach (var plugin in stateProvider.LoadOrder.ListedOrder)
+        foreach (var plugin in environmentProvider.LoadOrder.ListedOrder)
         {
             if (plugin.ModKey.FileName.String.ToLower() == rootPlugin.ToLower())
             {
@@ -363,13 +363,13 @@ public class Converters
 
         if (split[1] == PatcherSettings.General.PatchFileName + ".esp")
         {
-            formIDstr = _stateProvider.LoadOrder.ListedOrder.Count().ToString("X"); // format FormID assuming the generated patch will be last in the load order
+            formIDstr = _environmentProvider.LoadOrder.ListedOrder.Count().ToString("X"); // format FormID assuming the generated patch will be last in the load order
         }
         else
         {
-            for (int i = 0; i < _stateProvider.LoadOrder.ListedOrder.Count(); i++)
+            for (int i = 0; i < _environmentProvider.LoadOrder.ListedOrder.Count(); i++)
             {
-                var currentListing = _stateProvider.LoadOrder.ListedOrder.ElementAt(i);
+                var currentListing = _environmentProvider.LoadOrder.ListedOrder.ElementAt(i);
                 if (currentListing.ModKey.FileName == split[1])
                 {
                     formIDstr = i.ToString("X"); // https://www.delftstack.com/howto/csharp/integer-to-hexadecimal-in-csharp/

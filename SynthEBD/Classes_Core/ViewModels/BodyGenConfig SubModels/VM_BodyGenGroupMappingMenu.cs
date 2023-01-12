@@ -42,15 +42,15 @@ public class VM_BodyGenGroupMappingMenu : VM
 
 public class VM_BodyGenRacialMapping : VM
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     public delegate VM_BodyGenRacialMapping Factory(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
-    public VM_BodyGenRacialMapping(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IEnvironmentStateProvider stateProvider)
+    public VM_BodyGenRacialMapping(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IEnvironmentStateProvider environmentProvider)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         RaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         MonitoredGroupsMenu = groupsMenu;
         
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 

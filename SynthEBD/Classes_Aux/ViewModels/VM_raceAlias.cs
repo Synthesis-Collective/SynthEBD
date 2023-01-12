@@ -9,11 +9,11 @@ namespace SynthEBD;
 
 public class VM_RaceAlias : VM
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     public delegate VM_RaceAlias Factory(RaceAlias alias, VM_Settings_General parentVM);
-    public VM_RaceAlias(RaceAlias alias, VM_Settings_General parentVM, IEnvironmentStateProvider stateProvider)
+    public VM_RaceAlias(RaceAlias alias, VM_Settings_General parentVM, IEnvironmentStateProvider environmentProvider)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         this.race = alias.Race;
         this.aliasRace = alias.AliasRace;
         this.bMale = alias.bMale;
@@ -22,7 +22,7 @@ public class VM_RaceAlias : VM
         this.bApplyToBodyGen = alias.bApplyToBodyGen;
         this.bApplyToHeight = alias.bApplyToHeight;
         this.bApplyToHeadParts = alias.bApplyToHeadParts;
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 

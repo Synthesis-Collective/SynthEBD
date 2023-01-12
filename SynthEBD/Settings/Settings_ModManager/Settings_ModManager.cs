@@ -11,9 +11,9 @@ public class Settings_ModManager
     public string TempExtractionFolder { get; set; } = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location), "Temp");
     public int FilePathLimit { get; set; } = 260;
 
-    public void Initialize(IEnvironmentStateProvider stateProvider)
+    public void Initialize(IEnvironmentStateProvider environmentProvider)
     {
-        DefaultInstallationFolder = stateProvider.DataFolderPath;
+        DefaultInstallationFolder = environmentProvider.DataFolderPath;
         CurrentInstallationFolder = DefaultInstallationFolder;
     }
 

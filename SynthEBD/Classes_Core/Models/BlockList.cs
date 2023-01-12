@@ -50,11 +50,11 @@ public class BlockedPlugin
 
 public class zEBDBlockList
 {
-    private IEnvironmentStateProvider _stateProvider;
+    private IEnvironmentStateProvider _environmentProvider;
     private Converters _converters;
-    public zEBDBlockList(IEnvironmentStateProvider stateProvider, Converters converters)
+    public zEBDBlockList(IEnvironmentStateProvider environmentProvider, Converters converters)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _converters = converters;
     }
     public HashSet<zEBDBlockedNPC> blockedNPCs { get; set; } = new();
@@ -67,7 +67,7 @@ public class zEBDBlockList
         foreach (var npc in blockedNPCs)
         {
             BlockedNPC blockedNPC = new BlockedNPC();
-            blockedNPC.FormKey = _converters.zEBDSignatureToFormKey(npc.rootPlugin, npc.formID, _stateProvider);
+            blockedNPC.FormKey = _converters.zEBDSignatureToFormKey(npc.rootPlugin, npc.formID, _environmentProvider);
             blockedNPC.Assets = npc.bBlockAssets;
             blockedNPC.Height = npc.bBlockHeight;
             blockedNPC.BodyShape = npc.bBlockBodyGen;

@@ -11,7 +11,7 @@ namespace SynthEBD;
 
 public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingEditor
 {
-    public IEnvironmentStateProvider StateProvider { get; }
+    public IEnvironmentStateProvider _environmentProvider { get; }
     public PatcherSettingsSourceProvider SettingsSourceProvider { get; }
     private bool _bFirstRun { get; set; } = false;
     private readonly SettingsIO_General _generalIO;
@@ -29,12 +29,12 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         VM_RaceGrouping.Factory groupingFactory,
         VM_LinkedNPCGroup.Factory linkedNPCFactory,
         SettingsIO_General generalIO,
-        IEnvironmentStateProvider stateProvider,
+        IEnvironmentStateProvider environmentProvider,
         FirstLaunch firstLaunch,
         SynthEBDPaths paths)
     {
-        StateProvider = stateProvider;
-        IsStandalone = StateProvider.RunMode == EnvironmentMode.Standalone;
+        _environmentProvider = environmentProvider;
+        IsStandalone = environmentProvider.RunMode == EnvironmentMode.Standalone;
         SettingsSourceProvider = settingsProvider;
         _generalIO = generalIO;
         _firstLaunch = firstLaunch;
@@ -45,7 +45,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
 
         if (IsStandalone)
         {
-            EnvironmentSettingsVM = new(StateProvider);
+            EnvironmentSettingsVM = new(environmentProvider);
         }
 
         AttributeGroupMenu = attributeGroupFactory(null, false);
@@ -54,7 +54,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         this.WhenAnyValue(x => x.bShowToolTips)
             .Subscribe(x => TooltipController.Instance.DisplayToolTips = x);
 
-        StateProvider.WhenAnyValue(x => x.LinkCache)
+        environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
@@ -82,7 +82,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    if (IO_Aux.SelectFolder(StateProvider.DataFolderPath, out var tmpFolder))
+                    if (IO_Aux.SelectFolder(environmentProvider.DataFolderPath, out var tmpFolder))
                     {
                         OutputDataFolder = tmpFolder;
                     }

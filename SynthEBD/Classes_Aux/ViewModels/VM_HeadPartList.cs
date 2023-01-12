@@ -15,7 +15,7 @@ namespace SynthEBD
 {
     public class VM_HeadPartList : VM
     {
-        private readonly IEnvironmentStateProvider _stateProvider;
+        private readonly IEnvironmentStateProvider _environmentProvider;
         private readonly Logger _logger;
         private readonly VM_Settings_Headparts _headPartMenuVM;
         private readonly VM_NPCAttributeCreator _attributeCreator;
@@ -28,13 +28,13 @@ namespace SynthEBD
             VM_Settings_Headparts headPartMenuVM, 
             VM_SettingsOBody oBodyMenuVM, 
             VM_NPCAttributeCreator attributeCreator,
-            IEnvironmentStateProvider stateProvider,
+            IEnvironmentStateProvider environmentProvider,
             Logger logger, 
             VM_HeadPart.Factory headPartFactory, 
             VM_HeadPartCategoryRules.Factory headPartCategoryRulesFactory, 
             VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
-            _stateProvider = stateProvider;
+            _environmentProvider = environmentProvider;
             _logger = logger;
             _headPartMenuVM = headPartMenuVM;
             _attributeCreator = attributeCreator;
@@ -74,7 +74,7 @@ namespace SynthEBD
         {
             foreach (var hp in model.HeadParts)
             {
-                HeadPartList.Add(VM_HeadPart.GetViewModelFromModel(hp, _headPartFactory, raceGroupingVMs, attributeGroupMenu, _oBodySettings.DescriptorUI, _headPartMenuVM, HeadPartList, _attributeCreator, _logger, _descriptorSelectionFactory, _stateProvider.LinkCache));
+                HeadPartList.Add(VM_HeadPart.GetViewModelFromModel(hp, _headPartFactory, raceGroupingVMs, attributeGroupMenu, _oBodySettings.DescriptorUI, _headPartMenuVM, HeadPartList, _attributeCreator, _logger, _descriptorSelectionFactory, _environmentProvider.LinkCache));
             }
 
             DisplayedRuleSet = VM_HeadPartCategoryRules.GetViewModelFromModel(model, raceGroupingVMs, attributeGroupMenu, _headPartMenuVM, _oBodySettings, _attributeCreator, _logger, _headPartCategoryRulesFactory, _descriptorSelectionFactory);

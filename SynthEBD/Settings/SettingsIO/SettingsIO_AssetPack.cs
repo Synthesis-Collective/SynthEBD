@@ -5,13 +5,13 @@ namespace SynthEBD;
 
 public class SettingsIO_AssetPack
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly Converters _converters;
-    public SettingsIO_AssetPack(IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths, Converters converters)
+    public SettingsIO_AssetPack(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths, Converters converters)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _logger = logger;
         _paths = paths;
         _converters = converters;
@@ -85,7 +85,7 @@ public class SettingsIO_AssetPack
             var zEBDconfig = JSONhandler<ZEBDAssetPack>.LoadJSONFile(path, out bool zSuccess, out string zExceptionStr);
             if (zSuccess)
             {
-                synthEBDconfig = zEBDconfig.ToSynthEBDAssetPack(fallBackRaceGroupings, recordTemplatePlugins, availableBodyGenConfigs, _stateProvider, _converters, _logger, _paths);
+                synthEBDconfig = zEBDconfig.ToSynthEBDAssetPack(fallBackRaceGroupings, recordTemplatePlugins, availableBodyGenConfigs, _environmentProvider, _converters, _logger, _paths);
                 loadSuccess = true;
             }
             else

@@ -22,13 +22,13 @@ public class ObjectInfo
 }
 public class RecordPathParser
 {
-    private readonly IEnvironmentStateProvider _stateProvider; 
+    private readonly IEnvironmentStateProvider _environmentProvider; 
     private readonly Logger _logger;
     private readonly PatchableRaceResolver _raceResolver;
     private readonly CustomMessageBox _customMessageBox;
-    public RecordPathParser(IEnvironmentStateProvider stateProvider, Logger logger, PatchableRaceResolver raceResolver, CustomMessageBox customMessageBox)
+    public RecordPathParser(IEnvironmentStateProvider environmentProvider, Logger logger, PatchableRaceResolver raceResolver, CustomMessageBox customMessageBox)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _logger = logger;
         _raceResolver = raceResolver;
         _customMessageBox = customMessageBox;
@@ -674,7 +674,7 @@ public class RecordPathParser
 
         foreach (var matchPath in toMatch)
         {
-            if (GetObjectAtPath(rootRecord, npc, matchPath, subObjectCache, _stateProvider.LinkCache, true, "", out dynamic outputObj))
+            if (GetObjectAtPath(rootRecord, npc, matchPath, subObjectCache, _environmentProvider.LinkCache, true, "", out dynamic outputObj))
             {
                 var objCollection = outputObj as System.Collections.IEnumerable;
 

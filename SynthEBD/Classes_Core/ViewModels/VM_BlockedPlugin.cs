@@ -11,11 +11,11 @@ namespace SynthEBD;
 
 public class VM_BlockedPlugin : VM
 {
-    private IEnvironmentStateProvider _stateProvider;
+    private IEnvironmentStateProvider _environmentProvider;
     public delegate VM_BlockedPlugin Factory();
-    public VM_BlockedPlugin(IEnvironmentStateProvider stateProvider)
+    public VM_BlockedPlugin(IEnvironmentStateProvider environmentProvider)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         this.WhenAnyValue(x => x.ModKey).Subscribe(x =>
         {
             if (!ModKey.IsNull)
@@ -24,11 +24,11 @@ public class VM_BlockedPlugin : VM
             }
         });
 
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-        _stateProvider.WhenAnyValue(x => x.LoadOrder)
+        _environmentProvider.WhenAnyValue(x => x.LoadOrder)
             .Subscribe(x => LoadOrder = x)
             .DisposeWith(this);
 

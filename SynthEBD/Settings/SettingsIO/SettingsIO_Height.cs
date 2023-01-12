@@ -4,12 +4,12 @@ namespace SynthEBD;
 
 public class SettingsIO_Height
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
-    public SettingsIO_Height(IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths)
+    public SettingsIO_Height(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _logger = logger;
         _paths = paths;
     }
@@ -83,7 +83,7 @@ public class SettingsIO_Height
                 {
                     var ha = new HeightAssignment();
                     ha.Label = zHC.EDID;
-                    ha.Races = new HashSet<Mutagen.Bethesda.Plugins.FormKey> { Converters.RaceEDID2FormKey(zHC.EDID, _stateProvider) };
+                    ha.Races = new HashSet<Mutagen.Bethesda.Plugins.FormKey> { Converters.RaceEDID2FormKey(zHC.EDID, _environmentProvider) };
 
                     if (float.TryParse(zHC.heightMale, out var maleHeight))
                     {

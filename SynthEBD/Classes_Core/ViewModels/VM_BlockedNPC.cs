@@ -10,12 +10,12 @@ namespace SynthEBD;
 
 public class VM_BlockedNPC : VM
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Converters _converters;
     public delegate VM_BlockedNPC Factory();
-    public VM_BlockedNPC(IEnvironmentStateProvider stateProvider, Converters converters)
+    public VM_BlockedNPC(IEnvironmentStateProvider environmentProvider, Converters converters)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         _converters = converters;
         this.WhenAnyValue(x => x.FormKey).Subscribe(x =>
         {
@@ -25,7 +25,7 @@ public class VM_BlockedNPC : VM
             }
         });
 
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 

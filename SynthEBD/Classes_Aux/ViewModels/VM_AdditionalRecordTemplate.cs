@@ -9,16 +9,16 @@ namespace SynthEBD;
 
 public class VM_AdditionalRecordTemplate : VM
 {
-    private readonly IEnvironmentStateProvider _stateProvider;
-    public VM_AdditionalRecordTemplate(IEnvironmentStateProvider stateProvider,
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    public VM_AdditionalRecordTemplate(IEnvironmentStateProvider environmentProvider,
         ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, 
         ObservableCollection<VM_AdditionalRecordTemplate> parentCollection)
     {
-        _stateProvider = stateProvider;
+        _environmentProvider = environmentProvider;
         RecordTemplateLinkCache = recordTemplateLinkCache;
         ParentCollection = parentCollection;
         
-        _stateProvider.WhenAnyValue(x => x.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
