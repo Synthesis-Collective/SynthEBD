@@ -9,11 +9,11 @@ namespace SynthEBD;
 
 public class VM_HeightConfig : VM
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly VM_HeightAssignment.Factory _assignmentFactory;
     public delegate VM_HeightConfig Factory();
-    public VM_HeightConfig(IStateProvider stateProvider, Logger logger, SettingsIO_Height heightIO, VM_HeightAssignment.Factory assignmentFactory)
+    public VM_HeightConfig(IEnvironmentStateProvider stateProvider, Logger logger, SettingsIO_Height heightIO, VM_HeightAssignment.Factory assignmentFactory)
     {
         _stateProvider = stateProvider;
         _logger = logger;
@@ -96,9 +96,9 @@ public class VM_HeightConfig : VM
 }
 public class VM_HeightAssignment : VM
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     public delegate VM_HeightAssignment Factory(ObservableCollection<VM_HeightAssignment> parentCollection);
-    public VM_HeightAssignment(ObservableCollection<VM_HeightAssignment> parentCollection, IStateProvider stateProvider)
+    public VM_HeightAssignment(ObservableCollection<VM_HeightAssignment> parentCollection, IEnvironmentStateProvider stateProvider)
     {
         _stateProvider = stateProvider;
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));

@@ -11,9 +11,9 @@ namespace SynthEBD;
 
 public class VM_BlockedPlugin : VM
 {
-    private IStateProvider _stateProvider;
+    private IEnvironmentStateProvider _stateProvider;
     public delegate VM_BlockedPlugin Factory();
-    public VM_BlockedPlugin(IStateProvider stateProvider)
+    public VM_BlockedPlugin(IEnvironmentStateProvider stateProvider)
     {
         _stateProvider = stateProvider;
         this.WhenAnyValue(x => x.ModKey).Subscribe(x =>

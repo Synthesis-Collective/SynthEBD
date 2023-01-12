@@ -5,11 +5,11 @@ namespace SynthEBD;
 
 public class SettingsIO_AssetPack
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly Converters _converters;
-    public SettingsIO_AssetPack(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, Converters converters)
+    public SettingsIO_AssetPack(IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths, Converters converters)
     {
         _stateProvider = stateProvider;
         _logger = logger;

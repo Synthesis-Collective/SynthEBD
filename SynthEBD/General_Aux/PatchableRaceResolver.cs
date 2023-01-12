@@ -12,9 +12,9 @@ namespace SynthEBD
 {
     public class PatchableRaceResolver
     {
-        private readonly IStateProvider _stateProvider;
+        private readonly IEnvironmentStateProvider _stateProvider;
         private readonly Logger _logger;
-        public PatchableRaceResolver(IStateProvider stateProvider, Logger logger)
+        public PatchableRaceResolver(IEnvironmentStateProvider stateProvider, Logger logger)
         {
             _stateProvider = stateProvider;
             _logger = logger;

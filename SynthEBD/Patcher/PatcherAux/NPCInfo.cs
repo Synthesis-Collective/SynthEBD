@@ -7,7 +7,7 @@ namespace SynthEBD;
 
 public class NPCInfo
 {
-    public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, HashSet<NPCAssignment> specificNPCAssignments, Dictionary<string, NPCAssignment> consistency, BlockList blockList, IStateProvider stateProvider)
+    public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, HashSet<NPCAssignment> specificNPCAssignments, Dictionary<string, NPCAssignment> consistency, BlockList blockList, IEnvironmentStateProvider stateProvider)
     {
         this.NPC = npc;
         this.LogIDstring = Logger.GetNPCLogNameString(npc);

@@ -14,9 +14,9 @@ public class PathedArchiveReader
 
 public class BSAHandler
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
-    public BSAHandler(IStateProvider stateProvider, Logger logger)
+    public BSAHandler(IEnvironmentStateProvider stateProvider, Logger logger)
     {
         _stateProvider = stateProvider;
         _logger = logger;

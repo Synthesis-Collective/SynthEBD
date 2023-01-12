@@ -9,11 +9,11 @@ namespace SynthEBD;
 
 public class JContainersDomain
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly PatcherIO _patcherIO;
     private readonly SynthEBDPaths _paths;
     private readonly Logger _logger;
-    public JContainersDomain(IStateProvider stateProvider, PatcherIO patcherIO, SynthEBDPaths paths, Logger logger)
+    public JContainersDomain(IEnvironmentStateProvider stateProvider, PatcherIO patcherIO, SynthEBDPaths paths, Logger logger)
     {
         _stateProvider = stateProvider;
         _patcherIO = patcherIO;

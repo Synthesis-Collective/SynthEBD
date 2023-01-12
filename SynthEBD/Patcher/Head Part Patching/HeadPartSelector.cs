@@ -10,10 +10,10 @@ namespace SynthEBD
 {
     public class HeadPartSelector
     {
-        private readonly IStateProvider _stateProvider;
+        private readonly IEnvironmentStateProvider _stateProvider;
         private readonly Logger _logger;
         private readonly AttributeMatcher _attributeMatcher;
-        public HeadPartSelector(IStateProvider stateProvider, Logger logger, AttributeMatcher attributeMatcher)
+        public HeadPartSelector(IEnvironmentStateProvider stateProvider, Logger logger, AttributeMatcher attributeMatcher)
         {
             _stateProvider = stateProvider;
             _logger = logger;

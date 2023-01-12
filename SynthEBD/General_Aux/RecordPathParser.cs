@@ -22,11 +22,11 @@ public class ObjectInfo
 }
 public class RecordPathParser
 {
-    private readonly IStateProvider _stateProvider; 
+    private readonly IEnvironmentStateProvider _stateProvider; 
     private readonly Logger _logger;
     private readonly PatchableRaceResolver _raceResolver;
     private readonly CustomMessageBox _customMessageBox;
-    public RecordPathParser(IStateProvider stateProvider, Logger logger, PatchableRaceResolver raceResolver, CustomMessageBox customMessageBox)
+    public RecordPathParser(IEnvironmentStateProvider stateProvider, Logger logger, PatchableRaceResolver raceResolver, CustomMessageBox customMessageBox)
     {
         _stateProvider = stateProvider;
         _logger = logger;

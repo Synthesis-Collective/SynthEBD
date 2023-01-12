@@ -16,14 +16,14 @@ namespace SynthEBD
 {
     public class VM_AssetDistributionSimulator : VM
     {
-        private readonly IStateProvider _stateProvider;
+        private readonly IEnvironmentStateProvider _stateProvider;
         private readonly Logger _logger;
         private readonly SynthEBDPaths _paths;
         private readonly DictionaryMapper _dictionaryMapper;
         private readonly AssetAndBodyShapeSelector _assetAndBodyShapeSelector;
         private readonly SettingsIO_OBody _oBodyIO;
         public delegate VM_AssetDistributionSimulator Factory();
-        public VM_AssetDistributionSimulator(VM_SettingsTexMesh texMesh, VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI, IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, DictionaryMapper dictionaryMapper, AssetAndBodyShapeSelector assetAndBodyShapeSelector, SettingsIO_OBody oBodyIO)
+        public VM_AssetDistributionSimulator(VM_SettingsTexMesh texMesh, VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI, IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths, DictionaryMapper dictionaryMapper, AssetAndBodyShapeSelector assetAndBodyShapeSelector, SettingsIO_OBody oBodyIO)
         {
             _stateProvider = stateProvider;
             _logger = logger;

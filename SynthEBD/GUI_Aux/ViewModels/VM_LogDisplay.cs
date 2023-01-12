@@ -7,7 +7,7 @@ namespace SynthEBD;
 
 public class VM_LogDisplay : VM
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly DisplayedItemVm _displayedItemVm;
     public string DispString { get; set; } = "";
@@ -18,7 +18,7 @@ public class VM_LogDisplay : VM
     public RelayCommand ShowEnvironment { get; set; }
 
     public VM_LogDisplay(
-        IStateProvider stateProvider,
+        IEnvironmentStateProvider stateProvider,
         Logger logger,
         DisplayedItemVm displayedItemVm)
     {

@@ -61,7 +61,7 @@ public class zEBDSpecificNPCAssignment
         public string topLevelSubgroup { get; set; }
     }
 
-    public static HashSet<NPCAssignment> ToSynthEBDNPCAssignments(HashSet<zEBDSpecificNPCAssignment> inputSet, Logger logger, Converters converters, IStateProvider stateProvider)
+    public static HashSet<NPCAssignment> ToSynthEBDNPCAssignments(HashSet<zEBDSpecificNPCAssignment> inputSet, Logger logger, Converters converters, IEnvironmentStateProvider stateProvider)
     {
         var outputSet = new HashSet<NPCAssignment>();
 

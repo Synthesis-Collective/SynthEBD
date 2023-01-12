@@ -5,11 +5,11 @@ namespace SynthEBD;
 
 public class MiscValidation
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly RaceMenuIniHandler _raceMenuHandler;
-    public MiscValidation(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, RaceMenuIniHandler raceMenuHandler)
+    public MiscValidation(IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths, RaceMenuIniHandler raceMenuHandler)
     {
         _stateProvider = stateProvider;
         _logger = logger;

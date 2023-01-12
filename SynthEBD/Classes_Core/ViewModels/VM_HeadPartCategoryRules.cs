@@ -15,11 +15,11 @@ namespace SynthEBD
 {
     public class VM_HeadPartCategoryRules : VM
     {
-        private IStateProvider _stateProvider;
+        private IEnvironmentStateProvider _stateProvider;
         private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
         public readonly VM_Settings_Headparts ParentConfig; // needed for xaml binding
         public delegate VM_HeadPartCategoryRules Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig);
-        public VM_HeadPartCategoryRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig, VM_SettingsOBody oBody, VM_NPCAttributeCreator creator, IStateProvider stateProvider, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+        public VM_HeadPartCategoryRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig, VM_SettingsOBody oBody, VM_NPCAttributeCreator creator, IEnvironmentStateProvider stateProvider, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
             _stateProvider = stateProvider;
             _descriptorSelectionFactory = descriptorSelectionFactory;

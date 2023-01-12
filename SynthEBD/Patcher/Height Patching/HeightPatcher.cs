@@ -5,9 +5,9 @@ namespace SynthEBD;
 
 public class HeightPatcher
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
-    public HeightPatcher(IStateProvider stateProvider, Logger logger)
+    public HeightPatcher(IEnvironmentStateProvider stateProvider, Logger logger)
     {
         _stateProvider = stateProvider;
         _logger = logger;

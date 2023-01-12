@@ -5,13 +5,13 @@ namespace SynthEBD;
 
 public class CombinationLog
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly PatcherIO _patcherIO;
     private readonly SynthEBDPaths _paths;
     private readonly Converters _converters;
 
-    public CombinationLog(IStateProvider stateProvider, Logger logger, PatcherIO patcherIO, SynthEBDPaths paths, Converters converters)
+    public CombinationLog(IEnvironmentStateProvider stateProvider, Logger logger, PatcherIO patcherIO, SynthEBDPaths paths, Converters converters)
     {
         _stateProvider = stateProvider;
         _logger = logger;

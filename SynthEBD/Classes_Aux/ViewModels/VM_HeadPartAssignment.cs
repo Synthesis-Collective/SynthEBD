@@ -14,9 +14,9 @@ namespace SynthEBD
 {
     public class VM_HeadPartAssignment : VM
     {
-        private IStateProvider _stateProvider;
+        private IEnvironmentStateProvider _stateProvider;
         public delegate VM_HeadPartAssignment Factory(VM_HeadPart template, VM_Settings_Headparts parentConfig, HeadPart.TypeEnum type, IHasSynthEBDGender parentAssignmentGender, IHasHeadPartAssignments parentAssignment);
-        public VM_HeadPartAssignment(VM_HeadPart template, VM_Settings_Headparts parentConfig, HeadPart.TypeEnum type, IHasSynthEBDGender parentAssignmentGender, IHasHeadPartAssignments parentAssignment, IStateProvider stateProvider)
+        public VM_HeadPartAssignment(VM_HeadPart template, VM_Settings_Headparts parentConfig, HeadPart.TypeEnum type, IHasSynthEBDGender parentAssignmentGender, IHasHeadPartAssignments parentAssignment, IEnvironmentStateProvider stateProvider)
         {
             _stateProvider = stateProvider;
             if (template is not null)
@@ -80,7 +80,7 @@ namespace SynthEBD
             else { return false; }
         }
 
-        public static VM_HeadPartAssignment GetViewModelFromModel(HeadPartConsistency assignment, HeadPart.TypeEnum type, VM_Settings_Headparts parentConfig, IHasSynthEBDGender parentAssignmentGender, IHasHeadPartAssignments parentAssignment, IStateProvider stateProvider)
+        public static VM_HeadPartAssignment GetViewModelFromModel(HeadPartConsistency assignment, HeadPart.TypeEnum type, VM_Settings_Headparts parentConfig, IHasSynthEBDGender parentAssignmentGender, IHasHeadPartAssignments parentAssignment, IEnvironmentStateProvider stateProvider)
         {
             var referencedHeadPart = parentConfig.Types[type].HeadPartList.Where(x => x.FormKey.Equals(assignment.FormKey)).FirstOrDefault();
             return new VM_HeadPartAssignment(referencedHeadPart, parentConfig, type, parentAssignmentGender, parentAssignment, stateProvider);

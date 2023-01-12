@@ -41,14 +41,14 @@ public partial class App : Application
         builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();
         builder.RegisterType<PatcherEnvironmentSourceProvider>().AsSelf().SingleInstance();
 
-        builder.RegisterType<StandaloneRunStateProvider>().AsSelf().AsImplementedInterfaces().SingleInstance();
+        builder.RegisterType<StandaloneRunEnvironmentStateProvider>().AsSelf().AsImplementedInterfaces().SingleInstance();
         builder.RegisterModule<MainModule>();
 
         var container = builder.Build();
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(rootPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.SettingsSourceFileName)));
         // TEST_settingsSourceProvider.SettingsRootPath = Path.Combine(rootPath, SynthEBDPaths.StandaloneSourceDirName);
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(rootPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName)));
-        var state = container.Resolve<StandaloneRunStateProvider>(new NamedParameter("environmentSourceProvider", _environmentSourceProvider));
+        var state = container.Resolve<StandaloneRunEnvironmentStateProvider>(new NamedParameter("environmentSourceProvider", _environmentSourceProvider));
 
         //builder.RegisterInstance(state).AsImplementedInterfaces();
 

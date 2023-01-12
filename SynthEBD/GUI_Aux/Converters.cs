@@ -9,14 +9,14 @@ namespace SynthEBD;
 
 public class Converters
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
-    public Converters(IStateProvider stateProvider, Logger logger)
+    public Converters(IEnvironmentStateProvider stateProvider, Logger logger)
     {
         _stateProvider = stateProvider;
         _logger = logger;
     }
-    public static FormKey RaceEDID2FormKey(string EDID, IStateProvider stateProvider)
+    public static FormKey RaceEDID2FormKey(string EDID, IEnvironmentStateProvider stateProvider)
     {
         foreach (var plugin in stateProvider.LoadOrder.ListedOrder)
         {
@@ -267,7 +267,7 @@ public class Converters
         return output;
     }
 
-    public FormKey zEBDSignatureToFormKey(string rootPlugin, string formID, IStateProvider stateProvider)
+    public FormKey zEBDSignatureToFormKey(string rootPlugin, string formID, IEnvironmentStateProvider stateProvider)
     {
         string fkString = "";
         FormKey output = new FormKey();

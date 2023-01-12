@@ -4,10 +4,10 @@ namespace SynthEBD;
 
 public class RaceMenuIniHandler
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
-    public RaceMenuIniHandler(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths)
+    public RaceMenuIniHandler(IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths)
     {
         _stateProvider = stateProvider;
         _logger = logger;

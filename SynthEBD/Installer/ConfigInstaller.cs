@@ -17,8 +17,8 @@ public class ConfigInstaller
     private readonly SynthEBDPaths _paths;
     private readonly SettingsIO_AssetPack _assetPackIO;
     private readonly SettingsIO_BodyGen _bodyGenIO;
-    private readonly IStateProvider _stateProvider;
-    public ConfigInstaller(Logger logger, SynthEBDPaths synthEBDPaths, SettingsIO_AssetPack assetPackIO, SettingsIO_BodyGen bodyGenIO, IStateProvider stateProvider)
+    private readonly IEnvironmentStateProvider _stateProvider;
+    public ConfigInstaller(Logger logger, SynthEBDPaths synthEBDPaths, SettingsIO_AssetPack assetPackIO, SettingsIO_BodyGen bodyGenIO, IEnvironmentStateProvider stateProvider)
     {
         _logger = logger;
         _paths = synthEBDPaths;

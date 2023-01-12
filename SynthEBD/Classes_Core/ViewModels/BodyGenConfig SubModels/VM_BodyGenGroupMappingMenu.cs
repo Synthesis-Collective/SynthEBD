@@ -42,9 +42,9 @@ public class VM_BodyGenGroupMappingMenu : VM
 
 public class VM_BodyGenRacialMapping : VM
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     public delegate VM_BodyGenRacialMapping Factory(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
-    public VM_BodyGenRacialMapping(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IStateProvider stateProvider)
+    public VM_BodyGenRacialMapping(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IEnvironmentStateProvider stateProvider)
     {
         _stateProvider = stateProvider;
         RaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);

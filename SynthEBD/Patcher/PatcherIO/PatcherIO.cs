@@ -60,7 +60,7 @@ public class PatcherIO
         }
     }
 
-    public static void WritePatch(string patchOutputPath, ISkyrimMod outputMod, Logger logger, IStateProvider stateProvider)
+    public static void WritePatch(string patchOutputPath, ISkyrimMod outputMod, Logger logger, IEnvironmentStateProvider stateProvider)
     {
         string errStr = "";
         if (File.Exists(patchOutputPath))

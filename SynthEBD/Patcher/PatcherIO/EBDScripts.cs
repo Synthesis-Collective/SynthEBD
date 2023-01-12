@@ -9,11 +9,11 @@ namespace SynthEBD
 {
     public class EBDScripts
     {
-        private readonly IStateProvider _stateProvider;
+        private readonly IEnvironmentStateProvider _stateProvider;
         private readonly Logger _logger;
         private readonly SynthEBDPaths _paths;
         private readonly PatcherIO _patcherIO;
-        public EBDScripts(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
+        public EBDScripts(IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
         {
             _stateProvider = stateProvider;
             _logger = logger;

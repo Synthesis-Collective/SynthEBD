@@ -15,9 +15,9 @@ namespace SynthEBD
 {
     public class VM_AttributeValidator : VM
     {
-        private readonly IStateProvider _stateProvider;
+        private readonly IEnvironmentStateProvider _stateProvider;
         private readonly AttributeMatcher _attributeMatcher;
-        public VM_AttributeValidator(VM_NPCAttribute trialAttribute, ObservableCollection<VM_AttributeGroup> attGroupVMs, IStateProvider stateProvider, AttributeMatcher attributeMatcher)
+        public VM_AttributeValidator(VM_NPCAttribute trialAttribute, ObservableCollection<VM_AttributeGroup> attGroupVMs, IEnvironmentStateProvider stateProvider, AttributeMatcher attributeMatcher)
         {
             _stateProvider = stateProvider;
             _attributeMatcher = attributeMatcher;

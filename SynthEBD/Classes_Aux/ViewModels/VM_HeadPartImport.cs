@@ -18,10 +18,10 @@ namespace SynthEBD
 {
     public class VM_HeadPartImport : VM
     {
-        private IStateProvider _stateProvider;
+        private IEnvironmentStateProvider _stateProvider;
         private readonly Logger _logger;
         private readonly VM_HeadPart.Factory _headPartFactory;
-        public VM_HeadPartImport(VM_Settings_Headparts parentMenu, Logger logger, IStateProvider stateProvider, VM_HeadPart.Factory headPartFactory)
+        public VM_HeadPartImport(VM_Settings_Headparts parentMenu, Logger logger, IEnvironmentStateProvider stateProvider, VM_HeadPart.Factory headPartFactory)
         {
             ParentMenu = parentMenu;
             _stateProvider = stateProvider;

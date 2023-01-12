@@ -9,9 +9,9 @@ namespace SynthEBD;
 
 public class VM_RaceAlias : VM
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     public delegate VM_RaceAlias Factory(RaceAlias alias, VM_Settings_General parentVM);
-    public VM_RaceAlias(RaceAlias alias, VM_Settings_General parentVM, IStateProvider stateProvider)
+    public VM_RaceAlias(RaceAlias alias, VM_Settings_General parentVM, IEnvironmentStateProvider stateProvider)
     {
         _stateProvider = stateProvider;
         this.race = alias.Race;

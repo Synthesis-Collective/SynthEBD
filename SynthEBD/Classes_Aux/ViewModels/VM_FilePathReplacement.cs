@@ -11,7 +11,7 @@ namespace SynthEBD;
 
 public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly BSAHandler _bsaHandler;
     private readonly RecordIntellisense _recordIntellisense;
     private readonly RecordPathParser _recordPathParser;
@@ -20,7 +20,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 
     public delegate VM_FilePathReplacement Factory(VM_FilePathReplacementMenu parentMenu);
     
-    public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu, IStateProvider stateProvider, BSAHandler bsaHandler, RecordIntellisense recordIntellisense, RecordPathParser recordPathParser, Logger logger, Factory selfFactory)
+    public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu, IEnvironmentStateProvider stateProvider, BSAHandler bsaHandler, RecordIntellisense recordIntellisense, RecordPathParser recordPathParser, Logger logger, Factory selfFactory)
     {
         _stateProvider = stateProvider;
         _bsaHandler = bsaHandler;

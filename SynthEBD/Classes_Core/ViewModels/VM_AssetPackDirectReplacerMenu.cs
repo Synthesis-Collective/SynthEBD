@@ -52,13 +52,13 @@ public class VM_AssetPackDirectReplacerMenu : VM
 
 public class VM_AssetReplacerGroup : VM
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly VM_Settings_General _generalSettingsVm;
     private readonly VM_Subgroup.Factory _subGroupFactory;
 
     public delegate VM_AssetReplacerGroup Factory(VM_AssetPackDirectReplacerMenu parent);
     
-    public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, IStateProvider stateProvider, VM_Settings_General generalSettingsVM, VM_Subgroup.Factory subGroupFactory)
+    public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, IEnvironmentStateProvider stateProvider, VM_Settings_General generalSettingsVM, VM_Subgroup.Factory subGroupFactory)
     {
         _stateProvider = stateProvider;
         _generalSettingsVm = generalSettingsVM;

@@ -12,7 +12,7 @@ namespace SynthEBD
 {
     public class FirstLaunch
     {
-        private readonly IStateProvider _stateProvider;
+        private readonly IEnvironmentStateProvider _stateProvider;
         private readonly SynthEBDPaths _paths;
         private readonly Logger _logger;
         private readonly VM_SettingsHeight _heightSettingsVM;
@@ -21,7 +21,7 @@ namespace SynthEBD
         private readonly SettingsIO_AssetPack _assetIO;
         private readonly MainState _mainState;
         private readonly CustomMessageBox _customMessageBox;
-        public FirstLaunch(IStateProvider stateProvider, SynthEBDPaths paths, Logger logger, VM_SettingsHeight heightSettingsVM, SettingsIO_AssetPack assetIO, MainState mainState, VM_HeightConfig.Factory heightConfigFactory, VM_HeightAssignment.Factory heightAssignmentFactory, CustomMessageBox customMessageBox)
+        public FirstLaunch(IEnvironmentStateProvider stateProvider, SynthEBDPaths paths, Logger logger, VM_SettingsHeight heightSettingsVM, SettingsIO_AssetPack assetIO, MainState mainState, VM_HeightConfig.Factory heightConfigFactory, VM_HeightAssignment.Factory heightAssignmentFactory, CustomMessageBox customMessageBox)
         {
             _stateProvider = stateProvider;
             _paths = paths;

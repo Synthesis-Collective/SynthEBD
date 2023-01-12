@@ -6,7 +6,7 @@ namespace SynthEBD;
 
 public class VM_RunButton : VM
 {
-    private readonly StandaloneRunStateProvider _stateProvider;
+    private readonly StandaloneRunEnvironmentStateProvider _stateProvider;
     private readonly VM_SettingsTexMesh _texMeshSettingsVm;
     private readonly MainState _state;
     private readonly PreRunValidation _preRunValidation;
@@ -14,7 +14,7 @@ public class VM_RunButton : VM
     private readonly Logger _logger;
 
     public VM_RunButton(
-        StandaloneRunStateProvider stateProvider,
+        StandaloneRunEnvironmentStateProvider stateProvider,
         VM_SettingsTexMesh texMeshSettingsVM, 
         VM_ConsistencyUI consistencyUi,
         VM_Settings_Headparts headParts,

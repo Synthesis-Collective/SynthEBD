@@ -9,12 +9,12 @@ namespace SynthEBD
 {
     public class PreRunValidation
     {
-        private readonly IStateProvider _stateProvider;
+        private readonly IEnvironmentStateProvider _stateProvider;
         private readonly MainState _patcherState;
         private readonly Logger _logger;
         private readonly MiscValidation _miscValidation;
         private readonly VM_SettingsTexMesh _texMeshSettingsVM;
-        public PreRunValidation(IStateProvider stateProvider, MainState patcherState, Logger logger, MiscValidation miscValidation, VM_SettingsTexMesh texMeshSettingsVM)
+        public PreRunValidation(IEnvironmentStateProvider stateProvider, MainState patcherState, Logger logger, MiscValidation miscValidation, VM_SettingsTexMesh texMeshSettingsVM)
         {
             _stateProvider = stateProvider;
             _patcherState = patcherState;

@@ -8,11 +8,11 @@ namespace SynthEBD;
 
 public class OBodyWriter
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly PatcherIO _patcherIO;
-    public OBodyWriter(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
+    public OBodyWriter(IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
     {
         _stateProvider = stateProvider;
         _logger = logger;

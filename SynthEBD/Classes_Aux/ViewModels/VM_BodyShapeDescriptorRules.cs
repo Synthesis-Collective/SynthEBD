@@ -10,12 +10,12 @@ namespace SynthEBD;
 
 public class VM_BodyShapeDescriptorRules : VM
 {
-    private IStateProvider _stateProvider;
+    private IEnvironmentStateProvider _stateProvider;
     private Logger _logger;
     private VM_NPCAttributeCreator _attributeCreator;
     private AttributeMatcher _attributeMatcher;
     public delegate VM_BodyShapeDescriptorRules Factory(VM_BodyShapeDescriptor descriptor, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig);
-    public VM_BodyShapeDescriptorRules(VM_BodyShapeDescriptor descriptor, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, IStateProvider stateProvider, Logger logger, VM_NPCAttributeCreator creator, AttributeMatcher attributeMatcher)
+    public VM_BodyShapeDescriptorRules(VM_BodyShapeDescriptor descriptor, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, IEnvironmentStateProvider stateProvider, Logger logger, VM_NPCAttributeCreator creator, AttributeMatcher attributeMatcher)
     {
         _stateProvider = stateProvider;
         _logger = logger;

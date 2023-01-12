@@ -13,11 +13,11 @@ namespace SynthEBD
 {
     public class HeadPartWriter
     {
-        private readonly IStateProvider _stateProvider;
+        private readonly IEnvironmentStateProvider _stateProvider;
         private readonly Logger _logger;
         private readonly SynthEBDPaths _paths;
         private readonly PatcherIO _patcherIO;
-        public HeadPartWriter(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
+        public HeadPartWriter(IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
         {
             _stateProvider = stateProvider;
             _logger = logger;

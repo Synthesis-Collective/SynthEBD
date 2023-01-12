@@ -5,9 +5,9 @@ namespace SynthEBD;
 public class AssetPackValidator
 {
     private readonly BSAHandler _bsaHandler;
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
 
-    public AssetPackValidator(BSAHandler bsaHandler, IStateProvider stateProvider)
+    public AssetPackValidator(BSAHandler bsaHandler, IEnvironmentStateProvider stateProvider)
     {
         _bsaHandler = bsaHandler;
         _stateProvider = stateProvider;

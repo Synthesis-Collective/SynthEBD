@@ -8,9 +8,9 @@ namespace SynthEBD;
 
 public class VM_SettingsHeight : VM
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly VM_HeightConfig.Factory _configFactory;
-    public VM_SettingsHeight(IStateProvider stateProvider, FileDialogs fileDialogs, VM_HeightConfig.Factory configFactory)
+    public VM_SettingsHeight(IEnvironmentStateProvider stateProvider, FileDialogs fileDialogs, VM_HeightConfig.Factory configFactory)
     {
         _stateProvider = stateProvider;
         _configFactory = configFactory;

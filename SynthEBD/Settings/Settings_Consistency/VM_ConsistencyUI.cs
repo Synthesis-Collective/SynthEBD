@@ -10,10 +10,10 @@ namespace SynthEBD;
 
 public class VM_ConsistencyUI : VM
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     public readonly Logger _logger;
 
-    public VM_ConsistencyUI(IStateProvider stateProvider, Logger logger)
+    public VM_ConsistencyUI(IEnvironmentStateProvider stateProvider, Logger logger)
     {
         _stateProvider = stateProvider;
         _logger = logger;

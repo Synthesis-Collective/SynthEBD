@@ -6,7 +6,7 @@ namespace SynthEBD;
 
 public class MainWindow_ViewModel : VM
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly SaveLoader _saveLoader;
     private readonly VM_Settings_General _settingsGeneral;
     private readonly VM_NavPanel _navPanel;
@@ -20,7 +20,7 @@ public class MainWindow_ViewModel : VM
     public VM_StatusBar StatusBarVM { get; }
     public static bool EvalMessageTriggered {get; set;} = false;
     public MainWindow_ViewModel(
-        IStateProvider stateProvider,
+        IEnvironmentStateProvider stateProvider,
         Logger logger,
         SaveLoader saveLoader,
         VM_Settings_General settingsGeneral,
@@ -39,7 +39,7 @@ public class MainWindow_ViewModel : VM
         _customMessageBox = customMessageBox;
         Display = display;
         StatusBarVM = statusBar;
-        if (_stateProvider.RunMode == Mode.Standalone)
+        if (_stateProvider.RunMode == EnvironmentMode.Standalone)
         {
             RunButtonVM = getRunButton();
         }

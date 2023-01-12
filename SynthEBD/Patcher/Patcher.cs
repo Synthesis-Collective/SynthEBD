@@ -9,7 +9,7 @@ namespace SynthEBD;
 
 public class Patcher
 {
-    private readonly IOutputStateProvider _stateProvider;
+    private readonly IOutputEnvironmentStateProvider _stateProvider;
     private readonly MainState _state;
     private readonly VM_StatusBar _statusBar;
     private readonly CombinationLog _combinationLog;
@@ -37,7 +37,7 @@ public class Patcher
     private readonly MiscValidation _miscValidation;
     private readonly PatcherIO _patcherIO;
 
-    public Patcher(IOutputStateProvider stateProvider, MainState state, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO)
+    public Patcher(IOutputEnvironmentStateProvider stateProvider, MainState state, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO)
     {
         _stateProvider = stateProvider;
         _state = state;
@@ -309,7 +309,7 @@ public class Patcher
             _headPartWriter.WriteAssignmentDictionary();
         }
 
-        if (_stateProvider.RunMode == Mode.Standalone)
+        if (_stateProvider.RunMode == EnvironmentMode.Standalone)
         {
             string patchOutputPath = System.IO.Path.Combine(_paths.OutputDataFolder, _stateProvider.OutputMod.ModKey.ToString());
             PatcherIO.WritePatch(patchOutputPath, outputMod, _logger, _stateProvider);

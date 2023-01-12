@@ -5,7 +5,7 @@ namespace SynthEBD;
 
 public class VM_SpecificNPCAssignmentsUI : VM
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly VM_SpecificNPCAssignment.Factory _specificNpcAssignmentFactory;
@@ -18,7 +18,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
     private readonly SettingsIO_BodyGen _bodyGenIO;
 
     public VM_SpecificNPCAssignmentsUI(
-        IStateProvider stateProvider,
+        IEnvironmentStateProvider stateProvider,
         VM_SettingsTexMesh texMeshSettings,
         VM_SettingsBodyGen bodyGenSettings, 
         VM_Settings_General generalSettingsVM,
@@ -170,7 +170,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
         HashSet<NPCAssignment> models,
         Logger logger,
         Converters converters,
-        IStateProvider stateProvider)
+        IEnvironmentStateProvider stateProvider)
     {
         viewModel.Assignments.Clear();
         foreach (var assignment in models)

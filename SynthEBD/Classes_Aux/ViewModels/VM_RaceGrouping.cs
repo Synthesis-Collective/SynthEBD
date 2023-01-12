@@ -9,10 +9,10 @@ namespace SynthEBD;
 
 public class VM_RaceGrouping : VM
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     public delegate VM_RaceGrouping Factory(RaceGrouping raceGrouping, IHasRaceGroupingVMs parentVM);
     private readonly VM_RaceGrouping.Factory _selfFactory;
-    public VM_RaceGrouping(RaceGrouping raceGrouping, IHasRaceGroupingVMs parentVM, IStateProvider stateProvider, VM_RaceGrouping.Factory selfFactory)
+    public VM_RaceGrouping(RaceGrouping raceGrouping, IHasRaceGroupingVMs parentVM, IEnvironmentStateProvider stateProvider, VM_RaceGrouping.Factory selfFactory)
     {
         _stateProvider = stateProvider;
         _selfFactory = selfFactory;

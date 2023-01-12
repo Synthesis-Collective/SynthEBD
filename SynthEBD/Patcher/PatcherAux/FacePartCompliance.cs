@@ -14,7 +14,7 @@ namespace SynthEBD
         // SKSE for VR and SSE 1.5.97 or < did not yet have the GetPartName() function
         // As a result, the face headpart of an NPC must have a matching Name and EditorID or the headpart script will cause a neck seam
 
-        public FacePartCompliance(IOutputStateProvider stateProvider)
+        public FacePartCompliance(IOutputEnvironmentStateProvider stateProvider)
         {
             var gameRelease = stateProvider.SkyrimVersion;
             if (gameRelease == SkyrimRelease.SkyrimVR || gameRelease == SkyrimRelease.SkyrimLE || gameRelease == SkyrimRelease.EnderalLE || (gameRelease == SkyrimRelease.SkyrimSE && PatcherSettings.TexMesh.bFixedScriptsOldSKSEversion))

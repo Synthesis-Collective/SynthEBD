@@ -17,7 +17,7 @@ namespace SynthEBD;
 
 public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly VM_SettingsOBody _oBody;
@@ -34,7 +34,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         VM_Subgroup parentSubgroup,
         bool setExplicitReferenceNPC);
     
-    public VM_Subgroup(IStateProvider stateProvider,
+    public VM_Subgroup(IEnvironmentStateProvider stateProvider,
         Logger logger,
         SynthEBDPaths paths,
         ObservableCollection<VM_RaceGrouping> raceGroupingVMs,

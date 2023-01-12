@@ -4,10 +4,10 @@ namespace SynthEBD;
 
 public class SettingsIO_OBody
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
-    public SettingsIO_OBody(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths)
+    public SettingsIO_OBody(IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths)
     {
         _stateProvider = stateProvider;
         _logger = logger;

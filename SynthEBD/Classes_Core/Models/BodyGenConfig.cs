@@ -71,10 +71,10 @@ public class zEBDSplitBodyGenConfig
 }
 public class zEBDBodyGenConfig
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly Converters _converters;
-    public zEBDBodyGenConfig(IStateProvider stateProvider, Logger logger, Converters converters)
+    public zEBDBodyGenConfig(IEnvironmentStateProvider stateProvider, Logger logger, Converters converters)
     {
         _stateProvider = stateProvider;
         _logger = logger;

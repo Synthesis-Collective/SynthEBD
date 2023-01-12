@@ -4,10 +4,10 @@ namespace SynthEBD;
 
 public class SettingsIO_ModManager
 {
-    private IStateProvider _stateProvider;
+    private IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
-    public SettingsIO_ModManager(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths)
+    public SettingsIO_ModManager(IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths)
     {
         _stateProvider = stateProvider;
         _logger = logger;

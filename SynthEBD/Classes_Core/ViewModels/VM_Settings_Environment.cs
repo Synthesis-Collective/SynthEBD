@@ -8,14 +8,14 @@ namespace SynthEBD
 {
     public class VM_Settings_Environment
     {
-        public StandaloneRunStateProvider StateProvider { get; set; }
+        public StandaloneRunEnvironmentStateProvider StateProvider { get; set; }
         public RelayCommand SelectGameDataFolder { get; }
         public RelayCommand ClearGameDataFolder { get; }
         public bool IsStandalone { get; }
-        public VM_Settings_Environment(IStateProvider stateProvider)
+        public VM_Settings_Environment(IEnvironmentStateProvider stateProvider)
         {
-            StateProvider = stateProvider as StandaloneRunStateProvider;
-            IsStandalone = StateProvider.RunMode == Mode.Standalone;
+            StateProvider = stateProvider as StandaloneRunEnvironmentStateProvider;
+            IsStandalone = StateProvider.RunMode == EnvironmentMode.Standalone;
 
             SelectGameDataFolder = new RelayCommand(
                 canExecute: _ => true,

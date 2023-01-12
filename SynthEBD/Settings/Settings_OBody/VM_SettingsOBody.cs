@@ -13,7 +13,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     private readonly VM_BodySlideSetting.Factory _bodySlideFactory;
     private readonly AttributeMatcher _attributeMatcher;
     private readonly Logger _logger;
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     public VM_SettingsOBody(
         VM_Settings_General generalSettingsVM,
         VM_BodyShapeDescriptorCreationMenu.Factory bodyShapeDescriptorCreationMenuFactory,
@@ -24,7 +24,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         SettingsIO_OBody oBodyIO,
         AttributeMatcher attributeMatcher,
         Logger logger,
-        IStateProvider stateProvider)
+        IEnvironmentStateProvider stateProvider)
     {
         _oBodyIO = oBodyIO;
         _miscSettingsFactory = miscSettingsFactory;

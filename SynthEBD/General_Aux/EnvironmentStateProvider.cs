@@ -15,7 +15,7 @@ using ReactiveUI.Fody.Helpers;
 
 namespace SynthEBD;
 
-public interface IStateProvider
+public interface IEnvironmentStateProvider
 {
     // core properties "seeded" by Noggog
     ILoadOrderGetter<IModListingGetter<ISkyrimModGetter>> LoadOrder { get; }
@@ -24,7 +24,7 @@ public interface IStateProvider
     DirectoryPath InternalDataPath { get; }
     //Additional properties needed by SynthEBD
     DirectoryPath DataFolderPath { get; set; }
-    Mode RunMode { get; }
+    EnvironmentMode RunMode { get; }
     LogMode LoggerMode { get; }
     public string LogFolderPath { get; }
     public string OutputModName { get; set; }
@@ -34,18 +34,18 @@ public interface IStateProvider
     public string LoadOrderFilePath { get; }
 }
 
-public enum Mode
+public enum EnvironmentMode
 {
     Standalone,
     Synthesis
 }
 
-public interface IOutputStateProvider : IStateProvider
+public interface IOutputEnvironmentStateProvider : IEnvironmentStateProvider
 {
     ISkyrimMod OutputMod { get; }
 }
 
-public class StandaloneRunStateProvider : VM, IOutputStateProvider
+public class StandaloneRunEnvironmentStateProvider : VM, IOutputEnvironmentStateProvider
 {
     // "Core" state properties and fields
     private IGameEnvironment<ISkyrimMod, ISkyrimModGetter> _environment;
@@ -56,7 +56,7 @@ public class StandaloneRunStateProvider : VM, IOutputStateProvider
     public DirectoryPath InternalDataPath { get; set; }
     [Reactive] public DirectoryPath DataFolderPath { get; set; }
     public ISkyrimMod OutputMod { get; set; }
-    public Mode RunMode { get; } = Mode.Standalone;
+    public EnvironmentMode RunMode { get; } = EnvironmentMode.Standalone;
     public LogMode LoggerMode { get; } = LogMode.SynthEBD;
 
     // Additional properties for customization
@@ -67,7 +67,7 @@ public class StandaloneRunStateProvider : VM, IOutputStateProvider
     public string CreationClubListingsFilePath { get; set; }
     public string LoadOrderFilePath { get; set; }
 
-    public StandaloneRunStateProvider(PatcherEnvironmentSourceProvider environmentSourceProvider)
+    public StandaloneRunEnvironmentStateProvider(PatcherEnvironmentSourceProvider environmentSourceProvider)
     {
         string? exeLocation = null;
         var assembly = Assembly.GetEntryAssembly();
@@ -186,7 +186,7 @@ public class StandaloneRunStateProvider : VM, IOutputStateProvider
     }
 }
 
-public class OpenForSettingsWrapper : IStateProvider
+public class OpenForSettingsWrapper : IEnvironmentStateProvider
 {
     private readonly IOpenForSettingsState _state;
     private readonly Lazy<IGameEnvironment<ISkyrimMod, ISkyrimModGetter>> _env;
@@ -204,7 +204,7 @@ public class OpenForSettingsWrapper : IStateProvider
     public DirectoryPath ExtraSettingsDataPath => _state.ExtraSettingsDataPath ?? throw new Exception("Could not locate Extra Settings Data Path");
     public DirectoryPath InternalDataPath => _state.InternalDataPath ?? throw new Exception("Could not locate Internal Data Path");
     public DirectoryPath DataFolderPath { get; set; }
-    public Mode RunMode { get; } = Mode.Synthesis;
+    public EnvironmentMode RunMode { get; } = EnvironmentMode.Synthesis;
     public LogMode LoggerMode { get; } = LogMode.SynthEBD;
     public string LogFolderPath => Path.Combine(_state.ExtraSettingsDataPath, "Logs");
     public SkyrimRelease SkyrimVersion => _state.GameRelease.ToSkyrimRelease();
@@ -213,7 +213,7 @@ public class OpenForSettingsWrapper : IStateProvider
     public string OutputModName { get; set; } = "Not Available";
 }
 
-public class RunnabilitySettingsWrapper : IStateProvider
+public class RunnabilitySettingsWrapper : IEnvironmentStateProvider
 {
     private readonly IRunnabilityState _state;
     private readonly Lazy<IGameEnvironment<ISkyrimMod, ISkyrimModGetter>> _env;
@@ -231,7 +231,7 @@ public class RunnabilitySettingsWrapper : IStateProvider
     public DirectoryPath ExtraSettingsDataPath => _state.ExtraSettingsDataPath ?? throw new Exception("Could not locate Extra Settings Data Path");
     public DirectoryPath InternalDataPath => _state.InternalDataPath ?? throw new Exception("Could not locate Internal Data Path");
     public DirectoryPath DataFolderPath { get; set; }
-    public Mode RunMode { get; } = Mode.Synthesis;
+    public EnvironmentMode RunMode { get; } = EnvironmentMode.Synthesis;
     public LogMode LoggerMode { get; } = LogMode.Synthesis;
     public string LogFolderPath => Path.Combine(_state.ExtraSettingsDataPath, "Logs");
     public SkyrimRelease SkyrimVersion => _state.GameRelease.ToSkyrimRelease();
@@ -240,7 +240,7 @@ public class RunnabilitySettingsWrapper : IStateProvider
     public string OutputModName { get; set; } = "Not Available";
 }
 
-public class PatcherStateWrapper : IOutputStateProvider
+public class PatcherStateWrapper : IOutputEnvironmentStateProvider
 {
     private readonly IPatcherState<ISkyrimMod, ISkyrimModGetter> _state;
 
@@ -257,7 +257,7 @@ public class PatcherStateWrapper : IOutputStateProvider
     public DirectoryPath ExtraSettingsDataPath => _state.ExtraSettingsDataPath ?? throw new Exception("Could not locate Extra Settings Data Path");
     public DirectoryPath InternalDataPath => _state.InternalDataPath ?? throw new Exception("Could not locate Internal Data Path");
     public DirectoryPath DataFolderPath { get; set; }
-    public Mode RunMode { get; } = Mode.Synthesis;
+    public EnvironmentMode RunMode { get; } = EnvironmentMode.Synthesis;
     public LogMode LoggerMode { get; } = LogMode.Synthesis;
     public string LogFolderPath => Path.Combine(_state.ExtraSettingsDataPath, "Logs");
     public SkyrimRelease SkyrimVersion => _state.GameRelease.ToSkyrimRelease();

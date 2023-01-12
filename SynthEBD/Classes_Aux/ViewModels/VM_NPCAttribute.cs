@@ -20,7 +20,7 @@ namespace SynthEBD;
 public class VM_NPCAttribute : VM
 {
     public delegate VM_NPCAttribute Factory(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups);
-    public VM_NPCAttribute(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, VM_NPCAttributeCreator creator, AttributeMatcher attributeMatcher, IStateProvider stateProvider)
+    public VM_NPCAttribute(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, VM_NPCAttributeCreator creator, AttributeMatcher attributeMatcher, IEnvironmentStateProvider stateProvider)
     {
         ParentCollection = parentCollection;
         GroupedSubAttributes.CollectionChanged += TrimEmptyAttributes;
@@ -351,9 +351,9 @@ public interface ISubAttributeViewModel
 
 public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     public delegate VM_NPCAttributeVoiceType Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    public VM_NPCAttributeVoiceType(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IStateProvider stateProvider)
+    public VM_NPCAttributeVoiceType(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider stateProvider)
     {
         _stateProvider = stateProvider;
 
@@ -399,9 +399,9 @@ public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeClass : VM, ISubAttributeViewModel
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     public delegate VM_NPCAttributeClass Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    public VM_NPCAttributeClass(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IStateProvider stateProvider)
+    public VM_NPCAttributeClass(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider stateProvider)
     {
         _stateProvider = stateProvider;
         ParentVM = parentVM;
@@ -436,11 +436,11 @@ public class VM_NPCAttributeClass : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsRecordIntellisense
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private AttributeMatcher _attributeMatcher;
     private RecordIntellisense _recordIntellisense;
     public delegate VM_NPCAttributeCustom Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    public VM_NPCAttributeCustom(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, AttributeMatcher attributeMatcher, RecordIntellisense recordIntellisense, IStateProvider stateProvider)
+    public VM_NPCAttributeCustom(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, AttributeMatcher attributeMatcher, RecordIntellisense recordIntellisense, IEnvironmentStateProvider stateProvider)
     {
         _stateProvider = stateProvider;
         _attributeMatcher = attributeMatcher;
@@ -635,9 +635,9 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
 
 public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     public delegate VM_NPCAttributeFactions Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    public VM_NPCAttributeFactions(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IStateProvider stateProvider)
+    public VM_NPCAttributeFactions(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider stateProvider)
     {
         _stateProvider = stateProvider;
         ParentVM = parentVM;
@@ -676,9 +676,9 @@ public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     public delegate VM_NPCAttributeFaceTexture Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    public VM_NPCAttributeFaceTexture(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IStateProvider stateProvider)
+    public VM_NPCAttributeFaceTexture(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider stateProvider)
     {
         _stateProvider = stateProvider;
         ParentVM = parentVM;
@@ -714,9 +714,9 @@ public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
 {
-    private IStateProvider _stateProvider;
+    private IEnvironmentStateProvider _stateProvider;
     public delegate VM_NPCAttributeRace Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    public VM_NPCAttributeRace(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IStateProvider stateProvider)
+    public VM_NPCAttributeRace(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider stateProvider)
     {
         _stateProvider = stateProvider;
         ParentVM = parentVM;
@@ -752,9 +752,9 @@ public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
 {
-    private IStateProvider _stateProvider;
+    private IEnvironmentStateProvider _stateProvider;
     public delegate VM_NPCAttributeMisc Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    public VM_NPCAttributeMisc(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IStateProvider stateProvider)
+    public VM_NPCAttributeMisc(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider stateProvider)
     {
         _stateProvider = stateProvider;
         ParentVM = parentVM;
@@ -825,9 +825,9 @@ public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
 {
-    private IStateProvider _stateProvider;
+    private IEnvironmentStateProvider _stateProvider;
     public delegate VM_NPCAttributeMod Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    public VM_NPCAttributeMod(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IStateProvider stateProvider)
+    public VM_NPCAttributeMod(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider stateProvider)
     {
         _stateProvider = stateProvider;
         ParentVM = parentVM;
@@ -876,9 +876,9 @@ public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeNPC : VM, ISubAttributeViewModel
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     public delegate VM_NPCAttributeNPC Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    public VM_NPCAttributeNPC(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IStateProvider stateProvider)
+    public VM_NPCAttributeNPC(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider stateProvider)
     {
         _stateProvider = stateProvider;
 

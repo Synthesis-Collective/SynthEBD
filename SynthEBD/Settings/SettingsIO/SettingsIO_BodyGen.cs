@@ -6,11 +6,11 @@ namespace SynthEBD;
 
 public class SettingsIO_BodyGen
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly Converters _converters;
-    public SettingsIO_BodyGen(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, Converters converters)
+    public SettingsIO_BodyGen(IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths, Converters converters)
     {
         _stateProvider = stateProvider;
         _logger = logger;

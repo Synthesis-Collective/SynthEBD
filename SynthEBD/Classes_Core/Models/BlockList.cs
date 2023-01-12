@@ -50,9 +50,9 @@ public class BlockedPlugin
 
 public class zEBDBlockList
 {
-    private IStateProvider _stateProvider;
+    private IEnvironmentStateProvider _stateProvider;
     private Converters _converters;
-    public zEBDBlockList(IStateProvider stateProvider, Converters converters)
+    public zEBDBlockList(IEnvironmentStateProvider stateProvider, Converters converters)
     {
         _stateProvider = stateProvider;
         _converters = converters;

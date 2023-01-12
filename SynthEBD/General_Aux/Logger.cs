@@ -20,7 +20,7 @@ public sealed class Logger : VM
 {
     private readonly DisplayedItemVm _displayedItemVm;
     private readonly VM_LogDisplay _logDisplay;
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly PatcherIO _patcherIO;
     public string StatusString { get; set; }
     public string BackupStatusString { get; set; }
@@ -58,7 +58,7 @@ public sealed class Logger : VM
         public int CurrentLayer;
     }
 
-    public Logger(PatcherIO patcherIO, IStateProvider stateProvider)
+    public Logger(PatcherIO patcherIO, IEnvironmentStateProvider stateProvider)
     {
         StatusColor = ReadyColor;
         StatusString = ReadyString;

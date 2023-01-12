@@ -10,7 +10,7 @@ namespace SynthEBD;
 public class SaveLoader : VM
 {
     // Some are public properties to allow for circular IoC dependencies
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly PatcherSettingsSourceProvider _patcherSettingsSourceProvider;
     private readonly PatcherEnvironmentSourceProvider _patcherEnvironmentSourceProvider;
     private readonly MainState _state;
@@ -57,7 +57,7 @@ public class SaveLoader : VM
     private bool _isTrackingRootFolder = false;
 
     public SaveLoader(
-        IStateProvider stateProvider,
+        IEnvironmentStateProvider stateProvider,
         MainState state,
         VM_Settings_General generalSettings,
         VM_SettingsTexMesh texMeshSettings,
@@ -398,7 +398,7 @@ public class SaveLoader : VM
             _logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
         }
 
-        if (_stateProvider.RunMode == Mode.Standalone)
+        if (_stateProvider.RunMode == EnvironmentMode.Standalone)
         {
             var envSource = new StandaloneEnvironmentSource()
             {

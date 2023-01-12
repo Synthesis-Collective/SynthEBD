@@ -11,11 +11,11 @@ namespace SynthEBD
 {
     public class AssetReplacerSelector
     {
-        private readonly IStateProvider _stateProvider;
+        private readonly IEnvironmentStateProvider _stateProvider;
         private readonly AssetAndBodyShapeSelector _abSelector;
         private readonly RecordPathParser _recordPathParser;
         private readonly DictionaryMapper _dictionaryMapper;
-        public AssetReplacerSelector(IStateProvider stateProvider, AssetAndBodyShapeSelector abSelector, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper)
+        public AssetReplacerSelector(IEnvironmentStateProvider stateProvider, AssetAndBodyShapeSelector abSelector, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper)
         {
             _stateProvider = stateProvider;
             _abSelector = abSelector;

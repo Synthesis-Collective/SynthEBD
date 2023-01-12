@@ -29,7 +29,7 @@ public enum AssetPackMenuVisibility
 
 public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgroupViewModels, IHasRaceGroupingEditor
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly MainState _state;
     private readonly VM_SettingsOBody _oBody;
     private readonly VM_Settings_General _general;
@@ -50,7 +50,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public delegate VM_AssetPack Factory();
 
     public VM_AssetPack(
-        IStateProvider stateProvider,
+        IEnvironmentStateProvider stateProvider,
         MainState state,
         VM_SettingsBodyGen bodyGen,
         VM_SettingsOBody oBody,

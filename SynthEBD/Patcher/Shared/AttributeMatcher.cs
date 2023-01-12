@@ -6,10 +6,10 @@ namespace SynthEBD;
 
 public class AttributeMatcher
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly RecordPathParser _recordPathParser;
-    public AttributeMatcher(IStateProvider stateProvider, Logger logger, RecordPathParser recordPathParser)
+    public AttributeMatcher(IEnvironmentStateProvider stateProvider, Logger logger, RecordPathParser recordPathParser)
     {
         _stateProvider = stateProvider;
         _logger = logger;

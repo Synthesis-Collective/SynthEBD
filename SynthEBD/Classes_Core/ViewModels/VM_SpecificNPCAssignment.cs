@@ -15,7 +15,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 {
     public delegate VM_SpecificNPCAssignment Factory();
 
-    private IStateProvider _stateProvider;
+    private IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly VM_Settings_General _generalSettings;
@@ -30,7 +30,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     private readonly Converters _converters;
 
     public VM_SpecificNPCAssignment(
-        IStateProvider stateProvider,
+        IEnvironmentStateProvider stateProvider,
         Logger logger, 
         SynthEBDPaths paths,
         VM_Settings_General general,
@@ -201,7 +201,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         Factory specificNpcAssignmentFactory, 
         Logger logger,
         Converters converters,
-        IStateProvider stateProvider)
+        IEnvironmentStateProvider stateProvider)
     {
         var viewModel = specificNpcAssignmentFactory();
         viewModel.NPCFormKey = model.NPCFormKey;
@@ -606,7 +606,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         this.Gender = GetGender(this.NPCFormKey);
     }*/
 
-    public static Gender GetGender (FormKey NPCFormKey, Logger logger, IStateProvider stateProvider)
+    public static Gender GetGender (FormKey NPCFormKey, Logger logger, IEnvironmentStateProvider stateProvider)
     {
         var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
 

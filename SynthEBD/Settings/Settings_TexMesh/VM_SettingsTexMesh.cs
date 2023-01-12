@@ -14,7 +14,7 @@ public class VM_SettingsTexMesh : VM
     private readonly SynthEBDPaths _paths;
     private readonly ConfigInstaller _configInstaller;
     private readonly VM_AssetDistributionSimulator.Factory _simulatorFactory;
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
 
     public VM_SettingsTexMesh(
         MainState state,
@@ -26,7 +26,7 @@ public class VM_SettingsTexMesh : VM
         VM_AssetPack.Factory assetPackFactory,
         VM_Subgroup.Factory subgroupFactory,
         VM_RaceGrouping.Factory raceGroupingFactory,
-        IStateProvider stateProvider,
+        IEnvironmentStateProvider stateProvider,
         Logger logger,
         SynthEBDPaths paths,
         ConfigInstaller configInstaller,

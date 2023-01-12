@@ -10,10 +10,10 @@ namespace SynthEBD;
 
 public class VM_BlockedNPC : VM
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Converters _converters;
     public delegate VM_BlockedNPC Factory();
-    public VM_BlockedNPC(IStateProvider stateProvider, Converters converters)
+    public VM_BlockedNPC(IEnvironmentStateProvider stateProvider, Converters converters)
     {
         _stateProvider = stateProvider;
         _converters = converters;

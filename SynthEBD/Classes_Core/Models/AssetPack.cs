@@ -206,7 +206,7 @@ class ZEBDAssetPack
 
         public string hashKey { get; set; }
 
-        public AssetPack.Subgroup ToSynthEBDSubgroup(List<RaceGrouping> raceGroupings, string topLevelSubgroupID, string assetPackName, List<string> conversionErrors, IStateProvider stateProvider, Logger logger, Converters converters)
+        public AssetPack.Subgroup ToSynthEBDSubgroup(List<RaceGrouping> raceGroupings, string topLevelSubgroupID, string assetPackName, List<string> conversionErrors, IEnvironmentStateProvider stateProvider, Logger logger, Converters converters)
         {
             AssetPack.Subgroup s = new AssetPack.Subgroup();
 
@@ -370,7 +370,7 @@ class ZEBDAssetPack
         };
     }
 
-    public AssetPack ToSynthEBDAssetPack(List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs, IStateProvider stateProvider, Converters converters, Logger logger, SynthEBDPaths paths)
+    public AssetPack ToSynthEBDAssetPack(List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs, IEnvironmentStateProvider stateProvider, Converters converters, Logger logger, SynthEBDPaths paths)
     {
         List<string> conversionErrors = new List<string>();
         AssetPack s = new AssetPack();

@@ -15,7 +15,7 @@ namespace SynthEBD
 {
     public class VM_HeadPartList : VM
     {
-        private readonly IStateProvider _stateProvider;
+        private readonly IEnvironmentStateProvider _stateProvider;
         private readonly Logger _logger;
         private readonly VM_Settings_Headparts _headPartMenuVM;
         private readonly VM_NPCAttributeCreator _attributeCreator;
@@ -28,7 +28,7 @@ namespace SynthEBD
             VM_Settings_Headparts headPartMenuVM, 
             VM_SettingsOBody oBodyMenuVM, 
             VM_NPCAttributeCreator attributeCreator,
-            IStateProvider stateProvider,
+            IEnvironmentStateProvider stateProvider,
             Logger logger, 
             VM_HeadPart.Factory headPartFactory, 
             VM_HeadPartCategoryRules.Factory headPartCategoryRulesFactory, 

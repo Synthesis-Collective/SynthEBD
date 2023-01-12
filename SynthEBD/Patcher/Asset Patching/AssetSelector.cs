@@ -7,14 +7,14 @@ namespace SynthEBD;
 
 public class AssetSelector
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly AttributeMatcher _attributeMatcher;
     private readonly RecordPathParser _recordPathParser;
     private readonly DictionaryMapper _dictionaryMapper;
     private readonly PatchableRaceResolver _raceResolver;
-    public AssetSelector(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, AttributeMatcher attributeMatcher, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper, PatchableRaceResolver raceResolver)
+    public AssetSelector(IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths, AttributeMatcher attributeMatcher, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper, PatchableRaceResolver raceResolver)
     {
         _stateProvider = stateProvider;
         _logger = logger;

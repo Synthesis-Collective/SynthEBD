@@ -11,7 +11,7 @@ namespace SynthEBD;
 
 public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingEditor
 {
-    public IStateProvider StateProvider { get; }
+    public IEnvironmentStateProvider StateProvider { get; }
     public PatcherSettingsSourceProvider SettingsSourceProvider { get; }
     private bool _bFirstRun { get; set; } = false;
     private readonly SettingsIO_General _generalIO;
@@ -29,12 +29,12 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         VM_RaceGrouping.Factory groupingFactory,
         VM_LinkedNPCGroup.Factory linkedNPCFactory,
         SettingsIO_General generalIO,
-        IStateProvider stateProvider,
+        IEnvironmentStateProvider stateProvider,
         FirstLaunch firstLaunch,
         SynthEBDPaths paths)
     {
         StateProvider = stateProvider;
-        IsStandalone = StateProvider.RunMode == Mode.Standalone;
+        IsStandalone = StateProvider.RunMode == EnvironmentMode.Standalone;
         SettingsSourceProvider = settingsProvider;
         _generalIO = generalIO;
         _firstLaunch = firstLaunch;

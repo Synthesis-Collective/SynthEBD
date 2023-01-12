@@ -12,9 +12,9 @@ namespace SynthEBD;
 
 public class VM_LinkedNPCGroup : VM
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     public delegate VM_LinkedNPCGroup Factory();
-    public VM_LinkedNPCGroup(IStateProvider stateProvider)
+    public VM_LinkedNPCGroup(IEnvironmentStateProvider stateProvider)
     {
         _stateProvider = stateProvider;
         _stateProvider.WhenAnyValue(x => x.LinkCache)

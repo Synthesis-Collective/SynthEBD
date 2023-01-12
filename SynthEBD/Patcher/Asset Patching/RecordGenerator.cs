@@ -9,13 +9,13 @@ namespace SynthEBD;
 
 public class RecordGenerator
 {
-    private readonly IStateProvider _stateProvider;
+    private readonly IEnvironmentStateProvider _stateProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly HardcodedRecordGenerator _hardcodedRecordGenerator;
     private readonly HeadPartSelector _headPartSelector;
     private readonly RecordPathParser _recordPathParser;
-    public RecordGenerator(IStateProvider stateProvider, Logger logger, SynthEBDPaths paths, HardcodedRecordGenerator hardcodedRecordGenerator, HeadPartSelector headPartSelector, RecordPathParser recordPathParser)
+    public RecordGenerator(IEnvironmentStateProvider stateProvider, Logger logger, SynthEBDPaths paths, HardcodedRecordGenerator hardcodedRecordGenerator, HeadPartSelector headPartSelector, RecordPathParser recordPathParser)
     {
         _stateProvider = stateProvider;
         _logger = logger;

@@ -9,8 +9,8 @@ namespace SynthEBD;
 
 public class VM_AdditionalRecordTemplate : VM
 {
-    private readonly IStateProvider _stateProvider;
-    public VM_AdditionalRecordTemplate(IStateProvider stateProvider,
+    private readonly IEnvironmentStateProvider _stateProvider;
+    public VM_AdditionalRecordTemplate(IEnvironmentStateProvider stateProvider,
         ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, 
         ObservableCollection<VM_AdditionalRecordTemplate> parentCollection)
     {
