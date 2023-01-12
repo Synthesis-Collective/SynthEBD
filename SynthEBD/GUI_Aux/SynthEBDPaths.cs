@@ -25,12 +25,6 @@ public class SynthEBDPaths : VM
 
     private readonly PatcherSettingsSourceProvider _settingsSourceProvider;
     private readonly IEnvironmentStateProvider _environmentProvider;
-
-    //public static void SetRootPath(string rootPath)
-    //{
-    //   RootPath = rootPath;
-    //}
-
     public SynthEBDPaths(
         PatcherSettingsSourceProvider settingsSourceProvider,
         IEnvironmentStateProvider environmentProvider)
@@ -82,45 +76,6 @@ public class SynthEBDPaths : VM
         {
             Directory.CreateDirectory(recordTemplatesDirPath);
         }
-
-        /*
-        Observable.CombineLatest(
-                generalSettings.WhenAnyValue(x => x.bLoadSettingsFromDataFolder),
-                generalSettings.WhenAnyValue(x => x.PortableSettingsFolder),
-                environmentProvider.WhenAnyValue(x => x.Environment.DataFolderPath),
-                (load, settingsFolder, dataPath) =>
-                {
-                    if (load)
-                    {
-                        if (!string.IsNullOrWhiteSpace(settingsFolder)
-                            && Directory.Exists(settingsFolder))
-                        {
-                            return settingsFolder;
-                        }
-                        else
-                        {
-                            return Path.Combine(dataPath, "SynthEBD");
-                        }
-                    }
-                    else
-                    {
-                        return RootPath;
-                    }
-                })
-            .Subscribe(x => RelativePath = x);
-
-        generalSettings.WhenAnyValue(x => x.OutputDataFolder).Subscribe(x =>
-            {
-                if (generalSettings.OutputDataFolder.IsNullOrWhitespace())
-                {
-                    OutputDataFolder = environmentProvider.Environment.DataFolderPath;
-                }
-                else
-                {
-                    OutputDataFolder = generalSettings.OutputDataFolder;
-                }
-            });
-        */
     }
 
     public string LogFolderPath => Path.Combine(_rootPath, "Logs");
