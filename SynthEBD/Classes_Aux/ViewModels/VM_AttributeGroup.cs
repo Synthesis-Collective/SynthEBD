@@ -27,16 +27,15 @@ public class VM_AttributeGroup : VM
 
         AddAttribute = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => Attributes.Add(_attributeCreator.CreateNewFromUI(Attributes, false, true, parent.Groups))
+            execute: _ => Attributes.Add(_attributeCreator.CreateNewFromUI(Attributes, false, true, parent.Groups)
         );
 
-        Observable.CombineLatest(
-                Attributes.ToObservableChangeSet(),
-                ParentMenu.Groups.ToObservableChangeSet(),
-                (_, _) => { return 0; })
-            .Subscribe(_ => {
-                RefreshCircularReferenceWatch();
-            });
+        Attributes.ToObservableChangeSet().TransformMany(x => x.GroupedSubAttributes).Transform(
+                x =>
+                {
+                    var unSubDisposable = x.WhenAnyObservable(x => x.Attribute.ParentVM.NeedsRefresh).Subscribe(_ => CheckGroupForCircularReferences());
+                    return unSubDisposable;
+                }).DisposeMany().Subscribe();
     }
 
     public string Label { get; set; } = "";
@@ -47,26 +46,6 @@ public class VM_AttributeGroup : VM
     public RelayCommand AddAttribute { get; }
 
     public ObservableCollection<VM_NPCAttribute> Attributes_Bak { get; set; }
-
-    public void RefreshCircularReferenceWatch()
-    {
-        Attributes.ToObservableChangeSet().TransformMany(x => x.GroupedSubAttributes).Transform(
-                x =>
-                {
-                    var unSubDisposable = x.WhenAnyValue(x => x.Attribute.NeedsRefresh).Switch().Subscribe(_ => CheckGroupForCircularReferences());
-                    return unSubDisposable;
-                }).DisposeMany().Subscribe();
-
-        foreach (var group in ParentMenu.Groups.Where(x => x != this))
-        {
-            group.Attributes.ToObservableChangeSet().TransformMany(x => x.GroupedSubAttributes).Transform(
-                x =>
-                {
-                    var unSubDisposable = x.WhenAnyValue(x => x.Attribute.NeedsRefresh).Switch().Subscribe(_ => CheckGroupForCircularReferences());
-                    return unSubDisposable;
-                }).DisposeMany().Subscribe();
-        }
-    }
 
     public void CopyInViewModelFromModel(AttributeGroup model, VM_AttributeGroupMenu parentMenu)
     {
@@ -99,8 +78,11 @@ public class VM_AttributeGroup : VM
             if (CheckMemberForCircularReference(attribute, circularRefs, ParentMenu.Groups))
             {
                 CustomMessageBox.DisplayNotificationOK("Attribute Group Error", "Circular reference detected: " + string.Join(" -> ", circularRefs));
-                Attributes.Clear();
-                Attributes.AddRange(Attributes_Bak);
+                var groupAttribute = attribute.MostRecentlyEditedShell.Attribute as VM_NPCAttributeGroup;
+                if (groupAttribute != null)
+                {
+                    groupAttribute.MostRecentlyEditedSelection.IsSelected = false;
+                }
             }
             else
             {
@@ -113,7 +95,7 @@ public class VM_AttributeGroup : VM
     {
         foreach (var subAttributeShell in attribute.GroupedSubAttributes)
         {
-            if (subAttributeShell.Type == NPCAttributeType.Group)
+            if (subAttributeShell.Type == NPCAttributeType.Group && subAttributeShell.Attribute as VM_NPCAttributeGroup != null)
             {
                 var groupAttribute = (VM_NPCAttributeGroup)subAttributeShell.Attribute;
 
@@ -124,8 +106,6 @@ public class VM_AttributeGroup : VM
                     {
                         if (referencedGroups.Contains(subGroup.Label))
                         {
-                            var toUnSet = groupAttribute.SelectableAttributeGroups.Where(x => x.SubscribedAttributeGroup.Label == label).First();
-                            toUnSet.IsSelected = false;
                             referencedGroups.Add(subGroup.Label);
                             return true;
                         }
@@ -133,7 +113,10 @@ public class VM_AttributeGroup : VM
                         referencedGroups.Add(subGroup.Label);
                         foreach (var subAttribute in subGroup.Attributes)
                         {
-                            return CheckMemberForCircularReference(subAttribute, referencedGroups, allGroups);
+                            if(CheckMemberForCircularReference(subAttribute, referencedGroups, allGroups))
+                            {
+                                return true;
+                            }
                         }
                         referencedGroups.RemoveAt(-1);
                     }

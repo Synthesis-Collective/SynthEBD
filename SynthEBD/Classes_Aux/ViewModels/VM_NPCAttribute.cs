@@ -5,6 +5,7 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Plugins.Order;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
+using Noggog.WPF;
 using ReactiveUI;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -27,12 +28,22 @@ public class VM_NPCAttribute : VM
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
         AddToParent = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Add(creator.CreateNewFromUI(ParentCollection, DisplayForceIfOption, DisplayForceIfWeight, attributeGroups)));
-        Validate = new RelayCommand(canExecute: _ => true, execute: _ => { 
+        Validate = new RelayCommand(canExecute: _ => true, execute: _ => {
             var validator = new VM_AttributeValidator(this, attributeGroups, environmentProvider, attributeMatcher);
             Window_AttributeValidator window = new Window_AttributeValidator();
             window.DataContext = validator;
             window.ShowDialog();
-            });
+        });
+
+        GroupedSubAttributes.ToObservableChangeSet().Subscribe(x => {
+            NeedsRefresh = GroupedSubAttributes.Select(x => x.WhenAnyObservable(y => y.Attribute.NeedsRefresh)).Merge().Unit();
+        });
+
+        // for debugging
+        this.WhenAnyObservable(x => x.NeedsRefresh).Subscribe(x => 
+            {
+            int i = 0;
+        });
     }
 
     public ObservableCollection<VM_NPCAttributeShell> GroupedSubAttributes { get; set; } = new(); // everything within this collection is evaluated as AND (all must be true)
@@ -42,6 +53,8 @@ public class VM_NPCAttribute : VM
     public bool DisplayForceIfOption { get; set; } = true;
     public bool? DisplayForceIfWeight { get; set; }
     public ObservableCollection<VM_NPCAttribute> ParentCollection { get; set; }
+    public VM_NPCAttributeShell MostRecentlyEditedShell { get; set; }
+    public IObservable<Unit> NeedsRefresh { get; set; }
 
     public class VM_NPCAttributeCreator
     {
@@ -913,16 +926,16 @@ public class VM_NPCAttributeNPC : VM, ISubAttributeViewModel
 
 public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
 {
-    public VM_NPCAttributeGroup(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> sourceAttributeGroups)
+    public VM_NPCAttributeGroup(VM_NPCAttribute parentAttributeVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> sourceAttributeGroups)
     {
-        this.ParentVM = parentVM;
+        this.ParentVM = parentAttributeVM;
         this.ParentShell = parentShell;
-        DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
+        DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentAttributeVM.GroupedSubAttributes.Remove(parentShell));
 
         SubscribedAttributeGroups = sourceAttributeGroups;
         foreach (var attributeGroupVM in sourceAttributeGroups)
         {
-            SelectableAttributeGroups.Add(new AttributeGroupSelection(attributeGroupVM));
+            SelectableAttributeGroups.Add(new AttributeGroupSelection(attributeGroupVM, this));
         }
 
         SubscribedAttributeGroups.ToObservableChangeSet()
@@ -930,10 +943,17 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
             .Subscribe(x =>
             {
                 RefreshCheckList();
+                NeedsRefresh = SelectableAttributeGroups.Select(x => x.WhenAnyValue(x => x.IsSelected)).Merge().Unit();
             }
             );
 
-        NeedsRefresh = SelectableAttributeGroups.Select(x => x.WhenAnyValue(x => x.IsSelected)).Merge().Unit();
+        this.WhenAnyValue(x => x.MostRecentlyEditedSelection).Subscribe(_ => ParentVM.MostRecentlyEditedShell = ParentShell);
+
+        // for debugging
+        this.WhenAnyObservable(x => x.NeedsRefresh).Subscribe(_ =>
+        {
+            int i = 0;
+        });
     }
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
@@ -941,6 +961,8 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
     public IObservable<Unit> NeedsRefresh { get; set; }
     public ObservableCollection<VM_AttributeGroup> SubscribedAttributeGroups { get; set; }
     public ObservableCollection<AttributeGroupSelection> SelectableAttributeGroups { get; set; } = new();
+    public AttributeGroupSelection MostRecentlyEditedSelection { get; set; }
+
     void RefreshCheckList()
     {
         var currentSelections = SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label).ToList();
@@ -948,7 +970,7 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
         SelectableAttributeGroups.Clear();
         foreach (var attributeGroupVM in SubscribedAttributeGroups)
         {
-            var newSelection = new AttributeGroupSelection(attributeGroupVM);
+            var newSelection = new AttributeGroupSelection(attributeGroupVM, this);
             if (currentSelections.Contains(attributeGroupVM.Label))
             {
                 newSelection.IsSelected = true;
@@ -958,13 +980,17 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
     }
     public class AttributeGroupSelection : VM
     {
-        public AttributeGroupSelection(VM_AttributeGroup attributeGroupVM)
+        public AttributeGroupSelection(VM_AttributeGroup attributeGroupVM, VM_NPCAttributeGroup parent)
         {
             SubscribedAttributeGroup = attributeGroupVM;
+            Parent = parent;
+
+            this.WhenAnyValue(x => x.IsSelected).Subscribe(_ => Parent.MostRecentlyEditedSelection = this);
         }
 
         public bool IsSelected { get; set; } = false;
         public VM_AttributeGroup SubscribedAttributeGroup { get; set; }
+        public VM_NPCAttributeGroup Parent { get; set; }
     }
 
     public static VM_NPCAttributeGroup GetViewModelFromModel(NPCAttributeGroup model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> attributeGroups)
