@@ -42,15 +42,13 @@ public class VM_AttributeGroup : VM
 
     private void SubscribeToCircularReferenceCheck()
     {
-        Attributes.ToObservableChangeSet().TransformMany(x => x.GroupedSubAttributes).Transform(
-        x =>
-        {
-            var unSubDisposable = x.WhenAnyObservable(x => x.Attribute.ParentVM.NeedsRefresh)
-            .Subscribe(_ => CheckGroupForCircularReferences());
-            return unSubDisposable;
-        })
-        .DisposeMany()
-        .Subscribe();
+        Attributes
+            .ToObservableChangeSet()
+            .Transform(x =>
+                x.WhenAnyObservable(y => y.NeedsRefresh)
+                .Subscribe(_ => CheckGroupForCircularReferences()))
+            .DisposeMany() // Dispose subscriptions related to removed attributes
+            .Subscribe();  // Execute my instructions
     }
 
     public void CopyInViewModelFromModel(AttributeGroup model, VM_AttributeGroupMenu parentMenu)
