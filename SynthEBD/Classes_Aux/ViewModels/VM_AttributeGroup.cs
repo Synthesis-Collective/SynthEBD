@@ -29,17 +29,8 @@ public class VM_AttributeGroup : VM
             canExecute: _ => true,
             execute: _ => Attributes.Add(_attributeCreator.CreateNewFromUI(Attributes, false, true, parent.Groups))
         );
-        
-        Attributes.ToObservableChangeSet().TransformMany(x => x.GroupedSubAttributes).Transform(
-                x =>
-                {
-                    var unSubDisposable = x.WhenAnyObservable(x => x.Attribute.ParentVM.NeedsRefresh).Subscribe(_ => CheckGroupForCircularReferences());
-                    return unSubDisposable;
-                }).DisposeMany().Subscribe();
 
-        //Why don't these work?
-        Attributes.ToObservableChangeSet().Transform(x => x.WhenAnyObservable(y => y.NeedsRefresh).Subscribe(_ => Test()));
-        Attributes.ToObservableChangeSet().Transform(x => x.WhenAnyObservable(y => y.NeedsRefresh)).Subscribe(_ => Test());
+        SubscribeToCircularReferenceCheck();
     }
 
     public string Label { get; set; } = "";
@@ -49,15 +40,24 @@ public class VM_AttributeGroup : VM
     public RelayCommand Remove { get; }
     public RelayCommand AddAttribute { get; }
 
-    public void Test()
+    private void SubscribeToCircularReferenceCheck()
     {
-        int debug = 0;
+        Attributes.ToObservableChangeSet().TransformMany(x => x.GroupedSubAttributes).Transform(
+        x =>
+        {
+            var unSubDisposable = x.WhenAnyObservable(x => x.Attribute.ParentVM.NeedsRefresh)
+            .Subscribe(_ => CheckGroupForCircularReferences());
+            return unSubDisposable;
+        })
+        .DisposeMany()
+        .Subscribe();
     }
 
     public void CopyInViewModelFromModel(AttributeGroup model, VM_AttributeGroupMenu parentMenu)
     {
-        this.Label = model.Label;
-        this.Attributes = _attributeCreator.GetViewModelsFromModels(model.Attributes, parentMenu.Groups, false, true);
+        Label = model.Label;
+        Attributes = _attributeCreator.GetViewModelsFromModels(model.Attributes, parentMenu.Groups, false, true);
+        SubscribeToCircularReferenceCheck(); // need to call again because this ObservableCollection is a different object than the one subscribed to in the constructor.
     }
 
     public static AttributeGroup DumpViewModelToModel(VM_AttributeGroup viewModel)
@@ -120,7 +120,7 @@ public class VM_AttributeGroup : VM
                                 return true;
                             }
                         }
-                        referencedGroups.RemoveAt(-1); // remove current label from "check against" list before moving on to next one
+                        referencedGroups.RemoveAt(referencedGroups.Count - 1); // remove current label from "check against" list before moving on to next one
                     }
                 }
             }

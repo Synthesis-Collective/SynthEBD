@@ -38,12 +38,6 @@ public class VM_NPCAttribute : VM
         GroupedSubAttributes.ToObservableChangeSet().Subscribe(x => {
             NeedsRefresh = GroupedSubAttributes.Select(x => x.WhenAnyObservable(y => y.Attribute.NeedsRefresh)).Merge().Unit();
         });
-
-        // for debugging
-        this.WhenAnyObservable(x => x.NeedsRefresh).Subscribe(x => 
-            {
-            int i = 0;
-        });
     }
 
     public ObservableCollection<VM_NPCAttributeShell> GroupedSubAttributes { get; set; } = new(); // everything within this collection is evaluated as AND (all must be true)
@@ -948,12 +942,6 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
             );
 
         this.WhenAnyValue(x => x.MostRecentlyEditedSelection).Subscribe(_ => ParentVM.MostRecentlyEditedShell = ParentShell);
-
-        // for debugging
-        this.WhenAnyObservable(x => x.NeedsRefresh).Subscribe(_ =>
-        {
-            int i = 0;
-        });
     }
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
