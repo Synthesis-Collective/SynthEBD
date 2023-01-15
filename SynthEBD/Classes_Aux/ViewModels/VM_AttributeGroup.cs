@@ -29,7 +29,7 @@ public class VM_AttributeGroup : VM
             canExecute: _ => true,
             execute: _ => Attributes.Add(_attributeCreator.CreateNewFromUI(Attributes, false, true, parent.Groups))
         );
-
+        
         Attributes.ToObservableChangeSet().TransformMany(x => x.GroupedSubAttributes).Transform(
                 x =>
                 {
@@ -45,13 +45,10 @@ public class VM_AttributeGroup : VM
     public RelayCommand Remove { get; }
     public RelayCommand AddAttribute { get; }
 
-    public ObservableCollection<VM_NPCAttribute> Attributes_Bak { get; set; }
-
     public void CopyInViewModelFromModel(AttributeGroup model, VM_AttributeGroupMenu parentMenu)
     {
         this.Label = model.Label;
         this.Attributes = _attributeCreator.GetViewModelsFromModels(model.Attributes, parentMenu.Groups, false, true);
-        this.Attributes_Bak = new ObservableCollection<VM_NPCAttribute>(this.Attributes);
     }
 
     public static AttributeGroup DumpViewModelToModel(VM_AttributeGroup viewModel)
@@ -83,10 +80,6 @@ public class VM_AttributeGroup : VM
                 {
                     groupAttribute.MostRecentlyEditedSelection.IsSelected = false;
                 }
-            }
-            else
-            {
-                Attributes_Bak = new ObservableCollection<VM_NPCAttribute>(Attributes);
             }
         }
     }
