@@ -27,7 +27,7 @@ public class VM_AttributeGroup : VM
 
         AddAttribute = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => Attributes.Add(_attributeCreator.CreateNewFromUI(Attributes, false, true, parent.Groups)
+            execute: _ => Attributes.Add(_attributeCreator.CreateNewFromUI(Attributes, false, true, parent.Groups))
         );
 
         Attributes.ToObservableChangeSet().TransformMany(x => x.GroupedSubAttributes).Transform(
