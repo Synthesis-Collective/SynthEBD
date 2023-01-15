@@ -36,6 +36,10 @@ public class VM_AttributeGroup : VM
                     var unSubDisposable = x.WhenAnyObservable(x => x.Attribute.ParentVM.NeedsRefresh).Subscribe(_ => CheckGroupForCircularReferences());
                     return unSubDisposable;
                 }).DisposeMany().Subscribe();
+
+        //Why don't these work?
+        Attributes.ToObservableChangeSet().Transform(x => x.WhenAnyObservable(y => y.NeedsRefresh).Subscribe(_ => Test()));
+        Attributes.ToObservableChangeSet().Transform(x => x.WhenAnyObservable(y => y.NeedsRefresh)).Subscribe(_ => Test());
     }
 
     public string Label { get; set; } = "";
@@ -44,6 +48,11 @@ public class VM_AttributeGroup : VM
 
     public RelayCommand Remove { get; }
     public RelayCommand AddAttribute { get; }
+
+    public void Test()
+    {
+        int debug = 0;
+    }
 
     public void CopyInViewModelFromModel(AttributeGroup model, VM_AttributeGroupMenu parentMenu)
     {
@@ -91,27 +100,27 @@ public class VM_AttributeGroup : VM
             if (subAttributeShell.Type == NPCAttributeType.Group && subAttributeShell.Attribute as VM_NPCAttributeGroup != null)
             {
                 var groupAttribute = (VM_NPCAttributeGroup)subAttributeShell.Attribute;
-
+                
                 foreach (var label in groupAttribute.SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label))
                 {
-                    var subGroup = allGroups.Where(x => x.Label == label).FirstOrDefault();
-                    if (subGroup != null)
+                    var selectedSubGroup = allGroups.Where(x => x.Label == label).FirstOrDefault();
+                    if (selectedSubGroup != null)
                     {
-                        if (referencedGroups.Contains(subGroup.Label))
+                        if (referencedGroups.Contains(selectedSubGroup.Label))
                         {
-                            referencedGroups.Add(subGroup.Label);
+                            referencedGroups.Add(selectedSubGroup.Label);
                             return true;
                         }
 
-                        referencedGroups.Add(subGroup.Label);
-                        foreach (var subAttribute in subGroup.Attributes)
+                        referencedGroups.Add(selectedSubGroup.Label);
+                        foreach (var subAttribute in selectedSubGroup.Attributes)
                         {
                             if(CheckMemberForCircularReference(subAttribute, referencedGroups, allGroups))
                             {
                                 return true;
                             }
                         }
-                        referencedGroups.RemoveAt(-1);
+                        referencedGroups.RemoveAt(-1); // remove current label from "check against" list before moving on to next one
                     }
                 }
             }
