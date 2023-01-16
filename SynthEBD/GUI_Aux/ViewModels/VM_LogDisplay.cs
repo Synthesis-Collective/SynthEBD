@@ -1,7 +1,11 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Reactive.Linq;
 using DynamicData;
+using DynamicData.Binding;
 using Mutagen.Bethesda.Environments;
 using Noggog;
+using ReactiveUI;
 
 namespace SynthEBD;
 
@@ -11,7 +15,6 @@ public class VM_LogDisplay : VM
     private readonly Logger _logger;
     private readonly DisplayedItemVm _displayedItemVm;
     public string DispString { get; set; } = "";
-
     public RelayCommand Clear { get; set; }
     public RelayCommand Copy { get; set; }
     public RelayCommand Save { get; set; }
@@ -25,7 +28,8 @@ public class VM_LogDisplay : VM
         _environmentProvider = environmentProvider;
         _logger = logger;
         _displayedItemVm = displayedItemVm;
-        _logger.PropertyChanged += RefreshDisp;
+
+        _logger.LoggedEvents.ToObservableChangeSet().Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler).Subscribe(x => DispString = String.Join(Environment.NewLine, _logger.LoggedEvents));
         
         // Switch to log display if any errors
         _logger.LoggedError.Subscribe(_ =>
@@ -85,20 +89,8 @@ public class VM_LogDisplay : VM
         );
     }
 
-    public void RefreshDisp(object sender, PropertyChangedEventArgs e)
-    {
-        this.DispString = _logger.LogString;
-    }
-
     public void PrintState()
     {
-        /*
-        _logger.LogString += "Data Folder: " + _environmentProvider.DataFolderPath + Environment.NewLine;
-        _logger.LogString += "Load Order Source: " + _environmentProvider.LoadOrderFilePath + Environment.NewLine;
-        _logger.LogString += "Creation Club Listings: " + _environmentProvider.CreationClubListingsFilePath + Environment.NewLine;
-        _logger.LogString += "Game Release: " + _environmentProvider.SkyrimVersion.ToString() + Environment.NewLine;
-        _logger.LogString += "Load Order: " + Environment.NewLine;
-        */
         _logger.LogMessage("Data Folder: " + _environmentProvider.DataFolderPath);
         _logger.LogMessage("Load Order Source: " + _environmentProvider.LoadOrderFilePath);
         _logger.LogMessage("Creation Club Listings: " + _environmentProvider.CreationClubListingsFilePath);
@@ -118,10 +110,8 @@ public class VM_LogDisplay : VM
                 dispStr += "-) ";
             }
             dispStr += mod.ModKey.FileName;
-            //_logger.LogString += dispStr + Environment.NewLine;
             _logger.LogMessage(dispStr);
         }
-        DispString = _logger.LogString;
     }
 
     public void SwitchViewToLogDisplay()

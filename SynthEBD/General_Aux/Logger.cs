@@ -8,6 +8,7 @@ using Mutagen.Bethesda.Plugins;
 using Noggog;
 using System.Reflection;
 using System.IO;
+using System.Collections.ObjectModel;
 
 namespace SynthEBD;
 
@@ -24,7 +25,7 @@ public sealed class Logger : VM
     private readonly PatcherIO _patcherIO;
     public string StatusString { get; set; }
     public string BackupStatusString { get; set; }
-    private List<string> LoggedEvents { get; set; } = new();
+    public ObservableCollection<string> LoggedEvents { get; set; } = new();
     public string LogString => string.Join(Environment.NewLine, LoggedEvents);
     private string _logFolderPath { get; set; } = "";
     public SolidColorBrush StatusColor { get; set; }
