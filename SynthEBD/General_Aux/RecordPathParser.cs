@@ -992,7 +992,7 @@ public class RecordPathParser
         }
     }
 
-    public bool SetSubObject(dynamic root, string propertyName, dynamic value)
+    public bool SetPropertyValue(dynamic root, string propertyName, dynamic value)
     {
         //DEBUGGING SHORT CIRCUIT
         Type type = root.GetType();
