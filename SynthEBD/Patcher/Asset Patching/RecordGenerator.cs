@@ -54,7 +54,7 @@ public class RecordGenerator
     }
 
     // assignedPaths is for logging purposes only
-    public void AssignGenericAssetPaths(NPCInfo npcInfo, List<FilePathReplacementParsed> nonHardcodedPaths, Npc rootNPC, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, ISkyrimMod outputMod, int longestPath, bool assignFromTemplate, bool suppressMissingPathErrors, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, List<FilePathReplacementParsed> assignedPaths, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts)
+    public void AssignGenericAssetPaths(NPCInfo npcInfo, List<FilePathReplacementParsed> nonHardcodedPaths, Npc rootNPC, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, ISkyrimMod outputMod, int longestPath, bool canAssignFromTemplate, bool suppressMissingPathErrors, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, List<FilePathReplacementParsed> assignedPaths, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts)
     {
         HashSet<TemplateSignatureRecordPair> templateSubRecords = new HashSet<TemplateSignatureRecordPair>();
 
@@ -154,7 +154,7 @@ public class RecordGenerator
                 }
                 #endregion
                 #region Get object at current subpath from template NPC
-                else if (assignFromTemplate)
+                else if (canAssignFromTemplate)
                 {
                     var templateSignature = group.Select(x => x.TemplateNPC).Where(x => x is not null).ToHashSet();
                     if (TryGetGeneratedObject(pathSignature, group.Key, templateSignature, out currentObj, out int? indexIfInArray))
