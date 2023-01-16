@@ -186,6 +186,7 @@ public class VM_SettingsTexMesh : VM
     public bool bGenerateAssignmentLog { get; set; } = true;
     public bool bEasyNPCCompatibilityMode { get; set; } = true;
     public bool bApplyFixedScripts { get; set; } = true;
+    public bool bCacheRecords { get; set; } = true;
 
     private static string oldSKSEversion = "< 1.5.97";
     private static string newSKSEversion = "1.5.97 or higher";
@@ -257,6 +258,8 @@ public class VM_SettingsTexMesh : VM
         {
             viewModel.SKSEversionSSE = newSKSEversion;
         }
+
+        viewModel.bCacheRecords = model.bCacheRecords;
     }
 
     public static void DumpViewModelToModel(VM_SettingsTexMesh viewModel, Settings_TexMesh model)
@@ -280,6 +283,7 @@ public class VM_SettingsTexMesh : VM
         model.bEasyNPCCompatibilityMode = viewModel.bEasyNPCCompatibilityMode;
         model.bApplyFixedScripts = viewModel.bApplyFixedScripts;
         model.bFixedScriptsOldSKSEversion = viewModel.SKSEversionSSE == oldSKSEversion;
+        model.bCacheRecords = viewModel.bCacheRecords;
     }
 
     public void RefreshInstalledConfigs(List<string> installedConfigs)

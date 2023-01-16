@@ -157,7 +157,7 @@ public class RecordGenerator
                 else if (canAssignFromTemplate)
                 {
                     var templateSignature = group.Select(x => x.TemplateNPC).Where(x => x is not null).ToHashSet();
-                    if (TryGetCachedObject(pathSignature, group.Key, templateSignature, out currentObj, out int? indexIfInArray))
+                    if (_patcherState.TexMeshSettings.bCacheRecords && TryGetCachedObject(pathSignature, group.Key, templateSignature, out currentObj, out int? indexIfInArray))
                     {
                         if (RecordPathParser.ObjectHasFormKey(currentObj, out FormKey? _))
                         {
