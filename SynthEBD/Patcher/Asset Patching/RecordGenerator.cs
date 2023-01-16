@@ -101,7 +101,7 @@ public class RecordGenerator
                 {
                     foreach (var assetAssignment in group)
                     {
-                        _recordPathParser.SetPropertyValue(rootObj, currentSubPath, assetAssignment.Source);
+                        _recordPathParser.SetPropertyValue(rootObj, currentSubPath, assetAssignment.Source); // assetAssignment.Source is always going to be a string, so no need to worry about rootObj being an array and calling this.SetSubObject
                         currentObj = assetAssignment.Source;
                         assignedPaths.Add(assetAssignment);
                     }
@@ -150,7 +150,7 @@ public class RecordGenerator
                     else if (!currentObjInfo.IsNullFormLink) // if the current object is not a record, copy it directly
                     {
                         currentObj = CopyGenericObject(currentObj); // Make a copy to avoid inadvertently editing other NPCs that share the given object
-                        _recordPathParser.SetPropertyValue(rootObj, currentSubPath, currentObj);
+                        SetSubObject(rootObj, currentSubPath, currentObj, rootNPC, _environmentProvider.LinkCache);
                     }
                 }
                 #endregion
@@ -167,7 +167,7 @@ public class RecordGenerator
                         }
                         else
                         {
-                            _recordPathParser.SetPropertyValue(rootObj, currentSubPath, currentObj);
+                            SetSubObject(rootObj, currentSubPath, currentObj, rootNPC, recordTemplateLinkCache);
                         }
 
                         assignedPaths.AddRange(group);
@@ -185,7 +185,7 @@ public class RecordGenerator
                         else if (!currentObjInfo.IsNullFormLink)
                         {
                             currentObj = CopyGenericObject(currentObj); // Make a copy to avoid inadvertently editing other NPCs that share the given object
-                            _recordPathParser.SetPropertyValue(rootObj, currentSubPath, currentObj);
+                            SetSubObject(rootObj, currentSubPath, currentObj, rootNPC, recordTemplateLinkCache);
                         }
 
                         AddGeneratedObjectToDictionary(pathSignature, group.Key, templateSignature, currentObj, currentObjInfo.IndexInParentArray);
@@ -324,6 +324,26 @@ public class RecordGenerator
         }
     }
 
+    public void SetSubObject(dynamic rootObj, string currentSubPath, dynamic value, IMajorRecordGetter rootRecord, ILinkCache linkCache)
+    {
+        if (RecordPathParser.PathIsArray(currentSubPath))
+        {
+            if (_recordPathParser.GetObjectAtPath(rootObj, rootRecord, currentSubPath, new Dictionary<string, dynamic>(), linkCache, true, "", out dynamic _, out ObjectInfo arrayObjInfo))
+            {
+                SetObjectInArray(rootObj, arrayObjInfo.IndexInParentArray.Value, value);
+            }
+        }
+        else
+        {
+            _recordPathParser.SetPropertyValue(rootObj, currentSubPath, value);
+        }
+    }
+
+    public void SetObjectInArray(dynamic root, int index, dynamic value)
+    {
+        root[index] = value;
+    }
+
     public void SetViaFormKeyReplacement(IMajorRecord record, dynamic rootObj, string currentSubPath, IMajorRecordGetter rootRecord)
     {
         if (RecordPathParser.PathIsArray(currentSubPath))
@@ -341,6 +361,11 @@ public class RecordGenerator
         {
             formLinkToSet.SetTo(record.FormKey);
         }
+    }
+
+    public static void SetRecordInArray(dynamic root, int index, IMajorRecord value)
+    {
+        root[index].SetTo(value.FormKey);
     }
 
     public static void AddToFormLinkList<TMajor>(IList<IFormLinkGetter<TMajor>> list, IMajorRecord record)
@@ -401,11 +426,6 @@ public class RecordGenerator
     public static dynamic GetPatchRecordGroup(Type loquiType, ISkyrimMod outputMod) // must return dynamic so that the type IGroup<T> is determined at runtime. Returning IGroup causes IGroupMixIns.DuplicateInAsNewRecord() to complain.
     {
         return outputMod.GetTopLevelGroup(loquiType);
-    }
-
-    public static void SetRecordInArray(dynamic root, int index, IMajorRecord value)
-    {
-        root[index].SetTo(value.FormKey);
     }
 
     public static void CacheResolvedObject(string path, dynamic toCache, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, INpcGetter npcGetter)
