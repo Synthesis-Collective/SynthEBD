@@ -29,7 +29,7 @@ public class VM_LogDisplay : VM
         _logger = logger;
         _displayedItemVm = displayedItemVm;
 
-        _logger.LoggedEvents.ToObservableChangeSet().Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler).Subscribe(x => DispString = String.Join(Environment.NewLine, _logger.LoggedEvents));
+        _logger.LoggedEvents.ToObservableChangeSet().Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler).Subscribe(x => DispString = String.Join(Environment.NewLine, _logger.LoggedEvents.ToList()));
         
         // Switch to log display if any errors
         _logger.LoggedError.Subscribe(_ =>
