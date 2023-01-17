@@ -465,26 +465,30 @@ public class Patcher
                         break;
                 }
 
-                assignedPrimaryComboAndBodyShape = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, primaryAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, null);
-                if (assetsAssigned)
+                assetsAssigned = false;
+                if (_assetsStatsTracker.HasGenderedConfigs[currentNPCInfo.Gender])
                 {
-                    assignedCombinations.Add(assignedPrimaryComboAndBodyShape.AssignedCombination);
-                    _assetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedCombination, currentNPCInfo);
-                }
-                if (bodyShapeAssigned)
-                {
-                    switch (_patcherState.GeneralSettings.BodySelectionMode)
+                    assignedPrimaryComboAndBodyShape = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, primaryAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, null);
+                    if (assetsAssigned)
                     {
-                        case BodyShapeSelectionMode.BodyGen:
-                            BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedPrimaryComboAndBodyShape.AssignedBodyGenMorphs.Select(x => x.Label).ToList());
-                            _bodyGenSelector.RecordBodyGenConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedBodyGenMorphs, currentNPCInfo);
-                            break;
+                        assignedCombinations.Add(assignedPrimaryComboAndBodyShape.AssignedCombination);
+                        _assetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedCombination, currentNPCInfo);
+                    }
+                    if (bodyShapeAssigned)
+                    {
+                        switch (_patcherState.GeneralSettings.BodySelectionMode)
+                        {
+                            case BodyShapeSelectionMode.BodyGen:
+                                BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedPrimaryComboAndBodyShape.AssignedBodyGenMorphs.Select(x => x.Label).ToList());
+                                _bodyGenSelector.RecordBodyGenConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedBodyGenMorphs, currentNPCInfo);
+                                break;
 
-                        case BodyShapeSelectionMode.BodySlide:
-                            BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedPrimaryComboAndBodyShape.AssignedOBodyPreset.Label);
-                            _oBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedOBodyPreset, currentNPCInfo);
-                            assignedBodySlide = assignedPrimaryComboAndBodyShape.AssignedOBodyPreset;
-                            break;
+                            case BodyShapeSelectionMode.BodySlide:
+                                BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedPrimaryComboAndBodyShape.AssignedOBodyPreset.Label);
+                                _oBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedOBodyPreset, currentNPCInfo);
+                                assignedBodySlide = assignedPrimaryComboAndBodyShape.AssignedOBodyPreset;
+                                break;
+                        }
                     }
                 }
                 _assetsStatsTracker.LogNPCAssets(currentNPCInfo, assetsAssigned);
@@ -715,8 +719,7 @@ public class Patcher
             public int Assigned { get; set; } = 0;
         }
 
-        public bool HasMaleConfigs { get; set; }
-        public bool HasFemaleConfigs { get; set; }
+        public Dictionary<Gender, bool> HasGenderedConfigs { get; set; } = new();
 
         public Dictionary<Gender, Dictionary<IFormLinkGetter<IRaceGetter>, AssignablePairing>> AssignmentsByGenderAndRace { get; set; } = new();
         private readonly Logger _logger;
@@ -724,8 +727,11 @@ public class Patcher
 
         public AssetStatsTracker(PatcherState patcherState, Logger logger, ILinkCache linkCache)
         {
-            if (patcherState.AssetPacks.Where(x => x.Gender == Gender.Male && patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)).Any()) { HasMaleConfigs = true; }
-            if (patcherState.AssetPacks.Where(x => x.Gender == Gender.Female && patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)).Any()) { HasFemaleConfigs = true; }
+            HasGenderedConfigs.Add(Gender.Male, false);
+            HasGenderedConfigs.Add(Gender.Female, false);
+
+            if (patcherState.AssetPacks.Where(x => x.Gender == Gender.Male && patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)).Any()) { HasGenderedConfigs[Gender.Male] = true; }
+            if (patcherState.AssetPacks.Where(x => x.Gender == Gender.Female && patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)).Any()) { HasGenderedConfigs[Gender.Female] = true; }
             _logger = logger;
             _linkCache = linkCache;
         }
@@ -752,7 +758,7 @@ public class Patcher
 
         public void WriteReport()
         {
-            if (!HasMaleConfigs && !HasFemaleConfigs)
+            if (!HasGenderedConfigs[Gender.Male] && !HasGenderedConfigs[Gender.Female])
             {
                 _logger.LogMessage("No primary asset config files were installed.");
                 return;
@@ -762,7 +768,7 @@ public class Patcher
                 _logger.LogMessage("Primary asset pack assignment counts:");
             }
 
-            if (!HasMaleConfigs)
+            if (!HasGenderedConfigs[Gender.Male])
             {
                 _logger.LogMessage("No primary asset config files for male NPCs were installed");
             }
@@ -777,7 +783,7 @@ public class Patcher
                 }
             }
 
-            if (!HasFemaleConfigs)
+            if (!HasGenderedConfigs[Gender.Female])
             {
                 _logger.LogMessage("No primary asset config files for female NPCs were installed");
             }
