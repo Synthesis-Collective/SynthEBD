@@ -1,4 +1,7 @@
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
+using Mutagen.Bethesda.Skyrim;
+using Noggog;
 
 namespace SynthEBD;
 
@@ -7,12 +10,14 @@ public class AssetPackValidator
     private readonly BSAHandler _bsaHandler;
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
+    private readonly RecordPathParser _recordPathParser;
 
-    public AssetPackValidator(BSAHandler bsaHandler, IEnvironmentStateProvider environmentProvider, PatcherState patcherState)
+    public AssetPackValidator(BSAHandler bsaHandler, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, RecordPathParser recordPathParser)
     {
         _bsaHandler = bsaHandler;
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
+        _recordPathParser = recordPathParser;
     }
     
     public bool Validate(AssetPack assetPack, List<string> errors, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings)
@@ -57,7 +62,7 @@ public class AssetPackValidator
             }
         }
 
-        if (!ValidateSubgroups(assetPack.Subgroups, errors, assetPack, referencedBodyGenConfig, oBodySettings))
+        if (!ValidateSubgroups(assetPack.Subgroups, errors, assetPack, referencedBodyGenConfig, oBodySettings, false))
         {
             isValidated = false;
         }
@@ -77,12 +82,12 @@ public class AssetPackValidator
         return isValidated;
     }
 
-    private bool ValidateSubgroups(List<AssetPack.Subgroup> subgroups, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings)
+    private bool ValidateSubgroups(List<AssetPack.Subgroup> subgroups, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, bool isReplacer)
     {
         bool isValid = true;
         for (int i = 0; i < subgroups.Count; i++)
         {
-            if (!ValidateSubgroup(subgroups[i], errors, parent, bodyGenConfig, oBodySettings, i))
+            if (!ValidateSubgroup(subgroups[i], errors, parent, bodyGenConfig, oBodySettings, i, isReplacer))
             {
                 isValid = false;
             }
@@ -90,7 +95,7 @@ public class AssetPackValidator
         return isValid;
     }
 
-    private bool ValidateSubgroup(AssetPack.Subgroup subgroup, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, int topLevelIndex)
+    private bool ValidateSubgroup(AssetPack.Subgroup subgroup, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, int topLevelIndex, bool isReplacer)
     {
         if (!subgroup.Enabled) { return true; }
 
@@ -213,6 +218,40 @@ public class AssetPackValidator
                 subErrors.Add(pathError);
                 isValid = false;
             }
+
+            if (!isReplacer)
+            {
+                var parentAssetPack = parent as AssetPack;
+                if (parentAssetPack != null)
+                {
+                    // try to find a record template which has the given object
+                    var references = parentAssetPack.AdditionalRecordTemplateAssignments.Select(x => x.TemplateNPC).And(parentAssetPack.DefaultRecordTemplate).ToHashSet();
+                    bool foundReferenceNPC = false;
+                    bool destinationIsString = false;
+                    foreach (var referenceNPCformKey in references)
+                    {
+                        if (_patcherState.RecordTemplateLinkCache.TryResolve<INpcGetter>(referenceNPCformKey, out var referenceNPCgetter) && _recordPathParser.GetObjectAtPath(referenceNPCgetter, referenceNPCgetter, path.Destination, new Dictionary<string, dynamic>(), _patcherState.RecordTemplateLinkCache, true, "", out dynamic objectAtPath))
+                        {
+                            foundReferenceNPC = true;
+                            if (objectAtPath.GetType() == typeof(string))
+                            {
+                                destinationIsString = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!foundReferenceNPC)
+                    {
+                        subErrors.Add("Could not find a record template to supply objects along path: " + path.Destination);
+                        isValid = false;
+                    }
+                    else if (!destinationIsString)
+                    {
+                        subErrors.Add("Asset destination path " + path.Destination + " does not point to a string.");
+                        isValid = false;
+                    }
+                }
+            }
         }
 
         if (!isValid)
@@ -223,7 +262,7 @@ public class AssetPackValidator
 
         foreach (var subSubgroup in subgroup.Subgroups)
         {
-            if (!ValidateSubgroup(subSubgroup, errors, parent, bodyGenConfig, oBodySettings, topLevelIndex))
+            if (!ValidateSubgroup(subSubgroup, errors, parent, bodyGenConfig, oBodySettings, topLevelIndex, isReplacer))
             {
                 isValid = false;
             }
@@ -252,7 +291,7 @@ public class AssetPackValidator
             isValid = false;
         }
 
-        ValidateSubgroups(group.Subgroups, errors, group, bodyGenConfig, oBodySettings);
+        ValidateSubgroups(group.Subgroups, errors, group, bodyGenConfig, oBodySettings, true);
         return isValid;
     }
 
