@@ -41,6 +41,8 @@ public class Patcher
     private readonly PatcherIO _patcherIO;
     private readonly NPCInfo.Factory _npcInfoFactory;
 
+    private AssetStatsTracker _assetsStatsTracker { get; set; }
+
     public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory)
     {
         _environmentProvider = environmentProvider;
@@ -104,6 +106,7 @@ public class Patcher
         _statusBar.IsPatching = true;
 
         // Asset Pre-patching tasks:
+        _assetsStatsTracker = new(_patcherState, _logger, _environmentProvider.LinkCache);
         var assetPacks = _patcherState.AssetPacks.Where(x => _patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)).ToList();
         CategorizedFlattenedAssetPacks availableAssetPacks = null;
         Keyword EBDFaceKW = null;
@@ -323,6 +326,8 @@ public class Patcher
             PatcherIO.WritePatch(patchOutputPath, outputMod, _logger, _environmentProvider);
         }
         _statusBar.IsPatching = false;
+
+        _assetsStatsTracker.WriteReport();
     }
 
     public static Dictionary<string, Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>> UniqueAssignmentsByName = new Dictionary<string, Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>>();
@@ -482,6 +487,7 @@ public class Patcher
                             break;
                     }
                 }
+                _assetsStatsTracker.LogNPCAssets(currentNPCInfo, assetsAssigned);
             }
             #endregion
 
@@ -699,6 +705,124 @@ public class Patcher
         public Dictionary<FormKey, List<string>> NPCAssignments = new();
         public Dictionary<string, HashSet<string>> AllChosenMorphsMale = new();
         public Dictionary<string, HashSet<string>> AllChosenMorphsFemale = new();
+    }
+
+    public class AssetStatsTracker
+    {
+        public class AssignablePairing
+        {
+            public int Assignable { get; set; } = 0;
+            public int Assigned { get; set; } = 0;
+        }
+
+        public bool HasMaleConfigs { get; set; }
+        public bool HasFemaleConfigs { get; set; }
+
+        public Dictionary<Gender, Dictionary<IFormLinkGetter<IRaceGetter>, AssignablePairing>> AssignmentsByGenderAndRace { get; set; } = new();
+        private readonly Logger _logger;
+        private readonly ILinkCache _linkCache;
+
+        public AssetStatsTracker(PatcherState patcherState, Logger logger, ILinkCache linkCache)
+        {
+            if (patcherState.AssetPacks.Where(x => x.Gender == Gender.Male && patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)).Any()) { HasMaleConfigs = true; }
+            if (patcherState.AssetPacks.Where(x => x.Gender == Gender.Female && patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)).Any()) { HasFemaleConfigs = true; }
+            _logger = logger;
+            _linkCache = linkCache;
+        }
+
+        public void LogNPCAssets(NPCInfo npcInfo, bool primaryAssetsAssigned)
+        {
+            if (!AssignmentsByGenderAndRace.ContainsKey(npcInfo.Gender))
+            {
+                Dictionary<IFormLinkGetter<IRaceGetter>, AssignablePairing> entry = new();
+                AssignmentsByGenderAndRace.Add(npcInfo.Gender, entry);
+            }
+
+            if (!AssignmentsByGenderAndRace[npcInfo.Gender].ContainsKey(npcInfo.NPC.Race))
+            {
+                AssignmentsByGenderAndRace[npcInfo.Gender].Add(npcInfo.NPC.Race, new AssignablePairing());
+            }
+
+            AssignmentsByGenderAndRace[npcInfo.Gender][npcInfo.NPC.Race].Assignable++;
+            if (primaryAssetsAssigned)
+            {
+                AssignmentsByGenderAndRace[npcInfo.Gender][npcInfo.NPC.Race].Assigned++;
+            }
+        }
+
+        public void WriteReport()
+        {
+            if (!HasMaleConfigs && !HasFemaleConfigs)
+            {
+                _logger.LogMessage("No primary asset config files were installed.");
+                return;
+            }
+            else
+            {
+                _logger.LogMessage("Primary asset pack assignment counts:");
+            }
+
+            if (!HasMaleConfigs)
+            {
+                _logger.LogMessage("No primary asset config files for male NPCs were installed");
+            }
+            else
+            {
+                foreach (var entry in AssignmentsByGenderAndRace[Gender.Male].OrderBy(x => GetRaceDisplayString(x.Key)))
+                {
+                    if (entry.Key.TryResolve(_linkCache, out _))
+                    {
+                        _logger.LogMessage(FormatEntry(Gender.Male, entry.Key, entry.Value));
+                    }
+                }
+            }
+
+            if (!HasFemaleConfigs)
+            {
+                _logger.LogMessage("No primary asset config files for female NPCs were installed");
+            }
+            else
+            {
+                foreach (var entry in AssignmentsByGenderAndRace[Gender.Female].OrderBy(x => GetRaceDisplayString(x.Key)))
+                {
+                    if (entry.Key.TryResolve(_linkCache, out _))
+                    {
+                        _logger.LogMessage(FormatEntry(Gender.Female, entry.Key, entry.Value));
+                    }
+                }
+            }
+        }
+
+        private string FormatEntry(Gender gender, IFormLinkGetter<IRaceGetter> raceLink, AssignablePairing assignablePairing)
+        {
+            string raceDispStr = GetRaceDisplayString(raceLink);
+
+            string percentage = "0";
+            if (assignablePairing.Assignable > 0) { percentage = (assignablePairing.Assigned * 100 / assignablePairing.Assignable).ToString("N2"); }
+
+            return raceDispStr + " " + gender.ToString() + ": " + assignablePairing.Assigned + " of " + assignablePairing.Assignable + " (" + percentage + "%)";
+        }
+
+        private string GetRaceDisplayString(IFormLinkGetter<IRaceGetter> raceLink)
+        {
+            string raceDispStr = "";
+            if (raceLink.TryResolve(_linkCache, out var raceGetter))
+            {
+                raceDispStr = raceGetter.FormKey.ToString();
+                if (raceGetter.EditorID != null) { raceDispStr = raceGetter.EditorID.Replace("Race", " ", StringComparison.OrdinalIgnoreCase).Trim(); }
+
+                /* This would be nice but even the base game has two Races with the same name (Breton and Afflicted). Leaving for now, but probably not worth dressing up.
+                if (raceGetter.Name != null) { raceDispStr = raceGetter.Name.String; }
+                else if (raceGetter.EditorID != null) { raceDispStr = raceGetter.EditorID; }
+
+                if (raceGetter.Name != null && raceGetter.EditorID != null && raceGetter.EditorID.Contains("Vampire", StringComparison.OrdinalIgnoreCase) && !raceGetter.Name.String.Contains("Vampire", StringComparison.OrdinalIgnoreCase))
+                {
+                    raceDispStr += " (Vampire)";
+                }
+                */
+            }
+            return raceDispStr;
+        }
     }
 
     public static Dictionary<HeadPart.TypeEnum, HeadPart> GetBlankHeadPartAssignment()
