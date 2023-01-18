@@ -125,7 +125,7 @@
         <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="BodyGen Config File to be distributed along with these assets" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Associated BodyGen Configuration</TextBlock>
         <ComboBox Grid.Row="10" Grid.Column="1" ItemsSource="{Binding AvailableBodyGenConfigs}" DisplayMemberPath="Label" SelectedValue="{Binding TrackedBodyGenConfig}"></ComboBox>
         
-        <StackPanel Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
+        <WrapPanel Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding ValidateButton}" Foreground="MediumPurple" ToolTip="Check this config file for errors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Validate</Button>
             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding SaveButton}" Foreground="MediumPurple" ToolTip="Save changes to this config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Save</Button>
             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding DiscardButton}" Foreground="MediumPurple" ToolTip="Discard changes to this config file and reload last saved version" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Discard Changes</Button>
@@ -135,6 +135,6 @@
             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding ListDisabledSubgroupsButton}" Foreground="MediumPurple" ToolTip="List all subgroups whose distribution is currently disabled" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">List Disabled Subgroups</Button>
             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding ListCustomRulesButton}" Foreground="MediumPurple" ToolTip="List all custom distribution rules for this config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">List Distribution Rules</Button>
             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding RemoveAssetPackConfigFile}" Foreground="FireBrick">Delete</Button>
-        </StackPanel>
+        </WrapPanel>
     </Grid>
 </UserControl>
