@@ -62,9 +62,9 @@ public class NPCAttribute
         return output;
     }
 
-    public string ToLogString(PatcherState patcherState, ILinkCache linkCache)
+    public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
     {
-        return "{" + string.Join(" AND ", SubAttributes.Select(x => x.ToLogString(patcherState, linkCache))) + "}";
+        return "{" + string.Join(" AND ", SubAttributes.Select(x => x.ToLogString(bDetailedAttributes, linkCache))) + "}";
     }
 
     public static ITypedNPCAttribute CloneAsNew(ITypedNPCAttribute inputInterface)
@@ -206,9 +206,9 @@ public class NPCAttributeClass : ITypedNPCAttribute
         return output;
     }
 
-    public string ToLogString(PatcherState patcherState, ILinkCache linkCache)
+    public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
     {
-        if (patcherState.GeneralSettings.VerboseModeDetailedAttributes)
+        if (bDetailedAttributes)
         {
             return "Class: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<IClassGetter>(x, linkCache))) + "]";
         }
@@ -272,7 +272,7 @@ public class NPCAttributeCustom : ITypedNPCAttribute
         return output;
     }
 
-    public string ToLogString(PatcherState _, ILinkCache __)
+    public string ToLogString(bool _, ILinkCache __)
     {
         string logStr =  "\tCustom ";
         switch(CustomType)
@@ -316,9 +316,9 @@ public class NPCAttributeFactions : ITypedNPCAttribute
         return output;
     }
 
-    public string ToLogString(PatcherState patcherState, ILinkCache linkCache)
+    public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
     {
-        if (patcherState.GeneralSettings.VerboseModeDetailedAttributes)
+        if (bDetailedAttributes)
         {
             return "Factions: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<IFactionGetter>(x, linkCache))) + "] Rank: " + RankMin + " - " + RankMax;
         }
@@ -353,9 +353,9 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
         return output;
     }
 
-    public string ToLogString(PatcherState patcherState, ILinkCache linkCache)
+    public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
     {
-        if (patcherState.GeneralSettings.VerboseModeDetailedAttributes)
+        if (bDetailedAttributes)
         {
             return "Face Texture: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<ITextureSetGetter>(x, linkCache))) + "]";
         }
@@ -390,9 +390,9 @@ public class NPCAttributeRace : ITypedNPCAttribute
         return output;
     }
 
-    public string ToLogString(PatcherState patcherState, ILinkCache linkCache)
+    public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
     {
-        if (patcherState.GeneralSettings.VerboseModeDetailedAttributes)
+        if (bDetailedAttributes)
         {
             return "Race: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<IRaceGetter>(x, linkCache))) + "]";
         }
@@ -457,7 +457,7 @@ public class NPCAttributeMisc : ITypedNPCAttribute
         return output;
     }
 
-    public string ToLogString(PatcherState _, ILinkCache __)
+    public string ToLogString(bool _, ILinkCache __)
     {
         string output = "Misc:";
         if (Unique != ThreeWayState.Ignore) { output += " [Unique: " + Unique.ToString() + "]"; }
@@ -498,7 +498,7 @@ public class NPCAttributeMod : ITypedNPCAttribute
         output.Weighting = input.Weighting;
         return output;
     }
-    public string ToLogString(PatcherState _, ILinkCache __)
+    public string ToLogString(bool _, ILinkCache __)
     {
         return "Mod: [" + string.Join(", ", ModKeys.Select(x => x.FileName.ToString())) + "]";
     }
@@ -528,9 +528,9 @@ public class NPCAttributeMod : ITypedNPCAttribute
         return output;
     }
 
-    public string ToLogString(PatcherState patcherState, ILinkCache linkCache)
+    public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
     {
-        if (patcherState.GeneralSettings.VerboseModeDetailedAttributes)
+        if (bDetailedAttributes)
         {
             return "NPC: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<INpcGetter>(x, linkCache))) + "]";
         }
@@ -564,9 +564,9 @@ public class NPCAttributeVoiceType : ITypedNPCAttribute
         return output;
     }
 
-    public string ToLogString(PatcherState patcherState, ILinkCache linkCache)
+    public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
     {
-        if (patcherState.GeneralSettings.VerboseModeDetailedAttributes)
+        if (bDetailedAttributes)
         {
             return "VoiceType: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<IVoiceTypeGetter>(x, linkCache))) + "]";
         }
@@ -616,7 +616,7 @@ public class NPCAttributeGroup : ITypedNPCAttribute
         return output;
     }
 
-    public string ToLogString(PatcherState _, ILinkCache __)
+    public string ToLogString(bool _, ILinkCache __)
     {
         return "Group: [" + string.Join(", ", SelectedLabels) + "]";
     }
@@ -628,7 +628,7 @@ public interface ITypedNPCAttribute
     bool Equals(ITypedNPCAttribute other);
     public AttributeForcing ForceMode { get; set; }
     public int Weighting { get; set; }
-    public string ToLogString(PatcherState patcherState, ILinkCache linkCache);
+    public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache);
 }
 
 public class AttributeGroup

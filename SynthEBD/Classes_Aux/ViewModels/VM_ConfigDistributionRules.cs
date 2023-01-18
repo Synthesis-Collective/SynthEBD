@@ -5,6 +5,7 @@ using Noggog;
 using System.Collections.ObjectModel;
 using ReactiveUI;
 using static SynthEBD.VM_NPCAttribute;
+using DynamicData;
 
 namespace SynthEBD;
 
@@ -136,5 +137,31 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
         model.DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(viewModel.DisallowedBodySlideDescriptors);
 
         return model;
+    }
+
+    public List<string> GetRulesSummary()
+    {
+        List<string> rulesSummary = new();
+        bool shouldReport = false;
+        string tmpReport = "";
+        if (_logger.GetRaceLogString("Allowed", AllowedRaces, out tmpReport)) { rulesSummary.Add(tmpReport); }
+        if (_logger.GetRaceGroupingLogString("Allowed", AllowedRaceGroupings, out tmpReport)) { rulesSummary.Add(tmpReport); }
+        if (_logger.GetRaceLogString("Disallowed", DisallowedRaces, out tmpReport)) { rulesSummary.Add(tmpReport); }
+        if (_logger.GetRaceGroupingLogString("Disallowed", DisallowedRaceGroupings, out tmpReport)) { rulesSummary.Add(tmpReport); }
+        if (_logger.GetAttributeLogString("Allowed", AllowedAttributes, out tmpReport)) { rulesSummary.Add(tmpReport); }
+        if (_logger.GetAttributeLogString("Disallowed", DisallowedAttributes, out tmpReport)) { rulesSummary.Add(tmpReport); }
+        if (!AllowUnique) { rulesSummary.Add("Unique NPCs: Disallowed"); }
+        if (!AllowNonUnique) { rulesSummary.Add("Generic NPCs: Disallowed"); }
+        if (ProbabilityWeighting != 1) { rulesSummary.Add("Probability Weighting: " + ProbabilityWeighting.ToString()); }
+        if (WeightRange.Lower != 0 || WeightRange.Upper != 100) { rulesSummary.Add("Weight Range: " + WeightRange.Lower.ToString() + " to " + WeightRange.Upper.ToString()); }
+
+        shouldReport = rulesSummary.Any();
+        if (shouldReport)
+        {
+            rulesSummary.Insert(0, "");
+            rulesSummary.Insert(0, "Whole-Config Distribution Rules:");
+        }
+        
+        return rulesSummary;
     }
 }

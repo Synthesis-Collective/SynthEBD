@@ -530,6 +530,53 @@ public sealed class Logger : VM
             return "(Not Currently In Load Order)";
         }
     }
+
+    public bool GetRaceLogString(string allowStatus, ObservableCollection<FormKey> races, out string reportStr)
+    {
+        reportStr = "";
+        if (races.Any())
+        {
+            List<string> dispStrs = new();
+            foreach (var raceFK in races)
+            {
+                string dispStr = raceFK.ToString();
+                if (_environmentProvider.LinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter) && raceGetter != null && raceGetter.EditorID != null)
+                {
+                    dispStr = raceGetter.EditorID.ToString();
+                }
+                dispStrs.Add(dispStr);
+            }
+            reportStr = allowStatus + " Races: " + string.Join(", ", dispStrs);
+            return true;
+        }
+        return false;
+    }
+
+    public bool GetRaceGroupingLogString(string allowStatus, VM_RaceGroupingCheckboxList raceGroupings, out string reportStr)
+    {
+        reportStr = "";
+        var selectedGroupings = raceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label);
+        if (selectedGroupings.Any())
+        {
+            reportStr = allowStatus + " Race Groupings: " + string.Join(", ", selectedGroupings);
+            return true;
+        }
+        return false;
+    }
+
+    public bool GetAttributeLogString(string allowStatus, ObservableCollection<VM_NPCAttribute> attributes, out string reportStr)
+    {
+        reportStr = "";
+        if (attributes.Any())
+        {
+            List<string> attributeStrs = new();
+            var models = VM_NPCAttribute.DumpViewModelsToModels(attributes);
+            var attributeLogs = models.Select(x => x.ToLogString(true, _environmentProvider.LinkCache));
+            reportStr = allowStatus + " Attributes: " + string.Join(", ", attributeLogs);
+            return true;
+        }
+        return false;
+    }
 }
 
 public enum ErrorType

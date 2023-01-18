@@ -198,6 +198,14 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
         );
 
+        ListCustomRulesButton = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => {
+                var rules = GetCustomRules();
+                CustomMessageBox.DisplayNotificationOK("Custom Rules", string.Join(Environment.NewLine, rules));
+            }
+        );
+
         DiscardButton = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
@@ -308,6 +316,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public RelayCommand MergeWithAssetPack { get; }
     public RelayCommand ValidateButton { get; }
     public RelayCommand ListDisabledSubgroupsButton { get; }
+    public RelayCommand ListCustomRulesButton { get; }
     public RelayCommand SaveButton { get; }
     public RelayCommand DiscardButton { get; }
     public RelayCommand CopyButton { get; }
@@ -881,6 +890,50 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             subgroup.GetDisabledSubgroups(disabledSubgroups);
         }
         return disabledSubgroups;
+    }
+
+    public List<string> GetCustomRules()
+    {
+        List<string> rulesStrings = new();
+
+        rulesStrings.AddRange(DistributionRules.GetRulesSummary());
+
+        List<string> subgroupRules = new();
+        foreach (var subgroup in Subgroups)
+        {
+            subgroupRules.AddRange(subgroup.GetRulesSummary());
+        }
+        if (subgroupRules.Any())
+        {
+            rulesStrings.Add("");
+            rulesStrings.Add("Main Subgroups: ");
+            rulesStrings.Add("");
+            rulesStrings.AddRange(subgroupRules);
+        }
+
+        foreach (var replacer in ReplacersMenu.ReplacerGroups)
+        {
+            List<string> replacerRules = new();
+            foreach (var subgroup in replacer.Subgroups)
+            {
+                replacerRules.AddRange(subgroup.GetRulesSummary());
+            }
+
+            if (replacerRules.Any())
+            {
+                rulesStrings.Add("");
+                rulesStrings.Add("Direct Asset Replacers");
+                rulesStrings.Add("");
+                rulesStrings.AddRange(replacerRules);
+            }
+        }
+
+        if (!rulesStrings.Any())
+        {
+            rulesStrings.Add("This config has no custom rules.");
+        }
+
+        return rulesStrings;
     }
 
     public void DragOver(IDropInfo dropInfo)

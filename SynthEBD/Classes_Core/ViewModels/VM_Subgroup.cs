@@ -804,4 +804,34 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
             }
         }
     }
+
+    public List<string> GetRulesSummary()
+    {
+        List<string> rulesSummary = new();
+        string tmpReport = "";
+        if (_logger.GetRaceLogString("Allowed", AllowedRaces, out tmpReport)) { rulesSummary.Add(tmpReport); }
+        if (_logger.GetRaceGroupingLogString("Allowed", AllowedRaceGroupings, out tmpReport)) { rulesSummary.Add(tmpReport); }
+        if (_logger.GetRaceLogString("Disallowed", DisallowedRaces, out tmpReport)) { rulesSummary.Add(tmpReport); }
+        if (_logger.GetRaceGroupingLogString("Disallowed", DisallowedRaceGroupings, out tmpReport)) { rulesSummary.Add(tmpReport); }
+        if (_logger.GetAttributeLogString("Allowed", AllowedAttributes, out tmpReport)) { rulesSummary.Add(tmpReport); }
+        if (_logger.GetAttributeLogString("Disallowed", DisallowedAttributes, out tmpReport)) { rulesSummary.Add(tmpReport); }
+        if (!AllowUnique) { rulesSummary.Add("Unique NPCs: Disallowed"); }
+        if (!AllowNonUnique) { rulesSummary.Add("Generic NPCs: Disallowed"); }
+        if (ProbabilityWeighting != 1) { rulesSummary.Add("Probability Weighting: " + ProbabilityWeighting.ToString()); }
+        if (WeightRange.Lower != 0 || WeightRange.Upper != 100) { rulesSummary.Add("Weight Range: " + WeightRange.Lower.ToString() + " to " + WeightRange.Upper.ToString()); }
+
+
+        if (rulesSummary.Any())
+        {
+            rulesSummary.Insert(0, ID + ": " + Name);
+            rulesSummary.Add("");
+        }
+
+        foreach (var subgroup in Subgroups)
+        {
+            rulesSummary.AddRange(subgroup.GetRulesSummary());
+        }
+
+        return rulesSummary;
+    }
 }
