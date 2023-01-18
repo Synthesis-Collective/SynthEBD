@@ -142,13 +142,14 @@ public partial class App : Application
         saveLoader.LoadAllSettings();
 
         var miscValidation = container.Resolve<MiscValidation>();
-        var patcherState = container.Resolve<PatcherState>();
+        _patcherState = container.Resolve<PatcherState>();
+
 
         if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !miscValidation.VerifyBodySlideAnnotations(_patcherState.OBodySettings))
         {
             return;
         }
-        else if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !miscValidation.VerifyBodyGenAnnotations(patcherState.AssetPacks, patcherState.BodyGenConfigs))
+        else if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !miscValidation.VerifyBodyGenAnnotations(_patcherState.AssetPacks, _patcherState.BodyGenConfigs))
         {
             return;
         }
