@@ -94,12 +94,12 @@ public class VM_BodyGenTemplate : VM
         ParentConfig = parentConfig;
         ParentCollection = parentCollection;
 
-        ParentCollection.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection());
-        SubscribedTemplateGroups.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection());
-        GroupSelectionCheckList.CollectionMemberStrings.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection());
+        ParentCollection.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection()).DisposeWith(this);
+        SubscribedTemplateGroups.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection()).DisposeWith(this);
+        GroupSelectionCheckList.CollectionMemberStrings.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection()).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.DescriptorsSelectionMenu.Header).Subscribe(x => UpdateStatusDisplay());
-        this.WhenAnyValue(x => x.GroupSelectionCheckList.Header).Subscribe(x => UpdateStatusDisplay());
+        this.WhenAnyValue(x => x.DescriptorsSelectionMenu.Header).Subscribe(x => UpdateStatusDisplay()).DisposeWith(this);
+        this.WhenAnyValue(x => x.GroupSelectionCheckList.Header).Subscribe(x => UpdateStatusDisplay()).DisposeWith(this);
 
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)

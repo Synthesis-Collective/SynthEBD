@@ -7,6 +7,7 @@ using DynamicData.Binding;
 using Mutagen.Bethesda.Plugins.Records;
 using ReactiveUI;
 using static SynthEBD.VM_NPCAttribute;
+using Noggog;
 
 namespace SynthEBD;
 
@@ -48,7 +49,8 @@ public class VM_AttributeGroup : VM
                 x.WhenAnyObservable(y => y.NeedsRefresh)
                 .Subscribe(_ => CheckGroupForCircularReferences()))
             .DisposeMany() // Dispose subscriptions related to removed attributes
-            .Subscribe();  // Execute my instructions
+            .Subscribe()  // Execute my instructions
+            .DisposeWith(this);
     }
 
     public void CopyInViewModelFromModel(AttributeGroup model, VM_AttributeGroupMenu parentMenu)

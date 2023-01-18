@@ -1,8 +1,9 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Reactive.Linq;
 using DynamicData;
 using DynamicData.Binding;
 using ReactiveUI;
+using Noggog;
 
 namespace SynthEBD;
 
@@ -10,12 +11,12 @@ public class VM_SelectableCollectionMemberString : VM
 {
     public VM_SelectableCollectionMemberString(VM_CollectionMemberString subscribedString, ICollectionParent parentCollection)
     {
-        this.SubscribedString = subscribedString;
-        this.Parent = parentCollection;
+        SubscribedString = subscribedString;
+        Parent = parentCollection;
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => this.Parent.CollectionMemberStrings.Remove(this));
 
-        this.WhenAnyValue(x => x.SubscribedString.Content).Skip(1).Subscribe(x => TriggerParentMemberChanged());
-        this.WhenAnyValue(x => x.IsSelected).Skip(1).Subscribe(x => TriggerParentMemberChanged());
+        this.WhenAnyValue(x => x.SubscribedString.Content).Skip(1).Subscribe(x => TriggerParentMemberChanged()).DisposeWith(this);
+        this.WhenAnyValue(x => x.IsSelected).Skip(1).Subscribe(x => TriggerParentMemberChanged()).DisposeWith(this);
     }
     public VM_CollectionMemberString SubscribedString { get; }
     public ICollectionParent Parent { get; }
@@ -48,7 +49,7 @@ public class VM_CollectionMemberStringCheckboxList : VM, ICollectionParent
 
         SubscribedMasterList.ToObservableChangeSet()
             .QueryWhenChanged(currentList => currentList)
-            .Subscribe(x => CollectionMemberChangedAction());
+            .Subscribe(x => CollectionMemberChangedAction()).DisposeWith(this);
     }
     public ObservableCollection<VM_SelectableCollectionMemberString> CollectionMemberStrings { get; set; } = new();
     public string Header { get; set; }

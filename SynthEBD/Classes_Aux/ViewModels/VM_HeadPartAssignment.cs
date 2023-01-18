@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media;
+using Noggog;
 
 namespace SynthEBD
 {
@@ -29,8 +30,8 @@ namespace SynthEBD
             ParentAssignmentGender = parentAssignmentGender;
             ParentAssignment = parentAssignment;
 
-            ParentConfig.Types[Type].HeadPartList.ToObservableChangeSet().Subscribe(x => RefreshAvailable());
-            this.WhenAnyValue(x => x.ParentAssignmentGender.NPCFormKey).Subscribe(x => RefreshAvailable());
+            ParentConfig.Types[Type].HeadPartList.ToObservableChangeSet().Subscribe(x => RefreshAvailable()).DisposeWith(this);
+            this.WhenAnyValue(x => x.ParentAssignmentGender.NPCFormKey).Subscribe(x => RefreshAvailable()).DisposeWith(this);
 
             this.WhenAnyValue(x => x.EditorID).Subscribe(x =>
                 {
@@ -39,14 +40,14 @@ namespace SynthEBD
                 {
                     FormKey = assignment.FormKey;
                 }
-            });
+            }).DisposeWith(this);
 
             this.WhenAnyValue(x => x.FormKey).Subscribe(x =>
             {
                 if (FormKey.IsNull) { BorderColor = new(Colors.Yellow); }
                 else if (_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(FormKey, out _)) { BorderColor = new(Colors.Green); }
                 else { BorderColor = new(Colors.Red); }
-            });
+            }).DisposeWith(this);
 
             ClearSelection = new SynthEBD.RelayCommand(
                 canExecute: _ => true,

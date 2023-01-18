@@ -55,7 +55,7 @@ namespace SynthEBD
                     NPCgetter = npcGetter;
                     NPCinfo = npcInfoFactory(npcGetter, new(), new());
                 }
-            });
+            }).DisposeWith(this); ;
 
             SimulatePrimary = new RelayCommand(
             canExecute: _ => true,

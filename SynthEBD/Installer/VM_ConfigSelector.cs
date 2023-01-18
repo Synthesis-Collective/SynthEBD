@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows.Documents;
 using ReactiveUI;
+using Noggog;
 
 namespace SynthEBD;
 
@@ -26,7 +27,7 @@ public class VM_ConfigSelector : VM
         this.WhenAnyValue(x => x.SelectedOption).Subscribe(_ =>
         {
             SelectionMade();
-        });
+        }).DisposeWith(this);
 
         Back = new RelayCommand(
             canExecute: _ => true,

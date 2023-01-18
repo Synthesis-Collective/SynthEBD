@@ -45,7 +45,7 @@ public class VM_SettingsTexMesh : VM
                 this.WhenAnyValue(x => x.bApplyFixedScripts),
                 _environmentProvider.WhenAnyValue(x => x.SkyrimVersion),
                 (_, _) => { return 0; })
-            .Subscribe(_ => UpdateSKSESelectionVisibility());
+            .Subscribe(_ => UpdateSKSESelectionVisibility()).DisposeWith(this);
 
         AddTrimPath = new RelayCommand(
             canExecute: _ => true,

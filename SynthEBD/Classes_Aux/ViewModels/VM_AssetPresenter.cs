@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media;
 using Pfim;
+using Noggog;
 
 namespace SynthEBD
 {
@@ -27,7 +28,7 @@ namespace SynthEBD
                 // Just pass along the signal, don't care about the triggering values
                 (_, _) => Unit.Default)
             .Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler)
-            .Subscribe(_ => UpdatePreviewImages(AssetPack));
+            .Subscribe(_ => UpdatePreviewImages(AssetPack)).DisposeWith(this);
         }
 
         public VM_SettingsTexMesh ParentUI { get; private set; }

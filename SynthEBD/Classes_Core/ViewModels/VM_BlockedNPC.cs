@@ -23,7 +23,7 @@ public class VM_BlockedNPC : VM
             {
                 DispName = _converters.CreateNPCDispNameFromFormKey(FormKey);
             }
-        });
+        }).DisposeWith(this);
 
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
@@ -32,7 +32,7 @@ public class VM_BlockedNPC : VM
         this.WhenAnyValue(x => x.HeadParts).Subscribe(x =>
         {
             for (int i = 0; i < HeadPartTypes.Count; i++) { HeadPartTypes[i].Block = HeadParts; }
-        });
+        }).DisposeWith(this);
     }
     // Caption
     public string DispName { get; set; } = "New NPC";

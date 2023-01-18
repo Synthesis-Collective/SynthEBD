@@ -2,6 +2,7 @@ using Mutagen.Bethesda.Plugins;
 using System.Collections.ObjectModel;
 using ReactiveUI;
 using Mutagen.Bethesda.Skyrim;
+using Noggog;
 
 namespace SynthEBD;
 
@@ -12,9 +13,9 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
     {
         _logger = logger;
 
-        this.WhenAnyValue(x => x.AssetPackName).Subscribe(x => AssetPackAssigned = AssetPackName != null && AssetPackName.Any());
-        this.WhenAnyValue(x => x.BodySlidePreset).Subscribe(x => BodySlideAssigned = BodySlidePreset != null && BodySlidePreset.Any());
-        this.WhenAnyValue(x => x.Height).Subscribe(x => HeightAssigned = Height != null && Height.Any());
+        this.WhenAnyValue(x => x.AssetPackName).Subscribe(x => AssetPackAssigned = AssetPackName != null && AssetPackName.Any()).DisposeWith(this);
+        this.WhenAnyValue(x => x.BodySlidePreset).Subscribe(x => BodySlideAssigned = BodySlidePreset != null && BodySlidePreset.Any()).DisposeWith(this);
+        this.WhenAnyValue(x => x.Height).Subscribe(x => HeightAssigned = Height != null && Height.Any()).DisposeWith(this);
 
         DeleteAssetPackCommand = new SynthEBD.RelayCommand(
             canExecute: _ => true,

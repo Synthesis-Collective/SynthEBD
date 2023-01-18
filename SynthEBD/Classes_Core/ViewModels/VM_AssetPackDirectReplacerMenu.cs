@@ -85,7 +85,7 @@ public class VM_AssetReplacerGroup : VM
             {
                 SetTemplates(sg, TemplateNPCFK);
             }
-        });
+        }).DisposeWith(this);
     }
 
     public string Label { get; set; } = "";

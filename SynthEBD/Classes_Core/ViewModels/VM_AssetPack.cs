@@ -109,15 +109,15 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         DistributionRules = _configDistributionRulesFactory(RaceGroupingEditor.RaceGroupings, this);
 
         BodyShapeMode = general.BodySelectionMode;
-        general.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
+        general.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x).DisposeWith(this);
 
         RecordTemplateLinkCache = state.RecordTemplateLinkCache;
 
         ParentMenuVM = texMesh;
 
-        this.WhenAnyValue(x => x.Gender).Subscribe(x => SetDefaultRecordTemplate());
+        this.WhenAnyValue(x => x.Gender).Subscribe(x => SetDefaultRecordTemplate()).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.IsSelected).Subscribe(x => ParentMenuVM.RefreshDisplayedAssetPackString());
+        this.WhenAnyValue(x => x.IsSelected).Subscribe(x => ParentMenuVM.RefreshDisplayedAssetPackString()).DisposeWith(this);
 
         AddSubgroup = new RelayCommand(
             canExecute: _ => true,

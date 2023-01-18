@@ -80,8 +80,8 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         //UI-related
         ParentCollection = parentCollection;
         ParentSubgroup = parentSubgroup;
-        RequiredSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(RequiredSubgroups, SubgroupListBox.Required));
-        ExcludedSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(ExcludedSubgroups, SubgroupListBox.Excluded));
+        RequiredSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(RequiredSubgroups, SubgroupListBox.Required)).DisposeWith(this);
+        ExcludedSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(ExcludedSubgroups, SubgroupListBox.Excluded)).DisposeWith(this);
 
         // must be set after Parent Asset Pack
         if (SetExplicitReferenceNPC)
@@ -91,11 +91,11 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         else
         {
             PathsMenu = new VM_FilePathReplacementMenu(this, SetExplicitReferenceNPC, parentAssetPack.RecordTemplateLinkCache);
-            parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => PathsMenu.ReferenceLinkCache = parentAssetPack.RecordTemplateLinkCache);
+            parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => PathsMenu.ReferenceLinkCache = parentAssetPack.RecordTemplateLinkCache).DisposeWith(this);
         }
 
-        PathsMenu.Paths.ToObservableChangeSet().Subscribe(x => GetDDSPaths(ImagePaths));
-        this.WhenAnyValue(x => x.ParentAssetPack, x => x.ParentSubgroup).Subscribe(x => GetDDSPaths(ImagePaths));
+        PathsMenu.Paths.ToObservableChangeSet().Subscribe(x => GetDDSPaths(ImagePaths)).DisposeWith(this);
+        this.WhenAnyValue(x => x.ParentAssetPack, x => x.ParentSubgroup).Subscribe(x => GetDDSPaths(ImagePaths)).DisposeWith(this);
 
         AutoGenerateID(false, 0);
 

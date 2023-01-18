@@ -35,7 +35,7 @@ namespace SynthEBD
                 RestrictionColor = new SolidColorBrush(Colors.Green);
             }
             
-            this.WhenAnyValue(x => x.NPCformkey).Subscribe(x => TestNPC());
+            this.WhenAnyValue(x => x.NPCformkey).Subscribe(x => TestNPC()).DisposeWith(this);
         }
 
         public ILinkCache lk { get; private set; }

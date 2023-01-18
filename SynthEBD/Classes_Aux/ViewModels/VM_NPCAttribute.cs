@@ -37,7 +37,7 @@ public class VM_NPCAttribute : VM
 
         GroupedSubAttributes.ToObservableChangeSet().Subscribe(x => {
             NeedsRefresh = GroupedSubAttributes.Select(x => x.WhenAnyObservable(y => y.Attribute.NeedsRefresh)).Merge().Unit();
-        });
+        }).DisposeWith(this);
     }
 
     public ObservableCollection<VM_NPCAttributeShell> GroupedSubAttributes { get; set; } = new(); // everything within this collection is evaluated as AND (all must be true)
@@ -264,7 +264,7 @@ public class VM_NPCAttributeShell : VM
                 DisplayForceIfWeight = false;
             }
         }
-        );
+        ).DisposeWith(this);
        
 
         AddAdditionalSubAttributeToParent = new RelayCommand(
@@ -464,16 +464,16 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
 
         _recordIntellisense.InitializeSubscriptions(this);
 
-        this.WhenAnyValue(x => x.CustomType).Subscribe(x => UpdateValueDisplay());
+        this.WhenAnyValue(x => x.CustomType).Subscribe(x => UpdateValueDisplay()).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.ValueFKtype).Subscribe(x => UpdateFormKeyPickerRecordType());
+        this.WhenAnyValue(x => x.ValueFKtype).Subscribe(x => UpdateFormKeyPickerRecordType()).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.ValueStr).Subscribe(x => Evaluate());
-        this.WhenAnyValue(x => x.ValueFKs).Subscribe(x => Evaluate());
-        this.WhenAnyValue(x => x.ChosenComparator).Subscribe(x => Evaluate());
+        this.WhenAnyValue(x => x.ValueStr).Subscribe(x => Evaluate()).DisposeWith(this);
+        this.WhenAnyValue(x => x.ValueFKs).Subscribe(x => Evaluate()).DisposeWith(this);
+        this.WhenAnyValue(x => x.ChosenComparator).Subscribe(x => Evaluate()).DisposeWith(this);
         this.ValueFKs.CollectionChanged += Evaluate;
-        this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => Evaluate());
-        this.WhenAnyValue(x => x.ReferenceNPCFormKey).Subscribe(x => Evaluate());
+        this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => Evaluate()).DisposeWith(this);
+        this.WhenAnyValue(x => x.ReferenceNPCFormKey).Subscribe(x => Evaluate()).DisposeWith(this);
         
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => LinkCache = x)
@@ -939,9 +939,9 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
                 RefreshCheckList();
                 NeedsRefresh = SelectableAttributeGroups.Select(x => x.WhenAnyValue(x => x.IsSelected)).Merge().Unit();
             }
-            );
+            ).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.MostRecentlyEditedSelection).Subscribe(_ => ParentVM.MostRecentlyEditedShell = ParentShell);
+        this.WhenAnyValue(x => x.MostRecentlyEditedSelection).Subscribe(_ => ParentVM.MostRecentlyEditedShell = ParentShell).DisposeWith(this);
     }
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
@@ -973,7 +973,7 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
             SubscribedAttributeGroup = attributeGroupVM;
             Parent = parent;
 
-            this.WhenAnyValue(x => x.IsSelected).Subscribe(_ => Parent.MostRecentlyEditedSelection = this);
+            this.WhenAnyValue(x => x.IsSelected).Subscribe(_ => Parent.MostRecentlyEditedSelection = this).DisposeWith(this);
         }
 
         public bool IsSelected { get; set; } = false;

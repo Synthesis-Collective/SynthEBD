@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using ReactiveUI;
+using Noggog;
 
 namespace SynthEBD;
 
@@ -34,13 +35,13 @@ public class VM_BodySlidesMenu : VM
                     Alphabetizer = Alphabetizer_Male;
                     break;
             }
-        });
+        }).DisposeWith(this);
 
         this.WhenAnyValue(x => x.ShowHidden).Subscribe(x =>
         {
             TogglePresetVisibility(BodySlidesMale, ShowHidden);
             TogglePresetVisibility(BodySlidesFemale, ShowHidden);
-        });
+        }).DisposeWith(this);
     }
     public ObservableCollection<VM_BodySlideSetting> BodySlidesMale { get; set; } = new();
     public ObservableCollection<VM_BodySlideSetting> BodySlidesFemale { get; set; } = new();

@@ -64,7 +64,7 @@ namespace SynthEBD
                     BorderColor = new SolidColorBrush(Colors.Red);
                     StatusString = "This head part is no longer present in your load order";
                 }
-            });
+            }).DisposeWith(this);
 
             /*
             Clone = new SynthEBD.RelayCommand(

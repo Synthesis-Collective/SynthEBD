@@ -22,7 +22,7 @@ public class VM_BlockedPlugin : VM
             {
                 DispName = ModKey.FileName;
             }
-        });
+        }).DisposeWith(this);
 
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
@@ -35,7 +35,7 @@ public class VM_BlockedPlugin : VM
         this.WhenAnyValue(x => x.HeadParts).Subscribe(x =>
         {
             for (int i = 0; i < HeadPartTypes.Count; i++) { HeadPartTypes[i].Block = HeadParts; }
-        });
+        }).DisposeWith(this);
     }
 
     // Caption

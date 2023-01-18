@@ -8,6 +8,7 @@ using System.Reactive.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media;
+using Noggog;
 
 namespace SynthEBD
 {
@@ -39,12 +40,12 @@ namespace SynthEBD
                     execute: _ => Revert()
                     );
 
-            SubscribedCollection.ToObservableChangeSet().Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler).Subscribe(x => GetSortState());
+            SubscribedCollection.ToObservableChangeSet().Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler).Subscribe(x => GetSortState()).DisposeWith(this); ;
 
             this.WhenAnyValue(x => x.State).Subscribe(x => {
                 if (State == SortState.Unsorted || State == SortState.Reversed) { DisplayText = "AZ"; }
                 else { DisplayText = "ZA"; }
-            });
+            }).DisposeWith(this); ;
         }
 
         private enum SortState

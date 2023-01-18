@@ -6,6 +6,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Noggog;
 
 namespace SynthEBD;
 
@@ -21,7 +22,7 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
         OBodyDescriptors = oBodySettings.DescriptorUI;
 
         BodyShapeMode = generalSettingsVM.BodySelectionMode;
-        generalSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
+        generalSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x).DisposeWith(this);
 
         DisplayedMenu = ImportMenu;
 

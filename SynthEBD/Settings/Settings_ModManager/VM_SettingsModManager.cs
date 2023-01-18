@@ -23,11 +23,11 @@ public class VM_SettingsModManager : VM
             }
         );
 
-        this.WhenAnyValue(x => x.ModManagerType).Subscribe(x => UpdateDisplayedVM());
+        this.WhenAnyValue(x => x.ModManagerType).Subscribe(x => UpdateDisplayedVM()).DisposeWith(this);
         this.WhenAnyValue(x => x.ModManagerType).Subscribe(x =>
         {
             UpdatePatcherSettings();
-        });
+        }).DisposeWith(this);
     }
 
     public ModManager ModManagerType { get; set; } = ModManager.None;
@@ -120,7 +120,7 @@ public class VM_MO2Integration : VM
         this.WhenAnyValue(x => x.ExecutablePath).Subscribe(x =>
         {
             UpdateModFolderPath();
-        });
+        }).DisposeWith(this);
     }
     public string ModFolderPath { get; set; } = "";
     public string ExecutablePath { get; set; } = "";

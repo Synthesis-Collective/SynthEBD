@@ -81,7 +81,7 @@ public class VM_BodyGenRacialMapping : VM
             {
                 ShowAddNew = true;
             }
-        });
+        }).DisposeWith(this);
     }
     public string Label { get; set; } = "";
     public ObservableCollection<FormKey> Races { get; set; } = new();
@@ -142,7 +142,7 @@ public class VM_BodyGenCombination : VM
             execute: _ => Members.Add(new VM_CollectionMemberString("", Members))
         );
 
-        Members.ToObservableChangeSet().Subscribe(x => CheckForEmptyCombination());
+        Members.ToObservableChangeSet().Subscribe(x => CheckForEmptyCombination()).DisposeWith(this);
     }
     public ObservableCollection<VM_CollectionMemberString> Members { get; set; } = new();
     public double ProbabilityWeighting { get; set; } = 1;

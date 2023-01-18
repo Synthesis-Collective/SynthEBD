@@ -55,7 +55,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         RaceGroupingEditor = _raceGroupingEditorFactory(this, false);
 
         this.WhenAnyValue(x => x.bShowToolTips)
-            .Subscribe(x => TooltipController.Instance.DisplayToolTips = x);
+            .Subscribe(x => TooltipController.Instance.DisplayToolTips = x).DisposeWith(this);
 
         environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
@@ -153,9 +153,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
             {
                 _firstLaunch.OnFirstLaunch();
             }
-        });
+        }).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.OutputDataFolder).Subscribe(x => _paths.OutputDataFolder = x);
+        this.WhenAnyValue(x => x.OutputDataFolder).Subscribe(x => _paths.OutputDataFolder = x).DisposeWith(this);
     }
 
     public VM_Settings_Environment EnvironmentSettingsVM { get; set; }

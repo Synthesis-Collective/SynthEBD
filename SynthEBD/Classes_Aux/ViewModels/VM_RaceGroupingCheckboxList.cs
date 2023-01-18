@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using ReactiveUI;
+using Noggog;
 
 namespace SynthEBD;
 
@@ -18,7 +19,7 @@ public class VM_RaceGroupingCheckboxList : VM
         }
 
         BuildHeaderCaption();
-        SubscribedMasterList.ToObservableChangeSet().Subscribe(x => RefreshCheckList());
+        SubscribedMasterList.ToObservableChangeSet().Subscribe(x => RefreshCheckList()).DisposeWith(this);
     }
 
     public ObservableCollection<VM_RaceGrouping> SubscribedMasterList { get; set; } // to fire the CollectionChanged event
@@ -96,7 +97,7 @@ public class VM_RaceGroupingCheckboxList : VM
         {
             this.SubscribedMasterRaceGrouping = raceGroupingVM;
             this.ParentCheckList = parent;
-            this.WhenAnyValue(x => x.IsSelected).Subscribe(x => ParentCheckList.BuildHeaderCaption());
+            this.WhenAnyValue(x => x.IsSelected).Subscribe(x => ParentCheckList.BuildHeaderCaption()).DisposeWith(this);
         }
         public bool IsSelected { get; set; } = false;
 

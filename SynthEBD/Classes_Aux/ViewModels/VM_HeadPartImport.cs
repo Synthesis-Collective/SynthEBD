@@ -33,7 +33,7 @@ namespace SynthEBD
             .DisposeWith(this);
 
             _environmentProvider.WhenAnyValue(x => x.LoadOrder)
-            .Subscribe(x => LoadOrder = x.Where(y => y.Value != null && y.Value.Enabled).Select(x => x.Value.ModKey));
+            .Subscribe(x => LoadOrder = x.Where(y => y.Value != null && y.Value.Enabled).Select(x => x.Value.ModKey)).DisposeWith(this);
 
             this.WhenAnyValue(
                 x => x.bImportMale,
@@ -50,15 +50,16 @@ namespace SynthEBD
                 // Just pass along the signal, don't care about the triggering values
                 (_, _, _, _, _, _, _, _, _, _, _) => Unit.Default)
             .Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler)
-            .Subscribe(_ => UpdateSelections());
+            .Subscribe(_ => UpdateSelections())
+            .DisposeWith(this);
 
-            this.Imports[HeadPart.TypeEnum.Eyebrows].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyebrows));
-            this.Imports[HeadPart.TypeEnum.Eyes].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyes));
-            this.Imports[HeadPart.TypeEnum.Face].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Face));
-            this.Imports[HeadPart.TypeEnum.FacialHair].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.FacialHair));
-            this.Imports[HeadPart.TypeEnum.Hair].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Hair));
-            this.Imports[HeadPart.TypeEnum.Misc].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Misc));
-            this.Imports[HeadPart.TypeEnum.Scars].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Scars));
+            this.Imports[HeadPart.TypeEnum.Eyebrows].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyebrows)).DisposeWith(this);
+            this.Imports[HeadPart.TypeEnum.Eyes].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyes)).DisposeWith(this);
+            this.Imports[HeadPart.TypeEnum.Face].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Face)).DisposeWith(this);
+            this.Imports[HeadPart.TypeEnum.FacialHair].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.FacialHair)).DisposeWith(this);
+            this.Imports[HeadPart.TypeEnum.Hair].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Hair)).DisposeWith(this);
+            this.Imports[HeadPart.TypeEnum.Misc].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Misc)).DisposeWith(this);
+            this.Imports[HeadPart.TypeEnum.Scars].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Scars)).DisposeWith(this);
             Import = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => ImportSelections()

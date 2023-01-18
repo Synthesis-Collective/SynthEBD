@@ -81,7 +81,7 @@ public class VM_BodySlideSetting : VM
                 IsVisible = true;
             }
             UpdateStatusDisplay();
-        });
+        }).DisposeWith(this);
 
         Clone = new RelayCommand(
             canExecute: _ => true,
@@ -94,7 +94,7 @@ public class VM_BodySlideSetting : VM
             }
         );
 
-        DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => UpdateStatusDisplay());
+        DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => UpdateStatusDisplay()).DisposeWith(this);
     }
 
     public string Label { get; set; } = "";
@@ -199,7 +199,7 @@ public class VM_BodySlideSetting : VM
 
         viewModel.UpdateStatusDisplay();
 
-        viewModel.DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => viewModel.UpdateStatusDisplay());
+        viewModel.DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => viewModel.UpdateStatusDisplay()).DisposeWith(viewModel);
 
         viewModel.IsHidden = model.HideInMenu;
     }

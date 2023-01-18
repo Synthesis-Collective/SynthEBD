@@ -34,8 +34,8 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         LinkCache = parentMenu.ReferenceLinkCache;
 
         _recordIntellisense.InitializeSubscriptions(this);
-        parentMenu.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => SyncReferenceWithParent()); // can be changed from record templates without the user modifying parentMenu.NPCFK, so need an explicit watch
-        parentMenu.WhenAnyValue(x => x.ReferenceLinkCache).Subscribe(x => LinkCache = parentMenu.ReferenceLinkCache);
+        parentMenu.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => SyncReferenceWithParent()).DisposeWith(this); // can be changed from record templates without the user modifying parentMenu.NPCFK, so need an explicit watch
+        parentMenu.WhenAnyValue(x => x.ReferenceLinkCache).Subscribe(x => LinkCache = parentMenu.ReferenceLinkCache).DisposeWith(this);
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentMenu.Paths.Remove(this));
         FindPath = new RelayCommand(
@@ -95,9 +95,9 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 
         ParentMenu = parentMenu;
 
-        this.WhenAnyValue(x => x.Source).Subscribe(x => RefreshSourceColor());
-        this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => RefreshReferenceNPC());
-        this.WhenAnyValue(x => x.ParentMenu.ReferenceNPCFK).Subscribe(x => RefreshReferenceNPC());
+        this.WhenAnyValue(x => x.Source).Subscribe(x => RefreshSourceColor()).DisposeWith(this);
+        this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => RefreshReferenceNPC()).DisposeWith(this);
+        this.WhenAnyValue(x => x.ParentMenu.ReferenceNPCFK).Subscribe(x => RefreshReferenceNPC()).DisposeWith(this);
     }
 
     public VM_FilePathReplacement Clone(VM_FilePathReplacementMenu parentMenu)

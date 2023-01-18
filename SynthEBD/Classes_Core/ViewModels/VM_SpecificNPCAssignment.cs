@@ -70,27 +70,27 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
         this.SubscribedAssetPacks = texMesh.AssetPacks;
 
-        this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => RefreshAll());
+        this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => RefreshAll()).DisposeWith(this);
 
-        this.SubscribedAssetPacks.ToObservableChangeSet().Subscribe(x => RefreshAssets());
-        this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x => UpdateAvailableSubgroups(this));
-        this.ForcedSubgroups.ToObservableChangeSet().Subscribe(x => UpdateAvailableSubgroups(this));
+        this.SubscribedAssetPacks.ToObservableChangeSet().Subscribe(x => RefreshAssets()).DisposeWith(this);
+        this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
+        this.ForcedSubgroups.ToObservableChangeSet().Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.SubscribedBodyGenSettings).Subscribe(x => UpdateAvailableMorphs(this));
-        this.ForcedBodyGenMorphs.ToObservableChangeSet().Subscribe(x => UpdateAvailableMorphs(this));
-        this.SubscribedBodyGenSettings.MaleConfigs.ToObservableChangeSet().Subscribe(x => UpdateAvailableMorphs(this));
-        this.SubscribedBodyGenSettings.FemaleConfigs.ToObservableChangeSet().Subscribe(x => UpdateAvailableMorphs(this));
-        this.SubscribedBodyGenSettings.WhenAnyValue(x => x.CurrentMaleConfig).Subscribe(x => UpdateAvailableMorphs(this));
-        this.SubscribedBodyGenSettings.WhenAnyValue(x => x.CurrentFemaleConfig).Subscribe(x => UpdateAvailableMorphs(this));
+        this.WhenAnyValue(x => x.SubscribedBodyGenSettings).Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
+        this.ForcedBodyGenMorphs.ToObservableChangeSet().Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
+        this.SubscribedBodyGenSettings.MaleConfigs.ToObservableChangeSet().Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
+        this.SubscribedBodyGenSettings.FemaleConfigs.ToObservableChangeSet().Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
+        this.SubscribedBodyGenSettings.WhenAnyValue(x => x.CurrentMaleConfig).Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
+        this.SubscribedBodyGenSettings.WhenAnyValue(x => x.CurrentFemaleConfig).Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => UpdateAvailableBodySlides());
-        SubscribedOBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesFemale).Subscribe(x => UpdateAvailableBodySlides());
-        SubscribedOBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesMale).Subscribe(x => UpdateAvailableBodySlides());
+        this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => UpdateAvailableBodySlides()).DisposeWith(this);
+        SubscribedOBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesFemale).Subscribe(x => UpdateAvailableBodySlides()).DisposeWith(this);
+        SubscribedOBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesMale).Subscribe(x => UpdateAvailableBodySlides()).DisposeWith(this);
 
         this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x =>
         {
             ForcedAssetReplacements.Remove(ForcedAssetReplacements.Where(x => x.ParentAssetPack != ForcedAssetPack));
-        });
+        }).DisposeWith(this);
 
         HeadParts = new()
         {
@@ -639,7 +639,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             this.AvailableMixInAssetPacks = Parent.AvailableMixInAssetPacks;
             this.ForcedAssetPack = assetPackFactory();
 
-            this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x => UpdateAvailableSubgroups(this));
+            this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
             this.ForcedSubgroups.CollectionChanged += TriggerAvailableSubgroupsUpdate;
 
             DeleteCommand = new SynthEBD.RelayCommand(
@@ -666,7 +666,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                 {
                     replacer.ParentAssetPack = ForcedAssetPack;
                 }
-            });
+            }).DisposeWith(this);
         }
         public VM_AssetPack ForcedAssetPack { get; set; }
         public ObservableCollection<VM_AssetPack> AvailableMixInAssetPacks { get; set; }

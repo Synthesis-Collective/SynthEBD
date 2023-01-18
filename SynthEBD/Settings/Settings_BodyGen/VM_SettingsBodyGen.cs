@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using ReactiveUI;
+using Noggog;
 
 namespace SynthEBD;
 
@@ -67,7 +68,7 @@ public class VM_SettingsBodyGen : VM
             {
                 CurrentlyDisplayedConfig = CurrentMaleConfig;
             }
-        });
+        }).DisposeWith(this);
 
         this.WhenAnyValue(x => x.CurrentFemaleConfig).Subscribe(x =>
         {
@@ -75,7 +76,7 @@ public class VM_SettingsBodyGen : VM
             {
                 CurrentlyDisplayedConfig = CurrentFemaleConfig;
             }
-        });
+        }).DisposeWith(this);
     }
 
     public ObservableCollection<VM_BodyGenConfig> MaleConfigs { get; set; } = new();

@@ -10,6 +10,7 @@ using System.Reactive.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using static SynthEBD.VM_NPCAttribute;
+using Noggog;
 
 namespace SynthEBD
 {
@@ -47,8 +48,8 @@ namespace SynthEBD
 
             Alphabetizer = new(HeadPartList, x => x.Label, new(System.Windows.Media.Colors.MediumPurple));
 
-            this.WhenAnyValue(x => x.GenderToggle).Subscribe(x => UpdateList());
-            HeadPartList.ToObservableChangeSet().Subscribe(_ => UpdateList());
+            this.WhenAnyValue(x => x.GenderToggle).Subscribe(x => UpdateList()).DisposeWith(this);
+            HeadPartList.ToObservableChangeSet().Subscribe(_ => UpdateList()).DisposeWith(this);
         }
 
         public ObservableCollection<VM_HeadPart> HeadPartList { get; set; } = new();

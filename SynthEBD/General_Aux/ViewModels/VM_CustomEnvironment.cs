@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Windows.Forms;
 using System.Windows.Media;
 using System.IO;
+using Noggog;
 
 namespace SynthEBD
 {
@@ -63,9 +64,9 @@ namespace SynthEBD
                    {
                        CustomGameDataDir = Path.Combine(gameDir, "data");
                    }
-               });
+               }).DisposeWith(this);
 
-            this.WhenAnyValue(x => x.CustomGameDataDir, x => x.SkyrimRelease).Subscribe(_ => UpdateTrialEnvironment());
+            this.WhenAnyValue(x => x.CustomGameDataDir, x => x.SkyrimRelease).Subscribe(_ => UpdateTrialEnvironment()).DisposeWith(this);
 
             DisplayCurrentEnvironmentError = new RelayCommand(
                 canExecute: _ => true,
