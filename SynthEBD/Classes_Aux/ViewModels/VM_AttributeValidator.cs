@@ -15,9 +15,14 @@ namespace SynthEBD
 {
     public class VM_AttributeValidator : VM
     {
-        public VM_AttributeValidator(VM_NPCAttribute trialAttribute, ObservableCollection<VM_AttributeGroup> attGroupVMs)
+        private readonly IEnvironmentStateProvider _environmentProvider;
+        private readonly AttributeMatcher _attributeMatcher;
+        public VM_AttributeValidator(VM_NPCAttribute trialAttribute, ObservableCollection<VM_AttributeGroup> attGroupVMs, IEnvironmentStateProvider environmentProvider, AttributeMatcher attributeMatcher)
         {
-            PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            _environmentProvider = environmentProvider;
+            _attributeMatcher = attributeMatcher;
+
+            _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
@@ -30,7 +35,7 @@ namespace SynthEBD
                 RestrictionColor = new SolidColorBrush(Colors.Green);
             }
             
-            this.WhenAnyValue(x => x.NPCformkey).Subscribe(x => TestNPC());
+            this.WhenAnyValue(x => x.NPCformkey).Subscribe(x => TestNPC()).DisposeWith(this);
         }
 
         public ILinkCache lk { get; private set; }
@@ -47,15 +52,13 @@ namespace SynthEBD
         public string MatchedLog { get; set; }
         public string UnMatchedLog { get; set; }
         public string ForceIfLog { get; set; }
-
-
         public void TestNPC()
         {
             var attList = new HashSet<NPCAttribute>() { TrialAttribute };
 
             if (lk.TryResolve<INpcGetter>(NPCformkey, out var npc))
             {
-                AttributeMatcher.MatchNPCtoAttributeList(attList, npc, AttributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog, null);
+                _attributeMatcher.MatchNPCtoAttributeList(attList, npc, AttributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog, null);
                 HasRestrictions = hasAttributeRestrictions;
                 MatchesRestrictions = matchesAttributeRestrictions;
                 MatchedLog = matchLog;

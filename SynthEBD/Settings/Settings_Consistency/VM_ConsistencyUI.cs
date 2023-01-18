@@ -10,15 +10,21 @@ namespace SynthEBD;
 
 public class VM_ConsistencyUI : VM
 {
-    public VM_ConsistencyUI()
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    public readonly Logger _logger;
+
+    public VM_ConsistencyUI(IEnvironmentStateProvider environmentProvider, Logger logger)
     {
+        _environmentProvider = environmentProvider;
+        _logger = logger;
+
         this.PropertyChanged += RefereshCurrentAssignment;
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-        DeleteCurrentNPC = new SynthEBD.RelayCommand(
+        DeleteCurrentNPC = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {
@@ -27,7 +33,7 @@ public class VM_ConsistencyUI : VM
             }
         );
 
-        DeleteAllAssets = new SynthEBD.RelayCommand(
+        DeleteAllAssets = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {
@@ -38,11 +44,11 @@ public class VM_ConsistencyUI : VM
                     assignment.AssetReplacements.Clear();
                     assignment.MixInAssignments.Clear();
                 }
-                Logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared asset consistency", ErrorType.Warning, 2);
+                _logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared asset consistency", ErrorType.Warning, 2);
             }
         );
 
-        DeleteAllBodyShape = new SynthEBD.RelayCommand(
+        DeleteAllBodyShape = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {
@@ -51,11 +57,11 @@ public class VM_ConsistencyUI : VM
                     assignment.BodyGenMorphNames.Clear();
                     assignment.BodySlidePreset = "";
                 }
-                Logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared body shape consistency", ErrorType.Warning, 2);
+                _logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared body shape consistency", ErrorType.Warning, 2);
             }
         );
 
-        DeleteAllHeight = new SynthEBD.RelayCommand(
+        DeleteAllHeight = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {
@@ -63,11 +69,11 @@ public class VM_ConsistencyUI : VM
                 {
                     assignment.Height = "";
                 }
-                Logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared height consistency", ErrorType.Warning, 2);
+                _logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared height consistency", ErrorType.Warning, 2);
             }
         );
 
-        DeleteAllHeadParts = new SynthEBD.RelayCommand(
+        DeleteAllHeadParts = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {
@@ -81,20 +87,20 @@ public class VM_ConsistencyUI : VM
                         }
                     }
                 }
-                Logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared head part consistency", ErrorType.Warning, 2);
+                _logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared head part consistency", ErrorType.Warning, 2);
             }
         );
 
-        DeleteAllNPCs = new SynthEBD.RelayCommand(
+        DeleteAllNPCs = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {
                 if (CustomMessageBox.DisplayNotificationYesNo("Confirmation", "Are you sure you want to completely clear the consistency file?"))
                 {
-                    this.CurrentlyDisplayedAssignment = null;
-                    this.Assignments.Clear();
+                    CurrentlyDisplayedAssignment = null;
+                    Assignments.Clear();
                 }
-                Logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared all consistency", ErrorType.Warning, 2);
+                _logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared all consistency", ErrorType.Warning, 2);
             }
         );
     }
@@ -115,16 +121,16 @@ public class VM_ConsistencyUI : VM
 
     public void RefereshCurrentAssignment(object sender, PropertyChangedEventArgs e)
     {
-        this.CurrentlyDisplayedAssignment = this.Assignments.Where(x => x.NPCFormKey.ToString() == SelectedNPCFormKey.ToString()).FirstOrDefault();
+        CurrentlyDisplayedAssignment = this.Assignments.Where(x => x.NPCFormKey.ToString() == SelectedNPCFormKey.ToString()).FirstOrDefault();
     }
 
-    public static void GetViewModelsFromModels(Dictionary<string, NPCAssignment> models, ObservableCollection<VM_ConsistencyAssignment> viewModels, ObservableCollection<VM_AssetPack> AssetPackVMs, VM_Settings_Headparts headParts)
+    public static void GetViewModelsFromModels(Dictionary<string, NPCAssignment> models, ObservableCollection<VM_ConsistencyAssignment> viewModels, ObservableCollection<VM_AssetPack> AssetPackVMs, VM_Settings_Headparts headParts, Logger logger)
     {
         viewModels.Clear();
         foreach (var model in models)
         {
             if (model.Value == null) { continue; }
-            viewModels.Add(VM_ConsistencyAssignment.GetViewModelFromModel(model.Value, AssetPackVMs));
+            viewModels.Add(VM_ConsistencyAssignment.GetViewModelFromModel(model.Value, AssetPackVMs, logger));
         }
     }
 
@@ -133,7 +139,7 @@ public class VM_ConsistencyUI : VM
         models.Clear();
         foreach (var viewModel in viewModels)
         {
-            models.Add(viewModel.NPCFormKey.ToString(), VM_ConsistencyAssignment.DumpViewModelToModel(viewModel));
+            models.Add(viewModel.NPCFormKey.ToString(), viewModel.DumpViewModelToModel());
         }
     }
 }

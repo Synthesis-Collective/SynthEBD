@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
@@ -52,18 +52,20 @@ public class VM_AssetPackDirectReplacerMenu : VM
 
 public class VM_AssetReplacerGroup : VM
 {
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly VM_Settings_General _generalSettingsVm;
     private readonly VM_Subgroup.Factory _subGroupFactory;
 
     public delegate VM_AssetReplacerGroup Factory(VM_AssetPackDirectReplacerMenu parent);
     
-    public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, VM_Settings_General generalSettingsVM, VM_Subgroup.Factory subGroupFactory)
+    public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, IEnvironmentStateProvider environmentProvider, VM_Settings_General generalSettingsVM, VM_Subgroup.Factory subGroupFactory)
     {
+        _environmentProvider = environmentProvider;
         _generalSettingsVm = generalSettingsVM;
         _subGroupFactory = subGroupFactory;
-        this.ParentMenu = parent;
-        
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        ParentMenu = parent;
+
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
@@ -74,7 +76,7 @@ public class VM_AssetReplacerGroup : VM
 
         AddTopLevelSubgroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.Subgroups.Add(subGroupFactory(parent.ParentAssetPack.RaceGroupingList, Subgroups, parent.ParentAssetPack, null, true))
+            execute: _ => this.Subgroups.Add(subGroupFactory(parent.ParentAssetPack.RaceGroupingEditor.RaceGroupings, Subgroups, parent.ParentAssetPack, null, true))
         );
             
         this.WhenAnyValue(x => x.TemplateNPCFK).Subscribe(x =>
@@ -83,7 +85,7 @@ public class VM_AssetReplacerGroup : VM
             {
                 SetTemplates(sg, TemplateNPCFK);
             }
-        });
+        }).DisposeWith(this);
     }
 
     public string Label { get; set; } = "";
@@ -107,12 +109,12 @@ public class VM_AssetReplacerGroup : VM
         foreach (var sg in model.Subgroups)
         {
             var sgVM = _subGroupFactory(
-                _generalSettingsVm.RaceGroupings,
+                _generalSettingsVm.RaceGroupingEditor.RaceGroupings,
                 Subgroups, 
                 ParentMenu.ParentAssetPack,
                 null,
                 true);
-            sgVM.CopyInViewModelFromModel(sg, _generalSettingsVm);
+            sgVM.CopyInViewModelFromModel(sg);
             SetTemplates(sgVM, TemplateNPCFK);
             Subgroups.Add(sgVM);
         }

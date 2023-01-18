@@ -1,14 +1,19 @@
 using System.Collections.ObjectModel;
 using ReactiveUI;
+using Noggog;
 
 namespace SynthEBD;
 
 public class VM_SettingsBodyGen : VM
 {
+    private readonly VM_BodyGenRacialMapping.Factory _mappingFactory;
     public VM_SettingsBodyGen(
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
+        VM_BodyGenRacialMapping.Factory mappingFactory,
         VM_Settings_General generalSettingsVM)
     {
+        _mappingFactory = mappingFactory;
+
         DisplayMaleConfig = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -63,7 +68,7 @@ public class VM_SettingsBodyGen : VM
             {
                 CurrentlyDisplayedConfig = CurrentMaleConfig;
             }
-        });
+        }).DisposeWith(this);
 
         this.WhenAnyValue(x => x.CurrentFemaleConfig).Subscribe(x =>
         {
@@ -71,7 +76,7 @@ public class VM_SettingsBodyGen : VM
             {
                 CurrentlyDisplayedConfig = CurrentFemaleConfig;
             }
-        });
+        }).DisposeWith(this);
     }
 
     public ObservableCollection<VM_BodyGenConfig> MaleConfigs { get; set; } = new();
@@ -93,19 +98,22 @@ public class VM_SettingsBodyGen : VM
         Settings_BodyGen model,
         VM_SettingsBodyGen viewModel,
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
-        VM_Settings_General generalSettingsVM)
+        ObservableCollection<VM_RaceGrouping> mainRaceGroupings)
     {
+        viewModel.FemaleConfigs.Clear();
+        viewModel.MaleConfigs.Clear();
+
         foreach(var config in configModels.Female)
         {
             var subConfig = bodyGenConfigFactory(viewModel.FemaleConfigs);
-            subConfig.CopyInViewModelFromModel(config, generalSettingsVM);
+            subConfig.CopyInViewModelFromModel(config, mainRaceGroupings);
             viewModel.FemaleConfigs.Add(subConfig);
         }
 
         foreach(var config in configModels.Male)
         {
             var subConfig = bodyGenConfigFactory(viewModel.MaleConfigs);
-            subConfig.CopyInViewModelFromModel(config, generalSettingsVM);
+            subConfig.CopyInViewModelFromModel(config, mainRaceGroupings);
             viewModel.MaleConfigs.Add(subConfig);
         }
 
@@ -192,11 +200,11 @@ public class VM_SettingsBodyGen : VM
 
         foreach (var maleVM in viewModel.MaleConfigs)
         {
-            configModels.Male.Add(VM_BodyGenConfig.DumpViewModelToModel(maleVM));    
+            configModels.Male.Add(maleVM.DumpViewModelToModel());    
         }
         foreach (var femaleVM in viewModel.FemaleConfigs)
         {
-            configModels.Female.Add(VM_BodyGenConfig.DumpViewModelToModel(femaleVM));
+            configModels.Female.Add(femaleVM.DumpViewModelToModel());
         }
     }
 
@@ -205,7 +213,7 @@ public class VM_SettingsBodyGen : VM
         var starterGroup = new VM_CollectionMemberString("Group 1", newConfig.GroupUI.TemplateGroups);
         newConfig.GroupUI.TemplateGroups.Add(starterGroup);
 
-        var starterMapping = new VM_BodyGenRacialMapping(newConfig.GroupUI, generalSettingsVM.RaceGroupings);
+        var starterMapping = _mappingFactory(newConfig.GroupUI, generalSettingsVM.RaceGroupingEditor.RaceGroupings);
         starterMapping.Label = "Mapping 1";
         var humanoidRaces = starterMapping.RaceGroupings.RaceGroupingSelections.Where(x => x.SubscribedMasterRaceGrouping.Label.Equals("humanoid", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
         if (humanoidRaces != null)

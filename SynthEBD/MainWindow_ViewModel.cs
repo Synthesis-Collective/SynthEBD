@@ -1,40 +1,50 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Windows;
+using ReactiveUI;
 
 namespace SynthEBD;
 
 public class MainWindow_ViewModel : VM
 {
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly SaveLoader _saveLoader;
     private readonly VM_Settings_General _settingsGeneral;
     private readonly VM_NavPanel _navPanel;
+    private readonly Logger _logger;
+    public readonly SynthEBDPaths _paths; // must be accessible to App.xaml.cs for crash logging
+    private readonly CustomMessageBox _customMessageBox;
 
     public DisplayedItemVm Display { get; }
     public VM_RunButton RunButtonVM { get; }
-    public object NavViewModel { get; }
+    public VM_NavPanel NavViewModel { get; }
     public VM_StatusBar StatusBarVM { get; }
     public static bool EvalMessageTriggered {get; set;} = false;
     public MainWindow_ViewModel(
+        IEnvironmentStateProvider environmentProvider,
         Logger logger,
         SaveLoader saveLoader,
         VM_Settings_General settingsGeneral,
         DisplayedItemVm display,
         VM_StatusBar statusBar,
         VM_NavPanel navPanel,
-        VM_RunButton runButton,
-        Paths paths,
-        PatcherEnvironmentProvider patcherEnvironmentProvider)
+        Func<VM_RunButton> getRunButton,
+        SynthEBDPaths paths,
+        CustomMessageBox customMessageBox)
     {
+        _environmentProvider = environmentProvider;
         _saveLoader = saveLoader;
         _settingsGeneral = settingsGeneral;
         _navPanel = navPanel;
-        Logger.Instance = logger;
+        _logger = logger;
+        _customMessageBox = customMessageBox;
         Display = display;
         StatusBarVM = statusBar;
-        RunButtonVM = runButton;
+        if (_environmentProvider.RunMode == EnvironmentMode.Standalone)
+        {
+            RunButtonVM = getRunButton();
+        }
         NavViewModel = _navPanel;
-        PatcherEnvironmentProvider.Instance = patcherEnvironmentProvider;
-        PatcherSettings.Paths = paths;
+        _paths = paths;
 
         // Start on the settings VM
         Display.DisplayedViewModel = _settingsGeneral;
@@ -43,14 +53,15 @@ public class MainWindow_ViewModel : VM
     public void Init()
     {
         // Load settings
-        _saveLoader.Reinitialize();
+        //_saveLoader.Reinitialize();
+        _saveLoader.TrackRootFolder(); // respond to portable settings folder updates now that initial settings are loaded.
 
-        Application.Current.MainWindow.Closing += new CancelEventHandler(MainWindow_Closing);
+        Application.Current.Exit += MainWindow_Closing;
 
         ValidateEval();
     }
 
-    void MainWindow_Closing(object sender, CancelEventArgs e)
+    void MainWindow_Closing(object sender, ExitEventArgs e)
     {
         _saveLoader.SaveEntireState();
     }
@@ -72,15 +83,9 @@ public class MainWindow_ViewModel : VM
 
         if (!trueVar)
         {
-            DisplayEvalErrorMessage();
+            _customMessageBox.DisplayEvalErrorMessage();
         }
     }
 
-    public static void DisplayEvalErrorMessage()
-    {
-        Application.Current.Dispatcher.Invoke((Action)delegate { // apparently thread-safe to do it this way - https://stackoverflow.com/questions/2329978/the-calling-thread-must-be-sta-because-many-ui-components-require-this
-            CustomMessageBox.DisplayNotificationOK("Eval-Expression License Expired", "SynthEBD's asset distribution functionality depends on a month-to-month license of Eval-Expression.NET, and it appears this license has expired for the current build of SynthEBD. Please contact Piranha91 or another member of the Synthesis Collective to refresh this license by updating the Eval-Expression NuGet package. In the meantime, BodyGen, BodySlide, and Height distribution remain fully functional.");
-            EvalMessageTriggered = true;
-        });
-    }
+    
 }

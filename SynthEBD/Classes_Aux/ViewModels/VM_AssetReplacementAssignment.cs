@@ -1,5 +1,6 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using ReactiveUI;
+using Noggog;
 
 namespace SynthEBD;
 
@@ -26,7 +27,7 @@ public class VM_AssetReplacementAssignment : VM
             {
                 SubscribedReplacerGroup = parent.ReplacersMenu.ReplacerGroups.Where(x => x.Label == ReplacerName).FirstOrDefault();
             }
-        });
+        }).DisposeWith(this);
 
         this.WhenAnyValue(x => x.ParentAssetPack).Subscribe(x =>
         {
@@ -34,7 +35,7 @@ public class VM_AssetReplacementAssignment : VM
             {
                 SubscribedReplacerGroup = parent.ReplacersMenu.ReplacerGroups.Where(x => x.Label == ReplacerName).FirstOrDefault();
             }
-        });
+        }).DisposeWith(this);
     }
     public string ReplacerName { get; set; } = "";
     public ObservableCollection<VM_CollectionMemberString> SubgroupIDs { get; set; } = new();

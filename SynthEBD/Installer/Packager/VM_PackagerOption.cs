@@ -141,7 +141,7 @@ namespace SynthEBD
                 UpdatePathCollectionStatus(AssetPackPaths, ParentManifest.RootDirectory);
                 UpdatePathCollectionStatus(BodyGenConfigPaths, ParentManifest.RootDirectory);
                 UpdatePathCollectionStatus(RecordTemplatePaths, ParentManifest.RootDirectory);
-            });
+            }).DisposeWith(this);
         }
 
         public static VM_PackagerOption GetViewModelFromModel(Manifest.Option model, ObservableCollection<VM_PackagerOption> parentCollection, VM_Manifest parentManifest)

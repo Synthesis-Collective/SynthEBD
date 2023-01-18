@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
@@ -7,10 +7,13 @@ using ReactiveUI;
 
 namespace SynthEBD;
 
-public class VM_raceAlias : VM
+public class VM_RaceAlias : VM
 {
-    public VM_raceAlias(RaceAlias alias, VM_Settings_General parentVM)
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    public delegate VM_RaceAlias Factory(RaceAlias alias, VM_Settings_General parentVM);
+    public VM_RaceAlias(RaceAlias alias, VM_Settings_General parentVM, IEnvironmentStateProvider environmentProvider)
     {
+        _environmentProvider = environmentProvider;
         this.race = alias.Race;
         this.aliasRace = alias.AliasRace;
         this.bMale = alias.bMale;
@@ -19,7 +22,7 @@ public class VM_raceAlias : VM
         this.bApplyToBodyGen = alias.bApplyToBodyGen;
         this.bApplyToHeight = alias.bApplyToHeight;
         this.bApplyToHeadParts = alias.bApplyToHeadParts;
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
@@ -42,20 +45,20 @@ public class VM_raceAlias : VM
 
     public RelayCommand DeleteCommand { get; }
 
-    public static ObservableCollection<VM_raceAlias> GetViewModelsFromModels(List<RaceAlias> models, VM_Settings_General parentVM)
+    public static ObservableCollection<VM_RaceAlias> GetViewModelsFromModels(List<RaceAlias> models, VM_Settings_General parentVM, VM_RaceAlias.Factory factory)
     {
-        var RAVM = new ObservableCollection<VM_raceAlias>();
+        var RAVM = new ObservableCollection<VM_RaceAlias>();
 
         foreach (var x in models)
         {
-            var y = new VM_raceAlias(x, parentVM);
+            var y = factory(x, parentVM);
             RAVM.Add(y);
         }
 
         return RAVM;
     }
 
-    public static RaceAlias DumpViewModelToModel(VM_raceAlias viewModel)
+    public static RaceAlias DumpViewModelToModel(VM_RaceAlias viewModel)
     {
         RaceAlias model = new RaceAlias();
         model.Race = viewModel.race;

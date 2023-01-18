@@ -51,10 +51,11 @@
 
         <WrapPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Stretch">
             <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewSubgroupEditor}" IsChecked="True">Subgroup Editor</RadioButton>
-            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewDistRulesEditor}">Whole Config Distribution Rules</RadioButton>
-            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewDirectReplacersEditor}">Direct Asset Replacers</RadioButton>
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewDistRulesEditor}">Config Distribution Rules</RadioButton>
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewDirectReplacersEditor}">Asset Replacers</RadioButton>
             <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewRecordTemplatesEditor}">Record Templates</RadioButton>
             <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewAttributeGroupsEditor}">Attribute Groups</RadioButton>
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewRaceGroupingsEditor}">Race Groupings</RadioButton>
         </WrapPanel>
 
         <Control Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2">
@@ -106,6 +107,15 @@
                                 </Setter.Value>
                             </Setter>
                         </DataTrigger>
+                        <DataTrigger Binding="{Binding DisplayedMenuType}" Value="{x:Static local:AssetPackMenuVisibility.RaceGroupings}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <local:UC_RaceGroupingEditor DataContext="{Binding RaceGroupingEditor}"/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
                     </Style.Triggers>
                 </Style>
             </Control.Style>
@@ -123,6 +133,7 @@
             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding MergeWithAssetPack}" Foreground="MediumPurple" ToolTip="Merge this config file with another config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Merge With</Button>
             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding SetDefaultTargetDestPaths}" Foreground="MediumPurple" ToolTip="Set asset destination paths for all recognized source files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Auto-Set Destination Paths</Button>
             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding ListDisabledSubgroupsButton}" Foreground="MediumPurple" ToolTip="List all subgroups whose distribution is currently disabled" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">List Disabled Subgroups</Button>
+            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding ListCustomRulesButton}" Foreground="MediumPurple" ToolTip="List all custom distribution rules for this config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">List Distribution Rules</Button>
             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding RemoveAssetPackConfigFile}" Foreground="FireBrick">Delete</Button>
         </StackPanel>
     </Grid>

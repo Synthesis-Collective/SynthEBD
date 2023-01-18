@@ -158,7 +158,6 @@ public class Settings_General
         Skyrim.Race.KhajiitRace.FormKey,
         Skyrim.Race.KhajiitRaceVampire.FormKey,
         Skyrim.Race.ArgonianRace.FormKey,
-
         Skyrim.Race.ArgonianRaceVampire.FormKey
     };
 
@@ -189,10 +188,20 @@ public class Settings_General
         DefaultRaceGroupings.Elven,
         DefaultRaceGroupings.ElvenNonVampire,
         DefaultRaceGroupings.ElvenVampire,
+        DefaultRaceGroupings.Breton,
+        DefaultRaceGroupings.DarkElf,
+        DefaultRaceGroupings.HighElf,
+        DefaultRaceGroupings.Imperial,
+        DefaultRaceGroupings.Nord,
+        DefaultRaceGroupings.Orc,
+        DefaultRaceGroupings.Redguard,
+        DefaultRaceGroupings.WoodElf,
         DefaultRaceGroupings.Elder,
         DefaultRaceGroupings.Khajiit,
         DefaultRaceGroupings.Argonian
     };
+
+    public bool OverwritePluginRaceGroups { get; set; } = true;
 
     public HashSet<AttributeGroup> AttributeGroups { get; set; } = new()
     {

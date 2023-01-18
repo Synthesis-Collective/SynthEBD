@@ -1,21 +1,26 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using static SynthEBD.VM_BodyShapeDescriptor;
 
 namespace SynthEBD;
 
 public class VM_BodyShapeDescriptorSelectionMenu : VM
 {
-    public VM_BodyShapeDescriptorSelectionMenu(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
+    private readonly Factory _selfFactory;
+    public delegate VM_BodyShapeDescriptorSelectionMenu Factory(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig);
+    public VM_BodyShapeDescriptorSelectionMenu(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, VM_BodyShapeDescriptorCreator descriptorCreator, VM_BodyShapeDescriptorSelectionMenu.Factory selfFactory)
     {
-        this.TrackedMenu = trackedMenu;
-        this.TrackedRaceGroupings = raceGroupingVMs;
-        this.Parent = parentConfig;
+        _selfFactory = selfFactory;
+
+        TrackedMenu = trackedMenu;
+        TrackedRaceGroupings = raceGroupingVMs;
+        Parent = parentConfig;
         foreach (var Descriptor in TrackedMenu.TemplateDescriptors)
         {
             this.DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(Descriptor, this));
         }
-        this.CurrentlyDisplayedShell = new VM_BodyShapeDescriptorShellSelector(new VM_BodyShapeDescriptorShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), raceGroupingVMs, parentConfig), this);
+        this.CurrentlyDisplayedShell = new VM_BodyShapeDescriptorShellSelector(descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), raceGroupingVMs, parentConfig), this);
 
         trackedMenu.TemplateDescriptors.CollectionChanged += UpdateShellList;
     }
@@ -29,7 +34,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
     public VM_BodyShapeDescriptorSelectionMenu Clone()
     {
         var modelDump = DumpToHashSet(this);
-        return InitializeFromHashSet(modelDump, TrackedMenu, TrackedRaceGroupings, Parent);
+        return InitializeFromHashSet(modelDump, TrackedMenu, TrackedRaceGroupings, Parent, _selfFactory);
     }
 
     public bool IsAnnotated()
@@ -89,9 +94,9 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         this.UpdateHeader();
     }
 
-    public static VM_BodyShapeDescriptorSelectionMenu InitializeFromHashSet(HashSet<BodyShapeDescriptor.LabelSignature> BodyShapeDescriptors, VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
+    public static VM_BodyShapeDescriptorSelectionMenu InitializeFromHashSet(HashSet<BodyShapeDescriptor.LabelSignature> BodyShapeDescriptors, VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
-        var menu = new VM_BodyShapeDescriptorSelectionMenu(trackedMenu, raceGroupingVMs, parentConfig);
+        var menu = descriptorSelectionFactory(trackedMenu, raceGroupingVMs, parentConfig);
         foreach (var descriptor in BodyShapeDescriptors)
         {
             bool keepLooking = true;

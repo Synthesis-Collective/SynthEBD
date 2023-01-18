@@ -4,30 +4,35 @@ namespace SynthEBD;
 
 public class OBodyPreprocessing
 {
-    public static void CompilePresetRaces(Settings_OBody oBodySettings)
+    private readonly PatcherState _patcherState;
+    public OBodyPreprocessing(PatcherState patcherState)
+    {
+        _patcherState = patcherState;
+    }
+    public void CompilePresetRaces(Settings_OBody oBodySettings)
     {
         foreach (var preset in oBodySettings.BodySlidesMale)
         {
-            preset.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(preset.AllowedRaceGroupings, PatcherSettings.General.RaceGroupings, preset.AllowedRaces);
-            preset.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(preset.DisallowedRaceGroupings, PatcherSettings.General.RaceGroupings, preset.DisallowedRaces);
+            preset.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(preset.AllowedRaceGroupings, _patcherState.GeneralSettings.RaceGroupings, preset.AllowedRaces);
+            preset.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(preset.DisallowedRaceGroupings, _patcherState.GeneralSettings.RaceGroupings, preset.DisallowedRaces);
         }
         foreach (var preset in oBodySettings.BodySlidesFemale)
         {
-            preset.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(preset.AllowedRaceGroupings, PatcherSettings.General.RaceGroupings, preset.AllowedRaces);
-            preset.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(preset.DisallowedRaceGroupings, PatcherSettings.General.RaceGroupings, preset.DisallowedRaces);
+            preset.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(preset.AllowedRaceGroupings, _patcherState.GeneralSettings.RaceGroupings, preset.AllowedRaces);
+            preset.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(preset.DisallowedRaceGroupings, _patcherState.GeneralSettings.RaceGroupings, preset.DisallowedRaces);
         }
     }
 
-    public static void CompileRulesRaces(Settings_OBody oBodySettings)
+    public void CompileRulesRaces(Settings_OBody oBodySettings)
     {
         foreach (var descriptor in oBodySettings.TemplateDescriptors)
         {
-            descriptor.AssociatedRules.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(descriptor.AssociatedRules.AllowedRaceGroupings, PatcherSettings.General.RaceGroupings, descriptor.AssociatedRules.AllowedRaces);
-            descriptor.AssociatedRules.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(descriptor.AssociatedRules.DisallowedRaceGroupings, PatcherSettings.General.RaceGroupings, descriptor.AssociatedRules.DisallowedRaces);
+            descriptor.AssociatedRules.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(descriptor.AssociatedRules.AllowedRaceGroupings, _patcherState.GeneralSettings.RaceGroupings, descriptor.AssociatedRules.AllowedRaces);
+            descriptor.AssociatedRules.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(descriptor.AssociatedRules.DisallowedRaceGroupings, _patcherState.GeneralSettings.RaceGroupings, descriptor.AssociatedRules.DisallowedRaces);
         }
     }
 
-    public static bool NPCIsEligibleForBodySlide(INpcGetter npc)
+    public bool NPCIsEligibleForBodySlide(INpcGetter npc)
     {
         if (npc.Configuration.TemplateFlags.HasFlag(NpcConfiguration.TemplateFlag.Traits) && npc.Template != null && !npc.Template.FormKey.IsNull)
         {

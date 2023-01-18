@@ -1,14 +1,23 @@
-﻿using System.IO;
+using System.IO;
 
 namespace SynthEBD;
 
 public class RaceMenuIniHandler
 {
-    public static List<string> GetRaceMenuIniContents(out bool success, out string fileName)
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly Logger _logger;
+    private readonly SynthEBDPaths _paths;
+    public RaceMenuIniHandler(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths)
+    {
+        _environmentProvider = environmentProvider;
+        _logger = logger;
+        _paths = paths;
+    }
+    public List<string> GetRaceMenuIniContents(out bool success, out string fileName)
     {
         success = false;
-        string iniPath64 = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "SKSE", "Plugins", "skee64.ini");
-        string iniPathVR = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "SKSE", "Plugins", "skeevr.ini");
+        string iniPath64 = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "skee64.ini");
+        string iniPathVR = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "skeevr.ini");
 
         string iniPath = "";
         if (File.Exists(iniPathVR)) { iniPath = iniPathVR; fileName = "skeevr.ini"; }
@@ -25,7 +34,7 @@ public class RaceMenuIniHandler
         }
         catch
         {
-            Logger.LogMessage("Couldn't access RaceMenu ini at " + iniPath);
+            _logger.LogMessage("Couldn't access RaceMenu ini at " + iniPath);
         }
         return iniContents;
     }
@@ -88,7 +97,7 @@ public class RaceMenuIniHandler
         fullIniLines[fullIniLines.IndexOf(iniLine)] = newIniLine;
     }
 
-    public static bool GetBodyMorphEnabled(List<string> iniContents, out bool success, out string lineInIni)
+    public bool GetBodyMorphEnabled(List<string> iniContents, out bool success, out string lineInIni)
     {
         success=false;
         lineInIni = GetIniLine(iniContents, "bEnableBodyMorph", out bool lineFound);
@@ -110,7 +119,7 @@ public class RaceMenuIniHandler
         return false;
     }
 
-    public static bool GetBodyGenEnabled(List<string> iniContents, out bool success, out string lineInIni)
+    public bool GetBodyGenEnabled(List<string> iniContents, out bool success, out string lineInIni)
     {
         success = false;
         lineInIni = GetIniLine(iniContents, "bEnableBodyGen", out bool lineFound);
@@ -149,7 +158,7 @@ public class RaceMenuIniHandler
         return -1;
     }
 
-    public static bool SetRaceMenuIniForBodyGen()
+    public bool SetRaceMenuIniForBodyGen()
     {
         var iniContents = GetRaceMenuIniContents(out bool success, out string iniFileName);
         if (!success)
@@ -211,7 +220,7 @@ public class RaceMenuIniHandler
         }
     }
 
-    public static bool SetRaceMenuIniForBodySlide()
+    public bool SetRaceMenuIniForBodySlide()
     {
         var iniContents = GetRaceMenuIniContents(out bool success, out string iniFileName);
         if (!success)
@@ -259,9 +268,9 @@ public class RaceMenuIniHandler
         }
     }
 
-    public static bool WriteRaceMenuIni(List<string> contents, string fileName)
+    public bool WriteRaceMenuIni(List<string> contents, string fileName)
     {
-        string iniPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "SKSE", "Plugins", fileName);
+        string iniPath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", fileName);
         try
         {
             File.WriteAllText(iniPath, string.Join(Environment.NewLine, contents));
@@ -269,7 +278,7 @@ public class RaceMenuIniHandler
         }
         catch
         {
-            Logger.LogMessage("Could not write to " + iniPath);
+            _logger.LogMessage("Could not write to " + iniPath);
             return false;
         }
     }

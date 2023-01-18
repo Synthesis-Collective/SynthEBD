@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Windows.Media;
 using System.IO;
 using ReactiveUI;
@@ -11,31 +11,41 @@ namespace SynthEBD;
 
 public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 {
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
     private readonly BSAHandler _bsaHandler;
+    private readonly RecordIntellisense _recordIntellisense;
+    private readonly RecordPathParser _recordPathParser;
+    private readonly Logger _logger;
     private readonly Factory _selfFactory;
 
     public delegate VM_FilePathReplacement Factory(VM_FilePathReplacementMenu parentMenu);
     
-    public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu, BSAHandler bsaHandler, Factory selfFactory)
+    public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, BSAHandler bsaHandler, RecordIntellisense recordIntellisense, RecordPathParser recordPathParser, Logger logger, Factory selfFactory)
     {
+        _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
         _bsaHandler = bsaHandler;
+        _recordIntellisense = recordIntellisense;
+        _recordPathParser = recordPathParser;
+        _logger = logger;
         _selfFactory = selfFactory;
         ReferenceNPCFormKey = parentMenu.ReferenceNPCFK;
         LinkCache = parentMenu.ReferenceLinkCache;
 
-        RecordIntellisense.InitializeSubscriptions(this);
-        parentMenu.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => SyncReferenceWithParent()); // can be changed from record templates without the user modifying parentMenu.NPCFK, so need an explicit watch
-        parentMenu.WhenAnyValue(x => x.ReferenceLinkCache).Subscribe(x => LinkCache = parentMenu.ReferenceLinkCache);
+        _recordIntellisense.InitializeSubscriptions(this);
+        parentMenu.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => SyncReferenceWithParent()).DisposeWith(this); // can be changed from record templates without the user modifying parentMenu.NPCFK, so need an explicit watch
+        parentMenu.WhenAnyValue(x => x.ReferenceLinkCache).Subscribe(x => LinkCache = parentMenu.ReferenceLinkCache).DisposeWith(this);
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentMenu.Paths.Remove(this));
-        FindPath = new SynthEBD.RelayCommand(
+        FindPath = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
                 System.Windows.Forms.OpenFileDialog dialog = LongPathHandler.CreateLongPathOpenFileDialog();
                 if (Source != "")
                 {
-                    var initDir = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, Path.GetDirectoryName(Source));
+                    var initDir = Path.Combine(_environmentProvider.DataFolderPath, Path.GetDirectoryName(Source));
                     if (Directory.Exists(initDir))
                     {
                         dialog.InitialDirectory = initDir;
@@ -45,9 +55,9 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
                 if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 {
                     // try to figure out the root directory
-                    if (dialog.FileName.Contains(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath))
+                    if (dialog.FileName.Contains(_environmentProvider.DataFolderPath))
                     {
-                        Source = dialog.FileName.Replace(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "").TrimStart(Path.DirectorySeparatorChar);
+                        Source = dialog.FileName.Replace(_environmentProvider.DataFolderPath, "").TrimStart(Path.DirectorySeparatorChar);
                     }
                     else if (TrimKnownPrefix(dialog.FileName, out var sourceTrimmed))
                     {
@@ -72,7 +82,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
             }
         );
 
-        SetDestinationPath = new SynthEBD.RelayCommand(
+        SetDestinationPath = new RelayCommand(
             canExecute: _ => true,
             execute: x => { 
                 var selectedItem = (VM_MenuItem)x;
@@ -85,9 +95,9 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 
         ParentMenu = parentMenu;
 
-        this.WhenAnyValue(x => x.Source).Subscribe(x => RefreshSourceColor());
-        this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => RefreshReferenceNPC());
-        this.WhenAnyValue(x => x.ParentMenu.ReferenceNPCFK).Subscribe(x => RefreshReferenceNPC());
+        this.WhenAnyValue(x => x.Source).Subscribe(x => RefreshSourceColor()).DisposeWith(this);
+        this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => RefreshReferenceNPC()).DisposeWith(this);
+        this.WhenAnyValue(x => x.ParentMenu.ReferenceNPCFK).Subscribe(x => RefreshReferenceNPC()).DisposeWith(this);
     }
 
     public VM_FilePathReplacement Clone(VM_FilePathReplacementMenu parentMenu)
@@ -102,7 +112,8 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
     public string Source { get; set; } = "";
     public string IntellisensedPath { get; set; } = "";
 
-    public string DestinationAlias { get; set; } = "";
+    public bool SourceExists { get; set; } = false;
+    public bool DestinationExists { get; set; } = false;
 
     public SolidColorBrush SourceBorderColor { get; set; } = new(Colors.Red);
     public SolidColorBrush DestBorderColor { get; set; } = new(Colors.Red);
@@ -133,7 +144,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
             var references = ParentMenu.ParentSubgroup.ParentAssetPack.AdditionalRecordTemplateAssignments.Select(x => x.TemplateNPC).And(ParentMenu.ParentSubgroup.ParentAssetPack.DefaultTemplateFK);
             foreach (var referenceNPCformKey in references)
             {
-                if (ParentMenu.ReferenceLinkCache.TryResolve<INpcGetter>(referenceNPCformKey, out var referenceNPCgetter) && RecordPathParser.GetObjectAtPath(referenceNPCgetter, referenceNPCgetter, IntellisensedPath, new Dictionary<string, dynamic>(), ParentMenu.ReferenceLinkCache, true, "", out _))
+                if (ParentMenu.ReferenceLinkCache.TryResolve<INpcGetter>(referenceNPCformKey, out var referenceNPCgetter) && _recordPathParser.GetObjectAtPath(referenceNPCgetter, referenceNPCgetter, IntellisensedPath, new Dictionary<string, dynamic>(), ParentMenu.ReferenceLinkCache, true, "", out _))
                 {
                     ReferenceNPCFormKey = referenceNPCformKey;
                     break;
@@ -145,33 +156,37 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 
     public void RefreshSourceColor()
     {
-        var searchStr = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, this.Source);
+        var searchStr = Path.Combine(_environmentProvider.DataFolderPath, this.Source);
         if (LongPathHandler.PathExists(searchStr) || _bsaHandler.ReferencedPathExists(this.Source, out _, out _))
         {
+            SourceExists = true;
             this.SourceBorderColor = new SolidColorBrush(Colors.LightGreen);
         }
         else
         {
+            SourceExists = false;
             this.SourceBorderColor = new SolidColorBrush(Colors.Red);
         }
     }
 
     public void RefreshDestColor()
     {
-        if(LinkCache != null && ReferenceNPCFormKey != null && LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC) && RecordPathParser.GetObjectAtPath(refNPC, refNPC, this.IntellisensedPath, new Dictionary<string, dynamic>(), ParentMenu.ReferenceLinkCache, true, Logger.GetNPCLogNameString(refNPC), out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
+        if(LinkCache != null && ReferenceNPCFormKey != null && LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC) && _recordPathParser.GetObjectAtPath(refNPC, refNPC, this.IntellisensedPath, new Dictionary<string, dynamic>(), ParentMenu.ReferenceLinkCache, true, Logger.GetNPCLogNameString(refNPC), out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
         {
+            DestinationExists = true;
             this.DestBorderColor = new SolidColorBrush(Colors.LightGreen);
         }
         else
         {
+            DestinationExists = false;
             this.DestBorderColor = new SolidColorBrush(Colors.Red);
         }
     }
 
-    private static bool TrimKnownPrefix(string s, out string trimmed)
+    private bool TrimKnownPrefix(string s, out string trimmed)
     {
         trimmed = "";
-        foreach (var trim in PatcherSettings.TexMesh.TrimPaths)
+        foreach (var trim in _patcherState.TexMeshSettings.TrimPaths)
         {
             if (s.Contains(trim.PathToTrim) && s.EndsWith(trim.Extension))
             {

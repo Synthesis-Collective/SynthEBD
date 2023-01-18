@@ -16,15 +16,35 @@ namespace SynthEBD
 {
     public class VM_AssetDistributionSimulator : VM
     {
-        public VM_AssetDistributionSimulator(VM_SettingsTexMesh texMesh, VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI)
+        private readonly IEnvironmentStateProvider _environmentProvider;
+        private readonly PatcherState _patcherState;
+        private readonly Logger _logger;
+        private readonly SynthEBDPaths _paths;
+        private readonly DictionaryMapper _dictionaryMapper;
+        private readonly AssetAndBodyShapeSelector _assetAndBodyShapeSelector;
+        private readonly SettingsIO_OBody _oBodyIO;
+        private readonly OBodyPreprocessing _obodyPreProcessing;
+        private readonly NPCInfo.Factory _npcInfoFactory;
+        public delegate VM_AssetDistributionSimulator Factory();
+        public VM_AssetDistributionSimulator(VM_SettingsTexMesh texMesh, VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, DictionaryMapper dictionaryMapper, AssetAndBodyShapeSelector assetAndBodyShapeSelector, OBodyPreprocessing oBodyPreprocessing, SettingsIO_OBody oBodyIO, NPCInfo.Factory npcInfoFactory)
         {
-            PrimaryAPs = texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.Primary && x.IsSelected).Select(x => VM_AssetPack.DumpViewModelToModel(x)).ToHashSet();
-            MixInAPs = texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.MixIn && x.IsSelected).Select(x => VM_AssetPack.DumpViewModelToModel(x)).ToHashSet();
-            VM_SettingsOBody.DumpViewModelToModel(OBodySettings, oBody);
+            _environmentProvider = environmentProvider;
+            _patcherState = patcherState;
+            _logger = logger;
+            _paths = paths;
+            _dictionaryMapper = dictionaryMapper;
+            _assetAndBodyShapeSelector = assetAndBodyShapeSelector;
+            _obodyPreProcessing = oBodyPreprocessing;
+            _oBodyIO = oBodyIO;
+            _npcInfoFactory = npcInfoFactory;
+
+            PrimaryAPs = texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.Primary && x.IsSelected).Select(x => x.DumpViewModelToModel()).ToHashSet();
+            MixInAPs = texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.MixIn && x.IsSelected).Select(x => x.DumpViewModelToModel()).ToHashSet();
+            OBodySettings = oBody.DumpViewModelToModel();
             VM_BlockListUI.DumpViewModelToModel(blockListUI, BlockList);
             VM_SettingsBodyGen.DumpViewModelToModel(bodyGen, new(), BodyGenConfigs);
 
-            PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            _environmentProvider.WhenAnyValue(x => x.LinkCache)
                 .Subscribe(x => lk = x)
                 .DisposeWith(this);
 
@@ -33,11 +53,11 @@ namespace SynthEBD
                 if (lk.TryResolve<INpcGetter>(NPCformKey, out var npcGetter))
                 {
                     NPCgetter = npcGetter;
-                    NPCinfo = new NPCInfo(npcGetter, new(), new(), new(), new(), new());
+                    NPCinfo = npcInfoFactory(npcGetter, new(), new());
                 }
-            });
+            }).DisposeWith(this); ;
 
-            SimulatePrimary = new SynthEBD.RelayCommand(
+            SimulatePrimary = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -54,7 +74,7 @@ namespace SynthEBD
         public HashSet<AssetPack> PrimaryAPs { get; set; } = new();
         public HashSet<AssetPack> MixInAPs { get; set; } = new();
         public BodyGenConfigs BodyGenConfigs { get; set; } = new();
-        public Settings_OBody OBodySettings { get; set; } = new();
+        public Settings_OBody OBodySettings { get; set; }
         public BlockList BlockList { get; set; } = new();
         public int Repetitions { get; set; } = 100;
         public string TextReport { get; set; } = string.Empty;
@@ -66,31 +86,31 @@ namespace SynthEBD
             if (PrimaryAPs is null || !PrimaryAPs.Any()) { return; }
             if (NPCformKey.IsNull) { return; }
 
-            var flattenedAssetPacks = PrimaryAPs.Where(x => x.Gender == NPCinfo.Gender).Select(x => FlattenedAssetPack.FlattenAssetPack(x)).ToHashSet();
+            var flattenedAssetPacks = PrimaryAPs.Where(x => x.Gender == NPCinfo.Gender).Select(x => FlattenedAssetPack.FlattenAssetPack(x, _dictionaryMapper, _patcherState)).ToHashSet();
 
             var blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(BlockList, NPCformKey);
-            var blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(BlockList, NPCformKey);
+            var blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(BlockList, NPCformKey, _environmentProvider.LinkCache);
             var blockBodyShape = false;
-            if (blockListNPCEntry.BodyShape || blockListPluginEntry.BodyShape || !OBodyPreprocessing.NPCIsEligibleForBodySlide(NPCgetter)) { blockBodyShape = true; }
+            if (blockListNPCEntry.BodyShape || blockListPluginEntry.BodyShape || !_obodyPreProcessing.NPCIsEligibleForBodySlide(NPCgetter)) { blockBodyShape = true; }
 
             HashSet<SubgroupCombination> combinations = new();
 
-            var currentDetailedVerboseSetting = PatcherSettings.General.VerboseModeDetailedAttributes;
+            var currentDetailedVerboseSetting = _patcherState.GeneralSettings.VerboseModeDetailedAttributes;
 
             for (int i = 0; i < Repetitions; i++)
             {
                 if (i == Repetitions - 1)
                 {
-                    PatcherSettings.General.VerboseModeDetailedAttributes = true;
+                    _patcherState.GeneralSettings.VerboseModeDetailedAttributes = true;
                     NPCinfo.Report.LogCurrentNPC = true;
-                    Logger.InitializeNewReport(NPCinfo);
+                    _logger.InitializeNewReport(NPCinfo);
                 }
-                var chosenCombination = AssetAndBodyShapeSelector.GenerateCombinationWithBodyShape(flattenedAssetPacks, BodyGenConfigs, OBodySettings, new AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment(), NPCinfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, new());
+                var chosenCombination = _assetAndBodyShapeSelector.GenerateCombinationWithBodyShape(flattenedAssetPacks, BodyGenConfigs, OBodySettings, new AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment(), NPCinfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, new());
                 combinations.Add(chosenCombination);
                 if (i == Repetitions - 1)
                 {
                     NPCinfo.Report.LogCurrentNPC = false;
-                    PatcherSettings.General.VerboseModeDetailedAttributes = currentDetailedVerboseSetting;
+                    _patcherState.GeneralSettings.VerboseModeDetailedAttributes = currentDetailedVerboseSetting;
                 }
             }
 
@@ -181,7 +201,7 @@ namespace SynthEBD
                 var log = npcInfo.Report.RootElement.ToString();
 
                 string startStr = "Filtering subgroups within asset pack: " + assetPackName;
-                var split1 = log.Split(startStr);
+                var split1 = log.Split(startStr).ToArray();
                 if (split1.Length < 2) { ExplainStr = "Could not parse the log."; return; }
 
                 string endStr = "</AssetPack>";

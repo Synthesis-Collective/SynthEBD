@@ -1,4 +1,4 @@
-﻿using ReactiveUI;
+using ReactiveUI;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -9,14 +9,18 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media;
 using Pfim;
+using Noggog;
 
 namespace SynthEBD
 {
     public class VM_AssetPresenter : VM
     {
-        public VM_AssetPresenter(VM_SettingsTexMesh parent)
+        private readonly Logger _logger;
+        public VM_AssetPresenter(VM_SettingsTexMesh parent, Logger logger)
         {
             ParentUI = parent;
+
+            _logger = logger;
 
             this.WhenAnyValue(
                 x => x.AssetPack.DisplayedSubgroup.ImagePaths,
@@ -24,7 +28,7 @@ namespace SynthEBD
                 // Just pass along the signal, don't care about the triggering values
                 (_, _) => Unit.Default)
             .Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler)
-            .Subscribe(_ => UpdatePreviewImages(AssetPack));
+            .Subscribe(_ => UpdatePreviewImages(AssetPack)).DisposeWith(this);
         }
 
         public VM_SettingsTexMesh ParentUI { get; private set; }
@@ -68,8 +72,8 @@ namespace SynthEBD
                 }
                 catch (Exception ex)
                 {
-                    string errorStr = "Failed to load preview image from Subgroup " + sourcedImagePath.PrimarySource + " : " + sourcedImagePath.Path + Environment.NewLine + ExceptionLogger.GetExceptionStack(ex, "");
-                    Logger.LogMessage(errorStr);
+                    string errorStr = "Failed to load preview image from Subgroup " + sourcedImagePath.PrimarySource + " : " + sourcedImagePath.Path + Environment.NewLine + ExceptionLogger.GetExceptionStack(ex);
+                    _logger.LogMessage(errorStr);
                 }
             }
             return;

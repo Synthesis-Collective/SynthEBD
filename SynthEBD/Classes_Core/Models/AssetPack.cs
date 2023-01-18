@@ -18,6 +18,7 @@ public class AssetPack : IModelHasSubgroups
     public List<AssetReplacerGroup> ReplacerGroups { get; set; } = new();
     public HashSet<string> DefaultRecordTemplateAdditionalRacesPaths { get; set; } = new();
     public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
+    public List<RaceGrouping> RaceGroupings { get; set; } = new();
     public ConfigDistributionRules DistributionRules { get; set; }
     [Newtonsoft.Json.JsonIgnore]
     public string FilePath { get; set; }
@@ -94,6 +95,28 @@ public class AssetPack : IModelHasSubgroups
         public NPCWeightRange WeightRange { get; set; } = new();
         public List<Subgroup> Subgroups { get; set; } = new();
         public string TopLevelSubgroupID { get; set; } = "";
+
+        public void GetContainedRaceGroupingLabels(HashSet<string> labels)
+        {
+            foreach (var groupLabel in AllowedRaceGroupings)
+            {
+                if (!labels.Contains(groupLabel))
+                {
+                    labels.Add(groupLabel);
+                }
+            }
+            foreach (var groupLabel in DisallowedRaceGroupings)
+            {
+                if (!labels.Contains(groupLabel))
+                {
+                    labels.Add(groupLabel);
+                }
+            }
+            foreach (var subgroup in Subgroups)
+            {
+                subgroup.GetContainedRaceGroupingLabels(labels);
+            }
+        }
     }
 }
 
@@ -183,26 +206,26 @@ class ZEBDAssetPack
 
         public string hashKey { get; set; }
 
-        public static AssetPack.Subgroup ToSynthEBDSubgroup(ZEBDSubgroup g, List<RaceGrouping> raceGroupings, string topLevelSubgroupID, string assetPackName, List<string> conversionErrors)
+        public AssetPack.Subgroup ToSynthEBDSubgroup(List<RaceGrouping> raceGroupings, string topLevelSubgroupID, string assetPackName, List<string> conversionErrors, IEnvironmentStateProvider environmentProvider, Logger logger, Converters converters)
         {
             AssetPack.Subgroup s = new AssetPack.Subgroup();
 
-            s.ID = g.id;
-            s.Name = g.name;
-            s.Enabled = g.enabled;
-            s.DistributionEnabled = g.distributionEnabled;
-            s.AllowedAttributes = Converters.StringArraysToAttributes(g.allowedAttributes);
-            s.DisallowedAttributes = Converters.StringArraysToAttributes(g.disallowedAttributes);
-            Converters.zEBDForceIfAttributesToAllowed(s.AllowedAttributes, Converters.StringArraysToAttributes(g.forceIfAttributes));
-            s.AllowUnique = g.bAllowUnique;
-            s.AllowNonUnique = g.bAllowNonUnique;
-            s.RequiredSubgroups = new HashSet<string>(g.requiredSubgroups);
-            s.ExcludedSubgroups = new HashSet<string>(g.excludedSubgroups);
-            s.AddKeywords = new HashSet<string>(g.addKeywords);
-            s.ProbabilityWeighting = g.probabilityWeighting;
+            s.ID = id;
+            s.Name = name;
+            s.Enabled = enabled;
+            s.DistributionEnabled = distributionEnabled;
+            s.AllowedAttributes = converters.StringArraysToAttributes(allowedAttributes);
+            s.DisallowedAttributes = converters.StringArraysToAttributes(disallowedAttributes);
+            Converters.ImportzEBDForceIfAttributes(s.AllowedAttributes, converters.StringArraysToAttributes(forceIfAttributes));
+            s.AllowUnique = bAllowUnique;
+            s.AllowNonUnique = bAllowNonUnique;
+            s.RequiredSubgroups = new HashSet<string>(requiredSubgroups);
+            s.ExcludedSubgroups = new HashSet<string>(excludedSubgroups);
+            s.AddKeywords = new HashSet<string>(addKeywords);
+            s.ProbabilityWeighting = probabilityWeighting;
 
             s.Paths = new HashSet<FilePathReplacement>();
-            foreach (string[] pathPair in g.paths)
+            foreach (string[] pathPair in paths)
             {
                 string newSource = pathPair[0];
                 if (newSource.StartsWith('\\'))
@@ -228,14 +251,14 @@ class ZEBDAssetPack
                 }
                 else
                 {
-                    conversionErrors.Add("Subgroup: " + g.id + ": The destination path " + pathPair[1] + " was not recognized as a default path, so it could not be converted to SynthEBD format. Please upgrade it manually.");
+                    conversionErrors.Add("Subgroup: " + id + ": The destination path " + pathPair[1] + " was not recognized as a default path, so it could not be converted to SynthEBD format. Please upgrade it manually.");
                 }
                 s.Paths.Add(new FilePathReplacement { Source = newSource, Destination = newDest });
             }
 
-            s.WeightRange = Converters.StringArrayToWeightRange(g.weightRange);
+            s.WeightRange = Converters.StringArrayToWeightRange(weightRange);
 
-            foreach (string id in g.allowedRaces)
+            foreach (string id in allowedRaces)
             {
                 bool continueSearch = true;
                 // first see if it belongs to a RaceGrouping
@@ -258,7 +281,7 @@ class ZEBDAssetPack
                 // if not, see if it is a race EditorID
                 if (continueSearch == true)
                 {
-                    FormKey raceFormKey = Converters.RaceEDID2FormKey(id);
+                    FormKey raceFormKey = Converters.RaceEDID2FormKey(id, environmentProvider);
                     if (raceFormKey.IsNull == false)
                     {
                         s.AllowedRaces.Add(raceFormKey);
@@ -266,7 +289,7 @@ class ZEBDAssetPack
                 }
             }
 
-            foreach (string id in g.disallowedRaces)
+            foreach (string id in disallowedRaces)
             {
                 bool continueSearch = true;
                 // first see if it belongs to a RaceGrouping
@@ -289,7 +312,7 @@ class ZEBDAssetPack
                 // if not, see if it is a race EditorID
                 if (continueSearch == true)
                 {
-                    FormKey raceFormKey = Converters.RaceEDID2FormKey(id);
+                    FormKey raceFormKey = Converters.RaceEDID2FormKey(id, environmentProvider);
                     if (raceFormKey.IsNull == false)
                     {
                         s.DisallowedRaces.Add(raceFormKey);
@@ -297,16 +320,16 @@ class ZEBDAssetPack
                 }
             }
 
-            foreach (string str in g.allowedBodyGenDescriptors)
+            foreach (string str in allowedBodyGenDescriptors)
             {
-                if (BodyShapeDescriptor.LabelSignature.FromString(str, out BodyShapeDescriptor.LabelSignature allowedDescriptor))
+                if (BodyShapeDescriptor.LabelSignature.FromString(str, out BodyShapeDescriptor.LabelSignature allowedDescriptor, logger))
                 {
                     s.AllowedBodyGenDescriptors.Add(allowedDescriptor);
                 }
             }
-            foreach (string str in g.disallowedBodyGenDescriptors)
+            foreach (string str in disallowedBodyGenDescriptors)
             {
-                if (BodyShapeDescriptor.LabelSignature.FromString(str, out BodyShapeDescriptor.LabelSignature disallowedDescriptor))
+                if (BodyShapeDescriptor.LabelSignature.FromString(str, out BodyShapeDescriptor.LabelSignature disallowedDescriptor, logger))
                 {
                     s.DisallowedBodyGenDescriptors.Add(disallowedDescriptor);
                 }
@@ -321,9 +344,9 @@ class ZEBDAssetPack
                 s.TopLevelSubgroupID = topLevelSubgroupID;
             }
 
-            foreach (var sg in g.subgroups)
+            foreach (var sg in subgroups)
             {
-                s.Subgroups.Add(ToSynthEBDSubgroup(sg, raceGroupings, s.TopLevelSubgroupID, assetPackName, conversionErrors));
+                s.Subgroups.Add(sg.ToSynthEBDSubgroup(raceGroupings, s.TopLevelSubgroupID, assetPackName, conversionErrors, environmentProvider, logger, converters));
             }
 
             return s;
@@ -347,17 +370,17 @@ class ZEBDAssetPack
         };
     }
 
-    public static AssetPack ToSynthEBDAssetPack(ZEBDAssetPack z, List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs)
+    public AssetPack ToSynthEBDAssetPack(List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs, IEnvironmentStateProvider environmentProvider, Converters converters, Logger logger, SynthEBDPaths paths)
     {
         List<string> conversionErrors = new List<string>();
         AssetPack s = new AssetPack();
-        s.GroupName = z.groupName;
-        s.Gender = z.gender;
-        s.DisplayAlerts = z.displayAlerts;
-        s.UserAlert = z.userAlert;
-        foreach (ZEBDAssetPack.ZEBDSubgroup sg in z.subgroups)
+        s.GroupName = groupName;
+        s.Gender = gender;
+        s.DisplayAlerts = displayAlerts;
+        s.UserAlert = userAlert;
+        foreach (ZEBDSubgroup sg in subgroups)
         {
-            s.Subgroups.Add(ZEBDAssetPack.ZEBDSubgroup.ToSynthEBDSubgroup(sg, raceGroupings, "", z.groupName, conversionErrors));
+            s.Subgroups.Add(sg.ToSynthEBDSubgroup(raceGroupings, "", groupName, conversionErrors, environmentProvider, logger, converters));
         }
 
         // Apply default record templates
@@ -417,7 +440,7 @@ class ZEBDAssetPack
         };
 
         bool hasBodyGen = false;
-        foreach (var subgroup in z.subgroups)
+        foreach (var subgroup in subgroups)
         {
             hasBodyGen = zEBDConfigReferencesBodyGen(subgroup);
             if (hasBodyGen) { break; }
@@ -436,10 +459,10 @@ class ZEBDAssetPack
 
         if (conversionErrors.Any())
         {
-            string logFile = string.Join("_", z.groupName.Split(System.IO.Path.GetInvalidFileNameChars())) + ".txt";
-            string logPath = System.IO.Path.Combine(PatcherSettings.Paths.LogFolderPath, logFile);
-            Task.Run(() => PatcherIO.WriteTextFile(logPath, conversionErrors));
-            Logger.LogMessage(conversionErrors);
+            string logFile = string.Join("_", groupName.Split(System.IO.Path.GetInvalidFileNameChars())) + ".txt";
+            string logPath = System.IO.Path.Combine(paths.LogFolderPath, logFile);
+            Task.Run(() => PatcherIO.WriteTextFile(logPath, conversionErrors, logger));
+            logger.LogMessage(conversionErrors);
             CustomMessageBox.DisplayNotificationOK("Import Error", "Errors were encountered during upgrade of a zEBD Config File. Please see log at " + logPath + ".");
         }
 

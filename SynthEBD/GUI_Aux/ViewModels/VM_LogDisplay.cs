@@ -1,36 +1,45 @@
-﻿using System.ComponentModel;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Reactive.Linq;
+using DynamicData;
+using DynamicData.Binding;
 using Mutagen.Bethesda.Environments;
+using Noggog;
+using ReactiveUI;
 
 namespace SynthEBD;
 
 public class VM_LogDisplay : VM
 {
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly DisplayedItemVm _displayedItemVm;
     public string DispString { get; set; } = "";
-
     public RelayCommand Clear { get; set; }
     public RelayCommand Copy { get; set; }
     public RelayCommand Save { get; set; }
     public RelayCommand ShowEnvironment { get; set; }
 
     public VM_LogDisplay(
+        IEnvironmentStateProvider environmentProvider,
         Logger logger,
         DisplayedItemVm displayedItemVm)
     {
+        _environmentProvider = environmentProvider;
         _logger = logger;
         _displayedItemVm = displayedItemVm;
-        logger.PropertyChanged += RefreshDisp;
+
+        _logger.LoggedEvents.ToObservableChangeSet().Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler).Subscribe(x => DispString = String.Join(Environment.NewLine, _logger.LoggedEvents.ToList())).DisposeWith(this);
         
         // Switch to log display if any errors
-        logger.LoggedError.Subscribe(_ =>
+        _logger.LoggedError.Subscribe(_ =>
         {
             SwitchViewToLogDisplay();
-        });
+        }).DisposeWith(this);
 
         Clear = new RelayCommand(
             canExecute: _ => true,
-            execute: x => logger.LogString = ""
+            execute: x => _logger.Clear()
         );
 
         Copy = new RelayCommand(
@@ -39,11 +48,11 @@ public class VM_LogDisplay : VM
             {
                 try
                 {
-                    System.Windows.Clipboard.SetText(logger.LogString);
+                    System.Windows.Clipboard.SetText(_logger.LogString);
                 }
                 catch
                 {
-                    Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not copy log to clipboard", ErrorType.Error, 3);
+                    _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not copy log to clipboard", ErrorType.Error, 3);
                 }
             }
         );
@@ -64,11 +73,11 @@ public class VM_LogDisplay : VM
                 {
                     try
                     {
-                        System.IO.File.WriteAllText(dialog.FileName, logger.LogString);
+                        System.IO.File.WriteAllText(dialog.FileName, _logger.LogString);
                     }
                     catch
                     {
-                        Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not write log to file", ErrorType.Error, 3);
+                        _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not write log to file", ErrorType.Error, 3);
                     }
                 }
             }
@@ -76,24 +85,20 @@ public class VM_LogDisplay : VM
 
         ShowEnvironment = new RelayCommand(
             canExecute: _ => true,
-            execute: x => PrintEnvironment(PatcherEnvironmentProvider.Instance.Environment)
+            execute: x => PrintState()
         );
     }
 
-    public void RefreshDisp(object sender, PropertyChangedEventArgs e)
+    public void PrintState()
     {
-        this.DispString = _logger.LogString;
-    }
+        _logger.LogMessage("Data Folder: " + _environmentProvider.DataFolderPath);
+        _logger.LogMessage("Load Order Source: " + _environmentProvider.LoadOrderFilePath);
+        _logger.LogMessage("Creation Club Listings: " + _environmentProvider.CreationClubListingsFilePath);
+        _logger.LogMessage("Game Release: " + _environmentProvider.SkyrimVersion.ToString());
+        _logger.LogMessage("Load Order: ");
 
-    public void PrintEnvironment(IGameEnvironment environment)
-    {
-        _logger.LogString += "Data Folder: " + environment.DataFolderPath + Environment.NewLine;
-        _logger.LogString += "Load Order Source: " + environment.LoadOrderFilePath + Environment.NewLine;
-        _logger.LogString += "Creation Club Listings: " + environment.CreationClubListingsFilePath + Environment.NewLine;
-        _logger.LogString += "Game Release: " + environment.GameRelease.ToString() + Environment.NewLine;
-        _logger.LogString += "Load Order: " + Environment.NewLine;
 
-        foreach (var mod in environment.LoadOrder.ListedOrder)
+        foreach (var mod in _environmentProvider.LoadOrder.ListedOrder)
         {
             var dispStr = "(";
             if (mod.Enabled)
@@ -105,9 +110,8 @@ public class VM_LogDisplay : VM
                 dispStr += "-) ";
             }
             dispStr += mod.ModKey.FileName;
-            _logger.LogString += dispStr + Environment.NewLine;
+            _logger.LogMessage(dispStr);
         }
-        DispString = _logger.LogString;
     }
 
     public void SwitchViewToLogDisplay()

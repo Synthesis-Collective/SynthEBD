@@ -1,4 +1,5 @@
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using static System.Windows.Forms.AxHost;
 
@@ -6,17 +7,27 @@ namespace SynthEBD;
 
 public class NPCInfo
 {
-    public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, HashSet<NPCAssignment> specificNPCAssignments, Dictionary<string, NPCAssignment> consistency, BlockList blockList)
-    {
-        this.NPC = npc;
-        this.LogIDstring = Logger.GetNPCLogNameString(npc);
-        this.Gender = GetGender(npc);
-        AssetsRace = AliasHandler.GetAliasTexMesh(npc.Race.FormKey);
-        BodyShapeRace = AliasHandler.GetAliasBodyGen(npc.Race.FormKey);
-        HeightRace = AliasHandler.GetAliasHeight(npc.Race.FormKey);
-        HeadPartsRace = AliasHandler.GetAliasHeadParts(npc.Race.FormKey);
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
+    private readonly AliasHandler _aliasHandler;
 
-        IsPatchable = PatcherSettings.General.PatchableRaces.Contains(AssetsRace) || PatcherSettings.General.PatchableRaces.Contains(BodyShapeRace) || PatcherSettings.General.PatchableRaces.Contains(HeightRace);
+    public delegate NPCInfo Factory(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos);
+    
+    public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, AliasHandler aliasHandler)
+    {
+        _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
+        _aliasHandler = aliasHandler;
+
+        NPC = npc;
+        LogIDstring = Logger.GetNPCLogNameString(npc);
+        Gender = GetGender(npc);
+        AssetsRace = _aliasHandler.GetAliasTexMesh(npc.Race.FormKey);
+        BodyShapeRace = _aliasHandler.GetAliasBodyGen(npc.Race.FormKey);
+        HeightRace = _aliasHandler.GetAliasHeight(npc.Race.FormKey);
+        HeadPartsRace = _aliasHandler.GetAliasHeadParts(npc.Race.FormKey);
+
+        IsPatchable = _patcherState.GeneralSettings.PatchableRaces.Contains(AssetsRace) || _patcherState.GeneralSettings.PatchableRaces.Contains(BodyShapeRace) || _patcherState.GeneralSettings.PatchableRaces.Contains(HeightRace);
         if (!IsPatchable)
         {
             return;
@@ -46,33 +57,33 @@ public class NPCInfo
         IsValidLinkedUnique = UniqueNPCData.IsValidUnique(npc, out var npcName);
         Name = npcName;
 
-        SpecificNPCAssignment = specificNPCAssignments.Where(x => x.NPCFormKey == npc.FormKey).FirstOrDefault();
+        SpecificNPCAssignment = _patcherState.SpecificNPCAssignments.Where(x => x.NPCFormKey == npc.FormKey).FirstOrDefault();
 
-        if (consistency.ContainsKey(this.NPC.FormKey.ToString()))
+        if (_patcherState.Consistency.ContainsKey(this.NPC.FormKey.ToString()))
         {
-            ConsistencyNPCAssignment = consistency[this.NPC.FormKey.ToString()];
+            ConsistencyNPCAssignment = _patcherState.Consistency[this.NPC.FormKey.ToString()];
         }
         else
         {
             ConsistencyNPCAssignment = new NPCAssignment();
             ConsistencyNPCAssignment.NPCFormKey = NPC.FormKey;
             ConsistencyNPCAssignment.DispName = LogIDstring;
-            consistency.Add(this.NPC.FormKey.ToString(), ConsistencyNPCAssignment);
+            _patcherState.Consistency.Add(this.NPC.FormKey.ToString(), ConsistencyNPCAssignment);
         }
 
-        if (PatcherSettings.General.bChangeHeadParts)
+        if (_patcherState.GeneralSettings.bChangeHeadParts)
         {
             foreach (var headpartFK in npc.HeadParts)
             {
-                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headpartFK.FormKey, out IHeadPartGetter headPart))
+                if (_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(headpartFK.FormKey, out IHeadPartGetter headPart))
                 {
                     ExistingHeadParts.Add(headPart);
                 }
             }
         }
 
-        BlockedNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(blockList, npc.FormKey);
-        BlockedPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(blockList, npc.FormKey);
+        BlockedNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(_patcherState.BlockList, npc.FormKey);
+        BlockedPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(_patcherState.BlockList, npc.FormKey, _environmentProvider.LinkCache);
 
         Report = new Logger.NPCReport(this);
     }

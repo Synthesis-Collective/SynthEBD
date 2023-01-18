@@ -8,38 +8,48 @@ using System.ComponentModel;
 using ReactiveUI;
 using System.Windows.Media;
 using DynamicData.Binding;
+using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD;
 
 public class VM_BodyGenTemplateMenu : VM
 {
-    public VM_BodyGenTemplateMenu(VM_BodyGenConfig parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
+    private readonly SettingsIO_BodyGen _bodyGenIO;
+    private readonly VM_NPCAttributeCreator _attributeCreator;
+    private readonly VM_BodyGenTemplate.Factory _bodyGenTemplateFactory;
+    public delegate VM_BodyGenTemplateMenu Factory(VM_BodyGenConfig parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
+
+    public VM_BodyGenTemplateMenu(VM_BodyGenConfig parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, SettingsIO_BodyGen bodyGenIO, VM_NPCAttributeCreator attributeCreator, VM_BodyGenTemplate.Factory bodyGenTemplateFactory)
     {
-        AddTemplate = new SynthEBD.RelayCommand(
+        _bodyGenIO = bodyGenIO;
+        _attributeCreator = attributeCreator;
+        _bodyGenTemplateFactory = bodyGenTemplateFactory;
+
+        AddTemplate = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.Templates.Add(new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, this.Templates, parentConfig))
+            execute: _ => Templates.Add(_bodyGenTemplateFactory(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, Templates, parentConfig))
         );
 
-        RemoveTemplate = new SynthEBD.RelayCommand(
+        RemoveTemplate = new RelayCommand(
             canExecute: _ => true,
-            execute: x => this.Templates.Remove((VM_BodyGenTemplate)x)
+            execute: x => Templates.Remove((VM_BodyGenTemplate)x)
         );
 
-        ImportBodyGen = new SynthEBD.RelayCommand(
+        ImportBodyGen = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {
-                if(IO_Aux.SelectFile("", "INI files (*.ini)|*.ini", "Select the Templates.ini file", out string templatePath))
+                if (IO_Aux.SelectFile("", "INI files (*.ini)|*.ini", "Select the Templates.ini file", out string templatePath))
                 {
                     if (System.IO.Path.GetFileName(templatePath).Equals("morphs.ini", StringComparison.OrdinalIgnoreCase) && !CustomMessageBox.DisplayNotificationYesNo("Confirm File Name", "Expecting templates.ini but this file is morphs.ini, which should be imported in the Specific NPC Assignments Menu. Are you sure you want to continue?"))
                     {
                         return;
                     }
 
-                    var newTemplates = SettingsIO_BodyGen.LoadTemplatesINI(templatePath);
-                    foreach(var template in newTemplates.Where(x => !Templates.Select(x => x.Label).Contains(x.Label)))
+                    var newTemplates = _bodyGenIO.LoadTemplatesINI(templatePath);
+                    foreach (var template in newTemplates.Where(x => !Templates.Select(x => x.Label).Contains(x.Label)))
                     {
-                        var templateVM = new VM_BodyGenTemplate(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, Templates, parentConfig);
+                        var templateVM = _bodyGenTemplateFactory(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, Templates, parentConfig);
                         templateVM.CopyInViewModelFromModel(template, parentConfig.DescriptorUI, raceGroupingVMs);
                         Templates.Add(templateVM);
                     }
@@ -63,48 +73,58 @@ public class VM_BodyGenTemplateMenu : VM
 
 public class VM_BodyGenTemplate : VM
 {
-    public VM_BodyGenTemplate(ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodyGenTemplate> parentCollection, VM_BodyGenConfig parentConfig)
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly VM_NPCAttributeCreator _attributeCreator;
+    private readonly Logger _logger;
+    private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
+    public delegate VM_BodyGenTemplate Factory(ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodyGenTemplate> parentCollection, VM_BodyGenConfig parentConfig);
+    public VM_BodyGenTemplate(ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodyGenTemplate> parentCollection, VM_BodyGenConfig parentConfig, IEnvironmentStateProvider environmentProvider, VM_NPCAttributeCreator attributeCreator, Logger logger, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
-        this.SubscribedTemplateGroups = templateGroups;
-        this.GroupSelectionCheckList = new VM_CollectionMemberStringCheckboxList(SubscribedTemplateGroups);
-        this.DescriptorsSelectionMenu = new VM_BodyShapeDescriptorSelectionMenu(BodyShapeDescriptors, raceGroupingVMs, parentConfig);
-        this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
-        this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+        _environmentProvider = environmentProvider;
+        _attributeCreator = attributeCreator;
+        _logger = logger;
+        _descriptorSelectionFactory = descriptorSelectionFactory;
 
-        this.ParentConfig = parentConfig;
-        this.ParentCollection = parentCollection;
+        SubscribedTemplateGroups = templateGroups;
+        GroupSelectionCheckList = new VM_CollectionMemberStringCheckboxList(SubscribedTemplateGroups);
+        DescriptorsSelectionMenu = descriptorSelectionFactory(BodyShapeDescriptors, raceGroupingVMs, parentConfig);
+        AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+        DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
-        parentCollection.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection());
-        SubscribedTemplateGroups.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection());
-        GroupSelectionCheckList.CollectionMemberStrings.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection());
+        ParentConfig = parentConfig;
+        ParentCollection = parentCollection;
 
-        this.WhenAnyValue(x => x.DescriptorsSelectionMenu.Header).Subscribe(x => UpdateStatusDisplay());
-        this.WhenAnyValue(x => x.GroupSelectionCheckList.Header).Subscribe(x => UpdateStatusDisplay());
+        ParentCollection.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection()).DisposeWith(this);
+        SubscribedTemplateGroups.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection()).DisposeWith(this);
+        GroupSelectionCheckList.CollectionMemberStrings.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection()).DisposeWith(this);
 
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        this.WhenAnyValue(x => x.DescriptorsSelectionMenu.Header).Subscribe(x => UpdateStatusDisplay()).DisposeWith(this);
+        this.WhenAnyValue(x => x.GroupSelectionCheckList.Header).Subscribe(x => UpdateStatusDisplay()).DisposeWith(this);
+
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
         UpdateStatusDisplay();
 
-        AddAllowedAttribute = new SynthEBD.RelayCommand(
+        AddAllowedAttribute = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.AllowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.AllowedAttributes, true, null, ParentConfig.AttributeGroupMenu.Groups))
+            execute: _ => AllowedAttributes.Add(_attributeCreator.CreateNewFromUI(AllowedAttributes, true, null, ParentConfig.AttributeGroupMenu.Groups))
         );
 
-        AddDisallowedAttribute = new SynthEBD.RelayCommand(
+        AddDisallowedAttribute = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.DisallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.DisallowedAttributes, false, null, ParentConfig.AttributeGroupMenu.Groups))
+            execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, ParentConfig.AttributeGroupMenu.Groups))
         );
 
-        AddRequiredTemplate = new SynthEBD.RelayCommand(
+        AddRequiredTemplate = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.RequiredTemplates.Add(new VM_CollectionMemberString("", this.RequiredTemplates))
+            execute: _ => RequiredTemplates.Add(new VM_CollectionMemberString("", this.RequiredTemplates))
         );
 
-        DeleteMe = new SynthEBD.RelayCommand(
+        DeleteMe = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.ParentCollection.Remove(this)
+            execute: _ => ParentCollection.Remove(this)
         );
     }
 
@@ -151,7 +171,7 @@ public class VM_BodyGenTemplate : VM
         Notes = model.Notes;
         Specs = model.Specs;
         GroupSelectionCheckList.InitializeFromHashSet(model.MemberOfTemplateGroups);
-        DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.BodyShapeDescriptors, descriptorMenu, raceGroupingVMs, ParentConfig);
+        DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.BodyShapeDescriptors, descriptorMenu, raceGroupingVMs, ParentConfig, _descriptorSelectionFactory);
         AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         foreach (var grouping in AllowedRaceGroupings.RaceGroupingSelections)
@@ -175,8 +195,8 @@ public class VM_BodyGenTemplate : VM
             else { grouping.IsSelected = false; }
         }
 
-        AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null);
-        DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null);
+        AllowedAttributes = _attributeCreator.GetViewModelsFromModels(model.AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null);
+        DisallowedAttributes = _attributeCreator.GetViewModelsFromModels(model.DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null);
         foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
         bAllowUnique = model.AllowUnique;
         bAllowNonUnique = model.AllowNonUnique;
@@ -213,6 +233,11 @@ public class VM_BodyGenTemplate : VM
 
     public ObservableCollection<VM_BodyGenTemplate> UpdateThisOtherGroupsTemplateCollection()
     {
+        if (ParentConfig.IsLoadingFromViewModel)
+        {
+            return new(); // skip this when the parent BodyGen Config view model is being loaded in because every added Template will trigger this evaluation. 
+        }
+
         var updatedCollection = new ObservableCollection<VM_BodyGenTemplate>();
         var excludedCollection = new ObservableCollection<VM_BodyGenTemplate>();
 
@@ -246,7 +271,7 @@ public class VM_BodyGenTemplate : VM
             }    
         }
 
-        this.OtherGroupsTemplateCollection = updatedCollection;
+        OtherGroupsTemplateCollection = updatedCollection;
 
         return excludedCollection;
     }

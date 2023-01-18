@@ -19,7 +19,7 @@ public class BodyShapeDescriptor
         }
         else
         {
-            this.ID = new() { Category = category, Value = Value };
+            ID = new() { Category = category, Value = Value };
         }
     }
 
@@ -95,18 +95,18 @@ public class BodyShapeDescriptor
         {
             return Category + ": " + Value;
         }
-        public static bool FromString(string s, out LabelSignature descriptor)
+        public static bool FromString(string s, out LabelSignature descriptor, Logger logger)
         {
             descriptor = new();
             if (s == null) 
             {
-                Logger.LogError("Could not convert null string into a Body Shape Descriptor");
+                logger.LogError("Could not convert null string into a Body Shape Descriptor");
                 return false; 
             }
             string[] split = s.Split(':');
             if (split.Length != 2)
             {
-                Logger.LogError("Could not convert \"" + s + "\" into a Body Shape Descriptor - Expected 'Category: Value' format");
+                logger.LogError("Could not convert \"" + s + "\" into a Body Shape Descriptor - Expected 'Category: Value' format");
                 return false;
             }
             else
@@ -118,9 +118,9 @@ public class BodyShapeDescriptor
         }
     }
 
-    public bool PermitNPC(NPCInfo npcInfo, HashSet<AttributeGroup> attributeGroups, out string reportStr)
+    public bool PermitNPC(NPCInfo npcInfo, HashSet<AttributeGroup> attributeGroups, AttributeMatcher attMatcher, out string reportStr)
     {
-        return BodyShapeDescriptorRules.NPCisValid(this, attributeGroups, npcInfo, out reportStr);
+        return this.AssociatedRules.NPCisValid(this, attributeGroups, npcInfo, attMatcher, out reportStr);
     }
 
     public static bool DescriptorsMatch(Dictionary<string, HashSet<string>> DescriptorSet, HashSet<LabelSignature> shapeDescriptors, out string firstMatch)

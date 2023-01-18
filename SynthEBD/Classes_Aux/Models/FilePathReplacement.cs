@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 
@@ -12,13 +12,16 @@ public class FilePathReplacement
     
 public class FilePathReplacementParsed
 {
-    public FilePathReplacementParsed(FilePathReplacement pathTemplate, NPCInfo npcInfo, FlattenedAssetPack sourceAssetPack, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SubgroupCombination parentCombination)
+    private Logger _logger;
+    public FilePathReplacementParsed(FilePathReplacement pathTemplate, NPCInfo npcInfo, FlattenedAssetPack sourceAssetPack, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SubgroupCombination parentCombination, Logger logger)
     {
-        this.Source = pathTemplate.Source;
-        this.Destination = RecordPathParser.SplitPath(pathTemplate.Destination);
-        this.DestinationStr = pathTemplate.Destination;
-        this.TemplateNPC = GetTemplateNPC(npcInfo, sourceAssetPack, recordTemplateLinkCache);
-        this.ParentCombination = parentCombination;
+        _logger = logger;
+
+        Source = pathTemplate.Source;
+        Destination = RecordPathParser.SplitPath(pathTemplate.Destination);
+        DestinationStr = pathTemplate.Destination;
+        TemplateNPC = GetTemplateNPC(npcInfo, sourceAssetPack, recordTemplateLinkCache);
+        ParentCombination = parentCombination;
     }
 
     public string Source { get; set; }
@@ -28,7 +31,7 @@ public class FilePathReplacementParsed
     public SubgroupCombination ParentCombination { get; set; } // for logging only
     public HashSet<GeneratedRecordInfo> TraversedRecords { get; set; } = new(); // for logging only
 
-    private static INpcGetter GetTemplateNPC(NPCInfo npcInfo, FlattenedAssetPack chosenAssetPack, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
+    private INpcGetter GetTemplateNPC(NPCInfo npcInfo, FlattenedAssetPack chosenAssetPack, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
     {
         FormKey templateFK = new FormKey();
         foreach (var additionalTemplate in chosenAssetPack.AdditionalRecordTemplateAssignments)
@@ -46,7 +49,7 @@ public class FilePathReplacementParsed
             
         if (!recordTemplateLinkCache.TryResolve<INpcGetter>(templateFK, out var templateNPC) && chosenAssetPack.Type != FlattenedAssetPack.AssetPackType.ReplacerVirtual)
         {
-            Logger.LogError("Error: Cannot resolve template NPC with FormKey " + templateFK.ToString());
+            _logger.LogError("Error: Cannot resolve template NPC with FormKey " + templateFK.ToString());
             return null;
         }
         else

@@ -1,44 +1,59 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
 using System.Windows.Media;
 using ReactiveUI;
+using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD;
 
 public class VM_BodySlideSetting : VM
 {
-    public VM_BodySlideSetting(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection, VM_SettingsOBody parentConfig)
-    {
-        this.DescriptorsSelectionMenu = new VM_BodyShapeDescriptorSelectionMenu(BodyShapeDescriptors, raceGroupingVMs, parentConfig);
-        this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
-        this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+    private IEnvironmentStateProvider _environmentProvider;
+    public VM_SettingsOBody ParentMenuVM;
+    private readonly VM_NPCAttributeCreator _attributeCreator;
+    private readonly Logger _logger;
+    private readonly VM_BodySlideSetting.Factory _selfFactory;
+    private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
 
-        this.ParentConfig = parentConfig;
-        this.ParentCollection = parentCollection;
-        
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+    public delegate VM_BodySlideSetting Factory(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection);
+    public VM_BodySlideSetting(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+    {
+        ParentMenuVM = oBodySettingsVM;
+        _environmentProvider = environmentProvider;
+        _attributeCreator = attributeCreator;
+        _logger = logger;
+        _selfFactory = selfFactory;
+        _descriptorSelectionFactory = descriptorSelectionFactory;
+
+        DescriptorsSelectionMenu = _descriptorSelectionFactory(BodyShapeDescriptors, raceGroupingVMs, oBodySettingsVM);
+        AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+        DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+
+        ParentCollection = parentCollection;
+
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-        AddAllowedAttribute = new SynthEBD.RelayCommand(
+        AddAllowedAttribute = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.AllowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.AllowedAttributes, true, null, ParentConfig.AttributeGroupMenu.Groups))
+            execute: _ => AllowedAttributes.Add(_attributeCreator.CreateNewFromUI(AllowedAttributes, true, null, ParentMenuVM.AttributeGroupMenu.Groups))
         );
 
-        AddDisallowedAttribute = new SynthEBD.RelayCommand(
+        AddDisallowedAttribute = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.DisallowedAttributes.Add(VM_NPCAttribute.CreateNewFromUI(this.DisallowedAttributes, false, null, ParentConfig.AttributeGroupMenu.Groups))
+            execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, ParentMenuVM.AttributeGroupMenu.Groups))
         );
 
-        DeleteMe = new SynthEBD.RelayCommand(
+        DeleteMe = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.ParentCollection.Remove(this)
+            execute: _ => ParentCollection.Remove(this)
         );
 
-        ToggleHide = new SynthEBD.RelayCommand(
+        ToggleHide = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -57,7 +72,7 @@ public class VM_BodySlideSetting : VM
 
         this.WhenAnyValue(x => x.IsHidden).Subscribe(x =>
         {
-            if (!parentConfig.BodySlidesUI.ShowHidden && IsHidden)
+            if (!oBodySettingsVM.BodySlidesUI.ShowHidden && IsHidden)
             {
                 IsVisible = false;
             }
@@ -66,20 +81,20 @@ public class VM_BodySlideSetting : VM
                 IsVisible = true;
             }
             UpdateStatusDisplay();
-        });
+        }).DisposeWith(this);
 
-        Clone = new SynthEBD.RelayCommand(
+        Clone = new RelayCommand(
             canExecute: _ => true,
             execute: _ => { 
-                var cloneModel = VM_BodySlideSetting.DumpViewModelToModel(this);
-                var cloneViewModel = new VM_BodySlideSetting(BodyShapeDescriptors, raceGroupingVMs, ParentCollection, ParentConfig);
-                VM_BodySlideSetting.GetViewModelFromModel(cloneModel, cloneViewModel, BodyShapeDescriptors, raceGroupingVMs, ParentConfig);
+                var cloneModel = DumpViewModelToModel(this);
+                var cloneViewModel = _selfFactory(BodyShapeDescriptors, raceGroupingVMs, ParentCollection);
+                VM_BodySlideSetting.GetViewModelFromModel(cloneModel, cloneViewModel, BodyShapeDescriptors, raceGroupingVMs, ParentMenuVM, _attributeCreator, _logger, _descriptorSelectionFactory);
                 var index = parentCollection.IndexOf(this);
                 parentCollection.Insert(index, cloneViewModel);
             }
         );
 
-        DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => UpdateStatusDisplay());
+        DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => UpdateStatusDisplay()).DisposeWith(this);
     }
 
     public string Label { get; set; } = "";
@@ -106,7 +121,6 @@ public class VM_BodySlideSetting : VM
     public RelayCommand DeleteMe { get; }
     public RelayCommand Clone { get; }
     public RelayCommand ToggleHide { get; }
-    public VM_SettingsOBody ParentConfig { get; set; }
     public ObservableCollection<VM_BodySlideSetting> ParentCollection { get; set; }
 
     public SolidColorBrush BorderColor { get; set; }
@@ -119,7 +133,7 @@ public class VM_BodySlideSetting : VM
 
     public void UpdateStatusDisplay()
     {
-        if (!ParentConfig.BodySlidesUI.CurrentlyExistingBodySlides.Contains(this.Label))
+        if (!ParentMenuVM.BodySlidesUI.CurrentlyExistingBodySlides.Contains(this.Label))
         {
             BorderColor = new SolidColorBrush(Colors.Red);
             StatusHeader = "Warning:";
@@ -146,11 +160,11 @@ public class VM_BodySlideSetting : VM
         }
     }
 
-    public static void GetViewModelFromModel(BodySlideSetting model, VM_BodySlideSetting viewModel, VM_BodyShapeDescriptorCreationMenu descriptorMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
+    public static void GetViewModelFromModel(BodySlideSetting model, VM_BodySlideSetting viewModel, VM_BodyShapeDescriptorCreationMenu descriptorMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, VM_NPCAttributeCreator attCreator, Logger logger, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
         viewModel.Label = model.Label;
         viewModel.Notes = model.Notes;
-        viewModel.DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.BodyShapeDescriptors, descriptorMenu, raceGroupingVMs, parentConfig);
+        viewModel.DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.BodyShapeDescriptors, descriptorMenu, raceGroupingVMs, parentConfig, descriptorSelectionFactory);
         viewModel.AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
         viewModel.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         foreach (var grouping in viewModel.AllowedRaceGroupings.RaceGroupingSelections)
@@ -174,8 +188,8 @@ public class VM_BodySlideSetting : VM
             else { grouping.IsSelected = false; }
         }
 
-        viewModel.AllowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.AllowedAttributes, viewModel.ParentConfig.AttributeGroupMenu.Groups, true, null);
-        viewModel.DisallowedAttributes = VM_NPCAttribute.GetViewModelsFromModels(model.DisallowedAttributes, viewModel.ParentConfig.AttributeGroupMenu.Groups, false, null);
+        viewModel.AllowedAttributes = attCreator.GetViewModelsFromModels(model.AllowedAttributes, viewModel.ParentMenuVM.AttributeGroupMenu.Groups, true, null);
+        viewModel.DisallowedAttributes = attCreator.GetViewModelsFromModels(model.DisallowedAttributes, viewModel.ParentMenuVM.AttributeGroupMenu.Groups, false, null);
         foreach (var x in viewModel.DisallowedAttributes) { x.DisplayForceIfOption = false; }
         viewModel.bAllowUnique = model.AllowUnique;
         viewModel.bAllowNonUnique = model.AllowNonUnique;
@@ -185,7 +199,7 @@ public class VM_BodySlideSetting : VM
 
         viewModel.UpdateStatusDisplay();
 
-        viewModel.DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => viewModel.UpdateStatusDisplay());
+        viewModel.DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => viewModel.UpdateStatusDisplay()).DisposeWith(viewModel);
 
         viewModel.IsHidden = model.HideInMenu;
     }

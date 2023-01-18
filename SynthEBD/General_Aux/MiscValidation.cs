@@ -1,37 +1,48 @@
-﻿using System.IO;
+using System.IO;
 using Noggog;
 
 namespace SynthEBD;
 
 public class MiscValidation
 {
-    public static bool VerifyEBDInstalled()
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly Logger _logger;
+    private readonly SynthEBDPaths _paths;
+    private readonly RaceMenuIniHandler _raceMenuHandler;
+    public MiscValidation(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths, RaceMenuIniHandler raceMenuHandler)
+    {
+        _environmentProvider = environmentProvider;
+        _logger = logger;
+        _paths = paths;
+        _raceMenuHandler = raceMenuHandler;
+    }
+    public bool VerifyEBDInstalled()
     {
         bool verified = true;
 
-        string helperScriptPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "Scripts", "EBDHelperScript.pex");
+        string helperScriptPath = Path.Combine(_environmentProvider.DataFolderPath, "Scripts", "EBDHelperScript.pex");
         if (!File.Exists(helperScriptPath))
         {
-            Logger.LogMessage("Could not find EBDHelperScript.pex from EveryBody's Different Redone SSE at " + helperScriptPath);
+            _logger.LogMessage("Could not find EBDHelperScript.pex from EveryBody's Different Redone SSE at " + helperScriptPath);
             verified = false;
         }
 
-        string globalScriptPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "Scripts", "EBDGlobalFuncs.pex");
+        string globalScriptPath = Path.Combine(_environmentProvider.DataFolderPath, "Scripts", "EBDGlobalFuncs.pex");
         if (!File.Exists(globalScriptPath))
         {
-            Logger.LogMessage("Could not find EBDGlobalFuncs.pex from EveryBody's Different Redone SSE at " + globalScriptPath);
+            _logger.LogMessage("Could not find EBDGlobalFuncs.pex from EveryBody's Different Redone SSE at " + globalScriptPath);
             verified = false;
         }
 
         if (!verified)
         {
-            Logger.LogMessage("Please make sure that EveryBody's Different Redone SSE is installed.");
+            _logger.LogMessage("Please make sure that EveryBody's Different Redone SSE is installed.");
         }
 
         return verified;
     }
 
-    public static bool VerifyRaceMenuInstalled(DirectoryPath dataFolderPath)
+    public bool VerifyRaceMenuInstalled(DirectoryPath dataFolderPath)
     {
         bool verified = true;
 
@@ -39,7 +50,7 @@ public class MiscValidation
         string dllPathVR = Path.Combine(dataFolderPath, "SKSE", "Plugins", "skeevr.dll");
         if (!File.Exists(dllPath64) && !File.Exists(dllPathVR))
         {
-            Logger.LogMessage("Could not find skee64.dll from RaceMenu at " + Path.Combine(dataFolderPath, "SKSE", "Plugins"));
+            _logger.LogMessage("Could not find skee64.dll from RaceMenu at " + Path.Combine(dataFolderPath, "SKSE", "Plugins"));
             verified = false;
         }
 
@@ -47,79 +58,79 @@ public class MiscValidation
         string iniPathVR = Path.Combine(dataFolderPath, "SKSE", "Plugins", "skeevr.ini");
         if (!File.Exists(iniPath64) && !File.Exists(iniPathVR))
         {
-            Logger.LogMessage("Could not find skee64.ini from RaceMenu at " + Path.Combine(dataFolderPath, "SKSE", "Plugins"));
+            _logger.LogMessage("Could not find skee64.ini from RaceMenu at " + Path.Combine(dataFolderPath, "SKSE", "Plugins"));
             verified = false;
         }
 
         if (!verified)
         {
-            Logger.LogMessage("Please make sure that RaceMenu SE is installed.");
+            _logger.LogMessage("Please make sure that RaceMenu SE is installed.");
         }
 
         return verified;
     }
 
-    public static bool VerifyOBodyInstalled(DirectoryPath dataFolderPath)
+    public bool VerifyOBodyInstalled(DirectoryPath dataFolderPath)
     {
         bool verified = true;
 
         string scriptPath = Path.Combine(dataFolderPath, "Scripts", "OBodyNative.pex");
         if (!File.Exists(scriptPath))
         {
-            Logger.LogMessage("Could not find OBodyNative.pex from OBody at " + scriptPath);
+            _logger.LogMessage("Could not find OBodyNative.pex from OBody at " + scriptPath);
             verified = false;
         }
 
         string dllPath = Path.Combine(dataFolderPath, "SKSE", "Plugins", "OBody.dll");
         if (!File.Exists(dllPath))
         {
-            Logger.LogMessage("Could not find OBody.dll from OBody at " + dllPath);
+            _logger.LogMessage("Could not find OBody.dll from OBody at " + dllPath);
             verified = false;
         }
 
         if (!verified)
         {
-            Logger.LogMessage("Please make sure that OBody is installed.");
+            _logger.LogMessage("Please make sure that OBody is installed.");
         }
 
         return verified;
     }
 
-    public static bool VerifyAutoBodyInstalled(DirectoryPath dataFolderPath)
+    public bool VerifyAutoBodyInstalled(DirectoryPath dataFolderPath)
     {
         bool verified = true;
 
         string scriptPath = Path.Combine(dataFolderPath, "Scripts", "autoBodyUtils.pex");
         if (!File.Exists(scriptPath))
         {
-            Logger.LogMessage("Could not find autoBodyUtils.pex from AutoBody at " + scriptPath);
+            _logger.LogMessage("Could not find autoBodyUtils.pex from AutoBody at " + scriptPath);
             verified = false;
         }
 
         string dllPath = Path.Combine(dataFolderPath, "SKSE", "Plugins", "autoBodyAE.dll");
         if (!File.Exists(dllPath))
         {
-            Logger.LogMessage("Could not find autoBodyAE.dll from AutoBody at " + dllPath);
+            _logger.LogMessage("Could not find autoBodyAE.dll from AutoBody at " + dllPath);
             verified = false;
         }
 
         if (!verified)
         {
-            Logger.LogMessage("Please make sure that AutoBody is installed.");
+            _logger.LogMessage("Please make sure that AutoBody is installed.");
         }
 
         return verified;
     }
 
-    public static bool VerifySPIDInstalled(DirectoryPath dataFolderPath, bool bSilent)
+    public bool VerifySPIDInstalled(DirectoryPath dataFolderPath, bool bSilent)
     {
         string dllPath = Path.Combine(dataFolderPath, "SKSE", "Plugins", "po3_SpellPerkItemDistributor.dll");
         if (!File.Exists(dllPath))
         {
             if (!bSilent)
             {
-                Logger.LogMessage("Could not find po3_SpellPerkItemDistributor.dll from Spell Perk Item Distributor at " + dllPath);
-                Logger.LogMessage("Please make sure Spell Perk Item Distributor is enabled.");
+                _logger.LogMessage("Could not find po3_SpellPerkItemDistributor.dll from Spell Perk Item Distributor at " + dllPath);
+                _logger.LogMessage("Please make sure Spell Perk Item Distributor is enabled.");
             }
             
             return false;
@@ -127,14 +138,14 @@ public class MiscValidation
         return true;
     }
 
-    public static bool VerifyJContainersInstalled(DirectoryPath dataFolderPath, bool bSilent)
+    public bool VerifyJContainersInstalled(DirectoryPath dataFolderPath, bool bSilent)
     {
         string dllPathSE_AE = Path.Combine(dataFolderPath, "SKSE", "Plugins", "JContainers64.dll");
         string dllPathVR = Path.Combine(dataFolderPath, "SKSE", "Plugins", "JContainersVR.dll");
 
-        var currentSkyrimVersion = PatcherEnvironmentProvider.Instance.Environment.GameRelease;
-        bool checkSE = currentSkyrimVersion == Mutagen.Bethesda.GameRelease.SkyrimSE || currentSkyrimVersion == Mutagen.Bethesda.GameRelease.EnderalSE; // not sure if JContainers actually works with Enderal
-        bool checkVR = currentSkyrimVersion == Mutagen.Bethesda.GameRelease.SkyrimVR;
+        var currentSkyrimVersion = _environmentProvider.SkyrimVersion;
+        bool checkSE = currentSkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimSE || currentSkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.EnderalSE; // not sure if JContainers actually works with Enderal
+        bool checkVR = currentSkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimVR;
 
         if ((checkSE && !File.Exists(dllPathSE_AE)) || (checkVR && !File.Exists(dllPathVR)))
         {
@@ -144,8 +155,8 @@ public class MiscValidation
                 string dllPath = "";
                 if (checkSE) { dllName = "JContainers64.dll"; dllPath = dllPathSE_AE; }
                 else if (checkVR) { dllName = "JContainersVR.dll"; dllPath = dllPathVR; }
-                Logger.LogMessage("Could not find " + dllName + " from JContainers at " + dllPath);
-                Logger.LogMessage("Please make sure JContainers is enabled.");
+                _logger.LogMessage("Could not find " + dllName + " from JContainers at " + dllPath);
+                _logger.LogMessage("Please make sure JContainers is enabled.");
             }
 
             return false;
@@ -153,7 +164,7 @@ public class MiscValidation
         return true;
     }
 
-    public static bool VerifyBodyGenAnnotations(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs)
+    public bool VerifyBodyGenAnnotations(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs)
     {
         bool valid = true;
         List<string> missingBodyGenMessage = new List<string>();
@@ -182,7 +193,7 @@ public class MiscValidation
 
                 if (bodyGenConfig == null)
                 {
-                    Logger.LogMessage("BodyGen Config " + assetPack.AssociatedBodyGenConfigName + " expected by " + assetPack.GroupName + " is not currently loaded.");
+                    _logger.LogMessage("BodyGen Config " + assetPack.AssociatedBodyGenConfigName + " expected by " + assetPack.GroupName + " is not currently loaded.");
                     valid = false;
                 }
                 else
@@ -218,7 +229,7 @@ public class MiscValidation
         }
     }
 
-    public static bool VerifyBodySlideAnnotations(Settings_OBody obodySettings)
+    public bool VerifyBodySlideAnnotations(Settings_OBody obodySettings)
     {
         List<string> bsMissingDescriptors = new List<string>();
         GetMissingBodySlideAnnotations(obodySettings.BodySlidesMale, obodySettings.CurrentlyExistingBodySlides, bsMissingDescriptors);
@@ -236,7 +247,7 @@ public class MiscValidation
         }
     }
 
-    public static void GetMissingBodySlideAnnotations(List<BodySlideSetting> bodySlidesInSettings, HashSet<string> bodySlideNamesInDataFolder, List<string> bsMissingDescriptors)
+    public void GetMissingBodySlideAnnotations(List<BodySlideSetting> bodySlidesInSettings, HashSet<string> bodySlideNamesInDataFolder, List<string> bsMissingDescriptors)
     {
         foreach (var bs in bodySlidesInSettings)
         {
@@ -247,70 +258,70 @@ public class MiscValidation
             }
         }
     }
-    public static bool VerifyGeneratedTriFilesForOBody(Settings_OBody oBodySettings)
+    public bool VerifyGeneratedTriFilesForOBody(Settings_OBody oBodySettings)
     {
         bool valid = true;
         if (oBodySettings.BodySlidesMale.Where(x => x.AllowRandom && oBodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).Any())
         {
-            string triPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
+            string triPath = Path.Combine(_environmentProvider.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
             if (!File.Exists(triPath))
             {
                 valid = false;
-                Logger.LogMessage("Male BodySlides were detected but no malebody.tri was found at " + triPath);
+                _logger.LogMessage("Male BodySlides were detected but no malebody.tri was found at " + triPath);
             }
         }
 
         if (oBodySettings.BodySlidesFemale.Where(x => x.AllowRandom && oBodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).Any())
         {
-            string triPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
+            string triPath = Path.Combine(_environmentProvider.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
             if (!File.Exists(triPath))
             {
                 valid = false;
-                Logger.LogMessage("Female BodySlides were detected but no femalebody.tri was found at " + triPath);
+                _logger.LogMessage("Female BodySlides were detected but no femalebody.tri was found at " + triPath);
             }
         }
 
         if (!valid)
         {
-            Logger.LogMessage("Please make sure to check the `Build Morphs` box in BodySlide when generating your BodySlide output");
+            _logger.LogMessage("Please make sure to check the `Build Morphs` box in BodySlide when generating your BodySlide output");
         }
 
         return valid;
     }
 
-    public static bool VerifyGeneratedTriFilesForBodyGen(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs)
+    public bool VerifyGeneratedTriFilesForBodyGen(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs)
     {
         bool valid = true;
         BodyGenHasActiveGenderedConfigs(assetPacks, bodyGenConfigs, out bool hasMaleConfigs, out bool hasFemaleConfigs);
 
         if (hasMaleConfigs)
         {
-            string triPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
+            string triPath = Path.Combine(_environmentProvider.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
             if (!File.Exists(triPath))
             {
                 valid = false;
-                Logger.LogMessage("Male BodyGen configs were detected but no malebody.tri was found at " + triPath);
+                _logger.LogMessage("Male BodyGen configs were detected but no malebody.tri was found at " + triPath);
             }
         }
         if (hasFemaleConfigs)
         {
-            string triPath = Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
+            string triPath = Path.Combine(_environmentProvider.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
             if (!File.Exists(triPath))
             {
                 valid = false;
-                Logger.LogMessage("Female BodyGen configs were detected but no femalebody.tri was found at " + triPath);
+                _logger.LogMessage("Female BodyGen configs were detected but no femalebody.tri was found at " + triPath);
             }
         }
 
         if (!valid)
         {
-            Logger.LogMessage("Please make sure to check the `Build Morphs` box in BodySlide when generating your zeroed BodySlide output");
+            _logger.LogMessage("Please make sure to check the `Build Morphs` box in BodySlide when generating your zeroed BodySlide output");
         }
 
         return valid;
     }
 
-    private static void BodyGenHasActiveGenderedConfigs(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, out bool hasMaleConfigs, out bool hasFemaleConfigs)
+    private void BodyGenHasActiveGenderedConfigs(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, out bool hasMaleConfigs, out bool hasFemaleConfigs)
     {
         hasMaleConfigs = false;
         hasFemaleConfigs = false;
@@ -338,15 +349,15 @@ public class MiscValidation
         }
     }
 
-    public static bool VerifyRaceMenuIniForBodyGen()
+    public bool VerifyRaceMenuIniForBodyGen()
     {
         bool valid = true;
 
-        var iniContents = RaceMenuIniHandler.GetRaceMenuIniContents(out valid, out string iniFileName);
+        var iniContents = _raceMenuHandler.GetRaceMenuIniContents(out valid, out string iniFileName);
 
         string message = "";
 
-        bool morphEnabled = RaceMenuIniHandler.GetBodyMorphEnabled(iniContents, out bool morphParsed, out string morphLine);
+        bool morphEnabled = _raceMenuHandler.GetBodyMorphEnabled(iniContents, out bool morphParsed, out string morphLine);
         if (!morphParsed)
         {
             valid = false;
@@ -355,15 +366,15 @@ public class MiscValidation
             {
                 message += "( in line " + morphLine + ")";
             }
-            Logger.LogMessage(message);
+            _logger.LogMessage(message);
         }
         else if (!morphEnabled)
         {
             valid = false;
-            Logger.LogMessage("bEableBodyGen must be enabled in " + iniFileName + " for BodyGen to work. Please fix this from the BodyGen menu.");
+            _logger.LogMessage("bEableBodyGen must be enabled in " + iniFileName + " for BodyGen to work. Please fix this from the BodyGen menu.");
         }
 
-        bool bodygenEnabled = RaceMenuIniHandler.GetBodyGenEnabled(iniContents, out bool bodyGenParsed, out string genLine);
+        bool bodygenEnabled = _raceMenuHandler.GetBodyGenEnabled(iniContents, out bool bodyGenParsed, out string genLine);
         if (!bodyGenParsed)
         {
             valid = false;
@@ -372,12 +383,12 @@ public class MiscValidation
             {
                 message += "( in line " + genLine + ")";
             }
-            Logger.LogMessage(message);
+            _logger.LogMessage(message);
         }
         else if (!bodygenEnabled)
         {
             valid = false;
-            Logger.LogMessage("bEnableBodyGen must be enabled in " + iniFileName + " for BodyGen to work. Please fix this from the BodyGen menu.");
+            _logger.LogMessage("bEnableBodyGen must be enabled in " + iniFileName + " for BodyGen to work. Please fix this from the BodyGen menu.");
         }
 
         int scaleMode = RaceMenuIniHandler.GetScaleMode(iniContents, out bool scaleModeParsed, out string scaleLine);
@@ -389,30 +400,30 @@ public class MiscValidation
             {
                 message += "( in line " + scaleLine + ")";
             }
-            Logger.LogMessage(message);
+            _logger.LogMessage(message);
         }
         else if (scaleMode == 0)
         {
             valid = false;
-            Logger.LogMessage("iScaleMode must not be 0 in " + iniFileName + " for BodyGen to work. Please fix this from the BodyGen menu.");
+            _logger.LogMessage("iScaleMode must not be 0 in " + iniFileName + " for BodyGen to work. Please fix this from the BodyGen menu.");
         }
         else if (scaleMode == 2)
         {
-            Logger.LogMessage("Warning: iScaleMode is set to 2 in " + iniFileName + ". This can cause NPC weapons to become supersized when the game is loaded. It is recommended to set this to 1 or 3.");
+            _logger.LogMessage("Warning: iScaleMode is set to 2 in " + iniFileName + ". This can cause NPC weapons to become supersized when the game is loaded. It is recommended to set this to 1 or 3.");
         }
 
         return valid;
     }
 
-    public static bool VerifyRaceMenuIniForBodySlide()
+    public bool VerifyRaceMenuIniForBodySlide()
     {
         bool valid = true;
 
-        var iniContents = RaceMenuIniHandler.GetRaceMenuIniContents(out valid, out string iniFileName);
+        var iniContents = _raceMenuHandler.GetRaceMenuIniContents(out valid, out string iniFileName);
 
         string message = "";
 
-        bool morphEnabled = RaceMenuIniHandler.GetBodyMorphEnabled(iniContents, out bool morphParsed, out string morphLine);
+        bool morphEnabled = _raceMenuHandler.GetBodyMorphEnabled(iniContents, out bool morphParsed, out string morphLine);
         if (!morphParsed)
         {
             valid = false;
@@ -421,15 +432,15 @@ public class MiscValidation
             {
                 message += "( in line " + morphLine + ")";
             }
-            Logger.LogMessage(message);
+            _logger.LogMessage(message);
         }
         else if (!morphEnabled)
         {
             valid = false;
-            Logger.LogMessage("bEableBodyGen must be enabled in " + iniFileName + " for BodyGen to work. Please fix this from the BodyGen Integration menu.");
+            _logger.LogMessage("bEableBodyGen must be enabled in " + iniFileName + " for BodyGen to work. Please fix this from the BodyGen Integration menu.");
         }
 
-        bool bodygenEnabled = RaceMenuIniHandler.GetBodyGenEnabled(iniContents, out bool bodyGenParsed, out string genLine);
+        bool bodygenEnabled = _raceMenuHandler.GetBodyGenEnabled(iniContents, out bool bodyGenParsed, out string genLine);
         if (!bodyGenParsed)
         {
             valid = false;
@@ -438,12 +449,12 @@ public class MiscValidation
             {
                 message += "( in line " + genLine + ")";
             }
-            Logger.LogMessage(message);
+            _logger.LogMessage(message);
         }
         else if (bodygenEnabled)
         {
             valid = false;
-            Logger.LogMessage("bEnableBodyGen must be disabled in " + iniFileName + " for OBody/AutoBody to work. Please fix this from the OBody Settings menu.");
+            _logger.LogMessage("bEnableBodyGen must be disabled in " + iniFileName + " for OBody/AutoBody to work. Please fix this from the OBody Settings menu.");
         }
 
         return valid;

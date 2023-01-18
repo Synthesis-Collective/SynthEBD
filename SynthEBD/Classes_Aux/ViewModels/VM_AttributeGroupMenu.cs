@@ -1,21 +1,28 @@
 using System.Collections.ObjectModel;
+using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD;
 
 public class VM_AttributeGroupMenu : VM
 {
-    public VM_AttributeGroupMenu(VM_AttributeGroupMenu generalSettingsAttributes, bool showImportFromGeneralOption)
+    private readonly VM_NPCAttributeCreator _attributeCreator;
+    private readonly Logger _logger;
+    public delegate VM_AttributeGroupMenu Factory(VM_AttributeGroupMenu generalSettingsAttributes, bool showImportFromGeneralOption);
+    public VM_AttributeGroupMenu(VM_AttributeGroupMenu generalSettingsAttributes, bool showImportFromGeneralOption, VM_NPCAttributeCreator attributeCreator, Logger logger)
     {
+        _attributeCreator = attributeCreator;
+        _logger = logger;
+
         GeneralSettingsAttributes = generalSettingsAttributes;
         ShowImportFromGeneralOption = showImportFromGeneralOption;
 
-        AddGroup = new SynthEBD.RelayCommand(
+        AddGroup = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.Groups.Add(new VM_AttributeGroup(this))
+            execute: _ => Groups.Add(new VM_AttributeGroup(this, _attributeCreator, _logger))
         );
 
 
-        ImportAttributeGroups = new SynthEBD.RelayCommand(
+        ImportAttributeGroups = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -24,7 +31,7 @@ public class VM_AttributeGroupMenu : VM
                 {
                     if (!alreadyContainedGroups.Contains(attGroup.Label))
                     {
-                        Groups.Add(VM_AttributeGroup.Copy(attGroup, this));
+                        Groups.Add(attGroup.Copy(this));
                     }
                 }
             }
@@ -47,7 +54,7 @@ public class VM_AttributeGroupMenu : VM
         // first add each group to the menu
         foreach (var model in models)
         {
-            var attrGroup = new VM_AttributeGroup(this);
+            var attrGroup = new VM_AttributeGroup(this, _attributeCreator, _logger);
             attrGroup.CopyInViewModelFromModel(model, this);
             Groups.Add(attrGroup);
         }

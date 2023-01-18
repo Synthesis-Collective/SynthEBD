@@ -5,24 +5,33 @@ namespace SynthEBD;
 
 public class HeightPatcher
 {
-    public static void AssignNPCHeight(NPCInfo npcInfo, HeightConfig heightConfig, SkyrimMod outputMod)
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
+    private readonly Logger _logger;
+    public HeightPatcher(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger)
+    {
+        _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
+        _logger = logger;
+    }
+    public void AssignNPCHeight(NPCInfo npcInfo, HeightConfig heightConfig, ISkyrimMod outputMod)
     {
         Npc npc = null;
         float assignedHeight = 1;
 
-        Logger.OpenReportSubsection("Height", npcInfo);
-        Logger.LogReport("Assigning NPC height", false, npcInfo);
+        _logger.OpenReportSubsection("Height", npcInfo);
+        _logger.LogReport("Assigning NPC height", false, npcInfo);
 
-        if (!PatcherSettings.Height.bChangeNPCHeight)
+        if (!_patcherState.HeightSettings.bChangeNPCHeight)
         {
-            Logger.LogReport("Height randomization for individual NPCs is disabled. Height remains: " + npcInfo.NPC.Height, false, npcInfo);
-            Logger.CloseReportSubsection(npcInfo);
+            _logger.LogReport("Height randomization for individual NPCs is disabled. Height remains: " + npcInfo.NPC.Height, false, npcInfo);
+            _logger.CloseReportSubsection(npcInfo);
             return;
         }
-        else if (!PatcherSettings.Height.bOverwriteNonDefaultNPCHeights && !npcInfo.NPC.Height.Equals(1))
+        else if (!_patcherState.HeightSettings.bOverwriteNonDefaultNPCHeights && !npcInfo.NPC.Height.Equals(1))
         {
-            Logger.LogReport("Height randomization is disabled for NPCs with custom height. Height remains: " + npcInfo.NPC.Height, false, npcInfo);
-            Logger.CloseReportSubsection(npcInfo);
+            _logger.LogReport("Height randomization is disabled for NPCs with custom height. Height remains: " + npcInfo.NPC.Height, false, npcInfo);
+            _logger.CloseReportSubsection(npcInfo);
             return;
         }
         else if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.Height != null)
@@ -34,8 +43,8 @@ public class HeightPatcher
         {
             if (heightConfig is null)
             {
-                Logger.LogReport("No height configurations were installed.", false, npcInfo);
-                Logger.CloseReportSubsection(npcInfo);
+                _logger.LogReport("No height configurations were installed.", false, npcInfo);
+                _logger.CloseReportSubsection(npcInfo);
                 return;
             }
 
@@ -43,8 +52,8 @@ public class HeightPatcher
 
             if (heightAssignment == null)
             {
-                Logger.LogReport("No heights were specified for NPCs of the current race.", false, npcInfo);
-                Logger.CloseReportSubsection(npcInfo);
+                _logger.LogReport("No heights were specified for NPCs of the current race.", false, npcInfo);
+                _logger.CloseReportSubsection(npcInfo);
                 return;
             }
 
@@ -73,10 +82,10 @@ public class HeightPatcher
             {
                 assignedHeight = npcInfo.AssociatedLinkGroup.AssignedHeight;
             }
-            else if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Height) != -1)
+            else if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Height) != -1)
             {
                 assignedHeight = Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedHeight;
-                Logger.LogReport("Another unique NPC with the same name was assigned a height. Using that height for current NPC.", false, npcInfo);
+                _logger.LogReport("Another unique NPC with the same name was assigned a height. Using that height for current NPC.", false, npcInfo);
             }
             // assign by consistency if possible
             else if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.Height != null && npcInfo.ConsistencyNPCAssignment.Height <= upperBound && npcInfo.ConsistencyNPCAssignment.Height >= lowerBound)
@@ -114,9 +123,9 @@ public class HeightPatcher
         }
 
         npc.Height = assignedHeight;
-        Logger.LogReport("Height set to: " + assignedHeight, false, npcInfo);
+        _logger.LogReport("Height set to: " + assignedHeight, false, npcInfo);
 
-        if (PatcherSettings.General.bEnableConsistency)
+        if (_patcherState.GeneralSettings.bEnableConsistency)
         {
             npcInfo.ConsistencyNPCAssignment.Height = assignedHeight;
         }
@@ -126,29 +135,29 @@ public class HeightPatcher
             npcInfo.AssociatedLinkGroup.AssignedHeight = assignedHeight;
         }
 
-        if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Height) == -1)
+        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Height) == -1)
         {
             Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedHeight = assignedHeight;
         }
 
-        Logger.CloseReportSubsection(npcInfo);
+        _logger.CloseReportSubsection(npcInfo);
     }
 
-    public static void AssignRacialHeight(HeightConfig heightConfig, SkyrimMod outputMod)
+    public void AssignRacialHeight(HeightConfig heightConfig, ISkyrimMod outputMod)
     {
         Race patchedRace = null;
         HeightAssignment heightRacialSetting = null;
         RaceAlias raceAlias = null;
 
         if (heightConfig == null) { return; }
-        if (!PatcherSettings.Height.bChangeRaceHeight) { return; }
+        if (!_patcherState.HeightSettings.bChangeRaceHeight) { return; }
 
-        foreach (var race in PatcherEnvironmentProvider.Instance.Environment.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
+        foreach (var race in _environmentProvider.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
         {
             patchedRace = null;
-            raceAlias = PatcherSettings.General.RaceAliases.Where(x => x.Race == race.FormKey && x.bApplyToHeight).FirstOrDefault();
+            raceAlias = _patcherState.GeneralSettings.RaceAliases.Where(x => x.Race == race.FormKey && x.bApplyToHeight).FirstOrDefault();
                
-            if (raceAlias != null && PatcherSettings.General.PatchableRaces.Contains(raceAlias.AliasRace) && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IRaceGetter>(raceAlias.AliasRace, out var raceAliasGetter))
+            if (raceAlias != null && _patcherState.GeneralSettings.PatchableRaces.Contains(raceAlias.AliasRace) && _environmentProvider.LinkCache.TryResolve<IRaceGetter>(raceAlias.AliasRace, out var raceAliasGetter))
             {
                 heightRacialSetting = heightConfig.HeightAssignments.Where(x => x.Races.Contains(raceAlias.AliasRace)).FirstOrDefault();
 
@@ -161,7 +170,7 @@ public class HeightPatcher
                     patchedRace = outputMod.Races.GetOrAddAsOverride(raceAliasGetter);
                 }
             }
-            else if (PatcherSettings.General.PatchableRaces.Contains(race.FormKey))
+            else if (_patcherState.GeneralSettings.PatchableRaces.Contains(race.FormKey))
             {
                 heightRacialSetting = heightConfig.HeightAssignments.Where(x => x.Races.Contains(race.FormKey)).FirstOrDefault();
                     

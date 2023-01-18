@@ -1,30 +1,30 @@
-﻿namespace SynthEBD;
+namespace SynthEBD;
 
 public class FlattenedReplacerGroup
 {
     public FlattenedReplacerGroup(AssetReplacerGroup source)
     {
-        this.Name = source.Label;
-        this.Source = new AssetPack();
+        Name = source.Label;
+        Source = new AssetPack();
     }
 
     public FlattenedReplacerGroup(FlattenedReplacerGroup source)
     {
-        this.Name = source.Name;
-        this.Source = source.Source;
+        Name = source.Name;
+        Source = source.Source;
     }
 
     public string Name { get; set; }
     public List<List<FlattenedSubgroup>> Subgroups { get; set; } = new();
     public AssetPack Source { get; set; }
 
-    public static FlattenedReplacerGroup FlattenReplacerGroup(AssetReplacerGroup source, List<RaceGrouping> raceGroupingList, FlattenedAssetPack parentAssetPack)
+    public static FlattenedReplacerGroup FlattenReplacerGroup(AssetReplacerGroup source, List<RaceGrouping> raceGroupingList, FlattenedAssetPack parentAssetPack, DictionaryMapper dictionaryMapper, PatcherState patcherState)
     {
         var output = new FlattenedReplacerGroup(source);
         for (int i = 0; i < source.Subgroups.Count; i++)
         {
             var flattenedSubgroups = new List<FlattenedSubgroup>();
-            FlattenedSubgroup.FlattenSubgroups(source.Subgroups[i], null, flattenedSubgroups, raceGroupingList, parentAssetPack.GroupName, i, source.Subgroups, parentAssetPack);
+            FlattenedSubgroup.FlattenSubgroups(source.Subgroups[i], null, flattenedSubgroups, raceGroupingList, parentAssetPack.GroupName, i, source.Subgroups, parentAssetPack, dictionaryMapper, patcherState);
             output.Subgroups.Add(flattenedSubgroups);
         }
         output.Source = parentAssetPack.Source;

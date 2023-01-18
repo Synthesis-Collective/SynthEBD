@@ -1,53 +1,62 @@
-﻿using System.IO;
+using System.IO;
 
 namespace SynthEBD;
 
-class SettingsIO_Height
+public class SettingsIO_Height
 {
-    public static Settings_Height LoadHeightSettings(out bool loadSuccess)
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly Logger _logger;
+    private readonly SynthEBDPaths _paths;
+    public SettingsIO_Height(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths)
+    {
+        _environmentProvider = environmentProvider;
+        _logger = logger;
+        _paths = paths;
+    }
+    public Settings_Height LoadHeightSettings(out bool loadSuccess)
     {
         Settings_Height heightSettings = new Settings_Height();
 
         loadSuccess = true;
 
-        if (File.Exists(PatcherSettings.Paths.HeightSettingsPath))
+        if (File.Exists(_paths.HeightSettingsPath))
         {
-            heightSettings = JSONhandler<Settings_Height>.LoadJSONFile(PatcherSettings.Paths.HeightSettingsPath, out loadSuccess, out string exceptionStr);
+            heightSettings = JSONhandler<Settings_Height>.LoadJSONFile(_paths.HeightSettingsPath, out loadSuccess, out string exceptionStr);
             if (!loadSuccess)
             {
-                Logger.LogError("Could not load height settings. Error: " + exceptionStr);
+                _logger.LogError("Could not load height settings. Error: " + exceptionStr);
             }
         }
-        else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightSettingsPath)))
+        else if (File.Exists(_paths.GetFallBackPath(_paths.HeightSettingsPath)))
         {
-            heightSettings = JSONhandler<Settings_Height>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightSettingsPath), out loadSuccess, out string exceptionStr);
+            heightSettings = JSONhandler<Settings_Height>.LoadJSONFile(_paths.GetFallBackPath(_paths.HeightSettingsPath), out loadSuccess, out string exceptionStr);
             if (!loadSuccess)
             {
-                Logger.LogError("Could not load height settings. Error: " + exceptionStr);
+                _logger.LogError("Could not load height settings. Error: " + exceptionStr);
             }
         }
 
         return heightSettings;
     }
 
-    public static List<HeightConfig> LoadHeightConfigs(out bool loadSuccess)
+    public List<HeightConfig> LoadHeightConfigs(out bool loadSuccess)
     {
         List<HeightConfig> loaded = new List<HeightConfig>();
 
         loadSuccess = true;
 
         string searchPath = "";
-        if (Directory.Exists(PatcherSettings.Paths.HeightConfigDirPath))
+        if (Directory.Exists(_paths.HeightConfigDirPath))
         {
-            searchPath = PatcherSettings.Paths.HeightConfigDirPath;
+            searchPath = _paths.HeightConfigDirPath;
         }
-        else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath)))
+        else if (Directory.Exists(_paths.GetFallBackPath(_paths.HeightConfigDirPath)))
         {
-            searchPath = PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath);
+            searchPath = _paths.GetFallBackPath(_paths.HeightConfigDirPath);
         }
         else
         {
-            Logger.LogError("Could not find the Height Config Directory expected at " + PatcherSettings.Paths.HeightConfigDirPath);
+            _logger.LogError("Could not find the Height Config Directory expected at " + _paths.HeightConfigDirPath);
             loadSuccess = false;
             return loaded;
         }
@@ -63,7 +72,7 @@ class SettingsIO_Height
                 var zEBDformatted = JSONhandler<HashSet<HeightAssignment.zEBDHeightAssignment>>.LoadJSONFile(s, out bool success, out string exceptionStr);
                 if (!success)
                 {
-                    Logger.LogError("Could not load Height Config at " + s + ". Error: " + exceptionStr);
+                    _logger.LogError("Could not load Height Config at " + s + ". Error: " + exceptionStr);
                     loadSuccess = false;
                     continue;
                 }
@@ -74,7 +83,7 @@ class SettingsIO_Height
                 {
                     var ha = new HeightAssignment();
                     ha.Label = zHC.EDID;
-                    ha.Races = new HashSet<Mutagen.Bethesda.Plugins.FormKey> { Converters.RaceEDID2FormKey(zHC.EDID) };
+                    ha.Races = new HashSet<Mutagen.Bethesda.Plugins.FormKey> { Converters.RaceEDID2FormKey(zHC.EDID, _environmentProvider) };
 
                     if (float.TryParse(zHC.heightMale, out var maleHeight))
                     {
@@ -82,7 +91,7 @@ class SettingsIO_Height
                     }
                     else
                     {
-                        Logger.LogError("Cannot parse male height " + zHC.heightMale + " for Height Assignment: " + ha.Label);
+                        _logger.LogError("Cannot parse male height " + zHC.heightMale + " for Height Assignment: " + ha.Label);
                     }
 
                     if (float.TryParse(zHC.heightFemale, out var femaleHeight))
@@ -91,7 +100,7 @@ class SettingsIO_Height
                     }
                     else
                     {
-                        Logger.LogError("Cannot parse female height " + zHC.heightFemale + " for Height Assignment: " + ha.Label);
+                        _logger.LogError("Cannot parse female height " + zHC.heightFemale + " for Height Assignment: " + ha.Label);
                     }
 
                     if (float.TryParse(zHC.heightMaleRange, out var maleHeightRange))
@@ -100,7 +109,7 @@ class SettingsIO_Height
                     }
                     else
                     {
-                        Logger.LogError("Cannot parse male height range " + zHC.heightMaleRange + " for Height Assignment: " + ha.Label);
+                        _logger.LogError("Cannot parse male height range " + zHC.heightMaleRange + " for Height Assignment: " + ha.Label);
                     }
 
                     if (float.TryParse(zHC.heightFemaleRange, out var femaleHeightRange))
@@ -109,7 +118,7 @@ class SettingsIO_Height
                     }
                     else
                     {
-                        Logger.LogError("Cannot parse female height range " + zHC.heightFemaleRange + " for Height Assignment: " + ha.Label);
+                        _logger.LogError("Cannot parse female height range " + zHC.heightFemaleRange + " for Height Assignment: " + ha.Label);
                     }
 
                     fromZformat.HeightAssignments.Add(ha);
@@ -124,7 +133,7 @@ class SettingsIO_Height
                 var hc = JSONhandler<HeightConfig>.LoadJSONFile(s, out bool success, out string exceptionStr);
                 if (!success)
                 {
-                    Logger.LogError("Could not load Height Config at " + s + ". Error: " + exceptionStr);
+                    _logger.LogError("Could not load Height Config at " + s + ". Error: " + exceptionStr);
                     loadSuccess = false;
                     continue;
                 }
@@ -136,7 +145,7 @@ class SettingsIO_Height
         return loaded;
     }
 
-    public static void SaveHeightConfigs(List<HeightConfig> heightConfigs, out bool saveSuccess)
+    public void SaveHeightConfigs(List<HeightConfig> heightConfigs, out bool saveSuccess)
     {
         saveSuccess = true;
         foreach (var heightConfig in heightConfigs)
@@ -149,15 +158,15 @@ class SettingsIO_Height
         }
     }
 
-    public static void SaveHeightConfig(HeightConfig heightConfig, out bool saveSuccess)
+    public void SaveHeightConfig(HeightConfig heightConfig, out bool saveSuccess)
     {
         saveSuccess = true;
-        if (!string.IsNullOrWhiteSpace(heightConfig.FilePath) && heightConfig.FilePath.StartsWith(PatcherSettings.Paths.HeightConfigDirPath, StringComparison.InvariantCultureIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(heightConfig.FilePath) && heightConfig.FilePath.StartsWith(_paths.HeightConfigDirPath, StringComparison.InvariantCultureIgnoreCase))
         {
             JSONhandler<HeightConfig>.SaveJSONFile(heightConfig, heightConfig.FilePath, out saveSuccess, out string exceptionStr);
             if (!saveSuccess)
             {
-                Logger.LogError("Could not save height config. Error: " + exceptionStr);
+                _logger.LogError("Could not save height config. Error: " + exceptionStr);
             }
         }
         else
@@ -165,20 +174,20 @@ class SettingsIO_Height
             string newPath = "";
             if (IO_Aux.IsValidFilename(heightConfig.Label))
             {
-                PatcherIO.CreateDirectoryIfNeeded(PatcherSettings.Paths.HeightConfigDirPath, PatcherIO.PathType.Directory);
-                if (Directory.Exists(PatcherSettings.Paths.HeightConfigDirPath))
+                PatcherIO.CreateDirectoryIfNeeded(_paths.HeightConfigDirPath, PatcherIO.PathType.Directory);
+                if (Directory.Exists(_paths.HeightConfigDirPath))
                 {
-                    newPath = Path.Combine(PatcherSettings.Paths.HeightConfigDirPath, heightConfig.Label + ".json");
+                    newPath = Path.Combine(_paths.HeightConfigDirPath, heightConfig.Label + ".json");
                 }
-                else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath)))
+                else if (Directory.Exists(_paths.GetFallBackPath(_paths.HeightConfigDirPath)))
                 {
-                    newPath = Path.Combine(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath), heightConfig.Label + ".json");
+                    newPath = Path.Combine(_paths.GetFallBackPath(_paths.HeightConfigDirPath), heightConfig.Label + ".json");
                 }
 
                 JSONhandler<HeightConfig>.SaveJSONFile(heightConfig, newPath, out saveSuccess, out string exceptionStr);
                 if (!saveSuccess)
                 {
-                    Logger.LogError("Could not save height config. Error: " + exceptionStr);
+                    _logger.LogError("Could not save height config. Error: " + exceptionStr);
                 }
             }
             else
@@ -188,13 +197,13 @@ class SettingsIO_Height
                 dialog.DefaultExt = ".json"; // Default file extension
                 dialog.Filter = "JSON files (.json|*.json"; // Filter files by extension
 
-                if (Directory.Exists(PatcherSettings.Paths.HeightConfigDirPath))
+                if (Directory.Exists(_paths.HeightConfigDirPath))
                 {
-                    dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.HeightConfigDirPath);
+                    dialog.InitialDirectory = Path.GetFullPath(_paths.HeightConfigDirPath);
                 }
-                else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath)))
+                else if (Directory.Exists(_paths.GetFallBackPath(_paths.HeightConfigDirPath)))
                 {
-                    dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.HeightConfigDirPath));
+                    dialog.InitialDirectory = Path.GetFullPath(_paths.GetFallBackPath(_paths.HeightConfigDirPath));
                 }
 
                 dialog.RestoreDirectory = true;
@@ -208,7 +217,7 @@ class SettingsIO_Height
                     JSONhandler<HeightConfig>.SaveJSONFile(heightConfig, dialog.FileName, out saveSuccess, out string exceptionStr);
                     if (!saveSuccess)
                     {
-                        Logger.LogError("Could not save height config. Error: " + exceptionStr);
+                        _logger.LogError("Could not save height config. Error: " + exceptionStr);
                     }
                 }
             }

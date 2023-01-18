@@ -6,8 +6,12 @@ namespace SynthEBD;
 
 public class VM_SettingsModManager : VM
 {
-    public VM_SettingsModManager()
+    private readonly PatcherState _patcherState;
+    public delegate VM_SettingsModManager Factory();
+    public VM_SettingsModManager(PatcherState patcherState)
     {
+        _patcherState = patcherState;
+
         SelectTempFolder = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -19,11 +23,11 @@ public class VM_SettingsModManager : VM
             }
         );
 
-        this.WhenAnyValue(x => x.ModManagerType).Subscribe(x => UpdateDisplayedVM());
+        this.WhenAnyValue(x => x.ModManagerType).Subscribe(x => UpdateDisplayedVM()).DisposeWith(this);
         this.WhenAnyValue(x => x.ModManagerType).Subscribe(x =>
         {
             UpdatePatcherSettings();
-        });
+        }).DisposeWith(this);
     }
 
     public ModManager ModManagerType { get; set; } = ModManager.None;
@@ -48,9 +52,9 @@ public class VM_SettingsModManager : VM
 
     public void UpdatePatcherSettings()
     {
-        if (this != null && PatcherSettings.ModManagerIntegration != null)
+        if (this != null && _patcherState.ModManagerSettings != null)
         {
-            DumpViewModelToModel(PatcherSettings.ModManagerIntegration, this);
+            DumpViewModelToModel(_patcherState.ModManagerSettings, this);
         }
     }
 
@@ -116,7 +120,7 @@ public class VM_MO2Integration : VM
         this.WhenAnyValue(x => x.ExecutablePath).Subscribe(x =>
         {
             UpdateModFolderPath();
-        });
+        }).DisposeWith(this);
     }
     public string ModFolderPath { get; set; } = "";
     public string ExecutablePath { get; set; } = "";

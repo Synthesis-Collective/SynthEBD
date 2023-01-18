@@ -4,7 +4,7 @@ using System.IO;
 
 namespace SynthEBD;
 
-class PatcherIO
+public class PatcherIO
 {
     public enum PathType
     {
@@ -27,7 +27,7 @@ class PatcherIO
         }
     }
 
-    public static async Task WriteTextFile(string path, string contents)
+    public static async Task WriteTextFile(string path, string contents, Logger logger)
     {
         var file = CreateDirectoryIfNeeded(path, PathType.File);
 
@@ -37,14 +37,30 @@ class PatcherIO
         }
         catch
         {
-            Logger.LogError("Could not create file at " + path);
+            logger.LogError("Could not create file at " + path);
         }
     }
-    public static async Task WriteTextFile(string path, List<string> contents)
+    public static async Task WriteTextFile(string path, List<string> contents, Logger logger)
     {
-        await WriteTextFile(path, string.Join(Environment.NewLine, contents));
+        await WriteTextFile(path, string.Join(Environment.NewLine, contents), logger);
     }
-    public static void WritePatch(string patchOutputPath, SkyrimMod outputMod)
+
+    public static async Task WriteTextFileStatic(string path, string contents)
+    {
+        var file = CreateDirectoryIfNeeded(path, PathType.File);
+
+        try
+        {
+            await File.WriteAllTextAsync(file.FullName, contents);
+        }
+        catch(Exception e)
+        {
+            var error = ExceptionLogger.GetExceptionStack(e);
+            CustomMessageBox.DisplayNotificationOK("Could not save text file", "Error: could not save text file to " + path + ". Exception: " + Environment.NewLine + error);
+        }
+    }
+
+    public static void WritePatch(string patchOutputPath, ISkyrimMod outputMod, Logger logger, IEnvironmentStateProvider environmentProvider)
     {
         string errStr = "";
         if (File.Exists(patchOutputPath))
@@ -55,9 +71,9 @@ class PatcherIO
             }
             catch (Exception e)
             {
-                errStr = ExceptionLogger.GetExceptionStack(e, errStr);
-                Logger.LogMessage("Failed to delete previous version of patch. Error: " + Environment.NewLine + errStr);
-                Logger.LogErrorWithStatusUpdate("Could not write output file to " + patchOutputPath, ErrorType.Error);
+                errStr = ExceptionLogger.GetExceptionStack(e);
+                logger.LogMessage("Failed to delete previous version of patch. Error: " + Environment.NewLine + errStr);
+                logger.LogErrorWithStatusUpdate("Could not write output file to " + patchOutputPath, ErrorType.Error);
                 return;
             }
         }
@@ -66,23 +82,23 @@ class PatcherIO
         {
             var writeParams = new Mutagen.Bethesda.Plugins.Binary.Parameters.BinaryWriteParameters()
             {
-                MastersListOrdering = new Mutagen.Bethesda.Plugins.Binary.Parameters.MastersListOrderingByLoadOrder(PatcherEnvironmentProvider.Instance.Environment.LoadOrder)
+                MastersListOrdering = new Mutagen.Bethesda.Plugins.Binary.Parameters.MastersListOrderingByLoadOrder(environmentProvider.LoadOrder)
             };
             outputMod.WriteToBinary(patchOutputPath, writeParams);
-            Logger.LogMessage("Wrote output file at " + patchOutputPath + ".");
+            logger.LogMessage("Wrote output file at " + patchOutputPath + ".");
         }
         catch (Exception e)
         {
-            errStr = ExceptionLogger.GetExceptionStack(e, errStr);
-            Logger.LogMessage("Failed to write new patch. Error: " + Environment.NewLine + errStr);
-            Logger.LogErrorWithStatusUpdate("Could not write output file to " + patchOutputPath, ErrorType.Error); 
+            errStr = ExceptionLogger.GetExceptionStack(e);
+            logger.LogMessage("Failed to write new patch. Error: " + Environment.NewLine + errStr);
+            logger.LogErrorWithStatusUpdate("Could not write output file to " + patchOutputPath, ErrorType.Error); 
         };
     }
-    public static void TryCopyResourceFile(string sourcePath, string destPath)
+    public void TryCopyResourceFile(string sourcePath, string destPath, Logger logger)
     {
         if (!File.Exists(sourcePath))
         {
-            Logger.LogErrorWithStatusUpdate("Could not find " + sourcePath, ErrorType.Error);
+            logger.LogErrorWithStatusUpdate("Could not find " + sourcePath, ErrorType.Error);
             return;
         }
 
@@ -93,11 +109,11 @@ class PatcherIO
         }
         catch
         {
-            Logger.LogErrorWithStatusUpdate("Could not copy " + sourcePath + "to " + destPath, ErrorType.Error);
+            logger.LogErrorWithStatusUpdate("Could not copy " + sourcePath + "to " + destPath, ErrorType.Error);
         }
     }
 
-    public static bool TryDeleteFile(string path)
+    public bool TryDeleteFile(string path, Logger logger)
     {
         if (File.Exists(path))
         {
@@ -107,16 +123,16 @@ class PatcherIO
             }
             catch (Exception e)
             {
-                Logger.LogErrorWithStatusUpdate("Could not delete file - see log", ErrorType.Warning);
-                string error = ExceptionLogger.GetExceptionStack(e, "");
-                Logger.LogMessage("Could not delete file: " + path + Environment.NewLine + error);
+                logger.LogErrorWithStatusUpdate("Could not delete file - see log", ErrorType.Warning);
+                string error = ExceptionLogger.GetExceptionStack(e);
+                logger.LogMessage("Could not delete file: " + path + Environment.NewLine + error);
                 return false;
             }
         }
         return true;
     }
 
-    public static bool TryDeleteDirectory(string path)
+    public bool TryDeleteDirectory(string path, Logger logger)
     {
         if (Directory.Exists(path))
         {
@@ -126,9 +142,9 @@ class PatcherIO
             }
             catch (Exception e)
             {
-                Logger.LogErrorWithStatusUpdate("Could not delete directory - see log", ErrorType.Warning);
-                string error = ExceptionLogger.GetExceptionStack(e, "");
-                Logger.LogMessage("Could not delete directory: " + path + Environment.NewLine + error);
+                logger.LogErrorWithStatusUpdate("Could not delete directory - see log", ErrorType.Warning);
+                string error = ExceptionLogger.GetExceptionStack(e);
+                logger.LogMessage("Could not delete directory: " + path + Environment.NewLine + error);
                 return false;
             }
         }

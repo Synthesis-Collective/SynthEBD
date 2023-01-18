@@ -1,15 +1,26 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using System.Diagnostics.CodeAnalysis;
 
 namespace SynthEBD;
 
 public class CombinationLog
 {
-    private readonly PatcherEnvironmentProvider _environmentProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
+    private readonly Logger _logger;
+    private readonly PatcherIO _patcherIO;
+    private readonly SynthEBDPaths _paths;
+    private readonly Converters _converters;
 
-    public CombinationLog(PatcherEnvironmentProvider environmentProvider)
+    public CombinationLog(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, PatcherIO patcherIO, SynthEBDPaths paths, Converters converters)
     {
         _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
+        _logger = logger;
+        _patcherIO = patcherIO;
+        _paths = paths;
+        _converters = converters;
+
         AssignedPrimaryCombinations = new Dictionary<string, List<CombinationInfo>>();
         AssignedMixInCombinations = new Dictionary<string, List<CombinationInfo>>();
         AssignedReplacerCombinations = new Dictionary<string, List<CombinationInfo>>();
@@ -27,8 +38,8 @@ public class CombinationLog
 
     public void WriteToFile()
     {
-        if (!PatcherSettings.TexMesh.bGenerateAssignmentLog) { return; }
-        string outputFile = System.IO.Path.Combine(PatcherSettings.Paths.LogFolderPath, Logger.Instance.PatcherExecutionStart.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture), "Generated Combinations.txt");
+        if (!_patcherState.TexMeshSettings.bGenerateAssignmentLog) { return; }
+        string outputFile = System.IO.Path.Combine(_paths.LogFolderPath, _logger.PatcherExecutionStart.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture), "Generated Combinations.txt");
 
         List<string> output = new List<string>();
 
@@ -41,7 +52,7 @@ public class CombinationLog
         output.Add("----------------Replacer Combinations:----------------" + Environment.NewLine);
         FormatCombinationInfoOutput(AssignedReplacerCombinations, output);
 
-        Task.Run(() => PatcherIO.WriteTextFile(outputFile, output));
+        Task.Run(() => PatcherIO.WriteTextFile(outputFile, output, _logger));
     }
 
     public void FormatCombinationInfoOutput(Dictionary<string, List<CombinationInfo>> combinationInfo, List<string> fileContents)
@@ -71,7 +82,7 @@ public class CombinationLog
 
                 foreach (var record in combination.AssignedRecords)
                 {
-                    if (Converters.FormKeyStringToFormIDString(record.FormKey, out string formID))
+                    if (_converters.FormKeyStringToFormIDString(record.FormKey, out string formID))
                     {
                         fileContents.Add("\t\t\t" + (record.EditorID) + " (" + formID + ")"); // not a Mutagen record; EditorID will never be null
                     }
@@ -85,7 +96,7 @@ public class CombinationLog
     {
         foreach (var containedFormLink in recordInfo.SubRecords)
         {
-            if (_environmentProvider.Environment.LinkCache.TryResolve(containedFormLink.FormKey, containedFormLink.Type, out var resolvedSubRecord))
+            if (_environmentProvider.LinkCache.TryResolve(containedFormLink.FormKey, containedFormLink.Type, out var resolvedSubRecord))
             {
                 var loggedSubRecord = new GeneratedRecordInfo() { EditorID =  EditorIDHandler.GetEditorIDSafely(resolvedSubRecord), FormKey = resolvedSubRecord.FormKey.ToString(), SubRecords = resolvedSubRecord.EnumerateFormLinks().Where(x => x.FormKey.ModKey == resolvedSubRecord.FormKey.ModKey).ToHashSet() };
                     
@@ -101,7 +112,7 @@ public class CombinationLog
 
     public void LogAssignment(NPCInfo npcInfo, List<SubgroupCombination> combinations, List<FilePathReplacementParsed> assignedPaths)
     {
-        if (!PatcherSettings.TexMesh.bGenerateAssignmentLog) { return; }
+        if (!_patcherState.TexMeshSettings.bGenerateAssignmentLog) { return; }
 
         Dictionary<string, List<CombinationInfo>> combinationDict = null;
 
@@ -125,7 +136,7 @@ public class CombinationLog
                 combinationDict.Add(combination.AssetPackName, currentAssetPackCombinations);
             }
 
-            if (!combination.Signature.Contains(':')) { Logger.LogError("Couldn't record combination with signature: " + combination.Signature); continue; }
+            if (!combination.Signature.Contains(':')) { _logger.LogError("Couldn't record combination with signature: " + combination.Signature); continue; }
 
             string currentSubgroupIDs = combination.Signature.Split(':')[1];
             var currentCombinationRecord = currentAssetPackCombinations.Where(x => x.SubgroupIDs == currentSubgroupIDs).FirstOrDefault();

@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
 using System;
 using System.Collections.Generic;
@@ -6,33 +6,35 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Noggog;
 
 namespace SynthEBD;
 
 public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
 {
-    public VM_Settings_Headparts(VM_Settings_General generalSettingsVM, VM_SettingsOBody oBodySettings)
+    private IEnvironmentStateProvider _environmentProvider;
+    public VM_Settings_Headparts(VM_Settings_General generalSettingsVM, VM_SettingsOBody oBodySettings, VM_HeadPartList.Factory listFactory, VM_HeadPart.Factory headPartFactory, Logger logger, IEnvironmentStateProvider environmentProvider)
     {
-        ImportMenu = new(this);
+        ImportMenu = new VM_HeadPartImport(this, logger, environmentProvider, headPartFactory);
         SettingsMenu = new();
         AttributeGroupMenu = generalSettingsVM.AttributeGroupMenu;
-        RaceGroupings = generalSettingsVM.RaceGroupings;
+        RaceGroupings = generalSettingsVM.RaceGroupingEditor.RaceGroupings;
         OBodyDescriptors = oBodySettings.DescriptorUI;
 
         BodyShapeMode = generalSettingsVM.BodySelectionMode;
-        generalSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
+        generalSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x).DisposeWith(this);
 
         DisplayedMenu = ImportMenu;
 
         Types = new()
         {
-            { HeadPart.TypeEnum.Eyebrows, new VM_HeadPartList(HeadPart.TypeEnum.Eyebrows, generalSettingsVM.RaceGroupings, this, oBodySettings) },
-            { HeadPart.TypeEnum.Eyes, new VM_HeadPartList(HeadPart.TypeEnum.Eyes, generalSettingsVM.RaceGroupings, this, oBodySettings) },
-            { HeadPart.TypeEnum.Face, new VM_HeadPartList(HeadPart.TypeEnum.Face, generalSettingsVM.RaceGroupings, this, oBodySettings) },
-            { HeadPart.TypeEnum.FacialHair, new VM_HeadPartList(HeadPart.TypeEnum.FacialHair, generalSettingsVM.RaceGroupings, this, oBodySettings) },
-            { HeadPart.TypeEnum.Hair, new VM_HeadPartList(HeadPart.TypeEnum.Hair, generalSettingsVM.RaceGroupings, this, oBodySettings) },
-            { HeadPart.TypeEnum.Misc, new VM_HeadPartList(HeadPart.TypeEnum.Misc, generalSettingsVM.RaceGroupings, this, oBodySettings) },
-            { HeadPart.TypeEnum.Scars, new VM_HeadPartList(HeadPart.TypeEnum.Scars, generalSettingsVM.RaceGroupings, this, oBodySettings) }
+            { HeadPart.TypeEnum.Eyebrows, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) },
+            { HeadPart.TypeEnum.Eyes, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) },
+            { HeadPart.TypeEnum.Face, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) },
+            { HeadPart.TypeEnum.FacialHair, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) },
+            { HeadPart.TypeEnum.Hair, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) },
+            { HeadPart.TypeEnum.Misc, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) },
+            { HeadPart.TypeEnum.Scars, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) }
         };
 
         ViewImportMenu = new RelayCommand(
@@ -102,8 +104,7 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
     }
 
     public object DisplayedMenu { get; set; }
-    public VM_HeadPartImport ImportMenu { get; set; } 
-    public VM_HeadPartList DisplayedHeadParts { get; set; } 
+    public VM_HeadPartImport ImportMenu { get; set; }
     public Dictionary<HeadPart.TypeEnum, VM_HeadPartList> Types { get; set; }
     public VM_AttributeGroupMenu AttributeGroupMenu { get; }
     public VM_HeadPartMiscSettings SettingsMenu { get; }
@@ -119,12 +120,12 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
     public RelayCommand ViewMiscMenu { get; }
     public RelayCommand ViewScarsMenu { get; }
     public RelayCommand ViewSettingsMenu { get; }
-    public void CopyInFromModel(Settings_Headparts model, VM_SettingsOBody oBody, ObservableCollection<VM_RaceGrouping> raceGroupings)
+    public void CopyInFromModel(Settings_Headparts model, ObservableCollection<VM_RaceGrouping> raceGroupings)
     {
         RaceGroupings = raceGroupings;
         foreach (var type in model.Types.Keys)
         {
-            Types[type].CopyInFromModel(model.Types[type], RaceGroupings, AttributeGroupMenu, this, oBody);
+            Types[type].CopyInFromModel(model.Types[type], RaceGroupings, AttributeGroupMenu);
         }
         SettingsMenu.GetViewModelFromModel(model);
     }

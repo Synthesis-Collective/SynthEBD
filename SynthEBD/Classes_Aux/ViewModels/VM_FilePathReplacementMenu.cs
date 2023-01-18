@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Skyrim;
 using System.Collections.ObjectModel;
 using ReactiveUI;
 using Mutagen.Bethesda.Plugins;
@@ -18,7 +18,7 @@ public class VM_FilePathReplacementMenu : VM
         this.ReferenceLinkCache = refLinkCache;
         this.SetExplicitReferenceNPC = setExplicitReferenceNPC;
 
-        Paths.ToObservableChangeSet().Subscribe(x => RefreshHasContents());
+        Paths.ToObservableChangeSet().Subscribe(x => RefreshHasContents()).DisposeWith(this);
     }
     public ObservableCollection<VM_FilePathReplacement> Paths { get; set; } = new();
 

@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using ReactiveUI;
@@ -18,16 +18,22 @@ namespace SynthEBD
 {
     public class VM_HeadPartImport : VM
     {
-        public VM_HeadPartImport(VM_Settings_Headparts parentMenu)
+        private IEnvironmentStateProvider _environmentProvider;
+        private readonly Logger _logger;
+        private readonly VM_HeadPart.Factory _headPartFactory;
+        public VM_HeadPartImport(VM_Settings_Headparts parentMenu, Logger logger, IEnvironmentStateProvider environmentProvider, VM_HeadPart.Factory headPartFactory)
         {
             ParentMenu = parentMenu;
+            _environmentProvider = environmentProvider;
+            _logger = logger;
+            _headPartFactory = headPartFactory;
 
-            PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+            _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-            PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LoadOrder)
-            .Subscribe(x => LoadOrder = x.Where(y => y.Value != null && y.Value.Enabled).Select(x => x.Value.ModKey));
+            _environmentProvider.WhenAnyValue(x => x.LoadOrder)
+            .Subscribe(x => LoadOrder = x.Where(y => y.Value != null && y.Value.Enabled).Select(x => x.Value.ModKey)).DisposeWith(this);
 
             this.WhenAnyValue(
                 x => x.bImportMale,
@@ -44,17 +50,17 @@ namespace SynthEBD
                 // Just pass along the signal, don't care about the triggering values
                 (_, _, _, _, _, _, _, _, _, _, _) => Unit.Default)
             .Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler)
-            .Subscribe(_ => UpdateSelections());
+            .Subscribe(_ => UpdateSelections())
+            .DisposeWith(this);
 
-            this.Imports[HeadPart.TypeEnum.Eyebrows].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyebrows));
-            this.Imports[HeadPart.TypeEnum.Eyes].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyes));
-            this.Imports[HeadPart.TypeEnum.Face].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Face));
-            this.Imports[HeadPart.TypeEnum.FacialHair].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.FacialHair));
-            this.Imports[HeadPart.TypeEnum.Hair].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Hair));
-            this.Imports[HeadPart.TypeEnum.Misc].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Misc));
-            this.Imports[HeadPart.TypeEnum.Scars].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Scars));
-
-            Import = new SynthEBD.RelayCommand(
+            this.Imports[HeadPart.TypeEnum.Eyebrows].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyebrows)).DisposeWith(this);
+            this.Imports[HeadPart.TypeEnum.Eyes].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyes)).DisposeWith(this);
+            this.Imports[HeadPart.TypeEnum.Face].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Face)).DisposeWith(this);
+            this.Imports[HeadPart.TypeEnum.FacialHair].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.FacialHair)).DisposeWith(this);
+            this.Imports[HeadPart.TypeEnum.Hair].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Hair)).DisposeWith(this);
+            this.Imports[HeadPart.TypeEnum.Misc].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Misc)).DisposeWith(this);
+            this.Imports[HeadPart.TypeEnum.Scars].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Scars)).DisposeWith(this);
+            Import = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => ImportSelections()
             );
@@ -101,7 +107,7 @@ namespace SynthEBD
         public void UpdateSelections()
         {
             ClearSelections();
-            var mod = PatcherEnvironmentProvider.Instance.Environment.LoadOrder.ListedOrder.Where(x => x.ModKey.Equals(ModtoImport)).FirstOrDefault();
+            var mod = _environmentProvider.LoadOrder.ListedOrder.Where(x => x.ModKey.Equals(ModtoImport)).FirstOrDefault();
             if (mod != null)
             {
                 foreach (var headpart in mod.Mod.HeadParts)
@@ -148,13 +154,13 @@ namespace SynthEBD
             }
         }
 
-        public static SolidColorBrush GetBorderColor(ObservableCollection<FormKey> collection, HeadPart.TypeEnum type, List<string> invalidEditorIDs)
+        public SolidColorBrush GetBorderColor(ObservableCollection<FormKey> collection, HeadPart.TypeEnum type, List<string> invalidEditorIDs)
         {
             invalidEditorIDs.Clear();
             for (int i = 0; i < collection.Count; i++)
             {
                 var headPartFK = collection[i];
-                if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
+                if (_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                 {
                     if (!headpart.Type.HasValue)
                     {
@@ -167,7 +173,7 @@ namespace SynthEBD
                 }
                 else
                 {
-                    invalidEditorIDs.Add(EditorIDHandler.GetEditorIDSafely<IHeadPartGetter>(headPartFK));
+                    invalidEditorIDs.Add(EditorIDHandler.GetEditorIDSafely<IHeadPartGetter>(headPartFK, _environmentProvider.LinkCache));
                 }
             }
 
@@ -193,7 +199,7 @@ namespace SynthEBD
             {
                 foreach (var headPartFK in entry.Value.FormKeys)
                 {
-                    if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
+                    if (_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                     {
                         if (!ParentMenu.Types[entry.Key].HeadPartList.Where(x => x.FormKey.Equals(headPartFK)).Any())
                         {
@@ -213,14 +219,17 @@ namespace SynthEBD
                 CustomMessageBox.DisplayNotificationOK("Duplicate Imports", "The following head parts were previously imported and will be skipped: " + Environment.NewLine + String.Join(Environment.NewLine, skippedImports));
             }
 
-            Logger.CallTimedNotifyStatusUpdateAsync("Imported " + importCount + " head parts.", 5);
+            _logger.CallTimedNotifyStatusUpdateAsync("Imported " + importCount + " head parts.", 5);
         }
 
-        public static VM_HeadPart ImportHeadPart(IHeadPartGetter headPart, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig)
+        public VM_HeadPart ImportHeadPart(IHeadPartGetter headPart, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig)
         {
-            var imported = new VM_HeadPart(headPart.FormKey, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig) { Label = EditorIDHandler.GetEditorIDSafely(headPart), bAllowMale = headPart.Flags.HasFlag(HeadPart.Flag.Male), bAllowFemale = headPart.Flags.HasFlag(HeadPart.Flag.Female) };
+            var imported = _headPartFactory(headPart.FormKey, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig);
+            imported.Label = EditorIDHandler.GetEditorIDSafely(headPart);
+            imported.bAllowMale = headPart.Flags.HasFlag(HeadPart.Flag.Male);
+            imported.bAllowFemale = headPart.Flags.HasFlag(HeadPart.Flag.Female);
 
-            if (parentConfig.ImportMenu.bRespectHeadPartRaces && PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IFormListGetter>(headPart.ValidRaces.FormKey, out var raceFormList) && raceFormList.Items.Any())
+            if (parentConfig.ImportMenu.bRespectHeadPartRaces && _environmentProvider.LinkCache.TryResolve<IFormListGetter>(headPart.ValidRaces.FormKey, out var raceFormList) && raceFormList.Items.Any())
             {
                 var races = raceFormList.Items.Select(x => x.FormKey);
                 var matchedGroupings = VM_RaceGrouping.CollectionMatchesRaceGrouping(races, raceGroupingVMs);

@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Text.RegularExpressions;
 
 
@@ -6,6 +6,11 @@ namespace SynthEBD;
 
 public class IO_Aux
 {
+    private readonly Logger _logger;
+    public IO_Aux(Logger logger)
+    {
+        _logger = logger;
+    }
     public static bool IsValidFilename(string testName)
     {
         Regex containsABadCharacter = new Regex("["
@@ -100,7 +105,7 @@ public class IO_Aux
         var longDir = @"\\?\" + dir;
         Alphaleonis.Win32.Filesystem.Directory.Delete(longDir, Alphaleonis.Win32.Filesystem.PathFormat.LongFullPath);
     }
-    public static void DeleteDirectory(string target_dir, bool isInner)
+    public void DeleteDirectory(string target_dir, bool isInner)
     {
         string[] files = Directory.GetFiles(target_dir);
         string[] dirs = Directory.GetDirectories(target_dir);
@@ -124,7 +129,7 @@ public class IO_Aux
             catch (Exception ex)
             {
                 error = true;
-                Logger.LogError(ex.Message);
+                _logger.LogError(ex.Message);
             }
             try
             {
@@ -133,7 +138,7 @@ public class IO_Aux
             catch (Exception ex)
             {
                 error = true;
-                Logger.LogError(ex.Message);
+                _logger.LogError(ex.Message);
             }
         }
 
@@ -151,7 +156,7 @@ public class IO_Aux
             catch (Exception ex)
             {
                 error = true;
-                Logger.LogError(ex.Message);
+                _logger.LogError(ex.Message);
             }
         }
         else

@@ -1,29 +1,40 @@
-﻿using System.IO;
+using System.IO;
 
 namespace SynthEBD;
 
 public class SettingsIO_OBody
 {
-    public static Settings_OBody LoadOBodySettings(out bool loadSuccess)
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
+    private readonly Logger _logger;
+    private readonly SynthEBDPaths _paths;
+    public SettingsIO_OBody(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths)
     {
-        Settings_OBody oBodySettings = new Settings_OBody();
+        _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
+        _logger = logger;
+        _paths = paths;
+    }
+    public Settings_OBody LoadOBodySettings(out bool loadSuccess)
+    {
+        Settings_OBody oBodySettings = new();
 
         loadSuccess = true;
 
-        if (File.Exists(PatcherSettings.Paths.OBodySettingsPath))
+        if (File.Exists(_paths.OBodySettingsPath))
         {
-            oBodySettings = JSONhandler<Settings_OBody>.LoadJSONFile(PatcherSettings.Paths.OBodySettingsPath, out loadSuccess, out string exceptionStr);
+            oBodySettings = JSONhandler<Settings_OBody>.LoadJSONFile(_paths.OBodySettingsPath, out loadSuccess, out string exceptionStr);
             if (!loadSuccess)
             {
-                Logger.LogError("Could not load O/AutoBody Settings. Error: " + exceptionStr);
+                _logger.LogError("Could not load O/AutoBody Settings. Error: " + exceptionStr);
             }
         }
-        else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.OBodySettingsPath)))
+        else if (File.Exists(_paths.GetFallBackPath(_paths.OBodySettingsPath)))
         {
-            oBodySettings = JSONhandler<Settings_OBody>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.OBodySettingsPath), out loadSuccess, out string exceptionStr);
+            oBodySettings = JSONhandler<Settings_OBody>.LoadJSONFile(_paths.GetFallBackPath(_paths.OBodySettingsPath), out loadSuccess, out string exceptionStr);
             if (!loadSuccess)
             {
-                Logger.LogError("Could not load O/AutoBody Settings. Error: " + exceptionStr);
+                _logger.LogError("Could not load O/AutoBody Settings. Error: " + exceptionStr);
             }
         }
 
@@ -32,7 +43,7 @@ public class SettingsIO_OBody
             oBodySettings = new();
         }
 
-        foreach (var attributeGroup in PatcherSettings.General.AttributeGroups) // add any available attribute groups from the general patcher settings
+        foreach (var attributeGroup in _patcherState.GeneralSettings.AttributeGroups) // add any available attribute groups from the general patcher settings
         {
             if (!oBodySettings.AttributeGroups.Select(x => x.Label).Contains(attributeGroup.Label))
             {
@@ -43,11 +54,11 @@ public class SettingsIO_OBody
         return oBodySettings;
     }
 
-    public static Dictionary<string, HashSet<string>> LoadDefaultBodySlideAnnotation()
+    public Dictionary<string, HashSet<string>> LoadDefaultBodySlideAnnotation()
     {
         Dictionary<string, HashSet<string>> output = new Dictionary<string, HashSet<string>>();
 
-        string annotationDir = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "Default BodySlide Annotations");
+        string annotationDir = Path.Combine(_environmentProvider.InternalDataPath, "Default BodySlide Annotations");
 
         if (Directory.Exists(annotationDir))
         {

@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Newtonsoft.Json;
 using System.Xml.Linq;
 
@@ -36,16 +36,16 @@ public class Settings_OBody
     [JsonIgnore]
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new();
 
-    public void ImportBodySlides(HashSet<BodyShapeDescriptor> templateDescriptors)
+    public void ImportBodySlides(HashSet<BodyShapeDescriptor> templateDescriptors, SettingsIO_OBody oBodyIO, string gameDataFolder)
     {
         if (!MaleSliderGroups.Any()) { MaleSliderGroups = new HashSet<string>() { "HIMBO" }; }
         if (!FemaleSliderGroups.Any()) { FemaleSliderGroups = new HashSet<string>() { "CBBE", "3BBB", "3BA", "UNP", "Unified UNP", "BHUNP 3BBB" }; }
 
-        var defaultAnnotationDict = SettingsIO_OBody.LoadDefaultBodySlideAnnotation();
+        var defaultAnnotationDict = oBodyIO.LoadDefaultBodySlideAnnotation();
 
         CurrentlyExistingBodySlides.Clear();
         List<BodySlideSetting> currentBodySlides = new List<BodySlideSetting>();
-        string loadFolder = System.IO.Path.Join(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, "CalienteTools\\BodySlide\\SliderPresets");
+        string loadFolder = System.IO.Path.Join(gameDataFolder, "CalienteTools\\BodySlide\\SliderPresets");
         if (System.IO.Directory.Exists(loadFolder))
         {
             var xmlFilePaths = System.IO.Directory.GetFiles(loadFolder, "*.xml");

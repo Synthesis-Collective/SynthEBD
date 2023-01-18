@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
@@ -18,13 +18,18 @@ public interface IImplementsRecordIntellisense
 }
 public class RecordIntellisense
 {
-    public static void InitializeSubscriptions(IImplementsRecordIntellisense parent)
+    private readonly RecordPathParser _recordPathParser;
+    public RecordIntellisense(RecordPathParser recordPathParser)
+    {
+        _recordPathParser = recordPathParser;
+    }
+    public void InitializeSubscriptions(IImplementsRecordIntellisense parent)
     {
         parent.WhenAnyValue(x => x.ReferenceNPCFormKey).Subscribe(x => RefreshPathSuggestions(parent));
         parent.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => RefreshPathSuggestions(parent));
         parent.WhenAnyValue(vm => vm.ChosenPathSuggestion).Skip(1).WhereNotNull().Subscribe(pathSuggestion => UpdatePath(parent));
     }
-    public static void RefreshPathSuggestions(IImplementsRecordIntellisense parent)
+    public void RefreshPathSuggestions(IImplementsRecordIntellisense parent)
     {
         parent.ChosenPathSuggestion = null; // clear this now to avoid the previous chosen path suggestion being added by the Subscription due to the current PathSuggestions being modified
 
@@ -38,7 +43,7 @@ public class RecordIntellisense
         if (parent is null || parent.LinkCache is null) { return; }
 
         HashSet<PathSuggestion> newSuggestions = new HashSet<PathSuggestion>();
-        if (parent.LinkCache.TryResolve<INpcGetter>(parent.ReferenceNPCFormKey, out var referenceNPC) && RecordPathParser.GetObjectAtPath(referenceNPC, referenceNPC, tmpPath, new Dictionary<string, dynamic>(), parent.LinkCache, true, Logger.GetNPCLogNameString(referenceNPC), out var subObj))
+        if (parent.LinkCache.TryResolve<INpcGetter>(parent.ReferenceNPCFormKey, out var referenceNPC) && _recordPathParser.GetObjectAtPath(referenceNPC, referenceNPC, tmpPath, new Dictionary<string, dynamic>(), parent.LinkCache, true, Logger.GetNPCLogNameString(referenceNPC), out var subObj))
         {
             Type type = subObj.GetType();
             var properties = type.GetProperties();

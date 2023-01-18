@@ -10,17 +10,44 @@ namespace SynthEBD
 {
     public class UpdateHandler // handles backward compatibility for previous SynthEBD versions
     {
-        public static void CleanSPIDiniHeadParts()
+        private readonly SynthEBDPaths _paths;
+        private readonly PatcherIO _patcherIO;
+        private readonly Logger _logger;
+        public UpdateHandler(SynthEBDPaths paths, PatcherIO patcherIO, Logger logger)
         {
-            PatcherIO.TryDeleteFile(Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBDHeadPartDistributor_DISTR.ini"));
+            _paths = paths;
+            _patcherIO = patcherIO; 
+            _logger = logger;
         }
-        public static void CleanSPIDiniOBody()
+
+        public void PostWindowShowFunctions(VM_SettingsTexMesh texMeshVM)
         {
-            PatcherIO.TryDeleteFile(Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini"));
+            UpdateAssetPacks(texMeshVM);
         }
-        public static void CleanOldBodySlideDict()
+        private void UpdateAssetPacks(VM_SettingsTexMesh texMeshVM)
         {
-            PatcherIO.TryDeleteFile(Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "BodySlideDict.json"));
+            texMeshVM.ConfigVersionUpdate(Version.v090, new());
+        }    
+        public void CleanSPIDiniHeadParts()
+        {
+            _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBDHeadPartDistributor_DISTR.ini"), _logger);
         }
+        public void CleanSPIDiniOBody()
+        {
+            _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini"), _logger);
+        }
+        public void CleanOldBodySlideDict()
+        {
+            _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBD", "BodySlideDict.json"), _logger);
+        }
+
+        public Dictionary<string, string> V09PathReplacements { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "Diffuse", "Diffuse.RawPath" },
+            { "NormalOrGloss", "NormalOrGloss.RawPath" },
+            { "GlowOrDetailMap", "GlowOrDetailMap.RawPath" },
+            { "BacklightMaskOrSpecular", "BacklightMaskOrSpecular.RawPath" },
+            { "Height", "Height.RawPath" }
+        };
     }
 }

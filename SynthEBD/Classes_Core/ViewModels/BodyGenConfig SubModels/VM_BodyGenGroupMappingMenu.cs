@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
@@ -10,25 +10,28 @@ namespace SynthEBD;
 
 public class VM_BodyGenGroupMappingMenu : VM
 {
-    public VM_BodyGenGroupMappingMenu(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
+    private readonly VM_BodyGenRacialMapping.Factory _mappingFactory;
+    public delegate VM_BodyGenGroupMappingMenu Factory(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
+    public VM_BodyGenGroupMappingMenu(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyGenRacialMapping.Factory mappingFactory)
     {
-        AddMapping = new SynthEBD.RelayCommand(
+        _mappingFactory = mappingFactory;
+        AddMapping = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
-                var newMapping = new VM_BodyGenRacialMapping(groupsMenu, raceGroupingVMs);
+                var newMapping = _mappingFactory(groupsMenu, raceGroupingVMs);
                 var newCombination = new VM_BodyGenCombination(groupsMenu, newMapping);
                 if (groupsMenu.TemplateGroups.Any())
                 {
                     newCombination.Members.Add(groupsMenu.TemplateGroups.First());
                 }
                 newMapping.Combinations.Add(newCombination);
-                this.RacialTemplateGroupMap.Add(newMapping);
+                RacialTemplateGroupMap.Add(newMapping);
                 }
         );
 
-        RemoveMapping = new SynthEBD.RelayCommand(
+        RemoveMapping = new RelayCommand(
             canExecute: _ => true,
-            execute: x => this.RacialTemplateGroupMap.Remove((VM_BodyGenRacialMapping)x)
+            execute: x => RacialTemplateGroupMap.Remove((VM_BodyGenRacialMapping)x)
         );
     }
     public ObservableCollection<VM_BodyGenRacialMapping> RacialTemplateGroupMap { get; set; } = new();
@@ -39,16 +42,19 @@ public class VM_BodyGenGroupMappingMenu : VM
 
 public class VM_BodyGenRacialMapping : VM
 {
-    public VM_BodyGenRacialMapping(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    public delegate VM_BodyGenRacialMapping Factory(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
+    public VM_BodyGenRacialMapping(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IEnvironmentStateProvider environmentProvider)
     {
-        this.RaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
-        this.MonitoredGroupsMenu = groupsMenu;
+        _environmentProvider = environmentProvider;
+        RaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+        MonitoredGroupsMenu = groupsMenu;
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-        AddCombination = new SynthEBD.RelayCommand(
+        AddCombination = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
                 var newCombination = new VM_BodyGenCombination(groupsMenu, this);
@@ -56,16 +62,16 @@ public class VM_BodyGenRacialMapping : VM
                 {
                     newCombination.Members.Add(groupsMenu.TemplateGroups.First());
                 }
-                this.Combinations.Add(newCombination);
+                Combinations.Add(newCombination);
             }
         );
 
-        RemoveCombination = new SynthEBD.RelayCommand(
+        RemoveCombination = new RelayCommand(
             canExecute: _ => true,
-            execute: x =>  this.Combinations.Remove((VM_BodyGenCombination)x)
+            execute: x =>  Combinations.Remove((VM_BodyGenCombination)x)
         );
 
-        this.Combinations.ToObservableChangeSet().Subscribe(x =>
+        Combinations.ToObservableChangeSet().Subscribe(x =>
         {
             if (Combinations.Any())
             {
@@ -75,7 +81,7 @@ public class VM_BodyGenRacialMapping : VM
             {
                 ShowAddNew = true;
             }
-        });
+        }).DisposeWith(this);
     }
     public string Label { get; set; } = "";
     public ObservableCollection<FormKey> Races { get; set; } = new();
@@ -91,9 +97,9 @@ public class VM_BodyGenRacialMapping : VM
     public RelayCommand RemoveCombination { get; }
     public bool ShowAddNew { get; set; }
 
-    public static VM_BodyGenRacialMapping GetViewModelFromModel(BodyGenConfig.RacialMapping model, VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
+    public static VM_BodyGenRacialMapping GetViewModelFromModel(BodyGenConfig.RacialMapping model, VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyGenRacialMapping.Factory mappingFactory)
     {
-        VM_BodyGenRacialMapping viewModel = new VM_BodyGenRacialMapping(groupsMenu, raceGroupingVMs);
+        VM_BodyGenRacialMapping viewModel = mappingFactory(groupsMenu, raceGroupingVMs);
 
         viewModel.Label = model.Label;
         viewModel.Races = new ObservableCollection<FormKey>(model.Races);
@@ -122,21 +128,21 @@ public class VM_BodyGenCombination : VM
 {
     public VM_BodyGenCombination(VM_BodyGenGroupsMenu groupsMenu, VM_BodyGenRacialMapping parent)
     {
-        this.MonitoredGroups = groupsMenu.TemplateGroups;
+        MonitoredGroups = groupsMenu.TemplateGroups;
 
-        this.Parent = parent;
+        Parent = parent;
 
-        RemoveMember = new SynthEBD.RelayCommand(
+        RemoveMember = new RelayCommand(
             canExecute: _ => true,
-            execute: x => { this.Members.Remove((VM_CollectionMemberString)x); CheckForEmptyCombination(); }
+            execute: x => { Members.Remove((VM_CollectionMemberString)x); CheckForEmptyCombination(); }
         );
 
-        AddMember = new SynthEBD.RelayCommand(
+        AddMember = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.Members.Add(new VM_CollectionMemberString("", this.Members))
+            execute: _ => Members.Add(new VM_CollectionMemberString("", Members))
         );
 
-        this.Members.ToObservableChangeSet().Subscribe(x => CheckForEmptyCombination());
+        Members.ToObservableChangeSet().Subscribe(x => CheckForEmptyCombination()).DisposeWith(this);
     }
     public ObservableCollection<VM_CollectionMemberString> Members { get; set; } = new();
     public double ProbabilityWeighting { get; set; } = 1;

@@ -10,24 +10,29 @@ namespace SynthEBD;
 
 public class VM_BlockedNPC : VM
 {
-    public VM_BlockedNPC()
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly Converters _converters;
+    public delegate VM_BlockedNPC Factory();
+    public VM_BlockedNPC(IEnvironmentStateProvider environmentProvider, Converters converters)
     {
+        _environmentProvider = environmentProvider;
+        _converters = converters;
         this.WhenAnyValue(x => x.FormKey).Subscribe(x =>
         {
             if (!FormKey.IsNull)
             {
-                DispName = Converters.CreateNPCDispNameFromFormKey(FormKey);
+                DispName = _converters.CreateNPCDispNameFromFormKey(FormKey);
             }
-        });
+        }).DisposeWith(this);
 
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
         this.WhenAnyValue(x => x.HeadParts).Subscribe(x =>
         {
             for (int i = 0; i < HeadPartTypes.Count; i++) { HeadPartTypes[i].Block = HeadParts; }
-        });
+        }).DisposeWith(this);
     }
     // Caption
     public string DispName { get; set; } = "New NPC";
@@ -50,10 +55,10 @@ public class VM_BlockedNPC : VM
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
 
-    public static VM_BlockedNPC GetViewModelFromModel(BlockedNPC model)
+    public static VM_BlockedNPC GetViewModelFromModel(BlockedNPC model, VM_BlockedNPC.Factory factory)
     {
-        VM_BlockedNPC viewModel = new VM_BlockedNPC();
-        viewModel.DispName = Converters.CreateNPCDispNameFromFormKey(model.FormKey);
+        VM_BlockedNPC viewModel = factory();
+        //viewModel.DispName = CreateNPCDispNameFromFormKey(model.FormKey, converters);
         viewModel.FormKey = model.FormKey;
         viewModel.Assets = model.Assets;
         viewModel.Height = model.Height;

@@ -5,33 +5,37 @@ using System.Collections.ObjectModel;
 using Noggog;
 using ReactiveUI;
 using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Plugins.Order;
 
 namespace SynthEBD;
 
 public class VM_BlockedPlugin : VM
 {
-    public VM_BlockedPlugin()
+    private IEnvironmentStateProvider _environmentProvider;
+    public delegate VM_BlockedPlugin Factory();
+    public VM_BlockedPlugin(IEnvironmentStateProvider environmentProvider)
     {
+        _environmentProvider = environmentProvider;
         this.WhenAnyValue(x => x.ModKey).Subscribe(x =>
         {
             if (!ModKey.IsNull)
             {
                 DispName = ModKey.FileName;
             }
-        });
+        }).DisposeWith(this);
 
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LoadOrder)
+        _environmentProvider.WhenAnyValue(x => x.LoadOrder)
             .Subscribe(x => LoadOrder = x)
             .DisposeWith(this);
 
         this.WhenAnyValue(x => x.HeadParts).Subscribe(x =>
         {
             for (int i = 0; i < HeadPartTypes.Count; i++) { HeadPartTypes[i].Block = HeadParts; }
-        });
+        }).DisposeWith(this);
     }
 
     // Caption
@@ -53,11 +57,11 @@ public class VM_BlockedPlugin : VM
     };
 
     public ILinkCache lk { get; private set; }
-    public Mutagen.Bethesda.Plugins.Order.ILoadOrder<Mutagen.Bethesda.Plugins.Order.IModListing<ISkyrimModGetter>> LoadOrder { get; private set; }
+    public ILoadOrderGetter LoadOrder { get; private set; }
 
-    public static VM_BlockedPlugin GetViewModelFromModel(BlockedPlugin model)
+    public static VM_BlockedPlugin GetViewModelFromModel(BlockedPlugin model, VM_BlockedPlugin.Factory factory)
     {
-        VM_BlockedPlugin viewModel = new VM_BlockedPlugin();
+        VM_BlockedPlugin viewModel = factory();
         viewModel.DispName = model.ModKey.FileName;
         viewModel.ModKey = model.ModKey;
         viewModel.Assets = model.Assets;

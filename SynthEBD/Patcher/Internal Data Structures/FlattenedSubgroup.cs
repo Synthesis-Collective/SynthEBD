@@ -5,8 +5,11 @@ namespace SynthEBD;
 
 public class FlattenedSubgroup : IProbabilityWeighted
 {
-    public FlattenedSubgroup(AssetPack.Subgroup template, List<RaceGrouping> raceGroupingList, List<Subgroup> subgroupHierarchy, FlattenedAssetPack parent)
+    private readonly DictionaryMapper _dictionaryMapper;
+    public FlattenedSubgroup(Subgroup template, List<RaceGrouping> raceGroupingList, List<Subgroup> subgroupHierarchy, FlattenedAssetPack parent, DictionaryMapper dictionaryMapper)
     {
+        _dictionaryMapper = dictionaryMapper;
+
         this.Id = template.ID;
         this.Name = template.Name;
         this.DistributionEnabled = template.DistributionEnabled;
@@ -19,8 +22,8 @@ public class FlattenedSubgroup : IProbabilityWeighted
         this.DisallowedAttributes = new HashSet<NPCAttribute>(template.DisallowedAttributes);
         this.AllowUnique = template.AllowUnique;
         this.AllowNonUnique = template.AllowNonUnique;
-        this.RequiredSubgroupIDs = DictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.RequiredSubgroups, subgroupHierarchy);
-        this.ExcludedSubgroupIDs = DictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.ExcludedSubgroups, subgroupHierarchy);
+        this.RequiredSubgroupIDs = _dictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.RequiredSubgroups, subgroupHierarchy);
+        this.ExcludedSubgroupIDs = _dictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.ExcludedSubgroups, subgroupHierarchy);
         this.AddKeywords = new HashSet<string>(template.AddKeywords);
         this.ProbabilityWeighting = template.ProbabilityWeighting;
         this.Paths = new HashSet<FilePathReplacement>(template.Paths);
@@ -61,11 +64,11 @@ public class FlattenedSubgroup : IProbabilityWeighted
     public FlattenedAssetPack ParentAssetPack { get; set; }
     public int ForceIfMatchCount { get; set; } = 0;
 
-    public static void FlattenSubgroups(Subgroup toFlatten, FlattenedSubgroup parent, List<FlattenedSubgroup> bottomLevelSubgroups, List<RaceGrouping> raceGroupingList, string parentAssetPackName, int topLevelIndex, List<Subgroup> subgroupHierarchy, FlattenedAssetPack parentAssetPack)
+    public static void FlattenSubgroups(Subgroup toFlatten, FlattenedSubgroup parent, List<FlattenedSubgroup> bottomLevelSubgroups, List<RaceGrouping> raceGroupingList, string parentAssetPackName, int topLevelIndex, List<Subgroup> subgroupHierarchy, FlattenedAssetPack parentAssetPack, DictionaryMapper dictionaryMapper, PatcherState patcherState)
     {
         if (toFlatten.Enabled == false) { return; }
 
-        FlattenedSubgroup flattened = new FlattenedSubgroup(toFlatten, raceGroupingList, subgroupHierarchy, parentAssetPack);
+        FlattenedSubgroup flattened = new FlattenedSubgroup(toFlatten, raceGroupingList, subgroupHierarchy, parentAssetPack, dictionaryMapper);
         flattened.TopLevelSubgroupIndex = topLevelIndex;
 
         if (parent != null)
@@ -123,14 +126,14 @@ public class FlattenedSubgroup : IProbabilityWeighted
             // Paths
             flattened.Paths.UnionWith(parent.Paths);
 
-            if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
+            if (patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
             {
                 flattened.AllowedBodyGenDescriptors = DictionaryMapper.GetMorphDictionaryIntersection(flattened.AllowedBodyGenDescriptors, parent.AllowedBodyGenDescriptors);
                 flattened.DisallowedBodyGenDescriptors = DictionaryMapper.MergeDictionaries(new List<Dictionary<string, HashSet<string>>> { flattened.DisallowedBodyGenDescriptors, parent.DisallowedBodyGenDescriptors });
                 flattened.AllowedBodyGenDescriptors = AllowedDisallowedCombiners.TrimDisallowedDescriptorsFromAllowed(flattened.AllowedBodyGenDescriptors, flattened.DisallowedBodyGenDescriptors, out bool BodyShapeDescriptorsValid);
                 if (!BodyShapeDescriptorsValid) { return; }
             }
-            else if (PatcherSettings.General.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
+            else if (patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
             {
                 flattened.AllowedBodySlideDescriptors = DictionaryMapper.GetMorphDictionaryIntersection(flattened.AllowedBodySlideDescriptors, parent.AllowedBodySlideDescriptors);
                 flattened.DisallowedBodySlideDescriptors = DictionaryMapper.MergeDictionaries(new List<Dictionary<string, HashSet<string>>> { flattened.DisallowedBodySlideDescriptors, parent.DisallowedBodySlideDescriptors });
@@ -147,7 +150,7 @@ public class FlattenedSubgroup : IProbabilityWeighted
         {
             foreach (var subgroup in toFlatten.Subgroups)
             {
-                FlattenSubgroups(subgroup, flattened, bottomLevelSubgroups, raceGroupingList, parentAssetPackName, topLevelIndex, subgroupHierarchy, parentAssetPack);
+                FlattenSubgroups(subgroup, flattened, bottomLevelSubgroups, raceGroupingList, parentAssetPackName, topLevelIndex, subgroupHierarchy, parentAssetPack, dictionaryMapper, patcherState);
             }
         }
     }

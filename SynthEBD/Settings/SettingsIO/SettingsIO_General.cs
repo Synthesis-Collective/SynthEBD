@@ -1,34 +1,49 @@
-﻿using System.IO;
+using System.IO;
 
 namespace SynthEBD;
 
 public class SettingsIO_General
 {
-    public static void LoadGeneralSettings(out bool loadSuccess)
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
+    private readonly Logger _logger;
+    private readonly SynthEBDPaths _paths;
+    public SettingsIO_General(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths)
     {
-        if (File.Exists(PatcherSettings.Paths.GeneralSettingsPath))
+        _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
+        _logger = logger;
+        _paths = paths;
+    }
+    public void LoadGeneralSettings(out bool loadSuccess)
+    {
+        if (File.Exists(_paths.GeneralSettingsPath))
         {
-            PatcherSettings.General = JSONhandler<Settings_General>.LoadJSONFile(PatcherSettings.Paths.GeneralSettingsPath, out loadSuccess, out string exceptionStr);
-            if(loadSuccess && string.IsNullOrWhiteSpace(PatcherSettings.Paths.OutputDataFolder))
+            _patcherState.GeneralSettings = JSONhandler<Settings_General>.LoadJSONFile(_paths.GeneralSettingsPath, out loadSuccess, out string exceptionStr);
+            if(loadSuccess && string.IsNullOrWhiteSpace(_paths.OutputDataFolder))
             {
-                PatcherSettings.Paths.OutputDataFolder = PatcherEnvironmentProvider.Instance.Environment.DataFolderPath;
+                _paths.OutputDataFolder = _environmentProvider.DataFolderPath;
             }
             else if (!loadSuccess)
             {
-                Logger.LogError("Could not parse General Settings. Error: " + exceptionStr);
+                _logger.LogError("Could not parse General Settings. Error: " + exceptionStr);
             }
         }
         else
         {
-            PatcherSettings.General = new Settings_General();
+            _patcherState.GeneralSettings = new Settings_General();
             loadSuccess = true;
         }
     }
 
-    public static void DumpVMandSave(VM_Settings_General generalSettingsVM)
+    public void DumpVMandSave(VM_Settings_General generalSettingsVM)
     {
-        VM_Settings_General.DumpViewModelToModel(generalSettingsVM, PatcherSettings.General);
-        JSONhandler<Settings_General>.SaveJSONFile(PatcherSettings.General, PatcherSettings.Paths.GeneralSettingsPath, out bool saveSuccess, out string exceptionStr);
-        if (!saveSuccess) { Logger.LogMessage("Error saving General Settings: " + exceptionStr); }
+        if (_patcherState.GeneralSettings == null)
+        {
+            return;
+        }
+        generalSettingsVM.DumpViewModelToModel(generalSettingsVM);
+        JSONhandler<Settings_General>.SaveJSONFile(_patcherState.GeneralSettings, _paths.GeneralSettingsPath, out bool saveSuccess, out string exceptionStr);
+        if (!saveSuccess) { _logger.LogMessage("Error saving General Settings: " + exceptionStr); }
     }
 }

@@ -1,37 +1,50 @@
-﻿using System.IO;
+using System.IO;
 using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
-class SettingsIO_AssetPack
+public class SettingsIO_AssetPack
 {
-    public static Settings_TexMesh LoadTexMeshSettings(out bool loadSuccess)
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
+    private readonly Logger _logger;
+    private readonly SynthEBDPaths _paths;
+    private readonly Converters _converters;
+    public SettingsIO_AssetPack(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, Converters converters)
+    {
+        _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
+        _logger = logger;
+        _paths = paths;
+        _converters = converters;
+    }
+    public Settings_TexMesh LoadTexMeshSettings(out bool loadSuccess)
     {
         Settings_TexMesh texMeshSettings = new Settings_TexMesh();
 
         loadSuccess = true;
 
-        if (File.Exists(PatcherSettings.Paths.TexMeshSettingsPath))
+        if (File.Exists(_paths.TexMeshSettingsPath))
         {
-            texMeshSettings = JSONhandler<Settings_TexMesh>.LoadJSONFile(PatcherSettings.Paths.TexMeshSettingsPath, out loadSuccess, out string exceptionStr);
+            texMeshSettings = JSONhandler<Settings_TexMesh>.LoadJSONFile(_paths.TexMeshSettingsPath, out loadSuccess, out string exceptionStr);
             if (!loadSuccess)
             {
-                Logger.LogError("Could not load Texture/Mesh Settings. Error: " + exceptionStr);
+                _logger.LogError("Could not load Texture/Mesh Settings. Error: " + exceptionStr);
             }
         }
-        else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.TexMeshSettingsPath)))
+        else if (File.Exists(_paths.GetFallBackPath(_paths.TexMeshSettingsPath)))
         {
-            texMeshSettings = JSONhandler<Settings_TexMesh>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.TexMeshSettingsPath), out loadSuccess, out string exceptionStr);
+            texMeshSettings = JSONhandler<Settings_TexMesh>.LoadJSONFile(_paths.GetFallBackPath(_paths.TexMeshSettingsPath), out loadSuccess, out string exceptionStr);
             if (!loadSuccess)
             {
-                Logger.LogError("Could not load Texture/Mesh Settings. Error: " + exceptionStr);
+                _logger.LogError("Could not load Texture/Mesh Settings. Error: " + exceptionStr);
             }
         }
 
         return texMeshSettings;
     }
 
-    public static List<SynthEBD.AssetPack> LoadAssetPacks(List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs, out bool loadSuccess)
+    public List<AssetPack> LoadAssetPacks(List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs, out bool loadSuccess)
     {
         List<AssetPack> loadedPacks = new List<AssetPack>();
 
@@ -39,13 +52,13 @@ class SettingsIO_AssetPack
 
         string[] filePaths;
 
-        if (Directory.Exists(PatcherSettings.Paths.AssetPackDirPath))
+        if (Directory.Exists(_paths.AssetPackDirPath))
         {
-            filePaths = Directory.GetFiles(PatcherSettings.Paths.AssetPackDirPath, "*.json");
+            filePaths = Directory.GetFiles(_paths.AssetPackDirPath, "*.json");
         }
         else
         {
-            filePaths = Directory.GetFiles(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.AssetPackDirPath), "*.json");
+            filePaths = Directory.GetFiles(_paths.GetFallBackPath(_paths.AssetPackDirPath), "*.json");
         }
 
         foreach (string s in filePaths)
@@ -64,7 +77,7 @@ class SettingsIO_AssetPack
         return loadedPacks;
     }
 
-    public static AssetPack LoadAssetPack(string path, List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs, out bool loadSuccess)
+    public AssetPack LoadAssetPack(string path, List<RaceGrouping> fallBackRaceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs, out bool loadSuccess)
     {
         var synthEBDconfig = new AssetPack();
 
@@ -74,12 +87,12 @@ class SettingsIO_AssetPack
             var zEBDconfig = JSONhandler<ZEBDAssetPack>.LoadJSONFile(path, out bool zSuccess, out string zExceptionStr);
             if (zSuccess)
             {
-                synthEBDconfig = ZEBDAssetPack.ToSynthEBDAssetPack(zEBDconfig, raceGroupings, recordTemplatePlugins, availableBodyGenConfigs);
+                synthEBDconfig = zEBDconfig.ToSynthEBDAssetPack(fallBackRaceGroupings, recordTemplatePlugins, availableBodyGenConfigs, _environmentProvider, _converters, _logger, _paths);
                 loadSuccess = true;
             }
             else
             {
-                Logger.LogError("Could not parse " + path + " as SynthEBD or zEBD Asset Config File. Error: " + exceptionStr);
+                _logger.LogError("Could not parse " + path + " as SynthEBD or zEBD Asset Config File. Error: " + exceptionStr);
                 loadSuccess = false;
                 return synthEBDconfig;
             }
@@ -89,7 +102,7 @@ class SettingsIO_AssetPack
             loadSuccess = true;
         }
 
-        foreach (var attributeGroup in PatcherSettings.General.AttributeGroups) // add any available attribute groups from the general patcher settings
+        foreach (var attributeGroup in _patcherState.GeneralSettings.AttributeGroups) // add any available attribute groups from the general patcher settings
         {
             if (!synthEBDconfig.AttributeGroups.Select(x => x.Label).Contains(attributeGroup.Label))
             {
@@ -101,7 +114,7 @@ class SettingsIO_AssetPack
         return synthEBDconfig;
     }
 
-    public static List<SkyrimMod> LoadRecordTemplates(out bool loadSuccess)
+    public List<SkyrimMod> LoadRecordTemplates(out bool loadSuccess)
     {
         List<SkyrimMod> loadedTemplatePlugins = new List<SkyrimMod>();
 
@@ -109,19 +122,19 @@ class SettingsIO_AssetPack
 
         loadSuccess = true;
 
-        if (Directory.Exists(PatcherSettings.Paths.RecordTemplatesDirPath))
+        if (Directory.Exists(_paths.RecordTemplatesDirPath))
         {
-            filePaths = Directory.GetFiles(PatcherSettings.Paths.RecordTemplatesDirPath, "*.esp");
+            filePaths = Directory.GetFiles(_paths.RecordTemplatesDirPath, "*.esp");
 
             // load any available record templates in the fallback folder since they may not have been copied over and missing them will screw up the config files
             var fileNames = filePaths.Select(x => Path.GetFileName(x));
-            var fallBackFilePaths = Directory.GetFiles(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.RecordTemplatesDirPath), "*.esp");
+            var fallBackFilePaths = Directory.GetFiles(_paths.GetFallBackPath(_paths.RecordTemplatesDirPath), "*.esp");
             var additionalFilePaths = fallBackFilePaths.Where(x => !fileNames.Contains(Path.GetFileName(x)));
             filePaths = filePaths.Concat(additionalFilePaths).ToArray();
         }
         else
         {
-            filePaths = Directory.GetFiles(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.RecordTemplatesDirPath), "*.esp");
+            filePaths = Directory.GetFiles(_paths.GetFallBackPath(_paths.RecordTemplatesDirPath), "*.esp");
         }
 
         foreach (string s in filePaths)
@@ -132,14 +145,14 @@ class SettingsIO_AssetPack
             }
             catch
             {
-                Logger.LogError("Could not parse or load record template plugin " + s);
+                _logger.LogError("Could not parse or load record template plugin " + s);
                 loadSuccess = false;
             }
         }
         return loadedTemplatePlugins;
     }
 
-    public static List<SkyrimMod> LoadRecordTemplates(HashSet<string> filePaths, out bool loadSuccess)
+    public List<SkyrimMod> LoadRecordTemplates(HashSet<string> filePaths, out bool loadSuccess)
     {
         List<SkyrimMod> loadedTemplatePlugins = new List<SkyrimMod>();
 
@@ -153,14 +166,14 @@ class SettingsIO_AssetPack
             }
             catch
             {
-                Logger.LogError("Could not parse or load record template plugin " + s);
+                _logger.LogError("Could not parse or load record template plugin " + s);
                 loadSuccess = false;
             }
         }
         return loadedTemplatePlugins;
     }
 
-    public static void SaveAssetPacks(List<AssetPack> assetPacks, out bool success)
+    public void SaveAssetPacks(List<AssetPack> assetPacks, out bool success)
     {
         success = true;
         for (int i = 0; i < assetPacks.Count; i++)
@@ -173,15 +186,15 @@ class SettingsIO_AssetPack
         }
     }
 
-    public static void SaveAssetPack(AssetPack assetPack, out bool success)
+    public void SaveAssetPack(AssetPack assetPack, out bool success)
     {
         success = true;
-        if (assetPack.FilePath != "" && assetPack.FilePath.StartsWith(PatcherSettings.Paths.AssetPackDirPath, StringComparison.InvariantCultureIgnoreCase))
+        if (assetPack.FilePath != "" && assetPack.FilePath.StartsWith(_paths.AssetPackDirPath, StringComparison.InvariantCultureIgnoreCase))
         {
             JSONhandler<AssetPack>.SaveJSONFile(assetPack, assetPack.FilePath, out success, out string exceptionStr);
             if (!success)
             {
-                Logger.LogMessage("Error saving Asset Pack Config File: " + exceptionStr);
+                _logger.LogMessage("Error saving Asset Pack Config File: " + exceptionStr);
             }
         }
         else
@@ -189,20 +202,20 @@ class SettingsIO_AssetPack
             string newPath = "";
             if (IO_Aux.IsValidFilename(assetPack.GroupName))
             {
-                PatcherIO.CreateDirectoryIfNeeded(PatcherSettings.Paths.AssetPackDirPath, PatcherIO.PathType.Directory);
-                if (Directory.Exists(PatcherSettings.Paths.AssetPackDirPath))
+                PatcherIO.CreateDirectoryIfNeeded(_paths.AssetPackDirPath, PatcherIO.PathType.Directory);
+                if (Directory.Exists(_paths.AssetPackDirPath))
                 {
-                    newPath = Path.Combine(PatcherSettings.Paths.AssetPackDirPath, assetPack.GroupName + ".json");
+                    newPath = Path.Combine(_paths.AssetPackDirPath, assetPack.GroupName + ".json");
                 }
-                else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.AssetPackDirPath)))
+                else if (Directory.Exists(_paths.GetFallBackPath(_paths.AssetPackDirPath)))
                 {
-                    newPath = Path.Combine(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.AssetPackDirPath), assetPack.GroupName + ".json");
+                    newPath = Path.Combine(_paths.GetFallBackPath(_paths.AssetPackDirPath), assetPack.GroupName + ".json");
                 }
 
                 JSONhandler<AssetPack>.SaveJSONFile(assetPack, newPath, out success, out string exceptionStr);
                 if (!success)
                 {
-                    Logger.LogMessage("Error saving Asset Pack Config File: " + exceptionStr);
+                    _logger.LogMessage("Error saving Asset Pack Config File: " + exceptionStr);
                 }
             }
 
@@ -213,13 +226,13 @@ class SettingsIO_AssetPack
                 dialog.DefaultExt = ".json"; // Default file extension
                 dialog.Filter = "JSON files (.json|*.json"; // Filter files by extension
 
-                if (Directory.Exists(PatcherSettings.Paths.AssetPackDirPath))
+                if (Directory.Exists(_paths.AssetPackDirPath))
                 {
-                    dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.AssetPackDirPath);
+                    dialog.InitialDirectory = Path.GetFullPath(_paths.AssetPackDirPath);
                 }
-                else if (Directory.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.AssetPackDirPath)))
+                else if (Directory.Exists(_paths.GetFallBackPath(_paths.AssetPackDirPath)))
                 {
-                    dialog.InitialDirectory = Path.GetFullPath(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.AssetPackDirPath));
+                    dialog.InitialDirectory = Path.GetFullPath(_paths.GetFallBackPath(_paths.AssetPackDirPath));
                 }
 
                 dialog.RestoreDirectory = true;
@@ -233,7 +246,7 @@ class SettingsIO_AssetPack
                     JSONhandler<AssetPack>.SaveJSONFile(assetPack, dialog.FileName, out success, out string exceptionStr);
                     if (!success)
                     {
-                        Logger.LogMessage("Error saving Asset Pack Config File: " + exceptionStr);
+                        _logger.LogMessage("Error saving Asset Pack Config File: " + exceptionStr);
                     }
                 }
             }

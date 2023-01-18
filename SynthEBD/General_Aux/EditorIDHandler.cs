@@ -1,4 +1,5 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Plugins.Records;
 using System;
 using System.Collections.Generic;
@@ -14,9 +15,9 @@ public class EditorIDHandler
         if (getter == null) { return "Null Record"; }
         return getter.EditorID ?? (getter.FormKey.ToString() + " (No EditorID)");
     }
-    public static string GetEditorIDSafely<TType>(FormKey formKey) where TType : class, IMajorRecordGetter
+    public static string GetEditorIDSafely<TType>(FormKey formKey, ILinkCache linkCache) where TType : class, IMajorRecordGetter
     {
-        if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<TType>(formKey, out var getter))
+        if (linkCache.TryResolve<TType>(formKey, out var getter))
         {
             if (getter.EditorID != null)
             {

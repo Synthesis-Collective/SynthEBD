@@ -9,23 +9,25 @@ namespace SynthEBD;
 
 public class VM_AdditionalRecordTemplate : VM
 {
-    public VM_AdditionalRecordTemplate(
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    public VM_AdditionalRecordTemplate(IEnvironmentStateProvider environmentProvider,
         ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, 
         ObservableCollection<VM_AdditionalRecordTemplate> parentCollection)
     {
-        this.RecordTemplateLinkCache = recordTemplateLinkCache;
-        this.ParentCollection = parentCollection;
+        _environmentProvider = environmentProvider;
+        RecordTemplateLinkCache = recordTemplateLinkCache;
+        ParentCollection = parentCollection;
         
-        PatcherEnvironmentProvider.Instance.WhenAnyValue(x => x.Environment.LinkCache)
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-        AddAdditionalRacesPath = new SynthEBD.RelayCommand(
+        AddAdditionalRacesPath = new RelayCommand(
             canExecute: _ => true,
             execute: _ => { this.AdditionalRacesPaths.Add(new VM_CollectionMemberString("", this.AdditionalRacesPaths)); }
         );
 
-        DeleteCommand = new SynthEBD.RelayCommand(
+        DeleteCommand = new RelayCommand(
             canExecute: _ => true,
             execute: _ => { this.ParentCollection.Remove(this); }
         );

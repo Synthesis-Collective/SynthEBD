@@ -6,6 +6,18 @@ namespace SynthEBD;
 
 public class AttributeMatcher
 {
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
+    private readonly Logger _logger;
+    private readonly RecordPathParser _recordPathParser;
+    public AttributeMatcher(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, RecordPathParser recordPathParser)
+    {
+        _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
+        _logger = logger;
+        _recordPathParser = recordPathParser;
+    }
+
     /// <summary>
     ///  Evaluates a list of NPCAttributes to determine if the given NPC matches any. Note that attributes of ForceType "Restrict" or "ForceIfAndRestrict" must be matched, while ForceType "ForceIf" does not need to be matched
     /// </summary>
@@ -19,7 +31,7 @@ public class AttributeMatcher
     /// <param name="unmatchedLog">"Output: Log of unmatched Attributes</param>
     /// <param name="unmatchedLog">"Output: Log of matched ForceIf Attributes and their respective weights</param>
     /// <param name="overrideForceIf">"overrideForceIf: if not null, overrides the AttributeForcing on all sub-attributes (allows Group type attributes to forward its own forcing to recursive calls)</param>
-    public static void MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, HashSet<AttributeGroup> attributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog, AttributeForcing? overrideForceIf)
+    public void MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, HashSet<AttributeGroup> attributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog, AttributeForcing? overrideForceIf)
     {
         hasAttributeRestrictions = false;
         matchesAttributeRestrictions = false;
@@ -53,7 +65,7 @@ public class AttributeMatcher
 
                     case NPCAttributeType.Custom:
                         var customAttribute = (NPCAttributeCustom)subAttribute;
-                        if (!EvaluateCustomAttribute(npc, customAttribute, PatcherEnvironmentProvider.Instance.Environment.LinkCache, out _))
+                        if (!EvaluateCustomAttribute(npc, customAttribute, _environmentProvider.LinkCache, out _))
                         {
                             subAttributeMatched = false;
                         }
@@ -89,7 +101,7 @@ public class AttributeMatcher
                         var groupAttribute = (NPCAttributeGroup)subAttribute;
                         foreach (string selectedGroup in groupAttribute.SelectedLabels)
                         {
-                            var attributeGroup = NPCAttribute.GetAttributeGroupByLabel(selectedGroup, attributeGroups);
+                            var attributeGroup = NPCAttribute.GetAttributeGroupByLabel(selectedGroup, attributeGroups, _patcherState, _logger);
                             if (attributeGroup == null)
                             {
                                 subAttributeMatched = false;
@@ -154,7 +166,7 @@ public class AttributeMatcher
                                 if (!ModKeyHashSetComparer.Contains(modAttribute.ModKeys, npc.FormKey.ModKey)) { subAttributeMatched = false; }
                                 break;
                             case ModAttributeEnum.PatchedBy:
-                                var contexts = PatcherEnvironmentProvider.Instance.Environment.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npc.FormKey).Where(x => !x.ModKey.Equals(npc.FormKey.ModKey)); // contexts[0] is winning override. [Last] is source plugin. Omit the source plugin
+                                var contexts = _environmentProvider.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npc.FormKey).Where(x => !x.ModKey.Equals(npc.FormKey.ModKey)); // contexts[0] is winning override. [Last] is source plugin. Omit the source plugin
                                 bool foundContext = false;
                                 foreach (var context in contexts)
                                 {
@@ -193,7 +205,7 @@ public class AttributeMatcher
                 if (!subAttributeMatched && subAttribute.ForceMode != AttributeForcing.ForceIf && (overrideForceIf == null || overrideForceIf.Value != AttributeForcing.ForceIf)) //  "ForceIf" mode does not cause attribute to fail matching because it implies the user does not want this sub-attribute to restrict distribute (otherwise it would be ForceIfAndRestrict) 
                 {
                     if (unmatchedLog.Any()) { unmatchedLog += " | "; }
-                    unmatchedLog += subAttribute.ToLogString();
+                    unmatchedLog += subAttribute.ToLogString(_patcherState.GeneralSettings.VerboseModeDetailedAttributes, _environmentProvider.LinkCache);
                     break; // stop evaluating sub-attributes if one sub-attribute isn't matched
                 }
                 else if (subAttributeMatched && (subAttribute.ForceMode == AttributeForcing.ForceIf || subAttribute.ForceMode == AttributeForcing.ForceIfAndRestrict || forceIfFromOverride)) 
@@ -216,22 +228,22 @@ public class AttributeMatcher
 
             if (matchesAttributeRestrictions)
             {
-                matchLog += "\n" + attribute.ToLogString();
+                matchLog += "\n" + attribute.ToLogString(_patcherState.GeneralSettings.VerboseModeDetailedAttributes, _environmentProvider.LinkCache);
             }
 
             if (currentAttributeForceIfWeight > 0)
             {
-                forceIfLog += "\n" + attribute.ToLogString() + " (Weighting: " + currentAttributeForceIfWeight + ")";
+                forceIfLog += "\n" + attribute.ToLogString(_patcherState.GeneralSettings.VerboseModeDetailedAttributes, _environmentProvider.LinkCache) + " (Weighting: " + currentAttributeForceIfWeight + ")";
             }
         }
 
         return;
     }
 
-    public static bool EvaluateCustomAttribute(INpcGetter npc, NPCAttributeCustom attribute, ILinkCache linkCache, out string dispMessage)
+    public bool EvaluateCustomAttribute(INpcGetter npc, NPCAttributeCustom attribute, ILinkCache linkCache, out string dispMessage)
     {
         var resolvedObjects = new List<dynamic>();
-        bool success = RecordPathParser.GetObjectCollectionAtPath(npc, npc, attribute.Path, new Dictionary<string, dynamic>(), linkCache, true, Logger.GetNPCLogNameString(npc), resolvedObjects);
+        bool success = _recordPathParser.GetObjectCollectionAtPath(npc, npc, attribute.Path, new Dictionary<string, dynamic>(), linkCache, true, Logger.GetNPCLogNameString(npc), resolvedObjects);
         dispMessage = "";
 
         bool currentTypeMatched = false;

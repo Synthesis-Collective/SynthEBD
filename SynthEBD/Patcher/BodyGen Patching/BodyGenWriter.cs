@@ -1,23 +1,32 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using System.IO;
 
 namespace SynthEBD;
 
 public class BodyGenWriter
 {
-    public static void WriteBodyGenOutputs(BodyGenConfigs bodyGenConfigs)
+    private readonly PatcherState _patcherState;
+    private readonly PatcherIO _patcherIO;
+    private readonly Logger _logger;
+    public BodyGenWriter(PatcherState patcherState, PatcherIO patcherIO, Logger logger)
+    {
+        _patcherState = patcherState;
+        _patcherIO = patcherIO;
+        _logger = logger;
+    }
+    public void WriteBodyGenOutputs(BodyGenConfigs bodyGenConfigs, string outputDataFolder)
     {
         string templates = CompileTemplateINI(bodyGenConfigs);
         string morphs = CompileMorphsINI(bodyGenConfigs);
 
-        string outputDirPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.PatchFileName + ".esp");
+        string outputDirPath = Path.Combine(outputDataFolder, "Meshes", "actors", "character", "BodyGenData", _patcherState.GeneralSettings.PatchFileName + ".esp");
         Directory.CreateDirectory(outputDirPath);
 
         string templatePath = Path.Combine(outputDirPath, "templates.ini");
         string morphsPath = Path.Combine(outputDirPath, "morphs.ini");
 
-        Task.Run(() => PatcherIO.WriteTextFile(templatePath, templates));
-        Task.Run(() => PatcherIO.WriteTextFile(morphsPath, morphs));
+        Task.Run(() => PatcherIO.WriteTextFile(templatePath, templates, _logger));
+        Task.Run(() => PatcherIO.WriteTextFile(morphsPath, morphs, _logger));
     }
 
     private static string CompileTemplateINI(BodyGenConfigs bodyGenConfigs)

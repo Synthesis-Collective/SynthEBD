@@ -10,17 +10,29 @@ namespace SynthEBD
 {
     public class HeadPartSelector
     {
-        public static HeadPartSelection AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings, BodySlideSetting? assignedBodySlide)
+        private readonly IEnvironmentStateProvider _environmentProvider;
+        private readonly PatcherState _patcherState;
+        private readonly Logger _logger;
+        private readonly AttributeMatcher _attributeMatcher;
+        public HeadPartSelector(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, AttributeMatcher attributeMatcher)
         {
-            Logger.OpenReportSubsection("HeadParts", npcInfo);
-            Logger.LogReport("Selecting Head Parts for Current NPC", false, npcInfo);
+            _environmentProvider = environmentProvider;
+            _patcherState = patcherState;
+            _logger = logger;
+            _attributeMatcher = attributeMatcher;
+        }
+
+        public HeadPartSelection AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings, BodySlideSetting? assignedBodySlide)
+        {
+            _logger.OpenReportSubsection("HeadParts", npcInfo);
+            _logger.LogReport("Selecting Head Parts for Current NPC", false, npcInfo);
             HeadPartSelection selectedHeadParts = new();
 
             List<string> consistencyReportTriggers = new();
 
             bool recordDataForLinkedUniqueNPCs = false;
             var tempUniqueNPCDataRecorder = UniqueNPCData.CreateHeadPartTracker(); // keeps the actual tracker null until all head parts are assigned.
-            if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts) == null)
+            if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts) == null)
             {
                 recordDataForLinkedUniqueNPCs = true;
             }
@@ -29,21 +41,21 @@ namespace SynthEBD
             {
                 if (npcInfo.BlockedNPCEntry.HeadParts && npcInfo.BlockedNPCEntry.HeadPartTypes[headPartType])
                 {
-                    Logger.LogReport(headPartType + " assignment is blocked for current NPC.", false, npcInfo);
+                    _logger.LogReport(headPartType + " assignment is blocked for current NPC.", false, npcInfo);
                     continue;
                 }
                 if (npcInfo.BlockedPluginEntry.HeadParts && npcInfo.BlockedPluginEntry.HeadPartTypes[headPartType])
                 {
-                    Logger.LogReport(headPartType + " assignment is blocked for current NPC's plugin.", false, npcInfo);
+                    _logger.LogReport(headPartType + " assignment is blocked for current NPC's plugin.", false, npcInfo);
                     continue;
                 }
 
                 HeadPartConsistency currentConsistency = null;
-                if (PatcherSettings.General.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null)
+                if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null)
                 {
                     currentConsistency = npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType];
                 }
-                IHeadPartGetter selection = AssignHeadPartType(settings.Types[headPartType], PatcherSettings.General.AttributeGroups, headPartType, npcInfo, assignedBodySlide, currentConsistency, out bool randomizedToNone);
+                IHeadPartGetter selection = AssignHeadPartType(settings.Types[headPartType], _patcherState.GeneralSettings.AttributeGroups, headPartType, npcInfo, assignedBodySlide, currentConsistency, out bool randomizedToNone);
                 FormKey? selectedFK = null;
                 if (selection != null) { selectedFK = selection.FormKey; }
                 AllocateHeadPartSelection(selectedFK, headPartType, selectedHeadParts);
@@ -61,7 +73,7 @@ namespace SynthEBD
                 }
 
                 // record new consistency
-                if (PatcherSettings.General.bEnableConsistency)
+                if (_patcherState.GeneralSettings.bEnableConsistency)
                 {
                     if (selection != null)
                     {
@@ -98,7 +110,7 @@ namespace SynthEBD
 
             if (consistencyReportTriggers.Any())
             {
-                Logger.LogMessage(npcInfo.LogIDstring + ": (" + String.Join(", ", consistencyReportTriggers) + ") could not be assigned from Consistency and were re-randomized.");
+                _logger.LogMessage(npcInfo.LogIDstring + ": (" + String.Join(", ", consistencyReportTriggers) + ") could not be assigned from Consistency and were re-randomized.");
             }
 
             if (recordDataForLinkedUniqueNPCs)
@@ -106,7 +118,7 @@ namespace SynthEBD
                 Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].HeadPartAssignments = tempUniqueNPCDataRecorder;
             }
 
-            Logger.CloseReportSubsectionsToParentOf("HeadParts", npcInfo);
+            _logger.CloseReportSubsectionsToParentOf("HeadParts", npcInfo);
             return selectedHeadParts;
         }
 
@@ -124,13 +136,13 @@ namespace SynthEBD
             }
         }
 
-        public static IHeadPartGetter AssignHeadPartType(Settings_HeadPartType currentSettings, HashSet<AttributeGroup> attributeGroups, HeadPart.TypeEnum type, NPCInfo npcInfo, BodySlideSetting? assignedBodySlide, HeadPartConsistency currentConsistency, out bool randomizedToNone)
+        public IHeadPartGetter AssignHeadPartType(Settings_HeadPartType currentSettings, HashSet<AttributeGroup> attributeGroups, HeadPart.TypeEnum type, NPCInfo npcInfo, BodySlideSetting? assignedBodySlide, HeadPartConsistency currentConsistency, out bool randomizedToNone)
         {
             randomizedToNone = false;
             // if there are no head parts of this type at all, don't assign consistency.
             if (!currentSettings.HeadParts.Any())
             {
-                Logger.LogReport("No " + type + " head parts have been imported.", false, npcInfo);
+                _logger.LogReport("No " + type + " head parts have been imported.", false, npcInfo);
                 return null;
             }
 
@@ -141,17 +153,17 @@ namespace SynthEBD
                 if (specificAssignmentSetting != null && specificAssignmentSetting.ResolvedHeadPart != null)
                 {
                     specificAssignment = specificAssignmentSetting.ResolvedHeadPart;
-                    Logger.LogReport("Assigning " + type + ": " + (specificAssignment.EditorID ?? specificAssignment.FormKey.ToString()) + " via Specific NPC Assignment", false, npcInfo);
+                    _logger.LogReport("Assigning " + type + ": " + (specificAssignment.EditorID ?? specificAssignment.FormKey.ToString()) + " via Specific NPC Assignment", false, npcInfo);
                     return specificAssignment;
                 }
                 else if (specificAssignmentSetting != null && specificAssignmentSetting.ResolvedHeadPart != null)
                 {
-                    Logger.LogReport("Specific NPC Assignment for " + type + " calls for " + npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey.ToString() + " but this head part does not currently exist in the load order. Assigning a different head part.", true, npcInfo);
+                    _logger.LogReport("Specific NPC Assignment for " + type + " calls for " + npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey.ToString() + " but this head part does not currently exist in the load order. Assigning a different head part.", true, npcInfo);
                 }
 
                 if (specificAssignment == null && !currentSettings.HeadPartsGendered[npcInfo.Gender].Any()) // if no specific NPC assignment, then headpart assignment is locked to gender.
                 {
-                    Logger.LogReport("No " + npcInfo.Gender.ToString() + " " + type + " head parts have been imported.", false, npcInfo);
+                    _logger.LogReport("No " + npcInfo.Gender.ToString() + " " + type + " head parts have been imported.", false, npcInfo);
                     return null;
                 }
             }
@@ -164,26 +176,26 @@ namespace SynthEBD
             if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary && npcInfo.AssociatedLinkGroup.HeadPartAssignments[type] != null)
             {
                 var linkedHeadPart = npcInfo.AssociatedLinkGroup.HeadPartAssignments[type];
-                Logger.LogReport("Assigning " + type + ": " + (linkedHeadPart.EditorID ?? linkedHeadPart.FormKey.ToString()) + " via the NPC's Link Group.", false, npcInfo);
+                _logger.LogReport("Assigning " + type + ": " + (linkedHeadPart.EditorID ?? linkedHeadPart.FormKey.ToString()) + " via the NPC's Link Group.", false, npcInfo);
                 return linkedHeadPart;
             }
             else if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary && npcInfo.AssociatedLinkGroup.HeadPartAssignments[type] == null)
             {
-                Logger.LogReport("Assigning " + type + ": NONE via the NPC's Link Group.", false, npcInfo);
+                _logger.LogReport("Assigning " + type + ": NONE via the NPC's Link Group.", false, npcInfo);
                 return null;
             }
-            else if (PatcherSettings.General.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts) != null)
+            else if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts) != null)
             {
                 Dictionary<HeadPart.TypeEnum, IHeadPartGetter> uniqueAssignments = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts);
                 var assignedHeadPart = uniqueAssignments[type];
                 if (assignedHeadPart != null)
                 {
-                    Logger.LogReport("Another unique NPC with the same name was assigned a " + type + ": " + (assignedHeadPart.EditorID ?? assignedHeadPart.FormKey.ToString()) + ". Using that " + type + " for current NPC.", false, npcInfo);
+                    _logger.LogReport("Another unique NPC with the same name was assigned a " + type + ": " + (assignedHeadPart.EditorID ?? assignedHeadPart.FormKey.ToString()) + ". Using that " + type + " for current NPC.", false, npcInfo);
                     return assignedHeadPart;
                 }
                 else
                 {
-                    Logger.LogReport("Another unique NPC with the same name was not assigned a " + type + ", so current NPC will also not be assigned a " + type, false, npcInfo);
+                    _logger.LogReport("Another unique NPC with the same name was not assigned a " + type + ", so current NPC will also not be assigned a " + type, false, npcInfo);
                     return null;
                 }
             }
@@ -194,13 +206,13 @@ namespace SynthEBD
             IHeadPartGetter consistencyHeadPart = null;
             if (currentConsistency != null && !currentConsistency.FormKey.IsNull)
             {
-                if (!PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(npcInfo.ConsistencyNPCAssignment.HeadParts[type].FormKey, out consistencyHeadPart))
+                if (!_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(npcInfo.ConsistencyNPCAssignment.HeadParts[type].FormKey, out consistencyHeadPart))
                 {
-                    Logger.LogReport("The consistency " + type + " head part " + npcInfo.ConsistencyNPCAssignment.HeadParts[type].FormKey.ToString() + " is no longer present in the load order.", true, npcInfo);
+                    _logger.LogReport("The consistency " + type + " head part " + npcInfo.ConsistencyNPCAssignment.HeadParts[type].FormKey.ToString() + " is no longer present in the load order.", true, npcInfo);
                 }
             }
 
-            Logger.LogReport("The following headparts are allowed under the current rule set: " + Environment.NewLine + String.Join(Environment.NewLine, availableEDIDs), false, npcInfo);
+            _logger.LogReport("The following headparts are allowed under the current rule set: " + Environment.NewLine + String.Join(Environment.NewLine, availableEDIDs), false, npcInfo);
 
             IHeadPartGetter selectedHeadPart = null;
 
@@ -208,12 +220,12 @@ namespace SynthEBD
             if (forceIfHeadParts.Any())
             {
                 var forceIfHeadPartStrings = forceIfHeadParts.Select(x => (x.EditorID ?? x.HeadPartFormKey.ToString()) + ": " + x.MatchedForceIfCount);
-                Logger.LogReport("The following headparts have matched ForceIf attributes:" + Environment.NewLine + String.Join(Environment.NewLine, forceIfHeadPartStrings), false, npcInfo);
+                _logger.LogReport("The following headparts have matched ForceIf attributes:" + Environment.NewLine + String.Join(Environment.NewLine, forceIfHeadPartStrings), false, npcInfo);
                 selectedHeadPart = ChooseHeadPart(forceIfHeadParts, consistencyHeadPart, npcInfo, type, 100, out randomizedToNone);
             }
             else if (currentConsistency != null && currentConsistency.RandomizedToNone)
             {
-                Logger.LogReport("This NPC's consistency shows it was previously selected to NOT receive a " + type + ". Therefore, one will NOT be assigned unless overriden via a Specific or ForceIf assignment." + type, false, npcInfo);
+                _logger.LogReport("This NPC's consistency shows it was previously selected to NOT receive a " + type + ". Therefore, one will NOT be assigned unless overriden via a Specific or ForceIf assignment." + type, false, npcInfo);
                 randomizedToNone = true;
             }
             else if (availableHeadParts.Any())
@@ -222,13 +234,13 @@ namespace SynthEBD
             }
             else
             {
-                Logger.LogReport("No " + type.ToString() + "head parts are available for this NPC", false, npcInfo);
+                _logger.LogReport("No " + type.ToString() + "head parts are available for this NPC", false, npcInfo);
             }
 
             return selectedHeadPart;
         }
 
-        public static IHeadPartGetter ChooseHeadPart(IEnumerable<HeadPartSetting> options, IHeadPartGetter consistencyHeadPart, NPCInfo npcInfo, HeadPart.TypeEnum type, double randomizationPercentage, out bool randomizedToNone)
+        public IHeadPartGetter ChooseHeadPart(IEnumerable<HeadPartSetting> options, IHeadPartGetter consistencyHeadPart, NPCInfo npcInfo, HeadPart.TypeEnum type, double randomizationPercentage, out bool randomizedToNone)
         {
             randomizedToNone = false;
             if (consistencyHeadPart != null)
@@ -236,7 +248,7 @@ namespace SynthEBD
                 var consistencyAssignment = options.Where(x => x.HeadPartFormKey.Equals(consistencyHeadPart.FormKey)).FirstOrDefault();
                 if (consistencyAssignment != null)
                 {
-                    Logger.LogReport("Assigning head part " + (consistencyAssignment.EditorID ?? consistencyAssignment.HeadPartFormKey.ToString()) + " from Consistency.", false, npcInfo);
+                    _logger.LogReport("Assigning head part " + (consistencyAssignment.EditorID ?? consistencyAssignment.HeadPartFormKey.ToString()) + " from Consistency.", false, npcInfo);
                     return consistencyHeadPart;
                 }
             }
@@ -244,31 +256,31 @@ namespace SynthEBD
 
             if (!BoolByProbability.Decide(randomizationPercentage)) // controlled by headpart type's randomization percentage
             {
-                Logger.LogReport("NPC's " + type + " was chosen at random to NOT be replaced.", false, npcInfo);
+                _logger.LogReport("NPC's " + type + " was chosen at random to NOT be replaced.", false, npcInfo);
                 randomizedToNone = true;
                 return null;
             }
 
             var selectedAssignment = (HeadPartSetting)ProbabilityWeighting.SelectByProbability(options);
-            Logger.LogReport("Selected " + type + ": " + EditorIDHandler.GetEditorIDSafely(selectedAssignment.ResolvedHeadPart) + " at random.", false, npcInfo);
+            _logger.LogReport("Selected " + type + ": " + EditorIDHandler.GetEditorIDSafely(selectedAssignment.ResolvedHeadPart) + " at random.", false, npcInfo);
             return selectedAssignment.ResolvedHeadPart;
         }
-        public static bool CanGetThisHeadPartType(Settings_HeadPartType currentSettings, HeadPart.TypeEnum type, NPCInfo npcInfo, HashSet<AttributeGroup> attributeGroups)
+        public bool CanGetThisHeadPartType(Settings_HeadPartType currentSettings, HeadPart.TypeEnum type, NPCInfo npcInfo, HashSet<AttributeGroup> attributeGroups)
         {
             if (!currentSettings.bAllowRandom && currentSettings.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above
             {
-                Logger.LogReport(type + " headparts will not be assigned because they can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
+                _logger.LogReport(type + " headparts will not be assigned because they can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
                 return false;
             }
 
             if (npcInfo.Gender == Gender.Male && !currentSettings.bAllowMale)
             {
-                Logger.LogReport(type + " headparts cannot be distributed to male NPCs unless assigned via Specific Assignment.", false, npcInfo);
+                _logger.LogReport(type + " headparts cannot be distributed to male NPCs unless assigned via Specific Assignment.", false, npcInfo);
                 return false;
             }
             else if (npcInfo.Gender == Gender.Female && !currentSettings.bAllowFemale)
             {
-                Logger.LogReport(type + " headparts cannot be distributed to female NPCs unless assigned via Specific Assignment.", false, npcInfo);
+                _logger.LogReport(type + " headparts cannot be distributed to female NPCs unless assigned via Specific Assignment.", false, npcInfo);
                 return false;
             }
 
@@ -277,7 +289,7 @@ namespace SynthEBD
                 var existingHeadParts = npcInfo.ExistingHeadParts.Where(x => x.Type != null && x.Type == type);
                 if (!existingHeadParts.Any())
                 {
-                    Logger.LogReport(type + " headparts are restricted to NPCs which already have headparts of this type, which this NPC does not", false, npcInfo);
+                    _logger.LogReport(type + " headparts are restricted to NPCs which already have headparts of this type, which this NPC does not", false, npcInfo);
                     return false;
                 }
                 else if (existingHeadParts.Count() == 1)
@@ -308,7 +320,7 @@ namespace SynthEBD
                     }
                     if (hasNoneHeadPart)
                     {
-                        Logger.LogReport(type + " headparts are restricted to NPCs which already have headparts of this type, and this NPC has the null-equivalent headpart: " + EditorIDHandler.GetEditorIDSafely(existingHP), false, npcInfo);
+                        _logger.LogReport(type + " headparts are restricted to NPCs which already have headparts of this type, and this NPC has the null-equivalent headpart: " + EditorIDHandler.GetEditorIDSafely(existingHP), false, npcInfo);
                         return false;
                     }
                 }
@@ -317,44 +329,44 @@ namespace SynthEBD
             // Allow unique NPCs
             if (!currentSettings.bAllowUnique && npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
             {
-                Logger.LogReport(type + " is invalid because its distribution is disallowed for unique NPCs", false, npcInfo);
+                _logger.LogReport(type + " is invalid because its distribution is disallowed for unique NPCs", false, npcInfo);
                 return false;
             }
 
             // Allow non-unique NPCs
             if (!currentSettings.bAllowNonUnique && !npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
             {
-                Logger.LogReport(type + " is invalid because its distribution is disallowed for non-unique NPCs", false, npcInfo);
+                _logger.LogReport(type + " is invalid because its distribution is disallowed for non-unique NPCs", false, npcInfo);
                 return false;
             }
 
             // Allowed Races
             if (currentSettings.AllowedRaces.Any() && !currentSettings.AllowedRaces.Contains(npcInfo.HeadPartsRace))
             {
-                Logger.LogReport(type + " is invalid because its allowed races do not include the current NPC's race", false, npcInfo);
+                _logger.LogReport(type + " is invalid because its allowed races do not include the current NPC's race", false, npcInfo);
                 return false;
             }
 
             // Disallowed Races
             if (currentSettings.DisallowedRaces.Contains(npcInfo.HeadPartsRace))
             {
-                Logger.LogReport(type + " is invalid because its disallowed races include the current NPC's race", false, npcInfo);
+                _logger.LogReport(type + " is invalid because its disallowed races include the current NPC's race", false, npcInfo);
                 return false;
             }
 
             // Weight Range
             if (npcInfo.NPC.Weight < currentSettings.WeightRange.Lower || npcInfo.NPC.Weight > currentSettings.WeightRange.Upper)
             {
-                Logger.LogReport(type + " is invalid because the current NPC's weight falls outside of its allowed weight range", false, npcInfo);
+                _logger.LogReport(type + " is invalid because the current NPC's weight falls outside of its allowed weight range", false, npcInfo);
                 return false;
             }
 
             // Allowed and Forced Attributes
             currentSettings.MatchedForceIfCount = 0;
-            AttributeMatcher.MatchNPCtoAttributeList(currentSettings.AllowedAttributes, npcInfo.NPC, attributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
+            _attributeMatcher.MatchNPCtoAttributeList(currentSettings.AllowedAttributes, npcInfo.NPC, attributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
             if (hasAttributeRestrictions && !matchesAttributeRestrictions)
             {
-                Logger.LogReport(type + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedLog, false, npcInfo);
+                _logger.LogReport(type + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedLog, false, npcInfo);
                 return false;
             }
             else
@@ -364,14 +376,14 @@ namespace SynthEBD
 
             if (currentSettings.MatchedForceIfCount > 0)
             {
-                Logger.LogReport(type + " Current NPC matches the following forced attributes: " + forceIfLog, false, npcInfo);
+                _logger.LogReport(type + " Current NPC matches the following forced attributes: " + forceIfLog, false, npcInfo);
             }
 
             // Disallowed Attributes
-            AttributeMatcher.MatchNPCtoAttributeList(currentSettings.DisallowedAttributes, npcInfo.NPC, attributeGroups, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _, null);
+            _attributeMatcher.MatchNPCtoAttributeList(currentSettings.DisallowedAttributes, npcInfo.NPC, attributeGroups, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _, null);
             if (hasAttributeRestrictions && matchesAttributeRestrictions)
             {
-                Logger.LogReport(type + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog, false, npcInfo);
+                _logger.LogReport(type + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog, false, npcInfo);
                 return false;
             }
 
@@ -379,61 +391,61 @@ namespace SynthEBD
             return true;
         }
 
-        public static bool HeadPartIsValid(HeadPartSetting candidateHeadPart, NPCInfo npcInfo, HeadPart.TypeEnum type, BodySlideSetting? assignedBodySlide, HashSet<AttributeGroup> attributeGroups)
+        public bool HeadPartIsValid(HeadPartSetting candidateHeadPart, NPCInfo npcInfo, HeadPart.TypeEnum type, BodySlideSetting? assignedBodySlide, HashSet<AttributeGroup> attributeGroups)
         {
             if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey.Equals(candidateHeadPart.HeadPartFormKey))
             {
-                Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is valid because it is specifically assigned by user.", false, npcInfo);
+                _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is valid because it is specifically assigned by user.", false, npcInfo);
                 return true;
             }
 
             if (!candidateHeadPart.bAllowRandom && candidateHeadPart.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above
             {
-                Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because it can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
+                _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because it can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
                 return false;
             }
 
             // Allow unique NPCs
             if (!candidateHeadPart.bAllowUnique && npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
             {
-                Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because the current Head Part is disallowed for unique NPCs", false, npcInfo);
+                _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because the current Head Part is disallowed for unique NPCs", false, npcInfo);
                 return false;
             }
 
             // Allow non-unique NPCs
             if (!candidateHeadPart.bAllowNonUnique && !npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
             {
-                Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because the current Head Part is disallowed for non-unique NPCs", false, npcInfo);
+                _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because the current Head Part is disallowed for non-unique NPCs", false, npcInfo);
                 return false;
             }
 
             // Allowed Races
             if (candidateHeadPart.AllowedRaces.Any() && !candidateHeadPart.AllowedRaces.Contains(npcInfo.HeadPartsRace))
             {
-                Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its allowed races do not include the current NPC's race", false, npcInfo);
+                _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its allowed races do not include the current NPC's race", false, npcInfo);
                 return false;
             }
 
             // Disallowed Races
             if (candidateHeadPart.DisallowedRaces.Contains(npcInfo.HeadPartsRace))
             {
-                Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its disallowed races include the current NPC's race", false, npcInfo);
+                _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its disallowed races include the current NPC's race", false, npcInfo);
                 return false;
             }
 
             // Weight Range
             if (npcInfo.NPC.Weight < candidateHeadPart.WeightRange.Lower || npcInfo.NPC.Weight > candidateHeadPart.WeightRange.Upper)
             {
-                Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because the current NPC's weight falls outside of the Head Part's allowed weight range", false, npcInfo);
+                _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because the current NPC's weight falls outside of the Head Part's allowed weight range", false, npcInfo);
                 return false;
             }
 
             // Allowed and Forced Attributes
             candidateHeadPart.MatchedForceIfCount = 0;
-            AttributeMatcher.MatchNPCtoAttributeList(candidateHeadPart.AllowedAttributes, npcInfo.NPC, attributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
+            _attributeMatcher.MatchNPCtoAttributeList(candidateHeadPart.AllowedAttributes, npcInfo.NPC, attributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
             if (hasAttributeRestrictions && !matchesAttributeRestrictions)
             {
-                Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedLog, false, npcInfo);
+                _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedLog, false, npcInfo);
                 return false;
             }
             else
@@ -443,14 +455,14 @@ namespace SynthEBD
 
             if (candidateHeadPart.MatchedForceIfCount > 0)
             {
-                Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " Current NPC matches the following forced attributes: " + forceIfLog, false, npcInfo);
+                _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " Current NPC matches the following forced attributes: " + forceIfLog, false, npcInfo);
             }
 
             // Disallowed Attributes
-            AttributeMatcher.MatchNPCtoAttributeList(candidateHeadPart.DisallowedAttributes, npcInfo.NPC, attributeGroups, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _, null);
+            _attributeMatcher.MatchNPCtoAttributeList(candidateHeadPart.DisallowedAttributes, npcInfo.NPC, attributeGroups, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _, null);
             if (hasAttributeRestrictions && matchesAttributeRestrictions)
             {
-                Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog, false, npcInfo);
+                _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog, false, npcInfo);
                 return false;
             }
 
@@ -460,14 +472,14 @@ namespace SynthEBD
                 {
                     if (!BodyShapeDescriptor.DescriptorsMatch(candidateHeadPart.AllowedBodySlideDescriptorDictionary, assignedBodySlide.BodyShapeDescriptors, out _))
                     {
-                        Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its allowed descriptors do not include those of the assigned BodySlide Preset (" + assignedBodySlide.Label +")" + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(candidateHeadPart.AllowedBodySlideDescriptorDictionary), false, npcInfo);
+                        _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its allowed descriptors do not include those of the assigned BodySlide Preset (" + assignedBodySlide.Label +")" + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(candidateHeadPart.AllowedBodySlideDescriptorDictionary), false, npcInfo);
                         return false;
                     }
                 }
 
                 if (BodyShapeDescriptor.DescriptorsMatch(candidateHeadPart.DisallowedBodySlideDescriptorDictionary, assignedBodySlide.BodyShapeDescriptors, out string matchedDescriptor))
                 {
-                    Logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its descriptor [" + matchedDescriptor + "] disallows the assigned BodySlide Preset (" + assignedBodySlide.Label + ")", false, npcInfo);
+                    _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its descriptor [" + matchedDescriptor + "] disallows the assigned BodySlide Preset (" + assignedBodySlide.Label + ")", false, npcInfo);
                     return false;
                 }
             }
@@ -476,9 +488,9 @@ namespace SynthEBD
             return true;
         }
 
-        public static void ResolveConflictsWithAssetAssignments(Dictionary<HeadPart.TypeEnum, HeadPart> assetAssignments, HeadPartSelection headPartAssignments)
+        public void ResolveConflictsWithAssetAssignments(Dictionary<HeadPart.TypeEnum, HeadPart> assetAssignments, HeadPartSelection headPartAssignments)
         {
-            foreach (var type in PatcherSettings.HeadParts.SourceConflictWinners.Keys)
+            foreach (var type in _patcherState.HeadPartSettings.SourceConflictWinners.Keys)
             {
                 if (assetAssignments[type] == null) { continue; }
                 
@@ -495,17 +507,38 @@ namespace SynthEBD
             }
         }
 
-        public static FormKey? ResolveConflictWithAssetAssignment(HeadPart assetAssignment, FormKey? headPartAssignment, HeadPart.TypeEnum type)
+        public FormKey? ResolveConflictWithAssetAssignment(HeadPart assetAssignment, FormKey? headPartAssignment, HeadPart.TypeEnum type)
         {
             if (headPartAssignment == null && assetAssignment != null) { return assetAssignment.FormKey; }
             else if (headPartAssignment != null && assetAssignment == null) { return headPartAssignment.Value; }
 
-            var conflictWinner = PatcherSettings.HeadParts.SourceConflictWinners[type];
+            var conflictWinner = _patcherState.HeadPartSettings.SourceConflictWinners[type];
             switch (conflictWinner)
             {
                 case HeadPartSourceCandidate.AssetPack: return assetAssignment.FormKey; 
                 case HeadPartSourceCandidate.HeadPartsMenu: return headPartAssignment.Value;
                 default: return null;
+            }
+        }
+        public void SetGeneratedHeadPart(HeadPart hp, Dictionary<HeadPart.TypeEnum, HeadPart> dict, NPCInfo npcInfo)
+        {
+            if (hp.Type != null)
+            {
+                if (npcInfo.BlockedNPCEntry.HeadParts && npcInfo.BlockedNPCEntry.HeadPartTypes[hp.Type.Value])
+                {
+                    _logger.LogReport(hp.Type.Value.ToString() + " assignment is blocked for current NPC.", false, npcInfo);
+                    return;
+                }
+                if (npcInfo.BlockedPluginEntry.HeadParts && npcInfo.BlockedPluginEntry.HeadPartTypes[hp.Type.Value])
+                {
+                    _logger.LogReport(hp.Type.Value.ToString() + " assignment is blocked for current NPC's plugin.", false, npcInfo);
+                    return;
+                }
+                dict[hp.Type.Value] = hp;
+            }
+            else
+            {
+                _logger.LogMessage("Cannot assign a head part replacer for head part " + EditorIDHandler.GetEditorIDSafely(hp) + " because it does not have a specified Type.");
             }
         }
     }

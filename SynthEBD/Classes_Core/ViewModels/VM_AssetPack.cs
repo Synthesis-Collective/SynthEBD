@@ -9,6 +9,11 @@ using System.Windows;
 using ReactiveUI;
 using GongSolutions.Wpf.DragDrop;
 using System.Windows.Controls;
+using static SynthEBD.VM_NPCAttribute;
+using Mutagen.Bethesda.FormKeys.SkyrimSE;
+using static SynthEBD.AssetPack;
+using Noggog.WPF;
+using DynamicData;
 
 namespace SynthEBD;
 
@@ -18,25 +23,35 @@ public enum AssetPackMenuVisibility
     DistributionRules,
     AssetReplacers,
     RecordTemplates,
-    AttributeGroups
+    AttributeGroups,
+    RaceGroupings
 }
 
-public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgroupViewModels
+public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgroupViewModels, IHasRaceGroupingEditor
 {
-    private readonly MainState _state;
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
     private readonly VM_SettingsOBody _oBody;
     private readonly VM_Settings_General _general;
     private readonly VM_BodyGenConfig.Factory _bodyGenConfigFactory;
     private readonly VM_AssetPackDirectReplacerMenu.Factory _assetPackDirectReplacerMenuFactory;
     private readonly VM_Subgroup.Factory _subgroupFactory;
+    private readonly VM_ConfigDistributionRules.Factory _configDistributionRulesFactory;
     private readonly VM_FilePathReplacement.Factory _filePathReplacementFactory;
     private readonly AssetPackValidator _assetPackValidator;
+    private readonly Logger _logger;
+    private readonly SynthEBDPaths _paths;
+    private readonly FileDialogs _fileDialogs;
     private readonly Factory _selfFactory;
+    private readonly SettingsIO_AssetPack _assetPackIO;
+    private readonly VM_AttributeGroupMenu.Factory _attributeGroupMenuFactory;
+    private readonly VM_RaceGroupingEditor.Factory _raceGroupingEditorFactory;
 
     public delegate VM_AssetPack Factory();
 
     public VM_AssetPack(
-        MainState state,
+        IEnvironmentStateProvider environmentProvider,
+        PatcherState state,
         VM_SettingsBodyGen bodyGen,
         VM_SettingsOBody oBody,
         VM_SettingsTexMesh texMesh,
@@ -45,92 +60,109 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         VM_AssetPackDirectReplacerMenu.Factory assetPackDirectReplacerMenuFactory,
         VM_Subgroup.Factory subgroupFactory,
         VM_FilePathReplacement.Factory filePathReplacementFactory,
+        VM_ConfigDistributionRules.Factory configDistributionRulesFactory,
         AssetPackValidator assetPackValidator,
+        Logger logger,
+        SynthEBDPaths paths,
+        FileDialogs fileDialogs,
+        SettingsIO_AssetPack assetPackIO,
+        VM_AttributeGroupMenu.Factory attributeGroupMenuFactory,
+        VM_RaceGroupingEditor.Factory raceGroupingEditorFactory,
         Factory selfFactory)
     {
-        _state = state;
+        _environmentProvider = environmentProvider;
+        _patcherState = state;
         _oBody = oBody;
         _general = general;
         _bodyGenConfigFactory = bodyGenConfigFactory;
         _assetPackDirectReplacerMenuFactory = assetPackDirectReplacerMenuFactory;
         _subgroupFactory = subgroupFactory;
+        _configDistributionRulesFactory = configDistributionRulesFactory;
         _filePathReplacementFactory = filePathReplacementFactory;
         _assetPackValidator = assetPackValidator;
+        _logger = logger;
+        _paths = paths;
+        _fileDialogs = fileDialogs;
         _selfFactory = selfFactory;
-        this.ParentCollection = texMesh.AssetPacks;
+        _assetPackIO = assetPackIO;
+        _attributeGroupMenuFactory = attributeGroupMenuFactory;
+        _raceGroupingEditorFactory = raceGroupingEditorFactory;
 
-        this.CurrentBodyGenSettings = bodyGen;
-        switch (this.Gender)
+        ParentCollection = texMesh.AssetPacks;
+
+        CurrentBodyGenSettings = bodyGen;
+        switch (Gender)
         {
-            case Gender.Female: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.FemaleConfigs; break;
-            case Gender.Male: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.MaleConfigs; break;
+            case Gender.Female: AvailableBodyGenConfigs = CurrentBodyGenSettings.FemaleConfigs; break;
+            case Gender.Male: AvailableBodyGenConfigs = CurrentBodyGenSettings.MaleConfigs; break;
         }
 
-        this.PropertyChanged += RefreshTrackedBodyGenConfig;
-        this.CurrentBodyGenSettings.PropertyChanged += RefreshTrackedBodyGenConfig;
+        PropertyChanged += RefreshTrackedBodyGenConfig;
+        CurrentBodyGenSettings.PropertyChanged += RefreshTrackedBodyGenConfig;
 
-        this.AttributeGroupMenu = new(general.AttributeGroupMenu, true);
+        AttributeGroupMenu = attributeGroupMenuFactory(general.AttributeGroupMenu, true);
 
-        this.ReplacersMenu = assetPackDirectReplacerMenuFactory(this);
+        RaceGroupingEditor = raceGroupingEditorFactory(this, true);
 
-        this.DistributionRules = new VM_ConfigDistributionRules(general.RaceGroupings, this, oBody);
+        ReplacersMenu = assetPackDirectReplacerMenuFactory(this);
 
-        this.BodyShapeMode = general.BodySelectionMode;
-        general.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x);
+        DistributionRules = _configDistributionRulesFactory(RaceGroupingEditor.RaceGroupings, this);
+
+        BodyShapeMode = general.BodySelectionMode;
+        general.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x).DisposeWith(this);
 
         RecordTemplateLinkCache = state.RecordTemplateLinkCache;
 
         ParentMenuVM = texMesh;
 
-        this.WhenAnyValue(x => x.Gender).Subscribe(x => SetDefaultRecordTemplate());
+        this.WhenAnyValue(x => x.Gender).Subscribe(x => SetDefaultRecordTemplate()).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.IsSelected).Subscribe(x => ParentMenuVM.RefreshDisplayedAssetPackString());
+        this.WhenAnyValue(x => x.IsSelected).Subscribe(x => ParentMenuVM.RefreshDisplayedAssetPackString()).DisposeWith(this);
 
-        AddSubgroup = new SynthEBD.RelayCommand(
+        AddSubgroup = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { Subgroups.Add(subgroupFactory(general.RaceGroupings, Subgroups, this, null, false)); }
+            execute: _ => { Subgroups.Add(subgroupFactory(RaceGroupingEditor.RaceGroupings, Subgroups, this, null, false)); }
         );
 
-        RemoveAssetPackConfigFile = new SynthEBD.RelayCommand(
+        RemoveAssetPackConfigFile = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
-                if (FileDialogs.ConfirmFileDeletion(this.SourcePath, "Asset Pack Config File"))
+                if (_fileDialogs.ConfirmFileDeletion(this.SourcePath, "Asset Pack Config File"))
                 {
                     ParentCollection.Remove(this);
                 }
             }
         );
 
-        AddAdditionalRecordTemplateAssignment = new SynthEBD.RelayCommand(
+        AddAdditionalRecordTemplateAssignment = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { this.AdditionalRecordTemplateAssignments.Add(new VM_AdditionalRecordTemplate(this.RecordTemplateLinkCache, this.AdditionalRecordTemplateAssignments)); }
+            execute: _ => { AdditionalRecordTemplateAssignments.Add(new VM_AdditionalRecordTemplate(_environmentProvider, RecordTemplateLinkCache, AdditionalRecordTemplateAssignments)); }
         );
 
-        AddRecordTemplateAdditionalRacesPath = new SynthEBD.RelayCommand(
+        AddRecordTemplateAdditionalRacesPath = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { this.DefaultRecordTemplateAdditionalRacesPaths.Add(new VM_CollectionMemberString("", this.DefaultRecordTemplateAdditionalRacesPaths)); }
+            execute: _ => { DefaultRecordTemplateAdditionalRacesPaths.Add(new VM_CollectionMemberString("", DefaultRecordTemplateAdditionalRacesPaths)); }
         );
 
-        MergeWithAssetPack = new SynthEBD.RelayCommand(
+        MergeWithAssetPack = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => MergeInAssetPack()
+            execute: _ => MergeInAssetPack(_paths.LogFolderPath)
         );
 
-        SetDefaultTargetDestPaths = new SynthEBD.RelayCommand(
+        SetDefaultTargetDestPaths = new RelayCommand(
             canExecute: _ => true,
             execute: _ => { SetDefaultTargetPaths(); }
         );
 
-        ValidateButton = new SynthEBD.RelayCommand(
+        ValidateButton = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
 
                 // dump view models to models so that latest are available for validation
                 BodyGenConfigs bgConfigs = new();
-                bgConfigs.Male = bodyGen.MaleConfigs.Select(x => VM_BodyGenConfig.DumpViewModelToModel(x)).ToHashSet();
-                bgConfigs.Female = bodyGen.FemaleConfigs.Select(x => VM_BodyGenConfig.DumpViewModelToModel(x)).ToHashSet();
-                Settings_OBody oBodySettings = new();
-                VM_SettingsOBody.DumpViewModelToModel(oBodySettings, oBody);
+                bgConfigs.Male = bodyGen.MaleConfigs.Select(x => x.DumpViewModelToModel()).ToHashSet();
+                bgConfigs.Female = bodyGen.FemaleConfigs.Select(x => x.DumpViewModelToModel()).ToHashSet();
+                Settings_OBody oBodySettings = _oBody.DumpViewModelToModel();
 
                 if (Validate(bgConfigs, oBodySettings, out List<string> errors))
                 {
@@ -138,27 +170,27 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 }
                 else
                 {
-                    Logger.LogError(String.Join(Environment.NewLine, errors));
+                    _logger.LogError(String.Join(Environment.NewLine, errors));
                 }
             }
         );
 
-        SaveButton = new SynthEBD.RelayCommand(
+        SaveButton = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
-                SettingsIO_AssetPack.SaveAssetPack(DumpViewModelToModel(this), out bool success);
+                _assetPackIO.SaveAssetPack(DumpViewModelToModel(), out bool success);
                 if (success)
                 {
-                    Logger.CallTimedNotifyStatusUpdateAsync(GroupName + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                    _logger.CallTimedNotifyStatusUpdateAsync(GroupName + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
                 }
                 else
                 {
-                    Logger.CallTimedLogErrorWithStatusUpdateAsync(GroupName + " could not be saved.", ErrorType.Error, 3);
+                    _logger.CallTimedLogErrorWithStatusUpdateAsync(GroupName + " could not be saved.", ErrorType.Error, 3);
                 }
             }
         );
 
-        ListDisabledSubgroupsButton = new SynthEBD.RelayCommand(
+        ListDisabledSubgroupsButton = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
                 var disabledSubgroups = GetDisabledSubgroups();
@@ -166,17 +198,25 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
         );
 
-        DiscardButton = new SynthEBD.RelayCommand(
+        ListCustomRulesButton = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
-                var reloaded = SettingsIO_AssetPack.LoadAssetPack(SourcePath, PatcherSettings.General.RaceGroupings, state.RecordTemplatePlugins, state.BodyGenConfigs, out bool success);
+                var rules = GetCustomRules();
+                CustomMessageBox.DisplayNotificationOK("Custom Rules", string.Join(Environment.NewLine, rules));
+            }
+        );
+
+        DiscardButton = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => {
+                var reloaded = _assetPackIO.LoadAssetPack(SourcePath, _patcherState.GeneralSettings.RaceGroupings, state.RecordTemplatePlugins, state.BodyGenConfigs, out bool success);
                 if (!success)
                 {
-                    Logger.CallTimedLogErrorWithStatusUpdateAsync(GroupName + " could not be reloaded from drive.", ErrorType.Error, 3);
+                    _logger.CallTimedLogErrorWithStatusUpdateAsync(GroupName + " could not be reloaded from drive.", ErrorType.Error, 3);
                 }
 
                 var reloadedVM = _selfFactory();
-                reloadedVM.CopyInViewModelFromModel(reloaded);
+                reloadedVM.CopyInViewModelFromModel(reloaded, _general.RaceGroupingEditor.RaceGroupings);
                 this.IsSelected = reloadedVM.IsSelected;
                 this.AttributeGroupMenu = reloadedVM.AttributeGroupMenu;
                 this.AvailableBodyGenConfigs = reloadedVM.AvailableBodyGenConfigs;
@@ -192,52 +232,57 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 this.SourcePath = reloadedVM.SourcePath;
                 this.Subgroups = reloadedVM.Subgroups;
                 this.TrackedBodyGenConfig = reloadedVM.TrackedBodyGenConfig;
-                Logger.CallTimedNotifyStatusUpdateAsync("Discarded Changes", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                _logger.CallTimedNotifyStatusUpdateAsync("Discarded Changes", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
             }
         );
 
-        CopyButton = new SynthEBD.RelayCommand(
+        CopyButton = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
-                var copiedModel = DumpViewModelToModel(this);
+                var copiedModel = DumpViewModelToModel();
                 copiedModel.GroupName += " (2)";
                 copiedModel.FilePath = String.Empty;
-                var copiedVM = new VM_AssetPack(state, bodyGen, oBody, texMesh, general, bodyGenConfigFactory, assetPackDirectReplacerMenuFactory, subgroupFactory, filePathReplacementFactory, assetPackValidator, selfFactory);
-                copiedVM.CopyInViewModelFromModel(copiedModel);
+                var copiedVM = selfFactory();
+                copiedVM.CopyInViewModelFromModel(copiedModel, _general.RaceGroupingEditor.RaceGroupings);
                 texMesh.AssetPacks.Add(copiedVM);
                 texMesh.AssetPresenterPrimary.AssetPack = copiedVM;
             }
         );
 
-        SelectedSubgroupChanged = new SynthEBD.RelayCommand(
+        SelectedSubgroupChanged = new RelayCommand(
             canExecute: _ => true,
             execute: x => this.DisplayedSubgroup = (VM_Subgroup)x
         );
 
-        ViewSubgroupEditor = new SynthEBD.RelayCommand(
+        ViewSubgroupEditor = new RelayCommand(
             canExecute: _ => true,
             execute:
             x => DisplayedMenuType = AssetPackMenuVisibility.SubgroupEditor
         );
 
-        ViewDistRulesEditor = new SynthEBD.RelayCommand(
+        ViewDistRulesEditor = new RelayCommand(
            canExecute: _ => true,
            execute: x => DisplayedMenuType = AssetPackMenuVisibility.DistributionRules
         );
 
-        ViewDirectReplacersEditor = new SynthEBD.RelayCommand(
+        ViewDirectReplacersEditor = new RelayCommand(
            canExecute: _ => true,
            execute: x => DisplayedMenuType = AssetPackMenuVisibility.AssetReplacers
         );
 
-        ViewRecordTemplatesEditor = new SynthEBD.RelayCommand(
+        ViewRecordTemplatesEditor = new RelayCommand(
            canExecute: _ => true,
            execute: x => DisplayedMenuType = AssetPackMenuVisibility.RecordTemplates
         );
 
-        ViewAttributeGroupsEditor = new SynthEBD.RelayCommand(
+        ViewAttributeGroupsEditor = new RelayCommand(
            canExecute: _ => true,
            execute: x => DisplayedMenuType = AssetPackMenuVisibility.AttributeGroups
+        );
+
+        ViewRaceGroupingsEditor = new RelayCommand(
+           canExecute: _ => true,
+           execute: x => DisplayedMenuType = AssetPackMenuVisibility.RaceGroupings
         );
     }
 
@@ -248,7 +293,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public bool DisplayAlerts { get; set; } = true;
     public string UserAlert { get; set; } = "";
     public ObservableCollection<VM_Subgroup> Subgroups { get; set; } = new();
-    public ObservableCollection<VM_RaceGrouping> RaceGroupingList { get; set; } = new();
     public VM_BodyGenConfig TrackedBodyGenConfig { get; set; }
     public ObservableCollection<VM_BodyGenConfig> AvailableBodyGenConfigs { get; set; }
     public VM_SettingsBodyGen CurrentBodyGenSettings { get; set; }
@@ -258,6 +302,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public ILinkCache<ISkyrimMod, ISkyrimModGetter> RecordTemplateLinkCache { get; set; }
     public FormKey DefaultTemplateFK { get; set; } = new();
     public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
+    public VM_RaceGroupingEditor RaceGroupingEditor { get; set; }
     public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public ObservableCollection<VM_AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; } = new();
     public VM_AssetPackDirectReplacerMenu ReplacersMenu { get; set; }
@@ -271,6 +316,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public RelayCommand MergeWithAssetPack { get; }
     public RelayCommand ValidateButton { get; }
     public RelayCommand ListDisabledSubgroupsButton { get; }
+    public RelayCommand ListCustomRulesButton { get; }
     public RelayCommand SaveButton { get; }
     public RelayCommand DiscardButton { get; }
     public RelayCommand CopyButton { get; }
@@ -283,6 +329,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public RelayCommand ViewDirectReplacersEditor { get; }
     public RelayCommand ViewRecordTemplatesEditor { get; }
     public RelayCommand ViewAttributeGroupsEditor { get; }
+    public RelayCommand ViewRaceGroupingsEditor { get; }
     public VM_SettingsTexMesh ParentMenuVM { get; set; }
     public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>() // referenced by xaml; don't trust VS reference count
     {
@@ -292,7 +339,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
     public bool Validate(BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, out List<string> errors)
     {
-        var model = DumpViewModelToModel(this);
+        var model = DumpViewModelToModel();
         errors = new List<string>();
         return _assetPackValidator.Validate(model, errors, bodyGenConfigs, oBodySettings);
     }
@@ -301,19 +348,21 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         List<AssetPack> assetPacks,
         VM_SettingsTexMesh texMesh,
         Settings_TexMesh texMeshSettings, 
-        Factory assetPackFactory)
+        Factory assetPackFactory,
+        VM_RaceGrouping.Factory raceGroupingFactory,
+        ObservableCollection<VM_RaceGrouping> mainRaceGroupings)
     {
         texMesh.AssetPacks.Clear();
         for (int i = 0; i < assetPacks.Count; i++)
         {
             var viewModel = assetPackFactory();
-            viewModel.CopyInViewModelFromModel(assetPacks[i]);
+            viewModel.CopyInViewModelFromModel(assetPacks[i], mainRaceGroupings);
             viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].GroupName);
             texMesh.AssetPacks.Add(viewModel);
         }
     }
     
-    public void CopyInViewModelFromModel(AssetPack model)
+    public void CopyInViewModelFromModel(AssetPack model, ObservableCollection<VM_RaceGrouping> mainRaceGroupings)
     {
         GroupName = model.GroupName;
         ShortName = model.ShortName;
@@ -321,8 +370,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         Gender = model.Gender;
         DisplayAlerts = model.DisplayAlerts;
         UserAlert = model.UserAlert;
-
-        RaceGroupingList = new ObservableCollection<VM_RaceGrouping>(_general.RaceGroupings);
 
         if (model.AssociatedBodyGenConfigName != "")
         {
@@ -343,13 +390,16 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
 
+        RaceGroupingEditor.CopyInFromModel(model.RaceGroupings, mainRaceGroupings);
+        //AddFallBackRaceGroupings(model, RaceGroupingEditor.RaceGroupings, mainRaceGroupings); // local RaceGroupings were introduced in v0.9. Prior to that, RaceGroupings were loaded from General Settings. To make sure not to wipe old settings, scan model for old race groupings and add then from General Settings if available.
+
         ReplacersMenu = _assetPackDirectReplacerMenuFactory(this);
         ReplacersMenu.CopyInViewModelFromModels(model.ReplacerGroups);
 
         DefaultTemplateFK = model.DefaultRecordTemplate;
         foreach(var additionalTemplateAssignment in model.AdditionalRecordTemplateAssignments)
         {
-            var assignmentVM = new VM_AdditionalRecordTemplate(_state.RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
+            var assignmentVM = new VM_AdditionalRecordTemplate(_environmentProvider, _patcherState.RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
             assignmentVM.RaceFormKeys = new ObservableCollection<FormKey>(additionalTemplateAssignment.Races);
             assignmentVM.TemplateNPC = additionalTemplateAssignment.TemplateNPC;
             assignmentVM.AdditionalRacesPaths = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(additionalTemplateAssignment.AdditionalRacesPaths);
@@ -363,8 +413,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         foreach (var sg in model.Subgroups)
         {
-            var subVm = _subgroupFactory(_general.RaceGroupings, Subgroups, this, null, false);
-            subVm.CopyInViewModelFromModel(sg, _general);
+            var subVm = _subgroupFactory(RaceGroupingEditor.RaceGroupings, Subgroups, this, null, false);
+            subVm.CopyInViewModelFromModel(sg);
             Subgroups.Add(subVm);
         }
 
@@ -373,8 +423,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         LinkRequiredSubgroups(flattenedSubgroupList);
         LinkExcludedSubgroups(flattenedSubgroupList);
 
-        DistributionRules = new VM_ConfigDistributionRules(_general.RaceGroupings, this, _oBody);
-        DistributionRules.CopyInViewModelFromModel(model.DistributionRules, _general.RaceGroupings, this);
+        DistributionRules = _configDistributionRulesFactory(RaceGroupingEditor.RaceGroupings, this);
+        DistributionRules.CopyInViewModelFromModel(model.DistributionRules, RaceGroupingEditor.RaceGroupings, this);
 
         SourcePath = model.FilePath;
     }
@@ -385,41 +435,43 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         foreach (var vm in viewModels)
         {
-            models.Add(DumpViewModelToModel(vm));
+            models.Add(vm.DumpViewModelToModel());
         }
     }
 
-    public static AssetPack DumpViewModelToModel(VM_AssetPack viewModel)
+    public AssetPack DumpViewModelToModel()
     {
         AssetPack model = new AssetPack();
-        model.GroupName = viewModel.GroupName;
-        model.ShortName = viewModel.ShortName;
-        model.ConfigType = viewModel.ConfigType;
-        model.Gender = viewModel.Gender;
-        model.DisplayAlerts = viewModel.DisplayAlerts;
-        model.UserAlert = viewModel.UserAlert;
+        model.GroupName = GroupName;
+        model.ShortName = ShortName;
+        model.ConfigType = ConfigType;
+        model.Gender = Gender;
+        model.DisplayAlerts = DisplayAlerts;
+        model.UserAlert = UserAlert;
 
-        if (viewModel.TrackedBodyGenConfig != null)
+        if (TrackedBodyGenConfig != null)
         {
-            model.AssociatedBodyGenConfigName = viewModel.TrackedBodyGenConfig.Label;
+            model.AssociatedBodyGenConfigName = TrackedBodyGenConfig.Label;
         }
 
-        model.DefaultRecordTemplate = viewModel.DefaultTemplateFK;
-        model.AdditionalRecordTemplateAssignments = viewModel.AdditionalRecordTemplateAssignments.Select(x => VM_AdditionalRecordTemplate.DumpViewModelToModel(x)).ToHashSet();
-        model.DefaultRecordTemplateAdditionalRacesPaths = viewModel.DefaultRecordTemplateAdditionalRacesPaths.Select(x => x.Content).ToHashSet();
+        model.DefaultRecordTemplate = DefaultTemplateFK;
+        model.AdditionalRecordTemplateAssignments = AdditionalRecordTemplateAssignments.Select(x => VM_AdditionalRecordTemplate.DumpViewModelToModel(x)).ToHashSet();
+        model.DefaultRecordTemplateAdditionalRacesPaths = DefaultRecordTemplateAdditionalRacesPaths.Select(x => x.Content).ToHashSet();
 
-        VM_AttributeGroupMenu.DumpViewModelToModels(viewModel.AttributeGroupMenu, model.AttributeGroups);
+        VM_AttributeGroupMenu.DumpViewModelToModels(AttributeGroupMenu, model.AttributeGroups);
 
-        foreach (var svm in viewModel.Subgroups)
+        model.RaceGroupings = RaceGroupingEditor.DumpToModel();
+
+        foreach (var svm in Subgroups)
         {
             model.Subgroups.Add(VM_Subgroup.DumpViewModelToModel(svm));
         }
 
-        model.ReplacerGroups = VM_AssetPackDirectReplacerMenu.DumpViewModelToModels(viewModel.ReplacersMenu);
+        model.ReplacerGroups = VM_AssetPackDirectReplacerMenu.DumpViewModelToModels(ReplacersMenu);
 
-        model.DistributionRules = VM_ConfigDistributionRules.DumpViewModelToModel(viewModel.DistributionRules);
+        model.DistributionRules = VM_ConfigDistributionRules.DumpViewModelToModel(DistributionRules);
 
-        model.FilePath = viewModel.SourcePath;
+        model.FilePath = SourcePath;
 
         return model;
     }
@@ -488,8 +540,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                     }
                     catch
                     {
-                        Logger.LogError("Could not delete file at " + this.SourcePath);
-                        Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not delete Asset Pack Config File", ErrorType.Error, 5);
+                        _logger.LogError("Could not delete file at " + this.SourcePath);
+                        _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not delete Asset Pack Config File", ErrorType.Error, 5);
                     }
                 }
                     
@@ -508,17 +560,17 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
     }
 
-    public void MergeInAssetPack()
+    public void MergeInAssetPack(string assetPackDirPath)
     {
         List<string> newSubgroupNames = new List<string>();
 
-        if (IO_Aux.SelectFile(PatcherSettings.Paths.AssetPackDirPath, "Config files (*.json)|*.json", "Select config file to merge in", out string path))
+        if (IO_Aux.SelectFile(assetPackDirPath, "Config files (*.json)|*.json", "Select config file to merge in", out string path))
         {
-            var newAssetPack = SettingsIO_AssetPack.LoadAssetPack(path, PatcherSettings.General.RaceGroupings, _state.RecordTemplatePlugins, _state.BodyGenConfigs, out bool loadSuccess);
+            var newAssetPack = _assetPackIO.LoadAssetPack(path, _patcherState.GeneralSettings.RaceGroupings, _patcherState.RecordTemplatePlugins, _patcherState.BodyGenConfigs, out bool loadSuccess);
             if (loadSuccess)
             {
                 var newAssetPackVM = _selfFactory();
-                newAssetPackVM.CopyInViewModelFromModel(newAssetPack);
+                newAssetPackVM.CopyInViewModelFromModel(newAssetPack, _general.RaceGroupingEditor.RaceGroupings);
                     
                 // first add completely new top-level subgroups if necessary
                 foreach (var subgroup in newAssetPackVM.Subgroups)
@@ -840,6 +892,50 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         return disabledSubgroups;
     }
 
+    public List<string> GetCustomRules()
+    {
+        List<string> rulesStrings = new();
+
+        rulesStrings.AddRange(DistributionRules.GetRulesSummary());
+
+        List<string> subgroupRules = new();
+        foreach (var subgroup in Subgroups)
+        {
+            subgroupRules.AddRange(subgroup.GetRulesSummary());
+        }
+        if (subgroupRules.Any())
+        {
+            rulesStrings.Add("");
+            rulesStrings.Add("Main Subgroups: ");
+            rulesStrings.Add("");
+            rulesStrings.AddRange(subgroupRules);
+        }
+
+        foreach (var replacer in ReplacersMenu.ReplacerGroups)
+        {
+            List<string> replacerRules = new();
+            foreach (var subgroup in replacer.Subgroups)
+            {
+                replacerRules.AddRange(subgroup.GetRulesSummary());
+            }
+
+            if (replacerRules.Any())
+            {
+                rulesStrings.Add("");
+                rulesStrings.Add("Direct Asset Replacers");
+                rulesStrings.Add("");
+                rulesStrings.AddRange(replacerRules);
+            }
+        }
+
+        if (!rulesStrings.Any())
+        {
+            rulesStrings.Add("This config has no custom rules.");
+        }
+
+        return rulesStrings;
+    }
+
     public void DragOver(IDropInfo dropInfo)
     {
         if (dropInfo.Data is VM_Subgroup)
@@ -908,6 +1004,74 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     }
 
     public bool DropInitiatedRightClick { get; set; }
+
+    public bool CheckForVersionUpdate(Version version)
+    {
+        foreach (var subgroup in Subgroups)
+        {
+            if (subgroup.CheckForVersionUpdate(version))
+            {
+                return true;
+            }
+        }
+
+        foreach (var replacer in ReplacersMenu.ReplacerGroups)
+        {
+            foreach (var subgroup in replacer.Subgroups)
+            {
+                if (subgroup.CheckForVersionUpdate(version))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public void PerformVersionUpdate(Version version)
+    {
+        foreach (var subgroup in Subgroups)
+        {
+            subgroup.PerformVersionUpdate(version);
+        }
+
+        foreach (var replacer in ReplacersMenu.ReplacerGroups)
+        {
+            foreach (var subgroup in replacer.Subgroups)
+            {
+                subgroup.PerformVersionUpdate(version);
+            }
+        }
+    }
+
+    public void AddFallBackRaceGroupings(AssetPack model, ObservableCollection<VM_RaceGrouping> existingGroupings, ObservableCollection<VM_RaceGrouping> fallBackGroupings)
+    {
+        HashSet<RaceGrouping> addedRaceGroups = new();
+
+        HashSet<string> existingGroupNames = model.RaceGroupings.Select(x => x.Label).ToHashSet();
+        HashSet<string> fallBackGroupNames = fallBackGroupings.Select(x => x.Label).ToHashSet();
+
+        HashSet<string> groupingsToAdd = new();
+        foreach (var subgroup in model.Subgroups)
+        {
+            subgroup.GetContainedRaceGroupingLabels(groupingsToAdd);
+        }
+        foreach (var replacer in model.ReplacerGroups)
+        {
+            foreach (var subgroup in replacer.Subgroups)
+            {
+                subgroup.GetContainedRaceGroupingLabels(groupingsToAdd);
+            }
+        }
+
+        foreach (string groupLabel in groupingsToAdd)
+        {
+            if (!existingGroupNames.Contains(groupLabel) && fallBackGroupNames.Contains(groupLabel))
+            {
+                existingGroupings.Add(fallBackGroupings.Where(x => x.Label == groupLabel).First());
+            }
+        }
+    }
 }
 
 public interface IHasSubgroupViewModels

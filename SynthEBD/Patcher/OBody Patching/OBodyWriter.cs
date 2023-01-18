@@ -8,7 +8,21 @@ namespace SynthEBD;
 
 public class OBodyWriter
 {
-    public static Spell CreateOBodyAssignmentSpell(SkyrimMod outputMod, GlobalShort gBodySlideVerboseMode)
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
+    private readonly Logger _logger;
+    private readonly SynthEBDPaths _paths;
+    private readonly PatcherIO _patcherIO;
+    public OBodyWriter(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
+    {
+        _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
+        _logger = logger;
+        _paths = paths;
+        _patcherIO = patcherIO;
+    }
+
+    public Spell CreateOBodyAssignmentSpell(ISkyrimMod outputMod, GlobalShort gBodySlideVerboseMode)
     {
         // create MGEF first
         MagicEffect MGEFApplyBodySlide = outputMod.MagicEffects.AddNew();
@@ -28,7 +42,7 @@ public class OBodyWriter
         ScriptEntry ScriptApplyBodySlide = new ScriptEntry() { Name = "SynthEBDBodySlideScript"};
 
         ScriptStringProperty targetModProperty = new ScriptStringProperty() { Name = "TargetMod", Flags = ScriptProperty.Flag.Edited };
-        switch(PatcherSettings.General.BSSelectionMode)
+        switch(_patcherState.GeneralSettings.BSSelectionMode)
         {
             case BodySlideSelectionMode.OBody: targetModProperty.Data = "OBody"; break;
             case BodySlideSelectionMode.AutoBody: targetModProperty.Data = "AutoBody"; break;
@@ -57,7 +71,7 @@ public class OBodyWriter
         return SPELApplyBodySlide;
     }
 
-    public static void CreateBodySlideLoaderQuest(SkyrimMod outputMod, GlobalShort gEnableBodySlideScript, GlobalShort gBodySlideVerboseMode)
+    public void CreateBodySlideLoaderQuest(ISkyrimMod outputMod, GlobalShort gEnableBodySlideScript, GlobalShort gBodySlideVerboseMode)
     {
         Quest bsLoaderQuest = outputMod.Quests.AddNew();
         bsLoaderQuest.Name = "Loads SynthEBD BodySlide Assignments";
@@ -104,16 +118,16 @@ public class OBodyWriter
         bsLoaderQuest.VirtualMachineAdapter = bsLoaderScriptAdapter;
 
         // copy quest alias script
-        string questAliasSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScripts", "SynthEBDBodySlideLoaderPAScript.pex");
-        string questAliasDestPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideLoaderPAScript.pex");
-        PatcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath);
+        string questAliasSourcePath = Path.Combine(_environmentProvider.InternalDataPath, "BodySlideScripts", "SynthEBDBodySlideLoaderPAScript.pex");
+        string questAliasDestPath = Path.Combine(_paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideLoaderPAScript.pex");
+        _patcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath, _logger);
     }
 
-    public static void CopyBodySlideScript()
+    public void CopyBodySlideScript()
     {
-        string sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "BodySlideScripts", "SynthEBDBodySlideScript.pex");
-        string destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideScript.pex");
-        PatcherIO.TryCopyResourceFile(sourcePath, destPath);
+        string sourcePath = Path.Combine(_environmentProvider.InternalDataPath, "BodySlideScripts", "SynthEBDBodySlideScript.pex");
+        string destPath = Path.Combine(_paths.OutputDataFolder, "Scripts", "SynthEBDBodySlideScript.pex");
+        _patcherIO.TryCopyResourceFile(sourcePath, destPath, _logger);
     }
 
     /*
@@ -128,16 +142,16 @@ public class OBodyWriter
         else if (hasMaleBodySlides && !hasFemaleBodySlides) { str += "M"; }
         else if (!hasMaleBodySlides && hasFemaleBodySlides) { str += "F"; }
 
-        string outputPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini");
+        string outputPath = Path.Combine(_paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini");
         Task.Run(() => PatcherIO.WriteTextFile(outputPath, str));
     }
     */
 
-    public static void WriteAssignmentDictionary()
+    public void WriteAssignmentDictionary()
     {
         if (Patcher.BodySlideTracker.Count == 0)
         {
-            Logger.LogMessage("No BodySlides were assigned to any NPCs");
+            _logger.LogMessage("No BodySlides were assigned to any NPCs");
             return;
         }
 
@@ -148,7 +162,7 @@ public class OBodyWriter
         }
         string outputStr = JSONhandler<Dictionary<string, string>>.Serialize(outputDictionary, out bool success, out string exception);
 
-        var destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "BodySlideAssignments.json");
+        var destPath = Path.Combine(_paths.OutputDataFolder, "SynthEBD", "BodySlideAssignments.json");
 
         try
         {
@@ -157,15 +171,15 @@ public class OBodyWriter
         }
         catch
         {
-            Logger.LogErrorWithStatusUpdate("Could not write BodySlide assignments to " + destPath, ErrorType.Error);
+            _logger.LogErrorWithStatusUpdate("Could not write BodySlide assignments to " + destPath, ErrorType.Error);
         }
     }
 
-    public static void WriteAssignmentIni()
+    public void WriteAssignmentIni()
     {
         if (Patcher.BodySlideTracker.Count == 0)
         {
-            Logger.LogMessage("No BodySlides were assigned to any NPCs");
+            _logger.LogMessage("No BodySlides were assigned to any NPCs");
             return;
         }
 
@@ -176,7 +190,7 @@ public class OBodyWriter
             outputStr += BodyGenWriter.FormatFormKeyForBodyGen(entry.Key) + "=" + entry.Value + Environment.NewLine;
         }
 
-        var destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "autoBody", "Config", "morphs.ini");
+        var destPath = Path.Combine(_paths.OutputDataFolder, "autoBody", "Config", "morphs.ini");
 
         try
         {
@@ -185,35 +199,35 @@ public class OBodyWriter
         }
         catch
         {
-            Logger.LogErrorWithStatusUpdate("Could not write BodySlide assignments to " + destPath, ErrorType.Error);
+            _logger.LogErrorWithStatusUpdate("Could not write BodySlide assignments to " + destPath, ErrorType.Error);
         }
     }
 
-    public static void ClearOutputForJsonMode()
+    public void ClearOutputForJsonMode()
     {
         HashSet<string> toClear = new HashSet<string>()
         {
-            Path.Combine(PatcherSettings.Paths.OutputDataFolder, "autoBody", "Config", "morphs.ini"),
-            Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.PatchFileName, "morphs.ini")
+            Path.Combine(_paths.OutputDataFolder, "autoBody", "Config", "morphs.ini"),
+            Path.Combine(_paths.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", _patcherState.GeneralSettings.PatchFileName, "morphs.ini")
         };
 
         foreach (string path in toClear)
         {
             if (File.Exists(path))
             {
-                PatcherIO.TryDeleteFile(path);
+                _patcherIO.TryDeleteFile(path, _logger);
             }
         }
     }
 
-    public static void ClearOutputForIniMode()
+    public void ClearOutputForIniMode()
     {
         HashSet<string> toClear = new HashSet<string>()
         {
-            //Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "BodySlideDict.json"),
-            //Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini"),
-            Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", PatcherSettings.General.PatchFileName, "morphs.ini"),
-            Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "BodySlideAssignments.json")
+            //Path.Combine(_paths.OutputDataFolder, "SynthEBD", "BodySlideDict.json"),
+            //Path.Combine(_paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini"),
+            Path.Combine(_paths.OutputDataFolder, "Meshes", "actors", "character", "BodyGenData", _patcherState.GeneralSettings.PatchFileName, "morphs.ini"),
+            Path.Combine(_paths.OutputDataFolder, "SynthEBD", "BodySlideAssignments.json")
         };
 
         foreach (string path in toClear)
@@ -226,7 +240,7 @@ public class OBodyWriter
                 }
                 catch
                 {
-                    Logger.LogErrorWithStatusUpdate("Could not delete file at " + path, ErrorType.Warning);
+                    _logger.LogErrorWithStatusUpdate("Could not delete file at " + path, ErrorType.Warning);
                 }
             }
         }

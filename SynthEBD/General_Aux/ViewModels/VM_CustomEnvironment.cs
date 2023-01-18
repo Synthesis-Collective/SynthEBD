@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda;
+using Mutagen.Bethesda;
 using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Windows.Forms;
 using System.Windows.Media;
 using System.IO;
+using Noggog;
 
 namespace SynthEBD
 {
@@ -63,9 +64,9 @@ namespace SynthEBD
                    {
                        CustomGameDataDir = Path.Combine(gameDir, "data");
                    }
-               });
+               }).DisposeWith(this);
 
-            this.WhenAnyValue(x => x.CustomGameDataDir, x => x.SkyrimRelease).Subscribe(_ => UpdateTrialEnvironment());
+            this.WhenAnyValue(x => x.CustomGameDataDir, x => x.SkyrimRelease).Subscribe(_ => UpdateTrialEnvironment()).DisposeWith(this);
 
             DisplayCurrentEnvironmentError = new RelayCommand(
                 canExecute: _ => true,
@@ -133,7 +134,7 @@ namespace SynthEBD
             }
             catch (Exception ex)
             {
-                var errorString = ExceptionLogger.GetExceptionStack(ex, "");
+                var errorString = ExceptionLogger.GetExceptionStack(ex);
                 CurrentError = "Environment creation failed with error:" + System.Environment.NewLine + errorString;
                 if (errorString.StartsWith("Could not locate plugins file"))
                 {

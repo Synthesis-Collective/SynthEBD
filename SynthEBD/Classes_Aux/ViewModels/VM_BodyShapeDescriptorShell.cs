@@ -1,16 +1,21 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
+using static SynthEBD.VM_BodyShapeDescriptor;
 
 namespace SynthEBD;
 
 public class VM_BodyShapeDescriptorShell : VM
 {
-    public VM_BodyShapeDescriptorShell(ObservableCollection<VM_BodyShapeDescriptorShell> parentCollection, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig)
+    private VM_BodyShapeDescriptorCreator _creator;
+    public delegate VM_BodyShapeDescriptorShell Factory(ObservableCollection<VM_BodyShapeDescriptorShell> parentCollection, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig);
+    public VM_BodyShapeDescriptorShell(ObservableCollection<VM_BodyShapeDescriptorShell> parentCollection, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig, VM_BodyShapeDescriptorCreator creator)
     {
-        this.ParentCollection = parentCollection;
+        _creator = creator;
 
-        AddTemplateDescriptorValue = new SynthEBD.RelayCommand(
+        ParentCollection = parentCollection;
+
+        AddTemplateDescriptorValue = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.Descriptors.Add(new VM_BodyShapeDescriptor(this, raceGroupings, parentConfig))
+            execute: _ => Descriptors.Add(_creator.CreateNew(this, raceGroupings, parentConfig))
         );
     }
 
@@ -20,16 +25,16 @@ public class VM_BodyShapeDescriptorShell : VM
     public RelayCommand AddTemplateDescriptorValue { get; }
 
 
-    public static ObservableCollection<VM_BodyShapeDescriptorShell> GetViewModelsFromModels(HashSet<BodyShapeDescriptor> models, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig)
+    public static ObservableCollection<VM_BodyShapeDescriptorShell> GetViewModelsFromModels(HashSet<BodyShapeDescriptor> models, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig, VM_BodyShapeDescriptorCreator creator)
     {
         ObservableCollection<VM_BodyShapeDescriptorShell> viewModels = new ObservableCollection<VM_BodyShapeDescriptorShell>();
-        VM_BodyShapeDescriptorShell shellViewModel = new VM_BodyShapeDescriptorShell(viewModels, raceGroupings, parentConfig);
+        VM_BodyShapeDescriptorShell shellViewModel = creator.CreateNewShell(viewModels, raceGroupings, parentConfig);
         List<string> usedCategories = new List<string>();
 
         foreach (var model in models)
         {
-            VM_BodyShapeDescriptor subVm = new VM_BodyShapeDescriptor(
-                new VM_BodyShapeDescriptorShell(
+            VM_BodyShapeDescriptor subVm = creator.CreateNew(
+                creator.CreateNewShell(
                     new ObservableCollection<VM_BodyShapeDescriptorShell>(),
                     raceGroupings, parentConfig), 
                 raceGroupings, 
@@ -39,7 +44,7 @@ public class VM_BodyShapeDescriptorShell : VM
 
             if (!usedCategories.Contains(model.ID.Category))
             {
-                shellViewModel = new VM_BodyShapeDescriptorShell(viewModels, raceGroupings, parentConfig);
+                shellViewModel = creator.CreateNewShell(viewModels, raceGroupings, parentConfig);
                 shellViewModel.Category = model.ID.Category;
                 subVm.ParentShell = shellViewModel;
                 shellViewModel.Descriptors.Add(subVm);

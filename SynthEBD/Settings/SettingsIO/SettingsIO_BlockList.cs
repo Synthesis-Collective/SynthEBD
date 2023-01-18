@@ -1,47 +1,54 @@
-﻿using System.IO;
+using System.IO;
 
 namespace SynthEBD;
 
-class SettingsIO_BlockList
+public class SettingsIO_BlockList
 {
-    public static BlockList LoadBlockList(out bool loadSuccess)
+    private readonly Logger _logger;
+    private readonly SynthEBDPaths _paths;
+    public SettingsIO_BlockList(Logger logger, SynthEBDPaths paths)
+    {
+        _logger = logger;
+        _paths = paths;
+    }
+    public BlockList LoadBlockList(out bool loadSuccess)
     {
         BlockList loadedList = new BlockList();
 
         loadSuccess = true;
 
-        if (File.Exists(PatcherSettings.Paths.BlockListPath))
+        if (File.Exists(_paths.BlockListPath))
         {
-            loadedList = JSONhandler<BlockList>.LoadJSONFile(PatcherSettings.Paths.BlockListPath, out loadSuccess, out string exceptionStr);
+            loadedList = JSONhandler<BlockList>.LoadJSONFile(_paths.BlockListPath, out loadSuccess, out string exceptionStr);
 
             if (!loadSuccess)
             {
-                var loadedZList = JSONhandler<zEBDBlockList>.LoadJSONFile(PatcherSettings.Paths.BlockListPath, out loadSuccess, out string zExceptionStr);
+                var loadedZList = JSONhandler<zEBDBlockList>.LoadJSONFile(_paths.BlockListPath, out loadSuccess, out string zExceptionStr);
                 if (loadSuccess)
                 {
-                    loadedList = zEBDBlockList.ToSynthEBD(loadedZList);
+                    loadedList = loadedZList.ToSynthEBD();
                 }
                 else
                 {
-                    Logger.LogError("Could not parse Block List as either SynthEBD or zEBD list. Error: " + exceptionStr);
+                    _logger.LogError("Could not parse Block List as either SynthEBD or zEBD list. Error: " + exceptionStr);
                 }
             }
         }
 
-        else if (File.Exists(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BlockListPath)))
+        else if (File.Exists(_paths.GetFallBackPath(_paths.BlockListPath)))
         {
-            loadedList = JSONhandler<BlockList>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BlockListPath), out loadSuccess, out string exceptionStr);
+            loadedList = JSONhandler<BlockList>.LoadJSONFile(_paths.GetFallBackPath(_paths.BlockListPath), out loadSuccess, out string exceptionStr);
 
             if (!loadSuccess)
             {
-                var loadedZList = JSONhandler<zEBDBlockList>.LoadJSONFile(PatcherSettings.Paths.GetFallBackPath(PatcherSettings.Paths.BlockListPath), out loadSuccess, out string zExceptionStr);
+                var loadedZList = JSONhandler<zEBDBlockList>.LoadJSONFile(_paths.GetFallBackPath(_paths.BlockListPath), out loadSuccess, out string zExceptionStr);
                 if (loadSuccess)
                 {
-                    loadedList = zEBDBlockList.ToSynthEBD(loadedZList);
+                    loadedList = loadedZList.ToSynthEBD();
                 }
                 else
                 {
-                    Logger.LogError("Could not parse Block List as either SynthEBD or zEBD list. Error: " + exceptionStr);
+                    _logger.LogError("Could not parse Block List as either SynthEBD or zEBD list. Error: " + exceptionStr);
                 }
             }
         }
@@ -49,13 +56,13 @@ class SettingsIO_BlockList
         return loadedList;
     }
 
-    public static void SaveBlockList(BlockList blockList, out bool saveSuccess)
+    public void SaveBlockList(BlockList blockList, out bool saveSuccess)
     {
-        JSONhandler<BlockList>.SaveJSONFile(blockList, PatcherSettings.Paths.BlockListPath, out saveSuccess, out string exceptionStr);
+        JSONhandler<BlockList>.SaveJSONFile(blockList, _paths.BlockListPath, out saveSuccess, out string exceptionStr);
         if (!saveSuccess)
         {
-            Logger.LogError("Could not save Block List. Error: " + exceptionStr);
-            Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Block List to " + PatcherSettings.Paths.BlockListPath, ErrorType.Error, 5);
+            _logger.LogError("Could not save Block List. Error: " + exceptionStr);
+            _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Block List to " + _paths.BlockListPath, ErrorType.Error, 5);
         }
     }
 }

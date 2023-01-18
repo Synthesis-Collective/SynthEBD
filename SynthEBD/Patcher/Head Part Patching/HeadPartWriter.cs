@@ -13,7 +13,18 @@ namespace SynthEBD
 {
     public class HeadPartWriter
     {
-        public static Spell CreateHeadPartAssignmentSpell(SkyrimMod outputMod, GlobalShort gHeadpartsVerboseMode)
+        private readonly IEnvironmentStateProvider _environmentProvider;
+        private readonly Logger _logger;
+        private readonly SynthEBDPaths _paths;
+        private readonly PatcherIO _patcherIO;
+        public HeadPartWriter(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
+        {
+            _environmentProvider = environmentProvider;
+            _logger = logger;
+            _paths = paths;
+            _patcherIO = patcherIO;
+        }
+        public static Spell CreateHeadPartAssignmentSpell(ISkyrimMod outputMod, GlobalShort gHeadpartsVerboseMode)
         {
             // create MGEF
             MagicEffect MGEFApplyHeadParts = outputMod.MagicEffects.AddNew();
@@ -56,7 +67,7 @@ namespace SynthEBD
             return SPELApplyHeadParts;
         }
 
-        public static void CreateHeadPartLoaderQuest(SkyrimMod outputMod, GlobalShort gEnableHeadParts, GlobalShort gHeadpartsVerboseMode)
+        public void CreateHeadPartLoaderQuest(ISkyrimMod outputMod, GlobalShort gEnableHeadParts, GlobalShort gHeadpartsVerboseMode)
         {
             Quest hpLoaderQuest = outputMod.Quests.AddNew();
             hpLoaderQuest.Name = "Loads SynthEBD Head Part Assignments";
@@ -71,14 +82,6 @@ namespace SynthEBD
             hpLoaderQuest.Aliases.Add(playerQuestAlias);
 
             QuestAdapter hpLoaderScriptAdapter = new QuestAdapter();
-
-            /*
-            ScriptEntry hpLoaderScriptEntry = new ScriptEntry() { Name = "SynthEBDHeadPartLoaderQuestScript", Flags = ScriptEntry.Flag.Local };
-            ScriptObjectProperty settingsLoadedProperty = new ScriptObjectProperty() { Name = "SynthEBDDataBaseLoaded", Flags = ScriptProperty.Flag.Edited };
-            settingsLoadedProperty.Object.SetTo(settingsLoadedGlobal.FormKey);
-            hpLoaderScriptEntry.Properties.Add(settingsLoadedProperty);
-            hpLoaderScriptAdapter.Scripts.Add(hpLoaderScriptEntry);
-            */
 
             QuestFragmentAlias loaderQuestFragmentAlias = new QuestFragmentAlias();
             loaderQuestFragmentAlias.Property = new ScriptObjectProperty() { Name = "000 Player" };
@@ -103,31 +106,31 @@ namespace SynthEBD
             hpLoaderQuest.VirtualMachineAdapter = hpLoaderScriptAdapter;
 
             // copy quest alias script
-            string questAliasSourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "HeadPartScripts", "SynthEBDHeadPartLoaderPAScript.pex");
-            string questAliasDestPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDHeadPartLoaderPAScript.pex");
-            PatcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath);
+            string questAliasSourcePath = Path.Combine(_environmentProvider.InternalDataPath, "HeadPartScripts", "SynthEBDHeadPartLoaderPAScript.pex");
+            string questAliasDestPath = Path.Combine(_paths.OutputDataFolder, "Scripts", "SynthEBDHeadPartLoaderPAScript.pex");
+            _patcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath, _logger);
         }
 
-        public static void CopyHeadPartScript()
+        public void CopyHeadPartScript()
         {
-            var sourcePath = Path.Combine(PatcherSettings.Paths.ResourcesFolderPath, "HeadPartScripts", "SynthEBDHeadPartScript.pex");
-            var destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "Scripts", "SynthEBDHeadPartScript.pex");
-            PatcherIO.TryCopyResourceFile(sourcePath, destPath);
+            var sourcePath = Path.Combine(_environmentProvider.InternalDataPath, "HeadPartScripts", "SynthEBDHeadPartScript.pex");
+            var destPath = Path.Combine(_paths.OutputDataFolder, "Scripts", "SynthEBDHeadPartScript.pex");
+            _patcherIO.TryCopyResourceFile(sourcePath, destPath, _logger);
         }
 
         /*
         public static void WriteHeadPartSPIDIni(Spell headPartSpell)
         {
             string str = "Spell = " + headPartSpell.FormKey.ToString().Replace(":", " - ") + " | ActorTypeNPC | NONE | NONE | "; // original format - SPID auto-updates but this is compatible with old SPID versions
-            string outputPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBDHeadPartDistributor_DISTR.ini");
+            string outputPath = Path.Combine(_paths.OutputDataFolder, "SynthEBDHeadPartDistributor_DISTR.ini");
             Task.Run(() => PatcherIO.WriteTextFile(outputPath, str));
         }
         */
-        public static void WriteAssignmentDictionary()
+        public void WriteAssignmentDictionary()
         {
             if (Patcher.HeadPartTracker.Count == 0)
             {
-                Logger.LogMessage("No head parts were assigned to any NPCs");
+                _logger.LogMessage("No head parts were assigned to any NPCs");
                 return;
             }
 
@@ -150,13 +153,13 @@ namespace SynthEBD
             string outputStr = JSONhandler<Dictionary<string, HeadPartSelection>>.Serialize(outputDictionary, out bool success, out string exception);
             if (!success)
             {
-                Logger.LogError("Could not save head part assignment dictionary. See log.");
-                Logger.LogMessage("Could not save head part assigment dictionary. Error:");
-                Logger.LogMessage(exception);
+                _logger.LogError("Could not save head part assignment dictionary. See log.");
+                _logger.LogMessage("Could not save head part assigment dictionary. Error:");
+                _logger.LogMessage(exception);
                 return;
             }
 
-            var destPath = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD", "HeadPartAssignments.json");
+            var destPath = Path.Combine(_paths.OutputDataFolder, "SynthEBD", "HeadPartAssignments.json");
 
             try
             {
@@ -165,18 +168,18 @@ namespace SynthEBD
             }
             catch
             {
-                Logger.LogErrorWithStatusUpdate("Could not write Head Part assignments to " + destPath, ErrorType.Error);
+                _logger.LogErrorWithStatusUpdate("Could not write Head Part assignments to " + destPath, ErrorType.Error);
             }
         }
-        public static void CleanPreviousOutputs()
+        public void CleanPreviousOutputs()
         {
-            var outputDir = Path.Combine(PatcherSettings.Paths.OutputDataFolder, "SynthEBD");
+            var outputDir = Path.Combine(_paths.OutputDataFolder, "SynthEBD");
             if (!Directory.Exists(outputDir)) { return; }
 
             var oldFiles = Directory.GetFiles(outputDir).Where(x => Path.GetFileName(x).StartsWith("HeadPartDict"));
             foreach (var path in oldFiles)
             {
-                PatcherIO.TryDeleteFile(path);
+                _patcherIO.TryDeleteFile(path, _logger);
             }
         }
     }

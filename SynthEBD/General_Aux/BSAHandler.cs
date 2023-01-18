@@ -2,6 +2,7 @@ using Mutagen.Bethesda;
 using System.IO;
 using Mutagen.Bethesda.Archives;
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
@@ -13,6 +14,13 @@ public class PathedArchiveReader
 
 public class BSAHandler
 {
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly Logger _logger;
+    public BSAHandler(IEnvironmentStateProvider environmentProvider, Logger logger)
+    {
+        _environmentProvider = environmentProvider;
+        _logger = logger;
+    }
     public bool ReferencedPathExists(string expectedFilePath, out bool archiveExists, out string modName)
     {
         archiveExists = false;
@@ -34,7 +42,7 @@ public class BSAHandler
             modName = modKeyStr;
         }
 
-        if (!PatcherEnvironmentProvider.Instance.Environment.LoadOrder.ListedOrder.Select(x => x.ModKey.ToString()).Contains(modKeyStr))
+        if (_environmentProvider.LoadOrder.ListedOrder.Select(x => x.ModKey.ToString()).Contains(modKeyStr))
         {
             return false;
         }
@@ -70,11 +78,11 @@ public class BSAHandler
         }
         else
         {
-            foreach (var bsaFile in Archive.GetApplicableArchivePaths(PatcherEnvironmentProvider.Instance.Environment.GameRelease, PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, modKey))
+            foreach (var bsaFile in Archive.GetApplicableArchivePaths(_environmentProvider.SkyrimVersion.ToGameRelease(), _environmentProvider.DataFolderPath, modKey))
             {
                 try
                 {
-                    var reader = Archive.CreateReader(PatcherEnvironmentProvider.Instance.Environment.GameRelease, bsaFile);
+                    var reader = Archive.CreateReader(_environmentProvider.SkyrimVersion.ToGameRelease(), bsaFile);
                     if (reader != null)
                     {
                         archiveReaders.Add(reader);
@@ -82,7 +90,7 @@ public class BSAHandler
                 }
                 catch
                 {
-                    Logger.LogError("Unable to open archive reader to BSA file " + bsaFile.Path);
+                    _logger.LogError("Unable to open archive reader to BSA file " + bsaFile.Path);
                 }
             }
             if (archiveReaders.Any())
@@ -106,16 +114,16 @@ public class BSAHandler
 
         var readers = new List<PathedArchiveReader>();
 
-        foreach (var bsaFile in Archive.GetApplicableArchivePaths(PatcherEnvironmentProvider.Instance.Environment.GameRelease, currentDataDir, currentPlugin))
+        foreach (var bsaFile in Archive.GetApplicableArchivePaths(_environmentProvider.SkyrimVersion.ToGameRelease(), currentDataDir, currentPlugin))
         {
             try
             {
-                var bsaReader = Archive.CreateReader(PatcherEnvironmentProvider.Instance.Environment.GameRelease, bsaFile);
+                var bsaReader = Archive.CreateReader(_environmentProvider.SkyrimVersion.ToGameRelease(), bsaFile);
                 readers.Add(new PathedArchiveReader() { Reader = bsaReader, FilePath = bsaFile });
             }
             catch
             {
-                Logger.LogError("Could not open archive " + bsaFile.Path);
+                _logger.LogError("Could not open archive " + bsaFile.Path);
             }
         }
         return readers;
@@ -134,7 +142,7 @@ public class BSAHandler
                 }
                 catch
                 {
-                    Logger.LogError("Could not create directory at " + dirPath + ". Check path length and permissions.");
+                    _logger.LogError("Could not create directory at " + dirPath + ". Check path length and permissions.");
                 }
             }
             try
@@ -144,7 +152,7 @@ public class BSAHandler
             }
             catch
             {
-                Logger.LogError("Could not extract file from BSA: " + file.Path + " to " + destPath + ". Check path length and permissions.");
+                _logger.LogError("Could not extract file from BSA: " + file.Path + " to " + destPath + ". Check path length and permissions.");
             }
         }
         else

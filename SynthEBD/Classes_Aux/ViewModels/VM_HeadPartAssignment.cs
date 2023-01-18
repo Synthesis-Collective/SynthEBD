@@ -1,4 +1,4 @@
-﻿using DynamicData.Binding;
+using DynamicData.Binding;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
@@ -9,13 +9,17 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media;
+using Noggog;
 
 namespace SynthEBD
 {
     public class VM_HeadPartAssignment : VM
     {
-        public VM_HeadPartAssignment(VM_HeadPart template, VM_Settings_Headparts parentConfig, HeadPart.TypeEnum type, IHasSynthEBDGender parentAssignmentGender, IHasHeadPartAssignments parentAssignment)
+        private IEnvironmentStateProvider _environmentProvider;
+        public delegate VM_HeadPartAssignment Factory(VM_HeadPart template, VM_Settings_Headparts parentConfig, HeadPart.TypeEnum type, IHasSynthEBDGender parentAssignmentGender, IHasHeadPartAssignments parentAssignment);
+        public VM_HeadPartAssignment(VM_HeadPart template, VM_Settings_Headparts parentConfig, HeadPart.TypeEnum type, IHasSynthEBDGender parentAssignmentGender, IHasHeadPartAssignments parentAssignment, IEnvironmentStateProvider environmentProvider)
         {
+            _environmentProvider = environmentProvider;
             if (template is not null)
             {
                 FormKey = template.FormKey;
@@ -26,8 +30,8 @@ namespace SynthEBD
             ParentAssignmentGender = parentAssignmentGender;
             ParentAssignment = parentAssignment;
 
-            ParentConfig.Types[Type].HeadPartList.ToObservableChangeSet().Subscribe(x => RefreshAvailable());
-            this.WhenAnyValue(x => x.ParentAssignmentGender.NPCFormKey).Subscribe(x => RefreshAvailable());
+            ParentConfig.Types[Type].HeadPartList.ToObservableChangeSet().Subscribe(x => RefreshAvailable()).DisposeWith(this);
+            this.WhenAnyValue(x => x.ParentAssignmentGender.NPCFormKey).Subscribe(x => RefreshAvailable()).DisposeWith(this);
 
             this.WhenAnyValue(x => x.EditorID).Subscribe(x =>
                 {
@@ -36,14 +40,14 @@ namespace SynthEBD
                 {
                     FormKey = assignment.FormKey;
                 }
-            });
+            }).DisposeWith(this);
 
             this.WhenAnyValue(x => x.FormKey).Subscribe(x =>
             {
                 if (FormKey.IsNull) { BorderColor = new(Colors.Yellow); }
-                else if (PatcherEnvironmentProvider.Instance.Environment.LinkCache.TryResolve<IHeadPartGetter>(FormKey, out _)) { BorderColor = new(Colors.Green); }
+                else if (_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(FormKey, out _)) { BorderColor = new(Colors.Green); }
                 else { BorderColor = new(Colors.Red); }
-            });
+            }).DisposeWith(this);
 
             ClearSelection = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -77,10 +81,10 @@ namespace SynthEBD
             else { return false; }
         }
 
-        public static VM_HeadPartAssignment GetViewModelFromModel(HeadPartConsistency assignment, HeadPart.TypeEnum type, VM_Settings_Headparts parentConfig, IHasSynthEBDGender parentAssignmentGender, IHasHeadPartAssignments parentAssignment)
+        public static VM_HeadPartAssignment GetViewModelFromModel(HeadPartConsistency assignment, HeadPart.TypeEnum type, VM_Settings_Headparts parentConfig, IHasSynthEBDGender parentAssignmentGender, IHasHeadPartAssignments parentAssignment, IEnvironmentStateProvider environmentProvider)
         {
             var referencedHeadPart = parentConfig.Types[type].HeadPartList.Where(x => x.FormKey.Equals(assignment.FormKey)).FirstOrDefault();
-            return new VM_HeadPartAssignment(referencedHeadPart, parentConfig, type, parentAssignmentGender, parentAssignment);
+            return new VM_HeadPartAssignment(referencedHeadPart, parentConfig, type, parentAssignmentGender, parentAssignment, environmentProvider);
         }
 
         public HeadPartConsistency DumpToModel()

@@ -1,37 +1,44 @@
-﻿using Mutagen.Bethesda.Plugins.Cache;
+using Mutagen.Bethesda.Plugins.Cache;
 using System.Collections.ObjectModel;
 using Noggog;
 using ReactiveUI;
+using DynamicData;
 
 namespace SynthEBD;
 
 public class VM_SettingsHeight : VM
 {
-    public VM_SettingsHeight(PatcherEnvironmentProvider environmentProvider)
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly VM_HeightConfig.Factory _configFactory;
+    public VM_SettingsHeight(IEnvironmentStateProvider environmentProvider, FileDialogs fileDialogs, VM_HeightConfig.Factory configFactory)
     {
-        environmentProvider.WhenAnyValue(x => x.Environment.LinkCache)
+        _environmentProvider = environmentProvider;
+        _configFactory = configFactory;
+        SelectedHeightConfig = _configFactory();
+
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
         
-        AddHeightConfig = new SynthEBD.RelayCommand(
+        AddHeightConfig = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
-                this.AvailableHeightConfigs.Add(new VM_HeightConfig());
-                this.SelectedHeightConfig = this.AvailableHeightConfigs.Last();
+                AvailableHeightConfigs.Add(_configFactory());
+                SelectedHeightConfig = AvailableHeightConfigs.Last();
             }
         );
 
-        DeleteCurrentHeightConfig = new SynthEBD.RelayCommand(
+        DeleteCurrentHeightConfig = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
-                if (FileDialogs.ConfirmFileDeletion(SelectedHeightConfig.SourcePath, "Height Configuration File"))
+                if (fileDialogs.ConfirmFileDeletion(SelectedHeightConfig.SourcePath, "Height Configuration File"))
                 {
-                    this.AvailableHeightConfigs.Remove(SelectedHeightConfig);
-                    if (this.AvailableHeightConfigs.Count > 0)
+                    AvailableHeightConfigs.Remove(SelectedHeightConfig);
+                    if (AvailableHeightConfigs.Count > 0)
                     {
-                        this.SelectedHeightConfig = AvailableHeightConfigs[0];
+                        SelectedHeightConfig = AvailableHeightConfigs[0];
                     }
                 }
             }
@@ -42,7 +49,7 @@ public class VM_SettingsHeight : VM
     public bool bChangeRaceHeight { get; set; } = true;
     public bool bOverwriteNonDefaultNPCHeights { get; set; } = true;
 
-    public VM_HeightConfig SelectedHeightConfig { get; set; } = new();
+    public VM_HeightConfig SelectedHeightConfig { get; set; }
 
     public ObservableCollection<VM_HeightConfig> AvailableHeightConfigs { get; set; } = new();
 
@@ -58,12 +65,10 @@ public class VM_SettingsHeight : VM
         viewModel.bChangeRaceHeight = model.bChangeRaceHeight;
         viewModel.bOverwriteNonDefaultNPCHeights = model.bOverwriteNonDefaultNPCHeights;
 
-        bool currentConfigFound = false;
         foreach (var hconfig in viewModel.AvailableHeightConfigs)
         {
             if (hconfig.Label == model.SelectedHeightConfig)
             {
-                currentConfigFound = true;
                 viewModel.SelectedHeightConfig = hconfig;
                 break;
             }

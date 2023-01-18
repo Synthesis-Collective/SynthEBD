@@ -1,58 +1,96 @@
-﻿using System.Collections.ObjectModel;
+using Noggog.WPF;
+using System.Collections.ObjectModel;
+using System.Printing;
 using System.Windows.Input;
+using static SynthEBD.VM_BodyShapeDescriptor;
 
 namespace SynthEBD;
 
-public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
+public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEditor
 {
     public delegate VM_BodyGenConfig Factory(ObservableCollection<VM_BodyGenConfig> parentCollection);
-    
+
+    private readonly VM_AttributeGroupMenu.Factory _attributeGroupMenuFactory;
+    private readonly Logger _logger;
+    private readonly RaceMenuIniHandler _raceMenuHandler;
+    private readonly SettingsIO_BodyGen _bodyGenIO;
+    private readonly VM_BodyShapeDescriptorCreator _descriptorCreator;
+    private readonly VM_BodyGenGroupMappingMenu.Factory _groupMappingMenuFactory;
+    private readonly VM_BodyGenTemplateMenu.Factory _templateMenuFactory;
+    private readonly VM_BodyGenRacialMapping.Factory _mappingFactory;
+    private readonly VM_BodyGenTemplate.Factory _templateFactory;
     public VM_BodyGenConfig(
         ObservableCollection<VM_BodyGenConfig> parentCollection,
         VM_Settings_General generalSettingsVM,
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
         VM_BodyShapeDescriptorCreationMenu.Factory bodyShapeDescriptorCreationMenuFactory,
-        VM_SettingsBodyGen bodyGenSettingsVM)
+        VM_SettingsBodyGen bodyGenSettingsVM,
+        VM_AttributeGroupMenu.Factory attributeGroupMenuFactory,
+        Logger logger,
+        RaceMenuIniHandler raceMenuHandler,
+        SettingsIO_BodyGen bodyGenIO,
+        VM_BodyGenGroupMappingMenu.Factory groupMappingMenuFactory,
+        VM_BodyShapeDescriptorCreator descriptorCreator,
+        VM_BodyGenTemplateMenu.Factory templateMenuFactory,
+        VM_BodyGenRacialMapping.Factory mappingFactory,
+        VM_BodyGenTemplate.Factory templateFactory,
+        VM_RaceGroupingEditor.Factory raceGroupingEditorFactory)
     {
-        this.GroupUI = new VM_BodyGenGroupsMenu(this);
-        this.GroupMappingUI = new VM_BodyGenGroupMappingMenu(this.GroupUI, generalSettingsVM.RaceGroupings);
-        this.DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this);
-        this.TemplateMorphUI = new VM_BodyGenTemplateMenu(this, generalSettingsVM.RaceGroupings);
-        this.DisplayedUI = this.TemplateMorphUI;
-        this.AttributeGroupMenu = new VM_AttributeGroupMenu(generalSettingsVM.AttributeGroupMenu, true);
-        this.ParentCollection = parentCollection;
+        _logger = logger;
+        _raceMenuHandler = raceMenuHandler;
+        _attributeGroupMenuFactory = attributeGroupMenuFactory;
+        _bodyGenIO = bodyGenIO;
+        _groupMappingMenuFactory = groupMappingMenuFactory;
+        _descriptorCreator = descriptorCreator;
+        _templateMenuFactory = templateMenuFactory;
+        _mappingFactory = mappingFactory;
+        _templateFactory = templateFactory;
+
+        RaceGroupingEditor = raceGroupingEditorFactory(this, true);
+        GroupUI = new VM_BodyGenGroupsMenu(this);
+        GroupMappingUI = _groupMappingMenuFactory(GroupUI, RaceGroupingEditor.RaceGroupings);
+        DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this);
+        TemplateMorphUI = _templateMenuFactory(this, RaceGroupingEditor.RaceGroupings);
+        DisplayedUI = TemplateMorphUI;
+        AttributeGroupMenu = _attributeGroupMenuFactory(generalSettingsVM.AttributeGroupMenu, true);
+        MiscMenu = new(_logger, _raceMenuHandler);
+        ParentCollection = parentCollection;
 
         if (TemplateMorphUI.Templates.Any())
         {
             TemplateMorphUI.CurrentlyDisplayedTemplate = TemplateMorphUI.Templates.First();
         }
 
-        ClickTemplateMenu = new SynthEBD.RelayCommand(
+        ClickTemplateMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.DisplayedUI = this.TemplateMorphUI
+            execute: _ => DisplayedUI = TemplateMorphUI
         );
 
-        ClickGroupMappingMenu = new SynthEBD.RelayCommand(
+        ClickGroupMappingMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.DisplayedUI = this.GroupMappingUI
+            execute: _ => DisplayedUI = GroupMappingUI
         );
-        ClickDescriptorMenu = new SynthEBD.RelayCommand(
+        ClickDescriptorMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.DisplayedUI = this.DescriptorUI
+            execute: _ => DisplayedUI = DescriptorUI
         );
-        ClickGroupsMenu = new SynthEBD.RelayCommand(
+        ClickGroupsMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.DisplayedUI = this.GroupUI
+            execute: _ => DisplayedUI = GroupUI
         );
-        ClickAttributeGroupsMenu = new SynthEBD.RelayCommand(
+        ClickAttributeGroupsMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.DisplayedUI = this.AttributeGroupMenu
+            execute: _ => DisplayedUI = AttributeGroupMenu
         );
-        ClickMiscMenu = new SynthEBD.RelayCommand(
+        ClickRaceGroupingsMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.DisplayedUI = this.MiscMenu
+            execute: _ => DisplayedUI = RaceGroupingEditor
         );
-        ClickDelete = new SynthEBD.RelayCommand(
+        ClickMiscMenu = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => DisplayedUI = MiscMenu
+        );
+        ClickDelete = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -60,9 +98,9 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
                 {
                     try
                     {
-                        if (System.IO.File.Exists(this.SourcePath))
+                        if (System.IO.File.Exists(SourcePath))
                         {
-                            System.IO.File.Delete(this.SourcePath);
+                            System.IO.File.Delete(SourcePath);
                         }
                         if (ParentCollection.Contains(this)) // false if user tries to delete a new blank view model
                         {
@@ -102,25 +140,25 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
                     }
                     catch
                     {
-                        Logger.LogError("Could not delete file at " + this.SourcePath);
-                        Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not delete BodyGen Config", ErrorType.Error, 5);
+                        _logger.LogError("Could not delete file at " + SourcePath);
+                        _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not delete BodyGen Config", ErrorType.Error, 5);
                     }
                 }
             }
         );
 
-        Save = new SynthEBD.RelayCommand(
+        Save = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
-                SettingsIO_BodyGen.SaveBodyGenConfig(DumpViewModelToModel(this), out bool saveSuccess);
+                _bodyGenIO.SaveBodyGenConfig(DumpViewModelToModel(), out bool saveSuccess);
                 if (saveSuccess)
                 {
-                    Logger.CallTimedNotifyStatusUpdateAsync(Label + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                    _logger.CallTimedNotifyStatusUpdateAsync(Label + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
                 }
                 else
                 {
-                    Logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save " + Label + ".", ErrorType.Error, 5);
+                    _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save " + Label + ".", ErrorType.Error, 5);
                 }
             }
         );
@@ -131,29 +169,33 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
     public VM_BodyGenGroupsMenu GroupUI { get; set; }
     public VM_BodyShapeDescriptorCreationMenu DescriptorUI { get; set; }
     public VM_BodyGenTemplateMenu TemplateMorphUI { get; set; }
-
     public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
-    public VM_BodyGenMiscMenu MiscMenu { get; set; } = new();
+    public VM_BodyGenMiscMenu MiscMenu { get; set; }
     public ObservableCollection<VM_BodyGenConfig> ParentCollection { get; set; }
-
+    public VM_RaceGroupingEditor RaceGroupingEditor { get; set; }
     public string SourcePath { get; set; }
-
     public ICommand ClickTemplateMenu { get; }
     public ICommand ClickGroupMappingMenu { get; }
     public ICommand ClickDescriptorMenu { get; }
     public ICommand ClickGroupsMenu { get; }
     public ICommand ClickAttributeGroupsMenu { get; }
+    public ICommand ClickRaceGroupingsMenu { get; }
     public ICommand ClickMiscMenu { get; }
     public ICommand ClickDelete { get; }
     public RelayCommand Save { get; }
-
     public string Label { get; set; } = "";
     public Gender Gender { get; set; } = Gender.Female;
 
-    public void CopyInViewModelFromModel(BodyGenConfig model, VM_Settings_General generalSettingsVM)
+    public bool IsLoadingFromViewModel { get; set; } = false;
+
+    public void CopyInViewModelFromModel(BodyGenConfig model, ObservableCollection<VM_RaceGrouping> mainRaceGroupings)
     {
+        IsLoadingFromViewModel = true;
         Label = model.Label;
         Gender = model.Gender;
+
+        RaceGroupingEditor.CopyInFromModel(model.RaceGroupings, mainRaceGroupings);
+        //AddFallBackRaceGroupings(model, RaceGroupingEditor.RaceGroupings, mainRaceGroupings); // local RaceGroupings were introduced in v0.9. Prior to that, RaceGroupings were loaded from General Settings. To make sure not to wipe old settings, scan model for old race groupings and add then from General Settings if available.
 
         GroupUI.TemplateGroups = new ObservableCollection<VM_CollectionMemberString>();
         foreach (string group in model.TemplateGroups)
@@ -163,7 +205,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
 
         foreach (var RTG in model.RacialTemplateGroupMap)
         {
-            GroupMappingUI.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.GetViewModelFromModel(RTG, GroupUI, generalSettingsVM.RaceGroupings));
+            GroupMappingUI.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.GetViewModelFromModel(RTG, GroupUI, RaceGroupingEditor.RaceGroupings, _mappingFactory));
         }
         
         if (GroupMappingUI.RacialTemplateGroupMap.Any())
@@ -171,48 +213,82 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu
             GroupMappingUI.DisplayedMapping = GroupMappingUI.RacialTemplateGroupMap.First();
         }
 
-        DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, generalSettingsVM.RaceGroupings, this);
+        DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, RaceGroupingEditor.RaceGroupings, this, _descriptorCreator);
 
         foreach (var descriptor in model.TemplateDescriptors)
         {
-            var subVm = new VM_BodyShapeDescriptor(
-                new VM_BodyShapeDescriptorShell(
-                    new ObservableCollection<VM_BodyShapeDescriptorShell>(), generalSettingsVM.RaceGroupings, this),
-                generalSettingsVM.RaceGroupings, 
+            var subVm = _descriptorCreator.CreateNew(
+                _descriptorCreator.CreateNewShell(
+                    new ObservableCollection<VM_BodyShapeDescriptorShell>(), RaceGroupingEditor.RaceGroupings, this),
+                RaceGroupingEditor.RaceGroupings, 
                 this);
-            subVm.CopyInViewModelFromModel(descriptor, generalSettingsVM.RaceGroupings, this);
+            subVm.CopyInViewModelFromModel(descriptor, RaceGroupingEditor.RaceGroupings, this);
             DescriptorUI.TemplateDescriptorList.Add(subVm);
         }
 
         foreach (var template in model.Templates)
         {
-            var templateVM = new VM_BodyGenTemplate(GroupUI.TemplateGroups, DescriptorUI, generalSettingsVM.RaceGroupings, TemplateMorphUI.Templates, this);
-            templateVM.CopyInViewModelFromModel(template, DescriptorUI, generalSettingsVM.RaceGroupings);
+            var templateVM = _templateFactory(GroupUI.TemplateGroups, DescriptorUI, RaceGroupingEditor.RaceGroupings, TemplateMorphUI.Templates, this);
+            templateVM.CopyInViewModelFromModel(template, DescriptorUI, RaceGroupingEditor.RaceGroupings);
             TemplateMorphUI.Templates.Add(templateVM);
         }
 
         AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
 
         SourcePath = model.FilePath;
+        IsLoadingFromViewModel = false;
+        // set the Template "other tempate groups" fields now that all templates and groups have loaded in.
+        foreach (var tempateVM in TemplateMorphUI.Templates)
+        {
+            tempateVM.UpdateThisOtherGroupsTemplateCollection();
+        }
     }
 
-    public static BodyGenConfig DumpViewModelToModel(VM_BodyGenConfig viewModel)
+    public BodyGenConfig DumpViewModelToModel()
     {
         BodyGenConfig model = new BodyGenConfig();
-        model.Label = viewModel.Label;
-        model.Gender = viewModel.Gender;
-        model.TemplateGroups = viewModel.GroupUI.TemplateGroups.Select(x => x.Content).ToHashSet();
-        foreach (var RTG in viewModel.GroupMappingUI.RacialTemplateGroupMap)
+        model.Label = Label;
+        model.Gender = Gender;
+        model.TemplateGroups = GroupUI.TemplateGroups.Select(x => x.Content).ToHashSet();
+        foreach (var RTG in GroupMappingUI.RacialTemplateGroupMap)
         {
             model.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.DumpViewModelToModel(RTG));
         }
-        model.TemplateDescriptors = VM_BodyShapeDescriptorShell.DumpViewModelsToModels(viewModel.DescriptorUI.TemplateDescriptors);
-        foreach (var template in viewModel.TemplateMorphUI.Templates)
+        model.TemplateDescriptors = VM_BodyShapeDescriptorShell.DumpViewModelsToModels(DescriptorUI.TemplateDescriptors);
+        foreach (var template in TemplateMorphUI.Templates)
         {
             model.Templates.Add(VM_BodyGenTemplate.DumpViewModelToModel(template));
         }
-        VM_AttributeGroupMenu.DumpViewModelToModels(viewModel.AttributeGroupMenu, model.AttributeGroups);
-        model.FilePath = viewModel.SourcePath;
+        VM_AttributeGroupMenu.DumpViewModelToModels(AttributeGroupMenu, model.AttributeGroups);
+        model.RaceGroupings = RaceGroupingEditor.DumpToModel();
+        model.FilePath = SourcePath;
         return model;
+    }
+
+    public void AddFallBackRaceGroupings(BodyGenConfig model, ObservableCollection<VM_RaceGrouping> existingGroupings, ObservableCollection<VM_RaceGrouping> fallBackGroupings)
+    {
+        HashSet<RaceGrouping> addedRaceGroups = new();
+
+        HashSet<string> existingGroupNames = model.RaceGroupings.Select(x => x.Label).ToHashSet();
+        HashSet<string> fallBackGroupNames = fallBackGroupings.Select(x => x.Label).ToHashSet();
+
+        foreach (var template in model.Templates)
+        {
+            foreach (var groupLabel in template.AllowedRaceGroupings)
+            {
+                if (!existingGroupNames.Contains(groupLabel) && fallBackGroupNames.Contains(groupLabel))
+                {
+                    existingGroupings.Add(fallBackGroupings.Where(x => x.Label == groupLabel).First());
+                }
+            }
+
+            foreach (var groupLabel in template.DisallowedRaceGroupings)
+            {
+                if (!existingGroupNames.Contains(groupLabel) && fallBackGroupNames.Contains(groupLabel))
+                {
+                    existingGroupings.Add(fallBackGroupings.Where(x => x.Label == groupLabel).First());
+                }
+            }
+        }
     }
 }

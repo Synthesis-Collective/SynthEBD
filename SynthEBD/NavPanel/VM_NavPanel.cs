@@ -1,4 +1,4 @@
-﻿using System.Windows.Input;
+using System.Windows.Input;
 
 namespace SynthEBD;
 
@@ -16,6 +16,9 @@ public class VM_NavPanel : VM
     public ICommand ClickLog { get; }
     public ICommand ClickMM { get; }
 
+    private readonly VM_Settings_General _settingsGeneral;
+    private readonly DisplayedItemVm _displayedItemVM;
+
     public VM_NavPanel(
         DisplayedItemVm displayedItemVm,
         VM_Settings_General settingsGeneral,
@@ -30,6 +33,9 @@ public class VM_NavPanel : VM
         VM_BlockListUI blockListUi,
         VM_SettingsModManager modManager)
     {
+        _settingsGeneral = settingsGeneral;
+        _displayedItemVM = displayedItemVm;
+
         ClickSG = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => displayedItemVm.DisplayedViewModel = settingsGeneral
@@ -75,5 +81,10 @@ public class VM_NavPanel : VM
             canExecute: _ => true,
             execute: _ => displayedItemVm.DisplayedViewModel = modManager
         );
+    }
+
+    public void GoToMainMenu()
+    {
+        _displayedItemVM.DisplayedViewModel = _settingsGeneral;
     }
 }

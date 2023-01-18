@@ -1,39 +1,37 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Reactive.Linq;
 using DynamicData;
 using DynamicData.Binding;
+using Mutagen.Bethesda.Plugins.Records;
 using ReactiveUI;
+using static SynthEBD.VM_NPCAttribute;
+using Noggog;
 
 namespace SynthEBD;
 
 public class VM_AttributeGroup : VM
 {
-    public VM_AttributeGroup(VM_AttributeGroupMenu parent)
+    private readonly VM_NPCAttributeCreator _attributeCreator;
+    private readonly Logger _logger;
+    public VM_AttributeGroup(VM_AttributeGroupMenu parent, VM_NPCAttributeCreator attributeCreator, Logger logger)
     {
         ParentMenu = parent;
+        _attributeCreator = attributeCreator;
+        _logger = logger;
 
-        Remove = new SynthEBD.RelayCommand(
+        Remove = new RelayCommand(
             canExecute: _ => true,
             execute: _ => ParentMenu.Groups.Remove(this)
         );
 
-        AddAttribute = new SynthEBD.RelayCommand(
+        AddAttribute = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => Attributes.Add(VM_NPCAttribute.CreateNewFromUI(Attributes, false, true, parent.Groups))
+            execute: _ => Attributes.Add(_attributeCreator.CreateNewFromUI(Attributes, false, true, parent.Groups))
         );
 
-        Attributes.ToObservableChangeSet().TransformMany(x => x.GroupedSubAttributes).Transform(
-            x =>
-            {
-                var unSubDisposable = x.WhenAnyValue(x => x.Attribute.NeedsRefresh).Switch().Subscribe(_ => CheckForCircularReferences());
-                return unSubDisposable;
-            }).DisposeMany().Subscribe();
-
-        Attributes.CollectionChanged += CheckForCircularReferences;
-
-        ParentMenu.Groups.CollectionChanged += RefreshAttributeWatch; // this is needed because the Subscription set in this constructor will not follow other attribute groups added to the parent collection after the current one is loaded
+        SubscribeToCircularReferenceCheck();
     }
 
     public string Label { get; set; } = "";
@@ -43,36 +41,23 @@ public class VM_AttributeGroup : VM
     public RelayCommand Remove { get; }
     public RelayCommand AddAttribute { get; }
 
-    public ObservableCollection<VM_NPCAttribute> Attributes_Bak { get; set; }
-
-    public void RefreshAttributeWatch(object sender, NotifyCollectionChangedEventArgs e)
+    private void SubscribeToCircularReferenceCheck()
     {
-        Attributes.ToObservableChangeSet().TransformMany(x => x.GroupedSubAttributes).Transform(
-            x =>
-            {
-                var unSubDisposable = x.WhenAnyValue(x => x.Attribute.NeedsRefresh).Switch().Subscribe(_ => CheckForCircularReferences());
-                return unSubDisposable;
-            }).DisposeMany().Subscribe();
-    }
-
-    public void CheckForCircularReferences()
-    {
-        if (CheckForCircularReferences(this, new HashSet<string>()))
-        {
-            CustomMessageBox.DisplayNotificationOK("Attribute Group Error", "Circular reference detected.");
-            Attributes = new ObservableCollection<VM_NPCAttribute>(Attributes_Bak);
-        }
-        else
-        {
-            Attributes_Bak = new ObservableCollection<VM_NPCAttribute>(Attributes);
-        }
+        Attributes
+            .ToObservableChangeSet()
+            .Transform(x =>
+                x.WhenAnyObservable(y => y.NeedsRefresh)
+                .Subscribe(_ => CheckGroupForCircularReferences()))
+            .DisposeMany() // Dispose subscriptions related to removed attributes
+            .Subscribe()  // Execute my instructions
+            .DisposeWith(this);
     }
 
     public void CopyInViewModelFromModel(AttributeGroup model, VM_AttributeGroupMenu parentMenu)
     {
-        this.Label = model.Label;
-        this.Attributes = VM_NPCAttribute.GetViewModelsFromModels(model.Attributes, parentMenu.Groups, false, true);
-        this.Attributes_Bak = new ObservableCollection<VM_NPCAttribute>(this.Attributes);
+        Label = model.Label;
+        Attributes = _attributeCreator.GetViewModelsFromModels(model.Attributes, parentMenu.Groups, false, true);
+        SubscribeToCircularReferenceCheck(); // need to call again because this ObservableCollection is a different object than the one subscribed to in the constructor.
     }
 
     public static AttributeGroup DumpViewModelToModel(VM_AttributeGroup viewModel)
@@ -83,76 +68,59 @@ public class VM_AttributeGroup : VM
         return model;
     }
 
-    public static VM_AttributeGroup Copy(VM_AttributeGroup toCopy, VM_AttributeGroupMenu newParentMenu)
+    public VM_AttributeGroup Copy(VM_AttributeGroupMenu newParentMenu)
     {
-        var model = DumpViewModelToModel(toCopy);
-        var copy = new VM_AttributeGroup(newParentMenu);
+        var model = DumpViewModelToModel(this);
+        var copy = new VM_AttributeGroup(newParentMenu, _attributeCreator, _logger);
         copy.CopyInViewModelFromModel(model, newParentMenu);
         return copy;
     }
-      
 
-    public void CheckForCircularReferences(object sender, PropertyChangedEventArgs e)
+    public void CheckGroupForCircularReferences()
     {
-        if (CheckForCircularReferences(this, new HashSet<string>()))
+        List<string> circularRefs = new() { Label };
+        foreach (var attribute in Attributes)
         {
-            CustomMessageBox.DisplayNotificationOK("Attribute Group Error", "Circular reference detected.");
-            Attributes = new ObservableCollection<VM_NPCAttribute>(Attributes_Bak);
-        }
-        else
-        {
-            Attributes_Bak = new ObservableCollection<VM_NPCAttribute>(Attributes);
-        }
-    }
-
-    public void CheckForCircularReferences(object sender, NotifyCollectionChangedEventArgs e)
-    {
-        if (CheckForCircularReferences(this, new HashSet<string>()))
-        {
-            CustomMessageBox.DisplayNotificationOK("Attribute Group Error", "Circular reference detected.");
-            Attributes = new ObservableCollection<VM_NPCAttribute>(Attributes_Bak);
-        }
-        else
-        {
-            Attributes_Bak = new ObservableCollection<VM_NPCAttribute>(Attributes);
-        }
-    }
-
-    private static bool CheckForCircularReferences(VM_AttributeGroup attGroup, HashSet<string> referencedGroups)
-    {
-        foreach (var attribute in attGroup.Attributes)
-        {
-            if (CheckForCircularReference(attribute, referencedGroups, attGroup.ParentMenu.Groups))
+            if (CheckMemberForCircularReference(attribute, circularRefs, ParentMenu.Groups))
             {
-                return true;
+                CustomMessageBox.DisplayNotificationOK("Attribute Group Error", "Circular reference detected: " + string.Join(" -> ", circularRefs));
+                var groupAttribute = attribute.MostRecentlyEditedShell.Attribute as VM_NPCAttributeGroup;
+                if (groupAttribute != null)
+                {
+                    groupAttribute.MostRecentlyEditedSelection.IsSelected = false;
+                }
             }
         }
-        return false;
     }
 
-    private static bool CheckForCircularReference(VM_NPCAttribute attribute, HashSet<string> referencedGroups, ObservableCollection<VM_AttributeGroup> allGroups)
+    private bool CheckMemberForCircularReference(VM_NPCAttribute attribute, List<string> referencedGroups, ObservableCollection<VM_AttributeGroup> allGroups)
     {
         foreach (var subAttributeShell in attribute.GroupedSubAttributes)
         {
-            if (subAttributeShell.Type == NPCAttributeType.Group)
+            if (subAttributeShell.Type == NPCAttributeType.Group && subAttributeShell.Attribute as VM_NPCAttributeGroup != null)
             {
                 var groupAttribute = (VM_NPCAttributeGroup)subAttributeShell.Attribute;
-
+                
                 foreach (var label in groupAttribute.SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label))
                 {
-                    var subGroup = allGroups.Where(x => x.Label == label).FirstOrDefault();
-                    if (subGroup != null)
+                    var selectedSubGroup = allGroups.Where(x => x.Label == label).FirstOrDefault();
+                    if (selectedSubGroup != null)
                     {
-                        if (referencedGroups.Contains(subGroup.Label))
+                        if (referencedGroups.Contains(selectedSubGroup.Label))
                         {
-                            //test
-                            var toUnSet = groupAttribute.SelectableAttributeGroups.Where(x => x.SubscribedAttributeGroup.Label == label).First();
-                            toUnSet.IsSelected = false;
-                            //
+                            referencedGroups.Add(selectedSubGroup.Label);
                             return true;
                         }
-                        referencedGroups.Add(subGroup.Label);
-                        return CheckForCircularReferences(subGroup, referencedGroups);
+
+                        referencedGroups.Add(selectedSubGroup.Label);
+                        foreach (var subAttribute in selectedSubGroup.Attributes)
+                        {
+                            if(CheckMemberForCircularReference(subAttribute, referencedGroups, allGroups))
+                            {
+                                return true;
+                            }
+                        }
+                        referencedGroups.RemoveAt(referencedGroups.Count - 1); // remove current label from "check against" list before moving on to next one
                     }
                 }
             }

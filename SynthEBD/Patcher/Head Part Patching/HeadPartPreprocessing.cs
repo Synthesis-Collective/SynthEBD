@@ -9,22 +9,27 @@ namespace SynthEBD
 {
     public class HeadPartPreprocessing
     {
-        public static void CompilePresetRaces(Settings_Headparts headPartSettings)
+        private readonly PatcherState _patcherState;
+        public HeadPartPreprocessing(PatcherState patcherState)
+        {
+            _patcherState = patcherState;
+        }
+        public void CompilePresetRaces(Settings_Headparts headPartSettings)
         {
             foreach (var typeSetting in headPartSettings.Types.Values)
             {
-                typeSetting.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(typeSetting.AllowedRaceGroupings, PatcherSettings.General.RaceGroupings, typeSetting.AllowedRaces);
-                typeSetting.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(typeSetting.DisallowedRaceGroupings, PatcherSettings.General.RaceGroupings, typeSetting.DisallowedRaces);
+                typeSetting.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(typeSetting.AllowedRaceGroupings, _patcherState.GeneralSettings.RaceGroupings, typeSetting.AllowedRaces);
+                typeSetting.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(typeSetting.DisallowedRaceGroupings, _patcherState.GeneralSettings.RaceGroupings, typeSetting.DisallowedRaces);
 
                 foreach (var headpartSetting in typeSetting.HeadParts)
                 {
-                    headpartSetting.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(headpartSetting.AllowedRaceGroupings, PatcherSettings.General.RaceGroupings, headpartSetting.AllowedRaces);
-                    headpartSetting.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(headpartSetting.DisallowedRaceGroupings, PatcherSettings.General.RaceGroupings, headpartSetting.DisallowedRaces);
+                    headpartSetting.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(headpartSetting.AllowedRaceGroupings, _patcherState.GeneralSettings.RaceGroupings, headpartSetting.AllowedRaces);
+                    headpartSetting.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(headpartSetting.DisallowedRaceGroupings, _patcherState.GeneralSettings.RaceGroupings, headpartSetting.DisallowedRaces);
                 }
             }
         }
 
-        public static void ConvertBodyShapeDescriptorRules(Settings_Headparts headPartSettings)
+        public void ConvertBodyShapeDescriptorRules(Settings_Headparts headPartSettings)
         {
             foreach (var typeSetting in headPartSettings.Types.Values)
             {
@@ -36,7 +41,7 @@ namespace SynthEBD
             }
         }
 
-        public static void CompileGenderedHeadParts(Settings_Headparts headPartSettings)
+        public void CompileGenderedHeadParts(Settings_Headparts headPartSettings)
         {
             foreach (var typeSetting in headPartSettings.Types.Values)
             {
