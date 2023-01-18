@@ -39,7 +39,7 @@ namespace BatchConfigUpdater
             foreach (var path in jsonPaths.Where(x => x.EndsWith(".json", StringComparison.OrdinalIgnoreCase)))
             {
                 var ap = JSONhandler<AssetPack>.LoadJSONFile(path, out bool success, out string exception);
-                if (success)
+                if (success && !string.IsNullOrEmpty(ap.GroupName))
                 {
                     foreach (var subgroup in ap.Subgroups)
                     {
