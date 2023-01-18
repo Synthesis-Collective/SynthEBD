@@ -304,6 +304,10 @@ public class VM_SettingsTexMesh : VM
 
     public void RefreshInstalledConfigs(List<string> installedConfigs)
     {
+        if (InstalledConfigsInCurrentSession == null)
+        {
+            InstalledConfigsInCurrentSession = new();
+        }
         InstalledConfigsInCurrentSession.AddRange(installedConfigs);
         //_logger.ArchiveStatus();
         //Task.Run(() => _logger.UpdateStatusAsync("Refreshing loaded settings - please wait.", false));
