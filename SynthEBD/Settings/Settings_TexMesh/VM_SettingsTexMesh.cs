@@ -174,6 +174,19 @@ public class VM_SettingsTexMesh : VM
                SimulateAssetAssignment();
            }
        );
+
+        MenuButtonsToggle = new RelayCommand(
+           canExecute: _ => true,
+           execute: _ =>
+           {
+               bShowMenuButtons = !bShowMenuButtons;
+               switch (bShowMenuButtons)
+               {
+                   case true: MenuButtonToggleStr = "Full Height Config Editor"; break;
+                   case false: MenuButtonToggleStr = "Split Height Config Editor"; break;
+               }
+           }
+       );
     }
 
     public bool bChangeNPCTextures { get; set; } = true;
@@ -195,6 +208,8 @@ public class VM_SettingsTexMesh : VM
     public List<string> SKSEversionOptions { get; set; } = new() { newSKSEversion, oldSKSEversion };
     public bool bShowPreviewImages { get; set; } = true;
     public int MaxPreviewImageSize { get; set; } = 1024;
+    public bool bShowMenuButtons { get; set; } = true;
+    public string MenuButtonToggleStr { get; set; } = "Full Height Config Editor";
     public ObservableCollection<TrimPath> TrimPaths { get; set; } = new();
     public ObservableCollection<VM_AssetPack> AssetPacks { get; set; } = new();
 
@@ -206,6 +221,7 @@ public class VM_SettingsTexMesh : VM
     public RelayCommand InstallFromJson { get; }
     public RelayCommand CreateConfigArchive { get; }
     public RelayCommand SplitScreenToggle { get; }
+    public RelayCommand MenuButtonsToggle { get; }
     public string LastViewedAssetPackName { get; set; }
     public bool bShowSecondaryAssetPack { get; set; } = false;
     public VM_AssetPresenter AssetPresenterPrimary { get; set; }
