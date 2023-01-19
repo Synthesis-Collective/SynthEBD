@@ -172,7 +172,8 @@ public partial class App : Application
         var errorMessage = sb.ToString();
         CustomMessageBox.DisplayNotificationOK("SynthEBD has crashed.", errorMessage);
 
-        var path = Path.Combine(_settingsSourceProvider.SettingsRootPath, "Logs", "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
+
+        var path = Path.Combine(_settingsSourceProvider.DefaultSettingsRootPath, "Logs", "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
         PatcherIO.WriteTextFileStatic(path, errorMessage).Wait();
 
         e.Handled = true;

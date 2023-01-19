@@ -10,7 +10,6 @@ public class PatcherSettingsSourceProvider : VM
     public static StringBuilder SettingsLog { get; } = new();
     public string ErrorString;
     public string SettingsSourcePath { get; set; } // where to read source from, and save it to
-    public string SettingsRootPath { get; set; } // Where the SynthEBDPaths class should look for its settings files
     public string DefaultSettingsRootPath { get; set; } // Either the application directory or the Synthesis extra settings folder, depending on how UI is launched.
 
     // Loaded from DTO
@@ -36,6 +35,7 @@ public class PatcherSettingsSourceProvider : VM
                 SettingsLog.AppendLine("Portable Folder Location: " + source.PortableSettingsFolder);
                 Initialized = source.Initialized;
                 UsePortableSettings = source.UsePortableSettings;
+                if (source.PortableSettingsFolder != null && !source.PortableSettingsFolder.IsNullOrWhitespace() && Directory.Exists(source.PortableSettingsFolder))
                 PortableSettingsFolder = source.PortableSettingsFolder;
             }
             else
@@ -43,21 +43,11 @@ public class PatcherSettingsSourceProvider : VM
                 SettingsLog.AppendLine("Could not load Settings Source. Error: " + exceptionStr);
                 ErrorString = "Could not load Settings Source. Error: " + exceptionStr;
             }
-
-            if (UsePortableSettings && !PortableSettingsFolder.IsNullOrWhitespace() && Directory.Exists(PortableSettingsFolder))
-            {
-                SettingsRootPath = source.PortableSettingsFolder;
-            }
-            else
-            {
-                SettingsRootPath = DefaultSettingsRootPath;
-            }
         }
         else
         {
             SettingsLog.AppendLine("Did not find settings source path at " + sourcePath);
             SettingsLog.AppendLine("Using default environment and patcher settings locations.");
-            SettingsRootPath = DefaultSettingsRootPath;
         }
         Initialized = true;
     }

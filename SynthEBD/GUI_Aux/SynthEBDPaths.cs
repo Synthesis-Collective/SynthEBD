@@ -115,7 +115,7 @@ public class SynthEBDPaths : VM
         {
             if (!_settingsSourceProvider.PortableSettingsFolder.IsNullOrWhitespace())
             {
-                _rootPath = _settingsSourceProvider.SettingsRootPath;
+                _rootPath = _settingsSourceProvider.PortableSettingsFolder;
             }
             else
             {
