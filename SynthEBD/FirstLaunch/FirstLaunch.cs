@@ -79,7 +79,7 @@ namespace SynthEBD
         {
             string message = @"Welcome to SynthEBD
 If you are using a mod manager, start by going to the Mod Manager Integration menu and setting up your paths.
-If you don't want your patcher output going straight to your Data or Overwrite folder, set your desired Output Path in the General Settings menu.";
+If you don't want your patcher output going straight to your Data or Overwrite folder, set your desired Output Data Folder in the General Settings menu.";
 
             _customMessageBox.DisplayNotificationOK_WindowSafe("", message);
         }
