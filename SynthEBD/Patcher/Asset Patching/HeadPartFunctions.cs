@@ -12,10 +12,16 @@ public class HeadPartFunctions
         HashSet<FormKey> npcsToRemove = new();
         foreach (var npcFormKey in headPartAssignemnts.Keys)
         {
+            if (headPartAssignemnts[npcFormKey] == null || !headPartAssignemnts[npcFormKey].HasAssignment())
+            {
+                continue;
+            }
+
             if(!linkCache.TryResolve<INpcGetter>(npcFormKey, out var npcGetter))
             {
                 continue; // this pretty much can't happen
             }
+
             if (npcGetter.HeadTexture == null || npcGetter.HeadTexture.IsNull)
             {
                 if (npcGetter.WornArmor != null && !npcGetter.WornArmor.IsNull)
