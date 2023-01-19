@@ -8,6 +8,12 @@ namespace SynthEBD.Tests;
 
 public class SetViaFormKeyReplacementTests
 {
+    private readonly RecordGenerator _recordGenerator;
+    public SetViaFormKeyReplacementTests(RecordGenerator recordGenerator)
+    {
+        _recordGenerator = recordGenerator;
+    }
+
     [Fact]
     public void ArrayDynamic()
     {
@@ -17,7 +23,7 @@ public class SetViaFormKeyReplacementTests
         var npc = mod.Npcs.AddNew();
         dynamic list = arm.Armature;
         dynamic addon = new ArmorAddon(mod);
-        RecordGenerator.SetViaFormKeyReplacement(addon, list, "[0]", npc);
+        _recordGenerator.SetViaFormKeyReplacement(addon, list, "[0]", npc);
         arm.Armature.First().FormKey.Should().Be(addon.FormKey);
     }
     
@@ -30,7 +36,7 @@ public class SetViaFormKeyReplacementTests
         var npc = mod.Npcs.AddNew();
         var list = arm.Armature;
         var addon = new ArmorAddon(mod);
-        RecordGenerator.SetViaFormKeyReplacement(addon, list, "[0]", npc);
+        _recordGenerator.SetViaFormKeyReplacement(addon, list, "[0]", npc);
         arm.Armature.First().FormKey.Should().Be(addon.FormKey);
     }
     
@@ -43,7 +49,7 @@ public class SetViaFormKeyReplacementTests
         var npc = mod.Npcs.AddNew();
         dynamic dyn = arm;
         dynamic race = new Race(mod);
-        RecordGenerator.SetViaFormKeyReplacement(race, dyn, nameof(Armor.Race), npc);
+        _recordGenerator.SetViaFormKeyReplacement(race, dyn, nameof(Armor.Race), npc);
         arm.Race.FormKey.Should().Be(race.FormKey);
     }
     
@@ -55,7 +61,7 @@ public class SetViaFormKeyReplacementTests
         var npc = mod.Npcs.AddNew();
         arm.Race.SetTo(mod.Races.AddNew());
         var race = new Race(mod);
-        RecordGenerator.SetViaFormKeyReplacement(race, arm, nameof(Armor.Race), npc);
+        _recordGenerator.SetViaFormKeyReplacement(race, arm, nameof(Armor.Race), npc);
         arm.Race.FormKey.Should().Be(race.FormKey);
     }
 }

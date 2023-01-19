@@ -21,7 +21,7 @@ public class VM_RunButton : VM
         VM_ConsistencyUI consistencyUi,
         VM_Settings_Headparts headParts,
         PatcherState state,
-        SaveLoader saveLoader,
+        ViewModelLoader viewModelLoader,
         PreRunValidation preRunValidation,
         MiscValidation miscValidation,
         Logger logger,
@@ -59,7 +59,7 @@ public class VM_RunButton : VM
             execute: async _ =>
             {
                 logDisplay.SwitchViewToLogDisplay();
-                saveLoader.DumpViewModelsToModels();
+                viewModelLoader.DumpViewModelsToModels();
                 if (!_preRunValidation.ValidatePatcherState()) { return; }
                 if (HasBeenRun) { _environmentProvider.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.
                 _logger.ClearStatusError();

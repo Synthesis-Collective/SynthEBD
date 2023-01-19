@@ -66,6 +66,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<PatcherState>().AsSelf().SingleInstance();
         builder.RegisterType<Patcher>().AsSelf().SingleInstance();
         builder.RegisterType<SaveLoader>().AsSelf().SingleInstance();
+        builder.RegisterType<ViewModelLoader>().AsSelf().SingleInstance();
         builder.RegisterType<PatchableRaceResolver>().AsSelf().SingleInstance();
         builder.RegisterType<PreRunValidation>().AsSelf().SingleInstance();
         builder.RegisterType<SynthEBDPaths>().AsSelf().SingleInstance();

@@ -13,14 +13,14 @@ namespace SynthEBD
         private readonly PatcherState _patcherState;
         private readonly Logger _logger;
         private readonly MiscValidation _miscValidation;
-        private readonly VM_SettingsTexMesh _texMeshSettingsVM;
-        public PreRunValidation(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, MiscValidation miscValidation, VM_SettingsTexMesh texMeshSettingsVM)
+        private readonly AssetPackValidator _assetPackValidator;
+        public PreRunValidation(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, MiscValidation miscValidation, AssetPackValidator assetPackValidator)
         {
             _environmentProvider = environmentProvider;
             _patcherState = patcherState;
             _logger = logger;
             _miscValidation = miscValidation;
-            _texMeshSettingsVM = texMeshSettingsVM;
+            _assetPackValidator = assetPackValidator;
         }
 
         public bool ValidatePatcherState()
@@ -34,12 +34,18 @@ namespace SynthEBD
                     valid = false;
                 }
 
-                if (!_texMeshSettingsVM.ValidateAllConfigs(_patcherState.BodyGenConfigs, _patcherState.OBodySettings, out var configErrors)) // check config files for errors
+                List<string> assetPackErrors = new();
+                foreach (var assetPack in _patcherState.AssetPacks.Where(x => _patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)))
                 {
-                    _logger.LogMessage(configErrors);
-                    valid = false;
+                    if (!_assetPackValidator.Validate(assetPack, assetPackErrors, _patcherState.BodyGenConfigs, _patcherState.OBodySettings))
+                    {
+                        valid = false;
+                    }
                 }
-
+                if (!valid)
+                {
+                    _logger.LogMessage(assetPackErrors);
+                }
             }
 
             if (_patcherState.GeneralSettings.BodySelectionMode != BodyShapeSelectionMode.None)

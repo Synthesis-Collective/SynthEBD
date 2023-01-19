@@ -112,8 +112,7 @@ public partial class App : Application
         builder.RegisterInstance(new RunnabilitySettingsWrapper(state)).AsSelf().AsImplementedInterfaces().SingleInstance();
         var container = builder.Build();
 
-        var settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
-        // TEST settingsSourceProvider.SettingsRootPath = state.ExtraSettingsDataPath;
+        container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
         container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
         var saveLoader = container.Resolve<SaveLoader>();
         saveLoader.LoadAllSettings();
@@ -135,7 +134,6 @@ public partial class App : Application
         var container = builder.Build();
 
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
-        // TEST_settingsSourceProvider.SettingsRootPath = state.ExtraSettingsDataPath;
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
 
         var saveLoader = container.Resolve<SaveLoader>();
@@ -144,7 +142,7 @@ public partial class App : Application
         var miscValidation = container.Resolve<MiscValidation>();
         _patcherState = container.Resolve<PatcherState>();
 
-
+        // these are handled explicitly in RunPatch rather than CanRunPatch so users don't get unsolicited popups when Synthesis starts up and automatically performs runnability checks on its patchers
         if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !miscValidation.VerifyBodySlideAnnotations(_patcherState.OBodySettings))
         {
             return;
@@ -153,6 +151,7 @@ public partial class App : Application
         {
             return;
         }
+        //
 
         var patcher = container.Resolve<Patcher>();
         await patcher.RunPatcher();

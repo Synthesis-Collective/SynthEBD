@@ -15,11 +15,11 @@ public class VM_SettingsTexMesh : VM
     private readonly VM_AssetDistributionSimulator.Factory _simulatorFactory;
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
-    private readonly Func<SaveLoader> _getSaveLoader;
+    private readonly Func<ViewModelLoader> _getVMLoader;
 
     public VM_SettingsTexMesh(
         PatcherState patcherState,
-        Func<SaveLoader> getSaveLoader,
+        Func<ViewModelLoader> getVMLoader,
         VM_Settings_General general,
         VM_SettingsBodyGen bodyGen,
         VM_SettingsOBody oBody,
@@ -41,7 +41,7 @@ public class VM_SettingsTexMesh : VM
         _simulatorFactory = simulatorFactory;
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
-        _getSaveLoader = getSaveLoader;
+        _getVMLoader = getVMLoader;
 
         Observable.CombineLatest(
                 this.WhenAnyValue(x => x.bApplyFixedScripts),
@@ -308,7 +308,7 @@ public class VM_SettingsTexMesh : VM
     {
         InstalledConfigsInCurrentSession.AddRange(installedConfigs);
         Cursor.Current = Cursors.WaitCursor;
-        _getSaveLoader().SaveAndRefreshPlugins();
+        _getVMLoader().SaveAndRefreshPlugins();
         foreach (var newConfig in AssetPacks.Where(x => InstalledConfigsInCurrentSession.Contains(x.GroupName)))
         {
             newConfig.IsSelected = true;
