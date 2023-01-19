@@ -1,8 +1,10 @@
+using Mutagen.Bethesda;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Order;
 using Mutagen.Bethesda.Skyrim;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -31,14 +33,12 @@ namespace SynthEBD
 
             HeadPartSelection selectedHeadParts = new();
 
-            /*
             if (BlockNPCWithCustomFaceGen(npcInfo))
             {
                 _logger.LogReport("Head part assignment is blocked for current NPC because it might have custom FaceGen", false, npcInfo);
                 _logger.CloseReportSubsectionsToParentOf("HeadParts", npcInfo);
                 return selectedHeadParts;
             }
-            */
 
             List<string> consistencyReportTriggers = new();
 
@@ -561,21 +561,47 @@ namespace SynthEBD
                 return false;
             }
 
-            var contexts = _environmentProvider.LoadOrder.PriorityOrder.Npc().WinningContextOverrides().Where(x => x.Record.FormKey.Equals(npcInfo.NPC.FormKey) && !x.ModKey.Equals(_environmentProvider.OutputMod));
-            if (contexts != null && contexts.Count() > 1)
+            var contextualGetters = npcInfo.NPC.FormKey.ToLinkGetter<INpcGetter>().ResolveAll(_environmentProvider.LinkCache);
+            if (contextualGetters != null && contextualGetters.Count() > 1)
             {
-                var winningContextRecord = contexts.First().Record;
-                var baseContextRecord = contexts.Last().Record;
+                var winningContextRecord = contextualGetters.First();
+                var baseContextRecord = contextualGetters.Last();
 
-                if (!winningContextRecord.FaceMorph.Equals(baseContextRecord.FaceMorph))
+                // check face morph
+                if (winningContextRecord.FaceMorph == null)
+                {
+                    if (baseContextRecord.FaceMorph != null)
+                    {
+                        return true;
+                    }
+                }
+                else if (!winningContextRecord.FaceMorph.Equals(baseContextRecord.FaceMorph))
                 {
                     return true;
                 }
-                if (!winningContextRecord.FaceParts.Equals(baseContextRecord.FaceParts))
+
+                // check face parts
+                if (winningContextRecord.FaceParts == null)
+                {
+                    if (baseContextRecord.FaceParts != null)
+                    {
+                        return true;
+                    }
+                }
+                else if (!winningContextRecord.FaceParts.Equals(baseContextRecord.FaceParts))
                 {
                     return true;
                 }
-                if (!winningContextRecord.HeadParts.Equals(baseContextRecord.HeadParts))
+
+                // check head parts
+                if (winningContextRecord.HeadParts == null)
+                {
+                    if (baseContextRecord.HeadParts != null)
+                    {
+                        return true;
+                    }
+                }
+                else if (!winningContextRecord.HeadParts.Equals(baseContextRecord.HeadParts))
                 {
                     return true;
                 }
