@@ -45,7 +45,7 @@ public class BSAHandler
             modName = modKeyStr;
         }
 
-        if (_environmentProvider.LoadOrder.ListedOrder.Select(x => x.ModKey.ToString()).Contains(modKeyStr))
+        if (!_environmentProvider.LoadOrder.ListedOrder.Where(x => x.Enabled).Select(x => x.FileName).Contains(modKeyStr, StringComparer.OrdinalIgnoreCase))
         {
             return false;
         }
