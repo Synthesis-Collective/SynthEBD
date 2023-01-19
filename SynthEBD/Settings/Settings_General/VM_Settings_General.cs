@@ -168,6 +168,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public bool ExcludePresets { get; set; } = true;
     public bool bChangeHeight { get; set;  } = true;
     public bool bChangeHeadParts { get; set; } = true;
+    public bool bHeadPartsExcludeCustomHeads { get; set; } = true;
     public bool bEnableConsistency { get; set;  } = true;
     public bool bLinkNPCsWithSameName { get; set;  } = true;
     public ObservableCollection<VM_CollectionMemberString> LinkedNameExclusions { get; set; } = new();
@@ -205,6 +206,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         viewModel.BSSelectionMode = model.BSSelectionMode;
         viewModel.bChangeHeight = model.bChangeHeight;
         viewModel.bChangeHeadParts = model.bChangeHeadParts;
+        viewModel.bHeadPartsExcludeCustomHeads = model.bHeadPartsExcludeCustomHeads;
         viewModel.bEnableConsistency = model.bEnableConsistency;
         viewModel.ExcludePlayerCharacter = model.ExcludePlayerCharacter;
         viewModel.ExcludePresets = model.ExcludePresets;
@@ -233,6 +235,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         _patcherState.GeneralSettings.BSSelectionMode = viewModel.BSSelectionMode;
         _patcherState.GeneralSettings.bChangeHeight = viewModel.bChangeHeight;
         _patcherState.GeneralSettings.bChangeHeadParts = viewModel.bChangeHeadParts;
+        _patcherState.GeneralSettings.bHeadPartsExcludeCustomHeads = viewModel.bHeadPartsExcludeCustomHeads;
         _patcherState.GeneralSettings.OutputDataFolder = viewModel.OutputDataFolder;
         _patcherState.GeneralSettings.bEnableConsistency = viewModel.bEnableConsistency;
         _patcherState.GeneralSettings.ExcludePlayerCharacter = viewModel.ExcludePlayerCharacter;

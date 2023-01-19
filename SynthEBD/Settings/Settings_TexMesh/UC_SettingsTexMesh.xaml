@@ -33,6 +33,9 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
 
         <Grid Grid.Row="0">
             <Grid.ColumnDefinitions>
@@ -159,7 +162,7 @@
             <Button Margin="10 0 0 0" HorizontalAlignment="Right" Command="{Binding MenuButtonsToggle}" Foreground="White" ToolTip="Toggle main settings visibility to give the config editor more screen space" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Content="{Binding MenuButtonToggleStr}" />
         </StackPanel>
         
-        <Grid Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">
+        <Grid Grid.Row="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
@@ -186,12 +189,12 @@
             <local:UC_AssetPresenter Grid.Row="0" Grid.Column="1" Background="Black" BorderBrush="MediumAquamarine" BorderThickness="1" DataContext="{Binding AssetPresenterSecondary}" Margin="5 0 0 0" Visibility="{Binding Path = ParentUI.bShowSecondaryAssetPack, Converter={StaticResource BoolToVis}}" />
         </Grid>
 
-        <StackPanel Grid.Row="3"  Grid.Column="0" Orientation="Horizontal" Grid.ColumnSpan="2">
+        <WrapPanel Grid.Row="3" Orientation="Horizontal">
             <Button Command="{Binding InstallFromArchive}" Foreground="LightGreen" Margin="5" ToolTip="Install a config plugin from a SynthEBD installer archive (recommended)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Install Config from Archive</Button>
             <Button Command="{Binding InstallFromJson}" Foreground="YellowGreen" Margin="5" ToolTip="Install a config plugin file from a loose .json file (not recommended)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Install Config Json File</Button>
             <Button Command="{Binding AddNewAssetPackConfigFile}" Foreground="LightGreen" Margin="5" ToolTip="Create your own blank config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Create New Config File</Button>
             <Button Command="{Binding CreateConfigArchive}" Foreground="LightGreen" Margin="5" ToolTip="Package your config file(s) into an installer archive" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Package Config File(s)</Button>
             <Button Command="{Binding SimulateDistribution}" Foreground="MediumPurple" Margin="5" ToolTip="Simulate and get statistics on how config files would be assigned to a specific NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Simulate Distribution</Button>
-        </StackPanel>
+        </WrapPanel>
     </Grid>
 </UserControl>

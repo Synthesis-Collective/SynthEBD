@@ -13,20 +13,24 @@ public class VM_LogDisplay : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
+    private readonly SynthEBDPaths _paths;
     private readonly DisplayedItemVm _displayedItemVm;
     public string DispString { get; set; } = "";
     public RelayCommand Clear { get; set; }
     public RelayCommand Copy { get; set; }
     public RelayCommand Save { get; set; }
     public RelayCommand ShowEnvironment { get; set; }
+    public RelayCommand OpenLogFolder { get; set; }
 
     public VM_LogDisplay(
         IEnvironmentStateProvider environmentProvider,
         Logger logger,
+        SynthEBDPaths paths,
         DisplayedItemVm displayedItemVm)
     {
         _environmentProvider = environmentProvider;
         _logger = logger;
+        _paths = paths;
         _displayedItemVm = displayedItemVm;
 
         _logger.LoggedEvents.ToObservableChangeSet().Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler).Subscribe(x => DispString = String.Join(Environment.NewLine, _logger.LoggedEvents.ToList())).DisposeWith(this);
@@ -86,6 +90,11 @@ public class VM_LogDisplay : VM
         ShowEnvironment = new RelayCommand(
             canExecute: _ => true,
             execute: x => PrintState()
+        );
+
+        OpenLogFolder = new RelayCommand(
+            canExecute: _ => true,
+            execute: x => WinExplorerOpener.OpenFolder(_paths.LogFolderPath)
         );
     }
 

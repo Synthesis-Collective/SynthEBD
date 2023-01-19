@@ -8,7 +8,6 @@ namespace SynthEBD;
 
 public class VM_SettingsTexMesh : VM
 {
-    public SaveLoader SaveLoader { get; set; }
     private List<string> InstalledConfigsInCurrentSession = new List<string>();
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
@@ -16,9 +15,11 @@ public class VM_SettingsTexMesh : VM
     private readonly VM_AssetDistributionSimulator.Factory _simulatorFactory;
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
+    private readonly Func<SaveLoader> _getSaveLoader;
 
     public VM_SettingsTexMesh(
         PatcherState patcherState,
+        Func<SaveLoader> getSaveLoader,
         VM_Settings_General general,
         VM_SettingsBodyGen bodyGen,
         VM_SettingsOBody oBody,
@@ -40,6 +41,7 @@ public class VM_SettingsTexMesh : VM
         _simulatorFactory = simulatorFactory;
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
+        _getSaveLoader = getSaveLoader;
 
         Observable.CombineLatest(
                 this.WhenAnyValue(x => x.bApplyFixedScripts),
@@ -305,11 +307,8 @@ public class VM_SettingsTexMesh : VM
     public void RefreshInstalledConfigs(List<string> installedConfigs)
     {
         InstalledConfigsInCurrentSession.AddRange(installedConfigs);
-        //_logger.ArchiveStatus();
-        //Task.Run(() => _logger.UpdateStatusAsync("Refreshing loaded settings - please wait.", false));
         Cursor.Current = Cursors.WaitCursor;
-        SaveLoader.SaveAndRefreshPlugins();
-        //_logger.UnarchiveStatus();
+        _getSaveLoader().SaveAndRefreshPlugins();
         foreach (var newConfig in AssetPacks.Where(x => InstalledConfigsInCurrentSession.Contains(x.GroupName)))
         {
             newConfig.IsSelected = true;

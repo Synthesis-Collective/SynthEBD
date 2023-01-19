@@ -1,7 +1,9 @@
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Order;
 using Mutagen.Bethesda.Skyrim;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,11 +12,11 @@ namespace SynthEBD
 {
     public class HeadPartSelector
     {
-        private readonly IEnvironmentStateProvider _environmentProvider;
+        private readonly IOutputEnvironmentStateProvider _environmentProvider;
         private readonly PatcherState _patcherState;
         private readonly Logger _logger;
         private readonly AttributeMatcher _attributeMatcher;
-        public HeadPartSelector(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, AttributeMatcher attributeMatcher)
+        public HeadPartSelector(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, AttributeMatcher attributeMatcher)
         {
             _environmentProvider = environmentProvider;
             _patcherState = patcherState;
@@ -26,7 +28,17 @@ namespace SynthEBD
         {
             _logger.OpenReportSubsection("HeadParts", npcInfo);
             _logger.LogReport("Selecting Head Parts for Current NPC", false, npcInfo);
+
             HeadPartSelection selectedHeadParts = new();
+
+            /*
+            if (BlockNPCWithCustomFaceGen(npcInfo))
+            {
+                _logger.LogReport("Head part assignment is blocked for current NPC because it might have custom FaceGen", false, npcInfo);
+                _logger.CloseReportSubsectionsToParentOf("HeadParts", npcInfo);
+                return selectedHeadParts;
+            }
+            */
 
             List<string> consistencyReportTriggers = new();
 
@@ -540,6 +552,35 @@ namespace SynthEBD
             {
                 _logger.LogMessage("Cannot assign a head part replacer for head part " + EditorIDHandler.GetEditorIDSafely(hp) + " because it does not have a specified Type.");
             }
+        }
+
+        private bool BlockNPCWithCustomFaceGen(NPCInfo npcInfo) // currently incredibly inefficient - will try to speed up later.
+        {
+            if (!_patcherState.GeneralSettings.bHeadPartsExcludeCustomHeads)
+            {
+                return false;
+            }
+
+            var contexts = _environmentProvider.LoadOrder.PriorityOrder.Npc().WinningContextOverrides().Where(x => x.Record.FormKey.Equals(npcInfo.NPC.FormKey) && !x.ModKey.Equals(_environmentProvider.OutputMod));
+            if (contexts != null && contexts.Count() > 1)
+            {
+                var winningContextRecord = contexts.First().Record;
+                var baseContextRecord = contexts.Last().Record;
+
+                if (!winningContextRecord.FaceMorph.Equals(baseContextRecord.FaceMorph))
+                {
+                    return true;
+                }
+                if (!winningContextRecord.FaceParts.Equals(baseContextRecord.FaceParts))
+                {
+                    return true;
+                }
+                if (!winningContextRecord.HeadParts.Equals(baseContextRecord.HeadParts))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 

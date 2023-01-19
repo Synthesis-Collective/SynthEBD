@@ -21,6 +21,9 @@ public class BSAHandler
         _environmentProvider = environmentProvider;
         _logger = logger;
     }
+
+    //This function expects a FilePathReplacement-formatted expectedFilePath (e.g. one that starts with the mod name, such as "Skyrim.esm\textures\myTextures.dds"
+    //Do not use for searching all archive readers at a particular destination path.
     public bool ReferencedPathExists(string expectedFilePath, out bool archiveExists, out string modName)
     {
         archiveExists = false;
