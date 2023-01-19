@@ -155,7 +155,17 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
             }
         }).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.OutputDataFolder).Subscribe(x => _paths.OutputDataFolder = x).DisposeWith(this);
+        this.WhenAnyValue(x => x.OutputDataFolder).Subscribe(x =>
+        {
+            if (!x.IsNullOrEmpty())
+            {
+                _paths.OutputDataFolder = x;
+            }
+            else
+            {
+                _paths.OutputDataFolder = _environmentProvider.DataFolderPath;
+            }
+        }).DisposeWith(this);
     }
 
     public VM_Settings_Environment EnvironmentSettingsVM { get; set; }

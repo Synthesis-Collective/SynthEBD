@@ -4,6 +4,7 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Mutagen.Bethesda.FormKeys.SkyrimSE;
 using Mutagen.Bethesda.Plugins.Records;
+using Noggog;
 
 namespace SynthEBD;
 
@@ -83,7 +84,18 @@ public class Patcher
     public async Task RunPatcher()
     {
         // General pre-patching tasks: 
-        _paths.OutputDataFolder = _patcherState.GeneralSettings.OutputDataFolder;
+        if (_paths.OutputDataFolder.IsNullOrEmpty())
+        {
+            if(_patcherState.GeneralSettings.OutputDataFolder.IsNullOrEmpty())
+            {
+                _paths.OutputDataFolder = _environmentProvider.DataFolderPath;
+            }
+            else
+            {
+                _paths.OutputDataFolder = _patcherState.GeneralSettings.OutputDataFolder;
+            }
+        }
+        
         var outputMod = _environmentProvider.OutputMod;
         var allNPCs = _environmentProvider.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
         _raceResolver.ResolvePatchableRaces();
