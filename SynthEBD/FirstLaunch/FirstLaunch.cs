@@ -54,6 +54,11 @@ namespace SynthEBD
                     _logger.LogErrorWithStatusUpdate("Could not load default height config. Error: " + Environment.NewLine + heightError, ErrorType.Warning);
                 }
             }
+            
+            if (_heightSettingsVM.SelectedHeightConfig == null || (_heightSettingsVM.SelectedHeightConfig.Label == VM_HeightConfig.DefaultLabel && !_heightSettingsVM.SelectedHeightConfig.HeightAssignments.Any()))
+            {
+                _heightSettingsVM.SelectedHeightConfig = _heightSettingsVM.AvailableHeightConfigs.FirstOrDefault();
+            }
 
             string defaultRecordTemplatesStartPath = Path.Combine(_environmentProvider.InternalDataPath, "FirstLaunchResources", "Record Templates.esp");
             string defaultRecordTemplatesDestPath = Path.Combine(_paths.RecordTemplatesDirPath, "Record Templates.esp");

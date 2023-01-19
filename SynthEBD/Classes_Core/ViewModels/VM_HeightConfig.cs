@@ -52,7 +52,8 @@ public class VM_HeightConfig : VM
         );
     }
 
-    public string Label { get; set; } = "New Height Configuration";
+    public static string DefaultLabel = "New Height Configuration";
+    public string Label { get; set; } = DefaultLabel;
     public ObservableCollection<VM_HeightAssignment> HeightAssignments { get; set; } = new();
     public DistMode GlobalDistMode { get; set; } = DistMode.uniform;
     public HeightConfig SubscribedHeightConfig { get; set; } = new();
