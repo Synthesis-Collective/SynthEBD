@@ -135,6 +135,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_BodySlideSetting>().AsSelf();
         builder.RegisterType<VM_AssetPackDirectReplacerMenu>().AsSelf();
         builder.RegisterType<VM_AssetReplacerGroup>().AsSelf();
+        builder.RegisterType<VM_FilePathReplacementMenu>().AsSelf();
         builder.RegisterType<VM_FilePathReplacement>().AsSelf();
         builder.RegisterType<VM_NPCAttribute>().AsSelf();
         builder.RegisterType<VM_NPCAttributeShell>().AsSelf();

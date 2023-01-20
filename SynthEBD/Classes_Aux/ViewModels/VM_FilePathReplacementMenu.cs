@@ -11,12 +11,17 @@ namespace SynthEBD;
 
 public class VM_FilePathReplacementMenu : VM
 {
-    public VM_FilePathReplacementMenu(VM_Subgroup parent, bool setExplicitReferenceNPC, ILinkCache refLinkCache)
+    private readonly RecordPathParser _recordPathParser;
+    private readonly VM_FilePathReplacementMenu.Factory _selfFactory;
+    public delegate VM_FilePathReplacementMenu Factory(VM_Subgroup parent, bool setExplicitReferenceNPC, ILinkCache refLinkCache);
+    public VM_FilePathReplacementMenu(VM_Subgroup parent, bool setExplicitReferenceNPC, ILinkCache refLinkCache, RecordPathParser recordPathParser, VM_FilePathReplacementMenu.Factory selfFactory)
     {
-        this.ParentSubgroup = parent;
+        _recordPathParser = recordPathParser;
+        _selfFactory = selfFactory;
 
-        this.ReferenceLinkCache = refLinkCache;
-        this.SetExplicitReferenceNPC = setExplicitReferenceNPC;
+        ParentSubgroup = parent;
+        ReferenceLinkCache = refLinkCache;
+        SetExplicitReferenceNPC = setExplicitReferenceNPC;
 
         Paths.ToObservableChangeSet().Subscribe(x => RefreshHasContents()).DisposeWith(this);
     }
@@ -31,23 +36,23 @@ public class VM_FilePathReplacementMenu : VM
 
     public VM_FilePathReplacementMenu Clone()
     {
-        VM_FilePathReplacementMenu clone = new VM_FilePathReplacementMenu(ParentSubgroup, ParentSubgroup.SetExplicitReferenceNPC, ReferenceLinkCache);
+        VM_FilePathReplacementMenu clone = _selfFactory(ParentSubgroup, ParentSubgroup.SetExplicitReferenceNPC, ReferenceLinkCache);
         clone.HasContents = this.HasContents;
         clone.Paths = new ObservableCollection<VM_FilePathReplacement>() { this.Paths.Select(x => x.Clone(clone)) };
         return clone;
     }
 
-    public static VM_FilePathReplacementMenu GetViewModelFromModels(HashSet<FilePathReplacement> models, VM_Subgroup parentSubgroup, bool setExplicitReferenceNPC, VM_FilePathReplacement.Factory filePathReplacementFactory)
+    public static VM_FilePathReplacementMenu GetViewModelFromModels(HashSet<FilePathReplacement> models, VM_Subgroup parentSubgroup, bool setExplicitReferenceNPC, VM_FilePathReplacementMenu.Factory menuFactory, VM_FilePathReplacement.Factory filePathReplacementFactory)
     {
         VM_FilePathReplacementMenu viewModel = null;
 
         if (setExplicitReferenceNPC)
         {
-            viewModel = new VM_FilePathReplacementMenu(parentSubgroup, setExplicitReferenceNPC, parentSubgroup.LinkCache);
+            viewModel = menuFactory(parentSubgroup, setExplicitReferenceNPC, parentSubgroup.LinkCache);
         }
         else
         {
-            viewModel = new VM_FilePathReplacementMenu(parentSubgroup, setExplicitReferenceNPC, parentSubgroup.ParentAssetPack.RecordTemplateLinkCache);
+            viewModel = menuFactory(parentSubgroup, setExplicitReferenceNPC, parentSubgroup.ParentAssetPack.RecordTemplateLinkCache);
         }
 
         foreach (var model in models)
@@ -68,5 +73,14 @@ public class VM_FilePathReplacementMenu : VM
     {
         if (Paths.Any()) { HasContents = true; }
         else { HasContents = false; }
+    }
+
+    public bool CandidateTargetPathExists(string candidate)
+    {
+        if (ReferenceLinkCache != null && ReferenceNPCFK != null && ReferenceLinkCache.TryResolve<INpcGetter>(ReferenceNPCFK, out var refNPC) && _recordPathParser.GetObjectAtPath(refNPC, refNPC, candidate, new Dictionary<string, dynamic>(), ReferenceLinkCache, true, Logger.GetNPCLogNameString(refNPC), out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
+        {
+            return true;
+        }
+        return false;
     }
 }

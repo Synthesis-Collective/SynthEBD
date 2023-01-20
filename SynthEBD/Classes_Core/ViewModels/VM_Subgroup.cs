@@ -23,6 +23,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
     private readonly VM_SettingsOBody _oBody;
     private readonly VM_NPCAttributeCreator _attributeCreator;
     private readonly Factory _selfFactory;
+    private readonly VM_FilePathReplacementMenu.Factory _filePathReplacementMenuFactory;
     private readonly VM_FilePathReplacement.Factory _filePathReplacementFactory;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
     private readonly UpdateHandler _updateHandler;
@@ -45,6 +46,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         VM_SettingsOBody oBody,
         VM_NPCAttributeCreator attributeCreator,
         Factory selfFactory,
+        VM_FilePathReplacementMenu.Factory filePathReplacementMenuFactory,
         VM_FilePathReplacement.Factory filePathReplacementFactory,
         VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory,
         UpdateHandler updateHandler)
@@ -55,6 +57,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         _oBody = oBody;
         _attributeCreator = attributeCreator;
         _selfFactory = selfFactory;
+        _filePathReplacementMenuFactory = filePathReplacementMenuFactory;
         _filePathReplacementFactory = filePathReplacementFactory;
         _descriptorSelectionFactory = descriptorSelectionFactory;
         _updateHandler = updateHandler;
@@ -86,11 +89,11 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         // must be set after Parent Asset Pack
         if (SetExplicitReferenceNPC)
         {
-            PathsMenu = new VM_FilePathReplacementMenu(this, SetExplicitReferenceNPC, LinkCache);
+            PathsMenu = _filePathReplacementMenuFactory(this, SetExplicitReferenceNPC, LinkCache);
         }
         else
         {
-            PathsMenu = new VM_FilePathReplacementMenu(this, SetExplicitReferenceNPC, parentAssetPack.RecordTemplateLinkCache);
+            PathsMenu = _filePathReplacementMenuFactory(this, SetExplicitReferenceNPC, parentAssetPack.RecordTemplateLinkCache);
             parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => PathsMenu.ReferenceLinkCache = parentAssetPack.RecordTemplateLinkCache).DisposeWith(this);
         }
 
@@ -231,7 +234,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         ExcludedSubgroups = new ObservableCollection<VM_Subgroup>();
         AddKeywords = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(model.AddKeywords);
         ProbabilityWeighting = model.ProbabilityWeighting;
-        PathsMenu = VM_FilePathReplacementMenu.GetViewModelFromModels(model.Paths, this, SetExplicitReferenceNPC, _filePathReplacementFactory);
+        PathsMenu = VM_FilePathReplacementMenu.GetViewModelFromModels(model.Paths, this, SetExplicitReferenceNPC, _filePathReplacementMenuFactory, _filePathReplacementFactory);
         WeightRange = model.WeightRange;
 
         if (ParentAssetPack.TrackedBodyGenConfig != null)

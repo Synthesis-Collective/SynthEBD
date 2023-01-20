@@ -716,12 +716,16 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public void DuplicateBodyPathsAsFeet(VM_Subgroup subgroup)
     {
         var newFeetPaths = new HashSet<VM_FilePathReplacement>();
-        foreach (var path in subgroup.PathsMenu.Paths.Where(x => x.IntellisensedPath.Contains("WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body)")))
+        foreach (var path in subgroup.PathsMenu.Paths.Where(x => FilePathDestinationMap.MaleTorsoPaths.ContainsValue(x.IntellisensedPath) || FilePathDestinationMap.FemaleTorsoPaths.ContainsValue(x.IntellisensedPath)))
         {
             var newPath = _filePathReplacementFactory(path.ParentMenu);
             newPath.Source = path.Source;
             newPath.IntellisensedPath = path.IntellisensedPath.Replace("WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body)", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet)");
-            newFeetPaths.Add(newPath);
+
+            if (newPath.DestinationExists && !subgroup.PathsMenu.Paths.Where(x => x.IntellisensedPath == newPath.IntellisensedPath).Any())
+            {
+                newFeetPaths.Add(newPath);
+            }
         }
 
         foreach (var path in newFeetPaths)
@@ -763,7 +767,11 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             var newPath = _filePathReplacementFactory(path.ParentMenu);
             newPath.Source = path.Source;
             newPath.IntellisensedPath = path.IntellisensedPath.Replace("WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body)", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail)");
-            newTailPaths.Add(newPath);
+
+            if (newPath.DestinationExists && !subgroup.PathsMenu.Paths.Where(x => x.IntellisensedPath == newPath.IntellisensedPath).Any())
+            {
+                newTailPaths.Add(newPath);
+            }
         }
 
         foreach (var path in newTailPaths)
@@ -802,7 +810,33 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
             if (FilePathDestinationMap.FileNameToDestMap.ContainsKey(fileName) && path.IntellisensedPath != FilePathDestinationMap.FileNameToDestMap[fileName])
             {
-                path.IntellisensedPath = FilePathDestinationMap.FileNameToDestMap[fileName];
+                var targetDestination = FilePathDestinationMap.FileNameToDestMap[fileName];
+                var feetAlternateDestination = targetDestination.Replace("BipedObjectFlag.Body", "BipedObjectFlag.Feet");
+                var tailAlternateDestination = targetDestination.Replace("BipedObjectFlag.Body", "BipedObjectFlag.Tail");
+
+                // try assigning the default destination path if the subgroup doesn't already assign an asset to that path
+                if (!subgroup.PathsMenu.Paths.Where(x => x.IntellisensedPath == targetDestination).Any())
+                {
+                    path.IntellisensedPath = FilePathDestinationMap.FileNameToDestMap[fileName];
+                }
+
+                else if (
+                    (FilePathDestinationMap.MaleTorsoPaths.ContainsKey(fileName) || FilePathDestinationMap.FemaleTorsoPaths.ContainsKey(fileName))  && 
+                    subgroup.PathsMenu.CandidateTargetPathExists(feetAlternateDestination) &&
+                    !subgroup.PathsMenu.Paths.Where(x => x.IntellisensedPath == feetAlternateDestination).Any()
+                    )
+                {
+                    path.IntellisensedPath = feetAlternateDestination;
+                }
+
+                else if (
+                    (FilePathDestinationMap.MaleTorsoPaths.ContainsKey(fileName) || FilePathDestinationMap.FemaleTorsoPaths.ContainsKey(fileName)) &&
+                    subgroup.PathsMenu.CandidateTargetPathExists(tailAlternateDestination) &&
+                    !subgroup.PathsMenu.Paths.Where(x => x.IntellisensedPath == tailAlternateDestination).Any()
+                    )
+                {
+                    path.IntellisensedPath = tailAlternateDestination;
+                }
             }
         }
 
