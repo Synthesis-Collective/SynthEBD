@@ -77,9 +77,19 @@ public class VM_FilePathReplacementMenu : VM
 
     public bool CandidateTargetPathExists(string candidate)
     {
-        if (ReferenceLinkCache != null && ReferenceNPCFK != null && ReferenceLinkCache.TryResolve<INpcGetter>(ReferenceNPCFK, out var refNPC) && _recordPathParser.GetObjectAtPath(refNPC, refNPC, candidate, new Dictionary<string, dynamic>(), ReferenceLinkCache, true, Logger.GetNPCLogNameString(refNPC), out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
+        List<FormKey> candidateRecordTemplates = new();
+        if (ParentSubgroup.ParentAssetPack.DefaultTemplateFK != null)
         {
-            return true;
+            candidateRecordTemplates.Add(ParentSubgroup.ParentAssetPack.DefaultTemplateFK);
+        }
+        candidateRecordTemplates.AddRange(ParentSubgroup.ParentAssetPack.AdditionalRecordTemplateAssignments.Where(x => x.TemplateNPC != null).Select(x => x.TemplateNPC));
+
+        foreach (var referenceNPCformkey in candidateRecordTemplates)
+        {
+            if (ReferenceLinkCache != null && referenceNPCformkey != null && ReferenceLinkCache.TryResolve<INpcGetter>(referenceNPCformkey, out var refNPC) && _recordPathParser.GetObjectAtPath(refNPC, refNPC, candidate, new Dictionary<string, dynamic>(), ReferenceLinkCache, true, Logger.GetNPCLogNameString(refNPC), out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
+            {
+                return true;
+            }
         }
         return false;
     }
