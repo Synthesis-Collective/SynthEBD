@@ -485,6 +485,16 @@ public sealed class Logger : VM
         return subgroup.Id + ": " + subgroup.Name;
     }
 
+    public static string GetSubgroupIDString(AssetPack.Subgroup subgroup)
+    {
+        return subgroup.ID + ": " + subgroup.Name;
+    }
+
+    public static string GetSubgroupIDString(VM_Subgroup subgroup)
+    {
+        return subgroup.ID + ": " + subgroup.Name;
+    }
+
     public static string GetBodyShapeDescriptorString(Dictionary<string, HashSet<string>> descriptorList)
     {
         List<string> sections = new List<string>();

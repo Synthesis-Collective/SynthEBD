@@ -177,17 +177,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         SaveButton = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => {
-                _assetPackIO.SaveAssetPack(DumpViewModelToModel(), out bool success);
-                if (success)
-                {
-                    _logger.CallTimedNotifyStatusUpdateAsync(GroupName + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
-                }
-                else
-                {
-                    _logger.CallTimedLogErrorWithStatusUpdateAsync(GroupName + " could not be saved.", ErrorType.Error, 3);
-                }
-            }
+            execute: _ => SaveToModel(true)
         );
 
         ListDisabledSubgroupsButton = new RelayCommand(
@@ -476,6 +466,23 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         return model;
     }
 
+    private bool SaveToModel(bool showToolBarNotification)
+    {
+        _assetPackIO.SaveAssetPack(DumpViewModelToModel(), out bool success);
+        if (showToolBarNotification)
+        {
+            if (success)
+            {
+                _logger.CallTimedNotifyStatusUpdateAsync(GroupName + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+            }
+            else
+            {
+                _logger.CallTimedLogErrorWithStatusUpdateAsync(GroupName + " could not be saved.", ErrorType.Error, 3);
+            }
+        }
+        return success;
+    }
+
     public static ObservableCollection<VM_Subgroup> FlattenSubgroupVMs(ObservableCollection<VM_Subgroup> currentLevelSGs, ObservableCollection<VM_Subgroup> flattened)
     {
         foreach(var sg in currentLevelSGs)
@@ -650,70 +657,80 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
     public void SetDefaultTargetPaths()
     {
-        //first collect changed paths to warn user
-        List<string> filePathWarnings = new List<string>();
-        foreach (var subgroup in Subgroups)
+        bool saveConfig = CustomMessageBox.DisplayNotificationYesNo("Save Config File?", "Save the config file before modifying destinations? (Recommended yes so you can use the Discard button to throw out incorrect changes).");
+        if (saveConfig)
         {
-            GenerateFilePathWarningString(subgroup, filePathWarnings);
+            bool saved = SaveToModel(false);
+            if (!saved)
+            {
+                CustomMessageBox.DisplayNotificationOK("Save Failure", "Config file could not be saved. Destination paths will not be modified.");
+                return;
+            }
         }
 
-        string warnStr = string.Join(Environment.NewLine, filePathWarnings);
+        List<string> modifications = new();
 
-        if (string.IsNullOrWhiteSpace(warnStr) || CustomMessageBox.DisplayNotificationYesNo("Replace Destination Paths?", "The following destinations will be modified:" + Environment.NewLine + warnStr))
+        foreach (var subgroup in Subgroups)
+        {
+            SetDefaultSubgroupFilePaths(subgroup, modifications);
+        }
+
+        bool hasBodyPath = false;
+        bool hasFeetPath = false;
+        foreach (var subgroup in Subgroups)
+        {
+            if (SubgroupHasDestinationPath(subgroup, "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body)"))
+            {
+                hasBodyPath = true;
+                break;
+            }
+        }
+        foreach (var subgroup in Subgroups)
+        {
+            if (SubgroupHasDestinationPath(subgroup, "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet)"))
+            {
+                hasFeetPath = true;
+                break;
+            }
+        }
+
+        if (hasBodyPath && !hasFeetPath) // duplicate body paths as feet
         {
             foreach (var subgroup in Subgroups)
             {
-                SetDefaultSubgroupFilePaths(subgroup);
+                DuplicateBodyPathsAsFeet(subgroup, modifications);
             }
+        }
 
-            bool hasBodyPath = false;
-            bool hasFeetPath = false;
+        bool hasBeastTailPath = false;
+        foreach (var subgroup in Subgroups)
+        {
+            if (SubgroupHasDestinationPath(subgroup, "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail)"))
+            {
+                hasBeastTailPath = true;
+                break;
+            }
+        }
+
+        if (!hasBeastTailPath)
+        {
             foreach (var subgroup in Subgroups)
             {
-                if (SubgroupHasDestinationPath(subgroup, "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body)"))
-                {
-                    hasBodyPath = true;
-                    break;
-                }
+                DuplicateBodyPathsAsTail(subgroup, modifications);
             }
-            foreach (var subgroup in Subgroups)
-            {
-                if (SubgroupHasDestinationPath(subgroup, "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet)"))
-                {
-                    hasFeetPath = true;
-                    break;
-                }
-            }
+        }
 
-            if (hasBodyPath && !hasFeetPath) // duplicate body paths as feet
-            {
-                foreach (var subgroup in Subgroups)
-                {
-                    DuplicateBodyPathsAsFeet(subgroup);
-                }
-            }
-
-            bool hasBeastTailPath = false;
-            foreach (var subgroup in Subgroups)
-            {
-                if (SubgroupHasDestinationPath(subgroup, "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail)"))
-                {
-                    hasBeastTailPath = true;
-                    break;
-                }
-            }
-
-            if (!hasBeastTailPath)
-            {
-                foreach (var subgroup in Subgroups)
-                {
-                    DuplicateBodyPathsAsTail(subgroup);
-                }
-            }
+        if (modifications.Any())
+        {
+            CustomMessageBox.DisplayNotificationOK("Summary", "The following modifications were made: " + Environment.NewLine + Environment.NewLine + string.Join(Environment.NewLine + Environment.NewLine, modifications));
+        }
+        else
+        {
+            CustomMessageBox.DisplayNotificationOK("Summary", "No automatic modifications could be made based on the current Source and Destination paths.");
         }
     }
 
-    public void DuplicateBodyPathsAsFeet(VM_Subgroup subgroup)
+    public void DuplicateBodyPathsAsFeet(VM_Subgroup subgroup, List<string> modifications)
     {
         var newFeetPaths = new HashSet<VM_FilePathReplacement>();
         foreach (var path in subgroup.PathsMenu.Paths.Where(x => FilePathDestinationMap.MaleTorsoPaths.ContainsValue(x.IntellisensedPath) || FilePathDestinationMap.FemaleTorsoPaths.ContainsValue(x.IntellisensedPath)))
@@ -725,6 +742,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             if (newPath.DestinationExists && !subgroup.PathsMenu.Paths.Where(x => x.IntellisensedPath == newPath.IntellisensedPath).Any())
             {
                 newFeetPaths.Add(newPath);
+                modifications.Add(Logger.GetSubgroupIDString(subgroup) + ": Duplicated torso texture to feet: " + newPath.Source);
             }
         }
 
@@ -735,11 +753,11 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         foreach (var sg in subgroup.Subgroups)
         {
-            DuplicateBodyPathsAsFeet(sg);
+            DuplicateBodyPathsAsFeet(sg, modifications);
         }
     }
 
-    public void DuplicateBodyPathsAsTail(VM_Subgroup subgroup)
+    public void DuplicateBodyPathsAsTail(VM_Subgroup subgroup, List<string> modifications)
     {
         var newTailPaths = new HashSet<VM_FilePathReplacement>();
         var pathsNeedingTails = new HashSet<string>()
@@ -771,6 +789,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             if (newPath.DestinationExists && !subgroup.PathsMenu.Paths.Where(x => x.IntellisensedPath == newPath.IntellisensedPath).Any())
             {
                 newTailPaths.Add(newPath);
+                modifications.Add(Logger.GetSubgroupIDString(subgroup) + ": Duplicated torso texture to tail: " + newPath.Source);
             }
         }
 
@@ -781,7 +800,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         foreach (var sg in subgroup.Subgroups)
         {
-            DuplicateBodyPathsAsTail(sg);
+            DuplicateBodyPathsAsTail(sg, modifications);
         }
     }
 
@@ -802,7 +821,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         return false;
     }
 
-    public static void SetDefaultSubgroupFilePaths(VM_Subgroup subgroup)
+    public static void SetDefaultSubgroupFilePaths(VM_Subgroup subgroup, List<string> modifications)
     {
         foreach (var path in subgroup.PathsMenu.Paths.Where(x => !string.IsNullOrWhiteSpace(x.Source)))
         {
@@ -818,6 +837,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 if (!subgroup.PathsMenu.Paths.Where(x => x.IntellisensedPath == targetDestination).Any())
                 {
                     path.IntellisensedPath = FilePathDestinationMap.FileNameToDestMap[fileName];
+                    modifications.Add(Logger.GetSubgroupIDString(subgroup) + ": " + path.Source + " --> " + path.IntellisensedPath);
                 }
 
                 else if (
@@ -827,6 +847,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                     )
                 {
                     path.IntellisensedPath = feetAlternateDestination;
+                    modifications.Add(Logger.GetSubgroupIDString(subgroup) + ": " + path.Source + " (Duplicate) --> " + path.IntellisensedPath);
                 }
 
                 else if (
@@ -836,13 +857,14 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                     )
                 {
                     path.IntellisensedPath = tailAlternateDestination;
+                    modifications.Add(Logger.GetSubgroupIDString(subgroup) + ": " + path.Source + " (Duplicate) --> " + path.IntellisensedPath);
                 }
             }
         }
 
         foreach (var sg in subgroup.Subgroups)
         {
-            SetDefaultSubgroupFilePaths(sg);
+            SetDefaultSubgroupFilePaths(sg, modifications);
         }
     }
 
@@ -861,30 +883,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
         }
         return false;
-    }
-
-    public static void GenerateFilePathWarningString(VM_Subgroup subgroup, List<string> warnStrs)
-    {
-        string currentSubgroupWarnStr = "";
-        foreach (var path in subgroup.PathsMenu.Paths.Where(x => !string.IsNullOrWhiteSpace(x.Source) && !string.IsNullOrWhiteSpace(x.IntellisensedPath)))
-        {
-            var fileName = Path.GetFileName(path.Source);
-
-            if (FilePathDestinationMap.FileNameToDestMap.ContainsKey(fileName) && path.IntellisensedPath != FilePathDestinationMap.FileNameToDestMap[fileName])
-            {
-                currentSubgroupWarnStr += Environment.NewLine + fileName + ": " + path.IntellisensedPath + " -> " + FilePathDestinationMap.FileNameToDestMap[fileName];
-            }
-        }
-
-        if(!string.IsNullOrWhiteSpace(currentSubgroupWarnStr))
-        {
-            warnStrs.Add(subgroup.ID + " (" + subgroup.Name + "):" + Environment.NewLine + currentSubgroupWarnStr);
-        }
-
-        foreach (var sg in subgroup.Subgroups)
-        {
-            GenerateFilePathWarningString(sg, warnStrs);
-        }
     }
 
     public bool ContainsSubgroupID(string id)
