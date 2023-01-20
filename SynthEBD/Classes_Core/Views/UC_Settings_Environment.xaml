@@ -11,7 +11,7 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition SharedSizeGroup="col1"/>
             <ColumnDefinition SharedSizeGroup="col2"/>
-            <ColumnDefinition SharedSizeGroup="col3"/>
+            <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>

@@ -20,7 +20,8 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="auto" SharedSizeGroup="col1"/>
                 <ColumnDefinition Width="10" SharedSizeGroup="col2"/>
-                <ColumnDefinition Width="*" SharedSizeGroup="col3"/>
+                <ColumnDefinition Width="*"/>
+                <!-- Do not add last column to SharedSizeGroup: * behaves like auto: https://stackoverflow.com/questions/4664008/grids-sharedsizegroup-and-sizing -->
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="{Binding IsStandalone, Converter={StaticResource GridHeightToggler}}"/>
