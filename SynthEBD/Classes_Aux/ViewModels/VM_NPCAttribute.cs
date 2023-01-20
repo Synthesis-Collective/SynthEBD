@@ -335,7 +335,7 @@ public class VM_NPCAttributeShell : VM
             {
                 case NPCAttributeType.Class: Attribute = _classFactory(parentVM, this); break;
                 case NPCAttributeType.Custom: Attribute = _customFactory(parentVM, this); break;
-                case NPCAttributeType.FaceTexture: _faceTextureFactory(parentVM, this); break;
+                case NPCAttributeType.FaceTexture: Attribute = _faceTextureFactory(parentVM, this); break;
                 case NPCAttributeType.Faction: Attribute = _factionsFactory(parentVM, this); break;
                 case NPCAttributeType.Group: Attribute = new VM_NPCAttributeGroup(parentVM, this, attributeGroups); break;
                 case NPCAttributeType.Misc: Attribute = _miscFactory(parentVM, this); break;
