@@ -332,14 +332,17 @@ public class Patcher
             _headPartWriter.WriteAssignmentDictionary();
         }
 
+        if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)
+        {
+            _assetsStatsTracker.WriteReport();
+        }
+
         if (_environmentProvider.RunMode == EnvironmentMode.Standalone)
         {
             string patchOutputPath = System.IO.Path.Combine(_paths.OutputDataFolder, _environmentProvider.OutputMod.ModKey.ToString());
             PatcherIO.WritePatch(patchOutputPath, outputMod, _logger, _environmentProvider);
         }
         _statusBar.IsPatching = false;
-
-        _assetsStatsTracker.WriteReport();
     }
 
     public static Dictionary<string, Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>> UniqueAssignmentsByName = new Dictionary<string, Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>>();
@@ -733,7 +736,11 @@ public class Patcher
 
         public Dictionary<Gender, bool> HasGenderedConfigs { get; set; } = new();
 
-        public Dictionary<Gender, Dictionary<IFormLinkGetter<IRaceGetter>, AssignablePairing>> AssignmentsByGenderAndRace { get; set; } = new();
+        public Dictionary<Gender, Dictionary<IFormLinkGetter<IRaceGetter>, AssignablePairing>> AssignmentsByGenderAndRace { get; set; } = new()
+        {
+            {   Gender.Male, new Dictionary<IFormLinkGetter<IRaceGetter>, AssignablePairing>()},
+            {   Gender.Female, new Dictionary<IFormLinkGetter<IRaceGetter>, AssignablePairing>()} 
+        };
         private readonly Logger _logger;
         private readonly ILinkCache _linkCache;
 
