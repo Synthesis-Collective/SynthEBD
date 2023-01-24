@@ -10,7 +10,7 @@ namespace SynthEBD
     public class VM_AssetOrderingMenu : VM
     {
         private readonly VM_SettingsTexMesh _texMeshVM;
-        private readonly string _primaryLabel = "Primary & Body Shape";
+        public const string PrimaryLabel = "Primary & Body Shape";
         
         public VM_AssetOrderingMenu(VM_SettingsTexMesh texMeshVM)
         {
@@ -32,9 +32,9 @@ namespace SynthEBD
 
         private void UpdateAssignmentOrder()
         {
-            if (!AssignmentOrder.Contains(_primaryLabel))
+            if (!AssignmentOrder.Contains(PrimaryLabel))
             {
-                AssignmentOrder.Add(_primaryLabel);
+                AssignmentOrder.Add(PrimaryLabel);
             }
             // add any new mix ins to list
             var mixInLabels = _texMeshVM.AssetPacks.Where(x => x.ConfigType == AssetPackType.MixIn && x.IsSelected).Select(x => x.GroupName);
@@ -50,7 +50,7 @@ namespace SynthEBD
             for (int i = 0; i < AssignmentOrder.Count; i++)
             {
                 var mixin = AssignmentOrder[i];
-                if (mixin == _primaryLabel) { continue; }
+                if (mixin == PrimaryLabel) { continue; }
                 if (!mixInLabels.Contains(mixin))
                 {
                     AssignmentOrder.RemoveAt(i);

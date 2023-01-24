@@ -399,7 +399,7 @@ public class Patcher
 
             assetsAssigned = false;
             bodyShapeAssigned = false;
-            assignedCombinations = new List<SubgroupCombination>();
+            assignedCombinations = new List<SubgroupCombination>(); // Do not change to hash set - must maintain order
             BodySlideSetting assignedBodySlide = null; // can be used by headpart function
             Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts = GetBlankHeadPartAssignment(); // head parts generated via the asset pack functionality
 
@@ -465,9 +465,10 @@ public class Patcher
 
             AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment assignedPrimaryComboAndBodyShape = new AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment();
 
-            #region Primary Assets (and optionally Body Shape) assignment
+            #region Asset Assignment
             if (_patcherState.GeneralSettings.bChangeMeshesOrTextures && !blockAssets && _patcherState.GeneralSettings.PatchableRaces.Contains(currentNPCInfo.AssetsRace))
             {
+                assetsAssigned = false;
                 switch (currentNPCInfo.Gender)
                 {
                     case Gender.Female:
@@ -480,35 +481,100 @@ public class Patcher
                         break;
                 }
 
-                assetsAssigned = false;
-                if (_assetsStatsTracker.HasGenderedConfigs[currentNPCInfo.Gender])
+                foreach (var item in _patcherState.TexMeshSettings.AssetOrder)
                 {
-                    assignedPrimaryComboAndBodyShape = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, primaryAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, null);
-                    if (assetsAssigned)
+                    if (item == VM_AssetOrderingMenu.PrimaryLabel)
                     {
-                        assignedCombinations.Add(assignedPrimaryComboAndBodyShape.AssignedCombination);
-                        _assetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedCombination, currentNPCInfo);
-                    }
-                    if (bodyShapeAssigned)
-                    {
-                        switch (_patcherState.GeneralSettings.BodySelectionMode)
+                        #region Primary Asset assignment
+                        if (_assetsStatsTracker.HasGenderedConfigs[currentNPCInfo.Gender])
                         {
-                            case BodyShapeSelectionMode.BodyGen:
-                                BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedPrimaryComboAndBodyShape.AssignedBodyGenMorphs.Select(x => x.Label).ToList());
-                                _bodyGenSelector.RecordBodyGenConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedBodyGenMorphs, currentNPCInfo);
-                                break;
+                            assignedPrimaryComboAndBodyShape = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, primaryAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, null);
+                            if (assetsAssigned)
+                            {
+                                assignedCombinations.Add(assignedPrimaryComboAndBodyShape.AssignedCombination);
+                                _assetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedCombination, currentNPCInfo);
+                            }
+                            if (bodyShapeAssigned)
+                            {
+                                switch (_patcherState.GeneralSettings.BodySelectionMode)
+                                {
+                                    case BodyShapeSelectionMode.BodyGen:
+                                        BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedPrimaryComboAndBodyShape.AssignedBodyGenMorphs.Select(x => x.Label).ToList());
+                                        _bodyGenSelector.RecordBodyGenConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedBodyGenMorphs, currentNPCInfo);
+                                        break;
 
-                            case BodyShapeSelectionMode.BodySlide:
-                                BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedPrimaryComboAndBodyShape.AssignedOBodyPreset.Label);
-                                _oBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedOBodyPreset, currentNPCInfo);
-                                assignedBodySlide = assignedPrimaryComboAndBodyShape.AssignedOBodyPreset;
-                                break;
+                                    case BodyShapeSelectionMode.BodySlide:
+                                        BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedPrimaryComboAndBodyShape.AssignedOBodyPreset.Label);
+                                        _oBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedOBodyPreset, currentNPCInfo);
+                                        assignedBodySlide = assignedPrimaryComboAndBodyShape.AssignedOBodyPreset;
+                                        break;
+                                }
+                            }
                         }
+                        _assetsStatsTracker.LogNPCAssets(currentNPCInfo, assetsAssigned);
+                        #endregion
+                    }
+                    else
+                    {
+                        #region MixIn Asset assignment
+                        var currentMixIn = mixInAssetPacks.Where(x => x.GroupName == item).FirstOrDefault();
+                        if (currentMixIn != null)
+                        {
+                            var assignedMixIn = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out bool mixInAssigned, out _, new HashSet<FlattenedAssetPack>() { currentMixIn }, bodyGenConfigs, oBodySettings, currentNPCInfo, true, AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn, assignedPrimaryComboAndBodyShape);
+                            if (mixInAssigned)
+                            {
+                                assignedCombinations.Add(assignedMixIn.AssignedCombination);
+                                _assetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedMixIn.AssignedCombination, currentNPCInfo, currentMixIn.GroupName);
+                                assetsAssigned = true;
+                            }
+                        }
+                        #endregion
                     }
                 }
-                _assetsStatsTracker.LogNPCAssets(currentNPCInfo, assetsAssigned);
+
+                #region Asset Replacer assignment
+                HashSet<SubgroupCombination> assetReplacerCombinations = new HashSet<SubgroupCombination>();
+                if (assetsAssigned) // assign direct replacers that a come from the assigned primary asset pack
+                {
+                    foreach (var combination in assignedCombinations)
+                    {
+                        assetReplacerCombinations.UnionWith(_assetReplacerSelector.SelectAssetReplacers(combination.AssetPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
+                    }
+                }
+                foreach (var replacerOnlyPack in mixInAssetPacks.Where(x => !x.Subgroups.Any() && x.AssetReplacerGroups.Any())) // add asset replacers from mix-in asset packs that ONLY have replacer assets, since they won't be contained in assignedCombinations
+                {
+                    assetReplacerCombinations.UnionWith(_assetReplacerSelector.SelectAssetReplacers(replacerOnlyPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
+                }
+                assignedCombinations.AddRange(assetReplacerCombinations);
+                #endregion
+
+                #region Generate Records
+                if (assignedCombinations.Any())
+                {
+                    var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
+                    var npcObjectMap = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", npcRecord } };
+                    Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches = new Dictionary<FormKey, Dictionary<string, dynamic>>();
+                    var assignedPaths = new List<FilePathReplacementParsed>(); // for logging only
+                    _recordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, _patcherState.RecordTemplateLinkCache, npcObjectMap, objectCaches, outputMod, assignedPaths, generatedHeadParts);
+                    _combinationLog.LogAssignment(currentNPCInfo, assignedCombinations, assignedPaths);
+                    if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
+                    npcRecord.Keywords.Add(EBDFaceKW);
+                    npcRecord.Keywords.Add(EBDScriptKW);
+                    RecordGenerator.AddKeywordsToNPC(assignedCombinations, npcRecord, outputMod);
+
+                    if (assignedPaths.Where(x => x.DestinationStr.StartsWith("HeadParts")).Any())
+                    {
+                        headPartNPCs.Add(npcRecord);
+                    }
+                }
+                #endregion
             }
             #endregion
+
+            if (_patcherState.TexMeshSettings.bForceVanillaBodyMeshPath)
+            {
+                _assetSelector.SetVanillaBodyPath(currentNPCInfo, outputMod, _environmentProvider.LinkCache);
+            }
 
             #region Body Shape assignment (if assets not assigned with Assets)
             switch (_patcherState.GeneralSettings.BodySelectionMode)
@@ -551,67 +617,6 @@ public class Patcher
                     break;
             }
             #endregion
-
-            // now that Body Shapes have been assigned, finish assigning mix-in combinations and asset replacers, and write them to the output file
-            if (_patcherState.GeneralSettings.bChangeMeshesOrTextures && !blockAssets && _patcherState.GeneralSettings.PatchableRaces.Contains(currentNPCInfo.AssetsRace))
-            {
-                Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches = new Dictionary<FormKey, Dictionary<string, dynamic>>();
-
-                #region MixIn Asset assignment
-                bool mixInAssigned = false;
-                foreach (var mixInConfig in mixInAssetPacks)
-                {
-                    var assignedMixIn = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out mixInAssigned, out _, new HashSet<FlattenedAssetPack>() { mixInConfig }, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn, assignedPrimaryComboAndBodyShape);
-                    if (mixInAssigned)
-                    {
-                        assignedCombinations.Add(assignedMixIn.AssignedCombination);
-                        _assetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedMixIn.AssignedCombination, currentNPCInfo, mixInConfig.GroupName);
-                        assetsAssigned = true;
-                    }
-                }
-                #endregion
-
-                #region Asset Replacer assignment
-                HashSet<SubgroupCombination> assetReplacerCombinations = new HashSet<SubgroupCombination>();
-                if (assetsAssigned) // assign direct replacers that a come from the assigned primary asset pack
-                {
-                    foreach (var combination in assignedCombinations)
-                    {
-                        assetReplacerCombinations.UnionWith(_assetReplacerSelector.SelectAssetReplacers(combination.AssetPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
-                    }
-                }
-                foreach (var replacerOnlyPack in mixInAssetPacks.Where(x => !x.Subgroups.Any() && x.AssetReplacerGroups.Any())) // add asset replacers from mix-in asset packs that ONLY have replacer assets, since they won't be contained in assignedCombinations
-                {
-                    assetReplacerCombinations.UnionWith(_assetReplacerSelector.SelectAssetReplacers(replacerOnlyPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
-                }
-                assignedCombinations.AddRange(assetReplacerCombinations);
-                #endregion
-
-                #region Generate Records
-                if (assignedCombinations.Any())
-                {
-                    var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
-                    var npcObjectMap = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", npcRecord } };
-                    var assignedPaths = new List<FilePathReplacementParsed>(); // for logging only
-                    _recordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, _patcherState.RecordTemplateLinkCache, npcObjectMap, objectCaches, outputMod, assignedPaths, generatedHeadParts);
-                    _combinationLog.LogAssignment(currentNPCInfo, assignedCombinations, assignedPaths);
-                    if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
-                    npcRecord.Keywords.Add(EBDFaceKW);
-                    npcRecord.Keywords.Add(EBDScriptKW);
-                    RecordGenerator.AddKeywordsToNPC(assignedCombinations, npcRecord, outputMod);
-
-                    if (assignedPaths.Where(x => x.DestinationStr.StartsWith("HeadParts")).Any())
-                    {
-                        headPartNPCs.Add(npcRecord);
-                    }
-                }
-                #endregion
-            }
-
-            if (_patcherState.TexMeshSettings.bForceVanillaBodyMeshPath)
-            {
-                _assetSelector.SetVanillaBodyPath(currentNPCInfo, outputMod, _environmentProvider.LinkCache);
-            }
 
             #region Height assignment
             if (_patcherState.GeneralSettings.bChangeHeight && !blockHeight && _patcherState.GeneralSettings.PatchableRaces.Contains(currentNPCInfo.HeightRace))
