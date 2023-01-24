@@ -72,6 +72,8 @@
                 <RowDefinition Height="auto"/>
                 <!-- 13 -->
                 <RowDefinition Height="auto"/>
+                <!-- 14 -->
+                <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Permit config files to modify file paths with .dds extensions" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow config files to change NPC textures</TextBlock>
@@ -153,6 +155,11 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+            </Expander>
+
+            <TextBlock Grid.Row="14" Grid.Column="0" VerticalAlignment="Center" ToolTip="The order in which asset config files and body shapes are to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribution Order</TextBlock>
+            <Expander Grid.Row="14" Grid.Column="1" >
+                <local:UC_AssetOrderingMenu DataContext="{Binding AssetOrderingMenu}"/>
             </Expander>
         </Grid>
 
