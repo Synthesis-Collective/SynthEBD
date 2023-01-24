@@ -22,17 +22,17 @@ namespace SynthEBD;
 public class VM_NPCAttribute : VM
 {
     public delegate VM_NPCAttribute Factory(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups);
-    private Factory _selfFactory;
+    private VM_NPCAttributeCreator _creator;
     private ObservableCollection<VM_AttributeGroup> _subscribedAttributeGroups;
     public VM_NPCAttribute(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, VM_NPCAttributeCreator creator, AttributeMatcher attributeMatcher, IEnvironmentStateProvider environmentProvider, VM_NPCAttribute.Factory selfFactory)
     {
-        _selfFactory = selfFactory;
+        _creator = creator;
         _subscribedAttributeGroups = attributeGroups;
 
         ParentCollection = parentCollection;
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
-        AddToParent = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Add(creator.CreateNewFromUI(ParentCollection, DisplayForceIfOption, DisplayForceIfWeight, _subscribedAttributeGroups)));
+        AddToParent = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Add(_creator.CreateNewFromUI(ParentCollection, DisplayForceIfOption, DisplayForceIfWeight, _subscribedAttributeGroups)));
         Validate = new RelayCommand(canExecute: _ => true, execute: _ => {
             var validator = new VM_AttributeValidator(this, _subscribedAttributeGroups, environmentProvider, attributeMatcher);
             Window_AttributeValidator window = new Window_AttributeValidator();
@@ -58,15 +58,8 @@ public class VM_NPCAttribute : VM
 
     public VM_NPCAttribute Clone(ObservableCollection<VM_NPCAttribute> parentCollection)
     {
-        var clone = _selfFactory(parentCollection, _subscribedAttributeGroups);
-        clone.DisplayForceIfOption = DisplayForceIfOption;
-        clone.DisplayForceIfWeight = DisplayForceIfWeight;
-
-        foreach (var subAttribute in GroupedSubAttributes)
-        {
-            clone.GroupedSubAttributes.Add(subAttribute.Clone(clone, DisplayForceIfOption, DisplayForceIfWeight, _subscribedAttributeGroups));
-        }
-
+        var model = DumpViewModelToModel(this);
+        var clone = _creator.GetViewModelFromModel(model, parentCollection, _subscribedAttributeGroups, DisplayForceIfOption, DisplayForceIfWeight);
         return clone;
     }
 
@@ -360,20 +353,12 @@ public class VM_NPCAttributeShell : VM
             InitializedVMcache[type] = Attribute;
         }
     }
-    
-    public VM_NPCAttributeShell Clone(VM_NPCAttribute parentVM, bool displayForceIfOption, bool? DisplayForceIfWeight, ObservableCollection<VM_AttributeGroup> attributeGroups)
-    {
-        VM_NPCAttributeShell clone = _selfFactory(parentVM, displayForceIfOption, DisplayForceIfWeight, attributeGroups);
-        clone.Attribute = Attribute.Clone(parentVM, clone);
-        return clone;
-    }
 }
 
 public interface ISubAttributeViewModel
 {
     VM_NPCAttribute ParentVM { get; set; }
     IObservable<System.Reactive.Unit> NeedsRefresh { get; }
-    public ISubAttributeViewModel Clone(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
 }
 
 public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
@@ -424,13 +409,6 @@ public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
     {
         return new NPCAttributeVoiceType() { Type = NPCAttributeType.VoiceType, FormKeys = viewModel.VoiceTypeFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight};
     }
-
-    public ISubAttributeViewModel Clone(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
-    {
-        var clone = _selfFactory(parentVM, parentShell);
-        clone.VoiceTypeFormKeys = new(VoiceTypeFormKeys);
-        return clone;
-    }
 }
 
 public class VM_NPCAttributeClass : VM, ISubAttributeViewModel
@@ -469,13 +447,6 @@ public class VM_NPCAttributeClass : VM, ISubAttributeViewModel
     public static NPCAttributeClass DumpViewModelToModel(VM_NPCAttributeClass viewModel, string forceModeStr)
     {
         return new NPCAttributeClass() { Type = NPCAttributeType.Class, FormKeys = viewModel.ClassFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
-    }
-
-    public ISubAttributeViewModel Clone(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
-    {
-        var clone = _selfFactory(parentVM, parentShell);
-        clone.ClassFormKeys = new(ClassFormKeys);
-        return clone;
     }
 }
 
@@ -678,20 +649,6 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         ValueFKtypeCollection = ValueFKtype.AsEnumerable();
         Evaluate();
     }
-
-    public ISubAttributeViewModel Clone(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
-    {
-        var clone = _selfFactory(parentVM, parentShell);
-        clone.ChosenComparator = ChosenComparator;
-        clone.CustomType = CustomType;
-        clone.IntellisensedPath = IntellisensedPath;
-        clone.ValueStr = ValueStr;
-        clone.ValueFKs = new ObservableCollection<FormKey>(ValueFKs);
-        clone.ValueFKtype = ValueFKtype;
-        clone.ReferenceNPCFormKey = ReferenceNPCFormKey;
-        clone.ChosenPathSuggestion = null;
-        return clone;
-    }
 }
 
 public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
@@ -735,15 +692,6 @@ public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
     {
         return new NPCAttributeFactions() { Type = NPCAttributeType.Faction, FormKeys = viewModel.FactionFormKeys.ToHashSet(), RankMin = viewModel.RankMin, RankMax = viewModel.RankMax, ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
     }
-
-    public ISubAttributeViewModel Clone(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
-    {
-        var clone = _selfFactory(parentVM, parentShell);
-        clone.FactionFormKeys = new(FactionFormKeys);
-        clone.RankMin = RankMin;
-        clone.RankMax = RankMax;
-        return clone;
-    }
 }
 
 public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
@@ -784,13 +732,6 @@ public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
     {
         return new NPCAttributeFaceTexture() { Type = NPCAttributeType.FaceTexture, FormKeys = viewModel.FaceTextureFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
     }
-
-    public ISubAttributeViewModel Clone(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
-    {
-        var clone = _selfFactory(parentVM, parentShell);
-        clone.FaceTextureFormKeys = new(FaceTextureFormKeys);
-        return clone;
-    }
 }
 
 public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
@@ -830,13 +771,6 @@ public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
     public static NPCAttributeRace DumpViewModelToModel(VM_NPCAttributeRace viewModel, string forceModeStr)
     {
         return new NPCAttributeRace() { Type = NPCAttributeType.Race, FormKeys = viewModel.RaceFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
-    }
-
-    public ISubAttributeViewModel Clone(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
-    {
-        var clone = _selfFactory(parentVM, parentShell);
-        clone.RaceFormKeys = new(RaceFormKeys);
-        return clone;
     }
 }
 
@@ -913,24 +847,6 @@ public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
         model.ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr];
         return model;
     }
-
-    public ISubAttributeViewModel Clone(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
-    {
-        var clone = _selfFactory(parentVM, parentShell);
-        clone.Unique = Unique;
-        clone.Essential = Essential;
-        clone.Protected = Protected;
-        clone.Summonable = Summonable;
-        clone.Ghost = Ghost;
-        clone.Invulnerable = Invulnerable;
-        clone.EvalMood = EvalMood;
-        clone.Mood = Mood;
-        clone.EvalAggression = EvalAggression;
-        clone.Aggression = Aggression;
-        clone.EvalGender = EvalGender;
-        clone.NPCGender = NPCGender;
-        return clone;
-    }
 }
 
 public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
@@ -985,14 +901,6 @@ public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
         model.ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr];
         return model;
     }
-
-    public ISubAttributeViewModel Clone(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
-    {
-        var clone = _selfFactory(parentVM, parentShell);
-        clone.ModKeys = new(ModKeys);
-        clone.ModActionType = ModActionType;
-        return clone;
-    }
 }
 
 public class VM_NPCAttributeNPC : VM, ISubAttributeViewModel
@@ -1031,13 +939,6 @@ public class VM_NPCAttributeNPC : VM, ISubAttributeViewModel
     public static NPCAttributeNPC DumpViewModelToModel(VM_NPCAttributeNPC viewModel, string forceModeStr)
     {
         return new NPCAttributeNPC() { Type = NPCAttributeType.NPC, FormKeys = viewModel.NPCFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
-    }
-
-    public ISubAttributeViewModel Clone(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
-    {
-        var clone = _selfFactory(parentVM, parentShell);
-        clone.NPCFormKeys = new(NPCFormKeys);
-        return clone;
     }
 }
 
@@ -1120,22 +1021,6 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
     public static NPCAttributeGroup DumpViewModelToModel(VM_NPCAttributeGroup viewModel, string forceModeStr)
     {
         return new NPCAttributeGroup() { Type = NPCAttributeType.Group, SelectedLabels = viewModel.SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label).ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
-    }
-
-    public ISubAttributeViewModel Clone(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
-    {
-        var clone = new VM_NPCAttributeGroup(parentVM, parentShell, SubscribedAttributeGroups);
-
-        foreach (var member in clone.SelectableAttributeGroups)
-        {
-            var template = SelectableAttributeGroups.Where(x => x.SubscribedAttributeGroup.Label == x.SubscribedAttributeGroup.Label).FirstOrDefault();
-            if (template != null)
-            {
-                member.IsSelected = template.IsSelected;
-            }
-        }
-
-        return clone;
     }
 }
 
