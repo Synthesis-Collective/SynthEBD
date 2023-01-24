@@ -14,7 +14,7 @@ public class BodyGenSelector
         _attributeMatcher = attributeMatcher;  
     }
 
-    public List<BodyGenConfig.BodyGenTemplate> SelectMorphs(NPCInfo npcInfo, out bool selectionMade, BodyGenConfigs bodyGenConfigs, SubgroupCombination assignedAssetCombination, out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
+    public List<BodyGenConfig.BodyGenTemplate> SelectMorphs(NPCInfo npcInfo, out bool selectionMade, BodyGenConfigs bodyGenConfigs, SubgroupCombination assignedPrimaryCombination, List<SubgroupCombination> assignedAssetCombinations, out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
     {
         _logger.OpenReportSubsection("BodyGenSelection", npcInfo);
         _logger.LogReport("Selecting BodyGen morph(s) for the current NPC", false, npcInfo);
@@ -27,12 +27,12 @@ public class BodyGenSelector
             case Gender.Female: genderedBodyGenConfigs = bodyGenConfigs.Female; break;
         }
 
-        if (assignedAssetCombination != null)
+        if (assignedPrimaryCombination != null)
         {
             switch (npcInfo.Gender)
             {
-                case Gender.Male: currentBodyGenConfig = bodyGenConfigs.Male.Where(x => x.Label == assignedAssetCombination.AssetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
-                case Gender.Female: currentBodyGenConfig = bodyGenConfigs.Female.Where(x => x.Label == assignedAssetCombination.AssetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
+                case Gender.Male: currentBodyGenConfig = bodyGenConfigs.Male.Where(x => x.Label == assignedPrimaryCombination.AssetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
+                case Gender.Female: currentBodyGenConfig = bodyGenConfigs.Female.Where(x => x.Label == assignedPrimaryCombination.AssetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
             }
         }
         if (currentBodyGenConfig == null)
@@ -54,7 +54,7 @@ public class BodyGenSelector
         AssetAndBodyShapeSelector.ClearStatusFlags(statusFlags);
         List<BodyGenConfig.BodyGenTemplate> chosenMorphs = new List<BodyGenConfig.BodyGenTemplate>();
 
-        var availableTemplatesGlobal = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.None, assignedAssetCombination, currentBodyGenConfig);
+        var availableTemplatesGlobal = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.None, assignedAssetCombinations, currentBodyGenConfig);
         var availableCombinations = GetAvailableCombinations(currentBodyGenConfig, npcInfo, availableTemplatesGlobal);
 
         HashSet<BodyGenConfig.BodyGenTemplate> availableTemplatesAll = new HashSet<BodyGenConfig.BodyGenTemplate>();
@@ -68,7 +68,7 @@ public class BodyGenSelector
             if (!assignmentsSpecified)
             {
                 // if that didn't work, try forming combination objects out of all templates regardless of the Racial Template Map
-                var availableTemplatesRaceIgnore = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.Race, assignedAssetCombination, currentBodyGenConfig);
+                var availableTemplatesRaceIgnore = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.Race, assignedAssetCombinations, currentBodyGenConfig);
                 availableCombinations = GetAvailableCombinations(currentBodyGenConfig, npcInfo, availableTemplatesRaceIgnore);
                 availableCombinations = FilterBySpecificNPCAssignments(availableCombinations, npcInfo, out assignmentsSpecified);
                 if (!assignmentsSpecified)
@@ -331,12 +331,12 @@ public class BodyGenSelector
     /// <param name="allMorphs">All templated contained within a BodyGenConfig</param>
     /// <param name="npcInfo"></param>
     /// <returns></returns>
-    public HashSet<BodyGenConfig.BodyGenTemplate> InitializeMorphList(HashSet<BodyGenConfig.BodyGenTemplate> allMorphs, NPCInfo npcInfo, ValidationIgnore ignoredFactors, SubgroupCombination assignedAssetCombination, BodyGenConfig bodyGenConfig)
+    public HashSet<BodyGenConfig.BodyGenTemplate> InitializeMorphList(HashSet<BodyGenConfig.BodyGenTemplate> allMorphs, NPCInfo npcInfo, ValidationIgnore ignoredFactors, List<SubgroupCombination> assignedAssetCombinations, BodyGenConfig bodyGenConfig)
     {
         HashSet<BodyGenConfig.BodyGenTemplate> outputMorphs = new HashSet<BodyGenConfig.BodyGenTemplate>();
         foreach (var candidateMorph in allMorphs)
         {
-            if (MorphIsValid(candidateMorph, npcInfo, ignoredFactors, assignedAssetCombination, bodyGenConfig))
+            if (MorphIsValid(candidateMorph, npcInfo, ignoredFactors, assignedAssetCombinations, bodyGenConfig))
             {
                 outputMorphs.Add(candidateMorph);
             }
@@ -344,7 +344,7 @@ public class BodyGenSelector
         return outputMorphs;
     }
 
-    public bool MorphIsValid(BodyGenConfig.BodyGenTemplate candidateMorph, NPCInfo npcInfo, ValidationIgnore ignoredFactors, SubgroupCombination assignedAssetCombination, BodyGenConfig bodyGenConfig)
+    public bool MorphIsValid(BodyGenConfig.BodyGenTemplate candidateMorph, NPCInfo npcInfo, ValidationIgnore ignoredFactors, List<SubgroupCombination> assignedAssetCombinations, BodyGenConfig bodyGenConfig)
     {
         if (ignoredFactors == ValidationIgnore.All)
         {
@@ -449,7 +449,7 @@ public class BodyGenSelector
             }
         }
 
-        if (assignedAssetCombination != null)
+        foreach (var assignedAssetCombination in assignedAssetCombinations)
         {
             // check whole config rules
             if (assignedAssetCombination.AssetPack.DistributionRules.AllowedBodyGenDescriptors.Any())
@@ -472,7 +472,7 @@ public class BodyGenSelector
             {
                 if (subgroup.AllowedBodyGenDescriptors.Any())
                 {
-                    if(!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodyGenDescriptors, candidateMorph.BodyShapeDescriptors, out _))
+                    if (!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodyGenDescriptors, candidateMorph.BodyShapeDescriptors, out _))
                     {
                         _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its descriptors do not match allowed descriptors from assigned subgroup " + Logger.GetSubgroupIDString(subgroup) + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(subgroup.AllowedBodyGenDescriptors), false, npcInfo);
                         return false;

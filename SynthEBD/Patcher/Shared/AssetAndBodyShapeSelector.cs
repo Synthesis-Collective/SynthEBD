@@ -39,7 +39,7 @@ public class AssetAndBodyShapeSelector
     /// <param name="availableAssetPacks">Asset packs available to the current NPC</param>
     /// <param name="npcInfo">NPC info class</param>
     /// <returns></returns>
-    public AssetAndBodyShapeAssignment ChooseCombinationAndBodyShape(out bool assetsAssigned, out bool bodyShapeAssigned, HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, NPCInfo npcInfo, bool blockBodyShape, AssetPackAssignmentMode mode, AssetAndBodyShapeAssignment currentAssignments)
+    public AssetAndBodyShapeAssignment ChooseCombinationAndBodyShape(out bool assetsAssigned, out bool bodyShapeAssigned, HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, NPCInfo npcInfo, bool blockBodyShape, AssetPackAssignmentMode mode, AssetAndBodyShapeAssignment currentAssignments, List<SubgroupCombination> previousAssignments)
     {
         AssetAndBodyShapeAssignment assignment = new AssetAndBodyShapeAssignment();
         SubgroupCombination chosenCombination = new SubgroupCombination();
@@ -177,7 +177,7 @@ public class AssetAndBodyShapeSelector
         if (!selectedFromLinkedNPC)
         {
             _logger.LogReport("Choosing Asset Combination and BodyGen for " + npcInfo.LogIDstring, false, npcInfo);
-            chosenCombination = GenerateCombinationWithBodyShape(availableAssetPacks, bodyGenConfigs, oBodySettings, assignment, npcInfo, blockBodyShape, mode, currentAssignments); // chosenMorphs is populated by reference within ChooseRandomCombination
+            chosenCombination = GenerateCombinationWithBodyShape(availableAssetPacks, bodyGenConfigs, oBodySettings, assignment, npcInfo, blockBodyShape, mode, currentAssignments, previousAssignments); // chosenMorphs is populated by reference within ChooseRandomCombination
 
             switch (_patcherState.GeneralSettings.BodySelectionMode)
             {
@@ -205,7 +205,7 @@ public class AssetAndBodyShapeSelector
         return assignment;
     }
 
-    public SubgroupCombination GenerateCombinationWithBodyShape(HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, AssetAndBodyShapeAssignment assignment, NPCInfo npcInfo, bool blockBodyShape, AssetPackAssignmentMode mode, AssetAndBodyShapeAssignment currentAssignments)
+    public SubgroupCombination GenerateCombinationWithBodyShape(HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, AssetAndBodyShapeAssignment assignment, NPCInfo npcInfo, bool blockBodyShape, AssetPackAssignmentMode mode, AssetAndBodyShapeAssignment currentAssignments, List<SubgroupCombination> previousAssignments)
     {
         List<BodyGenConfig.BodyGenTemplate> candidateMorphs = new List<BodyGenConfig.BodyGenTemplate>();
         BodySlideSetting candidatePreset = null;
@@ -273,8 +273,8 @@ public class AssetAndBodyShapeSelector
                 var bodyShapeStatusFlags = new BodyShapeSelectorStatusFlag();
                 switch (_patcherState.GeneralSettings.BodySelectionMode)
                 {
-                    case BodyShapeSelectionMode.BodyGen: candidateMorphs = _bodyGenSelector.SelectMorphs(npcInfo, out bodyShapeAssigned, bodyGenConfigs, assignedCombination, out bodyShapeStatusFlags); break;
-                    case BodyShapeSelectionMode.BodySlide: candidatePreset = _oBodySelector.SelectBodySlidePreset(npcInfo, out bodyShapeAssigned, oBodySettings, assignedCombination, out bodyShapeStatusFlags); break;
+                    case BodyShapeSelectionMode.BodyGen: candidateMorphs = _bodyGenSelector.SelectMorphs(npcInfo, out bodyShapeAssigned, bodyGenConfigs, assignedCombination, previousAssignments, out bodyShapeStatusFlags); break;
+                    case BodyShapeSelectionMode.BodySlide: candidatePreset = _oBodySelector.SelectBodySlidePreset(npcInfo, out bodyShapeAssigned, oBodySettings, previousAssignments, out bodyShapeStatusFlags); break;
                 }
 
                 // Decision Tree
@@ -297,7 +297,7 @@ public class AssetAndBodyShapeSelector
                     bool bodyShapeAssignable = false;
                     switch (_patcherState.GeneralSettings.BodySelectionMode)
                     {
-                        case BodyShapeSelectionMode.BodyGen: candidateMorphs = _bodyGenSelector.SelectMorphs(npcInfo, out bool bodyGenAssignable, bodyGenConfigs, null, out bodyShapeStatusFlags); break;
+                        case BodyShapeSelectionMode.BodyGen: candidateMorphs = _bodyGenSelector.SelectMorphs(npcInfo, out bool bodyGenAssignable, bodyGenConfigs, null, previousAssignments, out bodyShapeStatusFlags); break;
                         case BodyShapeSelectionMode.BodySlide: candidatePreset = _oBodySelector.SelectBodySlidePreset(npcInfo, out bodyShapeAssigned, oBodySettings, null, out bodyShapeStatusFlags); break;
                     }
 

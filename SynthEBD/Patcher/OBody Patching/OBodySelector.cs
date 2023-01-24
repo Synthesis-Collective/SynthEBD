@@ -13,7 +13,7 @@ public class OBodySelector
         _paths = paths;
         _attributeMatcher = attributeMatcher;   
     }
-    public BodySlideSetting SelectBodySlidePreset(NPCInfo npcInfo, out bool selectionMade, Settings_OBody oBodySettings, SubgroupCombination assignedAssetCombination, out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
+    public BodySlideSetting SelectBodySlidePreset(NPCInfo npcInfo, out bool selectionMade, Settings_OBody oBodySettings, List<SubgroupCombination> assignedAssetCombinations,  out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
     {
         selectionMade = false;
 
@@ -89,7 +89,7 @@ public class OBodySelector
 
             foreach (var preset in availablePresets)
             {
-                if (PresetIsValid(preset, npcInfo, assignedAssetCombination, oBodySettings))
+                if (PresetIsValid(preset, npcInfo, assignedAssetCombinations, oBodySettings))
                 {
                     filteredPresets.Add(preset);
                     if (preset.MatchedForceIfCount > 0)
@@ -173,7 +173,7 @@ public class OBodySelector
         return selectedPreset;
     }
 
-    public bool PresetIsValid(BodySlideSetting candidatePreset, NPCInfo npcInfo, SubgroupCombination assignedAssetCombination, Settings_OBody oBodySettings)
+    public bool PresetIsValid(BodySlideSetting candidatePreset, NPCInfo npcInfo, List<SubgroupCombination> assignedAssetCombinations, Settings_OBody oBodySettings)
     {
         if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.BodyGenMorphNames.Contains(candidatePreset.Label))
         {
@@ -264,7 +264,7 @@ public class OBodySelector
             }
         }
 
-        if (assignedAssetCombination != null)
+        foreach (var assignedAssetCombination in assignedAssetCombinations)
         {
             // check whole config rules
             if (assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideDescriptors.Any())

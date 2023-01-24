@@ -488,7 +488,7 @@ public class Patcher
                         #region Primary Asset assignment
                         if (_assetsStatsTracker.HasGenderedConfigs[currentNPCInfo.Gender])
                         {
-                            assignedPrimaryComboAndBodyShape = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, primaryAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, null);
+                            assignedPrimaryComboAndBodyShape = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, primaryAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, null, assignedCombinations);
                             if (assetsAssigned)
                             {
                                 assignedCombinations.Add(assignedPrimaryComboAndBodyShape.AssignedCombination);
@@ -520,7 +520,7 @@ public class Patcher
                         var currentMixIn = mixInAssetPacks.Where(x => x.GroupName == item).FirstOrDefault();
                         if (currentMixIn != null)
                         {
-                            var assignedMixIn = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out bool mixInAssigned, out _, new HashSet<FlattenedAssetPack>() { currentMixIn }, bodyGenConfigs, oBodySettings, currentNPCInfo, true, AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn, assignedPrimaryComboAndBodyShape);
+                            var assignedMixIn = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out bool mixInAssigned, out _, new HashSet<FlattenedAssetPack>() { currentMixIn }, bodyGenConfigs, oBodySettings, currentNPCInfo, true, AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn, assignedPrimaryComboAndBodyShape, assignedCombinations);
                             if (mixInAssigned)
                             {
                                 assignedCombinations.Add(assignedMixIn.AssignedCombination);
@@ -585,7 +585,7 @@ public class Patcher
                     if (!blockBodyShape && _patcherState.GeneralSettings.PatchableRaces.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && BodyGenSelector.BodyGenAvailableForGender(currentNPCInfo.Gender, bodyGenConfigs))
                     {
                         _logger.LogReport("Assigning a BodyGen morph independently of Asset Combination", false, currentNPCInfo);
-                        var assignedMorphs = _bodyGenSelector.SelectMorphs(currentNPCInfo, out bool success, bodyGenConfigs, null, out _);
+                        var assignedMorphs = _bodyGenSelector.SelectMorphs(currentNPCInfo, out bool success, bodyGenConfigs, null, new List<SubgroupCombination>(), out _);
                         if (success)
                         {
                             BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedMorphs.Select(x => x.Label).ToList());
@@ -602,7 +602,7 @@ public class Patcher
                     if (!blockBodyShape && _patcherState.GeneralSettings.PatchableRaces.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && _oBodySelector.CurrentNPCHasAvailablePresets(currentNPCInfo, oBodySettings))
                     {
                         _logger.LogReport("Assigning a BodySlide preset independently of Asset Combination", false, currentNPCInfo);
-                        assignedBodySlide = _oBodySelector.SelectBodySlidePreset(currentNPCInfo, out bool success, oBodySettings, null, out _);
+                        assignedBodySlide = _oBodySelector.SelectBodySlidePreset(currentNPCInfo, out bool success, oBodySettings, new List<SubgroupCombination>(), out _);
                         if (success)
                         {
                             BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedBodySlide.Label);
