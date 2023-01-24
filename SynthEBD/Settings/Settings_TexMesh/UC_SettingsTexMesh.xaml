@@ -157,7 +157,7 @@
                 </ItemsControl>
             </Expander>
 
-            <TextBlock Grid.Row="14" Grid.Column="0" VerticalAlignment="Center" ToolTip="The order in which asset config files and body shapes are to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribution Order</TextBlock>
+            <TextBlock Grid.Row="14" Grid.Column="0" VerticalAlignment="Center" ToolTip="The order in which asset config files and body shapes are to be assigned (Drag and drop to rearrange)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribution Order</TextBlock>
             <Expander Grid.Row="14" Grid.Column="1" >
                 <local:UC_AssetOrderingMenu DataContext="{Binding AssetOrderingMenu}"/>
             </Expander>
