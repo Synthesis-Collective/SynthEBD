@@ -8,9 +8,11 @@
              xmlns:local="clr-namespace:SynthEBD"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
+    
     <UserControl.Resources>
         <local:BodyGenVisibilityConverter x:Key="BGVisibilityConverter" />
         <local:BodySlideVisibilityConverter x:Key="BSVisibilityConverter" />
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
     </UserControl.Resources>
 
     <ScrollViewer>
@@ -42,8 +44,11 @@
             <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Allow Non-Unique NPCs</TextBlock>
             <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding Path=AllowNonUnique, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Distribution Probability Weighting</TextBlock>
-            <TextBox Grid.Row="2" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ProbabilityWeighting}"/>
+            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Text="{Binding ProbabilityLabelStr}" />
+            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" >
+                <TextBox MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ProbabilityWeighting}"/>
+                <TextBlock Text="%"  Visibility="{Binding Path = bIsMixIn, Converter={StaticResource BoolToVis}}"/>
+            </StackPanel>
 
             <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Allowed Races</TextBlock>
             <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="3" Grid.Column="1" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding LinkCache}" ScopedTypes="{Binding RacePickerFormKeys}" />

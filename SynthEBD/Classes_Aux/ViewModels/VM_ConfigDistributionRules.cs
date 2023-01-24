@@ -59,6 +59,24 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => LinkCache = x)
             .DisposeWith(this);
+
+        ParentAssetPack.WhenAnyValue(x => x.ConfigType).Subscribe(x =>
+        {
+            if (x == AssetPackType.Primary)
+            {
+                ProbabilityLabelStr = "Distribution Probability Weighting";
+                bIsMixIn = false;
+            }
+            else if (x == AssetPackType.MixIn)
+            {
+                ProbabilityLabelStr = "Distribution Probability";
+                if (ProbabilityWeighting * 100 <= 100)
+                {
+                    ProbabilityWeighting *= 100;
+                }
+                bIsMixIn = true;
+            }
+        });
     }
 
     public ObservableCollection<FormKey> AllowedRaces { get; set; } = new();
@@ -86,6 +104,8 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
     public RelayCommand AddNPCKeyword { get; }
     public VM_AssetPack ParentAssetPack { get; set; }
     public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
+    public string ProbabilityLabelStr { get; set; } = "Distribution Probability Weighting";
+    public bool bIsMixIn { get; set; } = false;
 
     public void CopyInViewModelFromModel(AssetPack.ConfigDistributionRules model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack)
     {
