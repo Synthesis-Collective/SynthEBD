@@ -10,8 +10,7 @@ namespace SynthEBD
     public class VM_AssetOrderingMenu : VM
     {
         private readonly VM_SettingsTexMesh _texMeshVM;
-        private readonly string _primaryLabel = "Primary";
-        private readonly string _bodyShapesLabel = "Body Shape";
+        private readonly string _primaryLabel = "Primary & Body Shape";
         
         public VM_AssetOrderingMenu(VM_SettingsTexMesh texMeshVM)
         {
@@ -27,16 +26,6 @@ namespace SynthEBD
             .DisposeMany() // Dispose subscriptions related to removed attributes
             .Subscribe()  // Execute my instructions
             .DisposeWith(this);
-
-            /*
-            Observable.CombineLatest(
-                _texMeshVM.AssetPacks.ToObservableChangeSet().Transform(x => x.ConfigType),
-                _texMeshVM.AssetPacks.ToObservableChangeSet().Transform(x => x.IsSelected),
-            (_, _) => { return 0; })
-            .Subscribe(_ => UpdateAssignmentOrder()).DisposeWith(this);
-            */
-
-            _texMeshVM.AssetPacks.ToObservableChangeSet().Transform(x => x.ConfigType).Subscribe(_ => UpdateAssignmentOrder()).DisposeWith(this);
         }
 
         public ObservableCollection<string> AssignmentOrder { get; set; } = new();
@@ -47,12 +36,6 @@ namespace SynthEBD
             {
                 AssignmentOrder.Add(_primaryLabel);
             }
-
-            if (!AssignmentOrder.Contains(_bodyShapesLabel))
-            {
-                AssignmentOrder.Add(_bodyShapesLabel);
-            }
-
             // add any new mix ins to list
             var mixInLabels = _texMeshVM.AssetPacks.Where(x => x.ConfigType == AssetPackType.MixIn && x.IsSelected).Select(x => x.GroupName);
             foreach (var mixin in mixInLabels)
@@ -67,7 +50,7 @@ namespace SynthEBD
             for (int i = 0; i < AssignmentOrder.Count; i++)
             {
                 var mixin = AssignmentOrder[i];
-                if (mixin == _primaryLabel || mixin == _bodyShapesLabel) { continue; }
+                if (mixin == _primaryLabel) { continue; }
                 if (!mixInLabels.Contains(mixin))
                 {
                     AssignmentOrder.RemoveAt(i);
