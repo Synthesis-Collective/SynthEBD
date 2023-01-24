@@ -118,13 +118,16 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         this.WhenAnyValue(x => x.Gender).Subscribe(x => SetDefaultRecordTemplate()).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.IsSelected).Subscribe(x => ParentMenuVM.RefreshDisplayedAssetPackString()).DisposeWith(this);
-
         UpdateOrderingMenu = Observable.CombineLatest(
                 this.WhenAnyValue(x => x.GroupName),
                 this.WhenAnyValue(x => x.ConfigType),
                 this.WhenAnyValue(x => x.IsSelected),
             (_, _, _) => { return 0; }).Unit();
+
+        UpdateActiveHeader = Observable.CombineLatest(
+                this.WhenAnyValue(x => x.ShortName),
+                this.WhenAnyValue(x => x.IsSelected),
+            (_, _) => { return 0; }).Unit();
 
         AddSubgroup = new RelayCommand(
             canExecute: _ => true,
@@ -329,6 +332,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public RelayCommand ViewRaceGroupingsEditor { get; }
     public VM_SettingsTexMesh ParentMenuVM { get; set; }
     public IObservable<System.Reactive.Unit> UpdateOrderingMenu { get; set; }
+    public IObservable<System.Reactive.Unit> UpdateActiveHeader { get; set; }
 
     public Dictionary<Gender, string> GenderEnumDict { get; } = new Dictionary<Gender, string>() // referenced by xaml; don't trust VS reference count
     {

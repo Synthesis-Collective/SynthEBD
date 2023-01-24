@@ -3,6 +3,8 @@ using Noggog;
 using System.Collections.ObjectModel;
 using System.Reactive.Linq;
 using System.Windows.Forms;
+using DynamicData.Binding;
+using DynamicData;
 
 namespace SynthEBD;
 
@@ -48,6 +50,18 @@ public class VM_SettingsTexMesh : VM
                 _environmentProvider.WhenAnyValue(x => x.SkyrimVersion),
                 (_, _) => { return 0; })
             .Subscribe(_ => UpdateSKSESelectionVisibility()).DisposeWith(this);
+
+        AssetPacks
+            .ToObservableChangeSet()
+            .Transform(x =>
+                x.WhenAnyObservable(y => y.UpdateActiveHeader)
+                .Subscribe(_ => RefreshDisplayedAssetPackString()))
+            .DisposeMany() // Dispose subscriptions related to removed attributes
+            .Subscribe()  // Execute my instructions
+            .DisposeWith(this);
+
+        AssetPacks.ToObservableChangeSet().Subscribe(_ => RefreshDisplayedAssetPackString()).DisposeWith(this);
+
 
         AddTrimPath = new RelayCommand(
             canExecute: _ => true,
