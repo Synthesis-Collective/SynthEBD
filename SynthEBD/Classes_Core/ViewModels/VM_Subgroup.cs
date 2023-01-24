@@ -676,8 +676,10 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
     {
         var clone = _selfFactory(SubscribedRaceGroupings, parentCollection, ParentAssetPack, this, SetExplicitReferenceNPC);
         clone.AddKeywords = new ObservableCollection<VM_CollectionMemberString>(AddKeywords);
-        clone.AllowedAttributes = new ObservableCollection<VM_NPCAttribute>(AllowedAttributes);
-        clone.DisallowedAttributes = new ObservableCollection<VM_NPCAttribute>(DisallowedAttributes);
+        clone.AllowedAttributes = new ObservableCollection<VM_NPCAttribute>();
+        foreach (var at in AllowedAttributes) { clone.AllowedAttributes.Add(at.Clone(clone.AllowedAttributes)); }
+        clone.DisallowedAttributes = new ObservableCollection<VM_NPCAttribute>();
+        foreach (var at in DisallowedAttributes) { clone.DisallowedAttributes.Add(at.Clone(clone.DisallowedAttributes)); }
         if (AllowedBodyGenDescriptors is not null)
         {
             clone.AllowedBodyGenDescriptors = AllowedBodyGenDescriptors.Clone();
