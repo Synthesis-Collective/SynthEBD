@@ -23,11 +23,9 @@ public class VM_SettingsTexMesh : VM
         VM_Settings_General general,
         VM_SettingsBodyGen bodyGen,
         VM_SettingsOBody oBody,
-        VM_BlockListUI blockListUI,
         VM_SettingsModManager modManager,
         VM_AssetPack.Factory assetPackFactory,
         VM_Subgroup.Factory subgroupFactory,
-        VM_RaceGrouping.Factory raceGroupingFactory,
         IEnvironmentStateProvider environmentProvider,
         Logger logger,
         SynthEBDPaths paths,
@@ -42,6 +40,8 @@ public class VM_SettingsTexMesh : VM
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _getVMLoader = getVMLoader;
+
+        AssetOrderingMenu = new(this);
 
         Observable.CombineLatest(
                 this.WhenAnyValue(x => x.bApplyFixedScripts),
@@ -233,7 +233,7 @@ public class VM_SettingsTexMesh : VM
     public RelayCommand SelectConfigsNone { get; }
     public RelayCommand SimulateDistribution { get; }
 
-    private VM_Settings_General _generalSettingsVM { get; }
+    public VM_AssetOrderingMenu AssetOrderingMenu { get; set; }
 
     public bool ValidateAllConfigs(BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, out List<string> errors)
     {
@@ -267,6 +267,7 @@ public class VM_SettingsTexMesh : VM
         viewModel.LastViewedAssetPackName = model.LastViewedAssetPack;
         viewModel.bEasyNPCCompatibilityMode = model.bEasyNPCCompatibilityMode;
         viewModel.bApplyFixedScripts = model.bApplyFixedScripts;
+        viewModel.AssetOrderingMenu.CopyInFromViewModel(model.AssetOrder);
 
         if (model.bFixedScriptsOldSKSEversion)
         {
@@ -302,6 +303,7 @@ public class VM_SettingsTexMesh : VM
         model.bApplyFixedScripts = viewModel.bApplyFixedScripts;
         model.bFixedScriptsOldSKSEversion = viewModel.SKSEversionSSE == oldSKSEversion;
         model.bCacheRecords = viewModel.bCacheRecords;
+        model.AssetOrder = viewModel.AssetOrderingMenu.DumpToModel();
     }
 
     public void RefreshInstalledConfigs(List<string> installedConfigs)

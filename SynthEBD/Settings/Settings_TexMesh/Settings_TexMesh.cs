@@ -38,4 +38,5 @@ public class Settings_TexMesh
             PathToTrim = "meshes"
         }
     };
+    public List<string> AssetOrder { get; set; } = new();
 }
