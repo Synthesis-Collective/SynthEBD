@@ -179,7 +179,21 @@ public class AssetAndBodyShapeSelector
         {
             _logger.LogReport("Choosing Asset Combination and BodyGen for " + npcInfo.LogIDstring, false, npcInfo);
 
-            if (!(mode == AssetPackAssignmentMode.MixIn && availableAssetPacks.Any() && SkipMixInByProbability(availableAssetPacks.First(), npcInfo)))
+            if (mode == AssetPackAssignmentMode.MixIn && availableAssetPacks.Any())
+            {
+                var mixInPack = availableAssetPacks.First();
+                var mixInConsistency = npcInfo.ConsistencyNPCAssignment?.MixInAssignments?.Where(x => x.AssetPackName == mixInPack.GroupName).FirstOrDefault();
+                if (mixInConsistency != null)
+                {
+                    mixInDeclined = mixInConsistency.DeclinedAssignment;
+                }
+                else
+                {
+                    mixInDeclined = SkipMixInByProbability(availableAssetPacks.First(), npcInfo);
+                }
+            }
+
+            if (!mixInDeclined)
             {
                 chosenCombination = GenerateCombinationWithBodyShape(availableAssetPacks, bodyGenConfigs, oBodySettings, assignment, npcInfo, blockBodyShape, mode, currentAssignments, previousAssignments); // chosenMorphs is populated by reference within ChooseRandomCombination
 
