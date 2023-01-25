@@ -247,7 +247,7 @@ public class DefaultRaceGroupings
         {
             Skyrim.Race.NordRace.FormKey,
             Skyrim.Race.NordRaceVampire.FormKey,
-            Skyrim.Race.NordRaceAstrid.FormKey
+            Dawnguard.Race.DLC1NordRace.FormKey
         }
     };
 
