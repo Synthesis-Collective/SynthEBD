@@ -66,6 +66,10 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
             {
                 ProbabilityLabelStr = "Distribution Probability Weighting";
                 bIsMixIn = false;
+                if (ProbabilityWeighting / 100 >= 1)
+                {
+                    ProbabilityWeighting /= 100;
+                }
             }
             else if (x == AssetPackType.MixIn)
             {
