@@ -488,7 +488,7 @@ public class Patcher
                         #region Primary Asset assignment
                         if (_assetsStatsTracker.HasGenderedConfigs[currentNPCInfo.Gender])
                         {
-                            assignedPrimaryComboAndBodyShape = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, primaryAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, null, assignedCombinations);
+                            assignedPrimaryComboAndBodyShape = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, primaryAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, null, assignedCombinations, out _);
                             if (assetsAssigned)
                             {
                                 assignedCombinations.Add(assignedPrimaryComboAndBodyShape.AssignedCombination);
@@ -520,11 +520,11 @@ public class Patcher
                         var currentMixIn = mixInAssetPacks.Where(x => x.GroupName == item).FirstOrDefault();
                         if (currentMixIn != null)
                         {
-                            var assignedMixIn = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out bool mixInAssigned, out _, new HashSet<FlattenedAssetPack>() { currentMixIn }, bodyGenConfigs, oBodySettings, currentNPCInfo, true, AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn, assignedPrimaryComboAndBodyShape, assignedCombinations);
+                            var assignedMixIn = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out bool mixInAssigned, out _, new HashSet<FlattenedAssetPack>() { currentMixIn }, bodyGenConfigs, oBodySettings, currentNPCInfo, true, AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn, assignedPrimaryComboAndBodyShape, assignedCombinations, out bool mixInDeclined);
                             if (mixInAssigned)
                             {
                                 assignedCombinations.Add(assignedMixIn.AssignedCombination);
-                                _assetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedMixIn.AssignedCombination, currentNPCInfo, currentMixIn.GroupName);
+                                _assetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedMixIn.AssignedCombination, currentNPCInfo, currentMixIn.GroupName, mixInDeclined);
                                 assetsAssigned = true;
                             }
                         }

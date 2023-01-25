@@ -37,6 +37,7 @@ public class NPCAssignment
         public string AssetPackName { get; set; } = "";
         public List<string> SubgroupIDs { get; set; } = new();
         public List<AssetReplacerAssignment> AssetReplacerAssignments { get; set; } = new();
+        public bool DeclinedAssignment { get; set; } = false;
     }
 }
 

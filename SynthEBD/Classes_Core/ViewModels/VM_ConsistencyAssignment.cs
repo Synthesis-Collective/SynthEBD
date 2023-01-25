@@ -85,6 +85,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
             {
                 mixInVM.SubgroupIDs.Add(new VM_CollectionMemberString(id, mixInVM.SubgroupIDs));
             }
+            mixInVM.DeclinedAssignment = mixIn.DeclinedAssignment;
             viewModel.MixInAssignments.Add(mixInVM);
         }
         foreach(var replacer in model.AssetReplacerAssignments)
@@ -126,6 +127,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
 
         viewModel.DispName = model.DispName;
         viewModel.NPCFormKey = model.NPCFormKey;
+
         return viewModel;
     }
 
@@ -138,7 +140,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         model.MixInAssignments.Clear();
         foreach (var mixInVM in MixInAssignments)
         {
-            model.MixInAssignments.Add(new NPCAssignment.MixInAssignment() { AssetPackName = mixInVM.AssetPackName, SubgroupIDs = mixInVM.SubgroupIDs.Select(x => x.Content).ToList() });
+            model.MixInAssignments.Add(new NPCAssignment.MixInAssignment() { AssetPackName = mixInVM.AssetPackName, SubgroupIDs = mixInVM.SubgroupIDs.Select(x => x.Content).ToList(), DeclinedAssignment = mixInVM.DeclinedAssignment });
         }
         model.AssetReplacerAssignments.Clear();
         foreach (var replacer in AssetReplacements)
@@ -188,7 +190,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         public string AssetPackName { get; set; }
         public ObservableCollection<VM_CollectionMemberString> SubgroupIDs { get; set; } = new();
         public ObservableCollection<VM_MixInConsistencyAssignment> ParentCollection { get; set; }
-
+        public bool DeclinedAssignment { get; set; } = false;
         public RelayCommand DeleteCommand { get; set; }
     }
 }

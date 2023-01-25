@@ -819,7 +819,7 @@ public class AssetSelector
         }
     }
 
-    public void RecordAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo, string mixInName) // MixIn 
+    public void RecordAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo, string mixInName, bool declinedViaProbability) // MixIn 
     {
         if (_patcherState.GeneralSettings.bEnableConsistency)
         {
@@ -828,13 +828,29 @@ public class AssetSelector
             {
                 var mixInAssignment = new NPCAssignment.MixInAssignment();
                 mixInAssignment.AssetPackName = mixInName;
-                mixInAssignment.SubgroupIDs = assignedCombination.ContainedSubgroups.Where(x => x.Id != AssetPack.ConfigDistributionRules.SubgroupIDString).Select(x => x.Id).ToList();
+                if (declinedViaProbability)
+                {
+                    mixInAssignment.DeclinedAssignment = true;
+                }
+                else
+                {
+                    mixInAssignment.SubgroupIDs = assignedCombination.ContainedSubgroups.Where(x => x.Id != AssetPack.ConfigDistributionRules.SubgroupIDString).Select(x => x.Id).ToList();
+                    mixInAssignment.DeclinedAssignment = false;
+                }
                 npcInfo.ConsistencyNPCAssignment.MixInAssignments.Add(mixInAssignment);
             }
             else
             {
                 consistencyMixIn.AssetPackName = mixInName;
-                consistencyMixIn.SubgroupIDs = assignedCombination.ContainedSubgroups.Where(x => x.Id != AssetPack.ConfigDistributionRules.SubgroupIDString).Select(x => x.Id).ToList();
+                if (declinedViaProbability)
+                {
+                    consistencyMixIn.DeclinedAssignment = true;
+                }
+                else
+                {
+                    consistencyMixIn.SubgroupIDs = assignedCombination.ContainedSubgroups.Where(x => x.Id != AssetPack.ConfigDistributionRules.SubgroupIDString).Select(x => x.Id).ToList();
+                    consistencyMixIn.DeclinedAssignment = false;
+                }
             }
         }
         if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary && assignedCombination != null)
