@@ -39,12 +39,13 @@ public class AssetAndBodyShapeSelector
     /// <param name="availableAssetPacks">Asset packs available to the current NPC</param>
     /// <param name="npcInfo">NPC info class</param>
     /// <returns></returns>
-    public AssetAndBodyShapeAssignment ChooseCombinationAndBodyShape(out bool assetsAssigned, out bool bodyShapeAssigned, HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, NPCInfo npcInfo, bool blockBodyShape, AssetPackAssignmentMode mode, AssetAndBodyShapeAssignment currentAssignments, List<SubgroupCombination> previousAssignments)
+    public AssetAndBodyShapeAssignment ChooseCombinationAndBodyShape(out bool assetsAssigned, out bool bodyShapeAssigned, HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, NPCInfo npcInfo, bool blockBodyShape, AssetPackAssignmentMode mode, AssetAndBodyShapeAssignment currentAssignments, List<SubgroupCombination> previousAssignments, out bool mixInDeclined)
     {
         AssetAndBodyShapeAssignment assignment = new AssetAndBodyShapeAssignment();
         SubgroupCombination chosenCombination = new SubgroupCombination();
         assetsAssigned = false;
         bodyShapeAssigned = false;
+        mixInDeclined = false;
 
         string subSectionLabel = string.Empty;
         string reportLine = string.Empty;
@@ -177,13 +178,17 @@ public class AssetAndBodyShapeSelector
         if (!selectedFromLinkedNPC)
         {
             _logger.LogReport("Choosing Asset Combination and BodyGen for " + npcInfo.LogIDstring, false, npcInfo);
-            chosenCombination = GenerateCombinationWithBodyShape(availableAssetPacks, bodyGenConfigs, oBodySettings, assignment, npcInfo, blockBodyShape, mode, currentAssignments, previousAssignments); // chosenMorphs is populated by reference within ChooseRandomCombination
 
-            switch (_patcherState.GeneralSettings.BodySelectionMode)
+            if (!(mode == AssetPackAssignmentMode.MixIn && availableAssetPacks.Any() && SkipMixInByProbability(availableAssetPacks.First(), npcInfo)))
             {
-                case BodyShapeSelectionMode.BodyGen: bodyShapeAssigned = assignment.AssignedBodyGenMorphs.Any(); break;
-                case BodyShapeSelectionMode.BodySlide: bodyShapeAssigned = assignment.AssignedOBodyPreset != null; break;
-                case BodyShapeSelectionMode.None: break;
+                chosenCombination = GenerateCombinationWithBodyShape(availableAssetPacks, bodyGenConfigs, oBodySettings, assignment, npcInfo, blockBodyShape, mode, currentAssignments, previousAssignments); // chosenMorphs is populated by reference within ChooseRandomCombination
+
+                switch (_patcherState.GeneralSettings.BodySelectionMode)
+                {
+                    case BodyShapeSelectionMode.BodyGen: bodyShapeAssigned = assignment.AssignedBodyGenMorphs.Any(); break;
+                    case BodyShapeSelectionMode.BodySlide: bodyShapeAssigned = assignment.AssignedOBodyPreset != null; break;
+                    case BodyShapeSelectionMode.None: break;
+                }
             }
         }
 
@@ -386,5 +391,18 @@ public class AssetAndBodyShapeSelector
         flags = ~BodyShapeSelectorStatusFlag.NoneValidForNPC;
         flags = ~BodyShapeSelectorStatusFlag.MatchesConsistency;
         flags = ~BodyShapeSelectorStatusFlag.ConsistencyMorphIsInvalid;
+    }
+
+    private bool SkipMixInByProbability(FlattenedAssetPack mixInPack, NPCInfo npcInfo)
+    {
+        if (!BoolByProbability.Decide(mixInPack.DistributionRules.ProbabilityWeighting))
+        {
+            _logger.LogReport("Mix In " + mixInPack.GroupName + " was chosen at random to NOT be assigned.", false, npcInfo);
+            return true;
+        }
+        else
+        { 
+            return false; 
+        }
     }
 }
