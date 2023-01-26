@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using ReactiveUI;
 using System.Windows.Media;
 using Noggog;
+using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
 
 namespace SynthEBD
 {
@@ -17,6 +19,7 @@ namespace SynthEBD
         public ObservableCollection<VM_CollectionMemberStringDecorated> AssetPackPaths { get; set; } = new();
         public ObservableCollection<VM_CollectionMemberStringDecorated> RecordTemplatePaths { get; set; } = new();
         public ObservableCollection<VM_CollectionMemberStringDecorated> BodyGenConfigPaths { get; set; } = new();
+        public ObservableCollection<FormKey> AddPatchableRaces { get; set; } = new();
         public ObservableCollection<VM_DownloadInfoContainer> DownloadInfo { get; set; } = new();
         public string OptionsDescription { get; set; } = "";
         public ObservableCollection<VM_PackagerOption> Options { get; set; } = new();
@@ -34,11 +37,14 @@ namespace SynthEBD
         public RelayCommand FindPluginFile { get; set; }
         public ObservableCollection<VM_PackagerOption> ParentCollection { get; set; }
         public VM_Manifest ParentManifest { get; set; }
+        public IEnumerable<Type> RacePickerFormKeys { get; } = typeof(Mutagen.Bethesda.Skyrim.IRaceGetter).AsEnumerable();
+        public ILinkCache LinkCache { get; set; }
 
-        public VM_PackagerOption(ObservableCollection<VM_PackagerOption> parentCollection, VM_Manifest parentManifest, bool isRootNode)
+        public VM_PackagerOption(ObservableCollection<VM_PackagerOption> parentCollection, VM_Manifest parentManifest, bool isRootNode, ILinkCache linkCache)
         {
             ParentCollection = parentCollection;
             ParentManifest = parentManifest;
+            LinkCache = linkCache;
 
             if (isRootNode)
             {
@@ -52,7 +58,7 @@ namespace SynthEBD
 
             AddNew = new RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.Options.Add(new VM_PackagerOption(Options, ParentManifest, false))
+                execute: _ => this.Options.Add(new VM_PackagerOption(Options, ParentManifest, false, LinkCache))
                 );
 
             DeleteMe = new RelayCommand(
@@ -144,9 +150,9 @@ namespace SynthEBD
             }).DisposeWith(this);
         }
 
-        public static VM_PackagerOption GetViewModelFromModel(Manifest.Option model, ObservableCollection<VM_PackagerOption> parentCollection, VM_Manifest parentManifest)
+        public static VM_PackagerOption GetViewModelFromModel(Manifest.Option model, ObservableCollection<VM_PackagerOption> parentCollection, VM_Manifest parentManifest, ILinkCache linkCache)
         {
-            VM_PackagerOption viewModel = new(parentCollection, parentManifest, false);
+            VM_PackagerOption viewModel = new(parentCollection, parentManifest, false, linkCache);
             viewModel.Name = model.Name;
             viewModel.Description = model.Description;
             viewModel.AssetPackPaths = VM_CollectionMemberStringDecorated.InitializeObservableCollectionFromICollection(model.AssetPackPaths);
@@ -160,7 +166,7 @@ namespace SynthEBD
             viewModel.DestinationModFolder = model.DestinationModFolder;
             foreach (var subOption in model.Options)
             {
-                viewModel.Options.Add(VM_PackagerOption.GetViewModelFromModel(subOption, viewModel.Options, parentManifest));
+                viewModel.Options.Add(VM_PackagerOption.GetViewModelFromModel(subOption, viewModel.Options, parentManifest, linkCache));
             }
 
             UpdatePathCollectionStatus(viewModel.AssetPackPaths, viewModel.ParentManifest.RootDirectory);

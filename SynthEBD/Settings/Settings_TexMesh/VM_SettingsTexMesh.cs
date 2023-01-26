@@ -33,7 +33,8 @@ public class VM_SettingsTexMesh : VM
         SynthEBDPaths paths,
         ConfigInstaller configInstaller,
         SettingsIO_AssetPack assetIO,
-        VM_AssetDistributionSimulator.Factory simulatorFactory)
+        VM_AssetDistributionSimulator.Factory simulatorFactory,
+        VM_Manifest.Factory manifestFactory)
     {
         _logger = logger;
         _paths = paths;
@@ -115,7 +116,7 @@ public class VM_SettingsTexMesh : VM
             execute: _ =>
             {
                 var packagerWindow = new Window_ConfigPackager();
-                var packagerVM = new VM_Manifest(_logger);
+                var packagerVM = manifestFactory();
                 packagerWindow.DataContext = packagerVM;
                 packagerWindow.ShowDialog();
             }

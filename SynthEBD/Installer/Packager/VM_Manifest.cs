@@ -12,10 +12,14 @@ namespace SynthEBD
     public class VM_Manifest : VM
     {
         private readonly Logger _logger;
-        public VM_Manifest(Logger logger)
+        private readonly IEnvironmentStateProvider _environmentStateProvider;
+        public delegate VM_Manifest Factory(); 
+        public VM_Manifest(Logger logger, IEnvironmentStateProvider environmentStateProvider)
         {
             _logger = logger;
-            VM_PackagerOption root = new(Options, this, true);
+            _environmentStateProvider = environmentStateProvider;
+
+            VM_PackagerOption root = new(Options, this, true, _environmentStateProvider.LinkCache);
             Options.Add(root);
             SelectedNode = root;
 
@@ -66,7 +70,7 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    Options.Add(new VM_PackagerOption(Options, this, true));
+                    Options.Add(new VM_PackagerOption(Options, this, true, _environmentStateProvider.LinkCache));
                 });
 
             SetRootDirectory = new RelayCommand(
@@ -103,7 +107,7 @@ namespace SynthEBD
 
             if (model.Version == 0) // compatibility for legacy installer that only had one root node within the manifest itself
             {
-                var root = new VM_PackagerOption(Options, this, true);
+                var root = new VM_PackagerOption(Options, this, true, _environmentStateProvider.LinkCache);
                 root.Name = "Root";
                 root.OptionsDescription = model.OptionsDescription;
                 root.AssetPackPaths = VM_CollectionMemberStringDecorated.InitializeObservableCollectionFromICollection(model.AssetPackPaths);
@@ -120,12 +124,12 @@ namespace SynthEBD
                     root.FileExtensionMap.Add(new string[] { "nif", "meshes" });
                     root.FileExtensionMap.Add(new string[] { "tri", "meshes" });
                 }
-                root.Options.AddRange(model.Options.Select(x => VM_PackagerOption.GetViewModelFromModel(x, root.Options, this)));
+                root.Options.AddRange(model.Options.Select(x => VM_PackagerOption.GetViewModelFromModel(x, root.Options, this, _environmentStateProvider.LinkCache)));
                 Options.Add(root);
             }
             else
             {
-                Options.AddRange(model.Options.Select(x => VM_PackagerOption.GetViewModelFromModel(x, Options, this)));
+                Options.AddRange(model.Options.Select(x => VM_PackagerOption.GetViewModelFromModel(x, Options, this, _environmentStateProvider.LinkCache)));
             }
 
             if (Options.Any())

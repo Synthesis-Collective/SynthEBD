@@ -340,6 +340,23 @@ public class ConfigInstaller
             CustomMessageBox.DisplayNotificationOK("Installation warning", "Some installation errors occurred. Please see the Status Log.");
         }
 
+        #region Add Patchable Races
+        List<string> missingRaces = new();
+        foreach (var raceFK in manifest.AddPatchableRaces)
+        {
+            if (_patcherState.GeneralSettings.PatchableRaces.Contains(raceFK)) { continue; }
+            if (!_environmentProvider.LinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
+            {
+                missingRaces.Add(raceGetter.EditorID ?? raceFK.ToString());
+            }
+            _patcherState.GeneralSettings.PatchableRaces.Add(raceFK);
+        }
+        if (missingRaces.Any())
+        {
+            CustomMessageBox.DisplayNotificationOK("Missing Races", "The installer attempted to add the following patchable races, but they were not found in your load order: " + Environment.NewLine + String.Join(Environment.NewLine, missingRaces));
+        }
+        #endregion
+
         /*
         #region Import new BodyGen configs as VMs to be saved upon close
         foreach (var mConfig in validationBG.Male)

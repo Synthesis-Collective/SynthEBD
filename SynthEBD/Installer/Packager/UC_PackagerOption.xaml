@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD"
+             xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
              d:DataContext="{d:DesignInstance Type=local:VM_PackagerOption}"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
@@ -13,6 +14,7 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
@@ -85,11 +87,14 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <StackPanel Grid.Row="7" Grid.Column="0" Orientation="Horizontal">
+        <TextBlock Grid.Row="7" Grid.Column="0" Text="Add Patchable Races" Foreground="White"/>
+        <plugins:FormKeyMultiPicker Grid.Row="7" Grid.Column="1" MaxHeight="500" FormKeys="{Binding AddPatchableRaces}" LinkCache="{Binding LinkCache}" ScopedTypes="{Binding RacePickerFormKeys, Mode=OneWay}" />
+
+        <StackPanel Grid.Row="8" Grid.Column="0" Orientation="Horizontal">
             <TextBlock Text="Record Template Plugins: " VerticalAlignment="Center" Foreground="White" ToolTip="Additional record template plugin files to install if user selects this option" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
             <Button Command="{Binding AddRecordTemplateFile}" Foreground="LightGreen" HorizontalAlignment="Right">+</Button>
         </StackPanel>
-        <ItemsControl Grid.Row="7" Grid.Column="1" ItemsSource="{Binding RecordTemplatePaths, UpdateSourceTrigger=Default}">
+        <ItemsControl Grid.Row="8" Grid.Column="1" ItemsSource="{Binding RecordTemplatePaths, UpdateSourceTrigger=Default}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal">
@@ -100,11 +105,11 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <StackPanel Grid.Row="8" Grid.Column="0" Orientation="Horizontal">
+        <StackPanel Grid.Row="9" Grid.Column="0" Orientation="Horizontal">
             <TextBlock Text="Mod Downloads: " VerticalAlignment="Center" Foreground="White" ToolTip="Mods the user must download if this option is selected" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
             <Button Command="{Binding AddDownloadInfo}" Foreground="LightGreen" HorizontalAlignment="Right">+</Button>
         </StackPanel>
-        <ItemsControl Grid.Row="8" Grid.Column="1" ItemsSource="{Binding DownloadInfo, UpdateSourceTrigger=Default}">
+        <ItemsControl Grid.Row="9" Grid.Column="1" ItemsSource="{Binding DownloadInfo, UpdateSourceTrigger=Default}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
                     <local:UC_DownloadInfoContainer DataContext="{Binding}"/>
