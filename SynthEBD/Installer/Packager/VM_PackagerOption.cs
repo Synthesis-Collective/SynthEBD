@@ -108,38 +108,14 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: x =>
                 {
-                    var selectedString = (VM_CollectionMemberStringDecorated)x;
-                    string startDir = "";
-                    if (System.IO.Directory.Exists(ParentManifest.RootDirectory))
-                    {
-                        startDir = ParentManifest.RootDirectory;
-                    }
-                    if (IO_Aux.SelectFile(startDir, "Config files (*.json)|*.json", "Select json to import", out string path))
-                    {
-                        if (!ParentManifest.RootDirectory.IsNullOrWhitespace())
-                        {
-                            selectedString.Content = path.Replace(ParentManifest.RootDirectory, string.Empty);
-                        }
-                        selectedString.Content = selectedString.Content.TrimStart(System.IO.Path.DirectorySeparatorChar);
-                        UpdatePathStatus(selectedString, ParentManifest.RootDirectory);
-                    }
+                    SearchForPath((VM_CollectionMemberStringDecorated)x, "Config files (*.json)|*.json", "Select JSON to import");
                 });
 
             FindPluginFile = new RelayCommand(
                 canExecute: _ => true,
                 execute: x =>
                 {
-                    var selectedString = (VM_CollectionMemberStringDecorated)x;
-                    string startDir = "";
-                    if (System.IO.Directory.Exists(ParentManifest.RootDirectory))
-                    {
-                        startDir = ParentManifest.RootDirectory;
-                    }
-                    if (IO_Aux.SelectFile(startDir, "Plugin files (*.esp)|*.esp", "Select plugin to import", out string path))
-                    {
-                        selectedString.Content = path.Replace(ParentManifest.RootDirectory, string.Empty);
-                        UpdatePathStatus(selectedString, parentManifest.RootDirectory);
-                    }
+                    SearchForPath((VM_CollectionMemberStringDecorated)x, "Plugin files (*.esp)|*.esp", "Select plugin to import");
                 });
 
             this.WhenAnyValue(x => x.ParentManifest.RootDirectory).Subscribe(x =>
@@ -233,6 +209,24 @@ namespace SynthEBD
             var newPath = new VM_CollectionMemberStringDecorated("", collection, VM_CollectionMemberStringDecorated.Mode.TextBlock);
             newPath.BorderColor = new SolidColorBrush(Colors.Red);
             collection.Add(newPath);
+        }
+
+        public void SearchForPath(VM_CollectionMemberStringDecorated selectedString, string fileArg, string prompt)
+        {
+            string startDir = "";
+            if (System.IO.Directory.Exists(ParentManifest.RootDirectory))
+            {
+                startDir = ParentManifest.RootDirectory;
+            }
+            if (IO_Aux.SelectFile(startDir, fileArg, prompt, out string path))
+            {
+                if (!ParentManifest.RootDirectory.IsNullOrWhitespace())
+                {
+                    selectedString.Content = path.Replace(ParentManifest.RootDirectory, string.Empty);
+                }
+                selectedString.Content = selectedString.Content.TrimStart(System.IO.Path.DirectorySeparatorChar);
+                UpdatePathStatus(selectedString, ParentManifest.RootDirectory);
+            }
         }
     }
 }
