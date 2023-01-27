@@ -170,6 +170,13 @@ Despite the new paint job, SynthEBD functions very similarly to zEBD so if you'r
 
 **Auto Upgrade**: All important zEBD-formatted json files (Asset config files, BodyGen config files, Block List) can be imported into SynthEBD using the corresponding menu buttons. However, do note that attribute groups are not auto-populated so please replace "loose" attributes with attribute groups manually where possible. Also note that only "official" Attributes for which options appear in the UI (e.g. Class, Faction, VoiceType, etc) will be automatically converted; any custom attributes will need to be re-implemented manually. The patcher will warn of any attributes it doesn't recognize when the config file is first loaded.
 
+## License
+
+SynthEBD bundles 7-zip's 7z.exe. In compliance with my [understanding of its license](https://sourceforge.net/p/sevenzip/discussion/45797/thread/d4ab546a/), I document that:
+(1) I used parts of the 7-Zip program 
+(2) 7-Zip is licensed under the GNU LGPL license 
+(3) You can find the source code at [www.7-zip.org](www.7-zip.org).
+
 ## Detailed Documentation
 
 #####
