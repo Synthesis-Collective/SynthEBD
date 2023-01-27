@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.IO;
 
 namespace SynthEBD;
@@ -77,6 +77,7 @@ public class VM_DownloadCoordinator : VM
         public string URL { get; set; } = "";
         public string ExpectedFileName { get; set; } = "";
         public string Path { get; set; }
+        public string ExtractionSubPath { get; set; } = "";
         public RelayCommand FindPath { get; set; }
 
         public static VM_DownloadInfo GetViewModelFromModel(Manifest.DownloadInfoContainer downloadInfo)

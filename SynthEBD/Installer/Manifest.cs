@@ -40,5 +40,6 @@ public class Manifest
         public string ModDownloadName { get; set; }
         public string URL { get; set; } = "";
         public string ExpectedFileName { get; set; } = "";
+        public string ExtractionSubPath { get; set; } = "";
     }
 }

@@ -20,6 +20,7 @@
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Mod Page Name: " VerticalAlignment="Center" Foreground="White" ToolTip="The name of the mod or web page where the user will download the mod" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
@@ -42,7 +43,12 @@
                 <TextBox Text="{Binding ExpectedFileName}"/>
             </Border>
 
-            <Button Grid.Row="4" Grid.Column="0" Content="Delete" VerticalAlignment="Center" Command="{Binding DeleteCommand}" Foreground="Firebrick" Margin="5 0 0 0"/>
+            <TextBlock Grid.Row="4" Grid.Column="0" Text="Override Prefix" VerticalAlignment="Center" Foreground="White" ToolTip="Prefix assigned to files from this archive (overrides main config prefix). MUST match the prefix in the Source Path(s) within the corresponding config file(s). Leave blank to use config prefix." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" />
+            <Border Grid.Row="4" Grid.Column="1" BorderThickness="1" BorderBrush="White" >
+                <TextBox Text="{Binding ExtractionSubPath}"/>
+            </Border>
+
+            <Button Grid.Row="5" Grid.Column="0" Content="Delete" VerticalAlignment="Center" Command="{Binding DeleteCommand}" Foreground="Firebrick" Margin="5 0 0 0"/>
         </Grid>
     </Border>
 </UserControl>

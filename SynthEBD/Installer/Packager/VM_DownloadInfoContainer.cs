@@ -17,6 +17,7 @@ namespace SynthEBD
         public string ModDownloadName { get; set; }
         public string URL { get; set; } = "";
         public string ExpectedFileName { get; set; } = "";
+        public string ExtractionSubPath { get; set; } = "";
         public VM_PackagerOption Parent { get; set; }
         public RelayCommand DeleteCommand { get; set; }
 
@@ -27,6 +28,7 @@ namespace SynthEBD
             viewModel.ModDownloadName = model.ModDownloadName;
             viewModel.URL = model.URL;
             viewModel.ExpectedFileName = model.ExpectedFileName;
+            viewModel.ExtractionSubPath = model.ExtractionSubPath;
             return viewModel;
         }
         public Manifest.DownloadInfoContainer DumpViewModelToModel()
@@ -36,6 +38,7 @@ namespace SynthEBD
             model.ModDownloadName = ModDownloadName;
             model.URL = URL;
             model.ExpectedFileName = ExpectedFileName;
+            model.ExtractionSubPath = ExtractionSubPath;
             return model;
         }
     }

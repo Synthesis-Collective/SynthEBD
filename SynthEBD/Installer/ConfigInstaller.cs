@@ -234,9 +234,14 @@ public class ConfigInstaller
 
         #region move dependency files
 
-        foreach(string dependencyArchive in installerVM.DownloadMenu.DownloadInfo.Select(x => x.Path))
+        foreach(var dependencyArchive in installerVM.DownloadMenu.DownloadInfo)
         {
-            ExtractArchiveNew(dependencyArchive, tempFolderPath, false);
+            string subPath = manifest.ConfigPrefix;
+            if (!dependencyArchive.ExtractionSubPath.IsNullOrWhitespace())
+            {
+                subPath = dependencyArchive.ExtractionSubPath;
+            }
+            ExtractArchiveNew(dependencyArchive.Path, Path.Combine(tempFolderPath, subPath), false);
         }
 
         List<string> missingFiles = new List<string>();
@@ -247,6 +252,7 @@ public class ConfigInstaller
         }
 
         bool assetPathCopyErrors = false;
+        string currentPrefix = "";
 
         foreach (string assetPath in referencedFilePaths)
         {
@@ -257,8 +263,8 @@ public class ConfigInstaller
             else if (reversedAssetPathMapping.ContainsKey(assetPath))
             {
                 var pathInConfigFile = reversedAssetPathMapping[assetPath];
-                string extractedSubPath = GetPathWithoutSynthEBDPrefix(pathInConfigFile, manifest);
-                string extractedFullPath = Path.Combine(tempFolderPath, extractedSubPath);
+                string extractedSubPath = GetPathWithoutSynthEBDPrefix(pathInConfigFile, manifest, out currentPrefix);
+                string extractedFullPath = Path.Combine(tempFolderPath, currentPrefix, extractedSubPath);
 
                 if (!File.Exists(extractedFullPath))
                 {
@@ -266,8 +272,8 @@ public class ConfigInstaller
                     continue;
                 }
 
-                string destinationSubPath = GetPathWithoutSynthEBDPrefix(assetPath, manifest);
-                string destinationFullPath = GenerateInstalledPath(destinationSubPath, manifest);
+                string destinationSubPath = GetPathWithoutSynthEBDPrefix(assetPath, manifest, out currentPrefix);
+                string destinationFullPath = GenerateInstalledPath(destinationSubPath, manifest, currentPrefix);
                 if (!File.Exists(destinationFullPath))
                 {
                     try
@@ -293,8 +299,8 @@ public class ConfigInstaller
             }
             else
             {
-                string extractedSubPath = GetPathWithoutSynthEBDPrefix(assetPath, manifest);
-                string extractedFullPath = Path.Combine(tempFolderPath, extractedSubPath);
+                string extractedSubPath = GetPathWithoutSynthEBDPrefix(assetPath, manifest, out currentPrefix);
+                string extractedFullPath = Path.Combine(tempFolderPath, currentPrefix, extractedSubPath);
 
                 if (!File.Exists(extractedFullPath))
                 {
@@ -302,7 +308,7 @@ public class ConfigInstaller
                     continue;
                 }
 
-                string destinationFullPath = GenerateInstalledPath(extractedSubPath, manifest);
+                string destinationFullPath = GenerateInstalledPath(extractedSubPath, manifest, currentPrefix);
                 if (!File.Exists(destinationFullPath))
                 {
                     try
@@ -451,6 +457,7 @@ public class ConfigInstaller
             pro.FileName = sevenZipPath;
             pro.Arguments = string.Format("x \"{0}\" -y -o\"{1}\"", archivePath, destinationPath);
             pro.RedirectStandardOutput = true;
+            pro.UseShellExecute = false;
             Process x = Process.Start(pro);
             x.WaitForExit();
             string output = x.StandardOutput.ReadToEnd();
@@ -590,7 +597,7 @@ public class ConfigInstaller
             }
         }
 
-        longestPath = GenerateInstalledPath(GetPathWithoutSynthEBDPrefix(longestPath, manifest), manifest);
+        longestPath = GenerateInstalledPath(GetPathWithoutSynthEBDPrefix(longestPath, manifest, out string detectedPrefix), manifest, detectedPrefix);
 
         return longestPath.Length;
     }
@@ -615,17 +622,17 @@ public class ConfigInstaller
         }
     }
 
-    public string GenerateInstalledPath(string extractedSubPath, Manifest manifest)
+    public string GenerateInstalledPath(string extractedSubPath, Manifest manifest, string selectedPrefix)
     {
         if (GetExpectedDataFolderFromExtension(extractedSubPath, manifest, out string extensionFolder))
         {
             if (_patcherState.ModManagerSettings.ModManagerType == ModManager.None)
             {
-                return Path.Combine(_environmentProvider.DataFolderPath, extensionFolder, manifest.ConfigPrefix, extractedSubPath);
+                return Path.Combine(_environmentProvider.DataFolderPath, extensionFolder, selectedPrefix, extractedSubPath);
             }
             else
             {
-                return Path.Combine(_patcherState.ModManagerSettings.CurrentInstallationFolder, manifest.DestinationModFolder, extensionFolder, manifest.ConfigPrefix, extractedSubPath);
+                return Path.Combine(_patcherState.ModManagerSettings.CurrentInstallationFolder, manifest.DestinationModFolder, extensionFolder, selectedPrefix, extractedSubPath);
             }
         }
         else
@@ -641,17 +648,45 @@ public class ConfigInstaller
         }
     }
 
-    public string GetPathWithoutSynthEBDPrefix(string path, Manifest manifest) // expects path straight from Config file, e.g. textures\\foo\\textures\\blah.dds
+    public string GetPathWithoutSynthEBDPrefix(string path, Manifest manifest, out string detectedPrefix) // expects path straight from Config file, e.g. textures\\foo\\textures\\blah.dds --> textures\\blah.dds
     {
-        if(GetExpectedDataFolderFromExtension(path, manifest, out string extensionFolder))
+        detectedPrefix = "";
+        if (GetExpectedDataFolderFromExtension(path, manifest, out string extensionFolder))
         {
-            string synthEBDPrefix = Path.Combine(extensionFolder, manifest.ConfigPrefix);
-            return Path.GetRelativePath(synthEBDPrefix, path);
+            detectedPrefix = FindPathPrefix(path, manifest);
+            if (!detectedPrefix.IsNullOrWhitespace())
+            {
+                string fullPrefix = Path.Combine(extensionFolder, detectedPrefix);
+                return Path.GetRelativePath(fullPrefix, path);
+            }
+            else
+            {
+                return path;
+            }
         }
         else
         {
             return path;
         }
+    }
+
+    public string FindPathPrefix(string path, Manifest manifest)
+    {
+        if (path.Contains(manifest.ConfigPrefix))
+        {
+            return manifest.ConfigPrefix;
+        }
+        else
+        {
+            foreach (var additionalPrefix in manifest.DownloadInfo.Select(x => x.ExtractionSubPath))
+            {
+                if (path.Contains(additionalPrefix))
+                {
+                    return additionalPrefix;
+                }
+            }
+        }
+        return "";
     }
 
     public bool GetExpectedDataFolderFromExtension(string path, Manifest manifest, out string extensionFolder)
@@ -738,9 +773,11 @@ public class ConfigInstaller
 
     public string GenerateRemappedPath(string path, Manifest manifest, string folderName, int fileName)
     {
+        string currentPrefix = FindPathPrefix(path, manifest);
+
         if (GetExpectedDataFolderFromExtension(path, manifest, out string parentFolder))
         {
-            return Path.Join(parentFolder, manifest.ConfigPrefix, folderName, fileName.ToString() + Path.GetExtension(path)); // Path.GetExtension returns a string starting with '.'
+            return Path.Join(parentFolder, currentPrefix, folderName, fileName.ToString() + Path.GetExtension(path)); // Path.GetExtension returns a string starting with '.'
         }
         else
         {
