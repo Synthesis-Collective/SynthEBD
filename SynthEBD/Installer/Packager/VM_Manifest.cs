@@ -109,6 +109,7 @@ namespace SynthEBD
             {
                 var root = new VM_PackagerOption(Options, this, true, _environmentStateProvider.LinkCache);
                 root.Name = "Root";
+                root.DownloadInfo = new(model.DownloadInfo.Select(x => VM_DownloadInfoContainer.GetViewModelFromModel(x, root)));
                 root.OptionsDescription = model.OptionsDescription;
                 root.AssetPackPaths = VM_CollectionMemberStringDecorated.InitializeObservableCollectionFromICollection(model.AssetPackPaths);
                 root.BodyGenConfigPaths = VM_CollectionMemberStringDecorated.InitializeObservableCollectionFromICollection(model.BodyGenConfigPaths);
