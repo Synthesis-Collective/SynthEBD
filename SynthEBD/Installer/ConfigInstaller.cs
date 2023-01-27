@@ -2,7 +2,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Windows.Forms;
+using DynamicData;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
+using Noggog;
 using SharpCompress.Archives.Rar;
 using SharpCompress.Archives.SevenZip;
 using SharpCompress.Archives.Zip;
@@ -28,9 +31,10 @@ public class ConfigInstaller
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
     }
-    public List<string> InstallConfigFile()
+    public List<string> InstallConfigFile(out bool triggerGeneralVMRefresh)
     {
         var installedConfigs = new List<string>();
+        triggerGeneralVMRefresh = false;
         if (_patcherState.ModManagerSettings.ModManagerType != ModManager.None && string.IsNullOrWhiteSpace(_patcherState.ModManagerSettings.CurrentInstallationFolder))
         {
             CustomMessageBox.DisplayNotificationOK("Installation failed", "You must set the location of your mod manager's Mods folder before installing a config file archive.");
@@ -136,6 +140,7 @@ public class ConfigInstaller
         HashSet<string> skippedConfigs = new HashSet<string>();
 
         #region Load, validate, and resave Asset Packs
+        HashSet<AssetPack> loadedPacks = new();
         foreach (var configPath in manifest.AssetPackPaths)
         {
             string extractedPath = Path.Combine(tempFolderPath, configPath);
@@ -145,6 +150,7 @@ public class ConfigInstaller
                 CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse Asset Pack " + configPath + ". Installation aborted.");
                 continue;
             }
+            loadedPacks.Add(validationAP);
 
             string destinationPath = Path.Combine(_paths.AssetPackDirPath, validationAP.GroupName + ".json");
 
@@ -341,19 +347,43 @@ public class ConfigInstaller
         }
 
         #region Add Patchable Races
-        List<string> missingRaces = new();
+        HashSet<FormKey> missingRaces = new();
+        HashSet<IRaceGetter> addedRaces = new();
         foreach (var raceFK in manifest.AddPatchableRaces)
         {
             if (_patcherState.GeneralSettings.PatchableRaces.Contains(raceFK)) { continue; }
-            if (!_environmentProvider.LinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
+            if (_environmentProvider.LinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
             {
-                missingRaces.Add(raceGetter.EditorID ?? raceFK.ToString());
+                if (!addedRaces.Select(x => x.FormKey).ToHashSet().Contains(raceGetter.FormKey))
+                {
+                    addedRaces.Add(raceGetter);
+                }
+            }
+            else if (!missingRaces.Contains(raceFK))
+            {
+                missingRaces.Add(raceFK);
             }
             _patcherState.GeneralSettings.PatchableRaces.Add(raceFK);
         }
-        if (missingRaces.Any())
+
+        foreach (var configFile in loadedPacks)
         {
-            CustomMessageBox.DisplayNotificationOK("Missing Races", "The installer attempted to add the following patchable races, but they were not found in your load order: " + Environment.NewLine + String.Join(Environment.NewLine, missingRaces));
+            foreach (var subgroup in configFile.Subgroups)
+            {
+                GetPatchableRaces(addedRaces, missingRaces, subgroup, configFile);
+            }
+        }
+
+        if (missingRaces.Any() && CustomMessageBox.DisplayNotificationYesNo("Missing Additional Races", "The installer attempted to add the following patchable races, but they were not found in your load order. Add them to Patchable Races list anyway?" + Environment.NewLine + String.Join(Environment.NewLine, missingRaces)))
+        {
+            _patcherState.GeneralSettings.PatchableRaces.AddRange(missingRaces);
+            triggerGeneralVMRefresh = true;
+        }
+
+        if (addedRaces.Any() && CustomMessageBox.DisplayNotificationYesNo("Found Additional Races", "This config file references the following races. Add them to your Patchable Races list?" + Environment.NewLine + String.Join(Environment.NewLine, addedRaces.Select(x => x.EditorID ?? x.FormKey.ToString()))))
+        {
+            _patcherState.GeneralSettings.PatchableRaces.AddRange(addedRaces.Select(x => x.FormKey));
+            triggerGeneralVMRefresh = true;
         }
         #endregion
 
@@ -754,6 +784,60 @@ public class ConfigInstaller
         return false;
     }
 
+    public void GetPatchableRaces(HashSet<IRaceGetter> races, HashSet<FormKey> missingRaces, AssetPack.Subgroup subgroup, AssetPack parent)
+    {
+        foreach (var raceFK in subgroup.AllowedRaces)
+        {
+            if (_patcherState.GeneralSettings.PatchableRaces.Contains(raceFK)) { continue; }
+
+            if (_environmentProvider.LinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
+            {
+                if (!races.Select(x => x.FormKey).ToHashSet().Contains(raceGetter.FormKey))
+                {
+                    races.Add(raceGetter);
+                }
+            }
+            else if (!missingRaces.Contains(raceFK))
+            {
+                missingRaces.Add(raceFK);    
+            }
+        }
+
+        var groupings = parent.RaceGroupings;
+        if (!groupings.Any())
+        {
+            groupings = _patcherState.GeneralSettings.RaceGroupings;
+        }
+
+        foreach (var groupingStr in subgroup.AllowedRaceGroupings)
+        {
+            var grouping = groupings.Where(x => x.Label == groupingStr).FirstOrDefault();
+            if (grouping != null)
+            {
+                foreach (var raceFK in grouping.Races)
+                {
+                    if (_patcherState.GeneralSettings.PatchableRaces.Contains(raceFK)) { continue; }
+
+                    if (_environmentProvider.LinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
+                    {
+                        if (!races.Select(x => x.FormKey).ToHashSet().Contains(raceGetter.FormKey))
+                        {
+                            races.Add(raceGetter);
+                        }
+                    }
+                    else if (!missingRaces.Contains(raceFK))
+                    {
+                        missingRaces.Add(raceFK);
+                    }
+                }
+            }
+        }
+
+        foreach (var sg in subgroup.Subgroups)
+        {
+            GetPatchableRaces(races, missingRaces, sg, parent);
+        }
+    }
 
     /* Started work on more intelligent path shortening to more human-readable file paths, but doesn't seem worth the effort. Might come back to it later. 
     public class SimulatedDirectory

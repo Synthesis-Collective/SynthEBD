@@ -126,12 +126,17 @@ public class VM_SettingsTexMesh : VM
             canExecute: _ => true,
             execute: _ =>
             {
+                general.DumpViewModelToModel(); // make sure general settings are synced w/ latest settings
                 modManager.UpdatePatcherSettings(); // make sure mod manager integration is synced w/ latest settings
-                var installedConfigs = _configInstaller.InstallConfigFile();
+                var installedConfigs = _configInstaller.InstallConfigFile(out bool triggerGeneralVMRefresh);
                 if (installedConfigs.Any())
                 {
                     ConfigVersionUpdate(Version.v090, installedConfigs);
                     RefreshInstalledConfigs(installedConfigs);
+                }
+                if (triggerGeneralVMRefresh)
+                {
+                    general.Refresh();
                 }
             }
         );
