@@ -421,14 +421,21 @@ public class ConfigInstaller
         try
         {
             var sevenZipPath = Path.Combine(_environmentProvider.InternalDataPath, "7Zip",
-                        Environment.Is64BitProcess ? "x64" : "x86", "7za.exe");
+                        Environment.Is64BitProcess ? "x64" : "x86", "7z.exe");
 
             ProcessStartInfo pro = new ProcessStartInfo();
             pro.WindowStyle = ProcessWindowStyle.Hidden;
             pro.FileName = sevenZipPath;
             pro.Arguments = string.Format("x \"{0}\" -y -o\"{1}\"", archivePath, destinationPath);
+            pro.RedirectStandardOutput = true;
             Process x = Process.Start(pro);
             x.WaitForExit();
+            string output = x.StandardOutput.ReadToEnd();
+            if (output.Contains("Can't open as archive"))
+            {
+                CustomMessageBox.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " appears to have failed with message: " + Environment.NewLine + output.Replace("\r\n", Environment.NewLine));
+                return false;
+            }
         }
 
         catch (Exception e)
