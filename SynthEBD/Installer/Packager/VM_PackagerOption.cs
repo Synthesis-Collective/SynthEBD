@@ -144,6 +144,7 @@ namespace SynthEBD
             {
                 viewModel.Options.Add(VM_PackagerOption.GetViewModelFromModel(subOption, viewModel.Options, parentManifest, linkCache));
             }
+            viewModel.AddPatchableRaces = new ObservableCollection<FormKey>(model.AddPatchableRaces);
 
             UpdatePathCollectionStatus(viewModel.AssetPackPaths, viewModel.ParentManifest.RootDirectory);
             UpdatePathCollectionStatus(viewModel.BodyGenConfigPaths, viewModel.ParentManifest.RootDirectory);
@@ -177,6 +178,7 @@ namespace SynthEBD
                     model.FileExtensionMap.Add(entry[0], entry[1]);
                 }
             }
+            model.AddPatchableRaces = AddPatchableRaces.ToHashSet();
             foreach (var subOption in Options)
             {
                 model.Options.Add(subOption.DumpViewModelToModel());
