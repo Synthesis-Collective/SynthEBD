@@ -149,7 +149,7 @@ namespace SynthEBD
         public void LoadInitialSettingsViewModels() // view models that should be loaded before plugin VMs
         {
             // Load general settings
-            VM_Settings_General.GetViewModelFromModel(_generalSettingsVM, _patcherSettingsSourceProvider, _patcherState, _raceAliasFactory, _linkedNPCFactory, _environmentProvider.LinkCache);
+            _generalSettingsVM.CopyInFromModel(_patcherState, _raceAliasFactory, _linkedNPCFactory, _environmentProvider.LinkCache);
             VM_SettingsTexMesh.GetViewModelFromModel(_texMeshSettingsVM, _patcherState.TexMeshSettings);
             VM_BlockListUI.GetViewModelFromModel(_patcherState.BlockList, _blockList, _blockedNPCFactory, _blockedPluginFactory);
             VM_SettingsModManager.GetViewModelFromModel(_patcherState.ModManagerSettings, _settingsModManager);

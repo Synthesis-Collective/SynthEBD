@@ -205,36 +205,40 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public RelayCommand SelectPortableSettingsFolder { get; }
     public RelayCommand ClearPortableSettingsFolder { get; }
     public bool IsStandalone { get; set; }
-    
-    public static void GetViewModelFromModel(VM_Settings_General viewModel, PatcherSettingsSourceProvider patcherSettingsProvider, PatcherState patcherState, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, ILinkCache linkCache)
-    {
-        var model = patcherState.GeneralSettings;
-        viewModel.OutputDataFolder = model.OutputDataFolder;
-        viewModel.bShowToolTips = model.bShowToolTips;
-        viewModel.bChangeMeshesOrTextures = model.bChangeMeshesOrTextures;
-        viewModel.BodySelectionMode = model.BodySelectionMode;
-        viewModel.BSSelectionMode = model.BSSelectionMode;
-        viewModel.bChangeHeight = model.bChangeHeight;
-        viewModel.bChangeHeadParts = model.bChangeHeadParts;
-        viewModel.bHeadPartsExcludeCustomHeads = model.bHeadPartsExcludeCustomHeads;
-        viewModel.bEnableConsistency = model.bEnableConsistency;
-        viewModel.ExcludePlayerCharacter = model.ExcludePlayerCharacter;
-        viewModel.ExcludePresets = model.ExcludePresets;
-        viewModel.bLinkNPCsWithSameName = model.bLinkNPCsWithSameName;
-        viewModel.LinkedNameExclusions = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(model.LinkedNPCNameExclusions);
-        viewModel.LinkedNPCGroups = VM_LinkedNPCGroup.GetViewModelsFromModels(model.LinkedNPCGroups, linkedNPCFactory, linkCache);
-        viewModel.bVerboseModeAssetsNoncompliant = model.bVerboseModeAssetsNoncompliant;
-        viewModel.bVerboseModeAssetsAll = model.bVerboseModeAssetsAll;
-        viewModel.verboseModeNPClist = new ObservableCollection<FormKey>(model.VerboseModeNPClist);
-        viewModel.VerboseModeDetailedAttributes = model.VerboseModeDetailedAttributes;
-        viewModel.patchableRaces = new ObservableCollection<FormKey>(model.PatchableRaces);
-        viewModel.raceAliases = VM_RaceAlias.GetViewModelsFromModels(model.RaceAliases, viewModel, aliasFactory);
-        viewModel.RaceGroupingEditor.CopyInFromModel(model.RaceGroupings, null);
-        viewModel.OverwritePluginRaceGroups = model.OverwritePluginRaceGroups;
-        viewModel.AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
-        viewModel.OverwritePluginAttGroups = model.OverwritePluginAttGroups;
 
-        viewModel._bFirstRun = model.bFirstRun;
+    public void CopyInFromModel(PatcherState patcherState, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, ILinkCache linkCache)
+    {
+        OutputDataFolder = patcherState.GeneralSettings.OutputDataFolder;
+        bShowToolTips = patcherState.GeneralSettings.bShowToolTips;
+        bChangeMeshesOrTextures = patcherState.GeneralSettings.bChangeMeshesOrTextures;
+        BodySelectionMode = patcherState.GeneralSettings.BodySelectionMode;
+        BSSelectionMode = patcherState.GeneralSettings.BSSelectionMode;
+        bChangeHeight = patcherState.GeneralSettings.bChangeHeight;
+        bChangeHeadParts = patcherState.GeneralSettings.bChangeHeadParts;
+        bHeadPartsExcludeCustomHeads = patcherState.GeneralSettings.bHeadPartsExcludeCustomHeads;
+        bEnableConsistency = patcherState.GeneralSettings.bEnableConsistency;
+        ExcludePlayerCharacter = patcherState.GeneralSettings.ExcludePlayerCharacter;
+        ExcludePresets = patcherState.GeneralSettings.ExcludePresets;
+        bLinkNPCsWithSameName = patcherState.GeneralSettings.bLinkNPCsWithSameName;
+        LinkedNameExclusions = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(patcherState.GeneralSettings.LinkedNPCNameExclusions);
+        LinkedNPCGroups = VM_LinkedNPCGroup.GetViewModelsFromModels(patcherState.GeneralSettings.LinkedNPCGroups, linkedNPCFactory, linkCache);
+        bVerboseModeAssetsNoncompliant = patcherState.GeneralSettings.bVerboseModeAssetsNoncompliant;
+        bVerboseModeAssetsAll = patcherState.GeneralSettings.bVerboseModeAssetsAll;
+        verboseModeNPClist = new ObservableCollection<FormKey>(patcherState.GeneralSettings.VerboseModeNPClist);
+        VerboseModeDetailedAttributes = patcherState.GeneralSettings.VerboseModeDetailedAttributes;
+        patchableRaces = new ObservableCollection<FormKey>(patcherState.GeneralSettings.PatchableRaces);
+        raceAliases = VM_RaceAlias.GetViewModelsFromModels(patcherState.GeneralSettings.RaceAliases, this, aliasFactory);
+        RaceGroupingEditor.CopyInFromModel(patcherState.GeneralSettings.RaceGroupings, null);
+        OverwritePluginRaceGroups = patcherState.GeneralSettings.OverwritePluginRaceGroups;
+        AttributeGroupMenu.CopyInViewModelFromModels(patcherState.GeneralSettings.AttributeGroups);
+        OverwritePluginAttGroups = patcherState.GeneralSettings.OverwritePluginAttGroups;
+
+        _bFirstRun = patcherState.GeneralSettings.bFirstRun;
+    }
+
+    public void Refresh()
+    {
+        CopyInFromModel(_patcherState, _aliasFactory, _linkedNPCFactory, lk);
     }
     public void DumpViewModelToModel()
     {
