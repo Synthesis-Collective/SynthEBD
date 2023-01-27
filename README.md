@@ -175,7 +175,7 @@ Despite the new paint job, SynthEBD functions very similarly to zEBD so if you'r
 SynthEBD bundles 7-zip's 7z.exe. In compliance with my [understanding of its license](https://sourceforge.net/p/sevenzip/discussion/45797/thread/d4ab546a/), I document that:
 (1) I used parts of the 7-Zip program 
 (2) 7-Zip is licensed under the GNU LGPL license 
-(3) You can find the source code at [www.7-zip.org](www.7-zip.org).
+(3) You can find the source code at https://www.7-zip.org/(https://www.7-zip.org/).
 
 ## Detailed Documentation
 
