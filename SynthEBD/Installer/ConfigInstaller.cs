@@ -234,16 +234,10 @@ public class ConfigInstaller
 
         #region move dependency files
 
-        //System.Windows.Application.Current.Dispatcher.InvokeAsync(async () => await _logger.ArchiveStatusAsync());
-        //_ = _logger.ArchiveStatusAsync();
-        //System.Windows.Application.Current.Dispatcher.InvokeAsync(async () => await _logger.UpdateStatusAsync("Extracting mods - please wait.", false));
-        //_ = _logger.UpdateStatusAsync("Extracting mods - please wait.", false);
         foreach(string dependencyArchive in installerVM.DownloadMenu.DownloadInfo.Select(x => x.Path))
         {
             ExtractArchiveNew(dependencyArchive, tempFolderPath, false);
         }
-        //System.Windows.Application.Current.Dispatcher.InvokeAsync(async () => await _logger.UnarchiveStatusAsync());
-        //_ = _logger.DeArchiveStatusAsync();
 
         List<string> missingFiles = new List<string>();
         Dictionary<string, string> reversedAssetPathMapping = new Dictionary<string, string>();
@@ -262,7 +256,6 @@ public class ConfigInstaller
             }
             else if (reversedAssetPathMapping.ContainsKey(assetPath))
             {
-                
                 var pathInConfigFile = reversedAssetPathMapping[assetPath];
                 string extractedSubPath = GetPathWithoutSynthEBDPrefix(pathInConfigFile, manifest);
                 string extractedFullPath = Path.Combine(tempFolderPath, extractedSubPath);
