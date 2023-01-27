@@ -42,7 +42,7 @@ public class SettingsIO_General
         {
             return;
         }
-        generalSettingsVM.DumpViewModelToModel(generalSettingsVM);
+        generalSettingsVM.DumpViewModelToModel();
         JSONhandler<Settings_General>.SaveJSONFile(_patcherState.GeneralSettings, _paths.GeneralSettingsPath, out bool saveSuccess, out string exceptionStr);
         if (!saveSuccess) { _logger.LogMessage("Error saving General Settings: " + exceptionStr); }
     }

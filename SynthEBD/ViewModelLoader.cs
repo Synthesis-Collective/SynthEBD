@@ -197,7 +197,7 @@ namespace SynthEBD
 
         public void DumpViewModelsToModels()
         {
-            _generalSettingsVM.DumpViewModelToModel(_generalSettingsVM);
+            _generalSettingsVM.DumpViewModelToModel();
             VM_SettingsTexMesh.DumpViewModelToModel(_texMeshSettingsVM, _patcherState.TexMeshSettings);
             VM_AssetPack.DumpViewModelsToModels(_texMeshSettingsVM.AssetPacks, _patcherState.AssetPacks);
             VM_SettingsHeight.DumpViewModelToModel(_heightSettingsVM, _patcherState.HeightSettings);
