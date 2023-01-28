@@ -11,7 +11,7 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
     </UserControl.Resources>
-    
+    <ScrollViewer>
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="auto"/>
@@ -24,9 +24,10 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-        <StackPanel Grid.Row="1" Orientation="Horizontal">
-            <Button VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddRaceGrouping}" Foreground="LightGreen">Add New</Button>
-            <Button Visibility="{Binding ShowImportFromGeneral, Converter={StaticResource BoolToVis}}" Margin="5 0 0 0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding ImportFromGeneral}" Foreground="MediumPurple">Import from General Settings</Button>
-        </StackPanel>
-    </Grid>
+            <StackPanel Grid.Row="1" Orientation="Horizontal">
+                <Button VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddRaceGrouping}" Foreground="LightGreen">Add New</Button>
+                <Button Visibility="{Binding ShowImportFromGeneral, Converter={StaticResource BoolToVis}}" Margin="5 0 0 0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding ImportFromGeneral}" Foreground="MediumPurple">Import from General Settings</Button>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
 </UserControl>
