@@ -240,7 +240,10 @@ public class RecordGenerator
         if (trialHeadPart is not null) // special handling for head parts
         {
             var headPart = copiedRecord as HeadPart;
-            _headPartSelector.SetGeneratedHeadPart(trialHeadPart, generatedHeadParts, npcInfo);
+            if (!headPart.Flags.HasFlag(HeadPart.Flag.IsExtraPart))
+            {
+                _headPartSelector.SetGeneratedHeadPart(trialHeadPart, generatedHeadParts, npcInfo);
+            }
         }
         else
         {
@@ -279,7 +282,10 @@ public class RecordGenerator
 
         if (trialHeadPart is not null) // special handling for head parts
         {
-            _headPartSelector.SetGeneratedHeadPart(trialHeadPart, generatedHeadParts, npcInfo);
+            if (!trialHeadPart.Flags.HasFlag(HeadPart.Flag.IsExtraPart))
+            {
+                _headPartSelector.SetGeneratedHeadPart(trialHeadPart, generatedHeadParts, npcInfo);
+            }
         }
         else
         {
