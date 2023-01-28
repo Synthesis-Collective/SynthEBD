@@ -1024,6 +1024,7 @@ public class RecordPathParser
             }
             exceptionStr += "Exception:" + Environment.NewLine + ExceptionLogger.GetExceptionStack(e);
             _logger.LogError(exceptionStr);
+            return false;
         }
         //END DEBUGGING
 
