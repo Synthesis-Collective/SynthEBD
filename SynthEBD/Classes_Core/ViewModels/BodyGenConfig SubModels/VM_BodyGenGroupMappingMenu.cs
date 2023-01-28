@@ -167,7 +167,7 @@ public class VM_BodyGenCombination : VM
     {
         BodyGenConfig.RacialMapping.BodyGenCombination model = new BodyGenConfig.RacialMapping.BodyGenCombination();
         model.ProbabilityWeighting = viewModel.ProbabilityWeighting;
-        model.Members = viewModel.Members.Select(x => x.Content).ToHashSet();
+        model.Members = viewModel.Members.Select(x => x.Content).ToList();
         return model;
     }
 

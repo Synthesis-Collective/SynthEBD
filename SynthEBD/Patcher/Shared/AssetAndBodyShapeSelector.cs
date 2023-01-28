@@ -280,7 +280,7 @@ public class AssetAndBodyShapeSelector
                 isFirstIteration = false;
             }
 
-            // get a BodyGen assignment
+            // get a Body Shape assignment
             if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.None || blockBodyShape || (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !BodyGenSelector.BodyGenAvailableForGender(npcInfo.Gender, bodyGenConfigs)) || (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !_oBodySelector.CurrentNPCHasAvailablePresets(npcInfo, oBodySettings)))
             {
                 combinationIsValid = true;

@@ -2,6 +2,9 @@ using Mutagen.Bethesda;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Synthesis;
+using Noggog;
+using static SynthEBD.AssetPack;
 
 namespace SynthEBD;
 
@@ -177,7 +180,9 @@ public class AssetSelector
         iterationInfo.PreviouslyGeneratedCombinations.Add(generatedSignature);
         generatedCombination.AssetPack = iterationInfo.ChosenAssetPack;
         generatedCombination.Signature = generatedSignature;
+
         _logger.LogReport("Successfully generated combination: " + generatedSignature, false, npcInfo);
+        GenerateDescriptorLog(generatedCombination, npcInfo);
         _logger.CloseReportSubsectionsToParentOf("CombinationGeneration", npcInfo);
         return generatedCombination;
     }
@@ -449,6 +454,7 @@ public class AssetSelector
                             }
                         }
                     }
+                    _logger.LogReport("Available Subgroups at position " + i + ": [" + string.Join(", ", candidatePack.Subgroups[i].Select(x => x.Id)) + "]", false, npcInfo);
                 }
             }
             if (isValid)
@@ -969,4 +975,58 @@ public class AssetSelector
             }
         }
     };
+
+    private void GenerateDescriptorLog(SubgroupCombination generatedCombination, NPCInfo npcInfo)
+    {
+        if (_patcherState.GeneralSettings.BodySelectionMode != BodyShapeSelectionMode.None)
+        {
+            Dictionary<string, string> descriptorRules = new();
+
+            foreach (var subgroup in generatedCombination.ContainedSubgroups)
+            {
+                switch (_patcherState.GeneralSettings.BodySelectionMode)
+                {
+                    case BodyShapeSelectionMode.BodyGen:
+                        GenerateDescriptorSubLog(descriptorRules, subgroup.Id, "Allowed", subgroup.AllowedBodyGenDescriptors);
+                        GenerateDescriptorSubLog(descriptorRules, subgroup.Id, "Disallowed", subgroup.DisallowedBodyGenDescriptors);
+                        break;
+                    case BodyShapeSelectionMode.BodySlide:
+                        GenerateDescriptorSubLog(descriptorRules, subgroup.Id, "Allowed", subgroup.AllowedBodySlideDescriptors);
+                        GenerateDescriptorSubLog(descriptorRules, subgroup.Id, "Disallowed", subgroup.DisallowedBodySlideDescriptors);
+                        break;
+                    default: break;
+                }
+            }
+
+            string descriptorLogStr = "Applied descriptor rules: ";
+            if (descriptorRules.Any())
+            {
+                foreach (var entry in descriptorRules)
+                {
+                    descriptorLogStr += Environment.NewLine + entry.Key + ": " + entry.Value;
+                }
+                _logger.LogReport(descriptorLogStr, false, npcInfo);
+            }
+            else
+            {
+                descriptorLogStr += "None";
+            }
+        }
+    }
+
+    private void GenerateDescriptorSubLog(Dictionary<string, string> descriptorLog, string subgroupID, string adj, Dictionary<string, HashSet<string>> desciptorSet)
+    {
+        string descriptorStr = Logger.GetBodyShapeDescriptorString(desciptorSet);
+        if (!descriptorStr.IsNullOrWhitespace())
+        {
+            if (descriptorLog.ContainsKey(subgroupID))
+            {
+                descriptorLog[subgroupID] += adj + " Descriptors: " + descriptorStr;
+            }
+            else
+            {
+                descriptorLog.Add(subgroupID, adj + " Descriptors: " + descriptorStr);
+            }
+        }
+    }
 }

@@ -28,11 +28,11 @@ public class BodyGenConfig
         public string Label { get; set; } = "";
         public HashSet<FormKey> Races { get; set; } = new();
         public HashSet<string> RaceGroupings { get; set; } = new();
-        public HashSet<BodyGenCombination> Combinations { get; set; } = new();
+        public List<BodyGenCombination> Combinations { get; set; } = new();
 
         public class BodyGenCombination : IProbabilityWeighted
         {
-            public HashSet<string> Members { get; set; } = new();
+            public List<string> Members { get; set; } = new();
             public double ProbabilityWeighting { get; set; } = 1;
         }
     }
@@ -89,11 +89,11 @@ public class zEBDBodyGenConfig
     public class racialSettings
     {
         public string EDID { get; set; } = "";
-        public HashSet<BodyGenCombination> combinations { get; set; } = new();
+        public List<BodyGenCombination> combinations { get; set; } = new();
 
         public class BodyGenCombination
         {
-            public HashSet<string> members { get; set; } = new();
+            public List<string> members { get; set; } = new();
             public double probabilityWeighting { get; set; } = 1;
         }
     }
@@ -180,7 +180,7 @@ public class zEBDBodyGenConfig
         newRS.Label = rs.EDID;
         newRS.Races = new HashSet<FormKey> { Converters.RaceEDID2FormKey(rs.EDID, _environmentProvider) };
         newRS.RaceGroupings = new HashSet<string>();
-        newRS.Combinations = new HashSet<BodyGenConfig.RacialMapping.BodyGenCombination>();
+        newRS.Combinations = new();
         foreach (var combo in rs.combinations)
         {
             BodyGenConfig.RacialMapping.BodyGenCombination newCombo = new BodyGenConfig.RacialMapping.BodyGenCombination();

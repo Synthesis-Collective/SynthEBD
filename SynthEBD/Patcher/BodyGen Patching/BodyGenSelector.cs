@@ -1,3 +1,5 @@
+using Noggog;
+
 namespace SynthEBD;
 
 public class BodyGenSelector
@@ -163,6 +165,8 @@ public class BodyGenSelector
             statusFlags |= AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag.MatchesConsistency;
         }
 
+        GenerateBodyGenDescriptorReport(chosenMorphs, npcInfo);
+
         _logger.CloseReportSubsection(npcInfo);
         return chosenMorphs;
     }
@@ -175,6 +179,20 @@ public class BodyGenSelector
         {
             _logger.LogReport("Could not get a BodyGen combination for Race " + npcInfo.BodyShapeRace.ToString() + " ( NPC " + npcInfo.LogIDstring + ")", false, npcInfo);
             return null;
+        }
+        else
+        {
+            _logger.LogReport("Available BodyGen Combinations:", false, npcInfo);
+            foreach (var combination in availableCombinations)
+            {
+                _logger.LogReport("Combination {" + string.Join(", ", combination.Categories) + "}", false, npcInfo);
+                for (int i = 0; i < combination.Categories.Count; i++)
+                {
+                    string logStr = combination.Categories[i] + ": [" + string.Join(", ", combination.Templates[i].Select(x => x.Label)) + "]";
+                    _logger.LogReport(logStr, false, npcInfo);
+                }
+            }
+            //_logger.LogReport("Available BodySlides (Force If Attribute Count): " + Environment.NewLine + String.Join(Environment.NewLine, filteredPresets.OrderBy(x => x.MatchedForceIfCount).Select(x => x.Label + " (" + x.MatchedForceIfCount + ")")), false, npcInfo);
         }
 
         var prioritizedCombinations = availableCombinations.GroupBy(x => x.MaxMatchedForceIfAttributes).OrderByDescending(x => x.Key);
@@ -544,8 +562,8 @@ public class BodyGenSelector
 
     public static HashSet<GroupCombinationObject> GetAllCombinations(HashSet<BodyGenConfig> bodyGenConfigs, NPCInfo npcInfo, ValidationIgnore ignoreFlags)
     {
-        HashSet<GroupCombinationObject> output = new HashSet<GroupCombinationObject>();
-        HashSet<HashSet<string>> addedCombinations = new HashSet<HashSet<string>>();
+        HashSet<GroupCombinationObject> output = new();
+        HashSet<List<string>> addedCombinations = new();
             
         foreach (var bodyGenConfig in bodyGenConfigs)
         {
@@ -553,7 +571,7 @@ public class BodyGenSelector
             {
                 foreach (var stringCombination in racialMapping.Combinations)
                 {
-                    if (!HashSetContainsCombination(stringCombination.Members, addedCombinations))
+                    if (!CollectionContainsCombination(stringCombination.Members, addedCombinations))
                     {
                         var newCombination = new GroupCombinationObject(stringCombination, bodyGenConfig.Templates);
                         output.Add(newCombination);
@@ -565,7 +583,7 @@ public class BodyGenSelector
         return output;
     }
 
-    private static bool HashSetContainsCombination(HashSet<string> currentCombination, HashSet<HashSet<string>> addedCombinations)
+    private static bool CollectionContainsCombination(IEnumerable<string> currentCombination, IEnumerable<IEnumerable<string>> addedCombinations)
     {
         foreach (var combination in addedCombinations)
         {
@@ -599,6 +617,7 @@ public class BodyGenSelector
         {
             MaxMatchedForceIfAttributes = 0;
             ProbabilityWeighting = bodyGenCombination.ProbabilityWeighting;
+            Categories = new(bodyGenCombination.Members);
 
             foreach (var templateGroup in bodyGenCombination.Members)
             {
@@ -627,12 +646,14 @@ public class BodyGenSelector
             {
                 Templates.Add(new HashSet<BodyGenConfig.BodyGenTemplate>(setAtPosition));
             }
+            Categories = new(template.Categories);
         }
 
         public int MaxMatchedForceIfAttributes { get; set; }
         public double ProbabilityWeighting { get; set; }
         public List<HashSet<BodyGenConfig.BodyGenTemplate>> Templates { get; set; } = new();
         public bool InitializedSuccessfully { get; set; } // false if one or more of the template sublists contains no templates.
+        public List<string> Categories { get; set; }
     }
 
     public static bool BodyGenAvailableForGender(Gender gender, BodyGenConfigs bodyGenConfigs)
@@ -675,5 +696,42 @@ public class BodyGenSelector
         {
             Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedMorphs = assignedMorphs;
         }
+    }
+
+    public void GenerateBodyGenDescriptorReport(List<BodyGenConfig.BodyGenTemplate> chosenMorphs, NPCInfo npcInfo)
+    {
+        Dictionary<string, string> descriptorRules = new();
+
+        foreach (var morph in chosenMorphs)
+        {
+            string descriptorStr = Logger.GetBodyShapeDescriptorString(morph.BodyShapeDescriptors);
+            if (!descriptorStr.IsNullOrWhitespace())
+            {
+                if (descriptorRules.ContainsKey(morph.Label))
+                {
+                    descriptorRules[morph.Label] += descriptorStr;
+                }
+                else
+                {
+                    descriptorRules.Add(morph.Label, descriptorStr);
+                }
+            }
+        }
+
+        string descriptorLogStr = "Contained descriptors: ";
+
+        if (descriptorRules.Any())
+        {
+            foreach (var entry in descriptorRules)
+            {
+                descriptorLogStr += Environment.NewLine + entry.Key + ": " + entry.Value;
+            }
+        }
+        else
+        {
+            descriptorLogStr += "None";
+        }
+
+        _logger.LogReport(descriptorLogStr, false, npcInfo);
     }
 }

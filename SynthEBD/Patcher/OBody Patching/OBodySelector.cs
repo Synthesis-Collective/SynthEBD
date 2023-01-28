@@ -1,3 +1,6 @@
+using Mutagen.Bethesda.Skyrim;
+using Noggog;
+
 namespace SynthEBD;
 
 public class OBodySelector
@@ -99,6 +102,8 @@ public class OBodySelector
                 }
             }
 
+            _logger.LogReport("Available BodySlides (Force If Attribute Count): " + Environment.NewLine + String.Join(Environment.NewLine, filteredPresets.OrderBy(x => x.MatchedForceIfCount).Select(x => x.Label + " (" + x.MatchedForceIfCount + ")")), false, npcInfo);
+
             if (forceIfPresets.Any())
             {
                 #region Consistency (With ForceIf)
@@ -167,6 +172,8 @@ public class OBodySelector
         {
             statusFlags |= AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag.MatchesConsistency;
         }
+
+        GenerateBodySlideDescriptorReport(selectedPreset, npcInfo);
 
         _logger.CloseReportSubsection(npcInfo);
 
@@ -357,5 +364,23 @@ public class OBodySelector
         {
             Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedBodySlidePreset = assignedBodySlide;
         }
+    }
+
+    public void GenerateBodySlideDescriptorReport(BodySlideSetting bodySlide, NPCInfo npcInfo)
+    {
+        string descriptorStr = Logger.GetBodyShapeDescriptorString(bodySlide.BodyShapeDescriptors);
+
+        string descriptorLogStr = "Contained descriptors: ";
+
+        if (!descriptorStr.IsNullOrWhitespace())
+        {
+            descriptorLogStr += Environment.NewLine + descriptorStr;
+        }
+        else
+        {
+            descriptorLogStr += "None";
+        }
+
+        _logger.LogReport(descriptorLogStr, false, npcInfo);
     }
 }

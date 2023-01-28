@@ -508,6 +508,19 @@ public sealed class Logger : VM
         return string.Join(" | ", sections);
     }
 
+    public static string GetBodyShapeDescriptorString(HashSet<BodyShapeDescriptor.LabelSignature> descriptors)
+    {
+        var categories = descriptors.Select(x => x.Category).ToHashSet();
+        List<string> desc = new();
+        foreach (var category in categories)
+        {
+            var values = descriptors.Where(x => x.Category == category)?.Select(x => x.Value);
+            desc.Add(category + ": [" + String.Join(", ", values) + "]");
+        }
+
+        return String.Join(Environment.NewLine, desc);
+    }
+
     public static string GetRaceListLogStrings(IEnumerable<FormKey> formKeys, Mutagen.Bethesda.Plugins.Cache.ILinkCache lk, PatcherState patcherState)
     {
         return "[" + String.Join(", ", formKeys.Select(x => GetRaceLogString(x, lk, patcherState))) + "]";
