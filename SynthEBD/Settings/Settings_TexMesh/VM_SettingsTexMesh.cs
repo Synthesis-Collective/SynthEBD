@@ -287,7 +287,6 @@ public class VM_SettingsTexMesh : VM
         viewModel.LastViewedAssetPackName = model.LastViewedAssetPack;
         viewModel.bEasyNPCCompatibilityMode = model.bEasyNPCCompatibilityMode;
         viewModel.bApplyFixedScripts = model.bApplyFixedScripts;
-        viewModel.AssetOrderingMenu.CopyInFromViewModel(model.AssetOrder);
 
         if (model.bFixedScriptsOldSKSEversion)
         {
