@@ -87,6 +87,7 @@ public class VM_DownloadCoordinator : VM
             viewModel.ModDownloadName = downloadInfo.ModDownloadName;
             viewModel.URL = downloadInfo.URL;
             viewModel.ExpectedFileName = downloadInfo.ExpectedFileName;
+            viewModel.ExtractionSubPath = downloadInfo.ExtractionSubPath;
             return viewModel;
         }
     }
