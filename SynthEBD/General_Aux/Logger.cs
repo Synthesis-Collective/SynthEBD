@@ -477,7 +477,7 @@ public sealed class Logger : VM
 
     public static string GetNPCLogReportingString(INpcGetter npc)
     {
-        return npc.Name?.String + " (" + EditorIDHandler.GetEditorIDSafely(npc) + ") " + npc.FormKey.ToString().Replace(':', '-');
+        return IO_Aux.MakeValidFileName(npc.Name?.String + " (" + EditorIDHandler.GetEditorIDSafely(npc) + ") " + npc.FormKey.ToString().Replace(':', '-'));
     }
 
     public static string GetSubgroupIDString(FlattenedSubgroup subgroup)
