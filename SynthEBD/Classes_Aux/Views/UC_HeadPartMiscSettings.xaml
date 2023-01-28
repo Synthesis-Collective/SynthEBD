@@ -32,7 +32,7 @@
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="{Binding Key}" VerticalAlignment="Center"/>
-                        <ComboBox SelectedValue="{Binding Value.Source}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:HeadPartSourceCandidate}}}" IsSynchronizedWithCurrentItem="True" Margin="5 0 0 0"/>
+                        <ComboBox SelectedValue="{Binding Value.Source}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:HeadPartSourceCandidate}}}" Margin="5 0 0 0"/>
                     </StackPanel>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
