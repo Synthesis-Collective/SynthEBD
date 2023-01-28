@@ -186,7 +186,7 @@ public class SettingsIO_AssetPack
         }
     }
 
-    public void SaveAssetPack(AssetPack assetPack, out bool success)
+    public string SaveAssetPack(AssetPack assetPack, out bool success) // returns the path to which config was saved
     {
         success = true;
         if (assetPack.FilePath != "" && assetPack.FilePath.StartsWith(_paths.AssetPackDirPath, StringComparison.InvariantCultureIgnoreCase))
@@ -196,6 +196,7 @@ public class SettingsIO_AssetPack
             {
                 _logger.LogMessage("Error saving Asset Pack Config File: " + exceptionStr);
             }
+            return assetPack.FilePath;
         }
         else
         {
@@ -217,6 +218,7 @@ public class SettingsIO_AssetPack
                 {
                     _logger.LogMessage("Error saving Asset Pack Config File: " + exceptionStr);
                 }
+                return newPath;
             }
 
             else
@@ -249,6 +251,7 @@ public class SettingsIO_AssetPack
                         _logger.LogMessage("Error saving Asset Pack Config File: " + exceptionStr);
                     }
                 }
+                return dialog.FileName;
             }
         }
     }

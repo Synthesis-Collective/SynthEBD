@@ -481,7 +481,12 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
     private bool SaveToModel(bool showToolBarNotification)
     {
-        _assetPackIO.SaveAssetPack(DumpViewModelToModel(), out bool success);
+        string savePath = _assetPackIO.SaveAssetPack(DumpViewModelToModel(), out bool success);
+        if (success)
+        {
+            SourcePath = savePath;
+        }
+
         if (showToolBarNotification)
         {
             if (success)
