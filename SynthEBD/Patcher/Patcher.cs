@@ -521,7 +521,7 @@ public class Patcher
                         if (currentMixIn != null)
                         {
                             var assignedMixIn = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out bool mixInAssigned, out _, new HashSet<FlattenedAssetPack>() { currentMixIn }, bodyGenConfigs, oBodySettings, currentNPCInfo, true, AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn, assignedPrimaryComboAndBodyShape, assignedCombinations, out bool mixInDeclined);
-                            _assetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedMixIn.AssignedCombination, currentNPCInfo, currentMixIn.GroupName, mixInDeclined);
+                            _assetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedMixIn.AssignedCombination, currentNPCInfo, currentMixIn.GroupName, mixInAssigned, mixInDeclined);
                             if (mixInAssigned)
                             {
                                 assignedCombinations.Add(assignedMixIn.AssignedCombination);

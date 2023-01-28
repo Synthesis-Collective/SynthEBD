@@ -819,7 +819,7 @@ public class AssetSelector
         }
     }
 
-    public void RecordAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo, string mixInName, bool declinedViaProbability) // MixIn 
+    public void RecordAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo, string mixInName, bool mixInAssigned, bool declinedViaProbability) // MixIn 
     {
         if (_patcherState.GeneralSettings.bEnableConsistency)
         {
@@ -832,12 +832,16 @@ public class AssetSelector
                 {
                     mixInAssignment.DeclinedAssignment = true;
                 }
-                else
+                else if (mixInAssigned)
                 {
                     mixInAssignment.SubgroupIDs = assignedCombination.ContainedSubgroups.Where(x => x.Id != AssetPack.ConfigDistributionRules.SubgroupIDString).Select(x => x.Id).ToList();
                     mixInAssignment.DeclinedAssignment = false;
                 }
-                npcInfo.ConsistencyNPCAssignment.MixInAssignments.Add(mixInAssignment);
+
+                if (mixInAssigned)
+                {
+                    npcInfo.ConsistencyNPCAssignment.MixInAssignments.Add(mixInAssignment);
+                }
             }
             else
             {
@@ -845,6 +849,10 @@ public class AssetSelector
                 if (declinedViaProbability)
                 {
                     consistencyMixIn.DeclinedAssignment = true;
+                }
+                else if (!mixInAssigned)
+                {
+                    npcInfo.ConsistencyNPCAssignment.MixInAssignments.Remove(consistencyMixIn);
                 }
                 else
                 {
