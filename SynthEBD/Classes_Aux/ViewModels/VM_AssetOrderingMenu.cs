@@ -59,7 +59,7 @@ namespace SynthEBD
             }
         }
 
-        public void CopyInFromViewModel(List<string> assetOrder)
+        public void CopyInFromModel(List<string> assetOrder)
         {
             AssignmentOrder.Clear();
             foreach (var asset in assetOrder)
@@ -69,6 +69,7 @@ namespace SynthEBD
                     AssignmentOrder.Add(asset);
                 }
             }
+            UpdateAssignmentOrder();
         }
 
         public List<string> DumpToModel()
