@@ -406,6 +406,7 @@ public class AssetSelector
             _logger.LogReport("Filtering subgroups within asset pack: " + ap.GroupName, false, npcInfo);
             var candidatePack = ap.ShallowCopy();
             bool isValid = true;
+            List<string> subgroupsByPositionLog = new();
 
             for (int i = 0; i < candidatePack.Subgroups.Count; i++)
             {
@@ -454,11 +455,12 @@ public class AssetSelector
                             }
                         }
                     }
-                    _logger.LogReport("Available Subgroups at position " + i + ": [" + string.Join(", ", candidatePack.Subgroups[i].Select(x => x.Id)) + "]", false, npcInfo);
+                    subgroupsByPositionLog.Add(i + ": [" + string.Join(", ", candidatePack.Subgroups[i].Select(x => x.Id)) + "]");
                 }
             }
             if (isValid)
             {
+                _logger.LogReport("Available Subgroups by index: " + Environment.NewLine + string.Join(Environment.NewLine, subgroupsByPositionLog), false, npcInfo);
                 filteredPacks.Add(candidatePack);
             }
             _logger.CloseReportSubsectionsTo("SubGroupDistributionRules", npcInfo);
@@ -1007,12 +1009,12 @@ public class AssetSelector
                 {
                     descriptorLogStr += Environment.NewLine + entry.Key + ": " + entry.Value;
                 }
-                _logger.LogReport(descriptorLogStr, false, npcInfo);
             }
             else
             {
                 descriptorLogStr += "None";
             }
+            _logger.LogReport(descriptorLogStr, false, npcInfo);
         }
     }
 
