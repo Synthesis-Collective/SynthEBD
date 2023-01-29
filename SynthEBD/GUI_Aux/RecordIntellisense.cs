@@ -5,6 +5,7 @@ using ReactiveUI;
 using System.Collections.ObjectModel;
 using System.Reactive.Linq;
 using System.Reflection;
+using System.Windows.Shell;
 
 namespace SynthEBD;
 
@@ -49,8 +50,8 @@ public class RecordIntellisense
             var properties = type.GetProperties();
             foreach (var property in properties)
             {
-                var newPathSuggestion = new PathSuggestion() { SubPath = property.Name, PropInfo = property, Type = PathSuggestion.PathType.Property, SubPathType = type, SubObject = (object)subObj };
-                PathSuggestion.FinalizePathSuggestion(newPathSuggestion);
+                var newPathSuggestion = new PathSuggestion() { Parent = parent, SubPath = property.Name, PropInfo = property, Type = PathSuggestion.PathType.Property, SubPathType = type, SubObject = (object)subObj };
+                newPathSuggestion.FinalizeSuggestion();
                 newSuggestions.Add(newPathSuggestion);
             }
             /* Not implementing methods for now
@@ -72,6 +73,7 @@ public class RecordIntellisense
     {
         public string SubPath { get; set; } = "";
         public string DispString { get; set; } = "";
+        public IImplementsRecordIntellisense Parent { get; set; }
         public PathType Type { get; set; } = PathType.Property;
         public PropertyInfo PropInfo { get; set; }
         public MethodInfo MethInfo { get; set; }
@@ -84,54 +86,53 @@ public class RecordIntellisense
             Method
         }
 
-        public static void FinalizePathSuggestion(PathSuggestion input)
+        public void FinalizeSuggestion()
         {
-            switch (input.Type)
+            switch (Type)
             {
                 case PathType.Property:
-                    input.SubPath = input.PropInfo.Name;
-                    if (IsEnumerable(input.PropInfo.PropertyType))
-                    {
-                        input.SubPath += "[*]";
-                    }
-
-                    input.DispString = input.PropInfo.Name + " (" + input.PropInfo.PropertyType.Name + ")";
+                    SubPath = PropInfo.Name;
+                    DispString = PropInfo.Name + " (" + PropInfo.PropertyType.Name + ")";
                     break;
                 case PathType.Method:
-                    input.SubPath = input.MethInfo.Name + "(";
-                    var parameters = input.MethInfo.GetParameters();
+                    SubPath = MethInfo.Name + "(";
+                    var parameters = MethInfo.GetParameters();
                     for (int i = 0; i < parameters.Length; i++)
                     {
                         var param = parameters[i];
-                        if (param.IsOut) { input.SubPath += "out "; }
-                        input.SubPath += param.ParameterType.Name + " " + param.Name;
+                        if (param.IsOut) { SubPath += "out "; }
+                        SubPath += param.ParameterType.Name + " " + param.Name;
                         if (i < parameters.Length - 1)
                         {
-                            input.SubPath += ", ";
+                            SubPath += ", ";
                         }
                     }
-                    input.SubPath += ")";
+                    SubPath += ")";
 
-                    input.DispString = "(Method) " + input.SubPath + " (" + input.MethInfo.ReturnType.Name + ")";
+                    DispString = "(Method) " + SubPath + " (" + MethInfo.ReturnType.Name + ")";
                     break;
             }
         }
     }
 
-    private static bool IsEnumerable(Type type)
+    private static bool IsEnumerable(dynamic obj)
     {
+        Type type = obj.GetType();
         //explicitly check for string because it is an IEnumerable but should not be treated as an array of chars
         if (type == typeof(string)) { return false; }
 
-        var containedInterfaces = type.GetInterfaces();
-        if (containedInterfaces.Contains(typeof(System.Collections.IEnumerable)))
+        var properties = type.GetProperties();
+        foreach (var property in properties)
         {
-            return true;
+            if (property.GetIndexParameters().Any())
+            {
+                return true;
+            }
         }
         return false;
     }
 
-    public static void UpdatePath(IImplementsRecordIntellisense parent)
+    public void UpdatePath(IImplementsRecordIntellisense parent)
     {
         if (parent.ChosenPathSuggestion is null || parent.ChosenPathSuggestion.DispString == "") { return; }
         if (parent.IntellisensedPath.Length > 0 && !parent.IntellisensedPath.EndsWith('.'))
@@ -141,6 +142,14 @@ public class RecordIntellisense
         else
         {
             parent.IntellisensedPath += parent.ChosenPathSuggestion.SubPath;
+        }
+
+        if (parent.LinkCache.TryResolve<INpcGetter>(parent.ReferenceNPCFormKey, out var referenceNPC) && _recordPathParser.GetObjectAtPath(referenceNPC, referenceNPC, parent.IntellisensedPath, new Dictionary<string, dynamic>(), parent.LinkCache, true, Logger.GetNPCLogNameString(referenceNPC), out var subObj))
+        {
+            if (IsEnumerable(subObj))
+            {
+                parent.IntellisensedPath += "[*]";
+            }
         }
 
         parent.ChosenPathSuggestion = new PathSuggestion(); // clear the dropdown box
