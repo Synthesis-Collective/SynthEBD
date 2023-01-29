@@ -1,3 +1,5 @@
+using Noggog;
+
 namespace SynthEBD;
 
 public class AssetAndBodyShapeSelector
@@ -292,8 +294,8 @@ public class AssetAndBodyShapeSelector
                 var bodyShapeStatusFlags = new BodyShapeSelectorStatusFlag();
                 switch (_patcherState.GeneralSettings.BodySelectionMode)
                 {
-                    case BodyShapeSelectionMode.BodyGen: candidateMorphs = _bodyGenSelector.SelectMorphs(npcInfo, out bodyShapeAssigned, bodyGenConfigs, assignedCombination, previousAssignments, out bodyShapeStatusFlags); break;
-                    case BodyShapeSelectionMode.BodySlide: candidatePreset = _oBodySelector.SelectBodySlidePreset(npcInfo, out bodyShapeAssigned, oBodySettings, previousAssignments, out bodyShapeStatusFlags); break;
+                    case BodyShapeSelectionMode.BodyGen: candidateMorphs = _bodyGenSelector.SelectMorphs(npcInfo, out bodyShapeAssigned, bodyGenConfigs, assignedCombination, previousAssignments.And(assignedCombination), out bodyShapeStatusFlags); break;
+                    case BodyShapeSelectionMode.BodySlide: candidatePreset = _oBodySelector.SelectBodySlidePreset(npcInfo, out bodyShapeAssigned, oBodySettings, previousAssignments.And(assignedCombination), out bodyShapeStatusFlags); break;
                 }
 
                 // Decision Tree
@@ -316,8 +318,8 @@ public class AssetAndBodyShapeSelector
                     bool bodyShapeAssignable = false;
                     switch (_patcherState.GeneralSettings.BodySelectionMode)
                     {
-                        case BodyShapeSelectionMode.BodyGen: candidateMorphs = _bodyGenSelector.SelectMorphs(npcInfo, out bool bodyGenAssignable, bodyGenConfigs, null, previousAssignments, out bodyShapeStatusFlags); break;
-                        case BodyShapeSelectionMode.BodySlide: candidatePreset = _oBodySelector.SelectBodySlidePreset(npcInfo, out bodyShapeAssigned, oBodySettings, null, out bodyShapeStatusFlags); break;
+                        case BodyShapeSelectionMode.BodyGen: candidateMorphs = _bodyGenSelector.SelectMorphs(npcInfo, out bool bodyGenAssignable, bodyGenConfigs, null, new List<SubgroupCombination>(), out bodyShapeStatusFlags); break;
+                        case BodyShapeSelectionMode.BodySlide: candidatePreset = _oBodySelector.SelectBodySlidePreset(npcInfo, out bodyShapeAssigned, oBodySettings, new List<SubgroupCombination>(), out bodyShapeStatusFlags); break;
                     }
 
                     // if not, then the curent combination is fine because no other combination would be compatible with any BodyGen morphs anyway

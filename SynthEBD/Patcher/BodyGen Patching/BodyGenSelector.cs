@@ -16,7 +16,7 @@ public class BodyGenSelector
         _attributeMatcher = attributeMatcher;  
     }
 
-    public List<BodyGenConfig.BodyGenTemplate> SelectMorphs(NPCInfo npcInfo, out bool selectionMade, BodyGenConfigs bodyGenConfigs, SubgroupCombination assignedPrimaryCombination, List<SubgroupCombination> assignedAssetCombinations, out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
+    public List<BodyGenConfig.BodyGenTemplate> SelectMorphs(NPCInfo npcInfo, out bool selectionMade, BodyGenConfigs bodyGenConfigs, SubgroupCombination assignedPrimaryCombination, IEnumerable<SubgroupCombination> assignedAssetCombinations, out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
     {
         _logger.OpenReportSubsection("BodyGenSelection", npcInfo);
         _logger.LogReport("Selecting BodyGen morph(s) for the current NPC", false, npcInfo);
@@ -349,7 +349,7 @@ public class BodyGenSelector
     /// <param name="allMorphs">All templated contained within a BodyGenConfig</param>
     /// <param name="npcInfo"></param>
     /// <returns></returns>
-    public HashSet<BodyGenConfig.BodyGenTemplate> InitializeMorphList(HashSet<BodyGenConfig.BodyGenTemplate> allMorphs, NPCInfo npcInfo, ValidationIgnore ignoredFactors, List<SubgroupCombination> assignedAssetCombinations, BodyGenConfig bodyGenConfig)
+    public HashSet<BodyGenConfig.BodyGenTemplate> InitializeMorphList(HashSet<BodyGenConfig.BodyGenTemplate> allMorphs, NPCInfo npcInfo, ValidationIgnore ignoredFactors, IEnumerable<SubgroupCombination> assignedAssetCombinations, BodyGenConfig bodyGenConfig)
     {
         HashSet<BodyGenConfig.BodyGenTemplate> outputMorphs = new HashSet<BodyGenConfig.BodyGenTemplate>();
         foreach (var candidateMorph in allMorphs)
@@ -362,7 +362,7 @@ public class BodyGenSelector
         return outputMorphs;
     }
 
-    public bool MorphIsValid(BodyGenConfig.BodyGenTemplate candidateMorph, NPCInfo npcInfo, ValidationIgnore ignoredFactors, List<SubgroupCombination> assignedAssetCombinations, BodyGenConfig bodyGenConfig)
+    public bool MorphIsValid(BodyGenConfig.BodyGenTemplate candidateMorph, NPCInfo npcInfo, ValidationIgnore ignoredFactors, IEnumerable<SubgroupCombination> assignedAssetCombinations, BodyGenConfig bodyGenConfig)
     {
         if (ignoredFactors == ValidationIgnore.All)
         {

@@ -16,7 +16,7 @@ public class OBodySelector
         _paths = paths;
         _attributeMatcher = attributeMatcher;   
     }
-    public BodySlideSetting SelectBodySlidePreset(NPCInfo npcInfo, out bool selectionMade, Settings_OBody oBodySettings, List<SubgroupCombination> assignedAssetCombinations,  out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
+    public BodySlideSetting SelectBodySlidePreset(NPCInfo npcInfo, out bool selectionMade, Settings_OBody oBodySettings, IEnumerable<SubgroupCombination> assignedAssetCombinations,  out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
     {
         selectionMade = false;
 
@@ -180,7 +180,7 @@ public class OBodySelector
         return selectedPreset;
     }
 
-    public bool PresetIsValid(BodySlideSetting candidatePreset, NPCInfo npcInfo, List<SubgroupCombination> assignedAssetCombinations, Settings_OBody oBodySettings)
+    public bool PresetIsValid(BodySlideSetting candidatePreset, NPCInfo npcInfo, IEnumerable<SubgroupCombination> assignedAssetCombinations, Settings_OBody oBodySettings)
     {
         if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.BodyGenMorphNames.Contains(candidatePreset.Label))
         {
