@@ -43,6 +43,7 @@ public class Patcher
     private readonly NPCInfo.Factory _npcInfoFactory;
 
     private AssetStatsTracker _assetsStatsTracker { get; set; }
+    private int _patchedNpcCount { get; set; }
 
     public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory)
     {
@@ -266,17 +267,17 @@ public class Patcher
         }
 
         // Run main patching operations
-        int npcCounter = 0;
         HashSet<Npc> headPartNPCs = new HashSet<Npc>();
         HeadPartTracker = new Dictionary<FormKey, HeadPartSelection>(); // needs re-initialization even if headpart distribution is disabled because TexMesh settings can also produce headparts.
 
+        _patchedNpcCount = 0;
         _statusBar.ProgressBarMax = allNPCs.Count();
         _statusBar.ProgressBarCurrent = 0;
         _statusBar.ProgressBarDisp = "Patched " + _statusBar.ProgressBarCurrent + " NPCs";
         // Patch main NPCs
-        MainLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
+        MainLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
         // Finish assigning non-primary linked NPCs
-        MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, npcCounter, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
+        MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
 
         _logger.StopTimer();
         _logger.LogMessage("Finished patching in " + _logger.GetEllapsedTime());
@@ -370,7 +371,7 @@ public class Patcher
     private void MainLoop(
         IEnumerable<INpcGetter> npcCollection, bool skipLinkedSecondaryNPCs, ISkyrimMod outputMod,
         CategorizedFlattenedAssetPacks sortedAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings,
-        HeightConfig currentHeightConfig, Settings_Headparts headPartSettings, int npcCounter,
+        HeightConfig currentHeightConfig, Settings_Headparts headPartSettings, 
         HashSet<LinkedNPCGroupInfo> generatedLinkGroups, HashSet<INpcGetter> skippedLinkedNPCs,
         Keyword EBDFaceKW, Keyword EBDScriptKW, FacePartCompliance facePartComplianceMaintainer,
         HashSet<Npc> headPartNPCs)
@@ -390,8 +391,7 @@ public class Patcher
 
         foreach (var npc in npcCollection)
         {
-            npcCounter++;
-
+            _statusBar.ProgressBarCurrent++;
             var currentNPCInfo = _npcInfoFactory(npc, linkedGroupsHashSet, generatedLinkGroups);
 
             #region Detailed logging
@@ -427,15 +427,11 @@ public class Patcher
                 _logger.SaveReport(currentNPCInfo);
                 continue;
             }
-            else
-            {
-                _statusBar.ProgressBarCurrent++;
-            }
             #endregion
 
-            if (_statusBar.ProgressBarCurrent % 100 == 0)
+            if (_patchedNpcCount % 100 == 0 || _statusBar.ProgressBarCurrent == _statusBar.ProgressBarMax)
             {
-                _statusBar.ProgressBarDisp = "Patched " + _statusBar.ProgressBarCurrent + " NPCs";
+                _statusBar.ProgressBarDisp = "Patched " + _patchedNpcCount + " NPCs";
             }
 
             #region link by name
@@ -654,6 +650,8 @@ public class Patcher
             #endregion
 
             _logger.SaveReport(currentNPCInfo);
+            
+            _patchedNpcCount++;
         }
     }
 
