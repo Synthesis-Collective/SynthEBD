@@ -18,6 +18,57 @@ public class VM_BodySlidesMenu : VM
             execute: x => CurrentlyDisplayedBodySlides.Remove((VM_BodySlideSetting)x)
         );
 
+        RemovePresetsMissing = new RelayCommand(
+            canExecute: _ => true,
+            execute: x =>
+            {
+                if (CustomMessageBox.DisplayNotificationYesNo("", "Are you sure you want to remove all displayed BodySlides that are not in your current game environment?"))
+                {
+                    for (int i = 0; i < CurrentlyDisplayedBodySlides.Count; i++)
+                    {
+                        if (!CurrentlyDisplayedBodySlides[i].IsHidden && CurrentlyDisplayedBodySlides[i].BorderColor == VM_BodySlideSetting.BorderColorMissing)
+                        {
+                            CurrentlyDisplayedBodySlides.RemoveAt(i);
+                            i--;
+                        }
+                    }
+                }
+            });
+
+        RemovePresetsUnannotated = new RelayCommand(
+            canExecute: _ => true,
+            execute: x =>
+            {
+                if (CustomMessageBox.DisplayNotificationYesNo("", "Are you sure you want to remove all displayed BodySlides that are not currently annotated with Body Shape Descriptors?"))
+                {
+                    for (int i = 0; i < CurrentlyDisplayedBodySlides.Count; i++)
+                    {
+                        if (!CurrentlyDisplayedBodySlides[i].IsHidden && !CurrentlyDisplayedBodySlides[i].DescriptorsSelectionMenu.IsAnnotated())
+                        {
+                            CurrentlyDisplayedBodySlides.RemoveAt(i);
+                            i--;
+                        }
+                    }
+                }
+            });
+
+        RemovePresetsAll = new RelayCommand(
+            canExecute: _ => true,
+            execute: x =>
+            {
+                if (CustomMessageBox.DisplayNotificationYesNo("", "Are you sure you want to remove all displayed BodySlides?"))
+                {
+                    for (int i = 0; i < CurrentlyDisplayedBodySlides.Count; i++)
+                    {
+                        if (!CurrentlyDisplayedBodySlides[i].IsHidden)
+                        {
+                            CurrentlyDisplayedBodySlides.RemoveAt(i);
+                            i--;
+                        }
+                    }
+                }
+            });
+
         CurrentlyDisplayedBodySlides = BodySlidesFemale;
         Alphabetizer_Male = new(BodySlidesMale, x => x.Label, new(System.Windows.Media.Colors.MediumPurple));
         Alphabetizer_Female = new(BodySlidesFemale, x => x.Label, new(System.Windows.Media.Colors.MediumPurple));
@@ -58,6 +109,10 @@ public class VM_BodySlidesMenu : VM
 
     public RelayCommand AddPreset { get; }
     public RelayCommand RemovePreset { get; }
+
+    public RelayCommand RemovePresetsUnannotated { get; }
+    public RelayCommand RemovePresetsMissing { get; }
+    public RelayCommand RemovePresetsAll { get; }
     public bool ShowHidden { get; set; } = false;
 
     private static void TogglePresetVisibility(ObservableCollection<VM_BodySlideSetting> bodySlides, bool showHidden)

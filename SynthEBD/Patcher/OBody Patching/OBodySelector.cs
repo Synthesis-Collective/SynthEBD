@@ -167,7 +167,7 @@ public class OBodySelector
             }
         }
 
-        //store selected morphs
+        //store selected bodyslide
         if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && npcInfo.ConsistencyNPCAssignment.BodySlidePreset == selectedPreset.Label)
         {
             statusFlags |= AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag.MatchesConsistency;

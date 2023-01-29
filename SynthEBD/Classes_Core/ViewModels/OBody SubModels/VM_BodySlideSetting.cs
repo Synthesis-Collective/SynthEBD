@@ -131,11 +131,15 @@ public class VM_BodySlideSetting : VM
     public string StatusText { get; set; }
     public bool ShowStatus { get; set; }
 
+    public static SolidColorBrush BorderColorMissing = new SolidColorBrush(Colors.Red);
+    public static SolidColorBrush BorderColorUnannotated = new SolidColorBrush(Colors.Yellow);
+    public static SolidColorBrush BorderColorValid = new SolidColorBrush(Colors.LightGreen);
+
     public void UpdateStatusDisplay()
     {
         if (!ParentMenuVM.BodySlidesUI.CurrentlyExistingBodySlides.Contains(this.Label))
         {
-            BorderColor = new SolidColorBrush(Colors.Red);
+            BorderColor = BorderColorMissing;
             StatusHeader = "Warning:";
             StatusText = "Source BodySlide XML files are missing. Will not be assigned.";
             ShowStatus = true;
@@ -146,14 +150,14 @@ public class VM_BodySlideSetting : VM
         }
         else if(!DescriptorsSelectionMenu.IsAnnotated())
         {
-            BorderColor = new SolidColorBrush(Colors.Yellow);
+            BorderColor = BorderColorUnannotated;
             StatusHeader = "Warning:";
             StatusText = "Bodyslide has not been annotated with descriptors. May not pair correctly with textures.";
             ShowStatus = true;
         }
         else
         {
-            BorderColor = new SolidColorBrush(Colors.LightGreen);
+            BorderColor = BorderColorValid;
             StatusHeader = string.Empty;
             StatusText = string.Empty;
             ShowStatus = false;

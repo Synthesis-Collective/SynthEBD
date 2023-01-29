@@ -70,7 +70,14 @@
             </StackPanel>
         </ScrollViewer>
 
-        <ContentPresenter Grid.Row="0" Grid.Column="1" Grid.RowSpan="4" Content="{Binding CurrentlyDisplayedBodySlide}">
+        <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Horizontal">
+            <TextBlock VerticalAlignment="Center" Text="Delete"/>
+            <Button Grid.Row="2" Grid.Column="0" Margin="5 0 5 0" Command="{Binding RemovePresetsMissing}" Foreground="Firebrick">Missing</Button>
+            <Button Grid.Row="2" Grid.Column="0" Margin="5 0 5 0" Command="{Binding RemovePresetsUnannotated}" Foreground="Firebrick">Unannotated</Button>
+            <Button Grid.Row="2" Grid.Column="0" Margin="5 0 5 0" Command="{Binding RemovePresetsAll}" Foreground="Firebrick">All</Button>
+        </StackPanel>
+
+        <ContentPresenter Grid.Row="0" Grid.Column="1" Grid.RowSpan="5" Content="{Binding CurrentlyDisplayedBodySlide}">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_BodySlideSetting}">
                     <local:UC_BodySlideSetting/>
