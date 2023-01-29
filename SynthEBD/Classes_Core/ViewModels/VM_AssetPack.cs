@@ -34,6 +34,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     private readonly PatcherState _patcherState;
     private readonly VM_SettingsOBody _oBody;
     private readonly VM_Settings_General _general;
+    private readonly VM_SettingsModManager _modManager;
     private readonly VM_BodyGenConfig.Factory _bodyGenConfigFactory;
     private readonly VM_AssetPackDirectReplacerMenu.Factory _assetPackDirectReplacerMenuFactory;
     private readonly VM_Subgroup.Factory _subgroupFactory;
@@ -42,6 +43,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     private readonly AssetPackValidator _assetPackValidator;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
+    private readonly IO_Aux _auxIO;
     private readonly FileDialogs _fileDialogs;
     private readonly Factory _selfFactory;
     private readonly SettingsIO_AssetPack _assetPackIO;
@@ -57,6 +59,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         VM_SettingsOBody oBody,
         VM_SettingsTexMesh texMesh,
         VM_Settings_General general,
+        VM_SettingsModManager modManager,
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
         VM_AssetPackDirectReplacerMenu.Factory assetPackDirectReplacerMenuFactory,
         VM_Subgroup.Factory subgroupFactory,
@@ -65,6 +68,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         AssetPackValidator assetPackValidator,
         Logger logger,
         SynthEBDPaths paths,
+        IO_Aux auxIO,
         FileDialogs fileDialogs,
         SettingsIO_AssetPack assetPackIO,
         VM_AttributeGroupMenu.Factory attributeGroupMenuFactory,
@@ -75,6 +79,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         _patcherState = state;
         _oBody = oBody;
         _general = general;
+        _modManager = modManager;
         _bodyGenConfigFactory = bodyGenConfigFactory;
         _assetPackDirectReplacerMenuFactory = assetPackDirectReplacerMenuFactory;
         _subgroupFactory = subgroupFactory;
@@ -83,6 +88,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         _assetPackValidator = assetPackValidator;
         _logger = logger;
         _paths = paths;
+        _auxIO = auxIO;
         _fileDialogs = fileDialogs;
         _selfFactory = selfFactory;
         _assetPackIO = assetPackIO;
@@ -139,6 +145,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             execute: _ => {
                 if (_fileDialogs.ConfirmFileDeletion(this.SourcePath, "Asset Pack Config File"))
                 {
+                    DeleteAssetFiles(); // prompts user after collecting data
                     ParentCollection.Remove(this);
                 }
             }
@@ -1120,6 +1127,119 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             {
                 existingGroupings.Add(fallBackGroupings.Where(x => x.Label == groupLabel).First());
             }
+        }
+    }
+
+    private void DeleteAssetFiles()
+    {
+        HashSet<string> prefixes = new HashSet<string>();
+        string modsFolderPath = "";
+        if (_modManager.ModManagerType == ModManager.ModOrganizer2 && Directory.Exists(_modManager.MO2IntegrationVM.ModFolderPath))
+        {
+            modsFolderPath = _modManager.MO2IntegrationVM.ModFolderPath;
+        }
+        else if (_modManager.ModManagerType == ModManager.Vortex && Directory.Exists(_modManager.VortexIntegrationVM.StagingFolderPath))
+        {
+            modsFolderPath = _modManager.VortexIntegrationVM.StagingFolderPath;
+        }
+
+        if (!modsFolderPath.IsNullOrWhitespace())
+        {
+            GetPrefixes(prefixes);
+
+            string currentModDir = "";
+            foreach (var modDirectory in Directory.GetDirectories(modsFolderPath))
+            {
+                foreach (var subDirectory in Directory.GetDirectories(modDirectory))
+                {
+                    var candidatePrefixDirectories = Directory.GetDirectories(subDirectory).Select(x => new DirectoryInfo(x).Name);
+                    if(candidatePrefixDirectories.Where(x => prefixes.Contains(x)).Any())
+                    {
+                        currentModDir = modDirectory;
+                    }
+                }
+            }
+
+            if (!currentModDir.IsNullOrWhitespace())
+            {
+                if (CustomMessageBox.DisplayNotificationYesNo("", "Delete asset folder at " + currentModDir + "?"))
+                {
+                    _auxIO.TryDeleteDirectory(currentModDir, true);
+                }
+            }
+            else
+            {
+                CustomMessageBox.DisplayNotificationOK("", "Could not find the Assets Folder for this config file in your mod manager. You will need to delete the installed asset files manually");
+            }
+        }
+
+        else if (CustomMessageBox.DisplayNotificationYesNo("", "Delete this config file's assets in your data folder?"))
+        {
+            foreach (var subgroup in Subgroups)
+            {
+                DeleteSubgroupAssets(subgroup);
+            }
+            foreach (var replacer in ReplacersMenu.ReplacerGroups)
+            {
+                foreach (var subgroup in replacer.Subgroups)
+                {
+                    DeleteSubgroupAssets(subgroup);
+                }
+            }
+        }
+    }
+
+    private void GetPrefixes(HashSet<string> prefixes)
+    {
+        foreach (var subgroup in Subgroups)
+        {
+            GetPrefixes(subgroup, prefixes);
+        }
+        foreach (var replacer in ReplacersMenu.ReplacerGroups)
+        {
+            foreach (var subgroup in replacer.Subgroups)
+            {
+                GetPrefixes(subgroup, prefixes);
+            }
+        }
+    }
+
+    private void GetPrefixes(VM_Subgroup sg, HashSet<string> prefixes)
+    {
+        foreach (var ssg in sg.Subgroups)
+        {
+            GetPrefixes(ssg, prefixes);
+        }
+        foreach (var path in sg.PathsMenu.Paths)
+        {
+            string[] split = path.Source.Split(Path.DirectorySeparatorChar);
+            if (split.Length >= 2 && !prefixes.Contains(split[1]))
+            {
+                prefixes.Add(split[1]);
+            }
+        }
+    }
+
+    private void DeleteSubgroupAssets(VM_Subgroup sg)
+    {
+        foreach (var ssg in sg.Subgroups)
+        {
+            DeleteSubgroupAssets(ssg);
+        }
+        foreach (var path in sg.PathsMenu.Paths)
+        {
+            if (path.Source == null) { continue; }
+            string candidatePath = Path.Combine(_environmentProvider.DataFolderPath, path.Source);
+            if(File.Exists(candidatePath))
+            {
+                _auxIO.TryDeleteFile(candidatePath);
+            }
+
+            var parentDir = Directory.GetParent(candidatePath);
+            if (!Directory.EnumerateFileSystemEntries(parentDir.FullName).Any())
+            {
+                _auxIO.TryDeleteDirectory(parentDir.FullName, false);
+            } 
         }
     }
 }

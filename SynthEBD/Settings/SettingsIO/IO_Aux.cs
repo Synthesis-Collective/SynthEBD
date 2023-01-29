@@ -207,4 +207,28 @@ public class IO_Aux
             return "_";
         return changed ? sb.ToString() : text;
     }
+
+    public void TryDeleteFile(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError("Could not delete file " + path + Environment.NewLine + "Exception: " + ExceptionLogger.GetExceptionStack(e));
+        }
+    }
+
+    public void TryDeleteDirectory(string path, bool recursive)
+    {
+        try
+        {
+            Directory.Delete(path, recursive);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError("Could not delete directory " + path + Environment.NewLine + "Exception: " + ExceptionLogger.GetExceptionStack(e));
+        }
+    }
 }
