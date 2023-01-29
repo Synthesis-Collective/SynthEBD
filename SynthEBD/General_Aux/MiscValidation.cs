@@ -1,4 +1,5 @@
 using System.IO;
+using AssemblyVersionGenerator;
 using Noggog;
 
 namespace SynthEBD;
@@ -9,9 +10,11 @@ public class MiscValidation
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly RaceMenuIniHandler _raceMenuHandler;
-    public MiscValidation(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths, RaceMenuIniHandler raceMenuHandler)
+    private readonly PatcherState _patcherState;
+    public MiscValidation(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, RaceMenuIniHandler raceMenuHandler)
     {
         _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
         _logger = logger;
         _paths = paths;
         _raceMenuHandler = raceMenuHandler;
@@ -227,6 +230,131 @@ public class MiscValidation
         {
             return true;
         }
+    }
+
+    public bool VerifyBlankAttributes(List<string> itemsWithBlankAttributes)
+    {
+        if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)
+        {
+            foreach (var assetPack in _patcherState.AssetPacks.Where(x => _patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)))
+            {
+                if (HasBlankAttribute(assetPack.DistributionRules.AllowedAttributes) || HasBlankAttribute(assetPack.DistributionRules.DisallowedAttributes))
+                {
+                    itemsWithBlankAttributes.Add(assetPack.GroupName + " (Distribution Rules)");
+                }
+
+                List<string> subGroupIDs = new();
+                foreach (var subgroup in assetPack.Subgroups)
+                {
+                    CheckSubgroupHasBlankAttribute(subgroup, subGroupIDs);
+                }
+
+                foreach (var replacer in assetPack.ReplacerGroups)
+                {
+                    foreach (var subgroup in replacer.Subgroups)
+                    {
+                        CheckSubgroupHasBlankAttribute(subgroup, subGroupIDs);
+                    }
+                }
+
+                if (subGroupIDs.Any())
+                {
+                    itemsWithBlankAttributes.Add(assetPack.GroupName + ": Subgroups [" + String.Join(", ", subGroupIDs));
+                }
+            }
+        }
+
+        if(_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
+        {
+            foreach (var bodyGenConfig in _patcherState.BodyGenConfigs.Male.And(_patcherState.BodyGenConfigs.Female))
+            {
+                foreach (var template in bodyGenConfig.Templates)
+                {
+                    if (HasBlankAttribute(template.AllowedAttributes) || (HasBlankAttribute(template.DisallowedAttributes)))
+                    {
+                        itemsWithBlankAttributes.Add("BodyGen Template: " + template.Label);
+                    }
+                }
+                foreach (var descriptor in bodyGenConfig.TemplateDescriptors)
+                {
+                    if (HasBlankAttribute(descriptor.AssociatedRules.AllowedAttributes) || HasBlankAttribute(descriptor.AssociatedRules.DisallowedAttributes))
+                    {
+                        itemsWithBlankAttributes.Add("BodyGen Descriptor: " + descriptor.ID.Category + ": " + descriptor.ID.Value);
+                    }
+                }
+            }
+        }
+        else if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
+        {
+            foreach (var template in _patcherState.OBodySettings.BodySlidesMale.And(_patcherState.OBodySettings.BodySlidesFemale))
+            {
+                if (HasBlankAttribute(template.AllowedAttributes) || (HasBlankAttribute(template.DisallowedAttributes)))
+                {
+                    itemsWithBlankAttributes.Add("BodySlide: " + template.Label);
+                }
+            }
+            foreach (var descriptor in _patcherState.OBodySettings.TemplateDescriptors)
+            {
+                if (HasBlankAttribute(descriptor.AssociatedRules.AllowedAttributes) || HasBlankAttribute(descriptor.AssociatedRules.DisallowedAttributes))
+                {
+                    itemsWithBlankAttributes.Add("BodySlide Descriptor: " + descriptor.ID.Category + ": " + descriptor.ID.Value);
+                }
+            }
+        }
+
+        if (_patcherState.GeneralSettings.bChangeHeadParts)
+        {
+            foreach (var headPartType in _patcherState.HeadPartSettings.Types.Keys)
+            {
+                var headPartList = _patcherState.HeadPartSettings.Types[headPartType];
+                if (HasBlankAttribute(headPartList.AllowedAttributes) || HasBlankAttribute(headPartList.DisallowedAttributes))
+                {
+                    itemsWithBlankAttributes.Add("Head Part Rules: " + headPartType.ToString());
+                }
+                foreach (var headPart in headPartList.HeadParts)
+                {
+                    if (HasBlankAttribute(headPart.AllowedAttributes) || HasBlankAttribute(headPart.DisallowedAttributes))
+                    {
+                        itemsWithBlankAttributes.Add(headPartType.ToString() + ": " + headPart.EditorID);
+                    }
+                }
+            }
+        }
+
+        return !itemsWithBlankAttributes.Any();
+    }
+
+    private bool CheckSubgroupHasBlankAttribute(AssetPack.Subgroup sg, List<string> subgroupIDs)
+    {
+        bool hasBlank = false;
+        if (HasBlankAttribute(sg.AllowedAttributes) || HasBlankAttribute(sg.DisallowedAttributes))
+        {
+            subgroupIDs.Add(sg.ID);
+            hasBlank = true;
+        }
+        foreach(var subgroup in sg.Subgroups)
+        {
+            if (CheckSubgroupHasBlankAttribute(subgroup, subgroupIDs))
+            {
+                hasBlank = true;
+            }
+        }
+        return hasBlank;
+    }
+
+    private bool HasBlankAttribute(IEnumerable<NPCAttribute> attributes)
+    {
+        foreach (var attribute in attributes)
+        {
+            foreach (var subAttribute in attribute.SubAttributes)
+            {
+                if (subAttribute.IsBlank())
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public bool VerifyBodySlideAnnotations(Settings_OBody obodySettings)

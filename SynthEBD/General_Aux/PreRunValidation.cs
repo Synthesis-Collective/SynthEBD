@@ -127,6 +127,14 @@ namespace SynthEBD
                 }
             }
 
+            List<string> itemsWithBlankAttributes = new();
+            if (!_miscValidation.VerifyBlankAttributes(itemsWithBlankAttributes))
+            {
+                _logger.LogMessage("The following items have blank Allowed or Disallowed Attributes, which can prevent proper patcher execution:");
+                _logger.LogMessage(itemsWithBlankAttributes);
+                valid = false;
+            }    
+
             if (!valid)
             {
                 _logger.LogErrorWithStatusUpdate("Could not run the patcher. Please correct the errors above.", ErrorType.Error);

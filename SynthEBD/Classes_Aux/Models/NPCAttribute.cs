@@ -3,6 +3,7 @@ using Mutagen.Bethesda.Plugins.Aspects;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
+using Noggog;
 
 /*
  * When adding a new type of ITypedNPCAttribute, don't forget to also include it in JSONhandler.AttributeConverter.ReadJson() so that it can be correctly deserialized
@@ -196,6 +197,11 @@ public class NPCAttributeClass : ITypedNPCAttribute
         return false;
     }
 
+    public bool IsBlank()
+    {
+        return !FormKeys.Any();
+    }
+
     public static NPCAttributeClass CloneAsNew(NPCAttributeClass input)
     {
         var output = new NPCAttributeClass();
@@ -248,6 +254,18 @@ public class NPCAttributeCustom : ITypedNPCAttribute
         return true;
     }
 
+    public bool IsBlank()
+    {
+        if (CustomType == CustomAttributeType.Record && !ValueFKs.Any())
+        {
+            return true;
+        }
+        else if ((CustomType == CustomAttributeType.Integer || CustomType == CustomAttributeType.Decimal || CustomType == CustomAttributeType.Boolean) && ValueStr.IsNullOrWhitespace())
+        {
+            return true;
+        }
+        return false;
+    }
     public static NPCAttributeCustom CloneAsNew(NPCAttributeCustom input)
     {
         var output = new NPCAttributeCustom();
@@ -304,6 +322,11 @@ public class NPCAttributeFactions : ITypedNPCAttribute
         return false;
     }
 
+    public bool IsBlank()
+    {
+        return !FormKeys.Any();
+    }
+
     public static NPCAttributeFactions CloneAsNew(NPCAttributeFactions input)
     {
         var output = new NPCAttributeFactions();
@@ -343,6 +366,11 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
         return false;
     }
 
+    public bool IsBlank()
+    {
+        return !FormKeys.Any();
+    }
+
     public static NPCAttributeFaceTexture CloneAsNew(NPCAttributeFaceTexture input)
     {
         var output = new NPCAttributeFaceTexture();
@@ -380,6 +408,10 @@ public class NPCAttributeRace : ITypedNPCAttribute
         return false;
     }
 
+    public bool IsBlank()
+    {
+        return !FormKeys.Any();
+    }
     public static NPCAttributeRace CloneAsNew(NPCAttributeRace input)
     {
         var output = new NPCAttributeRace();
@@ -422,6 +454,21 @@ public class NPCAttributeMisc : ITypedNPCAttribute
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Misc;
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
+
+    public bool IsBlank()
+    {
+        return (
+            Unique == ThreeWayState.Ignore &&
+            Essential == ThreeWayState.Ignore &&
+            Protected == ThreeWayState.Ignore &&
+            Summonable == ThreeWayState.Ignore &&
+            Ghost == ThreeWayState.Ignore &&
+            Invulnerable == ThreeWayState.Ignore &&
+            !EvalAggression &&
+            !EvalMood &&
+            !EvalGender
+            );
+    }
 
     public bool Equals(ITypedNPCAttribute other)
     {
@@ -488,6 +535,11 @@ public class NPCAttributeMod : ITypedNPCAttribute
         if (this.Type == other.Type && ModKeyHashSetComparer.Equals(this.ModKeys, otherTyped.ModKeys)) { return true; }
         return false;
     }
+
+    public bool IsBlank()
+    {
+        return !ModKeys.Any();
+    }
     public static NPCAttributeMod CloneAsNew(NPCAttributeMod input)
     {
         var output = new NPCAttributeMod();
@@ -518,6 +570,10 @@ public class NPCAttributeMod : ITypedNPCAttribute
         return false;
     }
 
+    public bool IsBlank()
+    {
+        return !FormKeys.Any();
+    }
     public static NPCAttributeNPC CloneAsNew(NPCAttributeNPC input)
     {
         var output = new NPCAttributeNPC();
@@ -554,6 +610,10 @@ public class NPCAttributeVoiceType : ITypedNPCAttribute
         return false;
     }
 
+    public bool IsBlank()
+    {
+        return !FormKeys.Any();
+    }
     public static NPCAttributeVoiceType CloneAsNew(NPCAttributeVoiceType input)
     {
         var output = new NPCAttributeVoiceType();
@@ -606,6 +666,10 @@ public class NPCAttributeGroup : ITypedNPCAttribute
         return false;
     }
 
+    public bool IsBlank()
+    {
+        return !SelectedLabels.Any();
+    }
     public static NPCAttributeGroup CloneAsNew(NPCAttributeGroup input)
     {
         var output = new NPCAttributeGroup();
@@ -626,6 +690,7 @@ public interface ITypedNPCAttribute
 {
     NPCAttributeType Type { get; set; }
     bool Equals(ITypedNPCAttribute other);
+    bool IsBlank();
     public AttributeForcing ForceMode { get; set; }
     public int Weighting { get; set; }
     public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache);
