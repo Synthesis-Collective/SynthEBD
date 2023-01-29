@@ -99,6 +99,7 @@ public class AttributeMatcher
                         break;
                     case NPCAttributeType.Group:
                         var groupAttribute = (NPCAttributeGroup)subAttribute;
+                        bool hasMatchedGroup = false;
                         foreach (string selectedGroup in groupAttribute.SelectedLabels)
                         {
                             var attributeGroup = NPCAttribute.GetAttributeGroupByLabel(selectedGroup, attributeGroups, _patcherState, _logger);
@@ -113,12 +114,13 @@ public class AttributeMatcher
                                 if (groupMatched)
                                 {
                                     groupWeightingMultiplier = groupForceIfCount;
-                                }
-                                else
-                                {
-                                    subAttributeMatched = false;
+                                    hasMatchedGroup = true;
                                 }
                             }
+                        }
+                        if (!hasMatchedGroup)
+                        {
+                            subAttributeMatched = false;
                         }
                         break;
                     case NPCAttributeType.Misc:
