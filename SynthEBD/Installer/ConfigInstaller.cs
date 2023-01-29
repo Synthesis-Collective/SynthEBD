@@ -563,18 +563,36 @@ public class ConfigInstaller
 
         if (originalLongestPathLength > pathLengthLimit)
         {
-            pathMap = RemapDirectoryNames(assetPack, manifest); // from list of paths, generate a map of old -> new paths
+            pathMap = RemapDirectoryNames(assetPack, manifest, pathLengthLimit); // from list of paths, generate a map of old -> new paths
             RemapAssetPackPaths(assetPack, pathMap); // from path map, reassign the paths referenced in the asset pack
 
             int newLongestPathLength = GetLongestPathLength(assetPack, manifest, out _);
             if (newLongestPathLength > pathLengthLimit)
             {
-                CustomMessageBox.DisplayNotificationOK("Installation error", "Cannot extract the required asset files for config file " + assetPack.GroupName + ". The longest path (" + longestPath + ") is " + originalLongestPathLength + " characters and a maximum of " + pathLengthLimit + " are allowed. After automatic renaming the longest path was still " + newLongestPathLength + " charactersl long. Please consider moving the destination directory to a shorter path");
+                List<string> longMessage = new()
+                {
+                    "Cannot extract the required asset files for config file " + assetPack.GroupName + ".",
+                    "The longest path:",
+                    longestPath,
+                    "is " + originalLongestPathLength + " characters and a maximum of " + pathLengthLimit + " are allowed.",
+                    "After automatic renaming the longest path was still " + newLongestPathLength + " charactersl long.",
+                    "Please consider moving the destination directory to a shorter path"
+                };
+                CustomMessageBox.DisplayNotificationOK("Installation error", string.Join(Environment.NewLine, longMessage));
                 return false;
             }
             else
             {
-                CustomMessageBox.DisplayNotificationOK("Installation notice", "Config file " + assetPack.GroupName + " was modified to comply with the path length limit (" + pathLengthLimit + ")." + Environment.NewLine + "The longest file path (" + longestPath + ") would have been " + originalLongestPathLength + " characters long." + Environment.NewLine + "The longest file path is now truncated to " + newLongestPathLength + " characters." + Environment.NewLine + "All paths within the config file and the destination data folder were automatically modified. No additional action is required.");
+                List<string> longMessage = new()
+                {
+                    "Config file " + assetPack.GroupName + " was modified to comply with the path length limit (" + pathLengthLimit + ").",
+                    "The longest path:",
+                    longestPath,
+                    "would have been " + originalLongestPathLength + " characters long but is now truncated to " + newLongestPathLength + " characters.",
+                    "All long paths within the config file and the destination data folder were automatically modified.",
+                    "No additional action is required."
+                };
+                CustomMessageBox.DisplayNotificationOK("Installation notice", string.Join(Environment.NewLine, longMessage));
             }
         }
 
@@ -710,7 +728,7 @@ public class ConfigInstaller
         return false;
     }
 
-    public Dictionary<string, string> RemapDirectoryNames(AssetPack extractedPack, Manifest manifest)
+    public Dictionary<string, string> RemapDirectoryNames(AssetPack extractedPack, Manifest manifest, int pathLengthLimit)
     {
         Dictionary<string, string> pathMap = new Dictionary<string, string>();
 
@@ -722,7 +740,8 @@ public class ConfigInstaller
 
         foreach (var path in containedPaths)
         {
-            if (!pathMap.ContainsKey(path) && !PathStartsWithModName(path) && GetExpectedDataFolderFromExtension(path, manifest, out _))
+            string extractedPath = GenerateInstalledPath(GetPathWithoutSynthEBDPrefix(path, manifest, out string detectedPrefix), manifest, detectedPrefix);
+            if (extractedPath.Length > pathLengthLimit && !pathMap.ContainsKey(path) && !PathStartsWithModName(path) && GetExpectedDataFolderFromExtension(path, manifest, out _))
             {
                 string fileName = Path.GetFileNameWithoutExtension(path);
                 if(pathCountsByFile.ContainsKey(fileName))
