@@ -21,8 +21,6 @@ public class SynthEBDPaths : VM
     private const string NPCConfigDirRelPath = "NPC Configuration";
     private const string recordTemplatesDirRelPath = "Record Templates";
 
-    private static readonly string settingsDirPath;
-
     private readonly PatcherSettingsSourceProvider _settingsSourceProvider;
     private readonly IEnvironmentStateProvider _environmentProvider;
     public SynthEBDPaths(

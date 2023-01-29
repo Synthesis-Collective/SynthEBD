@@ -23,11 +23,12 @@ public sealed class Logger : VM
     private readonly VM_LogDisplay _logDisplay;
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherIO _patcherIO;
+    private SynthEBDPaths _paths;
+
     public string StatusString { get; set; }
     public string BackupStatusString { get; set; }
     public ObservableCollection<string> LoggedEvents { get; set; } = new();
     public string LogString => string.Join(Environment.NewLine, LoggedEvents);
-    private string _logFolderPath { get; set; } = "";
     public SolidColorBrush StatusColor { get; set; }
     public SolidColorBrush BackupStatusColor { get; set; }
 
@@ -48,7 +49,7 @@ public sealed class Logger : VM
     {
         public NPCReport(NPCInfo npcInfo)
         {
-            NameString = GetNPCLogReportingString(npcInfo.NPC);
+            NameString = npcInfo.LogIDstring;
         }
         public string NameString { get; set; }
         public bool LogCurrentNPC { get; set; } = false;
@@ -59,24 +60,13 @@ public sealed class Logger : VM
         public int CurrentLayer;
     }
 
-    public Logger(PatcherIO patcherIO, IEnvironmentStateProvider environmentProvider)
+    public Logger(PatcherIO patcherIO, IEnvironmentStateProvider environmentProvider, SynthEBDPaths paths)
     {
         StatusColor = ReadyColor;
         StatusString = ReadyString;
         _patcherIO = patcherIO;
         _environmentProvider = environmentProvider;
-
-        // set default log path
-        var assemblyPath = Assembly.GetEntryAssembly().Location;
-        if (assemblyPath != null)
-        {
-            _logFolderPath = Path.Combine(Path.GetDirectoryName(assemblyPath), "Logs");
-        } 
-    }
-
-    public void SetLogPath(string path)
-    {
-        _logFolderPath = path;
+        _paths = paths;
     }
 
     public void LogMessage(string message)
@@ -216,17 +206,15 @@ public sealed class Logger : VM
 
     public void SaveReport(NPCInfo npcInfo)
     {
-        if (npcInfo.Report.LogCurrentNPC)
+        if (npcInfo.Report.LogCurrentNPC && npcInfo.Report.SaveCurrentNPCLog)
         {
-            if (npcInfo.Report.SaveCurrentNPCLog)
-            {
-                string outputFile = System.IO.Path.Combine(_logFolderPath, PatcherExecutionStart.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture), npcInfo.Report.NameString + ".xml");
+            string saveName = IO_Aux.MakeValidFileName(npcInfo.Report.NameString + ".xml");
+            string outputFile = System.IO.Path.Combine(_paths.LogFolderPath, PatcherExecutionStart.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture), saveName);
 
-                XDocument output = new XDocument();
-                output.Add(npcInfo.Report.RootElement);
+            XDocument output = new XDocument();
+            output.Add(npcInfo.Report.RootElement);
 
-                Task.Run(() => PatcherIO.WriteTextFile(outputFile, FormatLogStringIndents(output.ToString()), this));
-            }
+            Task.Run(() => PatcherIO.WriteTextFile(outputFile, FormatLogStringIndents(output.ToString()), this));
         }
     }
 

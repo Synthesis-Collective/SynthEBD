@@ -920,10 +920,12 @@ public class AssetSelector
     {
         if (!_patcherState.TexMeshSettings.bApplyToNPCsWithCustomFaces && npcInfo.NPC.HeadTexture != null && !npcInfo.NPC.HeadTexture.IsNull && !BaseGamePlugins.Contains(npcInfo.NPC.HeadTexture.FormKey.ModKey.FileName.String))
         {
+            _logger.LogReport("Asset assignment is disabled for this NPC because the Texture/Mesh settings disallow patching of NPCs with custom face textures", false, npcInfo);
             return true;
         }
         if (!_patcherState.TexMeshSettings.bApplyToNPCsWithCustomSkins && npcInfo.NPC.WornArmor != null && !npcInfo.NPC.WornArmor.IsNull && !BaseGamePlugins.Contains(npcInfo.NPC.WornArmor.FormKey.ModKey.FileName.String))
         {
+            _logger.LogReport("Asset assignment is disabled for this NPC because the Texture/Mesh settings disallow patching of NPCs with custom skins", false, npcInfo);
             return true;
         }
         return false;

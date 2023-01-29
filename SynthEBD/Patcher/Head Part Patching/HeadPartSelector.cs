@@ -33,13 +33,6 @@ namespace SynthEBD
 
             HeadPartSelection selectedHeadParts = new();
 
-            if (BlockNPCWithCustomFaceGen(npcInfo))
-            {
-                _logger.LogReport("Head part assignment is blocked for current NPC because it might have custom FaceGen", false, npcInfo);
-                _logger.CloseReportSubsectionsToParentOf("HeadParts", npcInfo);
-                return selectedHeadParts;
-            }
-
             List<string> consistencyReportTriggers = new();
 
             bool recordDataForLinkedUniqueNPCs = false;
@@ -554,7 +547,7 @@ namespace SynthEBD
             }
         }
 
-        private bool BlockNPCWithCustomFaceGen(NPCInfo npcInfo) // currently incredibly inefficient - will try to speed up later.
+        public bool BlockNPCWithCustomFaceGen(NPCInfo npcInfo) // currently incredibly inefficient - will try to speed up later.
         {
             if (!_patcherState.GeneralSettings.bHeadPartsExcludeCustomHeads)
             {

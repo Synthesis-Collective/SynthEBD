@@ -393,8 +393,23 @@ public class Patcher
             npcCounter++;
 
             var currentNPCInfo = _npcInfoFactory(npc, linkedGroupsHashSet, generatedLinkGroups);
+
+            #region Detailed logging
+            if (_patcherState.GeneralSettings.VerboseModeNPClist.Contains(npc.FormKey) || _patcherState.GeneralSettings.bVerboseModeAssetsAll || _patcherState.GeneralSettings.bVerboseModeAssetsNoncompliant)
+            {
+                _logger.TriggerNPCReporting(currentNPCInfo);
+            }
+            if (_patcherState.GeneralSettings.VerboseModeNPClist.Contains(npc.FormKey) || _patcherState.GeneralSettings.bVerboseModeAssetsAll) // if logging is done via non-compliant assets, the downstream callers will trigger save if the NPC is found to be non-compliant so don't short-circuit that logic here.
+            {
+                _logger.TriggerNPCReportingSave(currentNPCInfo);
+            }
+            _logger.InitializeNewReport(currentNPCInfo);
+            #endregion
+
             if (!currentNPCInfo.IsPatchable)
             {
+                _logger.LogReport("NPC skipped because its race or alias for all patcher functions are not included in the General Settings' Patchable Races", false, currentNPCInfo);
+                _logger.SaveReport(currentNPCInfo);
                 continue;
             }
 
@@ -408,6 +423,8 @@ public class Patcher
             if (skipLinkedSecondaryNPCs && currentNPCInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary)
             {
                 skippedLinkedNPCs.Add(npc);
+                _logger.LogReport("NPC temporarily skipped because it is a secondary Linked NPC Group member and the primary has not yet been assigned", false, currentNPCInfo);
+                _logger.SaveReport(currentNPCInfo);
                 continue;
             }
             else
@@ -416,7 +433,7 @@ public class Patcher
             }
             #endregion
 
-            if (_statusBar.ProgressBarCurrent % 1000 == 0)
+            if (_statusBar.ProgressBarCurrent % 100 == 0)
             {
                 _statusBar.ProgressBarDisp = "Patched " + _statusBar.ProgressBarCurrent + " NPCs";
             }
@@ -428,39 +445,26 @@ public class Patcher
             }
             #endregion
 
-            #region Detailed logging
-            if (_patcherState.GeneralSettings.VerboseModeNPClist.Contains(npc.FormKey) || _patcherState.GeneralSettings.bVerboseModeAssetsAll || _patcherState.GeneralSettings.bVerboseModeAssetsNoncompliant)
-            {
-                _logger.TriggerNPCReporting(currentNPCInfo);
-            }
-            if (_patcherState.GeneralSettings.VerboseModeNPClist.Contains(npc.FormKey) || _patcherState.GeneralSettings.bVerboseModeAssetsAll)
-            {
-                _logger.TriggerNPCReportingSave(currentNPCInfo);
-            }
-
-            _logger.InitializeNewReport(currentNPCInfo);
-            #endregion
-
             #region Block List
-            if (currentNPCInfo.BlockedNPCEntry.Assets || currentNPCInfo.BlockedPluginEntry.Assets || _assetSelector.BlockAssetDistributionByExistingAssets(currentNPCInfo)) { blockAssets = true; }
-            else { blockAssets = false; }
-
-            if (currentNPCInfo.BlockedNPCEntry.BodyShape || currentNPCInfo.BlockedPluginEntry.BodyShape || !_oBodyPreprocessing.NPCIsEligibleForBodySlide(npc)) { blockBodyShape = true; }
-            else { blockBodyShape = false; }
-
-            if (currentNPCInfo.BlockedNPCEntry.Height || currentNPCInfo.BlockedPluginEntry.Height) { blockHeight = true; }
-            else { blockHeight = false; }
+            blockAssets = IsBlockedForAssets(currentNPCInfo);
+            blockBodyShape = IsBlockedForBodyShape(currentNPCInfo);
+            blockHeight = IsBlockedForHeight(currentNPCInfo);
+            blockHeadParts = IsBlockedForHeadParts(currentNPCInfo);
             #endregion
 
             bodyShapeAssigned = false;
 
             if (_patcherState.GeneralSettings.ExcludePlayerCharacter && npc.FormKey.ToString() == Skyrim.Npc.Player.FormKey.ToString())
             {
+                _logger.LogReport("NPC skipped because Player patching is disabled", false, currentNPCInfo);
+                _logger.SaveReport(currentNPCInfo);
                 continue;
             }
 
             if (_patcherState.GeneralSettings.ExcludePresets && npc.EditorID != null && npc.EditorID.Contains("Preset"))
             {
+                _logger.LogReport("NPC skipped because Preset patching is disabled", false, currentNPCInfo);
+                _logger.SaveReport(currentNPCInfo);
                 continue;
             }
 
@@ -882,6 +886,80 @@ public class Patcher
                 return;
             }
         }
+    }
+
+    public bool IsBlockedForAssets(NPCInfo npcInfo)
+    {
+        if (npcInfo.BlockedNPCEntry.Assets)
+        {
+            _logger.LogReport("Current NPC is blocked from asset assignment via the NPC block list", false, npcInfo);
+            return true;
+        }
+        else if (npcInfo.BlockedPluginEntry.Assets)
+        {
+            _logger.LogReport("Current NPC is blocked from asset assignment via the Plugin block list", false, npcInfo);
+            return true;
+        }
+        else if (_assetSelector.BlockAssetDistributionByExistingAssets(npcInfo))
+        {
+            return true; // logging handled by assetSelector
+        }
+        return false;
+    }
+
+    public bool IsBlockedForBodyShape(NPCInfo npcInfo)
+    {
+        if (npcInfo.BlockedNPCEntry.BodyShape)
+        {
+            _logger.LogReport("Current NPC is blocked from body shape assignment via the NPC block list", false, npcInfo);
+            return true;
+        }
+        else if (npcInfo.BlockedPluginEntry.BodyShape)
+        {
+            _logger.LogReport("Current NPC is blocked from body shape assignment via the Plugin block list", false, npcInfo);
+            return true;
+        }
+        else if (!_oBodyPreprocessing.NPCIsEligibleForBodySlide(npcInfo.NPC))
+        {
+            _logger.LogReport("Current NPC is blocked from body shape assignment because it inherits traits from a template NPC", false, npcInfo);
+            return true; // logging handled by assetSelector
+        }
+        return false;
+    }
+
+    public bool IsBlockedForHeight(NPCInfo npcInfo)
+    {
+        if (npcInfo.BlockedNPCEntry.Height)
+        {
+            _logger.LogReport("Current NPC is blocked from height assignment via the NPC block list", false, npcInfo);
+            return true;
+        }
+        else if (npcInfo.BlockedPluginEntry.Height)
+        {
+            _logger.LogReport("Current NPC is blocked from height assignment via the Plugin block list", false, npcInfo);
+            return true;
+        }
+        return false;
+    }
+
+    public bool IsBlockedForHeadParts(NPCInfo npcInfo)
+    {
+        if (npcInfo.BlockedNPCEntry.HeadParts)
+        {
+            _logger.LogReport("Current NPC is blocked from height assignment via the NPC block list", false, npcInfo);
+            return true;
+        }
+        else if (npcInfo.BlockedPluginEntry.HeadParts)
+        {
+            _logger.LogReport("Current NPC is blocked from height assignment via the Plugin block list", false, npcInfo);
+            return true;
+        }
+        if (_headPartSelector.BlockNPCWithCustomFaceGen(npcInfo))
+        {
+            _logger.LogReport("Head part assignment is blocked for current NPC because it might have custom FaceGen", false, npcInfo);
+            return true;
+        }
+        return false;
     }
 
     private bool HasAssetDerivedHeadParts { get; set; } = false;

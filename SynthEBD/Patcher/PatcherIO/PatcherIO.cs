@@ -35,9 +35,9 @@ public class PatcherIO
         {
             await File.WriteAllTextAsync(file.FullName, contents);
         }
-        catch
+        catch (Exception e)
         {
-            logger.LogError("Could not create file at " + path);
+            logger.LogError("Could not create file at " + path + "because: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(e));
         }
     }
     public static async Task WriteTextFile(string path, List<string> contents, Logger logger)

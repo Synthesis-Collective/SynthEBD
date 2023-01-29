@@ -1,7 +1,5 @@
 using Mutagen.Bethesda.Plugins;
-using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
-using static System.Windows.Forms.AxHost;
 
 namespace SynthEBD;
 
@@ -26,8 +24,9 @@ public class NPCInfo
         BodyShapeRace = _aliasHandler.GetAliasBodyGen(npc.Race.FormKey);
         HeightRace = _aliasHandler.GetAliasHeight(npc.Race.FormKey);
         HeadPartsRace = _aliasHandler.GetAliasHeadParts(npc.Race.FormKey);
+        Report = new Logger.NPCReport(this);
 
-        IsPatchable = _patcherState.GeneralSettings.PatchableRaces.Contains(AssetsRace) || _patcherState.GeneralSettings.PatchableRaces.Contains(BodyShapeRace) || _patcherState.GeneralSettings.PatchableRaces.Contains(HeightRace);
+        IsPatchable = _patcherState.GeneralSettings.PatchableRaces.Contains(AssetsRace) || _patcherState.GeneralSettings.PatchableRaces.Contains(BodyShapeRace) || _patcherState.GeneralSettings.PatchableRaces.Contains(HeightRace) || _patcherState.GeneralSettings.PatchableRaces.Contains(HeadPartsRace);
         if (!IsPatchable)
         {
             return;
@@ -84,8 +83,6 @@ public class NPCInfo
 
         BlockedNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(_patcherState.BlockList, npc.FormKey);
         BlockedPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(_patcherState.BlockList, npc.FormKey, _environmentProvider.LinkCache);
-
-        Report = new Logger.NPCReport(this);
     }
 
     public INpcGetter NPC { get; set; }
