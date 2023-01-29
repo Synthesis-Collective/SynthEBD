@@ -378,6 +378,7 @@ public class Patcher
         bool blockAssets;
         bool blockBodyShape;
         bool blockHeight;
+        bool blockHeadParts;
         bool assetsAssigned = false;
         bool bodyShapeAssigned = false;
 
@@ -627,7 +628,7 @@ public class Patcher
 
             #region Head Part assignment
             HeadPartSelection assignedHeadParts = new();
-            if (_patcherState.GeneralSettings.bChangeHeadParts)
+            if (_patcherState.GeneralSettings.bChangeHeadParts && !blockHeadParts)
             {
                 assignedHeadParts = _headPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, assignedBodySlide);
             }
