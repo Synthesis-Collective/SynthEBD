@@ -980,7 +980,7 @@ public class AssetSelector
         }
     };
 
-    private void GenerateDescriptorLog(SubgroupCombination generatedCombination, NPCInfo npcInfo)
+    public void GenerateDescriptorLog(SubgroupCombination generatedCombination, NPCInfo npcInfo)
     {
         if (_patcherState.GeneralSettings.BodySelectionMode != BodyShapeSelectionMode.None)
         {

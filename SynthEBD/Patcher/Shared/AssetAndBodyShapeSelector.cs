@@ -372,14 +372,25 @@ public class AssetAndBodyShapeSelector
         {
             if (firstValidCombinationShapePairInitialized)
             {
-                _logger.LogMessage("Could not assign an asset combination to " + npcInfo.LogIDstring + " that is compatible with its consistency Body Shape. A valid combination was assigned, but Body Shape assignment will be re-randomized.");
-                _logger.LogReport("Could not assign an asset combination to " + npcInfo.LogIDstring + " that is compatible with its consistency Body Shape. A valid combination was assigned, but Body Shape assignment will be re-randomized.", true, npcInfo);
-
+                _logger.LogMessage("Could not assign an asset combination to " + npcInfo.LogIDstring + " that is compatible with its consistency Body Shape. A valid combination was assigned, but Body Shape assignment was re-randomized.");
+                _logger.LogReport("Could not assign an asset combination to " + npcInfo.LogIDstring + " that is compatible with its consistency Body Shape. A valid combination was assigned, but Body Shape assignment was re-randomized.", true, npcInfo);
+                _logger.LogReport("Applied Asset Combination: " + assignment.AssignedCombination.Signature, false, npcInfo);
+                _assetSelector.GenerateDescriptorLog(assignment.AssignedCombination, npcInfo);
                 assignedCombination = firstValidCombinationShapePair.Item1;
                 switch (_patcherState.GeneralSettings.BodySelectionMode)
                 {
-                    case BodyShapeSelectionMode.BodyGen: assignment.AssignedBodyGenMorphs.AddRange((List<BodyGenConfig.BodyGenTemplate>)firstValidCombinationShapePair.Item2); break;
-                    case BodyShapeSelectionMode.BodySlide: assignment.AssignedOBodyPreset = (BodySlideSetting)firstValidCombinationShapePair.Item2; break;
+                    case BodyShapeSelectionMode.BodyGen:
+                        var chosenMorphs = (List<BodyGenConfig.BodyGenTemplate>)firstValidCombinationShapePair.Item2;
+                        assignment.AssignedBodyGenMorphs.AddRange(chosenMorphs);
+                        _logger.LogReport("Selected morphs: " + String.Join(", ", chosenMorphs.Select(x => x.Label)), false, npcInfo);
+                        _bodyGenSelector.GenerateBodyGenDescriptorReport(chosenMorphs, npcInfo);
+                        break;
+                    case BodyShapeSelectionMode.BodySlide:
+                        var selectedPreset = (BodySlideSetting)firstValidCombinationShapePair.Item2;
+                        assignment.AssignedOBodyPreset = selectedPreset;
+                        _logger.LogReport("Chose BodySlide Preset: " + selectedPreset.Label, false, npcInfo);
+                        _oBodySelector.GenerateBodySlideDescriptorReport(selectedPreset, npcInfo);
+                        break;
                 }
             }
             else if (notifyOfPermutationMorphConflict)
