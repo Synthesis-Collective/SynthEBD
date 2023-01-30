@@ -7,6 +7,7 @@
     <GenerateDocumentationFile>False</GenerateDocumentationFile>
     <ApplicationIcon>InternalData\Visual\SynthEBDicon.ico</ApplicationIcon>
     <ImplicitUsings>true</ImplicitUsings>
+	<Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
