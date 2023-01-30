@@ -64,7 +64,7 @@ namespace SynthEBD
             AssignmentOrder.Clear();
             foreach (var asset in assetOrder)
             {
-                if (_texMeshVM.AssetPacks.Select(x => x.GroupName).Contains(asset))
+                if (_texMeshVM.AssetPacks.Select(x => x.GroupName).Contains(asset) || asset == PrimaryLabel)
                 {
                     AssignmentOrder.Add(asset);
                 }
