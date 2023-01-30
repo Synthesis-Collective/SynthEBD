@@ -377,7 +377,7 @@ public class RecordGenerator
     public static void AddToFormLinkList<TMajor>(IList<IFormLinkGetter<TMajor>> list, IMajorRecord record)
         where TMajor : class, IMajorRecordGetter
     {
-        list.Add(record.AsLink<TMajor>());
+        list.Add(record.ToLink<TMajor>());
     }
 
     public static string BuildPath(List<string> splitPath)

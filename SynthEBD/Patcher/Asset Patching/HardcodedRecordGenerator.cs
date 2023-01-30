@@ -388,7 +388,7 @@ public class HardcodedRecordGenerator
             {
                 if (parentArmorRecord.Armature[i].FormKey.ToString() == templateFK)
                 {
-                    parentArmorRecord.Armature[i] = newArmorAddon.AsLinkGetter();
+                    parentArmorRecord.Armature[i] = newArmorAddon.ToLinkGetter();
                 }
             }
         }
@@ -484,8 +484,8 @@ public class HardcodedRecordGenerator
 
         switch (npcInfo.Gender)
         {
-            case Gender.Male: parentArmorAddonRecord.SkinTexture.Male = newSkinTexture.AsNullableLinkGetter(); break;
-            case Gender.Female: parentArmorAddonRecord.SkinTexture.Female = newSkinTexture.AsNullableLinkGetter(); break;
+            case Gender.Male: parentArmorAddonRecord.SkinTexture.Male = newSkinTexture.ToNullableLinkGetter(); break;
+            case Gender.Female: parentArmorAddonRecord.SkinTexture.Female = newSkinTexture.ToNullableLinkGetter(); break;
         }
 
         objectCaches[npcInfo.NPC.FormKey][subPath + ".SkinTexture"] = newSkinTexture;

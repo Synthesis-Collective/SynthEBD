@@ -779,7 +779,7 @@ public class RecordPathParser
                     matchConditionStr = matchConditionStr.Replace("PatchableRaces", '{' + patchableRaceArgIndex.ToString() + "}");
                     addPatchableRaceArg = true;
                     var raceGetter = (IFormKeyGetter)evalParameters[evalParameters.Count - 1];
-                    evalParameters[evalParameters.Count - 1] = raceGetter.FormKey.AsLinkGetter<IRaceGetter>();
+                    evalParameters[evalParameters.Count - 1] = raceGetter.FormKey.ToLinkGetter<IRaceGetter>();
                 }
             }
             if (skipToNext) { continue; }
@@ -880,7 +880,7 @@ public class RecordPathParser
                     matchConditionStr = matchConditionStr.Replace("PatchableRaces", '{' + patchableRaceArgIndex.ToString() + "}");
                     addPatchableRaceArg = true;
                     var raceGetter = (IFormKeyGetter)evalParameters[evalParameters.Count - 1];
-                    evalParameters[evalParameters.Count - 1] = raceGetter.FormKey.AsLinkGetter<IRaceGetter>();
+                    evalParameters[evalParameters.Count - 1] = raceGetter.FormKey.ToLinkGetter<IRaceGetter>();
                 }
             }
             if (skipToNext) { continue; }

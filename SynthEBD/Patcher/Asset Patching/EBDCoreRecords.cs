@@ -104,7 +104,7 @@ public class EBDCoreRecords
         MGEF.Flags |= MagicEffect.Flag.NoDeathDispel;
 
         Effect spellEffect = new Effect();
-        spellEffect.BaseEffect = MGEF.AsNullableLink();
+        spellEffect.BaseEffect = MGEF.ToNullableLink();
         spellEffect.Data = new EffectData();
         spellEffect.Data.Magnitude = 0;
         spellEffect.Data.Duration = 0;
