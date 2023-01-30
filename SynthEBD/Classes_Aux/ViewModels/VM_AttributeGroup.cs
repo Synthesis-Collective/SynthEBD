@@ -15,6 +15,7 @@ public class VM_AttributeGroup : VM
 {
     private readonly VM_NPCAttributeCreator _attributeCreator;
     private readonly Logger _logger;
+    public delegate VM_AttributeGroup Factory(VM_AttributeGroupMenu parent);
     public VM_AttributeGroup(VM_AttributeGroupMenu parent, VM_NPCAttributeCreator attributeCreator, Logger logger)
     {
         ParentMenu = parent;
@@ -53,10 +54,10 @@ public class VM_AttributeGroup : VM
             .DisposeWith(this);
     }
 
-    public void CopyInViewModelFromModel(AttributeGroup model, VM_AttributeGroupMenu parentMenu)
+    public void CopyInViewModelFromModel(AttributeGroup model)
     {
         Label = model.Label;
-        Attributes = _attributeCreator.GetViewModelsFromModels(model.Attributes, parentMenu.Groups, false, true);
+        Attributes = _attributeCreator.GetViewModelsFromModels(model.Attributes, ParentMenu.Groups, false, true);
         SubscribeToCircularReferenceCheck(); // need to call again because this ObservableCollection is a different object than the one subscribed to in the constructor.
     }
 
@@ -72,7 +73,7 @@ public class VM_AttributeGroup : VM
     {
         var model = DumpViewModelToModel(this);
         var copy = new VM_AttributeGroup(newParentMenu, _attributeCreator, _logger);
-        copy.CopyInViewModelFromModel(model, newParentMenu);
+        copy.CopyInViewModelFromModel(model);
         return copy;
     }
 

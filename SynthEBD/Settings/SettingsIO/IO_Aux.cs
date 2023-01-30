@@ -44,7 +44,7 @@ public class IO_Aux
         }
     }
 
-    public static bool SelectFile(string initDir, string filter, string title, out string path)
+    public static bool SelectFile(string initDir, string filter, string title, out string path, string startingFileName = "")
     {
         path = "";
 
@@ -57,6 +57,10 @@ public class IO_Aux
         if (initDir != "")
         {
             dialog.InitialDirectory = initDir;
+        }
+        if (startingFileName != "")
+        {
+            dialog.FileName = startingFileName;
         }
 
         dialog.Title = title;

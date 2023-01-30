@@ -16,20 +16,24 @@ public class VM_BodySlideSetting : VM
     public VM_SettingsOBody ParentMenuVM;
     private readonly VM_NPCAttributeCreator _attributeCreator;
     private readonly Logger _logger;
+    private readonly VM_BodyShapeDescriptorCreationMenu _bodyShapeDescriptors;
+    private readonly ObservableCollection<VM_RaceGrouping> _raceGroupingVMs;
     private readonly VM_BodySlideSetting.Factory _selfFactory;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
 
     public delegate VM_BodySlideSetting Factory(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection);
-    public VM_BodySlideSetting(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+    public VM_BodySlideSetting(VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
         ParentMenuVM = oBodySettingsVM;
         _environmentProvider = environmentProvider;
         _attributeCreator = attributeCreator;
         _logger = logger;
+        _bodyShapeDescriptors = bodyShapeDescriptors;
+        _raceGroupingVMs = raceGroupingVMs;
         _selfFactory = selfFactory;
         _descriptorSelectionFactory = descriptorSelectionFactory;
 
-        DescriptorsSelectionMenu = _descriptorSelectionFactory(BodyShapeDescriptors, raceGroupingVMs, oBodySettingsVM);
+        DescriptorsSelectionMenu = _descriptorSelectionFactory(bodyShapeDescriptors, raceGroupingVMs, oBodySettingsVM);
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
@@ -136,8 +140,8 @@ public class VM_BodySlideSetting : VM
                     cloneModel.Label += cloneIndex;
                 }
 
-                var cloneViewModel = _selfFactory(BodyShapeDescriptors, raceGroupingVMs, ParentCollection);
-                VM_BodySlideSetting.GetViewModelFromModel(cloneModel, cloneViewModel, BodyShapeDescriptors, raceGroupingVMs, ParentMenuVM, _attributeCreator, _logger, _descriptorSelectionFactory);
+                var cloneViewModel = _selfFactory(bodyShapeDescriptors, raceGroupingVMs, ParentCollection);
+                VM_BodySlideSetting.GetViewModelFromModel(cloneModel, cloneViewModel, bodyShapeDescriptors, raceGroupingVMs, ParentMenuVM, _attributeCreator, _logger, _descriptorSelectionFactory);
                 parentCollection.Insert(lastClonePosition + 1, cloneViewModel);
             }
         );
@@ -202,6 +206,11 @@ public class VM_BodySlideSetting : VM
         LockLabel = LockOnLabel;
     }
 
+    public VM_BodySlideSetting CopyToNewCollection(ObservableCollection<VM_BodySlideSetting> parentCollection)
+    {
+        var model = DumpViewModelToModel(this);
+        return _selfFactory(_bodyShapeDescriptors, _raceGroupingVMs, parentCollection);
+    }
     public void UpdateStatusDisplay()
     {
         if (!ParentMenuVM.BodySlidesUI.CurrentlyExistingBodySlides.Contains(this.ReferencedBodySlide))

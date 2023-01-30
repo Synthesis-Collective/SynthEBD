@@ -55,7 +55,7 @@ public class VM_AttributeGroupMenu : VM
         foreach (var model in models)
         {
             var attrGroup = new VM_AttributeGroup(this, _attributeCreator, _logger);
-            attrGroup.CopyInViewModelFromModel(model, this);
+            attrGroup.CopyInViewModelFromModel(model);
             Groups.Add(attrGroup);
         }
         // then set IsSelected once all the groups are populated (VM_AttributeGroup.GetViewModelFromModel can't do this because if model[i] references model[i+1], the correposndoing viewModel[i] can't have that selection checked because viewModel[i+1] hasn't been built yet.
