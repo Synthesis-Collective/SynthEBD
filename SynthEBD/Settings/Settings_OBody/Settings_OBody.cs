@@ -135,6 +135,7 @@ public class Settings_OBody
 public class BodySlideSetting : IProbabilityWeighted
 {
     public string Label { get; set; } = "";
+    public string ReferencedBodySlide { get; set; } = "";
     public string Notes { get; set; } = "";
     public HashSet<BodyShapeDescriptor.LabelSignature> BodyShapeDescriptors { get; set; } = new();
     public HashSet<FormKey> AllowedRaces { get; set; } = new();

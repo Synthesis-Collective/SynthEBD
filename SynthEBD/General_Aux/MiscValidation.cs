@@ -125,6 +125,39 @@ public class MiscValidation
         return verified;
     }
 
+    public bool VerifyBodySlideUniqueLabels()
+    {
+        List<string> existingLabels = new();
+        bool foundDuplicate = false;
+        foreach (var bodySlide in _patcherState.OBodySettings.BodySlidesMale.And(_patcherState.OBodySettings.BodySlidesFemale))
+        {
+            if (existingLabels.Contains(bodySlide.Label))
+            {
+                _logger.LogMessage("Found duplicate BodySlide name: " + bodySlide.Label + ". Names must be unique even if the linked BodySlide is the same.");
+                foundDuplicate = true;
+            }
+            else
+            {
+                existingLabels.Add(bodySlide.Label);
+            }
+        }
+        return !foundDuplicate;
+    }
+
+    public bool VerifyReferencedBodySlides()
+    {
+        bool foundEmpty = false;
+        foreach (var bodySlide in _patcherState.OBodySettings.BodySlidesMale.And(_patcherState.OBodySettings.BodySlidesFemale))
+        {
+            if (bodySlide.ReferencedBodySlide.IsNullOrWhitespace())
+            {
+                _logger.LogMessage("Found empty BodySlide for Setting named: " + bodySlide.Label + ".");
+                foundEmpty = true;
+            }
+        }
+        return !foundEmpty;
+    }
+
     public bool VerifySPIDInstalled(DirectoryPath dataFolderPath, bool bSilent)
     {
         string dllPath = Path.Combine(dataFolderPath, "SKSE", "Plugins", "po3_SpellPerkItemDistributor.dll");

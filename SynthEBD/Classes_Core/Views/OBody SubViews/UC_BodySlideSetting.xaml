@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SynthEBD.UC_BodySlideSetting"
+<UserControl x:Class="SynthEBD.UC_BodySlideSetting"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -50,10 +50,16 @@
                 <TextBlock Background="Black" Grid.Row="0" Grid.Column="2" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=StatusText, UpdateSourceTrigger=PropertyChanged}" Foreground="{Binding BorderColor}" Visibility="{Binding Path=ShowStatus, Converter={StaticResource BoolToVis}}"></TextBlock>
                 
                 <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Name</TextBlock>
-                <TextBlock Background="Black" Grid.Row="1" Grid.Column="2" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Label, UpdateSourceTrigger=PropertyChanged}"></TextBlock>
+                <TextBox Background="Black" Grid.Row="1" Grid.Column="2" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Label, UpdateSourceTrigger=PropertyChanged}"/>
 
-                <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="More information about this preset (not used by patcher)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Notes</TextBlock>
-                <TextBox Grid.Row="2" Grid.Column="2" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Notes, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap"></TextBox>
+                <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">BodySlide</TextBlock>
+                <StackPanel Grid.Row="2" Grid.Column="2" Orientation="Horizontal">
+                    <TextBox Background="Black"  MinWidth="150" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{Binding Path=ReferencedBodySlide, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding ReferenceUnlocked}"/>
+                    <Button Margin="5 0 0 0" Command="{Binding ToggleLock}" ToolTip="Edit the name of the BodySlide controlled by this setting" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Foreground="MediumPurple" Content="{Binding LockLabel}"/>
+                </StackPanel>
+                
+                <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="More information about this preset (not used by patcher)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Notes</TextBlock>
+                <TextBox Grid.Row="3" Grid.Column="2" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Notes, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap"></TextBox>
 
                 <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" ToolTip="Descriptors that describe this BodySlide preset" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Descriptors</TextBlock>
                 <ContentPresenter Grid.Row="5" Grid.Column="2"  Content="{Binding DescriptorsSelectionMenu}">

@@ -95,6 +95,16 @@ namespace SynthEBD
                         valid = false;
                     }
 
+                    if (!_miscValidation.VerifyBodySlideUniqueLabels())
+                    {
+                        valid = false;
+                    }
+
+                    if (!_miscValidation.VerifyReferencedBodySlides())
+                    {
+                        valid = false;
+                    }
+
                     //if (!MiscValidation.VerifySPIDInstalled(env.DataFolderPath, false))
                     //{
                     //    valid = false;

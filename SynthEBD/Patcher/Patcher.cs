@@ -180,8 +180,8 @@ public class Patcher
         }
         else if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
         {
-            copiedOBodySettings.BodySlidesFemale = copiedOBodySettings.BodySlidesFemale.Where(x => copiedOBodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).ToList(); // don't assign BodySlides that have been uninstalled
-            copiedOBodySettings.BodySlidesMale = copiedOBodySettings.BodySlidesMale.Where(x => copiedOBodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).ToList();
+            copiedOBodySettings.BodySlidesFemale = copiedOBodySettings.BodySlidesFemale.Where(x => copiedOBodySettings.CurrentlyExistingBodySlides.Contains(x.ReferencedBodySlide)).ToList(); // don't assign BodySlides that have been uninstalled
+            copiedOBodySettings.BodySlidesMale = copiedOBodySettings.BodySlidesMale.Where(x => copiedOBodySettings.CurrentlyExistingBodySlides.Contains(x.ReferencedBodySlide)).ToList();
             _oBodyPreprocessing.CompilePresetRaces(copiedOBodySettings);
             _oBodyPreprocessing.CompileRulesRaces(copiedOBodySettings);
 
@@ -505,7 +505,7 @@ public class Patcher
                                         break;
 
                                     case BodyShapeSelectionMode.BodySlide:
-                                        BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedPrimaryComboAndBodyShape.AssignedOBodyPreset.Label);
+                                        BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedPrimaryComboAndBodyShape.AssignedOBodyPreset.ReferencedBodySlide);
                                         _oBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedOBodyPreset, currentNPCInfo);
                                         assignedBodySlide = assignedPrimaryComboAndBodyShape.AssignedOBodyPreset;
                                         break;
@@ -613,7 +613,7 @@ public class Patcher
                         assignedBodySlide = _oBodySelector.SelectBodySlidePreset(currentNPCInfo, out bool success, oBodySettings, new List<SubgroupCombination>(), out _);
                         if (success)
                         {
-                            BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedBodySlide.Label);
+                            BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedBodySlide.ReferencedBodySlide);
                             _oBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedBodySlide, currentNPCInfo);
                             assignedPrimaryComboAndBodyShape.AssignedOBodyPreset = assignedBodySlide;
                         }

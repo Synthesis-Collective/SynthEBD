@@ -10,7 +10,11 @@ public class VM_BodySlidesMenu : VM
     {
         AddPreset = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => CurrentlyDisplayedBodySlides.Add(bodySlideFactory(parentVM.DescriptorUI, raceGroupingVMs, this.CurrentlyDisplayedBodySlides))
+            execute: _ => {
+                var newPreset = bodySlideFactory(parentVM.DescriptorUI, raceGroupingVMs, this.CurrentlyDisplayedBodySlides);
+                newPreset.UnlockReference();
+                CurrentlyDisplayedBodySlides.Add(newPreset); 
+            }
         );
 
         RemovePreset = new RelayCommand(

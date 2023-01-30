@@ -6,6 +6,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Media;
 using ReactiveUI;
 using static SynthEBD.VM_NPCAttribute;
+using ControlzEx.Standard;
 
 namespace SynthEBD;
 
@@ -37,6 +38,22 @@ public class VM_BodySlideSetting : VM
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
+
+        ToggleLock = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => {
+                if (!ReferenceUnlocked)
+                {
+                    if (CustomMessageBox.DisplayNotificationYesNo("Confirm Unlock", "Bodyslide is exactly the name that will be fed to O/AutoBody and is expected to be read from the data in your CalienteTools\\BodySlide\\SliderPresets directory. Are you sure you want to unlock it for editing?"))
+                    {
+                        UnlockReference();
+                    }
+                }
+                else
+                {
+                    LockReference();
+                }
+            });
 
         AddAllowedAttribute = new RelayCommand(
             canExecute: _ => true,
@@ -87,17 +104,50 @@ public class VM_BodySlideSetting : VM
             canExecute: _ => true,
             execute: _ => { 
                 var cloneModel = DumpViewModelToModel(this);
+                int cloneIndex = 0;
+                int lastClonePosition = 0;
+                
+                for (int i = 0; i < parentCollection.Count; i++)
+                {
+                    var clone = parentCollection[i];
+                    if (clone.ReferencedBodySlide != ReferencedBodySlide) { continue; }
+                    lastClonePosition = i;
+                    if (GetTrailingInt(clone.Label, out int currentIndex) && currentIndex > cloneIndex)
+                    {
+                        cloneIndex = currentIndex;
+                    }
+                }
+                
+                if (cloneIndex == 0)
+                {
+                    cloneIndex = 2;
+                }
+                else
+                {
+                    cloneIndex++;
+                }
+
+                if(GetTrailingInt(cloneModel.Label, out int selectedCloneIndex))
+                {
+                    cloneModel.Label = cloneModel.Label.TrimEnd(selectedCloneIndex.ToString()) + cloneIndex.ToString();
+                }
+                else
+                {
+                    cloneModel.Label += cloneIndex;
+                }
+
                 var cloneViewModel = _selfFactory(BodyShapeDescriptors, raceGroupingVMs, ParentCollection);
                 VM_BodySlideSetting.GetViewModelFromModel(cloneModel, cloneViewModel, BodyShapeDescriptors, raceGroupingVMs, ParentMenuVM, _attributeCreator, _logger, _descriptorSelectionFactory);
-                var index = parentCollection.IndexOf(this);
-                parentCollection.Insert(index, cloneViewModel);
+                parentCollection.Insert(lastClonePosition + 1, cloneViewModel);
             }
         );
 
         DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => UpdateStatusDisplay()).DisposeWith(this);
+        this.WhenAnyValue(x => x.ReferencedBodySlide).Subscribe(_ => UpdateStatusDisplay()).DisposeWith(this);
     }
 
     public string Label { get; set; } = "";
+    public string ReferencedBodySlide { get; set; } = "";
     public string Notes { get; set; } = "";
     public VM_BodyShapeDescriptorSelectionMenu DescriptorsSelectionMenu { get; set; }
     public ObservableCollection<FormKey> AllowedRaces { get; set; } = new();
@@ -113,9 +163,14 @@ public class VM_BodySlideSetting : VM
     public NPCWeightRange WeightRange { get; set; } = new();
     public string Caption_BodyShapeDescriptors { get; set; } = "";
 
+    public bool ReferenceUnlocked { get; set; } = false;
+    private static string LockOnLabel = "Unlock";
+    private static string LockOffLabel = "Lock";
+    public string LockLabel { get; set; } = LockOnLabel;
+
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
-
+    public RelayCommand ToggleLock { get; }
     public RelayCommand AddAllowedAttribute { get; }
     public RelayCommand AddDisallowedAttribute { get; }
     public RelayCommand DeleteMe { get; }
@@ -135,9 +190,21 @@ public class VM_BodySlideSetting : VM
     public static SolidColorBrush BorderColorUnannotated = new SolidColorBrush(Colors.Yellow);
     public static SolidColorBrush BorderColorValid = new SolidColorBrush(Colors.LightGreen);
 
+    public void UnlockReference()
+    {
+        ReferenceUnlocked = true;
+        LockLabel = LockOffLabel;
+    }
+
+    public void LockReference()
+    {
+        ReferenceUnlocked = false;
+        LockLabel = LockOnLabel;
+    }
+
     public void UpdateStatusDisplay()
     {
-        if (!ParentMenuVM.BodySlidesUI.CurrentlyExistingBodySlides.Contains(this.Label))
+        if (!ParentMenuVM.BodySlidesUI.CurrentlyExistingBodySlides.Contains(this.ReferencedBodySlide))
         {
             BorderColor = BorderColorMissing;
             StatusHeader = "Warning:";
@@ -167,6 +234,11 @@ public class VM_BodySlideSetting : VM
     public static void GetViewModelFromModel(BodySlideSetting model, VM_BodySlideSetting viewModel, VM_BodyShapeDescriptorCreationMenu descriptorMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, VM_NPCAttributeCreator attCreator, Logger logger, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
         viewModel.Label = model.Label;
+        viewModel.ReferencedBodySlide = model.ReferencedBodySlide;
+        if (viewModel.ReferencedBodySlide.IsNullOrWhitespace()) // update for pre-0.9.3
+        {
+            viewModel.ReferencedBodySlide = viewModel.Label;
+        }
         viewModel.Notes = model.Notes;
         viewModel.DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.BodyShapeDescriptors, descriptorMenu, raceGroupingVMs, parentConfig, descriptorSelectionFactory);
         viewModel.AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
@@ -212,6 +284,7 @@ public class VM_BodySlideSetting : VM
     {
         BodySlideSetting model = new BodySlideSetting();
         model.Label = viewModel.Label;
+        model.ReferencedBodySlide = viewModel.ReferencedBodySlide;
         model.Notes = viewModel.Notes;
         model.BodyShapeDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(viewModel.DescriptorsSelectionMenu);
         model.AllowedRaces = viewModel.AllowedRaces.ToHashSet();
@@ -227,5 +300,31 @@ public class VM_BodySlideSetting : VM
         model.WeightRange = viewModel.WeightRange.Clone();
         model.HideInMenu = viewModel.IsHidden;
         return model;
+    }
+
+    private static bool GetTrailingInt(string input, out int number)
+    {
+        number = 0;
+        var stack = new Stack<char>();
+
+        for (var i = input.Length - 1; i >= 0; i--)
+        {
+            if (!char.IsNumber(input[i]))
+            {
+                break;
+            }
+
+            stack.Push(input[i]);
+        }
+
+        var result = new string(stack.ToArray());
+        if (result == null || !int.TryParse(result, out number))
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
     }
 }
