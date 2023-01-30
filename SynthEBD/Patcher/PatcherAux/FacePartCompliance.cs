@@ -41,7 +41,7 @@ namespace SynthEBD
 
                         if (partGetter.EditorID != null)
                         {
-                            headPart.Name.String = headPart.EditorID;
+                            headPart.Name = headPart.EditorID;
                         }
                         else if (partGetter.EditorID == null && name != String.Empty)
                         {
@@ -51,7 +51,7 @@ namespace SynthEBD
                         {
                             string newName = "SynthEBDFace" + FacePartCount.ToString();
                             headPart.EditorID = newName;
-                            headPart.Name.String = newName;
+                            headPart.Name = newName;
                             FacePartCount++;
                         }
                     }
