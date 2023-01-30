@@ -10,6 +10,7 @@ public class Settings_TexMesh
     public bool bApplyToNPCsWithCustomSkins { get; set; } = true;
     public bool bApplyToNPCsWithCustomFaces { get; set; } = true;
     public bool bForceVanillaBodyMeshPath { get; set; } = false;
+    public bool bEnableAssetReplacers { get; set; } = true;
     public bool bDisplayPopupAlerts { get; set; } = true;
     public bool bGenerateAssignmentLog { get; set; } = true;
     public bool bShowPreviewImages { get; set; } = true;

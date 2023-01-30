@@ -217,6 +217,7 @@ public class VM_SettingsTexMesh : VM
     public bool bApplyToNPCsWithCustomSkins { get; set; } = true;
     public bool bApplyToNPCsWithCustomFaces { get; set; } = true;
     public bool bForceVanillaBodyMeshPath { get; set; } = false;
+    public bool bEnableAssetReplacers { get; set; } = true;
     public bool bDisplayPopupAlerts { get; set; } = true;
     public bool bGenerateAssignmentLog { get; set; } = true;
     public bool bEasyNPCCompatibilityMode { get; set; } = true;
@@ -278,6 +279,7 @@ public class VM_SettingsTexMesh : VM
         viewModel.bChangeNPCHeadParts = model.bChangeNPCHeadParts;
         viewModel.bApplyToNPCsWithCustomSkins = model.bApplyToNPCsWithCustomSkins;
         viewModel.bApplyToNPCsWithCustomFaces = model.bApplyToNPCsWithCustomFaces;
+        viewModel.bEnableAssetReplacers = model.bEnableAssetReplacers;
         viewModel.bForceVanillaBodyMeshPath = model.bForceVanillaBodyMeshPath;
         viewModel.bDisplayPopupAlerts = model.bDisplayPopupAlerts;
         viewModel.bGenerateAssignmentLog = model.bGenerateAssignmentLog;
@@ -307,6 +309,7 @@ public class VM_SettingsTexMesh : VM
         model.bChangeNPCHeadParts = viewModel.bChangeNPCHeadParts;
         model.bApplyToNPCsWithCustomSkins = viewModel.bApplyToNPCsWithCustomSkins;
         model.bApplyToNPCsWithCustomFaces = viewModel.bApplyToNPCsWithCustomFaces;
+        model.bEnableAssetReplacers = viewModel.bEnableAssetReplacers;
         model.bForceVanillaBodyMeshPath = viewModel.bForceVanillaBodyMeshPath;
         model.bDisplayPopupAlerts = viewModel.bDisplayPopupAlerts;
         model.bGenerateAssignmentLog = viewModel.bGenerateAssignmentLog;

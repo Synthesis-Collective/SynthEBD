@@ -534,19 +534,26 @@ public class Patcher
                 }
 
                 #region Asset Replacer assignment
-                HashSet<SubgroupCombination> assetReplacerCombinations = new HashSet<SubgroupCombination>();
-                if (assetsAssigned) // assign direct replacers that a come from the assigned primary asset pack
+                if (_patcherState.TexMeshSettings.bEnableAssetReplacers)
                 {
-                    foreach (var combination in assignedCombinations)
+                    HashSet<SubgroupCombination> assetReplacerCombinations = new HashSet<SubgroupCombination>();
+                    if (assetsAssigned) // assign direct replacers that a come from the assigned primary asset pack
                     {
-                        assetReplacerCombinations.UnionWith(_assetReplacerSelector.SelectAssetReplacers(combination.AssetPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
+                        foreach (var combination in assignedCombinations)
+                        {
+                            assetReplacerCombinations.UnionWith(_assetReplacerSelector.SelectAssetReplacers(combination.AssetPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
+                        }
                     }
+                    foreach (var replacerOnlyPack in mixInAssetPacks.Where(x => !x.Subgroups.Any() && x.AssetReplacerGroups.Any())) // add asset replacers from mix-in asset packs that ONLY have replacer assets, since they won't be contained in assignedCombinations
+                    {
+                        assetReplacerCombinations.UnionWith(_assetReplacerSelector.SelectAssetReplacers(replacerOnlyPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
+                    }
+                    assignedCombinations.AddRange(assetReplacerCombinations);
                 }
-                foreach (var replacerOnlyPack in mixInAssetPacks.Where(x => !x.Subgroups.Any() && x.AssetReplacerGroups.Any())) // add asset replacers from mix-in asset packs that ONLY have replacer assets, since they won't be contained in assignedCombinations
+                else
                 {
-                    assetReplacerCombinations.UnionWith(_assetReplacerSelector.SelectAssetReplacers(replacerOnlyPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
+                    _logger.LogReport("Asset replacement will not be performed because it is disabled in the Textures & Meshes menu", false, currentNPCInfo);
                 }
-                assignedCombinations.AddRange(assetReplacerCombinations);
                 #endregion
 
                 #region Generate Records

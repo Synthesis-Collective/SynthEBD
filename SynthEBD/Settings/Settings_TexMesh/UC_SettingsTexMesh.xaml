@@ -74,6 +74,8 @@
                 <RowDefinition Height="auto"/>
                 <!-- 14 -->
                 <RowDefinition Height="auto"/>
+                <!-- 15 -->
+                <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Permit config files to modify file paths with .dds extensions" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow config files to change NPC textures</TextBlock>
@@ -91,34 +93,37 @@
             <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" ToolTip="Permit config files to modify NPCs that already have custom face textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Patch NPCs with custom faces</TextBlock>
             <CheckBox Grid.Row="5" Grid.Column="1"  IsChecked="{Binding Path=bApplyToNPCsWithCustomFaces, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="6" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Force patched NPCs to use vanilla body meshes so that they don't require their own bodyslides" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Force vanilla body mesh paths</TextBlock>
-            <CheckBox Grid.Row="6" Grid.Column="1" IsChecked="{Binding Path=bForceVanillaBodyMeshPath, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Row="6" Grid.Column="0" VerticalAlignment="Center" ToolTip="Allow config files to distribute asset replacers" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Enable Asset Replacers</TextBlock>
+            <CheckBox Grid.Row="6" Grid.Column="1"  IsChecked="{Binding Path=bEnableAssetReplacers, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="7" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Remove SkinNaked WNAM records assigned to NPCs by EasyNPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">EasyNPC Compatibility Mode</TextBlock>
-            <CheckBox Grid.Row="7" Grid.Column="1" IsChecked="{Binding Path=bEasyNPCCompatibilityMode, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Row="7" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Force patched NPCs to use vanilla body meshes so that they don't require their own bodyslides" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Force vanilla body mesh paths</TextBlock>
+            <CheckBox Grid.Row="7" Grid.Column="1" IsChecked="{Binding Path=bForceVanillaBodyMeshPath, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="8" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Overwrites some original EBD scripts with updated and fixed versions" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Fix EBD Script</TextBlock>
-            <StackPanel Orientation="Horizontal" Grid.Row="8" Grid.Column="1">
+            <TextBlock Grid.Row="8" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Remove SkinNaked WNAM records assigned to NPCs by EasyNPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">EasyNPC Compatibility Mode</TextBlock>
+            <CheckBox Grid.Row="8" Grid.Column="1" IsChecked="{Binding Path=bEasyNPCCompatibilityMode, Mode=TwoWay}"></CheckBox>
+
+            <TextBlock Grid.Row="9" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Overwrites some original EBD scripts with updated and fixed versions" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Fix EBD Script</TextBlock>
+            <StackPanel Orientation="Horizontal" Grid.Row="9" Grid.Column="1">
                 <CheckBox IsChecked="{Binding Path=bApplyFixedScripts, Mode=TwoWay}"/>
                 <TextBlock Text="SSE Version: " Margin="3 0 3 0" VerticalAlignment="Center" Visibility="{Binding Path = bShowSKSEversionOptions, Converter={StaticResource BoolToVis}}"/>
                 <ComboBox SelectedItem="{Binding SKSEversionSSE}" ItemsSource="{Binding SKSEversionOptions}" Visibility="{Binding Path = bShowSKSEversionOptions, Converter={StaticResource BoolToVis}}"/>
             </StackPanel>
 
-            <TextBlock Grid.Row="9" Grid.Column="0" VerticalAlignment="Center" ToolTip="Generate log to display generated and assigned assets" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Generate combination assignment log</TextBlock>
-            <CheckBox Grid.Row="9"  Grid.Column="1" IsChecked="{Binding Path=bGenerateAssignmentLog, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Row="10" Grid.Column="0" VerticalAlignment="Center" ToolTip="Generate log to display generated and assigned assets" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Generate combination assignment log</TextBlock>
+            <CheckBox Grid.Row="10"  Grid.Column="1" IsChecked="{Binding Path=bGenerateAssignmentLog, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="10"  Grid.Column="0" VerticalAlignment="Center" ToolTip="Display images of a subgroup's (and child subgroups') managed .dds files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Show preview images</TextBlock>
-            <StackPanel Grid.Row="10"  Grid.Column="1" Orientation="Horizontal">
+            <TextBlock Grid.Row="11"  Grid.Column="0" VerticalAlignment="Center" ToolTip="Display images of a subgroup's (and child subgroups') managed .dds files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Show preview images</TextBlock>
+            <StackPanel Grid.Row="11"  Grid.Column="1" Orientation="Horizontal">
                 <CheckBox IsChecked="{Binding Path=bShowPreviewImages, Mode=TwoWay}"></CheckBox>
                 <TextBlock Text="Preview Image Maximum Size" VerticalAlignment="Center" Margin="5 0 5 0" Visibility="{Binding Path = bShowPreviewImages, Converter={StaticResource BoolToVis}}" ToolTip="Lower this value if the preview images are using too much memory" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
                 <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=MaxPreviewImageSize}" Visibility="{Binding Path = bShowPreviewImages, Converter={StaticResource BoolToVis}}"/>
             </StackPanel>
 
-            <TextBlock Grid.Row="11"  Grid.Column="0" VerticalAlignment="Center" ToolTip="Speeds up asset patching, but in very rare cases could lead to incorrectly assigned records." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Cache generated records</TextBlock>
-            <CheckBox Grid.Row="11"  Grid.Column="1" IsChecked="{Binding Path=bCacheRecords, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Row="12"  Grid.Column="0" VerticalAlignment="Center" ToolTip="Speeds up asset patching, but in very rare cases could lead to incorrectly assigned records." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Cache generated records</TextBlock>
+            <CheckBox Grid.Row="12"  Grid.Column="1" IsChecked="{Binding Path=bCacheRecords, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="12" Grid.Column="0" VerticalAlignment="Center" ToolTip="Remove the following parent directories from asset file paths" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Asset Path Trimming</TextBlock>
-            <Expander Grid.Row="12" Grid.Column="1" >
+            <TextBlock Grid.Row="13" Grid.Column="0" VerticalAlignment="Center" ToolTip="Remove the following parent directories from asset file paths" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Asset Path Trimming</TextBlock>
+            <Expander Grid.Row="13" Grid.Column="1" >
                 <StackPanel>
                     <ItemsControl ItemsSource="{Binding TrimPaths, UpdateSourceTrigger=Default}">
                         <ItemsControl.ItemTemplate>
@@ -138,13 +143,13 @@
                 </StackPanel>
             </Expander>
 
-            <TextBlock Grid.Row="13"  Grid.Column="0" VerticalAlignment="Center" Text="Active Config Files"/>
-            <StackPanel Grid.Row="13"  Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" >
+            <TextBlock Grid.Row="14"  Grid.Column="0" VerticalAlignment="Center" Text="Active Config Files"/>
+            <StackPanel Grid.Row="14"  Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" >
                 <TextBlock VerticalAlignment="Center" Text="Select"/>
                 <Button Command="{Binding SelectConfigsAll}" Foreground="LightGreen" Margin="5 0 5 0" ToolTip="Enable all config files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">All</Button>
                 <Button Command="{Binding SelectConfigsNone}" Foreground="Firebrick" Margin="5 0 5 0" ToolTip="Disable all config files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">None</Button>
             </StackPanel>
-            <Expander Grid.Row="13"  Grid.Column="1" Header="{Binding DisplayedAssetPackStr}">
+            <Expander Grid.Row="14"  Grid.Column="1" Header="{Binding DisplayedAssetPackStr}">
                 <ItemsControl ItemsSource="{Binding AssetPacks, UpdateSourceTrigger=PropertyChanged}" BorderBrush="MediumPurple" BorderThickness="1">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type local:VM_AssetPack}">
@@ -157,8 +162,8 @@
                 </ItemsControl>
             </Expander>
 
-            <TextBlock Grid.Row="14" Grid.Column="0" VerticalAlignment="Center" ToolTip="The order in which asset config files and body shapes are to be assigned (Drag and drop to rearrange)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribution Order</TextBlock>
-            <Expander Grid.Row="14" Grid.Column="1" >
+            <TextBlock Grid.Row="15" Grid.Column="0" VerticalAlignment="Center" ToolTip="The order in which asset config files and body shapes are to be assigned (Drag and drop to rearrange)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribution Order</TextBlock>
+            <Expander Grid.Row="15" Grid.Column="1" >
                 <local:UC_AssetOrderingMenu DataContext="{Binding AssetOrderingMenu}"/>
             </Expander>
         </Grid>
