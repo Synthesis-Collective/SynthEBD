@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
-    public class DictionarySplitter<T,U>
+    public class DictionarySplitter<T,U> where T : notnull
     {
-        public static List<Dictionary<T, U>> SplitDictionary(Dictionary<T, U> input, int maxKeyCount)
+        public static List<Dictionary<T, U>> SplitDictionary(Dictionary<T, U> input, int maxKeyCount) 
         {
             List<Dictionary<T, U>> output = new();
 

@@ -522,7 +522,7 @@ public class NPCAttributeMisc : ITypedNPCAttribute
 
 public class NPCAttributeMod : ITypedNPCAttribute
 {
-    public HashSet<ModKey> ModKeys { get; set; }
+    public HashSet<ModKey> ModKeys { get; set; } = new();
     public ModAttributeEnum ModActionType { get; set; } = ModAttributeEnum.PatchedBy;
 
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Mod;

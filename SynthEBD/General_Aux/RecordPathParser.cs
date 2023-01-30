@@ -960,10 +960,9 @@ public class RecordPathParser
 
     public static bool GetSubObject(dynamic root, string propertyName, out dynamic outputObj)
     {
-        // DEBUGGING SHORT CIRCUIT
         Type type = root.GetType();
         var prop = type.GetProperty(propertyName);
-        if (prop is not null && prop.GetMethod.GetParameters().Length == 0) // length check because some weird getters have multiple parameters and I'm not sure how to deal with them yet.
+        if (prop is not null && prop.GetMethod?.GetParameters().Length == 0) // length check because some weird getters have multiple parameters and I'm not sure how to deal with them yet.
         {
             outputObj = prop.GetValue(root);
             if (outputObj is not null)
@@ -980,8 +979,9 @@ public class RecordPathParser
             outputObj = null;
             return false;
         }
-        // END DEBUGGING
 
+        // The following code was meant to speed up the patcher by cacheing get methods, but I could never figure out how to do it for generic types.
+        /*
         outputObj = null;
         if (GetAccessor(root, propertyName, AccessorType.Getter, out Delegate getter))
         {
@@ -992,11 +992,11 @@ public class RecordPathParser
         {
             return false;
         }
+        */
     }
 
     public bool SetPropertyValue(dynamic root, string propertyName, dynamic value)
     {
-        //DEBUGGING SHORT CIRCUIT
         Type type = root.GetType();
         var prop = type.GetProperty(propertyName);
         try
@@ -1026,8 +1026,9 @@ public class RecordPathParser
             _logger.LogError(exceptionStr);
             return false;
         }
-        //END DEBUGGING
 
+        // The following code was meant to speed up the patcher by cacheing set methods, but I could never figure out how to do it for generic types.
+        /* 
         if (GetAccessor(root, propertyName, AccessorType.Setter, out Delegate setter))
         {
             setter.DynamicInvoke(root, value);
@@ -1037,6 +1038,7 @@ public class RecordPathParser
         {
             return false;
         }
+        */
     }
 
     public static bool ObjectHasFormKey(dynamic obj, out FormKey? formKey)

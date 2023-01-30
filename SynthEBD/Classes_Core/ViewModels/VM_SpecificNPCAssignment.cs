@@ -220,9 +220,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
         viewModel.Gender = GetGender(viewModel.NPCFormKey, logger, environmentProvider);
 
-        bool assetPackFound = false;
-        if (model.AssetPackName.Length == 0) { assetPackFound = true; }
-        else
+        if (model.AssetPackName.Length != 0)
         {
             LinkAssetPackToForcedAssignment(model, viewModel, model.AssetPackName, texMesh.AssetPacks, logger);
         }

@@ -43,7 +43,7 @@ public class RecordIntellisense
 
         if (parent is null || parent.LinkCache is null) { return; }
 
-        HashSet<PathSuggestion> newSuggestions = new HashSet<PathSuggestion>();
+        HashSet<PathSuggestion> newSuggestions = new();
         if (parent.LinkCache.TryResolve<INpcGetter>(parent.ReferenceNPCFormKey, out var referenceNPC) && _recordPathParser.GetObjectAtPath(referenceNPC, referenceNPC, tmpPath, new Dictionary<string, dynamic>(), parent.LinkCache, true, Logger.GetNPCLogNameString(referenceNPC), out var subObj))
         {
             Type type = subObj.GetType();

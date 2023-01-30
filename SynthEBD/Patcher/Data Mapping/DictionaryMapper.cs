@@ -113,7 +113,7 @@ public class DictionaryMapper
         return dict1.Union(dict2).GroupBy(g => g.Key).ToDictionary(pair => pair.Key, pair => pair.First().Value); 
     }
 
-    public static Dictionary<K, V> MergeDictionaries<K, V>(IEnumerable<Dictionary<K, V>> dictionaries) // https://www.techiedelight.com/merge-dictionaries-csharp/
+    public static Dictionary<K, V> MergeDictionaries<K, V>(IEnumerable<Dictionary<K, V>> dictionaries) where K: notnull // https://www.techiedelight.com/merge-dictionaries-csharp/
     {
         Dictionary<K, V> result = new Dictionary<K, V>();
 

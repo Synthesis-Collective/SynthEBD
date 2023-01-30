@@ -123,6 +123,7 @@ public class CombinationLog
                 case FlattenedAssetPack.AssetPackType.Primary: combinationDict = AssignedPrimaryCombinations; break;
                 case FlattenedAssetPack.AssetPackType.MixIn: combinationDict = AssignedMixInCombinations; break;
                 case FlattenedAssetPack.AssetPackType.ReplacerVirtual: combinationDict = AssignedReplacerCombinations; break;
+                default: continue;
             }
 
             List<CombinationInfo> currentAssetPackCombinations = null;

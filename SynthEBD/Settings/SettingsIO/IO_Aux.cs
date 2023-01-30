@@ -111,8 +111,6 @@ public class IO_Aux
         string[] files = Directory.GetFiles(target_dir);
         string[] dirs = Directory.GetDirectories(target_dir);
 
-        bool error = false;
-
         bool exceedsPathLimit = false;
 
         foreach (string file in files)
@@ -129,7 +127,6 @@ public class IO_Aux
             }
             catch (Exception ex)
             {
-                error = true;
                 _logger.LogError(ex.Message);
             }
             try
@@ -138,7 +135,6 @@ public class IO_Aux
             }
             catch (Exception ex)
             {
-                error = true;
                 _logger.LogError(ex.Message);
             }
         }
@@ -156,7 +152,6 @@ public class IO_Aux
             }
             catch (Exception ex)
             {
-                error = true;
                 _logger.LogError(ex.Message);
             }
         }

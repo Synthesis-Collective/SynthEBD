@@ -278,7 +278,7 @@ public class AssetPackValidator
         {
             return true;
         }
-        else;
+        else
         { return false; }
     }
 

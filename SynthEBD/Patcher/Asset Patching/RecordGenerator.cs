@@ -214,7 +214,6 @@ public class RecordGenerator
     {
         outputObj = currentObj;
         IMajorRecord copiedRecord = null;
-        bool isHeadPart = false;
         if (!TryGetModifiedRecord(pathSignature, currentObjInfo.RecordFormKey, out copiedRecord) && !currentObjInfo.RecordFormKey.IsNull)
         {
             if (currentObjInfo.LoquiRegistration == null)
@@ -239,8 +238,7 @@ public class RecordGenerator
 
         if (trialHeadPart is not null) // special handling for head parts
         {
-            var headPart = copiedRecord as HeadPart;
-            if (!headPart.Flags.HasFlag(HeadPart.Flag.IsExtraPart))
+            if (!trialHeadPart.Flags.HasFlag(HeadPart.Flag.IsExtraPart))
             {
                 _headPartSelector.SetGeneratedHeadPart(trialHeadPart, generatedHeadParts, npcInfo);
             }
