@@ -55,6 +55,7 @@ public class MainModule : Autofac.Module
         // UI components (sub-menus)
         builder.RegisterType<VM_BodyGenMiscMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_OBodyMiscSettings>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_BodySlidesMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_HeadPartImport>().AsSelf().SingleInstance();
 
         // UI Infrastructure
@@ -115,11 +116,13 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_SpecificNPCAssignment>().AsSelf();
         builder.RegisterType<VM_ConsistencyAssignment>().AsSelf();
         builder.RegisterType<VM_AttributeGroupMenu>().AsSelf();
+        builder.RegisterType<VM_AttributeGroup>().AsSelf();
         builder.RegisterType<VM_BodyGenConfig>().AsSelf().AsImplementedInterfaces();
         builder.RegisterType<VM_BodyGenGroupMappingMenu>().AsSelf();
         builder.RegisterType<VM_BodyGenRacialMapping>().AsSelf();
         builder.RegisterType<VM_BodyGenTemplateMenu>().AsSelf();
         builder.RegisterType<VM_BodyGenTemplate>().AsSelf();
+        builder.RegisterType<VM_BodySlideExchange>().AsSelf();
         builder.RegisterType<VM_HeightConfig>().AsSelf();
         builder.RegisterType<VM_HeightAssignment>().AsSelf();
         builder.RegisterType<VM_HeadPart>().AsSelf();

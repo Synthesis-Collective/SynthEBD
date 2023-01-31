@@ -10,6 +10,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     private readonly VM_OBodyMiscSettings.Factory _miscSettingsFactory;
     private readonly VM_AttributeGroupMenu.Factory _attributeGroupFactory;
     private readonly VM_BodyShapeDescriptor.Factory _bodyShapeDescriptorFactory;
+    private readonly VM_BodySlidesMenu.Factory _bodySlidesMenuFactory;
     private readonly VM_BodySlideSetting.Factory _bodySlideFactory;
     private readonly AttributeMatcher _attributeMatcher;
     private readonly Logger _logger;
@@ -17,6 +18,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     public VM_SettingsOBody(
         VM_Settings_General generalSettingsVM,
         VM_BodyShapeDescriptorCreationMenu.Factory bodyShapeDescriptorCreationMenuFactory,
+        VM_BodySlidesMenu.Factory bodySlidesMenuFactory,
         VM_OBodyMiscSettings.Factory miscSettingsFactory,
         VM_AttributeGroupMenu.Factory attributeGroupFactory,
         VM_BodyShapeDescriptor.Factory bodyShapeDescriptorFactory,
@@ -29,6 +31,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         _oBodyIO = oBodyIO;
         _miscSettingsFactory = miscSettingsFactory;
         _attributeGroupFactory = attributeGroupFactory;
+        _bodySlidesMenuFactory = bodySlidesMenuFactory;
         _bodyShapeDescriptorFactory = bodyShapeDescriptorFactory;
         _bodySlideFactory = bodySlideFactory;
         _attributeMatcher = attributeMatcher;
@@ -36,7 +39,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         _environmentProvider = environmentProvider;
 
         DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this);
-        BodySlidesUI = new VM_BodySlidesMenu(this, generalSettingsVM.RaceGroupingEditor.RaceGroupings, _bodySlideFactory);
+        BodySlidesUI = _bodySlidesMenuFactory(this, generalSettingsVM.RaceGroupingEditor.RaceGroupings);
         AttributeGroupMenu = _attributeGroupFactory(generalSettingsVM.AttributeGroupMenu, true);
         MiscUI = miscSettingsFactory();
 

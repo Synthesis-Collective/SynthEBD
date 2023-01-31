@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:SynthEBD"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=local:VM_BodySlideExchange}"
-        Title="Window_BodySlideExchange" Height="450" Width="800">
+        Title="BodySlide Exchange" Height="450" Width="800">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -17,7 +17,25 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
+
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Foreground="White">
+            <TextBlock.Text>
+                <MultiBinding StringFormat="{}{0} Distribution Rules">
+                    <Binding Path="Mode"/>
+                </MultiBinding>
+            </TextBlock.Text>
+        </TextBlock>
+        <CheckBox Grid.Row="0" Grid.Column="1" IsChecked="{Binding ExchangeRules}"/>
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Foreground="White">
+            <TextBlock.Text>
+                <MultiBinding StringFormat="{}{0} BodySlide Notes">
+                    <Binding Path="Mode"/>
+                </MultiBinding>
+            </TextBlock.Text>
+        </TextBlock>
+        <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding ExchangeNotes}"/>
+
     </Grid>
-    
-    
 </Window>

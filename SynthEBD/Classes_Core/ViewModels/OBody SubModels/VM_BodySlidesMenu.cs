@@ -6,7 +6,8 @@ namespace SynthEBD;
 
 public class VM_BodySlidesMenu : VM
 {
-    public VM_BodySlidesMenu(VM_SettingsOBody parentVM, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodySlideSetting.Factory bodySlideFactory)
+    public delegate VM_BodySlidesMenu Factory(VM_SettingsOBody parentVM, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
+    public VM_BodySlidesMenu(VM_SettingsOBody parentVM, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodySlideSetting.Factory bodySlideFactory, VM_BodySlideExchange.Factory exchangeFactory)
     {
         AddPreset = new RelayCommand(
             canExecute: _ => true,
@@ -73,6 +74,24 @@ public class VM_BodySlidesMenu : VM
                 }
             });
 
+        ImportAnnotations = new RelayCommand(
+            canExecute: _ => true,
+            execute: x => {
+                var exchange = exchangeFactory(ExchangeMode.Import);
+                var exchangeWindow = new Window_BodySlideExchange();
+                exchangeWindow.DataContext = exchange;
+                exchangeWindow.Show();
+            });
+
+        ExportAnnotations = new RelayCommand(
+            canExecute: _ => true,
+            execute: x => {
+                var exchange = exchangeFactory(ExchangeMode.Export);
+                var exchangeWindow = new Window_BodySlideExchange();
+                exchangeWindow.DataContext = exchange;
+                exchangeWindow.Show();
+            });
+
         CurrentlyDisplayedBodySlides = BodySlidesFemale;
         Alphabetizer_Male = new(BodySlidesMale, x => x.Label, new(System.Windows.Media.Colors.MediumPurple));
         Alphabetizer_Female = new(BodySlidesFemale, x => x.Label, new(System.Windows.Media.Colors.MediumPurple));
@@ -117,6 +136,8 @@ public class VM_BodySlidesMenu : VM
     public RelayCommand RemovePresetsUnannotated { get; }
     public RelayCommand RemovePresetsMissing { get; }
     public RelayCommand RemovePresetsAll { get; }
+    public RelayCommand ImportAnnotations { get; }
+    public RelayCommand ExportAnnotations { get; }
     public bool ShowHidden { get; set; } = false;
 
     private static void TogglePresetVisibility(ObservableCollection<VM_BodySlideSetting> bodySlides, bool showHidden)
