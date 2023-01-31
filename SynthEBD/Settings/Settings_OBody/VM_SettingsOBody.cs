@@ -82,18 +82,30 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         BodySlidesUI.BodySlidesMale.Clear();
         BodySlidesUI.BodySlidesFemale.Clear();
 
+        var existingPresets = new HashSet<string>();
         foreach (var preset in model.BodySlidesMale)
         {
             var presetVM = bodySlideFactory(DescriptorUI, raceGroupingVMs, BodySlidesUI.BodySlidesMale);
             presetVM.CopyInViewModelFromModel(preset);
+            if (existingPresets.Contains(presetVM.Label))
+            {
+                presetVM.RenameByIndex();
+            }
             BodySlidesUI.BodySlidesMale.Add(presetVM);
+            existingPresets.Add(presetVM.Label);
         }
 
+        existingPresets.Clear();
         foreach (var preset in model.BodySlidesFemale)
         {
             var presetVM = bodySlideFactory(DescriptorUI, raceGroupingVMs, BodySlidesUI.BodySlidesFemale);
             presetVM.CopyInViewModelFromModel(preset);
+            if (existingPresets.Contains(presetVM.Label))
+            {
+                presetVM.RenameByIndex();
+            }
             BodySlidesUI.BodySlidesFemale.Add(presetVM);
+            existingPresets.Add(presetVM.Label);
         }
 
         MiscUI = MiscUI.GetViewModelFromModel(model);
