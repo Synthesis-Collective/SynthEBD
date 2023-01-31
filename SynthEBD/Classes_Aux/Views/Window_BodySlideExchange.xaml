@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:SynthEBD"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=local:VM_BodySlideExchange}"
-        Title="BodySlide Exchange" Height="450" Width="800">
+        Title="BodySlide Exchange" Height="150" Width="250">
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />

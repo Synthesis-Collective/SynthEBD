@@ -46,17 +46,18 @@ namespace SynthEBD
             );
         }
 
-        public ExchangeMode Mode { get; }
-        private VM_SettingsOBody _oBodyUI { get; }
-        private VM_Settings_General _generalUI { get; }
-        private VM_BodySlideSetting.Factory _bodySlideFactory;
-        private VM_AttributeGroup.Factory _attributeGroupFactory;
-        private VM_RaceGrouping.Factory _raceGroupingFactory;
+        public  ExchangeMode Mode { get; }
+        private readonly VM_SettingsOBody _oBodyUI;
+        private readonly VM_Settings_General _generalUI;
+        private readonly VM_BodySlideSetting.Factory _bodySlideFactory;
+        private readonly VM_AttributeGroup.Factory _attributeGroupFactory;
+        private readonly VM_RaceGrouping.Factory _raceGroupingFactory;
         private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _decriptorSelectionFactory;
-        public bool ExchangeRules { get; set; }
-        public bool ExchangeNotes { get; set; }
-        public bool IncludeAttributeGroups { get; set; }
-        public bool IncludeRaceGroupings { get; set; }
+
+        public bool ExchangeRules { get; set; } = true;
+        public bool ExchangeNotes { get; set; } = true;
+        public bool IncludeAttributeGroups { get; set; } = true; 
+        public bool IncludeRaceGroupings { get; set; } = true;
 
         public RelayCommand ActionCommand { get; }
 
@@ -89,9 +90,9 @@ namespace SynthEBD
             }
 
             bool closeWindow = true;
-            if (IO_Aux.SelectFile("", "Bodyslide files (*.json)|*.json", "Select Export File", out string writePath, "ExportedBodySlides.json"))
+            if (IO_Aux.SelectFileSave("", "Bodyslide files (.json|*.json", ".json", "Save Asset Config File", out string savePath, "ExportedBodySlides.json"))
             {
-                JSONhandler<BodySlideExchange>.SaveJSONFile(exchange, writePath, out bool success, out string exception);
+                JSONhandler<BodySlideExchange>.SaveJSONFile(exchange, savePath, out bool success, out string exception);
                 if (!success)
                 {
                     CustomMessageBox.DisplayNotificationOK("Export Failed", exception);
@@ -108,7 +109,7 @@ namespace SynthEBD
 
         public void ExportGendered(ObservableCollection<VM_BodySlideSetting> bodySlides, List<BodySlideSetting> destinationList, HashSet<string> referencedAttributeGroups, HashSet<string> referencedRaceGroupings, HashSet<BodyShapeDescriptor.LabelSignature> referencedDescriptors)
         {
-            foreach (var bsVM in bodySlides)
+            foreach (var bsVM in bodySlides.Where(x => !x.IsHidden))
             {
                 var fullModel = VM_BodySlideSetting.DumpViewModelToModel(bsVM);
                 var model = new BodySlideSetting();
@@ -117,6 +118,11 @@ namespace SynthEBD
                 if (ExchangeRules)
                 {
                     model = fullModel;
+                }
+                else
+                {
+                    model.Label = fullModel.Label;
+                    model.ReferencedBodySlide = fullModel.ReferencedBodySlide;
                 }
 
                 if (ExchangeNotes)
@@ -252,25 +258,31 @@ namespace SynthEBD
             }
         }
 
-        public void ImportBodySlide(ObservableCollection<VM_BodySlideSetting> bodySlides, BodySlideSetting newBS, VM_BodySlideSetting existingBS)
+        public void ImportBodySlide(ObservableCollection<VM_BodySlideSetting> bodySlides, BodySlideSetting importedBS, VM_BodySlideSetting existingBS)
         {
+            var notesBak = existingBS.Notes;
+
             if (ExchangeRules)
             {
                 var index = bodySlides.IndexOf(existingBS);
                 var newVM = _bodySlideFactory(_oBodyUI.DescriptorUI, _generalUI.RaceGroupingEditor.RaceGroupings, bodySlides);
+                newVM.CopyInViewModelFromModel(importedBS);
                 bodySlides.Remove(existingBS);
-                var newIndex = bodySlides.IndexOf(newVM);
-                bodySlides.Move(newIndex, index);
+                bodySlides.Insert(index, newVM);
                 existingBS = newVM;
             }
             else
             {
-                existingBS.DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(newBS.BodyShapeDescriptors, _oBodyUI.DescriptorUI, _generalUI.RaceGroupingEditor.RaceGroupings, _oBodyUI, _decriptorSelectionFactory);
+                existingBS.DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(importedBS.BodyShapeDescriptors, _oBodyUI.DescriptorUI, _generalUI.RaceGroupingEditor.RaceGroupings, _oBodyUI, _decriptorSelectionFactory);
             }
 
             if (ExchangeNotes)
             {
-                existingBS.Notes = newBS.Notes;
+                existingBS.Notes = importedBS.Notes;
+            }
+            else
+            {
+                existingBS.Notes = notesBak;
             }
         }
     }
