@@ -93,8 +93,14 @@ public class BodyShapeDescriptor
         }
         public override string ToString()
         {
-            return Category + ": " + Value;
+            return ToSignatureString(Category, Value);
         }
+
+        public static string ToSignatureString(string category, string value)
+        {
+            return category + ": " + value;
+        }
+
         public static bool FromString(string s, out LabelSignature descriptor, Logger logger)
         {
             descriptor = new();

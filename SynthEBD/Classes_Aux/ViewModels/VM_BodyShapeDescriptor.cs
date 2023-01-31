@@ -19,7 +19,7 @@ public class VM_BodyShapeDescriptor : VM
         );
     }
     public string Value { get; set; } = "";
-    public string Signature { get; set; } = "";
+    public string Signature => BodyShapeDescriptor.LabelSignature.ToSignatureString(ParentShell.Category, Value);
     public VM_BodyShapeDescriptorRules AssociatedRules { get; set; }
 
     public VM_BodyShapeDescriptorShell ParentShell { get; set; }
