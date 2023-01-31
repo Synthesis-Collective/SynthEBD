@@ -24,7 +24,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
 
         trackedMenu.TemplateDescriptors.CollectionChanged += UpdateShellList;
     }
-    public string Header { get; set; } = "";
+    public string Header => BuildHeader(this);
     public VM_BodyShapeDescriptorCreationMenu TrackedMenu { get; set; }
     public IHasAttributeGroupMenu Parent { get; set; }
     public ObservableCollection<VM_BodyShapeDescriptorShellSelector> DescriptorShells { get; set; } = new();
@@ -90,8 +90,6 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
                 this.DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(sourceShell, this));
             }
         }
-
-        this.UpdateHeader();
     }
 
     public static VM_BodyShapeDescriptorSelectionMenu InitializeFromHashSet(HashSet<BodyShapeDescriptor.LabelSignature> BodyShapeDescriptors, VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
@@ -114,7 +112,6 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
                 if (keepLooking == false) { break; }
             }
         }
-        menu.Header = BuildHeader(menu);
         return menu;
     }
 
@@ -129,11 +126,6 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
             }
         }
         return output;
-    }
-
-    public void UpdateHeader()
-    {
-        this.Header = BuildHeader(this);
     }
 
     static string BuildHeader(VM_BodyShapeDescriptorSelectionMenu menu)
@@ -233,8 +225,7 @@ public class VM_BodyShapeDescriptorSelector : VM
         this.ParentMenu = parentMenu;
         this.Value = TrackedDescriptor.Value;
 
-        this.TrackedDescriptor.PropertyChanged += refreshLabelAndHeader;
-        this.PropertyChanged += refreshHeader;
+        this.TrackedDescriptor.PropertyChanged += RefreshLabelAndHeader;
     }
 
     public VM_BodyShapeDescriptor TrackedDescriptor { get; set; }
@@ -242,13 +233,8 @@ public class VM_BodyShapeDescriptorSelector : VM
     public string Value { get; set; }
     public bool IsSelected { get; set; } = false;
 
-    public void refreshLabelAndHeader(object sender, PropertyChangedEventArgs e)
+    public void RefreshLabelAndHeader(object sender, PropertyChangedEventArgs e)
     {
         this.Value = TrackedDescriptor.Value;
-        this.ParentMenu.UpdateHeader();
-    }
-    public void refreshHeader(object sender, PropertyChangedEventArgs e)
-    {
-        this.ParentMenu.UpdateHeader();
     }
 }

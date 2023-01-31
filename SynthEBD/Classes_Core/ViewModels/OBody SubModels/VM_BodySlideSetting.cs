@@ -15,7 +15,6 @@ public class VM_BodySlideSetting : VM
     private IEnvironmentStateProvider _environmentProvider;
     public VM_SettingsOBody ParentMenuVM;
     private readonly VM_NPCAttributeCreator _attributeCreator;
-    private readonly Logger _logger;
     private readonly VM_BodyShapeDescriptorCreationMenu _bodyShapeDescriptors;
     private readonly ObservableCollection<VM_RaceGrouping> _raceGroupingVMs;
     private readonly VM_BodySlideSetting.Factory _selfFactory;
@@ -27,7 +26,6 @@ public class VM_BodySlideSetting : VM
         ParentMenuVM = oBodySettingsVM;
         _environmentProvider = environmentProvider;
         _attributeCreator = attributeCreator;
-        _logger = logger;
         _bodyShapeDescriptors = bodyShapeDescriptors;
         _raceGroupingVMs = raceGroupingVMs;
         _selfFactory = selfFactory;
@@ -141,12 +139,12 @@ public class VM_BodySlideSetting : VM
                 }
 
                 var cloneViewModel = _selfFactory(bodyShapeDescriptors, raceGroupingVMs, ParentCollection);
-                VM_BodySlideSetting.GetViewModelFromModel(cloneModel, cloneViewModel, bodyShapeDescriptors, raceGroupingVMs, ParentMenuVM, _attributeCreator, _logger, _descriptorSelectionFactory);
+                cloneViewModel.CopyInViewModelFromModel(cloneModel);
                 parentCollection.Insert(lastClonePosition + 1, cloneViewModel);
             }
         );
 
-        DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => UpdateStatusDisplay()).DisposeWith(this);
+        this.WhenAnyValue(x => x.DescriptorsSelectionMenu.Header).Subscribe(x => UpdateStatusDisplay()).DisposeWith(this);
         this.WhenAnyValue(x => x.ReferencedBodySlide).Subscribe(_ => UpdateStatusDisplay()).DisposeWith(this);
     }
 
@@ -240,19 +238,19 @@ public class VM_BodySlideSetting : VM
         }
     }
 
-    public static void GetViewModelFromModel(BodySlideSetting model, VM_BodySlideSetting viewModel, VM_BodyShapeDescriptorCreationMenu descriptorMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, VM_NPCAttributeCreator attCreator, Logger logger, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+    public void CopyInViewModelFromModel(BodySlideSetting model)
     {
-        viewModel.Label = model.Label;
-        viewModel.ReferencedBodySlide = model.ReferencedBodySlide;
-        if (viewModel.ReferencedBodySlide.IsNullOrWhitespace()) // update for pre-0.9.3
+        Label = model.Label;
+        ReferencedBodySlide = model.ReferencedBodySlide;
+        if (ReferencedBodySlide.IsNullOrWhitespace()) // update for pre-0.9.3
         {
-            viewModel.ReferencedBodySlide = viewModel.Label;
+            ReferencedBodySlide = Label;
         }
-        viewModel.Notes = model.Notes;
-        viewModel.DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.BodyShapeDescriptors, descriptorMenu, raceGroupingVMs, parentConfig, descriptorSelectionFactory);
-        viewModel.AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
-        viewModel.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
-        foreach (var grouping in viewModel.AllowedRaceGroupings.RaceGroupingSelections)
+        Notes = model.Notes;
+        DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.BodyShapeDescriptors, ParentMenuVM.DescriptorUI, _raceGroupingVMs, ParentMenuVM, _descriptorSelectionFactory);
+        AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
+        AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(_raceGroupingVMs);
+        foreach (var grouping in AllowedRaceGroupings.RaceGroupingSelections)
         {
             if (model.AllowedRaceGroupings.Contains(grouping.SubscribedMasterRaceGrouping.Label))
             {
@@ -261,10 +259,10 @@ public class VM_BodySlideSetting : VM
             else { grouping.IsSelected = false; }
         }
 
-        viewModel.DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
-        viewModel.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+        DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
+        DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(_raceGroupingVMs);
 
-        foreach (var grouping in viewModel.DisallowedRaceGroupings.RaceGroupingSelections)
+        foreach (var grouping in DisallowedRaceGroupings.RaceGroupingSelections)
         {
             if (model.DisallowedRaceGroupings.Contains(grouping.SubscribedMasterRaceGrouping.Label))
             {
@@ -273,20 +271,16 @@ public class VM_BodySlideSetting : VM
             else { grouping.IsSelected = false; }
         }
 
-        viewModel.AllowedAttributes = attCreator.GetViewModelsFromModels(model.AllowedAttributes, viewModel.ParentMenuVM.AttributeGroupMenu.Groups, true, null);
-        viewModel.DisallowedAttributes = attCreator.GetViewModelsFromModels(model.DisallowedAttributes, viewModel.ParentMenuVM.AttributeGroupMenu.Groups, false, null);
-        foreach (var x in viewModel.DisallowedAttributes) { x.DisplayForceIfOption = false; }
-        viewModel.bAllowUnique = model.AllowUnique;
-        viewModel.bAllowNonUnique = model.AllowNonUnique;
-        viewModel.bAllowRandom = model.AllowRandom;
-        viewModel.ProbabilityWeighting = model.ProbabilityWeighting;
-        viewModel.WeightRange = model.WeightRange.Clone();
+        AllowedAttributes = _attributeCreator.GetViewModelsFromModels(model.AllowedAttributes, ParentMenuVM.AttributeGroupMenu.Groups, true, null);
+        DisallowedAttributes = _attributeCreator.GetViewModelsFromModels(model.DisallowedAttributes, ParentMenuVM.AttributeGroupMenu.Groups, false, null);
+        foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
+        bAllowUnique = model.AllowUnique;
+        bAllowNonUnique = model.AllowNonUnique;
+        bAllowRandom = model.AllowRandom;
+        ProbabilityWeighting = model.ProbabilityWeighting;
+        WeightRange = model.WeightRange.Clone();
 
-        viewModel.UpdateStatusDisplay();
-
-        viewModel.DescriptorsSelectionMenu.WhenAnyValue(x => x.Header).Subscribe(x => viewModel.UpdateStatusDisplay()).DisposeWith(viewModel);
-
-        viewModel.IsHidden = model.HideInMenu;
+        IsHidden = model.HideInMenu;
     }
 
     public static BodySlideSetting DumpViewModelToModel(VM_BodySlideSetting viewModel)

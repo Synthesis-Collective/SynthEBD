@@ -6,37 +6,19 @@ namespace SynthEBD;
 
 public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 {
-    private readonly SettingsIO_OBody _oBodyIO;
-    private readonly VM_OBodyMiscSettings.Factory _miscSettingsFactory;
     private readonly VM_AttributeGroupMenu.Factory _attributeGroupFactory;
-    private readonly VM_BodyShapeDescriptor.Factory _bodyShapeDescriptorFactory;
     private readonly VM_BodySlidesMenu.Factory _bodySlidesMenuFactory;
-    private readonly VM_BodySlideSetting.Factory _bodySlideFactory;
-    private readonly AttributeMatcher _attributeMatcher;
-    private readonly Logger _logger;
-    private readonly IEnvironmentStateProvider _environmentProvider;
+
     public VM_SettingsOBody(
         VM_Settings_General generalSettingsVM,
         VM_BodyShapeDescriptorCreationMenu.Factory bodyShapeDescriptorCreationMenuFactory,
         VM_BodySlidesMenu.Factory bodySlidesMenuFactory,
         VM_OBodyMiscSettings.Factory miscSettingsFactory,
-        VM_AttributeGroupMenu.Factory attributeGroupFactory,
-        VM_BodyShapeDescriptor.Factory bodyShapeDescriptorFactory,
-        VM_BodySlideSetting.Factory bodySlideFactory,
-        SettingsIO_OBody oBodyIO,
-        AttributeMatcher attributeMatcher,
-        Logger logger,
-        IEnvironmentStateProvider environmentProvider)
+        VM_AttributeGroupMenu.Factory attributeGroupFactory
+        )
     {
-        _oBodyIO = oBodyIO;
-        _miscSettingsFactory = miscSettingsFactory;
         _attributeGroupFactory = attributeGroupFactory;
         _bodySlidesMenuFactory = bodySlidesMenuFactory;
-        _bodyShapeDescriptorFactory = bodyShapeDescriptorFactory;
-        _bodySlideFactory = bodySlideFactory;
-        _attributeMatcher = attributeMatcher;
-        _logger = logger;
-        _environmentProvider = environmentProvider;
 
         DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this);
         BodySlidesUI = _bodySlidesMenuFactory(this, generalSettingsVM.RaceGroupingEditor.RaceGroupings);
@@ -103,14 +85,14 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         foreach (var preset in model.BodySlidesMale)
         {
             var presetVM = bodySlideFactory(DescriptorUI, raceGroupingVMs, BodySlidesUI.BodySlidesMale);
-            VM_BodySlideSetting.GetViewModelFromModel(preset, presetVM, DescriptorUI, raceGroupingVMs, this, attCreator, logger, descriptorSelectionFactory);
+            presetVM.CopyInViewModelFromModel(preset);
             BodySlidesUI.BodySlidesMale.Add(presetVM);
         }
 
         foreach (var preset in model.BodySlidesFemale)
         {
             var presetVM = bodySlideFactory(DescriptorUI, raceGroupingVMs, BodySlidesUI.BodySlidesFemale);
-            VM_BodySlideSetting.GetViewModelFromModel(preset, presetVM, DescriptorUI, raceGroupingVMs, this, attCreator, logger, descriptorSelectionFactory);
+            presetVM.CopyInViewModelFromModel(preset);
             BodySlidesUI.BodySlidesFemale.Add(presetVM);
         }
 
