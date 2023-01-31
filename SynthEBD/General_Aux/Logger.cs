@@ -458,12 +458,17 @@ public sealed class Logger : VM
         return string.Format("{0:D2}:{1:D2}:{2:D2}", ts.Hours, ts.Minutes, ts.Seconds);
     }
 
-    public static string GetNPCLogNameString(INpcGetter npc)
+    public static string GetNPCLogNameString(INpcGetter npc, Logger logger)
     {
-        return npc.Name?.String + " | " + EditorIDHandler.GetEditorIDSafely(npc) + " | " + npc.FormKey.ToString();
+        return NameHandler.GetNPCNameSafely(npc, logger) + " | " + EditorIDHandler.GetEditorIDSafely(npc) + " | " + npc.FormKey.ToString();
     }
 
-    public static string GetNPCLogReportingString(INpcGetter npc)
+    public string GetNPCLogNameString(INpcGetter npc)
+    {
+        return NameHandler.GetNPCNameSafely(npc, this) + " | " + EditorIDHandler.GetEditorIDSafely(npc) + " | " + npc.FormKey.ToString();
+    }
+
+public static string GetNPCLogReportingString(INpcGetter npc)
     {
         return IO_Aux.MakeValidFileName(npc.Name?.String + " (" + EditorIDHandler.GetEditorIDSafely(npc) + ") " + npc.FormKey.ToString().Replace(':', '-'));
     }

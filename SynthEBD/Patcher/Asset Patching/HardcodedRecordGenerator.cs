@@ -145,7 +145,7 @@ public class HardcodedRecordGenerator
         }
         else
         {
-            _logger.LogReport("Could not resolve a head texture from NPC " + Logger.GetNPCLogNameString(npcInfo.NPC) + " or its corresponding record template.", true, npcInfo);
+            _logger.LogReport("Could not resolve a head texture from NPC " + _logger.GetNPCLogNameString(npcInfo.NPC) + " or its corresponding record template.", true, npcInfo);
             return null;
         }
 
@@ -455,7 +455,7 @@ public class HardcodedRecordGenerator
         // no reason to try getting texture from record template because if one existed it would be inherited along with parentArmorAddonRecord
         else
         {
-            _logger.LogReport("Could not resolve a skin texture from NPC " + Logger.GetNPCLogNameString(npcInfo.NPC) + " or its corresponding record template.", true, npcInfo);
+            _logger.LogReport("Could not resolve a skin texture from NPC " + _logger.GetNPCLogNameString(npcInfo.NPC) + " or its corresponding record template.", true, npcInfo);
             return null;
         }
 

@@ -13,14 +13,16 @@ namespace SynthEBD
     {
         private readonly IEnvironmentStateProvider _environmentProvider;
         private readonly PatcherState _patcherState;
+        private readonly Logger _logger;
         private readonly AssetAndBodyShapeSelector _abSelector;
         private readonly AssetSelector _assetSelector;
         private readonly RecordPathParser _recordPathParser;
         private readonly DictionaryMapper _dictionaryMapper;
-        public AssetReplacerSelector(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, AssetAndBodyShapeSelector abSelector, AssetSelector assetSelector, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper)
+        public AssetReplacerSelector(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, AssetAndBodyShapeSelector abSelector, AssetSelector assetSelector, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper)
         {
             _environmentProvider = environmentProvider;
             _patcherState = patcherState;
+            _logger = logger;
             _abSelector = abSelector;
             _assetSelector = assetSelector;
             _recordPathParser = recordPathParser;
@@ -65,7 +67,7 @@ namespace SynthEBD
                 {
                     foreach (string destPath in targetPaths)
                     {
-                        if (!(_recordPathParser.GetObjectAtPath(npcInfo.NPC, npcInfo.NPC, destPath, new Dictionary<string, dynamic>(), _environmentProvider.LinkCache, true, Logger.GetNPCLogNameString(npcInfo.NPC), out dynamic objAtPath) && objAtPath is not null))
+                        if (!(_recordPathParser.GetObjectAtPath(npcInfo.NPC, npcInfo.NPC, destPath, new Dictionary<string, dynamic>(), _environmentProvider.LinkCache, true, _logger.GetNPCLogNameString(npcInfo.NPC), out dynamic objAtPath) && objAtPath is not null))
                         {
                             assignReplacer = false;
                             break;

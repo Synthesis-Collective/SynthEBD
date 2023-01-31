@@ -698,14 +698,14 @@ public class Patcher
             {
                 try
                 {
-                    if (!_recordPathParser.GetNearestParentGetter(template, path, recordTemplateLinkCache, false, Logger.GetNPCLogNameString(template), out IMajorRecordGetter parentRecordGetter, out string relativePath))
+                    if (!_recordPathParser.GetNearestParentGetter(template, path, recordTemplateLinkCache, false, _logger.GetNPCLogNameString(template), out IMajorRecordGetter parentRecordGetter, out string relativePath))
                     {
                         continue;
                     }
 
                     var parentRecord = RecordGenerator.GetOrAddGenericRecordAsOverride(parentRecordGetter, templateMod);
 
-                    if (_recordPathParser.GetObjectAtPath(parentRecord, template, relativePath, new Dictionary<string, dynamic>(), recordTemplateLinkCache, false, Logger.GetNPCLogNameString(template), out dynamic additionalRaces))
+                    if (_recordPathParser.GetObjectAtPath(parentRecord, template, relativePath, new Dictionary<string, dynamic>(), recordTemplateLinkCache, false, _logger.GetNPCLogNameString(template), out dynamic additionalRaces))
                     {
                         foreach (var race in racesToAdd)
                         {
@@ -720,7 +720,7 @@ public class Patcher
                 }
                 catch
                 {
-                    _logger.LogError("Could not patch additional races expected at " + path + " in template NPC " + Logger.GetNPCLogNameString(template));
+                    _logger.LogError("Could not patch additional races expected at " + path + " in template NPC " + _logger.GetNPCLogNameString(template));
                     continue;
                 }
             }

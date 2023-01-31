@@ -13,6 +13,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
 {
     public IEnvironmentStateProvider _environmentProvider { get; }
     public PatcherSettingsSourceProvider SettingsSourceProvider { get; }
+    private readonly Logger _logger;
     private bool _bFirstRun { get; set; } = false;
     private readonly SettingsIO_General _generalIO;
     private readonly PatcherState _patcherState;
@@ -24,6 +25,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public VM_Settings_General(
         VM_SettingsModManager modManagerSettings,
         PatcherSettingsSourceProvider settingsProvider,
+        Logger logger,
         VM_AttributeGroupMenu.Factory attributeGroupFactory,
         VM_RaceAlias.Factory aliasFactory,
         VM_RaceGroupingEditor.Factory raceGroupingEditorFactory,
@@ -38,6 +40,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         _environmentProvider = environmentProvider;
         IsStandalone = environmentProvider.RunMode == EnvironmentMode.Standalone;
         SettingsSourceProvider = settingsProvider;
+        _logger = logger;
         _generalIO = generalIO;
         _patcherState = patcherState;
         _firstLaunch = firstLaunch;
@@ -221,7 +224,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         ExcludePresets = patcherState.GeneralSettings.ExcludePresets;
         bLinkNPCsWithSameName = patcherState.GeneralSettings.bLinkNPCsWithSameName;
         LinkedNameExclusions = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(patcherState.GeneralSettings.LinkedNPCNameExclusions);
-        LinkedNPCGroups = VM_LinkedNPCGroup.GetViewModelsFromModels(patcherState.GeneralSettings.LinkedNPCGroups, linkedNPCFactory, linkCache);
+        LinkedNPCGroups = VM_LinkedNPCGroup.GetViewModelsFromModels(patcherState.GeneralSettings.LinkedNPCGroups, linkedNPCFactory, linkCache, _logger);
         bVerboseModeAssetsNoncompliant = patcherState.GeneralSettings.bVerboseModeAssetsNoncompliant;
         bVerboseModeAssetsAll = patcherState.GeneralSettings.bVerboseModeAssetsAll;
         verboseModeNPClist = new ObservableCollection<FormKey>(patcherState.GeneralSettings.VerboseModeNPClist);

@@ -7,18 +7,20 @@ public class NPCInfo
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
+    private readonly Logger _logger;
     private readonly AliasHandler _aliasHandler;
 
     public delegate NPCInfo Factory(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos);
     
-    public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, AliasHandler aliasHandler)
+    public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, AliasHandler aliasHandler)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
+        _logger = logger;
         _aliasHandler = aliasHandler;
 
         NPC = npc;
-        LogIDstring = Logger.GetNPCLogNameString(npc);
+        LogIDstring = _logger.GetNPCLogNameString(npc);
         Gender = GetGender(npc);
         AssetsRace = _aliasHandler.GetAliasTexMesh(npc.Race.FormKey);
         BodyShapeRace = _aliasHandler.GetAliasBodyGen(npc.Race.FormKey);

@@ -11,11 +11,13 @@ namespace SynthEBD;
 
 public class VM_FilePathReplacementMenu : VM
 {
+    private readonly Logger _logger;
     private readonly RecordPathParser _recordPathParser;
     private readonly VM_FilePathReplacementMenu.Factory _selfFactory;
     public delegate VM_FilePathReplacementMenu Factory(VM_Subgroup parent, bool setExplicitReferenceNPC, ILinkCache refLinkCache);
-    public VM_FilePathReplacementMenu(VM_Subgroup parent, bool setExplicitReferenceNPC, ILinkCache refLinkCache, RecordPathParser recordPathParser, VM_FilePathReplacementMenu.Factory selfFactory)
+    public VM_FilePathReplacementMenu(VM_Subgroup parent, bool setExplicitReferenceNPC, ILinkCache refLinkCache, RecordPathParser recordPathParser, VM_FilePathReplacementMenu.Factory selfFactory, Logger logger)
     {
+        _logger = logger;
         _recordPathParser = recordPathParser;
         _selfFactory = selfFactory;
 
@@ -86,7 +88,7 @@ public class VM_FilePathReplacementMenu : VM
 
         foreach (var referenceNPCformkey in candidateRecordTemplates)
         {
-            if (ReferenceLinkCache != null && referenceNPCformkey != null && ReferenceLinkCache.TryResolve<INpcGetter>(referenceNPCformkey, out var refNPC) && _recordPathParser.GetObjectAtPath(refNPC, refNPC, candidate, new Dictionary<string, dynamic>(), ReferenceLinkCache, true, Logger.GetNPCLogNameString(refNPC), out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
+            if (ReferenceLinkCache != null && referenceNPCformkey != null && ReferenceLinkCache.TryResolve<INpcGetter>(referenceNPCformkey, out var refNPC) && _recordPathParser.GetObjectAtPath(refNPC, refNPC, candidate, new Dictionary<string, dynamic>(), ReferenceLinkCache, true, _logger.GetNPCLogNameString(refNPC), out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
             {
                 return true;
             }

@@ -13,13 +13,15 @@ namespace SynthEBD;
 public class VM_LinkedNPCGroup : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly Logger _logger;
     public delegate VM_LinkedNPCGroup Factory();
-    public VM_LinkedNPCGroup(IEnvironmentStateProvider environmentProvider)
+    public VM_LinkedNPCGroup(IEnvironmentStateProvider environmentProvider, Logger logger)
     {
         _environmentProvider = environmentProvider;
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
+        _logger = logger;
 
         Observable.CombineLatest(
                 NPCFormKeys.ToObservableChangeSet()
@@ -32,7 +34,7 @@ public class VM_LinkedNPCGroup : VM
                 {
                     if (linkCache.TryResolve<INpcGetter>(fk, out var npcGetter))
                     {
-                        ret.Add(Logger.GetNPCLogNameString(npcGetter));
+                        ret.Add(_logger.GetNPCLogNameString(npcGetter));
                     }
                 }
 
@@ -51,7 +53,7 @@ public class VM_LinkedNPCGroup : VM
 
     public IReadOnlyCollection<string> PrimaryCandidates { get; private set; }
 
-    public static ObservableCollection<VM_LinkedNPCGroup> GetViewModelsFromModels(List<LinkedNPCGroup> models, VM_LinkedNPCGroup.Factory factory, ILinkCache linkCache)
+    public static ObservableCollection<VM_LinkedNPCGroup> GetViewModelsFromModels(List<LinkedNPCGroup> models, VM_LinkedNPCGroup.Factory factory, ILinkCache linkCache, Logger logger)
     {
         var viewModels = new ObservableCollection<VM_LinkedNPCGroup>();
         foreach (var m in models)
@@ -61,11 +63,11 @@ public class VM_LinkedNPCGroup : VM
             vm.NPCFormKeys.SetTo(m.NPCFormKeys, checkEquality: false);
             if ((m.Primary == null || m.Primary.IsNull) && linkCache.TryResolve<INpcGetter>(m.NPCFormKeys.FirstOrDefault(), out var primaryNPC))
             {
-                vm.Primary = Logger.GetNPCLogNameString(primaryNPC);
+                vm.Primary = Logger.GetNPCLogNameString(primaryNPC, logger);
             }
             else if (linkCache.TryResolve<INpcGetter>(m.Primary, out var assignedPrimary))
             {
-                vm.Primary = Logger.GetNPCLogNameString(assignedPrimary);
+                vm.Primary = Logger.GetNPCLogNameString(assignedPrimary, logger);
             }
 
             viewModels.Add(vm);

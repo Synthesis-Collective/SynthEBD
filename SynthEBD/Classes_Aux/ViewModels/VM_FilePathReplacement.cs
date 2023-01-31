@@ -171,7 +171,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 
     public void RefreshDestColor()
     {
-        if(LinkCache != null && ReferenceNPCFormKey != null && LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC) && _recordPathParser.GetObjectAtPath(refNPC, refNPC, this.IntellisensedPath, new Dictionary<string, dynamic>(), ParentMenu.ReferenceLinkCache, true, Logger.GetNPCLogNameString(refNPC), out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
+        if(LinkCache != null && ReferenceNPCFormKey != null && LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC) && _recordPathParser.GetObjectAtPath(refNPC, refNPC, this.IntellisensedPath, new Dictionary<string, dynamic>(), ParentMenu.ReferenceLinkCache, true, _logger.GetNPCLogNameString(refNPC), out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
         {
             DestinationExists = true;
             this.DestBorderColor = new SolidColorBrush(Colors.LightGreen);

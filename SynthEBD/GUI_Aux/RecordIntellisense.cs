@@ -20,9 +20,11 @@ public interface IImplementsRecordIntellisense
 public class RecordIntellisense
 {
     private readonly RecordPathParser _recordPathParser;
-    public RecordIntellisense(RecordPathParser recordPathParser)
+    private readonly Logger _logger;
+    public RecordIntellisense(RecordPathParser recordPathParser, Logger logger)
     {
         _recordPathParser = recordPathParser;
+        _logger = logger;
     }
     public void InitializeSubscriptions(IImplementsRecordIntellisense parent)
     {
@@ -44,7 +46,7 @@ public class RecordIntellisense
         if (parent is null || parent.LinkCache is null) { return; }
 
         HashSet<PathSuggestion> newSuggestions = new();
-        if (parent.LinkCache.TryResolve<INpcGetter>(parent.ReferenceNPCFormKey, out var referenceNPC) && _recordPathParser.GetObjectAtPath(referenceNPC, referenceNPC, tmpPath, new Dictionary<string, dynamic>(), parent.LinkCache, true, Logger.GetNPCLogNameString(referenceNPC), out var subObj))
+        if (parent.LinkCache.TryResolve<INpcGetter>(parent.ReferenceNPCFormKey, out var referenceNPC) && _recordPathParser.GetObjectAtPath(referenceNPC, referenceNPC, tmpPath, new Dictionary<string, dynamic>(), parent.LinkCache, true, _logger.GetNPCLogNameString(referenceNPC), out var subObj))
         {
             Type type = subObj.GetType();
             var properties = type.GetProperties();
@@ -144,7 +146,7 @@ public class RecordIntellisense
             parent.IntellisensedPath += parent.ChosenPathSuggestion.SubPath;
         }
 
-        if (parent.LinkCache.TryResolve<INpcGetter>(parent.ReferenceNPCFormKey, out var referenceNPC) && _recordPathParser.GetObjectAtPath(referenceNPC, referenceNPC, parent.IntellisensedPath, new Dictionary<string, dynamic>(), parent.LinkCache, true, Logger.GetNPCLogNameString(referenceNPC), out var subObj))
+        if (parent.LinkCache.TryResolve<INpcGetter>(parent.ReferenceNPCFormKey, out var referenceNPC) && _recordPathParser.GetObjectAtPath(referenceNPC, referenceNPC, parent.IntellisensedPath, new Dictionary<string, dynamic>(), parent.LinkCache, true, _logger.GetNPCLogNameString(referenceNPC), out var subObj))
         {
             if (IsEnumerable(subObj))
             {
