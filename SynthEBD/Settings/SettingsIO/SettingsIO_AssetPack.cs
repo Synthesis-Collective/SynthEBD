@@ -1,5 +1,6 @@
 using System.IO;
 using Mutagen.Bethesda.Skyrim;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
 
 namespace SynthEBD;
 
@@ -223,35 +224,25 @@ public class SettingsIO_AssetPack
 
             else
             {
-                // Configure save file dialog box
-                var dialog = new Microsoft.Win32.SaveFileDialog();
-                dialog.DefaultExt = ".json"; // Default file extension
-                dialog.Filter = "JSON files (.json|*.json"; // Filter files by extension
-
+                string initialDir = "";
                 if (Directory.Exists(_paths.AssetPackDirPath))
                 {
-                    dialog.InitialDirectory = Path.GetFullPath(_paths.AssetPackDirPath);
+                    initialDir = Path.GetFullPath(_paths.AssetPackDirPath);
                 }
                 else if (Directory.Exists(_paths.GetFallBackPath(_paths.AssetPackDirPath)))
                 {
-                    dialog.InitialDirectory = Path.GetFullPath(_paths.GetFallBackPath(_paths.AssetPackDirPath));
+                    initialDir = Path.GetFullPath(_paths.GetFallBackPath(_paths.AssetPackDirPath));
                 }
 
-                dialog.RestoreDirectory = true;
-
-                // Show open file dialog box
-                bool? result = dialog.ShowDialog();
-
-                // Process open file dialog box results
-                if (result == true)
+                if (IO_Aux.SelectFileSave(initialDir, "JSON files (.json|*.json", ".json", "Save Asset Config File", out string savePath, IO_Aux.MakeValidFileName(assetPack.GroupName)))
                 {
-                    JSONhandler<AssetPack>.SaveJSONFile(assetPack, dialog.FileName, out success, out string exceptionStr);
+                    JSONhandler<AssetPack>.SaveJSONFile(assetPack, savePath, out success, out string exceptionStr);
                     if (!success)
                     {
                         _logger.LogMessage("Error saving Asset Pack Config File: " + exceptionStr);
                     }
                 }
-                return dialog.FileName;
+                return savePath;
             }
         }
     }
