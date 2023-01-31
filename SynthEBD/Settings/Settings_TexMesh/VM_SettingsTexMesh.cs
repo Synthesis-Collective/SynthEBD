@@ -126,7 +126,7 @@ public class VM_SettingsTexMesh : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                general.DumpViewModelToModel(); // make sure general settings are synced w/ latest settings
+                _patcherState.GeneralSettings = general.DumpViewModelToModel(); // make sure general settings are synced w/ latest settings
                 modManager.UpdatePatcherSettings(); // make sure mod manager integration is synced w/ latest settings
                 var installedConfigs = _configInstaller.InstallConfigFile(out bool triggerGeneralVMRefresh);
                 if (installedConfigs.Any())
@@ -272,60 +272,62 @@ public class VM_SettingsTexMesh : VM
         return isValid;
     }
 
-    public static void GetViewModelFromModel(VM_SettingsTexMesh viewModel, Settings_TexMesh model)
+    public void CopyInViewModelFromModel(Settings_TexMesh model)
     {
-        viewModel.bChangeNPCTextures = model.bChangeNPCTextures;
-        viewModel.bChangeNPCMeshes = model.bChangeNPCMeshes;
-        viewModel.bChangeNPCHeadParts = model.bChangeNPCHeadParts;
-        viewModel.bApplyToNPCsWithCustomSkins = model.bApplyToNPCsWithCustomSkins;
-        viewModel.bApplyToNPCsWithCustomFaces = model.bApplyToNPCsWithCustomFaces;
-        viewModel.bEnableAssetReplacers = model.bEnableAssetReplacers;
-        viewModel.bForceVanillaBodyMeshPath = model.bForceVanillaBodyMeshPath;
-        viewModel.bDisplayPopupAlerts = model.bDisplayPopupAlerts;
-        viewModel.bGenerateAssignmentLog = model.bGenerateAssignmentLog;
-        viewModel.bShowPreviewImages = model.bShowPreviewImages;
-        viewModel.MaxPreviewImageSize = model.MaxPreviewImageSize;
-        viewModel.TrimPaths = new ObservableCollection<TrimPath>(model.TrimPaths);
-        viewModel.LastViewedAssetPackName = model.LastViewedAssetPack;
-        viewModel.bEasyNPCCompatibilityMode = model.bEasyNPCCompatibilityMode;
-        viewModel.bApplyFixedScripts = model.bApplyFixedScripts;
+        bChangeNPCTextures = model.bChangeNPCTextures;
+        bChangeNPCMeshes = model.bChangeNPCMeshes;
+        bChangeNPCHeadParts = model.bChangeNPCHeadParts;
+        bApplyToNPCsWithCustomSkins = model.bApplyToNPCsWithCustomSkins;
+        bApplyToNPCsWithCustomFaces = model.bApplyToNPCsWithCustomFaces;
+        bEnableAssetReplacers = model.bEnableAssetReplacers;
+        bForceVanillaBodyMeshPath = model.bForceVanillaBodyMeshPath;
+        bDisplayPopupAlerts = model.bDisplayPopupAlerts;
+        bGenerateAssignmentLog = model.bGenerateAssignmentLog;
+        bShowPreviewImages = model.bShowPreviewImages;
+        MaxPreviewImageSize = model.MaxPreviewImageSize;
+        TrimPaths = new ObservableCollection<TrimPath>(model.TrimPaths);
+        LastViewedAssetPackName = model.LastViewedAssetPack;
+        bEasyNPCCompatibilityMode = model.bEasyNPCCompatibilityMode;
+        bApplyFixedScripts = model.bApplyFixedScripts;
 
         if (model.bFixedScriptsOldSKSEversion)
         {
-            viewModel.SKSEversionSSE = oldSKSEversion;
+            SKSEversionSSE = oldSKSEversion;
         }
         else
         {
-            viewModel.SKSEversionSSE = newSKSEversion;
+            SKSEversionSSE = newSKSEversion;
         }
 
-        viewModel.bCacheRecords = model.bCacheRecords;
+        bCacheRecords = model.bCacheRecords;
     }
 
-    public static void DumpViewModelToModel(VM_SettingsTexMesh viewModel, Settings_TexMesh model)
+    public Settings_TexMesh DumpViewModelToModel()
     {
-        model.bChangeNPCTextures = viewModel.bChangeNPCTextures;
-        model.bChangeNPCMeshes = viewModel.bChangeNPCMeshes;
-        model.bChangeNPCHeadParts = viewModel.bChangeNPCHeadParts;
-        model.bApplyToNPCsWithCustomSkins = viewModel.bApplyToNPCsWithCustomSkins;
-        model.bApplyToNPCsWithCustomFaces = viewModel.bApplyToNPCsWithCustomFaces;
-        model.bEnableAssetReplacers = viewModel.bEnableAssetReplacers;
-        model.bForceVanillaBodyMeshPath = viewModel.bForceVanillaBodyMeshPath;
-        model.bDisplayPopupAlerts = viewModel.bDisplayPopupAlerts;
-        model.bGenerateAssignmentLog = viewModel.bGenerateAssignmentLog;
-        model.bShowPreviewImages = viewModel.bShowPreviewImages;
-        model.MaxPreviewImageSize = viewModel.MaxPreviewImageSize;
-        model.TrimPaths = viewModel.TrimPaths.ToList();
-        model.SelectedAssetPacks = viewModel.AssetPacks.Where(x => x.IsSelected).Select(x => x.GroupName).ToHashSet();
-        if (viewModel.AssetPresenterPrimary.AssetPack is not null)
+        Settings_TexMesh model = new();
+        model.bChangeNPCTextures = bChangeNPCTextures;
+        model.bChangeNPCMeshes = bChangeNPCMeshes;
+        model.bChangeNPCHeadParts = bChangeNPCHeadParts;
+        model.bApplyToNPCsWithCustomSkins = bApplyToNPCsWithCustomSkins;
+        model.bApplyToNPCsWithCustomFaces = bApplyToNPCsWithCustomFaces;
+        model.bEnableAssetReplacers = bEnableAssetReplacers;
+        model.bForceVanillaBodyMeshPath = bForceVanillaBodyMeshPath;
+        model.bDisplayPopupAlerts = bDisplayPopupAlerts;
+        model.bGenerateAssignmentLog = bGenerateAssignmentLog;
+        model.bShowPreviewImages = bShowPreviewImages;
+        model.MaxPreviewImageSize = MaxPreviewImageSize;
+        model.TrimPaths = TrimPaths.ToList();
+        model.SelectedAssetPacks = AssetPacks.Where(x => x.IsSelected).Select(x => x.GroupName).ToHashSet();
+        if (AssetPresenterPrimary.AssetPack is not null)
         {
-            model.LastViewedAssetPack = viewModel.AssetPresenterPrimary.AssetPack.GroupName;
+            model.LastViewedAssetPack = AssetPresenterPrimary.AssetPack.GroupName;
         }
-        model.bEasyNPCCompatibilityMode = viewModel.bEasyNPCCompatibilityMode;
-        model.bApplyFixedScripts = viewModel.bApplyFixedScripts;
-        model.bFixedScriptsOldSKSEversion = viewModel.SKSEversionSSE == oldSKSEversion;
-        model.bCacheRecords = viewModel.bCacheRecords;
-        model.AssetOrder = viewModel.AssetOrderingMenu.DumpToModel();
+        model.bEasyNPCCompatibilityMode = bEasyNPCCompatibilityMode;
+        model.bApplyFixedScripts = bApplyFixedScripts;
+        model.bFixedScriptsOldSKSEversion = SKSEversionSSE == oldSKSEversion;
+        model.bCacheRecords = bCacheRecords;
+        model.AssetOrder = AssetOrderingMenu.DumpToModel();
+        return model;
     }
 
     public void RefreshInstalledConfigs(List<string> installedConfigs)

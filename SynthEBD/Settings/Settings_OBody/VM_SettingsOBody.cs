@@ -77,52 +77,52 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     public RelayCommand ClickMiscMenu { get; }
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new(); // storage variable - keeps data from model to pass back to model on dump
 
-    public static void GetViewModelFromModel(Settings_OBody model, VM_SettingsOBody viewModel, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyShapeDescriptorCreator descriptorCreator, VM_OBodyMiscSettings.Factory miscSettingsFactory, VM_BodySlideSetting.Factory bodySlideFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_NPCAttributeCreator attCreator, Logger logger)
+    public void CopyInViewModelFromModel(Settings_OBody model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyShapeDescriptorCreator descriptorCreator, VM_OBodyMiscSettings.Factory miscSettingsFactory, VM_BodySlideSetting.Factory bodySlideFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_NPCAttributeCreator attCreator, Logger logger)
     {
-        viewModel.AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups); // get this first so other properties can reference it
+        AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups); // get this first so other properties can reference it
 
-        viewModel.DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, raceGroupingVMs, viewModel, descriptorCreator);
+        DescriptorUI.CopyInViewModelsFromModels(model.TemplateDescriptors);
 
-        viewModel.DescriptorUI.TemplateDescriptorList.Clear();
+        DescriptorUI.TemplateDescriptorList.Clear();
         foreach (var descriptor in model.TemplateDescriptors)
         {
             var subVm = descriptorCreator.CreateNew(descriptorCreator.CreateNewShell(
                 new ObservableCollection<VM_BodyShapeDescriptorShell>(), 
-                raceGroupingVMs, viewModel),
+                raceGroupingVMs, this),
                 raceGroupingVMs, 
-                viewModel);
-            subVm.CopyInViewModelFromModel(descriptor, raceGroupingVMs, viewModel);
-            viewModel.DescriptorUI.TemplateDescriptorList.Add(subVm);
+                this);
+            subVm.CopyInViewModelFromModel(descriptor, raceGroupingVMs, this);
+            DescriptorUI.TemplateDescriptorList.Add(subVm);
         }
 
-        viewModel.BodySlidesUI.CurrentlyExistingBodySlides = model.CurrentlyExistingBodySlides; // must load before presets
+        BodySlidesUI.CurrentlyExistingBodySlides = model.CurrentlyExistingBodySlides; // must load before presets
 
-        viewModel.BodySlidesUI.BodySlidesMale.Clear();
-        viewModel.BodySlidesUI.BodySlidesFemale.Clear();
+        BodySlidesUI.BodySlidesMale.Clear();
+        BodySlidesUI.BodySlidesFemale.Clear();
 
         foreach (var preset in model.BodySlidesMale)
         {
-            var presetVM = bodySlideFactory(viewModel.DescriptorUI, raceGroupingVMs, viewModel.BodySlidesUI.BodySlidesMale);
-            VM_BodySlideSetting.GetViewModelFromModel(preset, presetVM, viewModel.DescriptorUI, raceGroupingVMs, viewModel, attCreator, logger, descriptorSelectionFactory);
-            viewModel.BodySlidesUI.BodySlidesMale.Add(presetVM);
+            var presetVM = bodySlideFactory(DescriptorUI, raceGroupingVMs, BodySlidesUI.BodySlidesMale);
+            VM_BodySlideSetting.GetViewModelFromModel(preset, presetVM, DescriptorUI, raceGroupingVMs, this, attCreator, logger, descriptorSelectionFactory);
+            BodySlidesUI.BodySlidesMale.Add(presetVM);
         }
 
         foreach (var preset in model.BodySlidesFemale)
         {
-            var presetVM = bodySlideFactory(viewModel.DescriptorUI, raceGroupingVMs, viewModel.BodySlidesUI.BodySlidesFemale);
-            VM_BodySlideSetting.GetViewModelFromModel(preset, presetVM, viewModel.DescriptorUI, raceGroupingVMs, viewModel, attCreator, logger, descriptorSelectionFactory);
-            viewModel.BodySlidesUI.BodySlidesFemale.Add(presetVM);
+            var presetVM = bodySlideFactory(DescriptorUI, raceGroupingVMs, BodySlidesUI.BodySlidesFemale);
+            VM_BodySlideSetting.GetViewModelFromModel(preset, presetVM, DescriptorUI, raceGroupingVMs, this, attCreator, logger, descriptorSelectionFactory);
+            BodySlidesUI.BodySlidesFemale.Add(presetVM);
         }
 
-        viewModel.MiscUI = viewModel.MiscUI.GetViewModelFromModel(model);
+        MiscUI = MiscUI.GetViewModelFromModel(model);
 
-        viewModel.CurrentlyExistingBodySlides = model.CurrentlyExistingBodySlides;
+        CurrentlyExistingBodySlides = model.CurrentlyExistingBodySlides;
     }
 
     public Settings_OBody DumpViewModelToModel()
     {
         Settings_OBody model = new();
-        model.TemplateDescriptors = VM_BodyShapeDescriptorShell.DumpViewModelsToModels(DescriptorUI.TemplateDescriptors);
+        model.TemplateDescriptors = DescriptorUI.DumpToViewModels();
 
         model.BodySlidesMale.Clear();
         model.BodySlidesFemale.Clear();

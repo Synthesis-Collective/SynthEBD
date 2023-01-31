@@ -32,7 +32,7 @@ namespace SynthEBD
             bUseVerboseScripts = model.bUseVerboseScripts;
         }
 
-        public void DumpViewModelToModel(Settings_Headparts model)
+        public void MergeViewModelIntoModel(Settings_Headparts model)
         {
             foreach (var type in model.SourceConflictWinners.Keys)
             {

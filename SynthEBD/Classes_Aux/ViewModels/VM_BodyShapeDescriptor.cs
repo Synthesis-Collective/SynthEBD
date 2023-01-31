@@ -51,16 +51,15 @@ public class VM_BodyShapeDescriptor : VM
     public void CopyInViewModelFromModel(BodyShapeDescriptor model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
     {
         Value = model.ID.Value;
-        Signature = model.ID.Category + ": " + model.ID.Value;
         AssociatedRules = _rulesFactory(this, raceGroupingVMs, parentConfig);
         AssociatedRules.CopyInViewModelFromModel(model.AssociatedRules, raceGroupingVMs);
     }
 
-    public static BodyShapeDescriptor DumpViewModeltoModel(VM_BodyShapeDescriptor viewModel)
+    public BodyShapeDescriptor DumpViewModeltoModel()
     {
         BodyShapeDescriptor model = new BodyShapeDescriptor(); 
-        model.ID = new() { Category = viewModel.ParentShell.Category, Value = viewModel.Value };
-        model.AssociatedRules = viewModel.AssociatedRules.DumpViewModelToModel();
+        model.ID = new() { Category = ParentShell.Category, Value = Value };
+        model.AssociatedRules = AssociatedRules.DumpViewModelToModel();
         return model;
     }
 

@@ -1,3 +1,5 @@
+using Mutagen.Bethesda.Fallout4;
+using Mutagen.Bethesda.Synthesis;
 using Noggog;
 using ReactiveUI;
 using System.IO;
@@ -52,33 +54,34 @@ public class VM_SettingsModManager : VM
 
     public void UpdatePatcherSettings()
     {
-        if (this != null && _patcherState.ModManagerSettings != null)
+        if (this != null)
         {
-            DumpViewModelToModel(_patcherState.ModManagerSettings, this);
+            _patcherState.ModManagerSettings = DumpViewModelToModel();
         }
     }
 
-    public static void GetViewModelFromModel(Settings_ModManager model, VM_SettingsModManager viewModel)
+    public void CopyInViewModelFromModel(Settings_ModManager model)
     {
-        VM_MO2Integration.GetViewModelFromModel(model.MO2Settings, viewModel.MO2IntegrationVM);
-        VM_VortexIntergation.GetViewModelFromModel(model.VortexSettings, viewModel.VortexIntegrationVM);
-        viewModel.TempFolder = model.TempExtractionFolder;
-        viewModel.ModManagerType = model.ModManagerType;
+        MO2IntegrationVM.GetViewModelFromModel(model.MO2Settings);
+        VortexIntegrationVM.GetViewModelFromModel(model.VortexSettings);
+        TempFolder = model.TempExtractionFolder;
+        ModManagerType = model.ModManagerType;
         switch(model.ModManagerType)
         {
             case ModManager.None: model.CurrentInstallationFolder = model.DefaultInstallationFolder; break;
             case ModManager.ModOrganizer2: model.CurrentInstallationFolder = model.MO2Settings.ModFolderPath; break;
             case ModManager.Vortex: model.CurrentInstallationFolder = model.VortexSettings.StagingFolderPath; break;
         }
-        viewModel.FilePathLimit = model.FilePathLimit;
+        FilePathLimit = model.FilePathLimit;
     }
 
-    public static void DumpViewModelToModel(Settings_ModManager model, VM_SettingsModManager viewModel)
+    public Settings_ModManager DumpViewModelToModel()
     {
-        model.ModManagerType = viewModel.ModManagerType;
-        VM_MO2Integration.DumpViewModelToModel(model.MO2Settings, viewModel.MO2IntegrationVM);
-        VM_VortexIntergation.DumpViewModelToModel(model.VortexSettings, viewModel.VortexIntegrationVM);
-        model.TempExtractionFolder = viewModel.TempFolder;
+        Settings_ModManager model = new();
+        model.ModManagerType = ModManagerType;
+        model.MO2Settings = MO2IntegrationVM.DumpViewModelToModel();
+        model.VortexSettings = VortexIntegrationVM.DumpViewModelToModel();
+        model.TempExtractionFolder = TempFolder;
 
         switch (model.ModManagerType)
         {
@@ -87,7 +90,8 @@ public class VM_SettingsModManager : VM
             case ModManager.Vortex: model.CurrentInstallationFolder = model.VortexSettings.StagingFolderPath; break;
         }
 
-        model.FilePathLimit = viewModel.FilePathLimit;
+        model.FilePathLimit = FilePathLimit;
+        return model;
     }
 }
 
@@ -182,17 +186,19 @@ public class VM_MO2Integration : VM
         }
     }
 
-    public static void GetViewModelFromModel(Settings_ModManager.MO2 model, VM_MO2Integration viewModel)
+    public void GetViewModelFromModel(Settings_ModManager.MO2 model)
     {
-        viewModel.ModFolderPath = model.ModFolderPath;
-        viewModel.ExecutablePath = model.ExecutablePath;
-        viewModel.FilePathLimit = model.FilePathLimit;
+        ModFolderPath = model.ModFolderPath;
+        ExecutablePath = model.ExecutablePath;
+        FilePathLimit = model.FilePathLimit;
     }
-    public static void DumpViewModelToModel(Settings_ModManager.MO2 model, VM_MO2Integration viewModel)
+    public Settings_ModManager.MO2 DumpViewModelToModel()
     {
-        model.ModFolderPath = viewModel.ModFolderPath;
-        model.ExecutablePath = viewModel.ExecutablePath;
-        model.FilePathLimit = viewModel.FilePathLimit;
+        Settings_ModManager.MO2 model = new();
+        model.ModFolderPath = ModFolderPath;
+        model.ExecutablePath = ExecutablePath;
+        model.FilePathLimit = FilePathLimit;
+        return model;
     }
 }
 
@@ -215,15 +221,17 @@ public class VM_VortexIntergation : VM
     public int FilePathLimit { get; set; } = 220;
     public RelayCommand FindStagingFolder { get; set; }
 
-    public static void GetViewModelFromModel(Settings_ModManager.Vortex model, VM_VortexIntergation viewModel)
+    public void GetViewModelFromModel(Settings_ModManager.Vortex model)
     {
-        viewModel.StagingFolderPath = model.StagingFolderPath;
-        viewModel.FilePathLimit = model.FilePathLimit;
+        StagingFolderPath = model.StagingFolderPath;
+        FilePathLimit = model.FilePathLimit;
     }
-    public static void DumpViewModelToModel(Settings_ModManager.Vortex model, VM_VortexIntergation viewModel)
+    public Settings_ModManager.Vortex DumpViewModelToModel()
     {
-        model.StagingFolderPath = viewModel.StagingFolderPath;
-        model.FilePathLimit = viewModel.FilePathLimit;
+        Settings_ModManager.Vortex model = new();
+        model.StagingFolderPath = StagingFolderPath;
+        model.FilePathLimit = FilePathLimit;
+        return model;
     }
 }
 

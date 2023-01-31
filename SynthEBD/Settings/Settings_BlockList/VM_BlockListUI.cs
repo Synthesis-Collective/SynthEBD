@@ -45,8 +45,7 @@ public class VM_BlockListUI : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                var tmpModel = new BlockList ();
-                DumpViewModelToModel(this, tmpModel);
+                var tmpModel = DumpViewModelToModel();
                 _blockListIO.SaveBlockList(tmpModel, out bool saveSuccess);
                 if (saveSuccess)
                 {
@@ -73,33 +72,35 @@ public class VM_BlockListUI : VM
     public RelayCommand ImportFromZEBDcommand { get; set; }
     public RelayCommand Save { get; }
 
-    public static void GetViewModelFromModel(BlockList model, VM_BlockListUI viewModel, VM_BlockedNPC.Factory blockedNPCFactory, VM_BlockedPlugin.Factory blockedPluginFactory)
+    public void CopyInViewModelFromModel(BlockList model, VM_BlockedNPC.Factory blockedNPCFactory, VM_BlockedPlugin.Factory blockedPluginFactory)
     {
-        viewModel.BlockedNPCs.Clear();
+        BlockedNPCs.Clear();
         foreach (var blockedNPC in model.NPCs)
         {
-            viewModel.BlockedNPCs.Add(VM_BlockedNPC.GetViewModelFromModel(blockedNPC, blockedNPCFactory));
+            BlockedNPCs.Add(VM_BlockedNPC.GetViewModelFromModel(blockedNPC, blockedNPCFactory));
         }
 
-        viewModel.BlockedPlugins.Clear();
+        BlockedPlugins.Clear();
         foreach (var blockedPlugin in model.Plugins)
         {
-            viewModel.BlockedPlugins.Add(VM_BlockedPlugin.GetViewModelFromModel(blockedPlugin, blockedPluginFactory));
+            BlockedPlugins.Add(VM_BlockedPlugin.GetViewModelFromModel(blockedPlugin, blockedPluginFactory));
         }
     }
 
-    public static void DumpViewModelToModel(VM_BlockListUI viewModel, BlockList model)
+    public BlockList DumpViewModelToModel()
     {
+        BlockList model = new();
         model.NPCs.Clear();
-        foreach (var npc in viewModel.BlockedNPCs)
+        foreach (var npc in BlockedNPCs)
         {
             model.NPCs.Add(VM_BlockedNPC.DumpViewModelToModel(npc));
         }
         model.Plugins.Clear();
-        foreach (var plugin in viewModel.BlockedPlugins)
+        foreach (var plugin in BlockedPlugins)
         {
             model.Plugins.Add(VM_BlockedPlugin.DumpViewModelToModel(plugin));
         }
+        return model;
     }
 
     public void ImportFromZEBD()
@@ -123,7 +124,7 @@ public class VM_BlockListUI : VM
             if (parsed)
             {
                 var loadedList = loadedZList.ToSynthEBD();
-                GetViewModelFromModel(loadedList, this, _blockedNPCFactory, _blockedPluginFactory);
+                CopyInViewModelFromModel(loadedList, _blockedNPCFactory, _blockedPluginFactory);
             }
             else
             {

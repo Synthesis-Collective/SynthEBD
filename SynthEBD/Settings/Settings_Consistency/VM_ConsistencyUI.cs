@@ -134,12 +134,13 @@ public class VM_ConsistencyUI : VM
         }
     }
 
-    public static void DumpViewModelsToModels(ObservableCollection<VM_ConsistencyAssignment> viewModels, Dictionary<string, NPCAssignment> models)
+    public Dictionary<string, NPCAssignment> DumpViewModelsToModels()
     {
-        models.Clear();
-        foreach (var viewModel in viewModels)
+        Dictionary<string, NPCAssignment> models = new();
+        foreach (var viewModel in Assignments)
         {
             models.Add(viewModel.NPCFormKey.ToString(), viewModel.DumpViewModelToModel());
         }
+        return models;
     }
 }

@@ -41,8 +41,8 @@ namespace SynthEBD
             PrimaryAPs = texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.Primary && x.IsSelected).Select(x => x.DumpViewModelToModel()).ToHashSet();
             MixInAPs = texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.MixIn && x.IsSelected).Select(x => x.DumpViewModelToModel()).ToHashSet();
             OBodySettings = oBody.DumpViewModelToModel();
-            VM_BlockListUI.DumpViewModelToModel(blockListUI, BlockList);
-            VM_SettingsBodyGen.DumpViewModelToModel(bodyGen, new(), BodyGenConfigs);
+            BlockList = blockListUI.DumpViewModelToModel();
+            BodyGenConfigs = bodyGen.DumpBodyGenConfigsToModels();
 
             _environmentProvider.WhenAnyValue(x => x.LinkCache)
                 .Subscribe(x => lk = x)

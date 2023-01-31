@@ -1,13 +1,22 @@
+using Mutagen.Bethesda.Oblivion;
+using Noggog.WPF;
 using System.Collections.ObjectModel;
 
 namespace SynthEBD;
 
 public class VM_BodyShapeDescriptorCreationMenu : VM
 {
+    private readonly VM_Settings_General _generalSettings;
+    private readonly VM_BodyShapeDescriptor.VM_BodyShapeDescriptorCreator _descriptorCreator;
+    private readonly IHasAttributeGroupMenu _parentConfig;
     public delegate VM_BodyShapeDescriptorCreationMenu Factory(IHasAttributeGroupMenu parentConfig);
     
     public VM_BodyShapeDescriptorCreationMenu(IHasAttributeGroupMenu parentConfig, VM_Settings_General generalSettings, VM_BodyShapeDescriptor.VM_BodyShapeDescriptorCreator descriptorCreator)
     {
+        _generalSettings = generalSettings;
+        _descriptorCreator = descriptorCreator;
+        _parentConfig = parentConfig;
+
         CurrentlyDisplayedTemplateDescriptorShell = descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), generalSettings.RaceGroupingEditor.RaceGroupings, parentConfig);
 
         AddTemplateDescriptorShell = new RelayCommand(
@@ -19,6 +28,91 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
             canExecute: _ => true,
             execute: x => TemplateDescriptors.Remove((VM_BodyShapeDescriptorShell)x)
         );
+    }
+
+    public void CopyInViewModelsFromModels(HashSet<BodyShapeDescriptor> models)
+    {
+        List<string> usedCategories = new List<string>();
+
+        foreach (var model in models)
+        {
+            VM_BodyShapeDescriptor subVm = _descriptorCreator.CreateNew(
+                _descriptorCreator.CreateNewShell(
+                    new ObservableCollection<VM_BodyShapeDescriptorShell>(),
+                    _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig),
+                _generalSettings.RaceGroupingEditor.RaceGroupings,
+                _parentConfig);
+
+            subVm.CopyInViewModelFromModel(model, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig);
+
+            if (!usedCategories.Contains(model.ID.Category))
+            {
+                var shellViewModel = _descriptorCreator.CreateNewShell(TemplateDescriptors, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig);
+                shellViewModel.Category = model.ID.Category;
+                subVm.ParentShell = shellViewModel;
+                shellViewModel.Descriptors.Add(subVm);
+                TemplateDescriptors.Add(shellViewModel);
+                usedCategories.Add(model.ID.Category);
+            }
+            else
+            {
+                int index = usedCategories.IndexOf(model.ID.Category);
+                subVm.ParentShell = TemplateDescriptors[index];
+                TemplateDescriptors[index].Descriptors.Add(subVm);
+            }
+        }
+    }
+
+    public HashSet<BodyShapeDescriptor> DumpToViewModels()
+    {
+        HashSet<BodyShapeDescriptor> models = new();
+
+        foreach (var categoryVM in TemplateDescriptors)
+        {
+            foreach (var descriptor in categoryVM.Descriptors)
+            {
+                models.Add(descriptor.DumpViewModeltoModel());
+            }
+        }
+
+        return models;
+    }
+
+    public HashSet<BodyShapeDescriptor> DumpSelectedToViewModels(IEnumerable<BodyShapeDescriptor.LabelSignature> selectedDescriptors)
+    {
+        HashSet<BodyShapeDescriptor> models = new();
+        var selectedSignatures = selectedDescriptors.Select(x => x.ToString());
+
+        foreach (var categoryVM in TemplateDescriptors)
+        {
+            foreach (var descriptor in categoryVM.Descriptors)
+            {
+                if (selectedSignatures.Contains(descriptor.Signature))
+                {
+                    models.Add(descriptor.DumpViewModeltoModel());
+                }
+            }
+        }
+
+        return models;
+    }
+
+    public void MergeInMissingModels(HashSet<BodyShapeDescriptor> models)
+    {
+        foreach (var model in models)
+        {
+            var shell = TemplateDescriptors.Where(x => x.Category == model.ID.Category).FirstOrDefault();
+            if (shell == null)
+            {
+                shell = _descriptorCreator.CreateNewShell(TemplateDescriptors, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig);
+            }
+
+            var descriptor = shell.Descriptors.Where(x => x.Value == model.ID.Value).FirstOrDefault();
+            if (descriptor == null)
+            {
+                _descriptorCreator.CreateNew(shell, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig);
+            }
+        }
     }
 
     public ObservableCollection<VM_BodyShapeDescriptorShell> TemplateDescriptors { get; set; } = new();

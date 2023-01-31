@@ -126,9 +126,8 @@ public class VM_SpecificNPCAssignmentsUI : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                HashSet<NPCAssignment> modelsToSave = new HashSet<NPCAssignment>();
-                DumpViewModelToModels(this, modelsToSave);
-                _specificAssignmentIO.SaveAssignments(modelsToSave, out bool saveSuccess);
+                var models = DumpViewModelToModels();
+                _specificAssignmentIO.SaveAssignments(models, out bool saveSuccess);
                 if (saveSuccess)
                 {
                     _logger.CallTimedNotifyStatusUpdateAsync("Specific NPC Assignments Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
@@ -179,13 +178,14 @@ public class VM_SpecificNPCAssignmentsUI : VM
         }
     }
 
-    public static void DumpViewModelToModels(VM_SpecificNPCAssignmentsUI viewModel, HashSet<NPCAssignment> models)
+    public HashSet<NPCAssignment> DumpViewModelToModels()
     {
-        models.Clear();
-        foreach (var vm in viewModel.Assignments.Where(x => x is not null)) // null check needed for when user leaves blank specific assignment
+        HashSet<NPCAssignment> models = new();
+        foreach (var vm in Assignments.Where(x => x is not null)) // null check needed for when user leaves blank specific assignment
         {
             models.Add(vm.DumpViewModelToModel());
         }
+        return models;
     }
 
     public void ImportFromZEBD()

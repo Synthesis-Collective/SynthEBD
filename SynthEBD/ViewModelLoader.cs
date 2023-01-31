@@ -151,28 +151,21 @@ namespace SynthEBD
         {
             // Load general settings
             _generalSettingsVM.CopyInFromModel(_patcherState, _raceAliasFactory, _linkedNPCFactory, _environmentProvider.LinkCache);
-            VM_SettingsTexMesh.GetViewModelFromModel(_texMeshSettingsVM, _patcherState.TexMeshSettings);
-            VM_BlockListUI.GetViewModelFromModel(_patcherState.BlockList, _blockList, _blockedNPCFactory, _blockedPluginFactory);
-            VM_SettingsModManager.GetViewModelFromModel(_patcherState.ModManagerSettings, _settingsModManager);
+            _texMeshSettingsVM.CopyInViewModelFromModel(_patcherState.TexMeshSettings);
+            _blockList.CopyInViewModelFromModel(_patcherState.BlockList, _blockedNPCFactory, _blockedPluginFactory);
+            _settingsModManager.CopyInViewModelFromModel(_patcherState.ModManagerSettings);
         }
 
         public void LoadPluginViewModels()
         {
-            VM_SettingsBodyGen.GetViewModelFromModel(_patcherState.BodyGenConfigs, _patcherState.BodyGenSettings, _bodyGenSettingsVM, _bodyGenConfigFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings);
-            VM_SettingsOBody.GetViewModelFromModel(_patcherState.OBodySettings, _settingsOBody, _generalSettingsVM.RaceGroupingEditor.RaceGroupings, _bodyShapeDescriptorCreator, _oBodyMiscSettingsFactory, _bodySlideFactory, _descriptorSelectionFactory, _attributeCreator, _logger);
+            _bodyGenSettingsVM.CopyInViewModelFromModel(_patcherState.BodyGenConfigs, _patcherState.BodyGenSettings, _bodyGenConfigFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings);
+            _settingsOBody.CopyInViewModelFromModel(_patcherState.OBodySettings, _generalSettingsVM.RaceGroupingEditor.RaceGroupings, _bodyShapeDescriptorCreator, _oBodyMiscSettingsFactory, _bodySlideFactory, _descriptorSelectionFactory, _attributeCreator, _logger);
             // load asset packs after BodyGen/BodySlide
             VM_AssetPack.GetViewModelsFromModels(_patcherState.AssetPacks, _texMeshSettingsVM, _patcherState.TexMeshSettings, _assetPackFactory, _raceGroupingFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings); // add asset pack view models to TexMesh shell view model here
             _texMeshSettingsVM.AssetPresenterPrimary.AssetPack = _texMeshSettingsVM.AssetPacks.Where(x => x.GroupName == _texMeshSettingsVM.LastViewedAssetPackName).FirstOrDefault();
 
             VM_HeightConfig.GetViewModelsFromModels(_heightSettingsVM.AvailableHeightConfigs, _patcherState.HeightConfigs, _heightConfigFactory, _heightAssignmentFactory);
             VM_SettingsHeight.GetViewModelFromModel(_heightSettingsVM, _patcherState.HeightSettings); /// must do after populating configs
-        }
-
-        public void SavePluginViewModels()
-        {
-            VM_AssetPack.DumpViewModelsToModels(_texMeshSettingsVM.AssetPacks, _patcherState.AssetPacks);
-            VM_HeightConfig.DumpViewModelsToModels(_heightSettingsVM.AvailableHeightConfigs, _patcherState.HeightConfigs, _logger);
-            VM_SettingsBodyGen.DumpViewModelToModel(_bodyGenSettingsVM, _patcherState.BodyGenSettings, _patcherState.BodyGenConfigs);
         }
 
         public void LoadFinalSettingsViewModels() // view models that should be loaded after plugin VMs because they depend on the loaded plugins
@@ -197,20 +190,27 @@ namespace SynthEBD
             VM_ConsistencyUI.GetViewModelsFromModels(_patcherState.Consistency, _consistencyUi.Assignments, _texMeshSettingsVM.AssetPacks, _headPartSettingsVM, _logger);
         }
 
+        public void SavePluginViewModels()
+        {
+            VM_AssetPack.DumpViewModelsToModels(_texMeshSettingsVM.AssetPacks, _patcherState.AssetPacks);
+            VM_HeightConfig.DumpViewModelsToModels(_heightSettingsVM.AvailableHeightConfigs, _patcherState.HeightConfigs, _logger);
+            _patcherState.BodyGenConfigs = _bodyGenSettingsVM.DumpBodyGenConfigsToModels();
+        }
+
         public void DumpViewModelsToModels()
         {
-            _generalSettingsVM.DumpViewModelToModel();
-            VM_SettingsTexMesh.DumpViewModelToModel(_texMeshSettingsVM, _patcherState.TexMeshSettings);
+            _patcherState.GeneralSettings = _generalSettingsVM.DumpViewModelToModel();
+            _patcherState.TexMeshSettings = _texMeshSettingsVM.DumpViewModelToModel();
             VM_AssetPack.DumpViewModelsToModels(_texMeshSettingsVM.AssetPacks, _patcherState.AssetPacks);
-            VM_SettingsHeight.DumpViewModelToModel(_heightSettingsVM, _patcherState.HeightSettings);
+            _patcherState.HeightSettings = _heightSettingsVM.DumpViewModelToModel();
             VM_HeightConfig.DumpViewModelsToModels(_heightSettingsVM.AvailableHeightConfigs, _patcherState.HeightConfigs, _logger);
-            VM_SettingsBodyGen.DumpViewModelToModel(_bodyGenSettingsVM, _patcherState.BodyGenSettings, _patcherState.BodyGenConfigs);
+            _patcherState.BodyGenSettings = _bodyGenSettingsVM.DumpViewModelToModel();
             _patcherState.OBodySettings = _settingsOBody.DumpViewModelToModel();
-            _headPartSettingsVM.DumpViewModelToModel(_patcherState.HeadPartSettings);
-            VM_SpecificNPCAssignmentsUI.DumpViewModelToModels(_npcAssignmentsUi, _patcherState.SpecificNPCAssignments);
-            VM_BlockListUI.DumpViewModelToModel(_blockList, _patcherState.BlockList);
-            VM_ConsistencyUI.DumpViewModelsToModels(_consistencyUi.Assignments, _patcherState.Consistency);
-            VM_SettingsModManager.DumpViewModelToModel(_patcherState.ModManagerSettings, _settingsModManager);
+            _patcherState.HeadPartSettings = _headPartSettingsVM.DumpViewModelToModel();
+            _patcherState.SpecificNPCAssignments = _npcAssignmentsUi.DumpViewModelToModels();
+            _patcherState.BlockList = _blockList.DumpViewModelToModel();
+            _patcherState.Consistency = _consistencyUi.DumpViewModelsToModels();
+            _patcherState.ModManagerSettings = _settingsModManager.DumpViewModelToModel();
         }
 
         public void SaveViewModelsToDrive()

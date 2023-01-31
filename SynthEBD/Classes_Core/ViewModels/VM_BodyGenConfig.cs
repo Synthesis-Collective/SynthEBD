@@ -213,7 +213,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
             GroupMappingUI.DisplayedMapping = GroupMappingUI.RacialTemplateGroupMap.First();
         }
 
-        DescriptorUI.TemplateDescriptors = VM_BodyShapeDescriptorShell.GetViewModelsFromModels(model.TemplateDescriptors, RaceGroupingEditor.RaceGroupings, this, _descriptorCreator);
+        DescriptorUI.CopyInViewModelsFromModels(model.TemplateDescriptors);
 
         foreach (var descriptor in model.TemplateDescriptors)
         {
@@ -254,7 +254,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         {
             model.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.DumpViewModelToModel(RTG));
         }
-        model.TemplateDescriptors = VM_BodyShapeDescriptorShell.DumpViewModelsToModels(DescriptorUI.TemplateDescriptors);
+        model.TemplateDescriptors = DescriptorUI.DumpToViewModels();
         foreach (var template in TemplateMorphUI.Templates)
         {
             model.Templates.Add(VM_BodyGenTemplate.DumpViewModelToModel(template));

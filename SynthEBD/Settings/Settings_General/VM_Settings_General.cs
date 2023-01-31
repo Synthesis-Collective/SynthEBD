@@ -240,38 +240,40 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     {
         CopyInFromModel(_patcherState, _aliasFactory, _linkedNPCFactory, lk);
     }
-    public void DumpViewModelToModel()
+    public Settings_General DumpViewModelToModel()
     {
-        _patcherState.GeneralSettings.OutputDataFolder = OutputDataFolder;
-        _patcherState.GeneralSettings.bShowToolTips = bShowToolTips;
-        _patcherState.GeneralSettings.bChangeMeshesOrTextures = bChangeMeshesOrTextures;
-        _patcherState.GeneralSettings.BodySelectionMode = BodySelectionMode;
-        _patcherState.GeneralSettings.BSSelectionMode = BSSelectionMode;
-        _patcherState.GeneralSettings.bChangeHeight = bChangeHeight;
-        _patcherState.GeneralSettings.bChangeHeadParts = bChangeHeadParts;
-        _patcherState.GeneralSettings.bHeadPartsExcludeCustomHeads = bHeadPartsExcludeCustomHeads;
-        _patcherState.GeneralSettings.OutputDataFolder = OutputDataFolder;
-        _patcherState.GeneralSettings.bEnableConsistency = bEnableConsistency;
-        _patcherState.GeneralSettings.ExcludePlayerCharacter = ExcludePlayerCharacter;
-        _patcherState.GeneralSettings.ExcludePresets = ExcludePresets;
-        _patcherState.GeneralSettings.bLinkNPCsWithSameName = bLinkNPCsWithSameName;
-        _patcherState.GeneralSettings.LinkedNPCNameExclusions = LinkedNameExclusions.Select(x => x.Content).ToList();
+        Settings_General model = new();
+        model.OutputDataFolder = OutputDataFolder;
+        model.bShowToolTips = bShowToolTips;
+        model.bChangeMeshesOrTextures = bChangeMeshesOrTextures;
+        model.BodySelectionMode = BodySelectionMode;
+        model.BSSelectionMode = BSSelectionMode;
+        model.bChangeHeight = bChangeHeight;
+        model.bChangeHeadParts = bChangeHeadParts;
+        model.bHeadPartsExcludeCustomHeads = bHeadPartsExcludeCustomHeads;
+        model.OutputDataFolder = OutputDataFolder;
+        model.bEnableConsistency = bEnableConsistency;
+        model.ExcludePlayerCharacter = ExcludePlayerCharacter;
+        model.ExcludePresets = ExcludePresets;
+        model.bLinkNPCsWithSameName = bLinkNPCsWithSameName;
+        model.LinkedNPCNameExclusions = LinkedNameExclusions.Select(x => x.Content).ToList();
         VM_LinkedNPCGroup.DumpViewModelsToModels(_patcherState.GeneralSettings.LinkedNPCGroups, LinkedNPCGroups);
-        _patcherState.GeneralSettings.bVerboseModeAssetsNoncompliant = bVerboseModeAssetsNoncompliant;
-        _patcherState.GeneralSettings.bVerboseModeAssetsAll = bVerboseModeAssetsAll;
-        _patcherState.GeneralSettings.VerboseModeNPClist = verboseModeNPClist.ToList();
-        _patcherState.GeneralSettings.VerboseModeDetailedAttributes = VerboseModeDetailedAttributes;
-        _patcherState.GeneralSettings.PatchableRaces = patchableRaces.ToList();
-        _patcherState.GeneralSettings.RaceGroupings = RaceGroupingEditor.DumpToModel();
-        _patcherState.GeneralSettings.OverwritePluginRaceGroups = OverwritePluginRaceGroups;
-        _patcherState.GeneralSettings.RaceAliases.Clear();
+        model.bVerboseModeAssetsNoncompliant = bVerboseModeAssetsNoncompliant;
+        model.bVerboseModeAssetsAll = bVerboseModeAssetsAll;
+        model.VerboseModeNPClist = verboseModeNPClist.ToList();
+        model.VerboseModeDetailedAttributes = VerboseModeDetailedAttributes;
+        model.PatchableRaces = patchableRaces.ToList();
+        model.RaceGroupings = RaceGroupingEditor.DumpToModel();
+        model.OverwritePluginRaceGroups = OverwritePluginRaceGroups;
+        model.RaceAliases.Clear();
         foreach (var x in raceAliases)
         {
-            _patcherState.GeneralSettings.RaceAliases.Add(VM_RaceAlias.DumpViewModelToModel(x));
+            model.RaceAliases.Add(VM_RaceAlias.DumpViewModelToModel(x));
         }
-        VM_AttributeGroupMenu.DumpViewModelToModels(AttributeGroupMenu, _patcherState.GeneralSettings.AttributeGroups);
-        _patcherState.GeneralSettings.OverwritePluginAttGroups = OverwritePluginAttGroups;
+        VM_AttributeGroupMenu.DumpViewModelToModels(AttributeGroupMenu, model.AttributeGroups);
+        model.OverwritePluginAttGroups = OverwritePluginAttGroups;
 
-        _patcherState.GeneralSettings.bFirstRun = false;
+        model.bFirstRun = false;
+        return model;
     }
 }

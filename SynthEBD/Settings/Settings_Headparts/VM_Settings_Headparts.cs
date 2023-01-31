@@ -130,12 +130,14 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
         SettingsMenu.GetViewModelFromModel(model);
     }
 
-    public void DumpViewModelToModel(Settings_Headparts model)
+    public Settings_Headparts DumpViewModelToModel()
     {
+        Settings_Headparts model = new();
         foreach (var type in model.Types.Keys)
         {
             Types[type].DumpToModel(model.Types[type]);
         }
-        SettingsMenu.DumpViewModelToModel(model);
+        SettingsMenu.MergeViewModelIntoModel(model);
+        return model;
     }
 }

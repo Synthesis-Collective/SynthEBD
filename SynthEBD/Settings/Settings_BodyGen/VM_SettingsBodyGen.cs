@@ -6,12 +6,15 @@ namespace SynthEBD;
 
 public class VM_SettingsBodyGen : VM
 {
+    private readonly PatcherState _patcherState;
     private readonly VM_BodyGenRacialMapping.Factory _mappingFactory;
     public VM_SettingsBodyGen(
+        PatcherState patcherState,
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
         VM_BodyGenRacialMapping.Factory mappingFactory,
         VM_Settings_General generalSettingsVM)
     {
+        _patcherState = patcherState;
         _mappingFactory = mappingFactory;
 
         DisplayMaleConfig = new SynthEBD.RelayCommand(
@@ -93,60 +96,59 @@ public class VM_SettingsBodyGen : VM
     public RelayCommand DisplayFemaleConfig { get; }
     public RelayCommand AddNewFemaleConfig { get; }
 
-    public static void GetViewModelFromModel(
+    public void CopyInViewModelFromModel(
         BodyGenConfigs configModels,
         Settings_BodyGen model,
-        VM_SettingsBodyGen viewModel,
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
         ObservableCollection<VM_RaceGrouping> mainRaceGroupings)
     {
-        viewModel.FemaleConfigs.Clear();
-        viewModel.MaleConfigs.Clear();
+        FemaleConfigs.Clear();
+        MaleConfigs.Clear();
 
         foreach(var config in configModels.Female)
         {
-            var subConfig = bodyGenConfigFactory(viewModel.FemaleConfigs);
+            var subConfig = bodyGenConfigFactory(FemaleConfigs);
             subConfig.CopyInViewModelFromModel(config, mainRaceGroupings);
-            viewModel.FemaleConfigs.Add(subConfig);
+            FemaleConfigs.Add(subConfig);
         }
 
         foreach(var config in configModels.Male)
         {
-            var subConfig = bodyGenConfigFactory(viewModel.MaleConfigs);
+            var subConfig = bodyGenConfigFactory(MaleConfigs);
             subConfig.CopyInViewModelFromModel(config, mainRaceGroupings);
-            viewModel.MaleConfigs.Add(subConfig);
+            MaleConfigs.Add(subConfig);
         }
 
-        viewModel.CurrentMaleConfig = GetConfigByLabel(model.CurrentMaleConfig, viewModel.MaleConfigs);
-        viewModel.CurrentFemaleConfig = GetConfigByLabel(model.CurrentFemaleConfig, viewModel.FemaleConfigs);
+        CurrentMaleConfig = GetConfigByLabel(model.CurrentMaleConfig, MaleConfigs);
+        CurrentFemaleConfig = GetConfigByLabel(model.CurrentFemaleConfig, FemaleConfigs);
 
-        if (viewModel.CurrentFemaleConfig == null)
+        if (CurrentFemaleConfig == null)
         {
-            if (viewModel.FemaleConfigs.Count > 0)
+            if (FemaleConfigs.Count > 0)
             {
-                viewModel.CurrentFemaleConfig = viewModel.FemaleConfigs[0];
+                CurrentFemaleConfig = FemaleConfigs[0];
             }
         }
 
-        if (viewModel.CurrentMaleConfig == null)
+        if (CurrentMaleConfig == null)
         {
-            if (viewModel.MaleConfigs.Count > 0)
+            if (MaleConfigs.Count > 0)
             {
-                viewModel.CurrentMaleConfig = viewModel.MaleConfigs[0];
+                CurrentMaleConfig = MaleConfigs[0];
             }
         }
 
-        if (viewModel.CurrentFemaleConfig != null)
+        if (CurrentFemaleConfig != null)
         {
-            viewModel.CurrentlyDisplayedConfig = viewModel.CurrentFemaleConfig;
-            viewModel.DisplayedConfigIsFemale = true;
-            viewModel.DisplayedConfigIsMale = false;
+            CurrentlyDisplayedConfig = CurrentFemaleConfig;
+            DisplayedConfigIsFemale = true;
+            DisplayedConfigIsMale = false;
         }
-        else if (viewModel.CurrentMaleConfig != null)
+        else if (CurrentMaleConfig != null)
         {
-            viewModel.CurrentlyDisplayedConfig = viewModel.CurrentMaleConfig;
-            viewModel.DisplayedConfigIsFemale = false;
-            viewModel.DisplayedConfigIsMale = true;
+            CurrentlyDisplayedConfig = CurrentMaleConfig;
+            DisplayedConfigIsFemale = false;
+            DisplayedConfigIsMale = true;
         }
     }
 
@@ -174,38 +176,42 @@ public class VM_SettingsBodyGen : VM
         return null;
     }
 
-    public static void DumpViewModelToModel(VM_SettingsBodyGen viewModel, Settings_BodyGen model, BodyGenConfigs configModels)
+    public Settings_BodyGen DumpViewModelToModel()
     {
-        if (viewModel.CurrentMaleConfig != null)
+        Settings_BodyGen model = new();
+        if (CurrentMaleConfig != null)
         {
-            model.CurrentMaleConfig = viewModel.CurrentMaleConfig.Label;
+            model.CurrentMaleConfig = CurrentMaleConfig.Label;
         }
         else
         {
             model.CurrentMaleConfig = null;
         }
 
-        if (viewModel.CurrentFemaleConfig != null)
+        if (CurrentFemaleConfig != null)
         {
-            model.CurrentFemaleConfig = viewModel.CurrentFemaleConfig.Label;
+            model.CurrentFemaleConfig = CurrentFemaleConfig.Label;
         }
         else
         {
             model.CurrentFemaleConfig = null;
         }
+        return model;
+    }
 
+    public BodyGenConfigs DumpBodyGenConfigsToModels()
+    {
+        BodyGenConfigs cfgs = new();
 
-        configModels.Male.Clear();
-        configModels.Female.Clear();
-
-        foreach (var maleVM in viewModel.MaleConfigs)
+        foreach (var maleVM in MaleConfigs)
         {
-            configModels.Male.Add(maleVM.DumpViewModelToModel());    
+            cfgs.Male.Add(maleVM.DumpViewModelToModel());
         }
-        foreach (var femaleVM in viewModel.FemaleConfigs)
+        foreach (var femaleVM in FemaleConfigs)
         {
-            configModels.Female.Add(femaleVM.DumpViewModelToModel());
+            cfgs.Female.Add(femaleVM.DumpViewModelToModel());
         }
+        return cfgs;
     }
 
     public void InitializeNewBodyGenConfig(VM_BodyGenConfig newConfig, VM_Settings_General generalSettingsVM)
