@@ -40,7 +40,7 @@ namespace SynthEBD
                     execute: _ => Revert()
                     );
 
-            SubscribedCollection.ToObservableChangeSet().Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler).Subscribe(x => GetSortState()).DisposeWith(this); ;
+            SubscribedCollection.ToObservableChangeSet().Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler).Subscribe(x => GetSortState()).DisposeWith(this);
 
             this.WhenAnyValue(x => x.State).Subscribe(x => {
                 if (State == SortState.Unsorted || State == SortState.Reversed) { DisplayText = "AZ"; }
