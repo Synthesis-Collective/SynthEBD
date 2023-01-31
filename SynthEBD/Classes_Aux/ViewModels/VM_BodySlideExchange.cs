@@ -180,6 +180,24 @@ namespace SynthEBD
                 return false;
             }
 
+            if (CustomMessageBox.DisplayNotificationYesNo("Settings Backup", "Back up your current BodySlide settings before importing?"))
+            {
+                var currentSettings = _oBodyUI.DumpViewModelToModel();
+                if (currentSettings != null && IO_Aux.SelectFileSave("", "Bodyslide Settings files (.json|*.json", ".json", "Save BodySlide Settings", out string savePath, "OBodySettings.json"))
+                {
+                    JSONhandler<Settings_OBody>.SaveJSONFile(currentSettings, savePath, out bool succes, out string saveException);
+                    if (!succes)
+                    {
+                        CustomMessageBox.DisplayNotificationOK("Failed to save settings", "Settings could not be saved. Error: " + Environment.NewLine + Environment.NewLine + saveException);
+                        return false;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
             _oBodyUI.DescriptorUI.MergeInMissingModels(exchange.TemplateDescriptors);
 
             if (IncludeAttributeGroups)
