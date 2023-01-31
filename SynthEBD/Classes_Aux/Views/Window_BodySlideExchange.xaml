@@ -7,35 +7,51 @@
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=local:VM_BodySlideExchange}"
         Title="BodySlide Exchange" Height="450" Width="800">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
+    
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="10"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
 
-        <TextBlock Grid.Row="0" Grid.Column="0" Foreground="White">
+        <TextBlock Grid.Row="0" Grid.Column="0" Foreground="White" ToolTip="Include the assigned distribution rules for each BodySlide" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">
             <TextBlock.Text>
                 <MultiBinding StringFormat="{}{0} Distribution Rules">
                     <Binding Path="Mode"/>
                 </MultiBinding>
             </TextBlock.Text>
         </TextBlock>
-        <CheckBox Grid.Row="0" Grid.Column="1" IsChecked="{Binding ExchangeRules}"/>
+        <CheckBox Grid.Row="0" Grid.Column="2" IsChecked="{Binding ExchangeRules}"/>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Foreground="White">
+        <TextBlock Grid.Row="1" Grid.Column="0" Foreground="White" ToolTip="Include the notes which annotate the BodySlides (for user information only; they don't influence the patcher)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">
             <TextBlock.Text>
                 <MultiBinding StringFormat="{}{0} BodySlide Notes">
                     <Binding Path="Mode"/>
                 </MultiBinding>
             </TextBlock.Text>
         </TextBlock>
-        <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding ExchangeNotes}"/>
+        <CheckBox Grid.Row="1" Grid.Column="2" IsChecked="{Binding ExchangeNotes}"/>
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Foreground="White" Text="Include Needed Attribute Groups" ToolTip="Include the Attribute Groups required by the BodySlides' distribution rules" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ExchangeRules, Converter={StaticResource BoolToVis}}"/>
+        <CheckBox Grid.Row="2" Grid.Column="2" IsChecked="{Binding IncludeAttributeGroups}" Visibility="{Binding ExchangeRules, Converter={StaticResource BoolToVis}}"/>
+
+        <TextBlock Grid.Row="3" Grid.Column="0" Foreground="White" Text="Include Needed Race Groupings" ToolTip="Include the Race Groupings required by the BodySlides' distribution rules" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ExchangeRules, Converter={StaticResource BoolToVis}}"/>
+        <CheckBox Grid.Row="3" Grid.Column="2" IsChecked="{Binding IncludeRaceGroupings}" Visibility="{Binding ExchangeRules, Converter={StaticResource BoolToVis}}"/>
+
+        <Button Grid.Row="4" Grid.Column="0" Command="{Binding ActionCommand}" Foreground="LightGreen" ToolTip="Run the BodySlide Exchanger" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Content="{Binding Mode}"/>
 
     </Grid>
 </Window>

@@ -77,8 +77,8 @@ public class VM_BodySlidesMenu : VM
         ImportAnnotations = new RelayCommand(
             canExecute: _ => true,
             execute: x => {
-                var exchange = exchangeFactory(ExchangeMode.Import);
                 var exchangeWindow = new Window_BodySlideExchange();
+                var exchange = exchangeFactory(ExchangeMode.Import, exchangeWindow);
                 exchangeWindow.DataContext = exchange;
                 exchangeWindow.Show();
             });
@@ -86,8 +86,8 @@ public class VM_BodySlidesMenu : VM
         ExportAnnotations = new RelayCommand(
             canExecute: _ => true,
             execute: x => {
-                var exchange = exchangeFactory(ExchangeMode.Export);
                 var exchangeWindow = new Window_BodySlideExchange();
+                var exchange = exchangeFactory(ExchangeMode.Export, exchangeWindow);
                 exchangeWindow.DataContext = exchange;
                 exchangeWindow.Show();
             });

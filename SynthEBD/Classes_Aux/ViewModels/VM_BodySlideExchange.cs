@@ -13,8 +13,8 @@ namespace SynthEBD
 {
     public class VM_BodySlideExchange
     {
-        public delegate VM_BodySlideExchange Factory(ExchangeMode mode);
-        public VM_BodySlideExchange(ExchangeMode mode, VM_SettingsOBody oBodyUI, VM_Settings_General generalUI, VM_BodySlideSetting.Factory bodySlideFactory, VM_AttributeGroup.Factory attributeGroupFactory, VM_RaceGrouping.Factory raceGroupingFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+        public delegate VM_BodySlideExchange Factory(ExchangeMode mode, Window_BodySlideExchange window);
+        public VM_BodySlideExchange(ExchangeMode mode, Window_BodySlideExchange window, VM_SettingsOBody oBodyUI, VM_Settings_General generalUI, VM_BodySlideSetting.Factory bodySlideFactory, VM_AttributeGroup.Factory attributeGroupFactory, VM_RaceGrouping.Factory raceGroupingFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
             Mode = mode;
             _oBodyUI = oBodyUI;
@@ -24,9 +24,25 @@ namespace SynthEBD
             _raceGroupingFactory = raceGroupingFactory;
             _decriptorSelectionFactory = descriptorSelectionFactory;
 
-            ExportCommand = new RelayCommand(
+            ActionCommand = new RelayCommand(
                 canExecute: _ => true,
-                execute: _ => Export()
+                execute: _ => { 
+                    switch(Mode)
+                    {
+                        case ExchangeMode.Import:
+                            if (Import())
+                            {
+                                window.Close();
+                            }
+                            break;
+                        case ExchangeMode.Export:
+                            if (Export())
+                            {
+                                window.Close();
+                            }
+                            break;
+                    }
+                }
             );
         }
 
@@ -42,16 +58,19 @@ namespace SynthEBD
         public bool IncludeAttributeGroups { get; set; }
         public bool IncludeRaceGroupings { get; set; }
 
-        public RelayCommand ImportCommand { get; }
-        public RelayCommand ExportCommand { get; }
+        public RelayCommand ActionCommand { get; }
 
-        public void Export()
+        public bool Export()
         {
             BodySlideExchange exchange = new();
             HashSet<string> referencedAttributeGroups = new();
             HashSet<string> referencedRaceGroupings = new();
-            ExportGendered(_oBodyUI.BodySlidesUI.BodySlidesMale, exchange.BodySlidesMale, referencedAttributeGroups, referencedRaceGroupings);
-            ExportGendered(_oBodyUI.BodySlidesUI.BodySlidesFemale, exchange.BodySlidesFemale, referencedAttributeGroups, referencedRaceGroupings);
+            HashSet<BodyShapeDescriptor.LabelSignature> referencedDescriptors = new();
+
+            ExportGendered(_oBodyUI.BodySlidesUI.BodySlidesMale, exchange.BodySlidesMale, referencedAttributeGroups, referencedRaceGroupings, referencedDescriptors);
+            ExportGendered(_oBodyUI.BodySlidesUI.BodySlidesFemale, exchange.BodySlidesFemale, referencedAttributeGroups, referencedRaceGroupings, referencedDescriptors);
+
+            exchange.TemplateDescriptors = _oBodyUI.DescriptorUI.DumpSelectedToViewModels(referencedDescriptors);
 
             if (IncludeAttributeGroups)
             {
@@ -69,17 +88,25 @@ namespace SynthEBD
                 }
             }
 
+            bool closeWindow = true;
             if (IO_Aux.SelectFile("", "Bodyslide files (*.json)|*.json", "Select Export File", out string writePath, "ExportedBodySlides.json"))
             {
                 JSONhandler<BodySlideExchange>.SaveJSONFile(exchange, writePath, out bool success, out string exception);
                 if (!success)
                 {
                     CustomMessageBox.DisplayNotificationOK("Export Failed", exception);
+                    closeWindow = false;
                 }
             }
+            else
+            {
+                closeWindow = false;
+            }
+
+            return closeWindow;
         }
 
-        public void ExportGendered(ObservableCollection<VM_BodySlideSetting> bodySlides, List<BodySlideSetting> destinationList, HashSet<string> referencedAttributeGroups, HashSet<string> referencedRaceGroupings)
+        public void ExportGendered(ObservableCollection<VM_BodySlideSetting> bodySlides, List<BodySlideSetting> destinationList, HashSet<string> referencedAttributeGroups, HashSet<string> referencedRaceGroupings, HashSet<BodyShapeDescriptor.LabelSignature> referencedDescriptors)
         {
             foreach (var bsVM in bodySlides)
             {
@@ -122,6 +149,14 @@ namespace SynthEBD
                         referencedRaceGroupings.Add(racegrouping);
                     }
                 }
+
+                foreach (var descriptor in fullModel.BodyShapeDescriptors)
+                {
+                    if (!descriptor.CollectionContainsThisDescriptor(referencedDescriptors))
+                    {
+                        referencedDescriptors.Add(descriptor);
+                    }
+                }
             }
         }
 
@@ -138,6 +173,8 @@ namespace SynthEBD
                 CustomMessageBox.DisplayNotificationOK("Import Failed", exception);
                 return false;
             }
+
+            _oBodyUI.DescriptorUI.MergeInMissingModels(exchange.TemplateDescriptors);
 
             if (IncludeAttributeGroups)
             {

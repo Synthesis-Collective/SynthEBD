@@ -117,7 +117,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_ConsistencyAssignment>().AsSelf();
         builder.RegisterType<VM_AttributeGroupMenu>().AsSelf();
         builder.RegisterType<VM_AttributeGroup>().AsSelf();
-        builder.RegisterType<VM_BodyGenConfig>().AsSelf().AsImplementedInterfaces();
+        builder.RegisterType<VM_BodyGenConfig>().AsSelf();
         builder.RegisterType<VM_BodyGenGroupMappingMenu>().AsSelf();
         builder.RegisterType<VM_BodyGenRacialMapping>().AsSelf();
         builder.RegisterType<VM_BodyGenTemplateMenu>().AsSelf();
