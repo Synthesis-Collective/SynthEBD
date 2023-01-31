@@ -106,40 +106,9 @@ public class VM_BodySlideSetting : VM
             canExecute: _ => true,
             execute: _ => { 
                 var cloneModel = DumpViewModelToModel(this);
-                int cloneIndex = 0;
-                int lastClonePosition = 0;
-                
-                for (int i = 0; i < parentCollection.Count; i++)
-                {
-                    var clone = parentCollection[i];
-                    if (clone.ReferencedBodySlide != ReferencedBodySlide) { continue; }
-                    lastClonePosition = i;
-                    if (GetTrailingInt(clone.Label, out int currentIndex) && currentIndex > cloneIndex)
-                    {
-                        cloneIndex = currentIndex;
-                    }
-                }
-                
-                if (cloneIndex == 0)
-                {
-                    cloneIndex = 2;
-                }
-                else
-                {
-                    cloneIndex++;
-                }
-
-                if(GetTrailingInt(cloneModel.Label, out int selectedCloneIndex))
-                {
-                    cloneModel.Label = cloneModel.Label.TrimEnd(selectedCloneIndex.ToString()) + cloneIndex.ToString();
-                }
-                else
-                {
-                    cloneModel.Label += cloneIndex;
-                }
-
                 var cloneViewModel = _selfFactory(bodyShapeDescriptors, raceGroupingVMs, ParentCollection);
                 cloneViewModel.CopyInViewModelFromModel(cloneModel);
+                int lastClonePosition = cloneViewModel.RenameByIndex();
                 parentCollection.Insert(lastClonePosition + 1, cloneViewModel);
             }
         );
@@ -191,6 +160,42 @@ public class VM_BodySlideSetting : VM
     public static SolidColorBrush BorderColorMissing = new SolidColorBrush(Colors.Red);
     public static SolidColorBrush BorderColorUnannotated = new SolidColorBrush(Colors.Yellow);
     public static SolidColorBrush BorderColorValid = new SolidColorBrush(Colors.LightGreen);
+
+    public int RenameByIndex()
+    {
+        int cloneIndex = 0;
+        int lastClonePosition = 0;
+
+        for (int i = 0; i < ParentCollection.Count; i++)
+        {
+            var clone = ParentCollection[i];
+            if (clone.ReferencedBodySlide != ReferencedBodySlide) { continue; }
+            lastClonePosition = i;
+            if (GetTrailingInt(clone.Label, out int currentIndex) && currentIndex > cloneIndex)
+            {
+                cloneIndex = currentIndex;
+            }
+        }
+
+        if (cloneIndex == 0)
+        {
+            cloneIndex = 2;
+        }
+        else
+        {
+            cloneIndex++;
+        }
+
+        if (GetTrailingInt(Label, out int selectedCloneIndex))
+        {
+            Label = Label.TrimEnd(selectedCloneIndex.ToString()) + cloneIndex.ToString();
+        }
+        else
+        {
+            Label += cloneIndex;
+        }
+        return lastClonePosition;
+    }
 
     public void UnlockReference()
     {
