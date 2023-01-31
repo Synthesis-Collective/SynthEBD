@@ -14,13 +14,7 @@ public class IO_Aux
     }
     public static bool IsValidFilename(string testName)
     {
-        Regex containsABadCharacter = new Regex("["
-                                                + Regex.Escape(new string(System.IO.Path.GetInvalidPathChars())) + "]");
-        if (containsABadCharacter.IsMatch(testName)) { return false; };
-
-        // other checks for UNC, drive-path format, etc
-
-        return true;
+        return MakeValidFileName(testName) == testName;
     }
 
     public static bool SelectFolder(string initDir, out string path)
@@ -74,6 +68,37 @@ public class IO_Aux
         {
             return false;
         }
+    }
+    
+    public static bool SelectFileSave(string initDir, string filter, string defaultExtension, string title, out string path, string startingFileName = "")
+    {
+        // Configure save file dialog box
+        var dialog = new Microsoft.Win32.SaveFileDialog();
+
+        if (!string.IsNullOrWhiteSpace(filter))
+        {
+            dialog.Filter = filter;
+        }
+
+        if (initDir != "")
+        {
+            dialog.InitialDirectory = initDir;
+        }
+        if (startingFileName != "")
+        {
+            dialog.FileName = startingFileName;
+        }
+
+        dialog.DefaultExt = defaultExtension;
+
+        dialog.Title = title;
+
+        dialog.RestoreDirectory = true;
+
+        // Show open file dialog box
+        bool? result = dialog.ShowDialog();
+        path = dialog.FileName;
+        return result ?? false;
     }
 
     public static List<string> ReadFileToList(string path, out bool wasRead)
