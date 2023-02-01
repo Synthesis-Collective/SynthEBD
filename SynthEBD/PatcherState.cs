@@ -5,6 +5,8 @@ namespace SynthEBD;
 
 public class PatcherState
 {
+    // Version
+    public static string Version = "0.9.3.2";
     // Settings
     public Settings_General GeneralSettings { get; set; }
     public Settings_TexMesh TexMeshSettings { get; set; }
@@ -33,6 +35,19 @@ public class PatcherState
         {
             sb.AppendLine("General Settings: Null");
         }
+        else
+        {
+            sb.AppendLine("Main Settings:");
+            sb.AppendLine("Apply Assets: " + GeneralSettings.bChangeMeshesOrTextures);
+            sb.AppendLine("Apply BodyShapes via: " + GeneralSettings.BodySelectionMode);
+            if (GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
+            {
+                sb.AppendLine("Apply BodySlides via: " + GeneralSettings.BSSelectionMode);
+            }
+            sb.AppendLine("Apply Height: " + GeneralSettings.bChangeHeight);
+            sb.AppendLine("Apply Head Parts: " + GeneralSettings.bChangeHeadParts);
+            sb.AppendLine("Use Consistency: " + GeneralSettings.bEnableConsistency);
+        }
         if (TexMeshSettings == null)
         {
             sb.AppendLine("Asset Settings: Null");
@@ -49,7 +64,58 @@ public class PatcherState
         {
             sb.AppendLine("Height Settings: Null");
         }
-        if (HeadPartSettings == null)
+        if (ModManagerSettings == null)
+        {
+            sb.AppendLine("Mod Manager Settings: Null");
+        }
+        else
+        {
+            sb.AppendLine("Mod Manager Type: " + ModManagerSettings.ModManagerType);
+            if (ModManagerSettings.ModManagerType == ModManager.ModOrganizer2)
+            {
+                if (ModManagerSettings.MO2Settings == null)
+                {
+                    sb.AppendLine("MO2 Settings: Null");
+                }
+                else
+                {
+                    if (System.IO.File.Exists(ModManagerSettings.MO2Settings.ExecutablePath))
+                    {
+                        sb.AppendLine("MO2 Path exists");
+                    }
+                    else
+                    {
+                        sb.AppendLine("MO2 Path does not exist");
+                    }
+                    if (System.IO.Directory.Exists(ModManagerSettings.MO2Settings.ModFolderPath))
+                    {
+                        sb.AppendLine("Mod Folder exists");
+                    }
+                    else
+                    {
+                        sb.AppendLine("Mod Folder does not exist");
+                    }
+                }
+            }
+            else if (ModManagerSettings.ModManagerType == ModManager.Vortex)
+            {
+                if (ModManagerSettings.VortexSettings == null)
+                {
+                    sb.AppendLine("Vortex Settings: Null");
+                }
+                else
+                {
+                    if (System.IO.Directory.Exists(ModManagerSettings.VortexSettings.StagingFolderPath))
+                    {
+                        sb.AppendLine("Staging Folder exists");
+                    }
+                    else
+                    {
+                        sb.AppendLine("Staging folder does not exist");
+                    }
+                }
+            }
+        }
 
         if (AssetPacks != null)
         {
@@ -99,7 +165,57 @@ public class PatcherState
         }
         else
         {
-            sb.Append("BodyGen Configs: Null");
+            sb.AppendLine("BodyGen Configs: Null");
+        }
+
+        if (OBodySettings != null && OBodySettings.BodySlidesMale == null)
+        {
+            sb.AppendLine("Male BodySlides: Null");
+        }
+        else
+        {
+            sb.AppendLine("Male BodySlides: " + OBodySettings.BodySlidesMale.Count + " (" + OBodySettings.BodySlidesMale.Where(x => x.BodyShapeDescriptors.Any()).Count() + ") annotated");
+        }
+
+        if (OBodySettings != null && OBodySettings.BodySlidesFemale == null)
+        {
+            sb.AppendLine("Female BodySlides: Null");
+        }
+        else
+        {
+            sb.AppendLine("Female BodySlides: " + OBodySettings.BodySlidesFemale.Count + " (" + OBodySettings.BodySlidesFemale.Where(x => x.BodyShapeDescriptors.Any()).Count() + ") annotated");
+        }
+
+        if (HeightConfigs == null)
+        {
+            sb.AppendLine("Height Configs: Null");
+        }
+        else
+        {
+            sb.AppendLine("Height Configs: " + HeightConfigs.Count);
+        }
+
+        if (HeadPartSettings == null)
+        {
+            sb.AppendLine("HeadPart Settings: Null");
+        }
+        else
+        {
+            foreach (var entry in HeadPartSettings.Types)
+            {
+                if (entry.Value == null)
+                {
+                    sb.AppendLine(entry.Key + " HeadParts: Null");
+                }
+                else if (entry.Value.HeadParts == null)
+                {
+                    sb.AppendLine(entry.Key + " HeadParts List: Null");
+                }
+                else
+                {
+                    sb.AppendLine(entry.Key + ": " + entry.Value.HeadParts.Count + " HeadParts");
+                }
+            }
         }
 
         return sb.ToString();

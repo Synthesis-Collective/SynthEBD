@@ -17,6 +17,7 @@ public partial class App : Application
 {
     private PatcherSettingsSourceProvider _settingsSourceProvider;
     private PatcherEnvironmentSourceProvider _environmentSourceProvider;
+    private IEnvironmentStateProvider _environmentStateProvider;
     private PatcherState _patcherState;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -47,11 +48,9 @@ public partial class App : Application
 
         var container = builder.Build();
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(rootPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.SettingsSourceFileName)));
-        // TEST_settingsSourceProvider.SettingsRootPath = Path.Combine(rootPath, SynthEBDPaths.StandaloneSourceDirName);
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(rootPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName)));
-        var state = container.Resolve<StandaloneRunEnvironmentStateProvider>(new NamedParameter("environmentSourceProvider", _environmentSourceProvider));
-
-        //builder.RegisterInstance(state).AsImplementedInterfaces();
+        _environmentStateProvider = container.Resolve<StandaloneRunEnvironmentStateProvider>(new NamedParameter("environmentSourceProvider", _environmentSourceProvider));
+        _patcherState = container.Resolve<PatcherState>();
 
         var mainVM = container.Resolve<MainWindow_ViewModel>();
         mainVM.Init();
@@ -83,8 +82,9 @@ public partial class App : Application
         var container = builder.Build();
 
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
-        // TEST_settingsSourceProvider.SettingsRootPath = state.ExtraSettingsDataPath;
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
+        _environmentStateProvider = container.Resolve<OpenForSettingsWrapper>();
+        _patcherState = container.Resolve<PatcherState>();
 
         var window = new MainWindow();
         var mainVM = container.Resolve<MainWindow_ViewModel>();
@@ -135,6 +135,7 @@ public partial class App : Application
 
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
+        _environmentStateProvider = container.Resolve<PatcherStateWrapper>();
 
         var saveLoader = container.Resolve<SaveLoader>();
         saveLoader.LoadAllSettings();
@@ -163,14 +164,32 @@ public partial class App : Application
         sb.AppendLine("SynthEBD has crashed with the following error:");
         sb.AppendLine(ExceptionLogger.GetExceptionStack(e.Exception));
         sb.AppendLine();
+        sb.AppendLine("SynthEBD Version: " + PatcherState.Version);
+        sb.AppendLine();
+        if (_environmentStateProvider != null)
+        {
+            sb.AppendLine("Run Mode: " + _environmentStateProvider.RunMode);
+        }
+        else
+        {
+            sb.AppendLine("Environment State: Null");
+        }
+        sb.AppendLine();
         sb.AppendLine("Patcher Settings Creation Log:");
         sb.AppendLine(PatcherSettingsSourceProvider.SettingsLog.ToString());
         sb.AppendLine();
         sb.AppendLine("Patcher Environment Creation Log:");
         sb.AppendLine(PatcherEnvironmentSourceProvider.SettingsLog.ToString());
         sb.AppendLine();
-        sb.AppendLine("Patcher State:");
-        sb.AppendLine(_patcherState.GetStateLogStr());
+        if (_patcherState != null)
+        {
+            sb.AppendLine("Patcher State:");
+            sb.AppendLine(_patcherState.GetStateLogStr());
+        }
+        else
+        {
+            sb.AppendLine("Patcher State: Null");
+        }
 
         var errorMessage = sb.ToString();
         CustomMessageBox.DisplayNotificationOK("SynthEBD has crashed.", errorMessage);
