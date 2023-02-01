@@ -393,6 +393,7 @@ public class Patcher
         {
             _statusBar.ProgressBarCurrent++;
             var currentNPCInfo = _npcInfoFactory(npc, linkedGroupsHashSet, generatedLinkGroups);
+            _logger.CurrentNPCInfo = currentNPCInfo;
 
             #region Detailed logging
             if (_patcherState.GeneralSettings.VerboseModeNPClist.Contains(npc.FormKey) || _patcherState.GeneralSettings.bVerboseModeAssetsAll || _patcherState.GeneralSettings.bVerboseModeAssetsNoncompliant)

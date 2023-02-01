@@ -45,6 +45,8 @@ public sealed class Logger : VM
     System.Windows.Threading.DispatcherTimer UpdateTimer { get; set; } = new();
     System.Diagnostics.Stopwatch EllapsedTimer { get; set; } = new();
 
+    public NPCInfo CurrentNPCInfo { get; set; } = null;
+
     public class NPCReport
     {
         public NPCReport(NPCInfo npcInfo)
@@ -204,7 +206,7 @@ public sealed class Logger : VM
         }
     }
 
-    public void SaveReport(NPCInfo npcInfo)
+    public (string, string) SaveReport(NPCInfo npcInfo)
     {
         if (npcInfo.Report.LogCurrentNPC && npcInfo.Report.SaveCurrentNPCLog)
         {
@@ -214,8 +216,19 @@ public sealed class Logger : VM
             XDocument output = new XDocument();
             output.Add(npcInfo.Report.RootElement);
 
-            Task.Run(() => PatcherIO.WriteTextFile(outputFile, FormatLogStringIndents(output.ToString()), this));
+            string reportStr = FormatLogStringIndents(output.ToString());
+            if (!reportStr.IsNullOrWhitespace())
+            {
+                Task.Run(() => PatcherIO.WriteTextFile(outputFile, reportStr, this));
+            }
+            else
+            {
+                LogMessage("Verbose log for " + npcInfo.LogIDstring + " will not be saved because it is empty");
+            }
+            
+            return (outputFile, reportStr);
         }
+        return ("", "");
     }
 
     private static string FormatLogStringIndents(string s)

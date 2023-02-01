@@ -2,6 +2,7 @@ using Autofac;
 using Mutagen.Bethesda.Skyrim;
 using Mutagen.Bethesda.Synthesis;
 using Mutagen.Bethesda.Synthesis.WPF;
+using Noggog;
 using Noggog.WPF;
 using System.IO;
 using System.Reflection;
@@ -19,6 +20,7 @@ public partial class App : Application
     private PatcherEnvironmentSourceProvider _environmentSourceProvider;
     private IEnvironmentStateProvider _environmentStateProvider;
     private PatcherState _patcherState;
+    private Logger _logger;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -51,6 +53,7 @@ public partial class App : Application
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(rootPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName)));
         _environmentStateProvider = container.Resolve<StandaloneRunEnvironmentStateProvider>(new NamedParameter("environmentSourceProvider", _environmentSourceProvider));
         _patcherState = container.Resolve<PatcherState>();
+        _logger = container.Resolve<Logger>();
 
         var mainVM = container.Resolve<MainWindow_ViewModel>();
         mainVM.Init();
@@ -85,6 +88,7 @@ public partial class App : Application
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
         _environmentStateProvider = container.Resolve<OpenForSettingsWrapper>();
         _patcherState = container.Resolve<PatcherState>();
+        _logger = container.Resolve<Logger>();
 
         var window = new MainWindow();
         var mainVM = container.Resolve<MainWindow_ViewModel>();
@@ -136,6 +140,7 @@ public partial class App : Application
         _settingsSourceProvider = container.Resolve<PatcherSettingsSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.SettingsSourceFileName)));
         _environmentSourceProvider = container.Resolve<PatcherEnvironmentSourceProvider>(new NamedParameter("sourcePath", Path.Combine(state.ExtraSettingsDataPath, SynthEBDPaths.StandaloneSourceDirName, SynthEBDPaths.EnvironmentSourceDirName))); // resolved only to satisfy SaveLoader; not needed for Synthesis runs
         _environmentStateProvider = container.Resolve<PatcherStateWrapper>();
+        _logger = container.Resolve<Logger>();
 
         var saveLoader = container.Resolve<SaveLoader>();
         saveLoader.LoadAllSettings();
@@ -189,6 +194,44 @@ public partial class App : Application
         else
         {
             sb.AppendLine("Patcher State: Null");
+        }
+
+        sb.AppendLine();
+        if (_logger != null)
+        {
+            if (_logger.CurrentNPCInfo != null)
+            {
+                string id = "No ID";
+                if (_logger.CurrentNPCInfo.LogIDstring != null) { id = _logger.CurrentNPCInfo.LogIDstring; }
+                else if (_logger.CurrentNPCInfo.NPC.FormKey != null) { id = _logger.CurrentNPCInfo.NPC.FormKey.ToString(); }
+                sb.AppendLine("Current NPC: " + id);
+
+                if (_logger.CurrentNPCInfo.Report != null)
+                {
+                    try
+                    {
+                        _logger.CurrentNPCInfo.Report.LogCurrentNPC = true;
+                        _logger.CurrentNPCInfo.Report.SaveCurrentNPCLog = true;
+                        (string savePath, string reportStr) = _logger.SaveReport(_logger.CurrentNPCInfo);
+                        if (!reportStr.IsNullOrWhitespace())
+                        {
+                            sb.AppendLine("Saved NPC report to " + savePath + ". Please include this file if submitting a bug report.");
+                        }
+                    }
+                    catch
+                    {
+                        sb.AppendLine("Could not save NPC Report");
+                    }
+                }
+            }
+            else
+            {
+                sb.AppendLine("Current NPC Info: Null");
+            }
+        }
+        else
+        {
+            sb.AppendLine("Logger: Null");
         }
 
         var errorMessage = sb.ToString();

@@ -11,8 +11,7 @@ public class MainModule : Autofac.Module
         // Singletons
 
         //logging
-        builder.RegisterType<Logger>().AsSelf().SingleInstance()
-            .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
+        builder.RegisterType<Logger>().AsSelf().SingleInstance();
         builder.RegisterType<CustomMessageBox>().AsSelf().SingleInstance();
 
         //IO

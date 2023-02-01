@@ -172,7 +172,7 @@ public class PatcherState
         {
             sb.AppendLine("Male BodySlides: Null");
         }
-        else
+        else if (OBodySettings != null)
         {
             sb.AppendLine("Male BodySlides: " + OBodySettings.BodySlidesMale.Count + " (" + OBodySettings.BodySlidesMale.Where(x => x.BodyShapeDescriptors.Any()).Count() + ") annotated");
         }
@@ -181,7 +181,7 @@ public class PatcherState
         {
             sb.AppendLine("Female BodySlides: Null");
         }
-        else
+        else if (OBodySettings != null)
         {
             sb.AppendLine("Female BodySlides: " + OBodySettings.BodySlidesFemale.Count + " (" + OBodySettings.BodySlidesFemale.Where(x => x.BodyShapeDescriptors.Any()).Count() + ") annotated");
         }
