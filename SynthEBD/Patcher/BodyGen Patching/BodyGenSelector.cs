@@ -472,14 +472,14 @@ public class BodyGenSelector
             // check whole config rules
             if (assignedAssetCombination.AssetPack.DistributionRules.AllowedBodyGenDescriptors.Any())
             {
-                if (!BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.AllowedBodyGenDescriptors, candidateMorph.BodyShapeDescriptors, out _))
+                if (!BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.AllowedBodyGenDescriptors, candidateMorph.BodyShapeDescriptors, BodyShapeDescriptor.DescriptorMatchMode.All, out _))
                 {
                     _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its descriptors do not match allowed descriptors from assigned Asset Pack " + assignedAssetCombination.AssetPackName + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideDescriptors), false, npcInfo);
                     return false;
                 }
             }
 
-            if (BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.DisallowedBodySlideDescriptors, candidateMorph.BodyShapeDescriptors, out string matchedDescriptor))
+            if (BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.DisallowedBodySlideDescriptors, candidateMorph.BodyShapeDescriptors, BodyShapeDescriptor.DescriptorMatchMode.Any, out string matchedDescriptor))
             {
                 _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned Asset Pack " + assignedAssetCombination.AssetPackName, false, npcInfo);
                 return false;
@@ -490,14 +490,14 @@ public class BodyGenSelector
             {
                 if (subgroup.AllowedBodyGenDescriptors.Any())
                 {
-                    if (!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodyGenDescriptors, candidateMorph.BodyShapeDescriptors, out _))
+                    if (!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodyGenDescriptors, candidateMorph.BodyShapeDescriptors, BodyShapeDescriptor.DescriptorMatchMode.All, out _))
                     {
                         _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its descriptors do not match allowed descriptors from assigned subgroup " + Logger.GetSubgroupIDString(subgroup) + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(subgroup.AllowedBodyGenDescriptors), false, npcInfo);
                         return false;
                     }
                 }
 
-                if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodyGenDescriptors, candidateMorph.BodyShapeDescriptors, out matchedDescriptor))
+                if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodyGenDescriptors, candidateMorph.BodyShapeDescriptors, BodyShapeDescriptor.DescriptorMatchMode.Any, out matchedDescriptor))
                 {
                     _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned subgroup " + Logger.GetSubgroupIDString(subgroup), false, npcInfo);
                     return false;

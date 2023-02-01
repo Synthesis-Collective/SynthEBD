@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using Synthesis.Bethesda.Execution.DotNet;
 
 namespace SynthEBD;
 
@@ -129,30 +130,73 @@ public class BodyShapeDescriptor
         return this.AssociatedRules.NPCisValid(this, attributeGroups, npcInfo, attMatcher, out reportStr);
     }
 
-    public static bool DescriptorsMatch(Dictionary<string, HashSet<string>> DescriptorSet, HashSet<LabelSignature> shapeDescriptors, out string firstMatch)
+    public enum DescriptorMatchMode
     {
-        firstMatch = "";
-        foreach (var d in shapeDescriptors)
-        {
-            if (DescriptorsContainThis(DescriptorSet, d, out firstMatch))
-            {
-                return true;
-            }
-        }
-        return false;
+        Any,
+        All,
+        SameCategories
     }
 
-    public static bool DescriptorsContainThis(Dictionary<string, HashSet<string>> Descriptors, LabelSignature currentDescriptor, out string firstMatch)
+    public static bool DescriptorsMatch(Dictionary<string, HashSet<string>> DescriptorSet, HashSet<LabelSignature> shapeDescriptors, DescriptorMatchMode matchMode, out string firstMatch)
     {
         firstMatch = "";
-        if (Descriptors.ContainsKey(currentDescriptor.Category))
+        if (!shapeDescriptors.Any())
         {
-            if (Descriptors[currentDescriptor.Category].Contains(currentDescriptor.Value))
+            return false;
+        }
+
+        var categoriesToMatch = shapeDescriptors.Select(x => x.Category);
+
+        foreach (var category in DescriptorSet.Keys)
+        {
+            if (!categoriesToMatch.Contains(category))
             {
-                firstMatch = currentDescriptor.Category + ": " + currentDescriptor.Value;
-                return true;
+                if (matchMode == DescriptorMatchMode.All)
+                {
+                    return false;
+                }
+                else
+                {
+                    continue;
+                }
+            }
+            else
+            {
+                var allowedMatches = DescriptorSet[category];
+                var relevantDescriptors = shapeDescriptors.Where(x => x.Category == category);
+                bool currentCategoryMatched = false;
+                foreach (var candidateDescriptor in relevantDescriptors)
+                {
+                    if (allowedMatches.Contains(candidateDescriptor.Value))
+                    {
+                        firstMatch = category + ": " + candidateDescriptor.Value;
+                        currentCategoryMatched = true;
+                        break;
+                    }
+                }
+                
+                if (currentCategoryMatched == true && matchMode == DescriptorMatchMode.Any)
+                {
+                    return true;
+                }
+                else if (currentCategoryMatched == false && (matchMode == DescriptorMatchMode.All || matchMode == DescriptorMatchMode.SameCategories))
+                {
+                    return false;
+                }
             }
         }
-        return false;
+
+        // at this point:
+        // if matchMode == All, then all descriptors have been matched, so return true.
+        // if matchMode == SameCategories, then all descriptors contained within shapeDescriptors have been matched, so return true
+        // If matchMode = Any, then none of the possible descriptors have been matched, so return false;
+        if (matchMode == DescriptorMatchMode.Any)
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
     }
 }
