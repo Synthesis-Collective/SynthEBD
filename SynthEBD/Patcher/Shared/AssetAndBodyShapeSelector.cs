@@ -372,11 +372,11 @@ public class AssetAndBodyShapeSelector
         {
             if (firstValidCombinationShapePairInitialized)
             {
+                assignedCombination = firstValidCombinationShapePair.Item1;
                 _logger.LogMessage("Could not assign an asset combination to " + npcInfo.LogIDstring + " that is compatible with its consistency Body Shape. A valid combination was assigned, but Body Shape assignment was re-randomized.");
                 _logger.LogReport("Could not assign an asset combination to " + npcInfo.LogIDstring + " that is compatible with its consistency Body Shape. A valid combination was assigned, but Body Shape assignment was re-randomized.", true, npcInfo);
-                _logger.LogReport("Applied Asset Combination: " + assignment.AssignedCombination.Signature, false, npcInfo);
-                _assetSelector.GenerateDescriptorLog(assignment.AssignedCombination, npcInfo);
-                assignedCombination = firstValidCombinationShapePair.Item1;
+                _logger.LogReport("Applied Asset Combination: " + assignedCombination.Signature, false, npcInfo);
+                _assetSelector.GenerateDescriptorLog(assignedCombination, npcInfo);
                 switch (_patcherState.GeneralSettings.BodySelectionMode)
                 {
                     case BodyShapeSelectionMode.BodyGen:
