@@ -168,6 +168,9 @@ public partial class App : Application
         sb.AppendLine();
         sb.AppendLine("Patcher Environment Creation Log:");
         sb.AppendLine(PatcherEnvironmentSourceProvider.SettingsLog.ToString());
+        sb.AppendLine();
+        sb.AppendLine("Patcher State:");
+        sb.AppendLine(_patcherState.GetStateLogStr());
 
         var errorMessage = sb.ToString();
         CustomMessageBox.DisplayNotificationOK("SynthEBD has crashed.", errorMessage);
