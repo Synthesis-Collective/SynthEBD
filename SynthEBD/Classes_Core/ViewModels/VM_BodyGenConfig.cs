@@ -185,6 +185,8 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
     public RelayCommand Save { get; }
     public string Label { get; set; } = "";
     public Gender Gender { get; set; } = Gender.Female;
+    public DescriptorMatchMode AllowedDescriptorMatchMode { get; set; } = DescriptorMatchMode.All;
+    public DescriptorMatchMode DisallowedDescriptorMatchMode { get; set; } = DescriptorMatchMode.Any;
 
     public bool IsLoadingFromViewModel { get; set; } = false;
 
@@ -193,6 +195,8 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         IsLoadingFromViewModel = true;
         Label = model.Label;
         Gender = model.Gender;
+        AllowedDescriptorMatchMode = model.AllowedDescriptorMatchMode;
+        DisallowedDescriptorMatchMode = model.DisallowedDescriptorMatchMode;   
 
         RaceGroupingEditor.CopyInFromModel(model.RaceGroupings, mainRaceGroupings);
         //AddFallBackRaceGroupings(model, RaceGroupingEditor.RaceGroupings, mainRaceGroupings); // local RaceGroupings were introduced in v0.9. Prior to that, RaceGroupings were loaded from General Settings. To make sure not to wipe old settings, scan model for old race groupings and add then from General Settings if available.
@@ -249,6 +253,8 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         BodyGenConfig model = new BodyGenConfig();
         model.Label = Label;
         model.Gender = Gender;
+        model.AllowedDescriptorMatchMode = AllowedDescriptorMatchMode;
+        model.DisallowedDescriptorMatchMode = DisallowedDescriptorMatchMode;
         model.TemplateGroups = GroupUI.TemplateGroups.Select(x => x.Content).ToHashSet();
         foreach (var RTG in GroupMappingUI.RacialTemplateGroupMap)
         {
@@ -257,7 +263,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         model.TemplateDescriptors = DescriptorUI.DumpToViewModels();
         foreach (var template in TemplateMorphUI.Templates)
         {
-            model.Templates.Add(VM_BodyGenTemplate.DumpViewModelToModel(template));
+            model.Templates.Add(template.DumpViewModelToModel());
         }
         VM_AttributeGroupMenu.DumpViewModelToModels(AttributeGroupMenu, model.AttributeGroups);
         model.RaceGroupings = RaceGroupingEditor.DumpToModel();

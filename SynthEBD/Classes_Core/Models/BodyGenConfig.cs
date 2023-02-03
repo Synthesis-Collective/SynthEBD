@@ -19,6 +19,8 @@ public class BodyGenConfig
     public HashSet<BodyShapeDescriptor> TemplateDescriptors { get; set; } = new();
     public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
     public List<RaceGrouping> RaceGroupings { get; set; } = new();
+    public DescriptorMatchMode AllowedDescriptorMatchMode { get; set; } = DescriptorMatchMode.All;
+    public DescriptorMatchMode DisallowedDescriptorMatchMode { get; set; } = DescriptorMatchMode.Any;
 
     [Newtonsoft.Json.JsonIgnore]
     public string FilePath { get; set; }
@@ -59,6 +61,9 @@ public class BodyGenConfig
 
         [JsonIgnore]
         public int MatchedForceIfCount { get; set; } = 0;
+
+        [JsonIgnore]
+        public BodyGenConfig ParentConfig { get; set; }
     }
 }
 

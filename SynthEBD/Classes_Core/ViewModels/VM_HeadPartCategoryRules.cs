@@ -25,8 +25,8 @@ namespace SynthEBD
             _descriptorSelectionFactory = descriptorSelectionFactory;
             ParentConfig = parentConfig;
 
-            AllowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, raceGroupingVMs, parentConfig);
-            DisallowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, raceGroupingVMs, parentConfig);
+            AllowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, raceGroupingVMs, parentConfig, true, DescriptorMatchMode.All);
+            DisallowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, raceGroupingVMs, parentConfig, true, DescriptorMatchMode.Any);
             AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
             DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
@@ -85,8 +85,8 @@ namespace SynthEBD
             viewModel.bAllowRandom = model.bAllowRandom;
             viewModel.DistributionProbability = model.RandomizationPercentage;
             viewModel.WeightRange = model.WeightRange;
-            viewModel.AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, oBody.DescriptorUI, raceGroupingVMs, parentConfig, descriptorSelectionFactory);
-            viewModel.DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, oBody.DescriptorUI, raceGroupingVMs, parentConfig, descriptorSelectionFactory);
+            viewModel.AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, oBody.DescriptorUI, raceGroupingVMs, parentConfig, true, model.AllowedBodySlideMatchMode, descriptorSelectionFactory);
+            viewModel.DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, oBody.DescriptorUI, raceGroupingVMs, parentConfig, true, model.DisallowedBodySlideMatchMode, descriptorSelectionFactory);
             return viewModel;
         }
 
@@ -106,8 +106,10 @@ namespace SynthEBD
             model.bAllowRandom = bAllowRandom;
             model.RandomizationPercentage = DistributionProbability;
             model.WeightRange = WeightRange;
-            model.AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(AllowedBodySlideDescriptors);
-            model.DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(DisallowedBodySlideDescriptors);
+            model.AllowedBodySlideDescriptors = AllowedBodySlideDescriptors.DumpToHashSet();
+            model.AllowedBodySlideMatchMode = AllowedBodySlideDescriptors.MatchMode;
+            model.DisallowedBodySlideDescriptors = DisallowedBodySlideDescriptors.DumpToHashSet();
+            model.DisallowedBodySlideMatchMode = DisallowedBodySlideDescriptors.MatchMode;
         }
     }
 }

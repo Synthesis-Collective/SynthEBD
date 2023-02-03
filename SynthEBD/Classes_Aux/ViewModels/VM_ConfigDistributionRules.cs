@@ -33,11 +33,11 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
         if (parentAssetPack.TrackedBodyGenConfig != null)
         {
-            AllowedBodyGenDescriptors = _descriptorSelectionFactory(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
-            DisallowedBodyGenDescriptors = _descriptorSelectionFactory(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
+            AllowedBodyGenDescriptors = _descriptorSelectionFactory(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.All);
+            DisallowedBodyGenDescriptors = _descriptorSelectionFactory(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.Any);
         }
-        AllowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
-        DisallowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
+        AllowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.All);
+        DisallowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.Any);
 
         //UI-related
 
@@ -130,12 +130,12 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
 
             if (parentAssetPack.TrackedBodyGenConfig != null)
             {
-                AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, _descriptorSelectionFactory);
-                DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, _descriptorSelectionFactory);
+                AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, model.AllowedBodyGenMatchMode, _descriptorSelectionFactory);
+                DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, model.DisallowedBodyGenMatchMode, _descriptorSelectionFactory);
             }
 
-            AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, _descriptorSelectionFactory);
-            DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, _descriptorSelectionFactory);
+            AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, model.AllowedBodySlideMatchMode, _descriptorSelectionFactory);
+            DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, model.DisallowedBodySlideMatchMode, _descriptorSelectionFactory);
         }
     }
 
@@ -155,10 +155,14 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
         model.ProbabilityWeighting = viewModel.ProbabilityWeighting;
         model.WeightRange = viewModel.WeightRange;
 
-        model.AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(viewModel.AllowedBodyGenDescriptors);
-        model.DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(viewModel.DisallowedBodyGenDescriptors);
-        model.AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(viewModel.AllowedBodySlideDescriptors);
-        model.DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(viewModel.DisallowedBodySlideDescriptors);
+        model.AllowedBodyGenDescriptors = viewModel.AllowedBodyGenDescriptors.DumpToHashSet();
+        model.AllowedBodyGenMatchMode = viewModel.AllowedBodyGenDescriptors.MatchMode;
+        model.DisallowedBodyGenDescriptors = viewModel.DisallowedBodyGenDescriptors.DumpToHashSet();
+        model.DisallowedBodyGenMatchMode = viewModel.DisallowedBodyGenDescriptors.MatchMode;
+        model.AllowedBodySlideDescriptors = viewModel.AllowedBodySlideDescriptors.DumpToHashSet();
+        model.AllowedBodySlideMatchMode = viewModel.AllowedBodySlideDescriptors.MatchMode;
+        model.DisallowedBodySlideDescriptors = viewModel.DisallowedBodySlideDescriptors.DumpToHashSet();
+        model.DisallowedBodySlideMatchMode = viewModel.DisallowedBodySlideDescriptors.MatchMode;
 
         return model;
     }

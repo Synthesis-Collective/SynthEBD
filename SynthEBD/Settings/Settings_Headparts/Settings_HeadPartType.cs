@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -27,9 +27,13 @@ namespace SynthEBD
         public NPCWeightRange WeightRange { get; set; } = new();
         public double RandomizationPercentage { get; set; } = 50;
         public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodySlideDescriptors { get; set; } = new();
+        public DescriptorMatchMode AllowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.All;
         public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodySlideDescriptors { get; set; } = new();
+        public DescriptorMatchMode DisallowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.Any;
         public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodyGenDescriptors { get; set; } = new();
+        public DescriptorMatchMode AllowedBodyGenDescriptorMatchMode { get; set; } = DescriptorMatchMode.All;
         public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodyGenDescriptors { get; set; } = new();
+        public DescriptorMatchMode DisallowedBodyGenDescriptorMatchMode { get; set; } = DescriptorMatchMode.Any;
 
         // populated during patching
         [Newtonsoft.Json.JsonIgnore]

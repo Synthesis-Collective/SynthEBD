@@ -75,4 +75,24 @@ public class BodyGenPreprocessing
         }
         return output;
     }
+
+    public void LinkTemplatesToParentConfigs(BodyGenConfigs bodyGenConfigs)
+    {
+        foreach (var cfg in bodyGenConfigs.Male)
+        {
+            LinkTemplatesToParentConfig(cfg);
+        }
+        foreach (var cfg in bodyGenConfigs.Female)
+        {
+            LinkTemplatesToParentConfig(cfg);
+        }
+    }
+
+    private void LinkTemplatesToParentConfig(BodyGenConfig bodyGenConfig)
+    {
+        foreach (var template in bodyGenConfig.Templates)
+        {
+            template.ParentConfig = bodyGenConfig;
+        }
+    }
 }

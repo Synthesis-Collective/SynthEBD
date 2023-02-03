@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 using System;
 using System.Collections.Generic;
@@ -26,7 +26,9 @@ namespace SynthEBD
         public double ProbabilityWeighting { get; set; } = 1;
         public NPCWeightRange WeightRange { get; set; } = new();
         public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodySlideDescriptors { get; set; } = new();
+        public DescriptorMatchMode AllowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.All;
         public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodySlideDescriptors { get; set; } = new();
+        public DescriptorMatchMode DisallowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.Any;
 
         // used during patching
         [Newtonsoft.Json.JsonIgnore]

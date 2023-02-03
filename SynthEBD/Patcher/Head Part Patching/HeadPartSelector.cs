@@ -475,14 +475,14 @@ namespace SynthEBD
             {
                 if (candidateHeadPart.AllowedBodySlideDescriptors.Any())
                 {
-                    if (!BodyShapeDescriptor.DescriptorsMatch(candidateHeadPart.AllowedBodySlideDescriptorDictionary, assignedBodySlide.BodyShapeDescriptors, BodyShapeDescriptor.DescriptorMatchMode.All, out _))
+                    if (!BodyShapeDescriptor.DescriptorsMatch(candidateHeadPart.AllowedBodySlideDescriptorDictionary, assignedBodySlide.BodyShapeDescriptors, candidateHeadPart.AllowedBodySlideMatchMode, out _))
                     {
                         _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its allowed descriptors do not include those of the assigned BodySlide Preset (" + assignedBodySlide.Label +")" + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(candidateHeadPart.AllowedBodySlideDescriptorDictionary), false, npcInfo);
                         return false;
                     }
                 }
 
-                if (BodyShapeDescriptor.DescriptorsMatch(candidateHeadPart.DisallowedBodySlideDescriptorDictionary, assignedBodySlide.BodyShapeDescriptors, BodyShapeDescriptor.DescriptorMatchMode.Any, out string matchedDescriptor))
+                if (BodyShapeDescriptor.DescriptorsMatch(candidateHeadPart.DisallowedBodySlideDescriptorDictionary, assignedBodySlide.BodyShapeDescriptors, candidateHeadPart.DisallowedBodySlideMatchMode, out string matchedDescriptor))
                 {
                     _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its descriptor [" + matchedDescriptor + "] disallows the assigned BodySlide Preset (" + assignedBodySlide.Label + ")", false, npcInfo);
                     return false;

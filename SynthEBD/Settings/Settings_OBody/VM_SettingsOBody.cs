@@ -131,7 +131,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         }
         VM_AttributeGroupMenu.DumpViewModelToModels(AttributeGroupMenu, model.AttributeGroups);
 
-        VM_OBodyMiscSettings.DumpViewModelToModel(model, MiscUI);
+        MiscUI.DumpViewModelToModel(model);
         model.CurrentlyExistingBodySlides = CurrentlyExistingBodySlides;
         return model;
     }

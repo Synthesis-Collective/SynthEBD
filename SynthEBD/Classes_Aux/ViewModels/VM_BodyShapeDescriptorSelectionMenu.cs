@@ -8,11 +8,13 @@ namespace SynthEBD;
 public class VM_BodyShapeDescriptorSelectionMenu : VM
 {
     private readonly Factory _selfFactory;
-    public delegate VM_BodyShapeDescriptorSelectionMenu Factory(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig);
-    public VM_BodyShapeDescriptorSelectionMenu(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, VM_BodyShapeDescriptorCreator descriptorCreator, VM_BodyShapeDescriptorSelectionMenu.Factory selfFactory)
+    public delegate VM_BodyShapeDescriptorSelectionMenu Factory(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, bool showMatchMode, DescriptorMatchMode matchMode);
+    public VM_BodyShapeDescriptorSelectionMenu(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, bool showMatchMode, DescriptorMatchMode matchMode, VM_BodyShapeDescriptorCreator descriptorCreator, VM_BodyShapeDescriptorSelectionMenu.Factory selfFactory)
     {
         _selfFactory = selfFactory;
 
+        ShowMatchMode = showMatchMode;
+        MatchMode = matchMode;
         TrackedMenu = trackedMenu;
         TrackedRaceGroupings = raceGroupingVMs;
         Parent = parentConfig;
@@ -30,11 +32,12 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
     public ObservableCollection<VM_BodyShapeDescriptorShellSelector> DescriptorShells { get; set; } = new();
     ObservableCollection<VM_RaceGrouping>  TrackedRaceGroupings { get; set; }
     public VM_BodyShapeDescriptorShellSelector CurrentlyDisplayedShell { get; set; }
-
+    public bool ShowMatchMode { get; set; } = false;
+    public DescriptorMatchMode MatchMode { get; set; } = DescriptorMatchMode.All;
     public VM_BodyShapeDescriptorSelectionMenu Clone()
     {
-        var modelDump = DumpToHashSet(this);
-        return InitializeFromHashSet(modelDump, TrackedMenu, TrackedRaceGroupings, Parent, _selfFactory);
+        var modelDump = DumpToHashSet();
+        return InitializeFromHashSet(modelDump, TrackedMenu, TrackedRaceGroupings, Parent, ShowMatchMode, MatchMode, _selfFactory);
     }
 
     public bool IsAnnotated()
@@ -92,9 +95,9 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         }
     }
 
-    public static VM_BodyShapeDescriptorSelectionMenu InitializeFromHashSet(HashSet<BodyShapeDescriptor.LabelSignature> BodyShapeDescriptors, VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+    public static VM_BodyShapeDescriptorSelectionMenu InitializeFromHashSet(HashSet<BodyShapeDescriptor.LabelSignature> BodyShapeDescriptors, VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, bool showMatchMode, DescriptorMatchMode matchMode, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
-        var menu = descriptorSelectionFactory(trackedMenu, raceGroupingVMs, parentConfig);
+        var menu = descriptorSelectionFactory(trackedMenu, raceGroupingVMs, parentConfig, showMatchMode, matchMode);
         foreach (var descriptor in BodyShapeDescriptors)
         {
             bool keepLooking = true;
@@ -115,12 +118,12 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         return menu;
     }
 
-    public static HashSet<BodyShapeDescriptor.LabelSignature> DumpToHashSet(VM_BodyShapeDescriptorSelectionMenu viewModel)
+    public HashSet<BodyShapeDescriptor.LabelSignature> DumpToHashSet()
     {
         HashSet<BodyShapeDescriptor.LabelSignature> output = new HashSet<BodyShapeDescriptor.LabelSignature>();
-        if (viewModel is not null && viewModel.DescriptorShells is not null)
+        if (this is not null && DescriptorShells is not null)
         {
-            foreach (var shell in viewModel.DescriptorShells)
+            foreach (var shell in DescriptorShells)
             {
                 output.UnionWith(shell.DescriptorSelectors.Where(x => x.IsSelected).Select(x => new BodyShapeDescriptor.LabelSignature() { Category = shell.TrackedShell.Category, Value = x.Value }).ToHashSet());
             }

@@ -36,9 +36,13 @@ public class AssetPack : IModelHasSubgroups
         public HashSet<string> AddKeywords { get; set; } = new();
         public double ProbabilityWeighting { get; set; } = 1;
         public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodyGenDescriptors { get; set; } = new();
+        public DescriptorMatchMode AllowedBodyGenMatchMode { get; set; } = DescriptorMatchMode.All;
         public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodyGenDescriptors { get; set; } = new();
+        public DescriptorMatchMode DisallowedBodyGenMatchMode { get; set; } = DescriptorMatchMode.Any;
         public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodySlideDescriptors { get; set; } = new();
+        public DescriptorMatchMode AllowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.All;
         public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodySlideDescriptors { get; set; } = new();
+        public DescriptorMatchMode DisallowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.Any;
         public NPCWeightRange WeightRange { get; set; } = new();
 
         public static string SubgroupIDString = "ConfigDistributionRules";
@@ -60,9 +64,13 @@ public class AssetPack : IModelHasSubgroups
             subgroup.AddKeywords = new HashSet<string>(rules.AddKeywords);
             subgroup.ProbabilityWeighting = rules.ProbabilityWeighting;
             subgroup.AllowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor.LabelSignature>(rules.AllowedBodyGenDescriptors);
+            subgroup.AllowedBodyGenMatchMode = rules.AllowedBodyGenMatchMode;
             subgroup.DisallowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor.LabelSignature>(rules.DisallowedBodyGenDescriptors);
+            subgroup.DisallowedBodyGenMatchMode = rules.DisallowedBodyGenMatchMode;
             subgroup.AllowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor.LabelSignature>(rules.AllowedBodySlideDescriptors);
+            subgroup.AllowedBodySlideMatchMode = rules.AllowedBodySlideMatchMode;
             subgroup.DisallowedBodySlideDescriptors = new HashSet<BodyShapeDescriptor.LabelSignature>(rules.DisallowedBodySlideDescriptors);
+            subgroup.DisallowedBodySlideMatchMode = rules.DisallowedBodySlideMatchMode;
             subgroup.WeightRange = rules.WeightRange.Clone();
             return subgroup;
         }
@@ -89,9 +97,13 @@ public class AssetPack : IModelHasSubgroups
         public double ProbabilityWeighting { get; set; } = 1;
         public HashSet<FilePathReplacement> Paths { get; set; } = new();
         public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodyGenDescriptors { get; set; } = new();
+        public DescriptorMatchMode AllowedBodyGenMatchMode { get; set; } = DescriptorMatchMode.All;
         public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodyGenDescriptors { get; set; } = new();
+        public DescriptorMatchMode DisallowedBodyGenMatchMode { get; set; } = DescriptorMatchMode.Any;
         public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodySlideDescriptors { get; set; } = new();
+        public DescriptorMatchMode AllowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.All;
         public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodySlideDescriptors { get; set; } = new();
+        public DescriptorMatchMode DisallowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.Any;
         public NPCWeightRange WeightRange { get; set; } = new();
         public List<Subgroup> Subgroups { get; set; } = new();
         public string TopLevelSubgroupID { get; set; } = "";

@@ -130,13 +130,6 @@ public class BodyShapeDescriptor
         return this.AssociatedRules.NPCisValid(this, attributeGroups, npcInfo, attMatcher, out reportStr);
     }
 
-    public enum DescriptorMatchMode
-    {
-        Any,
-        All,
-        SameCategories
-    }
-
     public static bool DescriptorsMatch(Dictionary<string, HashSet<string>> DescriptorSet, HashSet<LabelSignature> shapeDescriptors, DescriptorMatchMode matchMode, out string firstMatch)
     {
         firstMatch = "";
@@ -179,7 +172,7 @@ public class BodyShapeDescriptor
                 {
                     return true;
                 }
-                else if (currentCategoryMatched == false && (matchMode == DescriptorMatchMode.All || matchMode == DescriptorMatchMode.SameCategories))
+                else if (currentCategoryMatched == false && (matchMode == DescriptorMatchMode.All || matchMode == DescriptorMatchMode.Shared))
                 {
                     return false;
                 }
@@ -188,7 +181,7 @@ public class BodyShapeDescriptor
 
         // at this point:
         // if matchMode == All, then all descriptors have been matched, so return true.
-        // if matchMode == SameCategories, then all descriptors contained within shapeDescriptors have been matched, so return true
+        // if matchMode == Shared, then all descriptors contained within shapeDescriptors have been matched, so return true
         // If matchMode = Any, then none of the possible descriptors have been matched, so return false;
         if (matchMode == DescriptorMatchMode.Any)
         {
@@ -199,4 +192,11 @@ public class BodyShapeDescriptor
             return true;
         }
     }
+}
+
+public enum DescriptorMatchMode
+{
+    Any,
+    All,
+    Shared
 }

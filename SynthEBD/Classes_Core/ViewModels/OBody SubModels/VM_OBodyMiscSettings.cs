@@ -65,11 +65,11 @@ public class VM_OBodyMiscSettings : VM
         return viewModel;
     }
 
-    public static void DumpViewModelToModel(Settings_OBody model, VM_OBodyMiscSettings viewModel)
+    public void DumpViewModelToModel(Settings_OBody model)
     {
-        model.MaleSliderGroups = viewModel.MaleBodySlideGroups.Select(x => x.Content).ToHashSet();
-        model.FemaleSliderGroups = viewModel.FemaleBodySlideGroups.Select(x => x.Content).ToHashSet();
-        model.bUseVerboseScripts = viewModel.UseVerboseScripts;
-        model.AutoBodySelectionMode = viewModel.AutoBodySelectionMode;
+        model.MaleSliderGroups = MaleBodySlideGroups.Select(x => x.Content).ToHashSet();
+        model.FemaleSliderGroups = FemaleBodySlideGroups.Select(x => x.Content).ToHashSet();
+        model.bUseVerboseScripts = UseVerboseScripts;
+        model.AutoBodySelectionMode = AutoBodySelectionMode;
     }
 }

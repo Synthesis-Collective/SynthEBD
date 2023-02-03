@@ -31,7 +31,7 @@ public class VM_BodySlideSetting : VM
         _selfFactory = selfFactory;
         _descriptorSelectionFactory = descriptorSelectionFactory;
 
-        DescriptorsSelectionMenu = _descriptorSelectionFactory(bodyShapeDescriptors, raceGroupingVMs, oBodySettingsVM);
+        DescriptorsSelectionMenu = _descriptorSelectionFactory(bodyShapeDescriptors, raceGroupingVMs, oBodySettingsVM, false, DescriptorMatchMode.Any);
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
@@ -252,7 +252,7 @@ public class VM_BodySlideSetting : VM
             ReferencedBodySlide = Label;
         }
         Notes = model.Notes;
-        DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.BodyShapeDescriptors, ParentMenuVM.DescriptorUI, _raceGroupingVMs, ParentMenuVM, _descriptorSelectionFactory);
+        DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.BodyShapeDescriptors, ParentMenuVM.DescriptorUI, _raceGroupingVMs, ParentMenuVM, false, DescriptorMatchMode.Any, _descriptorSelectionFactory);
         AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(_raceGroupingVMs);
         foreach (var grouping in AllowedRaceGroupings.RaceGroupingSelections)
@@ -294,7 +294,7 @@ public class VM_BodySlideSetting : VM
         model.Label = viewModel.Label;
         model.ReferencedBodySlide = viewModel.ReferencedBodySlide;
         model.Notes = viewModel.Notes;
-        model.BodyShapeDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(viewModel.DescriptorsSelectionMenu);
+        model.BodyShapeDescriptors = viewModel.DescriptorsSelectionMenu.DumpToHashSet();
         model.AllowedRaces = viewModel.AllowedRaces.ToHashSet();
         model.AllowedRaceGroupings = viewModel.AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
         model.DisallowedRaces = viewModel.DisallowedRaces.ToHashSet();

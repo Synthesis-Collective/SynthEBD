@@ -87,7 +87,7 @@ public class VM_BodyGenTemplate : VM
 
         SubscribedTemplateGroups = templateGroups;
         GroupSelectionCheckList = new VM_CollectionMemberStringCheckboxList(SubscribedTemplateGroups);
-        DescriptorsSelectionMenu = descriptorSelectionFactory(BodyShapeDescriptors, raceGroupingVMs, parentConfig);
+        DescriptorsSelectionMenu = descriptorSelectionFactory(BodyShapeDescriptors, raceGroupingVMs, parentConfig, false, DescriptorMatchMode.Any);
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
@@ -171,7 +171,7 @@ public class VM_BodyGenTemplate : VM
         Notes = model.Notes;
         Specs = model.Specs;
         GroupSelectionCheckList.InitializeFromHashSet(model.MemberOfTemplateGroups);
-        DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.BodyShapeDescriptors, descriptorMenu, raceGroupingVMs, ParentConfig, _descriptorSelectionFactory);
+        DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.BodyShapeDescriptors, descriptorMenu, raceGroupingVMs, ParentConfig, false, DescriptorMatchMode.Any, _descriptorSelectionFactory);
         AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         foreach (var grouping in AllowedRaceGroupings.RaceGroupingSelections)
@@ -208,26 +208,26 @@ public class VM_BodyGenTemplate : VM
         UpdateStatusDisplay();
     }
 
-    public static BodyGenConfig.BodyGenTemplate DumpViewModelToModel(VM_BodyGenTemplate viewModel)
+    public BodyGenConfig.BodyGenTemplate DumpViewModelToModel()
     {
         BodyGenConfig.BodyGenTemplate model = new BodyGenConfig.BodyGenTemplate();
-        model.Label = viewModel.Label;
-        model.Notes = viewModel.Notes;
-        model.Specs = viewModel.Specs;
-        model.MemberOfTemplateGroups = viewModel.GroupSelectionCheckList.CollectionMemberStrings.Where(x => x.IsSelected).Select(x => x.SubscribedString.Content).ToHashSet();
-        model.BodyShapeDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(viewModel.DescriptorsSelectionMenu);
-        model.AllowedRaces = viewModel.AllowedRaces.ToHashSet();
-        model.AllowedRaceGroupings = viewModel.AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
-        model.DisallowedRaces = viewModel.DisallowedRaces.ToHashSet();
-        model.DisallowedRaceGroupings = viewModel.DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
-        model.AllowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.AllowedAttributes);
-        model.DisallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.DisallowedAttributes);
-        model.AllowUnique = viewModel.bAllowUnique;
-        model.AllowNonUnique = viewModel.bAllowNonUnique;
-        model.AllowRandom = viewModel.bAllowRandom;
-        model.ProbabilityWeighting = viewModel.ProbabilityWeighting;
-        model.RequiredTemplates = viewModel.RequiredTemplates.Select(x => x.Content).ToHashSet();
-        model.WeightRange = viewModel.WeightRange.Clone();
+        model.Label = Label;
+        model.Notes = Notes;
+        model.Specs = Specs;
+        model.MemberOfTemplateGroups = GroupSelectionCheckList.CollectionMemberStrings.Where(x => x.IsSelected).Select(x => x.SubscribedString.Content).ToHashSet();
+        model.BodyShapeDescriptors = DescriptorsSelectionMenu.DumpToHashSet();
+        model.AllowedRaces = AllowedRaces.ToHashSet();
+        model.AllowedRaceGroupings = AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
+        model.DisallowedRaces = DisallowedRaces.ToHashSet();
+        model.DisallowedRaceGroupings = DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
+        model.AllowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(AllowedAttributes);
+        model.DisallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(DisallowedAttributes);
+        model.AllowUnique = bAllowUnique;
+        model.AllowNonUnique = bAllowNonUnique;
+        model.AllowRandom = bAllowRandom;
+        model.ProbabilityWeighting = ProbabilityWeighting;
+        model.RequiredTemplates = RequiredTemplates.Select(x => x.Content).ToHashSet();
+        model.WeightRange = WeightRange.Clone();
         return model;
     }
 

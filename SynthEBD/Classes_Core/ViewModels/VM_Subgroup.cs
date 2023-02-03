@@ -70,11 +70,11 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
         if (parentAssetPack.TrackedBodyGenConfig != null)
         {
-            AllowedBodyGenDescriptors = _descriptorSelectionFactory(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
-            DisallowedBodyGenDescriptors = _descriptorSelectionFactory(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
+            AllowedBodyGenDescriptors = _descriptorSelectionFactory(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.All);
+            DisallowedBodyGenDescriptors = _descriptorSelectionFactory(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.Any);
         }
-        AllowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
-        DisallowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack);
+        AllowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.All);
+        DisallowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.Any);
 
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => LinkCache = x)
@@ -239,12 +239,12 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 
         if (ParentAssetPack.TrackedBodyGenConfig != null)
         {
-            AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodyGenDescriptors, ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, _descriptorSelectionFactory);
-            DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodyGenDescriptors, ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, _descriptorSelectionFactory);
+            AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodyGenDescriptors, ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, model.AllowedBodyGenMatchMode, _descriptorSelectionFactory);
+            DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodyGenDescriptors, ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, model.DisallowedBodyGenMatchMode, _descriptorSelectionFactory);
         }
 
-        AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, _descriptorSelectionFactory);
-        DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, _descriptorSelectionFactory);
+        AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, model.AllowedBodySlideMatchMode, _descriptorSelectionFactory);
+        DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, model.DisallowedBodySlideMatchMode, _descriptorSelectionFactory);
 
         foreach (var sg in model.Subgroups)
         {
@@ -302,25 +302,6 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         foreach (var subgroup in Subgroups)
         {
             subgroup.GetDDSPaths(paths);
-        }
-    }
-
-    public void CallRefreshTrackedBodyShapeDescriptorsC(object sender, NotifyCollectionChangedEventArgs e)
-    {
-        RefreshTrackedBodyShapeDescriptors();
-    }
-
-    public void CallRefreshTrackedBodyShapeDescriptorsP(object sender, PropertyChangedEventArgs e)
-    {
-        RefreshTrackedBodyShapeDescriptors();
-    }
-
-    public void RefreshTrackedBodyShapeDescriptors()
-    {
-        if (ParentAssetPack.TrackedBodyGenConfig != null)
-        {
-            AllowedBodyGenDescriptors = _descriptorSelectionFactory(ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
-            DisallowedBodyGenDescriptors = _descriptorSelectionFactory(ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack);
         }
     }
 
@@ -654,10 +635,14 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         model.Paths = VM_FilePathReplacementMenu.DumpViewModelToModels(viewModel.PathsMenu);
         model.WeightRange = viewModel.WeightRange;
 
-        model.AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(viewModel.AllowedBodyGenDescriptors);
-        model.DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(viewModel.DisallowedBodyGenDescriptors);
-        model.AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(viewModel.AllowedBodySlideDescriptors);
-        model.DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.DumpToHashSet(viewModel.DisallowedBodySlideDescriptors);
+        model.AllowedBodyGenDescriptors = viewModel.AllowedBodyGenDescriptors.DumpToHashSet();
+        model.AllowedBodyGenMatchMode = viewModel.AllowedBodyGenDescriptors.MatchMode;
+        model.DisallowedBodyGenDescriptors = viewModel.DisallowedBodyGenDescriptors.DumpToHashSet();
+        model.DisallowedBodyGenMatchMode = viewModel.DisallowedBodyGenDescriptors.MatchMode;
+        model.AllowedBodySlideDescriptors = viewModel.AllowedBodySlideDescriptors.DumpToHashSet();
+        model.AllowedBodySlideMatchMode = viewModel.AllowedBodySlideDescriptors.MatchMode;
+        model.DisallowedBodySlideDescriptors = viewModel.DisallowedBodySlideDescriptors.DumpToHashSet();
+        model.DisallowedBodySlideMatchMode = viewModel.DisallowedBodySlideDescriptors.MatchMode;
 
         foreach (var sg in viewModel.Subgroups)
         {

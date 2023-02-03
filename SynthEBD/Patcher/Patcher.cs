@@ -176,6 +176,7 @@ public class Patcher
         {
             // Pre-process some aspects of the configs to improve performance. Mutates the input configs so be sure to use a copy to avoid altering users settings
             _bodyGenPreprocessing.CompileBodyGenRaces(copiedBodyGenConfigs); // descriptor rules compiled here as well
+            _bodyGenPreprocessing.LinkTemplatesToParentConfigs(copiedBodyGenConfigs);
             BodyGenTracker = new BodyGenAssignmentTracker();
         }
         else if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide)

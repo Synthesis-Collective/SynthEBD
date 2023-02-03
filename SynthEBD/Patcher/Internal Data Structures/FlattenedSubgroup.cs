@@ -10,31 +10,35 @@ public class FlattenedSubgroup : IProbabilityWeighted
     {
         _dictionaryMapper = dictionaryMapper;
 
-        this.Id = template.ID;
-        this.Name = template.Name;
-        this.DistributionEnabled = template.DistributionEnabled;
-        this.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(template.AllowedRaceGroupings, raceGroupingList, template.AllowedRaces);
-        if (this.AllowedRaces.Count == 0) { this.AllowedRacesIsEmpty = true; }
-        else { this.AllowedRacesIsEmpty = false; }
-        this.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(template.DisallowedRaceGroupings, raceGroupingList, template.DisallowedRaces);
-        this.AllowedRaces = AllowedDisallowedCombiners.TrimDisallowedRacesFromAllowed(this.AllowedRaces, this.DisallowedRaces);
-        this.AllowedAttributes = new HashSet<NPCAttribute>(template.AllowedAttributes);
-        this.DisallowedAttributes = new HashSet<NPCAttribute>(template.DisallowedAttributes);
-        this.AllowUnique = template.AllowUnique;
-        this.AllowNonUnique = template.AllowNonUnique;
-        this.RequiredSubgroupIDs = _dictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.RequiredSubgroups, subgroupHierarchy);
-        this.ExcludedSubgroupIDs = _dictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.ExcludedSubgroups, subgroupHierarchy);
-        this.AddKeywords = new HashSet<string>(template.AddKeywords);
-        this.ProbabilityWeighting = template.ProbabilityWeighting;
-        this.Paths = new HashSet<FilePathReplacement>(template.Paths);
-        this.AllowedBodyGenDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.AllowedBodyGenDescriptors);
-        this.DisallowedBodyGenDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.DisallowedBodyGenDescriptors);
-        this.AllowedBodySlideDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.AllowedBodySlideDescriptors);
-        this.DisallowedBodySlideDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.DisallowedBodySlideDescriptors);
-        this.WeightRange = template.WeightRange.Clone();
-        this.ContainedSubgroupIDs = new List<string> { this.Id };
-        this.ContainedSubgroupNames = new List<string> { this.Name };
-        this.ParentAssetPack = parent;
+        Id = template.ID;
+        Name = template.Name;
+        DistributionEnabled = template.DistributionEnabled;
+        AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(template.AllowedRaceGroupings, raceGroupingList, template.AllowedRaces);
+        if (AllowedRaces.Count == 0) { AllowedRacesIsEmpty = true; }
+        else { AllowedRacesIsEmpty = false; }
+        DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(template.DisallowedRaceGroupings, raceGroupingList, template.DisallowedRaces);
+        AllowedRaces = AllowedDisallowedCombiners.TrimDisallowedRacesFromAllowed(AllowedRaces, DisallowedRaces);
+        AllowedAttributes = new HashSet<NPCAttribute>(template.AllowedAttributes);
+        DisallowedAttributes = new HashSet<NPCAttribute>(template.DisallowedAttributes);
+        AllowUnique = template.AllowUnique;
+        AllowNonUnique = template.AllowNonUnique;
+        RequiredSubgroupIDs = _dictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.RequiredSubgroups, subgroupHierarchy);
+        ExcludedSubgroupIDs = _dictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.ExcludedSubgroups, subgroupHierarchy);
+        AddKeywords = new HashSet<string>(template.AddKeywords);
+        ProbabilityWeighting = template.ProbabilityWeighting;
+        Paths = new HashSet<FilePathReplacement>(template.Paths);
+        AllowedBodyGenDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.AllowedBodyGenDescriptors);
+        AllowedBodyGenMatchMode = template.AllowedBodyGenMatchMode;
+        DisallowedBodyGenDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.DisallowedBodyGenDescriptors);
+        DisallowedBodyGenMatchMode = template.DisallowedBodyGenMatchMode;
+        AllowedBodySlideDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.AllowedBodySlideDescriptors);
+        AllowedBodySlideMatchMode = template.AllowedBodySlideMatchMode;
+        DisallowedBodySlideDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.DisallowedBodySlideDescriptors);
+        DisallowedBodySlideMatchMode = template.DisallowedBodySlideMatchMode;
+        WeightRange = template.WeightRange.Clone();
+        ContainedSubgroupIDs = new List<string> { Id };
+        ContainedSubgroupNames = new List<string> { Name };
+        ParentAssetPack = parent;
     }
     public string Id { get; set; }
     public string Name { get; set; }
@@ -52,9 +56,13 @@ public class FlattenedSubgroup : IProbabilityWeighted
     public double ProbabilityWeighting { get; set; }
     public HashSet<FilePathReplacement> Paths { get; set; }
     public Dictionary<string, HashSet<string>> AllowedBodyGenDescriptors { get; set; }
+    public DescriptorMatchMode AllowedBodyGenMatchMode { get; set; } = DescriptorMatchMode.All;
     public Dictionary<string, HashSet<string>> DisallowedBodyGenDescriptors { get; set; }
+    public DescriptorMatchMode DisallowedBodyGenMatchMode { get; set; } = DescriptorMatchMode.Any;
     public Dictionary<string, HashSet<string>> AllowedBodySlideDescriptors { get; set; }
+    public DescriptorMatchMode AllowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.All;
     public Dictionary<string, HashSet<string>> DisallowedBodySlideDescriptors { get; set; }
+    public DescriptorMatchMode DisallowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.Any;
     public NPCWeightRange WeightRange { get; set; }
     public int TopLevelSubgroupIndex { get; set; }
     public List<string> ContainedSubgroupIDs { get; set; }
