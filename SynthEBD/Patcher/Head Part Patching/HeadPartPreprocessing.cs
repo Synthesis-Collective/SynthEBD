@@ -33,10 +33,22 @@ namespace SynthEBD
         {
             foreach (var typeSetting in headPartSettings.Types.Values)
             {
+                typeSetting.AllowedBodyGenDescriptorDictionaryMale = DictionaryMapper.BodyShapeDescriptorsToDictionary(typeSetting.AllowedBodyGenDescriptorsMale);
+                typeSetting.DisallowedBodyGenDescriptorDictionaryMale = DictionaryMapper.BodyShapeDescriptorsToDictionary(typeSetting.DisallowedBodyGenDescriptorsMale);
+
+                typeSetting.AllowedBodyGenDescriptorDictionaryFemale = DictionaryMapper.BodyShapeDescriptorsToDictionary(typeSetting.AllowedBodyGenDescriptorsFemale);
+                typeSetting.DisallowedBodyGenDescriptorDictionaryFemale = DictionaryMapper.BodyShapeDescriptorsToDictionary(typeSetting.DisallowedBodyGenDescriptorsFemale);
+
                 foreach (var headpartSetting in typeSetting.HeadParts)
                 {
                     headpartSetting.AllowedBodySlideDescriptorDictionary = DictionaryMapper.BodyShapeDescriptorsToDictionary(headpartSetting.AllowedBodySlideDescriptors);
                     headpartSetting.DisallowedBodySlideDescriptorDictionary = DictionaryMapper.BodyShapeDescriptorsToDictionary(headpartSetting.DisallowedBodySlideDescriptors);
+
+                    headpartSetting.AllowedBodyGenDescriptorDictionaryMale = DictionaryMapper.BodyShapeDescriptorsToDictionary(headpartSetting.AllowedBodyGenDescriptorsMale);
+                    headpartSetting.DisallowedBodyGenDescriptorDictionaryMale = DictionaryMapper.BodyShapeDescriptorsToDictionary(headpartSetting.DisallowedBodyGenDescriptorsMale);
+
+                    headpartSetting.AllowedBodyGenDescriptorDictionaryFemale = DictionaryMapper.BodyShapeDescriptorsToDictionary(headpartSetting.AllowedBodyGenDescriptorsFemale);
+                    headpartSetting.DisallowedBodyGenDescriptorDictionaryFemale = DictionaryMapper.BodyShapeDescriptorsToDictionary(headpartSetting.DisallowedBodyGenDescriptorsFemale);
                 }
             }
         }

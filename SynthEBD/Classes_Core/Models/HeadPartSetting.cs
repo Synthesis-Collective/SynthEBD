@@ -41,11 +41,26 @@ namespace SynthEBD
         // used during patching
         [Newtonsoft.Json.JsonIgnore]
         public int MatchedForceIfCount { get; set; } = 0;
+
         [Newtonsoft.Json.JsonIgnore]
         public IHeadPartGetter ResolvedHeadPart { get; set; } = null;
+
         [Newtonsoft.Json.JsonIgnore]
-        public Dictionary<string, HashSet<string>> AllowedBodySlideDescriptorDictionary { get; set; }
+        public Dictionary<string, HashSet<string>> AllowedBodySlideDescriptorDictionary { get; set; } = new();
+
         [Newtonsoft.Json.JsonIgnore]
-        public Dictionary<string, HashSet<string>> DisallowedBodySlideDescriptorDictionary { get; set; }
+        public Dictionary<string, HashSet<string>> DisallowedBodySlideDescriptorDictionary { get; set; } = new();
+
+        [Newtonsoft.Json.JsonIgnore]
+        public Dictionary<string, HashSet<string>> AllowedBodyGenDescriptorDictionaryMale { get; set; } = new();
+
+        [Newtonsoft.Json.JsonIgnore]
+        public Dictionary<string, HashSet<string>> DisallowedBodyGenDescriptorDictionaryMale { get; set; } = new();
+
+        [Newtonsoft.Json.JsonIgnore]
+        public Dictionary<string, HashSet<string>> AllowedBodyGenDescriptorDictionaryFemale { get; set; } = new();
+
+        [Newtonsoft.Json.JsonIgnore]
+        public Dictionary<string, HashSet<string>> DisallowedBodyGenDescriptorDictionaryFemale { get; set; } = new();
     }
 }

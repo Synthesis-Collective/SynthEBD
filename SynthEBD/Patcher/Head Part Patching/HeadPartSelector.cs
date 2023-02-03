@@ -26,7 +26,7 @@ namespace SynthEBD
             _attributeMatcher = attributeMatcher;
         }
 
-        public HeadPartSelection AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings, BodySlideSetting? assignedBodySlide)
+        public HeadPartSelection AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings, BodySlideSetting? assignedBodySlide, List<BodyGenConfig.BodyGenTemplate>? assignedBodyGenMorphs)
         {
             _logger.OpenReportSubsection("HeadParts", npcInfo);
             _logger.LogReport("Selecting Head Parts for Current NPC", false, npcInfo);
@@ -60,7 +60,7 @@ namespace SynthEBD
                 {
                     currentConsistency = npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType];
                 }
-                IHeadPartGetter selection = AssignHeadPartType(settings.Types[headPartType], _patcherState.GeneralSettings.AttributeGroups, headPartType, npcInfo, assignedBodySlide, currentConsistency, out bool randomizedToNone);
+                IHeadPartGetter selection = AssignHeadPartType(settings.Types[headPartType], _patcherState.GeneralSettings.AttributeGroups, headPartType, npcInfo, assignedBodySlide, assignedBodyGenMorphs, currentConsistency, out bool randomizedToNone);
                 FormKey? selectedFK = null;
                 if (selection != null) { selectedFK = selection.FormKey; }
                 AllocateHeadPartSelection(selectedFK, headPartType, selectedHeadParts);
@@ -141,7 +141,7 @@ namespace SynthEBD
             }
         }
 
-        public IHeadPartGetter AssignHeadPartType(Settings_HeadPartType currentSettings, HashSet<AttributeGroup> attributeGroups, HeadPart.TypeEnum type, NPCInfo npcInfo, BodySlideSetting? assignedBodySlide, HeadPartConsistency currentConsistency, out bool randomizedToNone)
+        public IHeadPartGetter AssignHeadPartType(Settings_HeadPartType currentSettings, HashSet<AttributeGroup> attributeGroups, HeadPart.TypeEnum type, NPCInfo npcInfo, BodySlideSetting? assignedBodySlide, List<BodyGenConfig.BodyGenTemplate>? assignedBodyGenMorphs, HeadPartConsistency currentConsistency, out bool randomizedToNone)
         {
             randomizedToNone = false;
             // if there are no head parts of this type at all, don't assign consistency.
@@ -173,7 +173,7 @@ namespace SynthEBD
                 }
             }
 
-            if (!CanGetThisHeadPartType(currentSettings, type, npcInfo, attributeGroups))
+            if (!CanGetThisHeadPartType(currentSettings, type, npcInfo, assignedBodySlide, assignedBodyGenMorphs, attributeGroups))
             {
                 return null;
             }
@@ -205,7 +205,7 @@ namespace SynthEBD
                 }
             }
 
-            var availableHeadParts = currentSettings.HeadPartsGendered[npcInfo.Gender].Where(x => HeadPartIsValid(x, npcInfo, type, assignedBodySlide, attributeGroups));
+            var availableHeadParts = currentSettings.HeadPartsGendered[npcInfo.Gender].Where(x => HeadPartIsValid(x, npcInfo, type, assignedBodySlide, assignedBodyGenMorphs, attributeGroups));
             var availableEDIDs = availableHeadParts.Select(x => x.EditorID ?? x.HeadPartFormKey.ToString());
 
             IHeadPartGetter consistencyHeadPart = null;
@@ -270,7 +270,7 @@ namespace SynthEBD
             _logger.LogReport("Selected " + type + ": " + EditorIDHandler.GetEditorIDSafely(selectedAssignment.ResolvedHeadPart) + " at random.", false, npcInfo);
             return selectedAssignment.ResolvedHeadPart;
         }
-        public bool CanGetThisHeadPartType(Settings_HeadPartType currentSettings, HeadPart.TypeEnum type, NPCInfo npcInfo, HashSet<AttributeGroup> attributeGroups)
+        public bool CanGetThisHeadPartType(Settings_HeadPartType currentSettings, HeadPart.TypeEnum type, NPCInfo npcInfo, BodySlideSetting? assignedBodySlide, List<BodyGenConfig.BodyGenTemplate> assignedBodyGenMorphs, HashSet<AttributeGroup> attributeGroups)
         {
             if (!currentSettings.bAllowRandom && currentSettings.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above
             {
@@ -393,13 +393,70 @@ namespace SynthEBD
             }
 
             // Descriptors
+            if (assignedBodySlide != null)
+            {
+                if (currentSettings.AllowedBodySlideDescriptors.Any())
+                {
+                    if (!BodyShapeDescriptor.DescriptorsMatch(currentSettings.AllowedBodySlideDescriptorDictionary, assignedBodySlide.BodyShapeDescriptors, currentSettings.AllowedBodySlideMatchMode, out _))
+                    {
+                        _logger.LogReport(type + " is invalid because its allowed descriptors do not include those of the assigned BodySlide Preset (" + assignedBodySlide.Label + ")" + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(currentSettings.AllowedBodySlideDescriptorDictionary), false, npcInfo);
+                        return false;
+                    }
+                }
 
+                if (BodyShapeDescriptor.DescriptorsMatch(currentSettings.DisallowedBodySlideDescriptorDictionary, assignedBodySlide.BodyShapeDescriptors, currentSettings.DisallowedBodySlideMatchMode, out string matchedDescriptor))
+                {
+                    _logger.LogReport(type + "is invalid because its descriptor [" + matchedDescriptor + "] disallows the assigned BodySlide Preset (" + assignedBodySlide.Label + ")", false, npcInfo);
+                    return false;
+                }
+            }
+
+            if (assignedBodyGenMorphs != null)
+            {
+                Dictionary<string, HashSet<string>> genderedDescriptorsAllowed = new();
+                Dictionary<string, HashSet<string>> genderedDescriptorsDisallowed = new();
+                DescriptorMatchMode allowedMatchMode = DescriptorMatchMode.All;
+                DescriptorMatchMode disallowedMatchMode = DescriptorMatchMode.All;
+
+                switch (npcInfo.Gender)
+                {
+                    case Gender.Male:
+                        genderedDescriptorsAllowed = currentSettings.AllowedBodyGenDescriptorDictionaryMale;
+                        allowedMatchMode = currentSettings.AllowedBodyGenDescriptorMatchModeMale;
+                        genderedDescriptorsDisallowed = currentSettings.DisallowedBodyGenDescriptorDictionaryMale;
+                        disallowedMatchMode = currentSettings.DisallowedBodyGenDescriptorMatchModeMale;
+                        break;
+                    case Gender.Female:
+                        genderedDescriptorsAllowed = currentSettings.AllowedBodyGenDescriptorDictionaryFemale;
+                        allowedMatchMode = currentSettings.AllowedBodyGenDescriptorMatchModeFemale;
+                        genderedDescriptorsDisallowed = currentSettings.DisallowedBodyGenDescriptorDictionaryFemale;
+                        disallowedMatchMode = currentSettings.DisallowedBodyGenDescriptorMatchModeFemale;
+                        break;
+                }
+                foreach (var morph in assignedBodyGenMorphs)
+                {
+                    if (genderedDescriptorsAllowed.Any())
+                    {
+                        if (!BodyShapeDescriptor.DescriptorsMatch(genderedDescriptorsAllowed, morph.BodyShapeDescriptors, allowedMatchMode, out _))
+                        {
+                            _logger.LogReport(type + " is invalid because its allowed descriptors do not include those of the assigned BodyGen Morph (" + morph.Label + ")" + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(genderedDescriptorsAllowed), false, npcInfo);
+                            return false;
+                        }
+                    }
+
+                    if (BodyShapeDescriptor.DescriptorsMatch(genderedDescriptorsDisallowed, morph.BodyShapeDescriptors, disallowedMatchMode, out string matchedDescriptor))
+                    {
+                        _logger.LogReport(type + " is invalid because its descriptor [" + matchedDescriptor + "] disallows the assigned BodyGen Morph (" + morph.Label + ")", false, npcInfo);
+                        return false;
+                    }
+                }
+            }
 
             // If the head part type is still valid
             return true;
         }
 
-        public bool HeadPartIsValid(HeadPartSetting candidateHeadPart, NPCInfo npcInfo, HeadPart.TypeEnum type, BodySlideSetting? assignedBodySlide, HashSet<AttributeGroup> attributeGroups)
+        public bool HeadPartIsValid(HeadPartSetting candidateHeadPart, NPCInfo npcInfo, HeadPart.TypeEnum type, BodySlideSetting? assignedBodySlide, List<BodyGenConfig.BodyGenTemplate> assignedBodyGenMorphs, HashSet<AttributeGroup> attributeGroups)
         {
             if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey.Equals(candidateHeadPart.HeadPartFormKey))
             {
@@ -489,6 +546,47 @@ namespace SynthEBD
                 {
                     _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its descriptor [" + matchedDescriptor + "] disallows the assigned BodySlide Preset (" + assignedBodySlide.Label + ")", false, npcInfo);
                     return false;
+                }
+            }
+
+            if (assignedBodyGenMorphs != null)
+            {
+                Dictionary<string, HashSet<string>> genderedDescriptorsAllowed = new();
+                Dictionary<string, HashSet<string>> genderedDescriptorsDisallowed = new();
+                DescriptorMatchMode allowedMatchMode = DescriptorMatchMode.All;
+                DescriptorMatchMode disallowedMatchMode = DescriptorMatchMode.All;
+
+                switch (npcInfo.Gender)
+                {
+                    case Gender.Male: 
+                        genderedDescriptorsAllowed = candidateHeadPart.AllowedBodyGenDescriptorDictionaryMale;
+                        allowedMatchMode = candidateHeadPart.AllowedBodyGenDescriptorMatchModeMale;
+                        genderedDescriptorsDisallowed = candidateHeadPart.DisallowedBodyGenDescriptorDictionaryMale;
+                        disallowedMatchMode = candidateHeadPart.DisallowedBodyGenDescriptorMatchModeMale;
+                        break;
+                    case Gender.Female: 
+                        genderedDescriptorsAllowed = candidateHeadPart.AllowedBodyGenDescriptorDictionaryFemale;
+                        allowedMatchMode = candidateHeadPart.AllowedBodyGenDescriptorMatchModeFemale;
+                        genderedDescriptorsDisallowed = candidateHeadPart.DisallowedBodyGenDescriptorDictionaryFemale;
+                        disallowedMatchMode = candidateHeadPart.DisallowedBodyGenDescriptorMatchModeFemale;
+                        break;
+                }
+                foreach (var morph in assignedBodyGenMorphs)
+                {
+                    if (genderedDescriptorsAllowed.Any())
+                    {
+                        if (!BodyShapeDescriptor.DescriptorsMatch(genderedDescriptorsAllowed, morph.BodyShapeDescriptors, allowedMatchMode, out _))
+                        {
+                            _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its allowed descriptors do not include those of the assigned BodyGen Morph (" + morph.Label + ")" + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(genderedDescriptorsAllowed), false, npcInfo);
+                            return false;
+                        }
+                    }
+
+                    if (BodyShapeDescriptor.DescriptorsMatch(genderedDescriptorsDisallowed, morph.BodyShapeDescriptors, disallowedMatchMode, out string matchedDescriptor))
+                    {
+                        _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its descriptor [" + matchedDescriptor + "] disallows the assigned BodyGen Morph (" + morph.Label + ")", false, npcInfo);
+                        return false;
+                    }
                 }
             }
 

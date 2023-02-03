@@ -419,6 +419,7 @@ public class Patcher
             bodyShapeAssigned = false;
             assignedCombinations = new List<SubgroupCombination>(); // Do not change to hash set - must maintain order
             BodySlideSetting assignedBodySlide = null; // can be used by headpart function
+            List<BodyGenConfig.BodyGenTemplate> assignedMorphs = null; // can be used by headpart function
             Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts = GetBlankHeadPartAssignment(); // head parts generated via the asset pack functionality
 
             #region Linked NPC Groups
@@ -595,7 +596,7 @@ public class Patcher
                     if (!blockBodyShape && _patcherState.GeneralSettings.PatchableRaces.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && BodyGenSelector.BodyGenAvailableForGender(currentNPCInfo.Gender, bodyGenConfigs))
                     {
                         _logger.LogReport("Assigning a BodyGen morph independently of Asset Combination", false, currentNPCInfo);
-                        var assignedMorphs = _bodyGenSelector.SelectMorphs(currentNPCInfo, out bool success, bodyGenConfigs, null, new List<SubgroupCombination>(), out _);
+                        assignedMorphs = _bodyGenSelector.SelectMorphs(currentNPCInfo, out bool success, bodyGenConfigs, null, new List<SubgroupCombination>(), out _);
                         if (success)
                         {
                             BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedMorphs.Select(x => x.Label).ToList());
@@ -639,7 +640,7 @@ public class Patcher
             HeadPartSelection assignedHeadParts = new();
             if (_patcherState.GeneralSettings.bChangeHeadParts && !blockHeadParts)
             {
-                assignedHeadParts = _headPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, assignedBodySlide);
+                assignedHeadParts = _headPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, assignedBodySlide, assignedMorphs);
             }
 
             if (_patcherState.GeneralSettings.bChangeMeshesOrTextures) // needs to be done regardless of _patcherState.GeneralSettings.bChangeHeadParts status
