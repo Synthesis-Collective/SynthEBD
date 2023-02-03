@@ -28,7 +28,7 @@ namespace SynthEBD
             _recordPathParser = recordPathParser;
             _dictionaryMapper = dictionaryMapper;
         }
-        public HashSet<SubgroupCombination> SelectAssetReplacers(FlattenedAssetPack chosenAssetPack, NPCInfo npcInfo, AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment currentAssignments)
+        public HashSet<SubgroupCombination> SelectAssetReplacers(FlattenedAssetPack chosenAssetPack, NPCInfo npcInfo, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, BodySlideSetting assignedBodySlide)
         {
             HashSet<SubgroupCombination> combinations = new HashSet<SubgroupCombination>();
             // determine which replacer groups are valid for the current NPC
@@ -78,8 +78,8 @@ namespace SynthEBD
                 if (assignReplacer)
                 {
                     var virtualFlattenedAssetPack = FlattenedAssetPack.CreateVirtualFromReplacerGroup(replacerGroup, _dictionaryMapper, _patcherState);
-                    var assignedCombination = _abSelector.GenerateCombinationWithBodyShape(new HashSet<FlattenedAssetPack>() { virtualFlattenedAssetPack }, null, null, null, npcInfo, true, AssetAndBodyShapeSelector.AssetPackAssignmentMode.ReplacerVirtual, currentAssignments, new());
-
+                    var assignedCombination = _assetSelector.AssignAssets(npcInfo, AssetSelector.AssetPackAssignmentMode.ReplacerVirtual, new HashSet<FlattenedAssetPack>() { virtualFlattenedAssetPack }, assignedBodyGen, assignedBodySlide, out _);
+                    
                     if (assignedCombination != null)
                     {
                         assignedCombination.DestinationType = destinationType;

@@ -105,8 +105,11 @@ namespace SynthEBD
                     NPCinfo.Report.LogCurrentNPC = true;
                     _logger.InitializeNewReport(NPCinfo);
                 }
-                var chosenCombination = _assetAndBodyShapeSelector.GenerateCombinationWithBodyShape(flattenedAssetPacks, BodyGenConfigs, OBodySettings, new AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment(), NPCinfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, new(), new());
-                combinations.Add(chosenCombination);
+                var assignments = _assetAndBodyShapeSelector.GenerateCombinationWithBodyShape(flattenedAssetPacks, BodyGenConfigs, OBodySettings, NPCinfo, blockBodyShape, AssetSelector.AssetPackAssignmentMode.Primary, new());
+                if (assignments.Assets != null)
+                {
+                    combinations.Add(assignments.Assets);
+                }
                 if (i == Repetitions - 1)
                 {
                     NPCinfo.Report.LogCurrentNPC = false;

@@ -467,7 +467,7 @@ public class Patcher
                 continue;
             }
 
-            AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment assignedPrimaryComboAndBodyShape = new AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment();
+            AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment primaryAssetsAndBodyShape = new AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment();
 
             #region Asset Assignment
             if (_patcherState.GeneralSettings.bChangeMeshesOrTextures && !blockAssets && _patcherState.GeneralSettings.PatchableRaces.Contains(currentNPCInfo.AssetsRace))
@@ -492,26 +492,26 @@ public class Patcher
                         #region Primary Asset assignment
                         if (_assetsStatsTracker.HasGenderedConfigs[currentNPCInfo.Gender])
                         {
-                            assignedPrimaryComboAndBodyShape = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, primaryAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetAndBodyShapeSelector.AssetPackAssignmentMode.Primary, null, assignedCombinations, out _);
+                            primaryAssetsAndBodyShape = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, primaryAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetSelector.AssetPackAssignmentMode.Primary, assignedCombinations);
                             if (assetsAssigned)
                             {
-                                assignedCombinations.Add(assignedPrimaryComboAndBodyShape.AssignedCombination);
-                                _assetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedCombination, currentNPCInfo);
+                                assignedCombinations.Add(primaryAssetsAndBodyShape.Assets);
+                                _assetSelector.RecordAssetConsistencyAndLinkedNPCs(primaryAssetsAndBodyShape.Assets, currentNPCInfo);
                             }
                             if (bodyShapeAssigned)
                             {
                                 switch (_patcherState.GeneralSettings.BodySelectionMode)
                                 {
                                     case BodyShapeSelectionMode.BodyGen:
-                                        BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedPrimaryComboAndBodyShape.AssignedBodyGenMorphs.Select(x => x.Label).ToList());
-                                        _bodyGenSelector.RecordBodyGenConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedBodyGenMorphs, currentNPCInfo);
-                                        assignedMorphs = assignedPrimaryComboAndBodyShape.AssignedBodyGenMorphs;
+                                        BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, primaryAssetsAndBodyShape.BodyGenMorphs.Select(x => x.Label).ToList());
+                                        _bodyGenSelector.RecordBodyGenConsistencyAndLinkedNPCs(primaryAssetsAndBodyShape.BodyGenMorphs, currentNPCInfo);
+                                        assignedMorphs = primaryAssetsAndBodyShape.BodyGenMorphs;
                                         break;
 
                                     case BodyShapeSelectionMode.BodySlide:
-                                        BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedPrimaryComboAndBodyShape.AssignedOBodyPreset.ReferencedBodySlide);
-                                        _oBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedOBodyPreset, currentNPCInfo);
-                                        assignedBodySlide = assignedPrimaryComboAndBodyShape.AssignedOBodyPreset;
+                                        BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, primaryAssetsAndBodyShape.BodySlidePreset.ReferencedBodySlide);
+                                        _oBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(primaryAssetsAndBodyShape.BodySlidePreset, currentNPCInfo);
+                                        assignedBodySlide = primaryAssetsAndBodyShape.BodySlidePreset;
                                         break;
                                 }
                             }
@@ -525,11 +525,11 @@ public class Patcher
                         var currentMixIn = mixInAssetPacks.Where(x => x.GroupName == item).FirstOrDefault();
                         if (currentMixIn != null)
                         {
-                            var assignedMixIn = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out bool mixInAssigned, out _, new HashSet<FlattenedAssetPack>() { currentMixIn }, bodyGenConfigs, oBodySettings, currentNPCInfo, true, AssetAndBodyShapeSelector.AssetPackAssignmentMode.MixIn, assignedPrimaryComboAndBodyShape, assignedCombinations, out bool mixInDeclined);
-                            _assetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedMixIn.AssignedCombination, currentNPCInfo, currentMixIn.GroupName, mixInAssigned, mixInDeclined);
-                            if (mixInAssigned)
+                            var assignedMixIn = _assetSelector.AssignAssets(currentNPCInfo, AssetSelector.AssetPackAssignmentMode.MixIn, new HashSet<FlattenedAssetPack>() { currentMixIn }, assignedMorphs, assignedBodySlide, out bool mixInDeclined);
+                            _assetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedMixIn, currentNPCInfo, currentMixIn.GroupName, mixInDeclined);
+                            if (assignedMixIn != null)
                             {
-                                assignedCombinations.Add(assignedMixIn.AssignedCombination);
+                                assignedCombinations.Add(assignedMixIn);
                                 assetsAssigned = true;
                             }
                         }
@@ -545,12 +545,12 @@ public class Patcher
                     {
                         foreach (var combination in assignedCombinations)
                         {
-                            assetReplacerCombinations.UnionWith(_assetReplacerSelector.SelectAssetReplacers(combination.AssetPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
+                            assetReplacerCombinations.UnionWith(_assetReplacerSelector.SelectAssetReplacers(combination.AssetPack, currentNPCInfo, assignedMorphs, assignedBodySlide));
                         }
                     }
                     foreach (var replacerOnlyPack in mixInAssetPacks.Where(x => !x.Subgroups.Any() && x.AssetReplacerGroups.Any())) // add asset replacers from mix-in asset packs that ONLY have replacer assets, since they won't be contained in assignedCombinations
                     {
-                        assetReplacerCombinations.UnionWith(_assetReplacerSelector.SelectAssetReplacers(replacerOnlyPack, currentNPCInfo, assignedPrimaryComboAndBodyShape));
+                        assetReplacerCombinations.UnionWith(_assetReplacerSelector.SelectAssetReplacers(replacerOnlyPack, currentNPCInfo, assignedMorphs, assignedBodySlide));
                     }
                     assignedCombinations.AddRange(assetReplacerCombinations);
                 }
@@ -602,7 +602,7 @@ public class Patcher
                         {
                             BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedMorphs.Select(x => x.Label).ToList());
                             _bodyGenSelector.RecordBodyGenConsistencyAndLinkedNPCs(assignedMorphs, currentNPCInfo);
-                            assignedPrimaryComboAndBodyShape.AssignedBodyGenMorphs = assignedMorphs;
+                            primaryAssetsAndBodyShape.BodyGenMorphs = assignedMorphs;
                         }
                         else
                         {
@@ -619,7 +619,7 @@ public class Patcher
                         {
                             BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedBodySlide.ReferencedBodySlide);
                             _oBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedBodySlide, currentNPCInfo);
-                            assignedPrimaryComboAndBodyShape.AssignedOBodyPreset = assignedBodySlide;
+                            primaryAssetsAndBodyShape.BodySlidePreset = assignedBodySlide;
                         }
                         else
                         {
