@@ -99,24 +99,27 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         }
     }
 
-    public static VM_BodyShapeDescriptorSelectionMenu InitializeFromHashSet(HashSet<BodyShapeDescriptor.LabelSignature> BodyShapeDescriptors, VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, bool showMatchMode, DescriptorMatchMode matchMode, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+    public static VM_BodyShapeDescriptorSelectionMenu InitializeFromHashSet(HashSet<BodyShapeDescriptor.LabelSignature> bodyShapeDescriptors, VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, bool showMatchMode, DescriptorMatchMode matchMode, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
         var menu = descriptorSelectionFactory(trackedMenu, raceGroupingVMs, parentConfig, showMatchMode, matchMode);
-        foreach (var descriptor in BodyShapeDescriptors)
+        if (bodyShapeDescriptors != null)
         {
-            bool keepLooking = true;
-            foreach (var Descriptor in menu.DescriptorShells)
+            foreach (var descriptor in bodyShapeDescriptors)
             {
-                foreach (var selectableDescriptor in Descriptor.DescriptorSelectors)
+                bool keepLooking = true;
+                foreach (var Descriptor in menu.DescriptorShells)
                 {
-                    if (selectableDescriptor.TrackedDescriptor.MapsTo(descriptor))
+                    foreach (var selectableDescriptor in Descriptor.DescriptorSelectors)
                     {
-                        selectableDescriptor.IsSelected = true;
-                        keepLooking = false;
-                        break;
+                        if (selectableDescriptor.TrackedDescriptor.MapsTo(descriptor))
+                        {
+                            selectableDescriptor.IsSelected = true;
+                            keepLooking = false;
+                            break;
+                        }
                     }
+                    if (keepLooking == false) { break; }
                 }
-                if (keepLooking == false) { break; }
             }
         }
         return menu;

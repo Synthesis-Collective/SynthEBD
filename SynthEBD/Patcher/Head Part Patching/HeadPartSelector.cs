@@ -205,8 +205,8 @@ namespace SynthEBD
                 }
             }
 
-            var availableHeadParts = currentSettings.HeadPartsGendered[npcInfo.Gender].Where(x => HeadPartIsValid(x, npcInfo, type, assignedBodySlide, assignedBodyGenMorphs, attributeGroups));
-            var availableEDIDs = availableHeadParts.Select(x => x.EditorID ?? x.HeadPartFormKey.ToString());
+            var availableHeadParts = currentSettings.HeadPartsGendered[npcInfo.Gender].Where(x => HeadPartIsValid(x, npcInfo, type, assignedBodySlide, assignedBodyGenMorphs, attributeGroups)).ToHashSet();
+            var availableEDIDs = availableHeadParts.Select(x => x.EditorID ?? x.HeadPartFormKey.ToString()).ToHashSet();
 
             IHeadPartGetter consistencyHeadPart = null;
             if (currentConsistency != null && !currentConsistency.FormKey.IsNull)
@@ -236,6 +236,10 @@ namespace SynthEBD
             else if (availableHeadParts.Any())
             { 
                 selectedHeadPart = ChooseHeadPart(availableHeadParts, consistencyHeadPart, npcInfo, type, currentSettings.RandomizationPercentage, out randomizedToNone);
+                if (consistencyHeadPart != null && (selectedHeadPart == null || !selectedHeadPart.FormKey.Equals(consistencyHeadPart.FormKey)))
+                {
+                    _logger.LogReport("The consistency " + type + " was disallowed under the current rule set.", true, npcInfo);
+                }
             }
             else
             {

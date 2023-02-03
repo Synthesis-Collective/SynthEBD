@@ -505,6 +505,7 @@ public class Patcher
                                     case BodyShapeSelectionMode.BodyGen:
                                         BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedPrimaryComboAndBodyShape.AssignedBodyGenMorphs.Select(x => x.Label).ToList());
                                         _bodyGenSelector.RecordBodyGenConsistencyAndLinkedNPCs(assignedPrimaryComboAndBodyShape.AssignedBodyGenMorphs, currentNPCInfo);
+                                        assignedMorphs = assignedPrimaryComboAndBodyShape.AssignedBodyGenMorphs;
                                         break;
 
                                     case BodyShapeSelectionMode.BodySlide:

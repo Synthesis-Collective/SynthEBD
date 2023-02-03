@@ -133,11 +133,11 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
     public void CopyInFromModel(Settings_Headparts model, ObservableCollection<VM_RaceGrouping> raceGroupings)
     {
         RaceGroupings = raceGroupings;
+        SettingsMenu.GetViewModelFromModel(model);
         foreach (var type in model.Types.Keys)
         {
             Types[type].CopyInFromModel(model.Types[type], RaceGroupings, AttributeGroupMenu);
         }
-        SettingsMenu.GetViewModelFromModel(model);
     }
 
     public Settings_Headparts DumpViewModelToModel()

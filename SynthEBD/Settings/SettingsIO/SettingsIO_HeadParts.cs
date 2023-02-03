@@ -39,6 +39,11 @@ public class SettingsIO_HeadParts
             }
         }
 
+        if (headPartSettings == null)
+        {
+            headPartSettings = new Settings_Headparts();
+        }
+
         return headPartSettings;
     }
 }

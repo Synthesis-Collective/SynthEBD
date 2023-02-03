@@ -119,8 +119,6 @@ namespace SynthEBD
             _npcAssignmentsUi = npcAssignmentsUi;
             _attributeCreator = attributeCreator;
 
-            _headPartSettingsVM.Initialize();
-
             Observable.CombineLatest(
                 _patcherSettingsSourceProvider.WhenAnyValue(x => x.UsePortableSettings),
                 _patcherSettingsSourceProvider.WhenAnyValue(x => x.PortableSettingsFolder),
@@ -173,6 +171,7 @@ namespace SynthEBD
         public void LoadFinalSettingsViewModels() // view models that should be loaded after plugin VMs because they depend on the loaded plugins
         {
             _texMeshSettingsVM.AssetOrderingMenu.CopyInFromModel(_patcherState.TexMeshSettings.AssetOrder);
+            _headPartSettingsVM.Initialize();
             _headPartSettingsVM.CopyInFromModel(_patcherState.HeadPartSettings, _generalSettingsVM.RaceGroupingEditor.RaceGroupings);
 
             // load specific assignments (must load after plugin view models)

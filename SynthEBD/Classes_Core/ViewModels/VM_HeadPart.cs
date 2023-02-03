@@ -167,18 +167,18 @@ namespace SynthEBD
                 bAllowRandom = bAllowRandom,
                 ProbabilityWeighting = ProbabilityWeighting,
                 WeightRange = WeightRange,
-                AllowedBodySlideDescriptors = AllowedBodySlideDescriptors.DumpToHashSet(),
-                AllowedBodySlideMatchMode = AllowedBodySlideDescriptors.MatchMode,
-                DisallowedBodySlideDescriptors = DisallowedBodySlideDescriptors.DumpToHashSet(),
-                DisallowedBodySlideMatchMode = DisallowedBodySlideDescriptors.MatchMode,
-                AllowedBodyGenDescriptorsMale = AllowedBodyGenDescriptorsMale.DumpToHashSet(),
-                AllowedBodyGenDescriptorMatchModeMale = AllowedBodyGenDescriptorsMale.MatchMode,
-                DisallowedBodyGenDescriptorsMale = DisallowedBodyGenDescriptorsMale.DumpToHashSet(),
-                DisallowedBodyGenDescriptorMatchModeMale = DisallowedBodyGenDescriptorsMale.MatchMode,
-                AllowedBodyGenDescriptorsFemale = AllowedBodyGenDescriptorsFemale.DumpToHashSet(),
-                AllowedBodyGenDescriptorMatchModeFemale = AllowedBodyGenDescriptorsFemale.MatchMode,
-                DisallowedBodyGenDescriptorsFemale = DisallowedBodyGenDescriptorsFemale.DumpToHashSet(),
-                DisallowedBodyGenDescriptorMatchModeFemale = DisallowedBodyGenDescriptorsFemale.MatchMode
+                AllowedBodySlideDescriptors = AllowedBodySlideDescriptors?.DumpToHashSet() ?? new(),
+                AllowedBodySlideMatchMode = AllowedBodySlideDescriptors?.MatchMode ?? DescriptorMatchMode.All,
+                DisallowedBodySlideDescriptors = DisallowedBodySlideDescriptors?.DumpToHashSet() ?? new(),
+                DisallowedBodySlideMatchMode = DisallowedBodySlideDescriptors?.MatchMode ?? DescriptorMatchMode.Any,
+                AllowedBodyGenDescriptorsMale = AllowedBodyGenDescriptorsMale?.DumpToHashSet() ?? new(),
+                AllowedBodyGenDescriptorMatchModeMale = AllowedBodyGenDescriptorsMale?.MatchMode ?? DescriptorMatchMode.All,
+                DisallowedBodyGenDescriptorsMale = DisallowedBodyGenDescriptorsMale?.DumpToHashSet() ?? new(),
+                DisallowedBodyGenDescriptorMatchModeMale = DisallowedBodyGenDescriptorsMale?.MatchMode ?? DescriptorMatchMode.Any,
+                AllowedBodyGenDescriptorsFemale = AllowedBodyGenDescriptorsFemale?.DumpToHashSet() ?? new(),
+                AllowedBodyGenDescriptorMatchModeFemale = AllowedBodyGenDescriptorsFemale?.MatchMode ?? DescriptorMatchMode.All,
+                DisallowedBodyGenDescriptorsFemale = DisallowedBodyGenDescriptorsFemale?.DumpToHashSet() ?? new(),
+                DisallowedBodyGenDescriptorMatchModeFemale = DisallowedBodyGenDescriptorsFemale?.MatchMode ?? DescriptorMatchMode.Any
             };
         }
 

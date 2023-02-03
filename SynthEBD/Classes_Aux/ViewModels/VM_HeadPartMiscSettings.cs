@@ -1,5 +1,6 @@
 using MahApps.Metro.IconPacks;
 using Mutagen.Bethesda.Skyrim;
+using Noggog;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -80,6 +81,24 @@ namespace SynthEBD
                 SourceConflictWinners[type].Source = model.SourceConflictWinners[type];
             }
 
+            if (!model.AssociatedBodyGenConfigNameMale.IsNullOrWhitespace())
+            {
+                TrackedBodyGenConfigMale = AvailableBodyGenConfigsMale.Where(x => x.Label == model.AssociatedBodyGenConfigNameMale).FirstOrDefault();
+            }
+            else
+            {
+                TrackedBodyGenConfigMale = null;
+            }
+
+            if (!model.AssociatedBodyGenConfigNameFemale.IsNullOrWhitespace())
+            {
+                TrackedBodyGenConfigFemale = AvailableBodyGenConfigsFemale.Where(x => x.Label == model.AssociatedBodyGenConfigNameFemale).FirstOrDefault();
+            }
+            else
+            {
+                TrackedBodyGenConfigFemale = null;
+            }
+
             bUseVerboseScripts = model.bUseVerboseScripts;
         }
 
@@ -91,6 +110,9 @@ namespace SynthEBD
             }
 
             model.bUseVerboseScripts = bUseVerboseScripts;
+
+            model.AssociatedBodyGenConfigNameMale = TrackedBodyGenConfigMale?.Label ?? string.Empty;
+            model.AssociatedBodyGenConfigNameFemale = TrackedBodyGenConfigFemale?.Label ?? string.Empty;
         }
     }
 

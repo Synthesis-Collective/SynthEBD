@@ -119,8 +119,8 @@ public class VM_SettingsBodyGen : VM
             MaleConfigs.Add(subConfig);
         }
 
-        CurrentMaleConfig = GetConfigByLabel(model.CurrentMaleConfig, MaleConfigs);
-        CurrentFemaleConfig = GetConfigByLabel(model.CurrentFemaleConfig, FemaleConfigs);
+        CurrentMaleConfig = MaleConfigs.Where(x => x.Label == model.CurrentMaleConfig).FirstOrDefault();
+        CurrentFemaleConfig = FemaleConfigs.Where(x => x.Label == model.CurrentFemaleConfig).FirstOrDefault();
 
         if (CurrentFemaleConfig == null)
         {

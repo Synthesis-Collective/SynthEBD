@@ -44,7 +44,7 @@ namespace SynthEBD
             _headPartCategoryRulesFactory = headPartCategoryRulesFactory;
             _descriptorSelectionFactory = descriptorSelectionFactory;
 
-            //TypeRuleSet = _headPartCategoryRulesFactory(raceGroupingVMs);
+            TypeRuleSet = _headPartCategoryRulesFactory(raceGroupingVMs);
 
             Alphabetizer = new(HeadPartList, x => x.Label, new(System.Windows.Media.Colors.MediumPurple));
 
