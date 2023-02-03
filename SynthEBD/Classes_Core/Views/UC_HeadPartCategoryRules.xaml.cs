@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -23,6 +23,7 @@ namespace SynthEBD
         public UC_HeadPartCategoryRules()
         {
             InitializeComponent();
+            this.MaxHeight = (System.Windows.SystemParameters.PrimaryScreenHeight * 0.5);
         }
         private void NumericOnly(System.Object sender, System.Windows.Input.TextCompositionEventArgs e)
         {

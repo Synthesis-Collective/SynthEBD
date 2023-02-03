@@ -68,11 +68,8 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
-        if (parentAssetPack.TrackedBodyGenConfig != null)
-        {
-            AllowedBodyGenDescriptors = _descriptorSelectionFactory(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.All);
-            DisallowedBodyGenDescriptors = _descriptorSelectionFactory(parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.Any);
-        }
+
+        this.WhenAnyValue(x => x.ParentAssetPack.TrackedBodyGenConfig).Subscribe(_ => RefreshBodyGenDescriptors()).DisposeWith(this);
         AllowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.All);
         DisallowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.Any);
 
@@ -823,5 +820,27 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         }
 
         return rulesSummary;
+    }
+
+    public void RefreshBodyGenDescriptors()
+    {
+        DescriptorMatchMode allowedMode = DescriptorMatchMode.All;
+        DescriptorMatchMode disallowedMode = DescriptorMatchMode.Any;
+
+        // keep existing settings if any
+        if (AllowedBodyGenDescriptors != null)
+        {
+            allowedMode = AllowedBodyGenDescriptors.MatchMode;
+        }
+        if (DisallowedBodyGenDescriptors != null)
+        {
+            disallowedMode = DisallowedBodyGenDescriptors.MatchMode;
+        }
+
+        if (ParentAssetPack.TrackedBodyGenConfig != null)
+        {
+            AllowedBodyGenDescriptors = _descriptorSelectionFactory(ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, allowedMode);
+            DisallowedBodyGenDescriptors = _descriptorSelectionFactory(ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, disallowedMode);
+        }
     }
 }

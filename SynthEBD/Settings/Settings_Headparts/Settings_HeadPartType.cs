@@ -30,10 +30,14 @@ namespace SynthEBD
         public DescriptorMatchMode AllowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.All;
         public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodySlideDescriptors { get; set; } = new();
         public DescriptorMatchMode DisallowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.Any;
-        public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodyGenDescriptors { get; set; } = new();
-        public DescriptorMatchMode AllowedBodyGenDescriptorMatchMode { get; set; } = DescriptorMatchMode.All;
-        public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodyGenDescriptors { get; set; } = new();
-        public DescriptorMatchMode DisallowedBodyGenDescriptorMatchMode { get; set; } = DescriptorMatchMode.Any;
+        public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodyGenDescriptorsMale { get; set; } = new();
+        public DescriptorMatchMode AllowedBodyGenDescriptorMatchModeMale { get; set; } = DescriptorMatchMode.All;
+        public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodyGenDescriptorsMale { get; set; } = new();
+        public DescriptorMatchMode DisallowedBodyGenDescriptorMatchModeMale { get; set; } = DescriptorMatchMode.Any;
+        public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodyGenDescriptorsFemale { get; set; } = new();
+        public DescriptorMatchMode AllowedBodyGenDescriptorMatchModeFemale { get; set; } = DescriptorMatchMode.All;
+        public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodyGenDescriptorsFemale { get; set; } = new();
+        public DescriptorMatchMode DisallowedBodyGenDescriptorMatchModeFemale { get; set; } = DescriptorMatchMode.Any;
 
         // populated during patching
         [Newtonsoft.Json.JsonIgnore]

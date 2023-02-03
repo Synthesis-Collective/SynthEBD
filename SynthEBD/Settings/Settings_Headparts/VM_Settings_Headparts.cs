@@ -12,11 +12,17 @@ namespace SynthEBD;
 
 public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
 {
-    private IEnvironmentStateProvider _environmentProvider;
-    public VM_Settings_Headparts(VM_Settings_General generalSettingsVM, VM_SettingsOBody oBodySettings, VM_HeadPartList.Factory listFactory, VM_HeadPart.Factory headPartFactory, Logger logger, IEnvironmentStateProvider environmentProvider)
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly VM_Settings_General _generalSettingsVM;
+    private readonly VM_HeadPartList.Factory _listFactory;
+    public VM_Settings_Headparts(VM_Settings_General generalSettingsVM, VM_SettingsOBody oBodySettings, VM_SettingsBodyGen bodyGenSettings, VM_HeadPartList.Factory listFactory, VM_HeadPart.Factory headPartFactory, Logger logger, IEnvironmentStateProvider environmentProvider)
     {
+        _environmentProvider = environmentProvider;
+        _generalSettingsVM = generalSettingsVM;
+        _listFactory = listFactory;
+
         ImportMenu = new VM_HeadPartImport(this, logger, environmentProvider, headPartFactory);
-        SettingsMenu = new();
+        SettingsMenu = new(this, bodyGenSettings);
         AttributeGroupMenu = generalSettingsVM.AttributeGroupMenu;
         RaceGroupings = generalSettingsVM.RaceGroupingEditor.RaceGroupings;
         OBodyDescriptors = oBodySettings.DescriptorUI;
@@ -25,17 +31,6 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
         generalSettingsVM.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x).DisposeWith(this);
 
         DisplayedMenu = ImportMenu;
-
-        Types = new()
-        {
-            { HeadPart.TypeEnum.Eyebrows, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) },
-            { HeadPart.TypeEnum.Eyes, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) },
-            { HeadPart.TypeEnum.Face, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) },
-            { HeadPart.TypeEnum.FacialHair, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) },
-            { HeadPart.TypeEnum.Hair, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) },
-            { HeadPart.TypeEnum.Misc, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) },
-            { HeadPart.TypeEnum.Scars, listFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings, this) }
-        };
 
         ViewImportMenu = new RelayCommand(
             canExecute: _ => true,
@@ -120,6 +115,21 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
     public RelayCommand ViewMiscMenu { get; }
     public RelayCommand ViewScarsMenu { get; }
     public RelayCommand ViewSettingsMenu { get; }
+
+    public void Initialize()
+    {
+        Types = new()
+        {
+            { HeadPart.TypeEnum.Eyebrows, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings) },
+            { HeadPart.TypeEnum.Eyes, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings) },
+            { HeadPart.TypeEnum.Face, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings) },
+            { HeadPart.TypeEnum.FacialHair, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings) },
+            { HeadPart.TypeEnum.Hair, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings) },
+            { HeadPart.TypeEnum.Misc, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings) },
+            { HeadPart.TypeEnum.Scars, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings) }
+        };
+    }
+
     public void CopyInFromModel(Settings_Headparts model, ObservableCollection<VM_RaceGrouping> raceGroupings)
     {
         RaceGroupings = raceGroupings;

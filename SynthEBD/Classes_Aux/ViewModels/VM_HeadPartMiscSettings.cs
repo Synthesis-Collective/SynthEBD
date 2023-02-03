@@ -1,6 +1,8 @@
+using MahApps.Metro.IconPacks;
 using Mutagen.Bethesda.Skyrim;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -9,6 +11,22 @@ namespace SynthEBD
 {
     public class VM_HeadPartMiscSettings: VM
     {
+        public VM_HeadPartMiscSettings(VM_Settings_Headparts parentMenu, VM_SettingsBodyGen bodyGenVM)
+        {
+            ParentMenu = parentMenu;
+
+            AvailableBodyGenConfigsMale = bodyGenVM.MaleConfigs;
+            AvailableBodyGenConfigsFemale = bodyGenVM.FemaleConfigs;
+
+            SetAllowedDescriptorMatchModes = new RelayCommand(
+                canExecute: _ => true,
+                execute: _ => SetMatchModes(AllowedStr, AllowedDescriptorMatchMode)
+            );
+            SetDisallowedDescriptorMatchModes = new RelayCommand(
+                canExecute: _ => true,
+                execute: _ => SetMatchModes(DisallowedStr, DisallowedDescriptorMatchMode)
+            );
+        }
         public Dictionary<HeadPart.TypeEnum, HeadPartSource> SourceConflictWinners { get; set; } = new()
         {
             { HeadPart.TypeEnum.Eyebrows, new HeadPartSource() { Source = HeadPartSourceCandidate.AssetPack} },
@@ -20,7 +38,40 @@ namespace SynthEBD
             { HeadPart.TypeEnum.Scars, new HeadPartSource() { Source = HeadPartSourceCandidate.AssetPack} }
         };
 
+        public VM_Settings_Headparts ParentMenu { get; set; }
         public bool bUseVerboseScripts { get; set; } = false;
+        public VM_BodyGenConfig TrackedBodyGenConfigMale { get; set; }
+        public ObservableCollection<VM_BodyGenConfig> AvailableBodyGenConfigsMale { get; set; }
+        public VM_BodyGenConfig TrackedBodyGenConfigFemale { get; set; }
+        public ObservableCollection<VM_BodyGenConfig> AvailableBodyGenConfigsFemale { get; set; }
+        public RelayCommand SetAllowedDescriptorMatchModes { get; }
+        public DescriptorMatchMode AllowedDescriptorMatchMode { get; set; } = DescriptorMatchMode.All;
+        public RelayCommand SetDisallowedDescriptorMatchModes { get; }
+        public DescriptorMatchMode DisallowedDescriptorMatchMode { get; set; } = DescriptorMatchMode.Any;
+
+        private const string AllowedStr = "Allowed";
+        private const string DisallowedStr = "Disallowed";
+
+        public void SetMatchModes(string descriptorTypes, DescriptorMatchMode mode)
+        {
+            foreach (var entry in ParentMenu.Types)
+            {
+                switch(descriptorTypes)
+                {
+                    case AllowedStr: entry.Value.TypeRuleSet.AllowedBodySlideDescriptors.MatchMode = mode; break;
+                    case DisallowedStr: entry.Value.TypeRuleSet.DisallowedBodySlideDescriptors.MatchMode = mode; break;
+                }
+                
+                foreach (var headPart in entry.Value.HeadPartList)
+                {
+                    switch (descriptorTypes)
+                    {
+                        case AllowedStr: headPart.AllowedBodySlideDescriptors.MatchMode = mode; break;
+                        case DisallowedStr: headPart.DisallowedBodySlideDescriptors.MatchMode = mode; break;
+                    }
+                }
+            }
+        }
 
         public void GetViewModelFromModel(Settings_Headparts model)
         {

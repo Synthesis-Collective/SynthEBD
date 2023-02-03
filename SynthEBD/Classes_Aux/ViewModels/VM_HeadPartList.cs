@@ -24,7 +24,7 @@ namespace SynthEBD
         private readonly VM_HeadPart.Factory _headPartFactory;
         private readonly VM_HeadPartCategoryRules.Factory _headPartCategoryRulesFactory;
         private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
-        public delegate VM_HeadPartList Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts headPartMenuVM);
+        public delegate VM_HeadPartList Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
         public VM_HeadPartList(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, 
             VM_Settings_Headparts headPartMenuVM, 
             VM_SettingsOBody oBodyMenuVM, 
@@ -44,7 +44,7 @@ namespace SynthEBD
             _headPartCategoryRulesFactory = headPartCategoryRulesFactory;
             _descriptorSelectionFactory = descriptorSelectionFactory;
 
-            DisplayedRuleSet = _headPartCategoryRulesFactory(raceGroupingVMs, _headPartMenuVM);
+            //TypeRuleSet = _headPartCategoryRulesFactory(raceGroupingVMs);
 
             Alphabetizer = new(HeadPartList, x => x.Label, new(System.Windows.Media.Colors.MediumPurple));
 
@@ -55,7 +55,7 @@ namespace SynthEBD
         public ObservableCollection<VM_HeadPart> HeadPartList { get; set; } = new();
         public ObservableCollection<VM_HeadPart> DisplayedList { get; set; } = new();
         public VM_HeadPart DisplayedHeadPart { get; set; } // for reference only - currently not used for anything but may be useful at some point to be able to tell which headpart category this instance of VM_HeadPartList is for.
-        public VM_HeadPartCategoryRules DisplayedRuleSet { get; set; }
+        public VM_HeadPartCategoryRules TypeRuleSet { get; set; }
         public DisplayGender GenderToggle { get; set; } = DisplayGender.Both; 
         public VM_Alphabetizer<VM_HeadPart, string> Alphabetizer { get; set; }
 
@@ -78,12 +78,12 @@ namespace SynthEBD
                 HeadPartList.Add(VM_HeadPart.GetViewModelFromModel(hp, _headPartFactory, raceGroupingVMs, attributeGroupMenu, _oBodySettings.DescriptorUI, _headPartMenuVM, HeadPartList, _attributeCreator, _logger, _descriptorSelectionFactory, _environmentProvider.LinkCache));
             }
 
-            DisplayedRuleSet = VM_HeadPartCategoryRules.GetViewModelFromModel(model, raceGroupingVMs, attributeGroupMenu, _headPartMenuVM, _oBodySettings, _attributeCreator, _logger, _headPartCategoryRulesFactory, _descriptorSelectionFactory);
+            TypeRuleSet = VM_HeadPartCategoryRules.GetViewModelFromModel(model, raceGroupingVMs, attributeGroupMenu, _headPartMenuVM, _oBodySettings, _attributeCreator, _logger, _headPartCategoryRulesFactory, _descriptorSelectionFactory);
         }
 
         public void DumpToModel(Settings_HeadPartType model)
         {
-            DisplayedRuleSet.DumpToModel(model);
+            TypeRuleSet.DumpToModel(model);
             model.HeadParts = HeadPartList.Select(x => x.DumpToModel()).ToList();
         }
     }

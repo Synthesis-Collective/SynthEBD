@@ -7,6 +7,11 @@
              d:DataContext="{d:DesignInstance Type=local:VM_HeadPartMiscSettings}"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
+    
+    <UserControl.Resources>
+        <local:BodyGenVisibilityConverter x:Key="BGVisibilityConverter" />
+    </UserControl.Resources>
+    
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -14,6 +19,10 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
@@ -40,5 +49,17 @@
 
         <TextBlock Grid.Row="2" Grid.Column="0">Use Verbose Scripts</TextBlock>
         <CheckBox Grid.Row="2" Grid.Column="2" IsChecked="{Binding bUseVerboseScripts}"/>
+
+        <Button Grid.Row="3" Grid.Column="0" Command="{Binding SetAllowedDescriptorMatchModes}" VerticalAlignment="Center" Margin="0 0 5 0" Foreground="MediumPurple">Set All Allowed BodyShape Descriptors To</Button>
+        <ComboBox Grid.Row="3" Grid.Column="2" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding AllowedDescriptorMatchMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DescriptorMatchMode}}}" IsSynchronizedWithCurrentItem="True"/>
+
+        <Button Grid.Row="4" Grid.Column="0" Command="{Binding SetDisallowedDescriptorMatchModes}" VerticalAlignment="Center" Margin="0 0 5 0" Foreground="MediumPurple">Set All Allowed BodyShape Descriptors To</Button>
+        <ComboBox Grid.Row="4" Grid.Column="2" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding DisallowedDescriptorMatchMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DescriptorMatchMode}}}" IsSynchronizedWithCurrentItem="True"/>
+
+        <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Visibility="{Binding ParentMenu.BodyShapeMode, Converter={StaticResource BGVisibilityConverter}}" ToolTip="BodyGen Config File whose Descriptors are to be matched" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Associated Male BodyGen Configuration</TextBlock>
+        <ComboBox Grid.Row="5" Grid.Column="2" ItemsSource="{Binding AvailableBodyGenConfigsMale}" DisplayMemberPath="Label" SelectedValue="{Binding TrackedBodyGenConfigMale}" Visibility="{Binding ParentMenu.BodyShapeMode, Converter={StaticResource BGVisibilityConverter}}"/>
+
+        <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Visibility="{Binding ParentMenu.BodyShapeMode, Converter={StaticResource BGVisibilityConverter}}" ToolTip="BodyGen Config File whose Descriptors are to be matched" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Associated Female BodyGen Configuration</TextBlock>
+        <ComboBox Grid.Row="6" Grid.Column="2" ItemsSource="{Binding AvailableBodyGenConfigsFemale}" DisplayMemberPath="Label" SelectedValue="{Binding TrackedBodyGenConfigFemale}" Visibility="{Binding ParentMenu.BodyShapeMode, Converter={StaticResource BGVisibilityConverter}}"/>
     </Grid>
 </UserControl>

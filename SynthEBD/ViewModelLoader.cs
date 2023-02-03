@@ -119,6 +119,8 @@ namespace SynthEBD
             _npcAssignmentsUi = npcAssignmentsUi;
             _attributeCreator = attributeCreator;
 
+            _headPartSettingsVM.Initialize();
+
             Observable.CombineLatest(
                 _patcherSettingsSourceProvider.WhenAnyValue(x => x.UsePortableSettings),
                 _patcherSettingsSourceProvider.WhenAnyValue(x => x.PortableSettingsFolder),

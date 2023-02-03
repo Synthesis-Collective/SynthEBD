@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SynthEBD.UC_HeadPart"
+<UserControl x:Class="SynthEBD.UC_HeadPart"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -123,13 +123,26 @@
             <TextBox Grid.Row="13" Grid.Column="2" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ProbabilityWeighting}"/>
 
             <!--OBody-->
-            <TextBlock Grid.Row="14" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" Visibility="{Binding ParentConfig.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" ToolTip="Body shape descriptors that a BodySlide must have to be paired with this subgroup" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed BodySlide Descriptors</TextBlock>
-            <local:UC_BodyShapeDescriptorSelectionMenu Grid.Row="14" Grid.Column="2"  Visibility="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ParentConfig.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" DataContext="{Binding AllowedBodySlideDescriptors}"/>
+            <TextBlock Grid.Row="14" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" Visibility="{Binding ParentMenu.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" ToolTip="Body shape descriptors that a BodySlide must have to be paired with this subgroup" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed BodySlide Descriptors</TextBlock>
+            <local:UC_BodyShapeDescriptorSelectionMenu Grid.Row="14" Grid.Column="2"  Visibility="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ParentMenu.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" DataContext="{Binding AllowedBodySlideDescriptors}"/>
 
-            <TextBlock Grid.Row="15" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" Visibility="{Binding ParentConfig.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" ToolTip="Body shape descriptors that a BodySlide may not have if it is to be paired with this subgroup" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed BodySlide Descriptors</TextBlock>
-            <local:UC_BodyShapeDescriptorSelectionMenu Grid.Row="15" Grid.Column="2"  Visibility="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ParentConfig.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" DataContext="{Binding DisallowedBodySlideDescriptors}"/>
+            <TextBlock Grid.Row="15" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" Visibility="{Binding ParentMenu.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" ToolTip="Body shape descriptors that a BodySlide may not have if it is to be paired with this subgroup" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed BodySlide Descriptors</TextBlock>
+            <local:UC_BodyShapeDescriptorSelectionMenu Grid.Row="15" Grid.Column="2"  Visibility="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ParentMenu.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" DataContext="{Binding DisallowedBodySlideDescriptors}"/>
 
-            <Button Grid.Row="16" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding DeleteMe}" ToolTip="Delete this head part from SynthEBD's settings" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Delete Head Part</Button>
+            <!--BodyGen-->
+            <TextBlock Grid.Row="14" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" Visibility="{Binding ParentMenu.BodyShapeMode, Converter={StaticResource BGVisibilityConverter}}" ToolTip="Body shape descriptors that a BodyGen morph must have to be paired with this headpart" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Male BodyGen Descriptors</TextBlock>
+            <local:UC_BodyShapeDescriptorSelectionMenu Grid.Row="14" Grid.Column="1" Visibility="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ParentMenu.BodyShapeMode, Converter={StaticResource BGVisibilityConverter}}" DataContext="{Binding AllowedBodyGenDescriptorsMale}"/>
+
+            <TextBlock Grid.Row="15" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" Visibility="{Binding ParentMenu.BodyShapeMode, Converter={StaticResource BGVisibilityConverter}}" ToolTip="Body shape descriptors that a BodyGen morph may not have if it is to be paired with this headpart" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Male BodyGen Descriptors</TextBlock>
+            <local:UC_BodyShapeDescriptorSelectionMenu Grid.Row="15" Grid.Column="1"  Visibility="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ParentMenu.BodyShapeMode, Converter={StaticResource BGVisibilityConverter}}" DataContext="{Binding DisallowedBodyGenDescriptorsMale}" />
+
+            <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" Visibility="{Binding ParentMenu.BodyShapeMode, Converter={StaticResource BGVisibilityConverter}}" ToolTip="Body shape descriptors that a BodyGen morph must have to be paired with this headpart" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Female BodyGen Descriptors</TextBlock>
+            <local:UC_BodyShapeDescriptorSelectionMenu Grid.Row="16" Grid.Column="1" Visibility="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ParentMenu.BodyShapeMode, Converter={StaticResource BGVisibilityConverter}}" DataContext="{Binding AllowedBodyGenDescriptorsFemale}"/>
+
+            <TextBlock Grid.Row="17" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" Visibility="{Binding ParentMenu.BodyShapeMode, Converter={StaticResource BGVisibilityConverter}}" ToolTip="Body shape descriptors that a BodyGen morph may not have if it is to be paired with this headpart" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Female BodyGen Descriptors</TextBlock>
+            <local:UC_BodyShapeDescriptorSelectionMenu Grid.Row="17" Grid.Column="1"  Visibility="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ParentMenu.BodyShapeMode, Converter={StaticResource BGVisibilityConverter}}" DataContext="{Binding DisallowedBodyGenDescriptorsFemale}" />
+
+            <Button Grid.Row="18" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding DeleteMe}" ToolTip="Delete this head part from SynthEBD's settings" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Delete Head Part</Button>
         </Grid>
     </ScrollViewer>
 </UserControl>

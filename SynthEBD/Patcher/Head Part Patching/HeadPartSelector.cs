@@ -392,6 +392,9 @@ namespace SynthEBD
                 return false;
             }
 
+            // Descriptors
+
+
             // If the head part type is still valid
             return true;
         }

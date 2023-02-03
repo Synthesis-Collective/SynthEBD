@@ -18,13 +18,17 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         TrackedMenu = trackedMenu;
         TrackedRaceGroupings = raceGroupingVMs;
         Parent = parentConfig;
-        foreach (var Descriptor in TrackedMenu.TemplateDescriptors)
-        {
-            this.DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(Descriptor, this));
-        }
+        
         this.CurrentlyDisplayedShell = new VM_BodyShapeDescriptorShellSelector(descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), raceGroupingVMs, parentConfig), this);
 
-        trackedMenu.TemplateDescriptors.CollectionChanged += UpdateShellList;
+        if (TrackedMenu != null)
+        {
+            foreach (var Descriptor in TrackedMenu.TemplateDescriptors)
+            {
+                this.DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(Descriptor, this));
+            }
+            TrackedMenu.TemplateDescriptors.CollectionChanged += UpdateShellList;
+        }
     }
     public string Header => BuildHeader(this);
     public VM_BodyShapeDescriptorCreationMenu TrackedMenu { get; set; }
