@@ -1,0 +1,28 @@
+<UserControl x:Class="SynthEBD.UC_AssetPackMiscMenu"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:SynthEBD"
+             d:DataContext="{d:DesignInstance Type=local:VM_AssetPackMiscMenu}"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+        </Grid.RowDefinitions>
+
+        <Button Grid.Row="0" Grid.Column="0" Command="{Binding SetAllowedDescriptorMatchModes}" VerticalAlignment="Center" Margin="0 0 5 0" Foreground="MediumPurple">Set All Allowed BodyShape Descriptors To</Button>
+        <ComboBox Grid.Row="0" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding AllowedDescriptorMatchMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DescriptorMatchMode}}}" IsSynchronizedWithCurrentItem="True"/>
+
+        <Button Grid.Row="1" Grid.Column="0" Command="{Binding SetDisallowedDescriptorMatchModes}" VerticalAlignment="Center" Margin="0 0 5 0" Foreground="MediumPurple">Set All Allowed BodyShape Descriptors To</Button>
+        <ComboBox Grid.Row="1" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding DisallowedDescriptorMatchMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DescriptorMatchMode}}}" IsSynchronizedWithCurrentItem="True"/>
+    </Grid>
+</UserControl>

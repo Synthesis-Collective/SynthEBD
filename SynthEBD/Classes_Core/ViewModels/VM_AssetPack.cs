@@ -25,7 +25,8 @@ public enum AssetPackMenuVisibility
     AssetReplacers,
     RecordTemplates,
     AttributeGroups,
-    RaceGroupings
+    RaceGroupings,
+    Misc
 }
 
 public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgroupViewModels, IHasRaceGroupingEditor
@@ -107,13 +108,15 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         PropertyChanged += RefreshTrackedBodyGenConfig;
         CurrentBodyGenSettings.PropertyChanged += RefreshTrackedBodyGenConfig;
 
-        AttributeGroupMenu = attributeGroupMenuFactory(general.AttributeGroupMenu, true);
+        AttributeGroupMenu = _attributeGroupMenuFactory(general.AttributeGroupMenu, true);
 
-        RaceGroupingEditor = raceGroupingEditorFactory(this, true);
+        RaceGroupingEditor = _raceGroupingEditorFactory(this, true);
 
         ReplacersMenu = assetPackDirectReplacerMenuFactory(this);
 
         DistributionRules = _configDistributionRulesFactory(RaceGroupingEditor.RaceGroupings, this);
+
+        MiscMenu = new VM_AssetPackMiscMenu(this);
 
         BodyShapeMode = general.BodySelectionMode;
         general.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x).DisposeWith(this);
@@ -291,6 +294,11 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
            canExecute: _ => true,
            execute: x => DisplayedMenuType = AssetPackMenuVisibility.RaceGroupings
         );
+
+        ViewMiscMenu = new RelayCommand(
+           canExecute: _ => true,
+           execute: x => DisplayedMenuType = AssetPackMenuVisibility.Misc
+        );
     }
 
     public string GroupName { get; set; } = "New Asset Pack";
@@ -314,6 +322,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public ObservableCollection<VM_AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; } = new();
     public VM_AssetPackDirectReplacerMenu ReplacersMenu { get; set; }
     public VM_ConfigDistributionRules DistributionRules { get; set; }
+    public VM_AssetPackMiscMenu MiscMenu { get; set; }
     public ObservableCollection<VM_AssetPack> ParentCollection { get; set; }
     public VM_Subgroup DisplayedSubgroup { get; set; }
     public RelayCommand RemoveAssetPackConfigFile { get; }
@@ -337,6 +346,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public RelayCommand ViewRecordTemplatesEditor { get; }
     public RelayCommand ViewAttributeGroupsEditor { get; }
     public RelayCommand ViewRaceGroupingsEditor { get; }
+    public RelayCommand ViewMiscMenu { get; }
     public VM_SettingsTexMesh ParentMenuVM { get; set; }
     public IObservable<System.Reactive.Unit> UpdateOrderingMenu { get; set; }
     public IObservable<System.Reactive.Unit> UpdateActiveHeader { get; set; }
@@ -401,7 +411,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
 
         RaceGroupingEditor.CopyInFromModel(model.RaceGroupings, mainRaceGroupings);
-        //AddFallBackRaceGroupings(model, RaceGroupingEditor.RaceGroupings, mainRaceGroupings); // local RaceGroupings were introduced in v0.9. Prior to that, RaceGroupings were loaded from General Settings. To make sure not to wipe old settings, scan model for old race groupings and add then from General Settings if available.
 
         ReplacersMenu = _assetPackDirectReplacerMenuFactory(this);
         ReplacersMenu.CopyInViewModelFromModels(model.ReplacerGroups);

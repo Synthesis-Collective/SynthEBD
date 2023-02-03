@@ -56,6 +56,7 @@
             <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewRecordTemplatesEditor}">Record Templates</RadioButton>
             <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewAttributeGroupsEditor}">Attribute Groups</RadioButton>
             <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewRaceGroupingsEditor}">Race Groupings</RadioButton>
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding ViewMiscMenu}">Misc</RadioButton>
         </WrapPanel>
 
         <Control Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2">
@@ -112,6 +113,15 @@
                                 <Setter.Value>
                                     <ControlTemplate>
                                         <local:UC_RaceGroupingEditor DataContext="{Binding RaceGroupingEditor}"/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding DisplayedMenuType}" Value="{x:Static local:AssetPackMenuVisibility.Misc}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <local:UC_AssetPackMiscMenu DataContext="{Binding MiscMenu}"/>
                                     </ControlTemplate>
                                 </Setter.Value>
                             </Setter>
