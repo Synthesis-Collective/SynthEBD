@@ -34,7 +34,7 @@ public class AssetAndBodyShapeSelector
     /// <param name="availableAssetPacks">Asset packs available to the current NPC</param>
     /// <param name="npcInfo">NPC info class</param>
     /// <returns></returns>
-    public AssetAndBodyShapeAssignment ChooseCombinationAndBodyShape(out bool assetsAssigned, out bool bodyShapeAssigned, HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, NPCInfo npcInfo, bool blockBodyShape, AssetSelector.AssetPackAssignmentMode mode, List<SubgroupCombination> previousAssignments)
+    public AssetAndBodyShapeAssignment ChooseCombinationAndBodyShape(out bool assetsAssigned, out bool bodyShapeAssigned, HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, NPCInfo npcInfo, AssetSelector.AssetPackAssignmentMode mode, List<SubgroupCombination> previousAssignments)
     {
         AssetAndBodyShapeAssignment assignment = new AssetAndBodyShapeAssignment();
         SubgroupCombination chosenCombination = new SubgroupCombination();
@@ -106,7 +106,7 @@ public class AssetAndBodyShapeSelector
         {
             _logger.LogReport("Choosing Asset Combination and BodyGen for " + npcInfo.LogIDstring, false, npcInfo);
 
-            assignment = GenerateCombinationWithBodyShape(availableAssetPacks, bodyGenConfigs, oBodySettings, npcInfo, blockBodyShape, mode, previousAssignments);
+            assignment = GenerateCombinationWithBodyShape(availableAssetPacks, bodyGenConfigs, oBodySettings, npcInfo, mode, previousAssignments);
 
             switch (_patcherState.GeneralSettings.BodySelectionMode)
             {
@@ -133,7 +133,7 @@ public class AssetAndBodyShapeSelector
         return assignment;
     }
 
-    public AssetAndBodyShapeAssignment GenerateCombinationWithBodyShape(HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, NPCInfo npcInfo, bool blockBodyShape, AssetSelector.AssetPackAssignmentMode mode, List<SubgroupCombination> previousAssignments)
+    public AssetAndBodyShapeAssignment GenerateCombinationWithBodyShape(HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, NPCInfo npcInfo, AssetSelector.AssetPackAssignmentMode mode, List<SubgroupCombination> previousAssignments)
     {
         AssetAndBodyShapeAssignment output = new();
         List<BodyGenConfig.BodyGenTemplate> candidateMorphs = new List<BodyGenConfig.BodyGenTemplate>();
@@ -190,7 +190,7 @@ public class AssetAndBodyShapeSelector
             }
 
             // get a Body Shape assignment
-            if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.None || blockBodyShape || (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !BodyGenSelector.BodyGenAvailableForGender(npcInfo.Gender, bodyGenConfigs)) || (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !_oBodySelector.CurrentNPCHasAvailablePresets(npcInfo, oBodySettings)))
+            if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.None || (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !BodyGenSelector.BodyGenAvailableForGender(npcInfo.Gender, bodyGenConfigs)) || (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !_oBodySelector.CurrentNPCHasAvailablePresets(npcInfo, oBodySettings)))
             {
                 combinationIsValid = true;
                 _logger.LogReport("Current combination is accepted without body shape selection.", false, npcInfo);

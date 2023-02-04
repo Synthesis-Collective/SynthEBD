@@ -22,11 +22,12 @@ namespace SynthEBD
         private readonly SynthEBDPaths _paths;
         private readonly DictionaryMapper _dictionaryMapper;
         private readonly AssetAndBodyShapeSelector _assetAndBodyShapeSelector;
+        private readonly AssetSelector _assetSelector;
         private readonly SettingsIO_OBody _oBodyIO;
         private readonly OBodyPreprocessing _obodyPreProcessing;
         private readonly NPCInfo.Factory _npcInfoFactory;
         public delegate VM_AssetDistributionSimulator Factory();
-        public VM_AssetDistributionSimulator(VM_SettingsTexMesh texMesh, VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, DictionaryMapper dictionaryMapper, AssetAndBodyShapeSelector assetAndBodyShapeSelector, OBodyPreprocessing oBodyPreprocessing, SettingsIO_OBody oBodyIO, NPCInfo.Factory npcInfoFactory)
+        public VM_AssetDistributionSimulator(VM_SettingsTexMesh texMesh, VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, DictionaryMapper dictionaryMapper, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, OBodyPreprocessing oBodyPreprocessing, SettingsIO_OBody oBodyIO, NPCInfo.Factory npcInfoFactory)
         {
             _environmentProvider = environmentProvider;
             _patcherState = patcherState;
@@ -34,6 +35,7 @@ namespace SynthEBD
             _paths = paths;
             _dictionaryMapper = dictionaryMapper;
             _assetAndBodyShapeSelector = assetAndBodyShapeSelector;
+            _assetSelector = assetSelector;
             _obodyPreProcessing = oBodyPreprocessing;
             _oBodyIO = oBodyIO;
             _npcInfoFactory = npcInfoFactory;
@@ -105,10 +107,21 @@ namespace SynthEBD
                     NPCinfo.Report.LogCurrentNPC = true;
                     _logger.InitializeNewReport(NPCinfo);
                 }
-                var assignments = _assetAndBodyShapeSelector.GenerateCombinationWithBodyShape(flattenedAssetPacks, BodyGenConfigs, OBodySettings, NPCinfo, blockBodyShape, AssetSelector.AssetPackAssignmentMode.Primary, new());
-                if (assignments.Assets != null)
+                if (!blockBodyShape)
                 {
-                    combinations.Add(assignments.Assets);
+                    var assignments = _assetAndBodyShapeSelector.GenerateCombinationWithBodyShape(flattenedAssetPacks, BodyGenConfigs, OBodySettings, NPCinfo, AssetSelector.AssetPackAssignmentMode.Primary, new());
+                    if (assignments.Assets != null)
+                    {
+                        combinations.Add(assignments.Assets);
+                    }
+                }
+                else
+                {
+                    var assignments = _assetSelector.AssignAssets(NPCinfo, AssetSelector.AssetPackAssignmentMode.Primary, flattenedAssetPacks, null, null, out _);
+                    if (assignments != null)
+                    {
+                        combinations.Add(assignments);
+                    }
                 }
                 if (i == Repetitions - 1)
                 {

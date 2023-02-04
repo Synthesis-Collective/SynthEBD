@@ -487,16 +487,16 @@ public class Patcher
 
                 foreach (var item in _patcherState.TexMeshSettings.AssetOrder)
                 {
-                    if (item == VM_AssetOrderingMenu.PrimaryLabel)
+                    if (item == VM_AssetOrderingMenu.PrimaryLabel && !blockBodyShape)
                     {
                         #region Primary Asset assignment
                         if (_assetsStatsTracker.HasGenderedConfigs[currentNPCInfo.Gender])
                         {
-                            primaryAssetsAndBodyShape = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, primaryAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, blockBodyShape, AssetSelector.AssetPackAssignmentMode.Primary, assignedCombinations);
+                            primaryAssetsAndBodyShape = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, primaryAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, AssetSelector.AssetPackAssignmentMode.Primary, assignedCombinations);
                             if (assetsAssigned)
                             {
                                 assignedCombinations.Add(primaryAssetsAndBodyShape.Assets);
-                                _assetSelector.RecordAssetConsistencyAndLinkedNPCs(primaryAssetsAndBodyShape.Assets, currentNPCInfo);
+                                _assetSelector.RecordPrimaryAssetConsistencyAndLinkedNPCs(primaryAssetsAndBodyShape.Assets, currentNPCInfo);
                             }
                             if (bodyShapeAssigned)
                             {
@@ -519,6 +519,15 @@ public class Patcher
                         _assetsStatsTracker.LogNPCAssets(currentNPCInfo, assetsAssigned);
                         #endregion
                     }
+                    else if (item == VM_AssetOrderingMenu.PrimaryLabel && blockBodyShape)
+                    {
+                        var assignedCombination = _assetSelector.AssignAssets(currentNPCInfo, AssetSelector.AssetPackAssignmentMode.Primary, primaryAssetPacks, assignedMorphs, assignedBodySlide, out _);
+                        if (assignedCombination != null)
+                        {
+                            assignedCombinations.Add(assignedCombination);
+                            _assetSelector.RecordPrimaryAssetConsistencyAndLinkedNPCs(assignedCombination, currentNPCInfo);
+                        }
+                    }
                     else
                     {
                         #region MixIn Asset assignment
@@ -526,7 +535,7 @@ public class Patcher
                         if (currentMixIn != null)
                         {
                             var assignedMixIn = _assetSelector.AssignAssets(currentNPCInfo, AssetSelector.AssetPackAssignmentMode.MixIn, new HashSet<FlattenedAssetPack>() { currentMixIn }, assignedMorphs, assignedBodySlide, out bool mixInDeclined);
-                            _assetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedMixIn, currentNPCInfo, currentMixIn.GroupName, mixInDeclined);
+                            _assetSelector.RecordMixInAssetConsistencyAndLinkedNPCs(assignedMixIn, currentNPCInfo, currentMixIn.GroupName, mixInDeclined);
                             if (assignedMixIn != null)
                             {
                                 assignedCombinations.Add(assignedMixIn);

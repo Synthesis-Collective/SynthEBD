@@ -85,7 +85,7 @@ namespace SynthEBD
                         assignedCombination.DestinationType = destinationType;
                         assignedCombination.ReplacerDestinationFormKey = destinationFK;
                         combinations.Add(assignedCombination);
-                        _assetSelector.RecordAssetConsistencyAndLinkedNPCs(assignedCombination, npcInfo, replacerGroup);
+                        _assetSelector.RecordReplacerAssetConsistencyAndLinkedNPCs(assignedCombination, npcInfo, replacerGroup);
                     }
                 }
             }

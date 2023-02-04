@@ -968,7 +968,7 @@ public class AssetSelector
         return true;
     }
 
-    public void RecordAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo) // Primary 
+    public void RecordPrimaryAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo) // Primary 
     {
         if (_patcherState.GeneralSettings.bEnableConsistency)
         {
@@ -986,7 +986,7 @@ public class AssetSelector
         }
     }
 
-    public void RecordAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo, string mixInName, bool declinedViaProbability) // MixIn 
+    public void RecordMixInAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo, string mixInName, bool declinedViaProbability) // MixIn 
     {
         if (_patcherState.GeneralSettings.bEnableConsistency)
         {
@@ -1053,7 +1053,7 @@ public class AssetSelector
         }
     }
 
-    public void RecordAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo, FlattenedReplacerGroup replacerGroup) // Replacer
+    public void RecordReplacerAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo, FlattenedReplacerGroup replacerGroup) // Replacer
     {
         if (_patcherState.GeneralSettings.bEnableConsistency)
         {
