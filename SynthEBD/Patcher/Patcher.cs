@@ -487,9 +487,9 @@ public class Patcher
 
                 foreach (var item in _patcherState.TexMeshSettings.AssetOrder)
                 {
+                    #region Primary Asset assignment
                     if (item == VM_AssetOrderingMenu.PrimaryLabel && !blockBodyShape)
                     {
-                        #region Primary Asset assignment
                         if (_assetsStatsTracker.HasGenderedConfigs[currentNPCInfo.Gender])
                         {
                             primaryAssetsAndBodyShape = _assetAndBodyShapeSelector.ChooseCombinationAndBodyShape(out assetsAssigned, out bodyShapeAssigned, primaryAssetPacks, bodyGenConfigs, oBodySettings, currentNPCInfo, AssetSelector.AssetPackAssignmentMode.Primary, assignedCombinations);
@@ -517,7 +517,6 @@ public class Patcher
                             }
                         }
                         _assetsStatsTracker.LogNPCAssets(currentNPCInfo, assetsAssigned);
-                        #endregion
                     }
                     else if (item == VM_AssetOrderingMenu.PrimaryLabel && blockBodyShape)
                     {
@@ -528,6 +527,7 @@ public class Patcher
                             _assetSelector.RecordPrimaryAssetConsistencyAndLinkedNPCs(assignedCombination, currentNPCInfo);
                         }
                     }
+                    #endregion
                     else
                     {
                         #region MixIn Asset assignment
