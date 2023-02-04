@@ -47,7 +47,7 @@
             <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Text="{Binding ProbabilityLabelStr}" />
             <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" >
                 <TextBox MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ProbabilityWeighting}"/>
-                <TextBlock Text="%"  Visibility="{Binding Path = bIsMixIn, Converter={StaticResource BoolToVis}}"/>
+                <TextBlock Text="%" VerticalAlignment="Center" Visibility="{Binding Path = bIsMixIn, Converter={StaticResource BoolToVis}}"/>
             </StackPanel>
 
             <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Allowed Races</TextBlock>
