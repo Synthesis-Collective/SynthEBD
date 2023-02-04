@@ -95,7 +95,7 @@
                      <!-- End Subgroup List-->
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Declined" ToolTip="Subgroups from the Mix-In config file assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-                                <CheckBox IsChecked="{Binding DeclinedAssignment}"/>
+                                <CheckBox IsChecked="{Binding DeclinedAssignment}" IsEnabled="False"/>
                             </StackPanel>
                     </StackPanel>
                     </Border>
