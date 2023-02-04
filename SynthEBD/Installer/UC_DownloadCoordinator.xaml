@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SynthEBD.UC_DownloadCoordinator"
+<UserControl x:Class="SynthEBD.UC_DownloadCoordinator"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -10,61 +10,57 @@
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="auto"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" Foreground="White">Please download the required resources and navigate to them using the interface below</TextBlock>
 
-        <ItemsControl Grid.Row="1" Grid.Column="0" ItemsSource="{Binding DownloadInfo}">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate DataType="{x:Type local:VM_DownloadCoordinator+VM_DownloadInfo}">
-                    <Border BorderThickness="1" BorderBrush="#5844b4">
-                        <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="auto"/>
-                            <RowDefinition Height="auto"/>
-                            <RowDefinition Height="auto"/>
-                            <RowDefinition Height="auto"/>
-                            <RowDefinition Height="auto"/>
-                        </Grid.RowDefinitions>
+        <ScrollViewer Grid.Row="1" Grid.Column="0">
+            <ItemsControl ItemsSource="{Binding DownloadInfo}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type local:VM_DownloadCoordinator+VM_DownloadInfo}">
+                        <Border BorderThickness="1" BorderBrush="#5844b4">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="auto"/>
+                                    <RowDefinition Height="auto"/>
+                                    <RowDefinition Height="auto"/>
+                                    <RowDefinition Height="auto"/>
+                                    <RowDefinition Height="auto"/>
+                                </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding ModName}" Foreground="White" FontWeight="Bold"/>
-
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Download file:" Foreground="White"/>
-                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ModDownloadName}" Foreground="White"/>
-
-                        <TextBlock Grid.Row="2" Grid.Column="0" Foreground="White">Download From:</TextBlock>
-                        <TextBlock Grid.Row="2" Grid.Column="1" Foreground="BlueViolet">         
-                        <Hyperlink NavigateUri="{Binding URL}" RequestNavigate="Hyperlink_RequestNavigate">
-                            <TextBlock Text="{Binding URL}"/>
-                        </Hyperlink>
-                        </TextBlock>
-
-                        <TextBlock Grid.Row="3" Grid.Column="0" Foreground="White">Expected File Name:</TextBlock>
-                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ExpectedFileName}" Foreground="White"/>
-
-                        <TextBlock Grid.Row="4" Grid.Column="0" Foreground="White" VerticalAlignment="Center">Downloaded Location:</TextBlock>
-                        <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal">
-                            <Button Command="{Binding FindPath}" Foreground="LightGreen" VerticalAlignment="Center">Select</Button>
-                            <TextBox Text="{Binding Path}" MinWidth="100" Foreground="White"/>
-                        </StackPanel>
-                    </Grid>
-                    </Border>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
-
-        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Bottom">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding ModName}" Foreground="White" FontWeight="Bold"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Download file:" Foreground="White"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ModDownloadName}" Foreground="White"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Foreground="White">Download From:</TextBlock>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Foreground="BlueViolet">         
+                            <Hyperlink NavigateUri="{Binding URL}" RequestNavigate="Hyperlink_RequestNavigate">
+                                <TextBlock Text="{Binding URL}"/>
+                            </Hyperlink>
+                            </TextBlock>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Foreground="White">Expected File Name:</TextBlock>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ExpectedFileName}" Foreground="White"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0" Foreground="White" VerticalAlignment="Center">Downloaded Location:</TextBlock>
+                                <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal">
+                                    <Button Command="{Binding FindPath}" Foreground="LightGreen" VerticalAlignment="Center">Select</Button>
+                                    <TextBox Text="{Binding Path}" MinWidth="100" Foreground="White"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+        <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Bottom">
             <Button Command="{Binding OK}" Foreground="LightGreen" Margin="0 0 10 0">Finish</Button>
             <Button Command="{Binding Cancel}" Foreground="Firebrick">Cancel</Button>
         </StackPanel>

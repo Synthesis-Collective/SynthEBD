@@ -3,36 +3,54 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         xmlns:mahapps="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
         d:DataContext="{d:DesignInstance Type=local:VM_ConfigInstaller}"
         xmlns:local="clr-namespace:SynthEBD"
         mc:Ignorable="d"
         Title="Select Installation Options" Height="600" Width="800">
 
+    <Window.Resources>
+        <ResourceDictionary>
+            <local:MaxHeightConverter x:Key="MaxHeightConverter"/>
+            <sys:Double x:Key="adjMaxHeightRatio">0.75</sys:Double>
+        </ResourceDictionary>
+    </Window.Resources>
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
+            <RowDefinition Height="3*"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <ContentPresenter Content="{Binding DisplayedViewModel}" Grid.Column="0" Grid.Row="0">
-            <ContentPresenter.Resources>
-                <DataTemplate DataType="{x:Type local:VM_ConfigSelector}">
-                    <local:UC_ConfigSelector/>
-                </DataTemplate>
-                <DataTemplate DataType="{x:Type local:VM_DownloadCoordinator}">
-                    <local:UC_DownloadCoordinator/>
-                </DataTemplate>
-            </ContentPresenter.Resources>
-        </ContentPresenter>
-
-        <TextBlock Grid.Row="1" Grid.Column="0" Foreground="White" Text="Installation Notes:"/>
-        <ScrollViewer Grid.Row="2" Grid.Column="0" BorderThickness="1" BorderBrush="White" HorizontalScrollBarVisibility="Auto">
-            <TextBlock Foreground="White" Text="{Binding InstallationMessage}"/>
+        <ScrollViewer Grid.Column="0" Grid.Row="0">
+            <ContentPresenter Content="{Binding DisplayedViewModel}">
+                <ContentPresenter.Resources>
+                    <DataTemplate DataType="{x:Type local:VM_ConfigSelector}">
+                        <local:UC_ConfigSelector/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type local:VM_DownloadCoordinator}">
+                        <local:UC_DownloadCoordinator/>
+                    </DataTemplate>
+                </ContentPresenter.Resources>
+            </ContentPresenter>
         </ScrollViewer>
+
+        <Border Grid.Row="1" Grid.Column="0" BorderThickness="1" BorderBrush="White">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Foreground="White" Text="Installation Notes:" Margin="0 0 0 10"/>
+                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto"  MaxHeight="{Binding ElementName=grdRoot, Path=ActualHeight, Converter={StaticResource MaxHeightConverter}, ConverterParameter={StaticResource adjMaxHeightRatio}}">
+                    <TextBlock Foreground="White" Text="{Binding InstallationMessage}"/>
+                </ScrollViewer>
+            </Grid>
+        </Border>
     </Grid>
 </Window>
