@@ -69,7 +69,7 @@ public class AssetSelector
         }
         else if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique)
         {
-            chosenCombination = GetCombinationFromSameNameNPC(npcInfo, mode);
+            chosenCombination = GetCombinationFromSameNameNPC(npcInfo, mode, availableAssetPacks);
         }
 
         if (chosenCombination == null)
@@ -174,9 +174,28 @@ public class AssetSelector
         return linkedCombination;
     }
 
-    public SubgroupCombination GetCombinationFromSameNameNPC(NPCInfo npcInfo, AssetPackAssignmentMode mode)
+    public SubgroupCombination GetCombinationFromSameNameNPC(NPCInfo npcInfo, AssetPackAssignmentMode mode, HashSet<FlattenedAssetPack> availableAssetPacks)
     {
-        SubgroupCombination linkedCombination = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.PrimaryAssets) ?? null;
+        SubgroupCombination linkedCombination = null;
+        switch(mode)
+        {
+            case AssetPackAssignmentMode.Primary: linkedCombination = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.PrimaryAssets); break;
+            case AssetPackAssignmentMode.MixIn:
+                Dictionary<string, SubgroupCombination> linkedCombinationDict = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.MixInAssets);
+                if (linkedCombinationDict.ContainsKey(availableAssetPacks.First().GroupName)) // availableAssetPacks only contains the current Mix-in
+                {
+                    linkedCombination = linkedCombinationDict[availableAssetPacks.First().GroupName];
+                }
+                break;
+            case AssetPackAssignmentMode.ReplacerVirtual:
+                List<UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment> linkedReplacerCombinations = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.ReplacerAssets);
+                if (linkedReplacerCombinations != null)
+                {
+                    var linkedAssignmentGroup = linkedReplacerCombinations.Where(x => x.ReplacerName == availableAssetPacks.First().GroupName).FirstOrDefault(); // availableAssetPacks only contains the current replacer
+                    if (linkedAssignmentGroup != null) { linkedCombination = linkedAssignmentGroup.AssignedReplacerCombination; }
+                }
+                break;
+        }
 
         if (linkedCombination != null && CombinationAllowedBySpecificNPCAssignment(npcInfo.SpecificNPCAssignment, linkedCombination, mode))
         {

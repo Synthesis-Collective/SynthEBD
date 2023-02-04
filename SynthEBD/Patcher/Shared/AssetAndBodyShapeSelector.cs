@@ -76,7 +76,7 @@ public class AssetAndBodyShapeSelector
         #region Get Assignments from Same-Name Unique NPC
         else if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique)
         {
-            var linkedCombination = _assetSelector.GetCombinationFromSameNameNPC(npcInfo, mode);
+            var linkedCombination = _assetSelector.GetCombinationFromSameNameNPC(npcInfo, mode, availableAssetPacks);
             if (linkedCombination != null)
             {
                 selectedFromLinkedNPC = true;
