@@ -73,7 +73,12 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => RefreshAll()).DisposeWith(this);
 
         this.SubscribedAssetPacks.ToObservableChangeSet().Subscribe(x => RefreshAssets()).DisposeWith(this);
-        DynamicData.ObservableListEx.Transform(this.SubscribedAssetPacks.ToObservableChangeSet(), x => x.WhenAnyValue(y => y.IsSelected).Subscribe(_ => RefreshAssets()).DisposeWith(this)).Subscribe().DisposeWith(this);
+        DynamicData.ObservableListEx
+            .Transform(this.SubscribedAssetPacks.ToObservableChangeSet(), x => x.WhenAnyValue(y => y.IsSelected)
+                .Subscribe(_ => RefreshAssets())
+                .DisposeWith(this))
+            .Subscribe()
+            .DisposeWith(this);
 
         this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
         this.ForcedSubgroups.ToObservableChangeSet().Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);

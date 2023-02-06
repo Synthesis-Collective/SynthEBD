@@ -102,7 +102,7 @@ public class AssetSelector
             // remove subgroups or entire asset packs whose distribution rules are incompatible with the current NPC
             var filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, false, out bool wasFilteredByConsistency, mode, assignedBodyGen, assignedBodySlide);
             // initialize seeds
-            iterationInfo.AvailableSeeds = AssetSelector.GetAllSubgroups(filteredAssetPacks).OrderByDescending(x => x.ForceIfMatchCount).ToList();
+            iterationInfo.AvailableSeeds = GetAllSubgroups(filteredAssetPacks).OrderByDescending(x => x.ForceIfMatchCount).ToList();
             
             bool combinationIsValid = false;
 
@@ -114,7 +114,7 @@ public class AssetSelector
                     {
                         _logger.LogReport("Attempting to select a valid non-consistency Combination.", true, npcInfo);
                         filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, true, out wasFilteredByConsistency, mode, assignedBodyGen, assignedBodySlide);
-                        iterationInfo.AvailableSeeds = AssetSelector.GetAllSubgroups(filteredAssetPacks);
+                        iterationInfo.AvailableSeeds = GetAllSubgroups(filteredAssetPacks);
                     }
                     else // no other filters can be relaxed
                     {
@@ -163,7 +163,7 @@ public class AssetSelector
                 break;
         }
 
-        if (linkedCombination != null && AssetSelector.CombinationAllowedBySpecificNPCAssignment(npcInfo.SpecificNPCAssignment, linkedCombination, mode))
+        if (linkedCombination != null && CombinationAllowedBySpecificNPCAssignment(npcInfo.SpecificNPCAssignment, linkedCombination, mode))
         {
             _logger.LogReport("Selected combination from NPC link group", false, npcInfo);
         }
