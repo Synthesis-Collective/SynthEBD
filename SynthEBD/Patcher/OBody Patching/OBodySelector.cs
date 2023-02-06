@@ -43,7 +43,7 @@ public class OBodySelector
         BodySlideSetting selectedPreset = null;
 
         #region Specific NPC Assignments
-        if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.BodySlidePreset != "")
+        if (npcInfo.SpecificNPCAssignment != null && !npcInfo.SpecificNPCAssignment.BodySlidePreset.IsNullOrWhitespace())
         {
             selectedPreset = availablePresets.Where(x => x.Label == npcInfo.SpecificNPCAssignment.BodySlidePreset).FirstOrDefault();
             if (selectedPreset != null)
