@@ -232,10 +232,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             LinkAssetPackToForcedAssignment(model, viewModel, model.AssetPackName, texMesh.AssetPacks, logger);
         }
 
-        foreach (var forcedMixIn in model.MixInAssignments)
-        {
-            viewModel.ForcedMixIns.Add(VM_MixInSpecificAssignment.GetViewModelFromModel(forcedMixIn, viewModel, assetPackFactory, texMesh, viewModel.ForcedMixIns, logger));
-        }
+        viewModel.CopyInMixInViewModels(model.MixInAssignments);
 
         if (model.Height != null)
         {
@@ -355,7 +352,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         return assetPackFound;
     }
 
-    private static bool LinkAssetPackToForcedAssignment(NPCAssignment.MixInAssignment model, IHasForcedAssets viewModel, string assetPackName, ObservableCollection<VM_AssetPack> assetPacks, string npcName, Logger logger)
+    private static bool LinkMixInToForcedAssignment(NPCAssignment.MixInAssignment model, IHasForcedAssets viewModel, string assetPackName, ObservableCollection<VM_AssetPack> assetPacks, string npcName, Logger logger)
     {
         bool assetPackFound = false;
         foreach (var ap in assetPacks)
@@ -634,6 +631,20 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         return Gender.Male;
     }
 
+    public void CopyInMixInViewModels(List<NPCAssignment.MixInAssignment> models)
+    {
+        ForcedMixIns.Clear();
+        foreach (var model in models)
+        {
+            var viewModel = new VM_MixInSpecificAssignment(this, _assetPackFactory, ForcedMixIns);
+            if(LinkMixInToForcedAssignment(model, viewModel, model.AssetPackName, _texMeshSettings.AssetPacks, DispName, _logger))
+            {
+                viewModel.Decline = model.DeclinedAssignment;
+                ForcedMixIns.Add(viewModel);
+            }
+        }
+    }
+
     public class VM_MixInSpecificAssignment : VM, IHasForcedAssets
     {
         public VM_MixInSpecificAssignment(VM_SpecificNPCAssignment parent, VM_AssetPack.Factory assetPackFactory, ObservableCollection<VM_MixInSpecificAssignment> parentCollection)
@@ -646,6 +657,15 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
             this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
             this.ForcedSubgroups.CollectionChanged += TriggerAvailableSubgroupsUpdate;
+
+            this.WhenAnyValue(x => x.Decline).Subscribe(y =>
+            {
+                switch (y)
+                {
+                    case true: ShowSubgroupAssignments = false; break;
+                    case false: ShowSubgroupAssignments = true; break;
+                }
+            }).DisposeWith(this);
 
             DeleteCommand = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
@@ -675,6 +695,8 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         }
         public VM_AssetPack ForcedAssetPack { get; set; }
         public ObservableCollection<VM_AssetPack> AvailableMixInAssetPacks { get; set; }
+        public bool Decline { get; set; } = false;
+        public bool ShowSubgroupAssignments { get; set; }
         public ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; } = new();
         public ObservableCollection<VM_Subgroup> AvailableSubgroups { get; set; } = new();
         public ObservableCollection<VM_AssetReplacementAssignment> ForcedAssetReplacements { get; set; } = new();
@@ -689,23 +711,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         {
             UpdateAvailableSubgroups(this);
         }
-
-        public static VM_MixInSpecificAssignment GetViewModelFromModel(
-            NPCAssignment.MixInAssignment model, 
-            VM_SpecificNPCAssignment parent,
-            VM_AssetPack.Factory assetPackFactory, 
-            VM_SettingsTexMesh texMesh,
-            ObservableCollection<VM_MixInSpecificAssignment> parentCollection,
-            Logger logger)
-        {
-            var viewModel = new VM_MixInSpecificAssignment(parent, assetPackFactory, parentCollection);
-            LinkAssetPackToForcedAssignment(model, viewModel, model.AssetPackName, texMesh.AssetPacks, parent.DispName, logger);
-            return viewModel;
-        }
         
         public static NPCAssignment.MixInAssignment DumpViewModelToModel(VM_MixInSpecificAssignment viewModel)
         {
             NPCAssignment.MixInAssignment model = new NPCAssignment.MixInAssignment();
+            model.DeclinedAssignment = viewModel.Decline;
             model.AssetPackName = viewModel.ForcedAssetPack.GroupName;
             model.SubgroupIDs = viewModel.ForcedSubgroups.Select(subgroup => subgroup.ID).ToList();
 
