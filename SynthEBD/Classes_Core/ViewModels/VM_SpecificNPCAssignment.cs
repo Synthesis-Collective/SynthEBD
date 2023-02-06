@@ -408,7 +408,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             model.SubgroupIDs = new();
         }
 
-        foreach (var mixin in ForcedMixIns)
+        foreach (var mixin in ForcedMixIns.Where(x => x.ForcedAssetPack != null && !x.ForcedAssetPack.GroupName.IsNullOrWhitespace()))
         {
             if (!model.MixInAssignments.Select(x => x.AssetPackName).Contains(mixin.ForcedAssetPack.GroupName))
             {
