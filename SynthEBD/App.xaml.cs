@@ -242,6 +242,8 @@ public partial class App : Application
         PatcherIO.WriteTextFileStatic(path, errorMessage).Wait();
 
         e.Handled = true;
+
+        Application.Current.MainWindow.Close();
     }
 
 }
