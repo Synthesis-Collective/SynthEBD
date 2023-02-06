@@ -77,15 +77,24 @@ public class AssetSelector
             #region Opt out of Mix-In Asset Pack by probability here
             if (mode == AssetPackAssignmentMode.MixIn && availableAssetPacks.Any())
             {
-                var mixInPack = availableAssetPacks.First();
-                var mixInConsistency = npcInfo.ConsistencyNPCAssignment?.MixInAssignments?.Where(x => x.AssetPackName == mixInPack.GroupName).FirstOrDefault();
-                if (mixInConsistency != null)
+                var specificMixInAssignment = npcInfo.SpecificNPCAssignment?.MixInAssignments.Where(x => x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
+                if (specificMixInAssignment == null)
                 {
-                    mixInDeclined = mixInConsistency.DeclinedAssignment;
+                    var mixInPack = availableAssetPacks.First();
+                    var mixInConsistency = npcInfo.ConsistencyNPCAssignment?.MixInAssignments?.Where(x => x.AssetPackName == mixInPack.GroupName).FirstOrDefault();
+                    if (mixInConsistency != null)
+                    {
+                        mixInDeclined = mixInConsistency.DeclinedAssignment;
+                    }
+                    else
+                    {
+                        mixInDeclined = SkipMixInByProbability(availableAssetPacks.First(), npcInfo);
+                    }
                 }
-                else
+                else if (specificMixInAssignment.DeclinedAssignment)
                 {
-                    mixInDeclined = SkipMixInByProbability(availableAssetPacks.First(), npcInfo);
+                    mixInDeclined = true;
+                    _logger.LogReport("Mix In " + specificMixInAssignment.AssetPackName + " was declined via Specific NPC Assignment.", false, npcInfo);
                 }
 
                 if (mixInDeclined)
@@ -491,15 +500,21 @@ public class AssetSelector
             switch (mode)
             {
                 case AssetPackAssignmentMode.Primary:
+                    if (npcInfo.SpecificNPCAssignment.AssetPackName.IsNullOrWhitespace()) 
+                    { 
+                        break;
+                    }
                     forcedAssetPack = assetPacksToBeFiltered.Where(x => x.GroupName == npcInfo.SpecificNPCAssignment.AssetPackName).FirstOrDefault();
                     if (forcedAssetPack != null)
                     {
                         forcedAssetPack = forcedAssetPack.ShallowCopy(); // don't forget to shallow copy or subsequent NPCs will get pruned asset packs
                         forcedAssignments = GetForcedSubgroupsAtIndex(forcedAssetPack, npcInfo.SpecificNPCAssignment.SubgroupIDs, npcInfo);
+                        _logger.LogReport("Found Asset Pack set by Specific NPC Assignment: " + forcedAssetPack.GroupName, false, npcInfo);
                     }
-                    else if (!string.IsNullOrWhiteSpace(npcInfo.SpecificNPCAssignment.AssetPackName))
+                    else
                     {
-                        _logger.LogMessage("Specific NPC Assignment for " + npcInfo.LogIDstring + " requests asset pack " + forcedAssetPack + " which does not exist. Choosing a random asset pack.");
+                        _logger.LogMessage("Specific NPC Assignment for " + npcInfo.LogIDstring + " requests asset pack " + npcInfo.SpecificNPCAssignment.AssetPackName + " which does not exist or is disabled. Choosing a random asset pack.");
+                        _logger.LogReport("Specific NPC Assignment for " + npcInfo.LogIDstring + " requests asset pack " + npcInfo.SpecificNPCAssignment.AssetPackName + " which does not exist or is disabled. Choosing a random asset pack.", false, npcInfo);
                     }
                     break;
                 case AssetPackAssignmentMode.MixIn:
@@ -508,6 +523,7 @@ public class AssetSelector
                     {
                         forcedAssetPack = availableAssetPacks.First().ShallowCopy();
                         forcedAssignments = GetForcedSubgroupsAtIndex(forcedAssetPack, forcedMixIn.SubgroupIDs, npcInfo);
+                        _logger.LogReport("Found Asset Pack set by Specific NPC Assignment: " + forcedMixIn.AssetPackName, false, npcInfo);
                     }
                     break;
                 case AssetPackAssignmentMode.ReplacerVirtual:
@@ -516,6 +532,7 @@ public class AssetSelector
                     {
                         forcedAssetPack = availableAssetPacks.First().ShallowCopy();
                         forcedAssignments = GetForcedSubgroupsAtIndex(forcedAssetPack, forcedReplacerGroup.SubgroupIDs, npcInfo);
+                        _logger.LogReport("Found Asset Pack set by Specific NPC Assignment: " + forcedAssetPack.GroupName, false, npcInfo);
                     }
                     break;
             }
@@ -523,11 +540,11 @@ public class AssetSelector
             if (forcedAssignments != null)
             {
                 //Prune forced asset pack to only include forced subgroups at their respective indices
-                forcedAssignments = GetForcedSubgroupsAtIndex(forcedAssetPack, npcInfo.SpecificNPCAssignment.SubgroupIDs, npcInfo);
                 for (int i = 0; i < forcedAssignments.Count; i++)
                 {
                     if (forcedAssignments[i].Any())
                     {
+                        _logger.LogReport("Specific NPC Assignment at position " + i.ToString() + " is requiring the following Subgroups: " + String.Join(" or ", forcedAssignments[i].Select(x => x.Id)), false, npcInfo);
                         forcedAssetPack.Subgroups[i] = forcedAssignments[i];
                     }
                 }
@@ -689,7 +706,7 @@ public class AssetSelector
                 // check to make sure consistency asset pack is compatible with the specific NPC assignment
                 if (forcedAssetPack != null && forcedAssetPack.GroupName != "" && forcedAssetPack.GroupName != consistencyAssetPackName)
                 {
-                    _logger.LogReport("Asset Pack defined by forced asset pack (" + npcInfo.SpecificNPCAssignment.AssetPackName + ") supercedes consistency asset pack (" + npcInfo.ConsistencyNPCAssignment.AssetPackName + ")", false, npcInfo);
+                    _logger.LogReport("Asset Pack defined by forced asset pack (" + npcInfo.SpecificNPCAssignment.AssetPackName + ") supercedes consistency asset pack (" + consistencyAssetPackName + ")", false, npcInfo);
                 }
                 else
                 {
@@ -701,7 +718,7 @@ public class AssetSelector
                     }
                     else
                     {
-                        _logger.LogReport("Selecting consistency Asset Pack (" + npcInfo.ConsistencyNPCAssignment.AssetPackName + ").", false, npcInfo);
+                        _logger.LogReport("Selecting consistency Asset Pack (" + consistencyAssetPackName + ").", false, npcInfo);
                         //consistencyAssetPack = consistencyAssetPack.ShallowCopy(); // otherwise subsequent NPCs will get pruned packs as the consistency pack is modified in the current round of patching
 
                         // check each subgroup against specific npc assignment
