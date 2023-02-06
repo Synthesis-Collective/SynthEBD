@@ -245,7 +245,7 @@ public sealed class Logger : VM
                 indent--;
                 split[i] = Indent(split[i], indent);
             }
-            else if (split[i].Trim().StartsWith('<'))
+            else if (split[i].Trim().StartsWith('<') && !split[i].Trim().EndsWith("/>"))
             {
                 split[i] = Indent(split[i], indent);
                 indent++;
