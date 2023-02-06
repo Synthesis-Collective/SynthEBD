@@ -80,7 +80,32 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             .Subscribe()
             .DisposeWith(this);
 
-        this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
+        this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x =>
+        {
+            if (x != null && x.IsSelected)
+            {
+                UpdateAvailableSubgroups(this);
+                ShowSubgroupAssignments = true;
+            }
+            else
+            {
+                ShowSubgroupAssignments = false;
+            }
+            
+        }).DisposeWith(this);
+
+        this.WhenAnyValue(x => x.ForcedAssetPack.IsSelected).Subscribe(b =>
+        {
+            if (b)
+            {
+                ShowSubgroupAssignments = true;
+            }
+            else
+            {
+                ShowSubgroupAssignments = false;
+            }
+        }).DisposeWith(this);
+
         this.ForcedSubgroups.ToObservableChangeSet().Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
 
         this.WhenAnyValue(x => x.SubscribedBodyGenSettings).Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
@@ -163,6 +188,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     //User-editable
     public FormKey NPCFormKey { get; set; } = new();
     public VM_AssetPack ForcedAssetPack { get; set; }
+    public bool ShowSubgroupAssignments { get; set; } = false;
     public ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; } = new();
     public ObservableCollection<VM_MixInSpecificAssignment> ForcedMixIns { get; set; } = new();
     public ObservableCollection<VM_AssetReplacementAssignment> ForcedAssetReplacements { get; set; } = new();
