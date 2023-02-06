@@ -73,6 +73,8 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => RefreshAll()).DisposeWith(this);
 
         this.SubscribedAssetPacks.ToObservableChangeSet().Subscribe(x => RefreshAssets()).DisposeWith(this);
+        DynamicData.ObservableListEx.Transform(this.SubscribedAssetPacks.ToObservableChangeSet(), x => x.WhenAnyValue(y => y.IsSelected).Subscribe(_ => RefreshAssets()).DisposeWith(this)).Subscribe().DisposeWith(this);
+
         this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
         this.ForcedSubgroups.ToObservableChangeSet().Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
 
@@ -441,7 +443,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     {
         assignment.AvailableAssetPacks.Clear();
         assignment.AvailableMixInAssetPacks.Clear();
-        foreach (var assetPack in assignment.SubscribedAssetPacks)
+        foreach (var assetPack in assignment.SubscribedAssetPacks.Where(x => x.IsSelected))
         {
             if (assetPack.Gender == assignment.Gender)
             {
