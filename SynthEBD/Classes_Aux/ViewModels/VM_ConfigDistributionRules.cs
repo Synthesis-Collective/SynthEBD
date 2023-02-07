@@ -155,10 +155,10 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
         model.ProbabilityWeighting = viewModel.ProbabilityWeighting;
         model.WeightRange = viewModel.WeightRange;
 
-        model.AllowedBodyGenDescriptors = viewModel.AllowedBodyGenDescriptors.DumpToHashSet();
-        model.AllowedBodyGenMatchMode = viewModel.AllowedBodyGenDescriptors.MatchMode;
-        model.DisallowedBodyGenDescriptors = viewModel.DisallowedBodyGenDescriptors.DumpToHashSet();
-        model.DisallowedBodyGenMatchMode = viewModel.DisallowedBodyGenDescriptors.MatchMode;
+        model.AllowedBodyGenDescriptors = viewModel.AllowedBodyGenDescriptors?.DumpToHashSet() ?? null;
+        model.AllowedBodyGenMatchMode = viewModel.AllowedBodyGenDescriptors?.MatchMode ?? DescriptorMatchMode.All;
+        model.DisallowedBodyGenDescriptors = viewModel.DisallowedBodyGenDescriptors?.DumpToHashSet() ?? null;
+        model.DisallowedBodyGenMatchMode = viewModel.DisallowedBodyGenDescriptors?.MatchMode ?? DescriptorMatchMode.Any;
         model.AllowedBodySlideDescriptors = viewModel.AllowedBodySlideDescriptors.DumpToHashSet();
         model.AllowedBodySlideMatchMode = viewModel.AllowedBodySlideDescriptors.MatchMode;
         model.DisallowedBodySlideDescriptors = viewModel.DisallowedBodySlideDescriptors.DumpToHashSet();
