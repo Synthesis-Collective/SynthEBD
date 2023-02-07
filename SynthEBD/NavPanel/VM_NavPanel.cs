@@ -16,12 +16,15 @@ public class VM_NavPanel : VM
     public ICommand ClickLog { get; }
     public ICommand ClickMM { get; }
 
+    public string Version { get; }
+
     private readonly VM_Settings_General _settingsGeneral;
     private readonly DisplayedItemVm _displayedItemVM;
 
     public VM_NavPanel(
         DisplayedItemVm displayedItemVm,
         VM_Settings_General settingsGeneral,
+        PatcherState patcherState,
         VM_SettingsTexMesh texMesh,
         VM_SettingsBodyGen bodyGenSettingsVm,
         VM_SettingsOBody oBody,
@@ -35,6 +38,7 @@ public class VM_NavPanel : VM
     {
         _settingsGeneral = settingsGeneral;
         _displayedItemVM = displayedItemVm;
+        Version = PatcherState.Version;
 
         ClickSG = new SynthEBD.RelayCommand(
             canExecute: _ => true,
