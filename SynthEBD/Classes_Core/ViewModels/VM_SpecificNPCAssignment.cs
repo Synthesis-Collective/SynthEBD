@@ -157,7 +157,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
         AddForcedMixIn = new RelayCommand(
             canExecute: _ => true,
-            execute: x => ForcedMixIns.Add(new VM_MixInSpecificAssignment(this, assetPackFactory, ForcedMixIns))
+            execute: x => ForcedMixIns.Add(new VM_MixInSpecificAssignment(this, assetPackFactory))
         );
 
         AddForcedReplacer = new RelayCommand(
@@ -669,7 +669,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         ForcedMixIns.Clear();
         foreach (var model in models)
         {
-            var viewModel = new VM_MixInSpecificAssignment(this, _assetPackFactory, ForcedMixIns);
+            var viewModel = new VM_MixInSpecificAssignment(this, _assetPackFactory);
             if(LinkMixInToForcedAssignment(model, viewModel, model.AssetPackName, _texMeshSettings.AssetPacks, DispName, _logger))
             {
                 viewModel.Decline = model.DeclinedAssignment;
@@ -680,10 +680,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
     public class VM_MixInSpecificAssignment : VM, IHasForcedAssets
     {
-        public VM_MixInSpecificAssignment(VM_SpecificNPCAssignment parent, VM_AssetPack.Factory assetPackFactory, ObservableCollection<VM_MixInSpecificAssignment> parentCollection)
+        public delegate VM_MixInSpecificAssignment Factory(VM_SpecificNPCAssignment parent);
+        public VM_MixInSpecificAssignment(VM_SpecificNPCAssignment parent, VM_AssetPack.Factory assetPackFactory)
         {
-            ParentCollection = parentCollection;
             Parent = parent;
+            ParentCollection = Parent.ForcedMixIns;
 
             this.AvailableMixInAssetPacks = Parent.AvailableMixInAssetPacks;
             this.ForcedAssetPack = assetPackFactory();

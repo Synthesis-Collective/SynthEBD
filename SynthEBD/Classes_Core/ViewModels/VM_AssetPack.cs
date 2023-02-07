@@ -38,6 +38,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     private readonly VM_SettingsModManager _modManager;
     private readonly VM_BodyGenConfig.Factory _bodyGenConfigFactory;
     private readonly VM_AssetPackDirectReplacerMenu.Factory _assetPackDirectReplacerMenuFactory;
+    private readonly VM_AssetPackMiscMenu.Factory _miscMenuFactory;
     private readonly VM_Subgroup.Factory _subgroupFactory;
     private readonly VM_ConfigDistributionRules.Factory _configDistributionRulesFactory;
     private readonly VM_FilePathReplacement.Factory _filePathReplacementFactory;
@@ -63,6 +64,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         VM_SettingsModManager modManager,
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
         VM_AssetPackDirectReplacerMenu.Factory assetPackDirectReplacerMenuFactory,
+        VM_AssetPackMiscMenu.Factory miscMenuFactory,
         VM_Subgroup.Factory subgroupFactory,
         VM_FilePathReplacement.Factory filePathReplacementFactory,
         VM_ConfigDistributionRules.Factory configDistributionRulesFactory,
@@ -83,6 +85,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         _modManager = modManager;
         _bodyGenConfigFactory = bodyGenConfigFactory;
         _assetPackDirectReplacerMenuFactory = assetPackDirectReplacerMenuFactory;
+        _miscMenuFactory = miscMenuFactory;
         _subgroupFactory = subgroupFactory;
         _configDistributionRulesFactory = configDistributionRulesFactory;
         _filePathReplacementFactory = filePathReplacementFactory;
@@ -116,7 +119,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         DistributionRules = _configDistributionRulesFactory(RaceGroupingEditor.RaceGroupings, this);
 
-        MiscMenu = new VM_AssetPackMiscMenu(this);
+        MiscMenu = _miscMenuFactory(this);
 
         BodyShapeMode = general.BodySelectionMode;
         general.WhenAnyValue(x => x.BodySelectionMode).Subscribe(x => BodyShapeMode = x).DisposeWith(this);

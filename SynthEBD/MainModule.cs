@@ -111,6 +111,9 @@ public class MainModule : Autofac.Module
         //UI
         builder.RegisterType<VM_AssetPack>().AsSelf().AsImplementedInterfaces();
         builder.RegisterType<VM_AssetPresenter>().AsSelf();
+        builder.RegisterType<VM_AssetPackMiscMenu>().AsSelf();
+        builder.RegisterType<VM_AssetPackDirectReplacerMenu>().AsSelf();
+        builder.RegisterType<VM_AssetReplacerGroup>().AsSelf();
         builder.RegisterType<VM_Subgroup>().AsSelf();
         builder.RegisterType<VM_SpecificNPCAssignment>().AsSelf();
         builder.RegisterType<VM_ConsistencyAssignment>().AsSelf();
@@ -135,8 +138,6 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_BodyShapeDescriptorCreationMenu>().AsSelf();
         builder.RegisterType<VM_BodyShapeDescriptorSelectionMenu>().AsSelf();
         builder.RegisterType<VM_BodySlideSetting>().AsSelf();
-        builder.RegisterType<VM_AssetPackDirectReplacerMenu>().AsSelf();
-        builder.RegisterType<VM_AssetReplacerGroup>().AsSelf();
         builder.RegisterType<VM_FilePathReplacementMenu>().AsSelf();
         builder.RegisterType<VM_FilePathReplacement>().AsSelf();
         builder.RegisterType<VM_NPCAttribute>().AsSelf();
@@ -159,6 +160,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_RaceGrouping>().AsSelf();
         builder.RegisterType<VM_RaceAlias>().AsSelf();
         builder.RegisterType<VM_LinkedNPCGroup>().AsSelf();
+        builder.RegisterType<VM_SpecificNPCAssignment>().AsSelf();
+        builder.RegisterType<VM_SpecificNPCAssignment.VM_MixInSpecificAssignment>().AsSelf();
 
         // DTOs with factories
         builder.RegisterType<CombinationLog>().AsSelf();
