@@ -485,7 +485,10 @@ public class Patcher
                         break;
                 }
 
-                foreach (var item in _patcherState.TexMeshSettings.AssetOrder)
+                List<string> assetOrder = _patcherState.TexMeshSettings.AssetOrder;
+                if (currentNPCInfo?.SpecificNPCAssignment?.AssetOrder != null) {  assetOrder = currentNPCInfo.SpecificNPCAssignment.AssetOrder; }
+
+                foreach (var item in assetOrder)
                 {
                     #region Primary Asset assignment
                     if (item == VM_AssetOrderingMenu.PrimaryLabel && !blockBodyShape)
