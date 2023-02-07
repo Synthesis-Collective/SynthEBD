@@ -39,6 +39,8 @@ public class NPCAssignment
         public List<AssetReplacerAssignment> AssetReplacerAssignments { get; set; } = new();
         public bool DeclinedAssignment { get; set; } = false;
     }
+
+    public List<string> AssetOrder { get; set; } = new();
 }
 
 public class zEBDSpecificNPCAssignment

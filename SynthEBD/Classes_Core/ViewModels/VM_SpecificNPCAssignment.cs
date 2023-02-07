@@ -66,6 +66,8 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
+        AssetOrderingMenu = new(texMesh);
+
         //this.ForcedAssetPack = assetPackFactory();
 
         this.SubscribedAssetPacks = texMesh.AssetPacks;
@@ -211,6 +213,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     public VM_BodyGenTemplate SelectedTemplate { get; set; }
 
     public Gender Gender { get; set; }
+    public VM_AssetOrderingMenu AssetOrderingMenu { get; set; }
 
     public VM_Settings_General SubscribedGeneralSettings { get; set; }
     public VM_SettingsOBody SubscribedOBodySettings { get; set; }
@@ -259,6 +262,8 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         }
 
         viewModel.CopyInMixInViewModels(model.MixInAssignments);
+
+        viewModel.AssetOrderingMenu.CopyInFromModel(model.AssetOrder);
 
         if (model.Height != null)
         {
@@ -441,6 +446,8 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                 model.MixInAssignments.Add(VM_MixInSpecificAssignment.DumpViewModelToModel(mixin));
             }
         }
+
+        model.AssetOrder = AssetOrderingMenu.DumpToModel();
 
         if (ForcedHeight == "")
         {
