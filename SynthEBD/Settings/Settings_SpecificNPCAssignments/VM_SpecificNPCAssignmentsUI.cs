@@ -179,7 +179,11 @@ public class VM_SpecificNPCAssignmentsUI : VM
         viewModel.Assignments.Clear();
         foreach (var assignment in models)
         {
-            viewModel.Assignments.Add(VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, assetPackFactory, texMesh, bodyGen, headParts, specificNpcAssignmentFactory, logger, converters, environmentProvider));
+            var vm = VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, assetPackFactory, texMesh, bodyGen, headParts, specificNpcAssignmentFactory, logger, converters, environmentProvider);
+            if (vm != null)
+            {
+                viewModel.Assignments.Add(vm);
+            }
         }
     }
 
