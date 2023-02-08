@@ -90,7 +90,7 @@ namespace SynthEBD
 
         private void GetSortState()
         {
-            if (SubscribedCollection is null) { return; }
+            if (SubscribedCollection is null || SubscribedCollection.Where(x => x == null).Any()) { return; }
             if (SubscribedCollection.IsSorted(KeySelector, false))
             {
                 State = SortState.Forward;
