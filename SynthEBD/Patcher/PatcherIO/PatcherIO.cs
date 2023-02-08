@@ -80,12 +80,12 @@ public class PatcherIO
 
         try
         {
+            logger.LogMessage("Writing output file to " + patchOutputPath + ".");
             var writeParams = new Mutagen.Bethesda.Plugins.Binary.Parameters.BinaryWriteParameters()
             {
                 MastersListOrdering = new Mutagen.Bethesda.Plugins.Binary.Parameters.MastersListOrderingByLoadOrder(environmentProvider.LoadOrder)
             };
             outputMod.WriteToBinary(patchOutputPath, writeParams);
-            logger.LogMessage("Wrote output file at " + patchOutputPath + ".");
         }
         catch (Exception e)
         {

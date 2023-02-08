@@ -41,6 +41,8 @@ public class CombinationLog
         if (!_patcherState.TexMeshSettings.bGenerateAssignmentLog) { return; }
         string outputFile = System.IO.Path.Combine(_paths.LogFolderPath, _logger.PatcherExecutionStart.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture), "Generated Combinations.txt");
 
+        _logger.LogMessage("Writing combination log to " + outputFile);
+
         List<string> output = new List<string>();
 
         output.Add("----------------Primary Combinations:----------------" + Environment.NewLine);

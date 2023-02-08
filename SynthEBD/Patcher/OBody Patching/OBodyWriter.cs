@@ -166,6 +166,7 @@ public class OBodyWriter
 
         try
         {
+            _logger.LogMessage("Writing BodySlide Assignments to " + destPath);
             PatcherIO.CreateDirectoryIfNeeded(destPath, PatcherIO.PathType.File);
             File.WriteAllText(destPath, outputStr);
         }
@@ -194,6 +195,7 @@ public class OBodyWriter
 
         try
         {
+            _logger.LogMessage("Writing BodySlide Assignments to " + destPath);
             PatcherIO.CreateDirectoryIfNeeded(destPath, PatcherIO.PathType.File);
             File.WriteAllText(destPath, outputStr);
         }

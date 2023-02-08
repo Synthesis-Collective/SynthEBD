@@ -25,7 +25,9 @@ public class BodyGenWriter
         string templatePath = Path.Combine(outputDirPath, "templates.ini");
         string morphsPath = Path.Combine(outputDirPath, "morphs.ini");
 
+        _logger.LogMessage("Writing BodyGen Templates to " + templatePath);
         Task.Run(() => PatcherIO.WriteTextFile(templatePath, templates, _logger));
+        _logger.LogMessage("Writing BodyGen Morphs to " + morphsPath);
         Task.Run(() => PatcherIO.WriteTextFile(morphsPath, morphs, _logger));
     }
 
