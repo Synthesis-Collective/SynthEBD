@@ -38,6 +38,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         VM_SettingsBodyGen bodyGen,
         VM_SettingsTexMesh texMesh,
         VM_Settings_Headparts headParts,
+        VM_SpecificNPCAssignmentsUI parentUI,
         VM_AssetPack.Factory assetPackFactory,
         VM_BodySlideSetting.Factory bodySlideFactory,
         VM_HeadPartAssignment.Factory headPartFactory,
@@ -67,8 +68,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             .DisposeWith(this);
 
         AssetOrderingMenu = new(texMesh);
-
-        //this.ForcedAssetPack = assetPackFactory();
 
         this.SubscribedAssetPacks = texMesh.AssetPacks;
 
@@ -180,6 +179,22 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             }
         );
 
+        SyncThisAssetOrder = new RelayCommand(
+            canExecute: _ => true,
+            execute: x => SyncAssetOrderFromMain()
+        );
+
+        SyncAllAssetOrders = new RelayCommand(
+            canExecute: _ => true,
+            execute: x =>
+            {
+                foreach (var assignment in parentUI.Assignments)
+                {
+                    assignment.SyncAssetOrderFromMain();
+                }
+            }
+        );
+
         UpdateAvailableAssetPacks(this);
         UpdateAvailableBodySlides();
     }
@@ -226,8 +241,9 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     public RelayCommand AddForcedMixIn { get; set; }
     public RelayCommand AddForcedReplacer { get; set; }
     public RelayCommand DeleteForcedMixInSubgroup { get; set; }
-
     public RelayCommand AddHeadPart { get; set; }
+    public RelayCommand SyncThisAssetOrder { get; set; }
+    public RelayCommand SyncAllAssetOrders { get; set; }
     public static VM_SpecificNPCAssignment GetViewModelFromModel(
         NPCAssignment model, 
         VM_AssetPack.Factory assetPackFactory, 
@@ -604,14 +620,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         AvailableBodySlides = new ObservableCollection<VM_BodySlideSetting>() { _bodySlideFactory(_oBodySettings.DescriptorUI, _generalSettings.RaceGroupingEditor.RaceGroupings, AvailableBodySlides) }; // blank entry
         AvailableBodySlides.AddRange(SubscribedBodySlides);
     }
-    /*
-    public void TriggerDispNameUpdate(object sender, PropertyChangedEventArgs e)
-    {
-        if (this.NPCFormKey.IsNull == false)
-        {
-            this.DispName = Converters.CreateNPCDispNameFromFormKey(this.NPCFormKey);
-        }
-    }*/
 
     public void RefreshAll()
     {
@@ -634,12 +642,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         UpdateAvailableAssetPacks(this);
         UpdateAvailableSubgroups(this);
     }
-
-    /*
-    public void TriggerGenderUpdate(object sender, PropertyChangedEventArgs e)
-    {
-        this.Gender = GetGender(this.NPCFormKey);
-    }*/
 
     public static Gender GetGender (FormKey NPCFormKey, Logger logger, IEnvironmentStateProvider environmentProvider)
     {
@@ -675,6 +677,15 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                 viewModel.Decline = model.DeclinedAssignment;
                 ForcedMixIns.Add(viewModel);
             }
+        }
+    }
+
+    public void SyncAssetOrderFromMain()
+    {
+        AssetOrderingMenu.AssignmentOrder.Clear();
+        foreach (var item in _texMeshSettings.AssetOrderingMenu.AssignmentOrder)
+        {
+            AssetOrderingMenu.AssignmentOrder.Add(item);
         }
     }
 

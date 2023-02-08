@@ -171,6 +171,13 @@
         <Expander Grid.Row="6" Grid.Column="1" >
             <local:UC_AssetOrderingMenu DataContext="{Binding AssetOrderingMenu}"/>
         </Expander>
+        <StackPanel Grid.Row="6" Grid.Column="2" Grid.ColumnSpan="2" Orientation="Horizontal">
+            <TextBlock Text="Sync " VerticalAlignment="Top"/>
+            <Button Command="{Binding SyncThisAssetOrder}" VerticalAlignment="Top" Content="this"  Foreground="MediumPurple" Margin="0 1 0 0" ToolTip="Make the Asset Ordering for this Specific NPC Assignment match the one in the main Textures and Meshes Menu" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <TextBlock Text=" | " VerticalAlignment="Top"/>
+            <Button Command="{Binding SyncAllAssetOrders}" Content="all" Foreground="MediumPurple" VerticalAlignment="Top" Margin="0 1 0 0" ToolTip="Make the Asset Ordering for all Specific NPC Assignments match the one in the main Textures and Meshes Menu" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <TextBlock Text=" ordering to main" VerticalAlignment="Top"/>
+        </StackPanel>
 
         <TextBlock Grid.Row="7" Grid.Column="0" ToolTip="Specify the height of the selected NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Height</TextBlock>
         <TextBox Grid.Row="7" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ForcedHeight}"/>
