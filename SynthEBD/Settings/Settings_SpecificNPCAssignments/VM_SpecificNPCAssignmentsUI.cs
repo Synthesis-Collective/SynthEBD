@@ -171,6 +171,11 @@ public class VM_SpecificNPCAssignmentsUI : VM
         Converters converters,
         IEnvironmentStateProvider environmentProvider)
     {
+        if (models == null)
+        {
+            return;
+        }
+
         viewModel.Assignments.Clear();
         foreach (var assignment in models)
         {

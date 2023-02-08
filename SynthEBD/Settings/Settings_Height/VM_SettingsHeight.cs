@@ -61,24 +61,29 @@ public class VM_SettingsHeight : VM
 
     public RelayCommand DeleteCurrentHeightConfig { get; }
 
-    public static void GetViewModelFromModel(VM_SettingsHeight viewModel, Settings_Height model)
+    public void CopyInFromModel(Settings_Height model)
     {
-        viewModel.bChangeNPCHeight = model.bChangeNPCHeight;
-        viewModel.bChangeRaceHeight = model.bChangeRaceHeight;
-        viewModel.bOverwriteNonDefaultNPCHeights = model.bOverwriteNonDefaultNPCHeights;
+        if (model == null)
+        {
+            return;
+        }
 
-        foreach (var hconfig in viewModel.AvailableHeightConfigs)
+        bChangeNPCHeight = model.bChangeNPCHeight;
+        bChangeRaceHeight = model.bChangeRaceHeight;
+        bOverwriteNonDefaultNPCHeights = model.bOverwriteNonDefaultNPCHeights;
+
+        foreach (var hconfig in AvailableHeightConfigs)
         {
             if (hconfig.Label == model.SelectedHeightConfig)
             {
-                viewModel.SelectedHeightConfig = hconfig;
+                SelectedHeightConfig = hconfig;
                 break;
             }
         }
 
-        if (string.IsNullOrEmpty(model.SelectedHeightConfig) && viewModel.AvailableHeightConfigs.Any())
+        if (string.IsNullOrEmpty(model.SelectedHeightConfig) && AvailableHeightConfigs.Any())
         {
-            viewModel.SelectedHeightConfig = viewModel.AvailableHeightConfigs.First();
+            SelectedHeightConfig = AvailableHeightConfigs.First();
         }
     }
 

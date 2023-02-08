@@ -62,6 +62,10 @@ public class VM_SettingsModManager : VM
 
     public void CopyInViewModelFromModel(Settings_ModManager model)
     {
+        if (model == null)
+        {
+            return;
+        }
         MO2IntegrationVM.GetViewModelFromModel(model.MO2Settings);
         VortexIntegrationVM.GetViewModelFromModel(model.VortexSettings);
         TempFolder = model.TempExtractionFolder;

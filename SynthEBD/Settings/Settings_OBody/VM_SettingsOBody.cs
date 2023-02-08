@@ -61,6 +61,10 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
     public void CopyInViewModelFromModel(Settings_OBody model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyShapeDescriptorCreator descriptorCreator, VM_OBodyMiscSettings.Factory miscSettingsFactory, VM_BodySlideSetting.Factory bodySlideFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_NPCAttributeCreator attCreator, Logger logger)
     {
+        if (model == null)
+        {
+            return;
+        }
         AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups); // get this first so other properties can reference it
 
         DescriptorUI.CopyInViewModelsFromModels(model.TemplateDescriptors);

@@ -102,6 +102,10 @@ public class VM_SettingsBodyGen : VM
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
         ObservableCollection<VM_RaceGrouping> mainRaceGroupings)
     {
+        if (model == null)
+        {
+            return;
+        }
         FemaleConfigs.Clear();
         MaleConfigs.Clear();
 

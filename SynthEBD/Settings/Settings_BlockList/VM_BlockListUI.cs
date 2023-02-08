@@ -74,6 +74,10 @@ public class VM_BlockListUI : VM
 
     public void CopyInViewModelFromModel(BlockList model, VM_BlockedNPC.Factory blockedNPCFactory, VM_BlockedPlugin.Factory blockedPluginFactory)
     {
+        if (model == null)
+        {
+            return;
+        }
         BlockedNPCs.Clear();
         foreach (var blockedNPC in model.NPCs)
         {

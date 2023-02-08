@@ -17,7 +17,6 @@ namespace SynthEBD
     {
         private readonly IEnvironmentStateProvider _environmentProvider;
         private readonly PatcherSettingsSourceProvider _patcherSettingsSourceProvider;
-        private readonly PatcherEnvironmentSourceProvider _patcherEnvironmentSourceProvider;
         private readonly PatcherState _patcherState;
         private readonly Logger _logger;
         private readonly SynthEBDPaths _paths;
@@ -53,7 +52,6 @@ namespace SynthEBD
         public ViewModelLoader(
             IEnvironmentStateProvider environmentProvider, 
             PatcherSettingsSourceProvider patcherSettingsSourceProvider, 
-            PatcherEnvironmentSourceProvider patcherEnvironmentSourceProvider, 
             PatcherState patcherState, 
             Logger logger, 
             SynthEBDPaths paths, 
@@ -87,7 +85,6 @@ namespace SynthEBD
         {
             _environmentProvider = environmentProvider;
             _patcherSettingsSourceProvider = patcherSettingsSourceProvider;
-            _patcherEnvironmentSourceProvider = patcherEnvironmentSourceProvider;
             _patcherState = patcherState;
             _logger = logger;
             _paths = paths;
@@ -150,7 +147,7 @@ namespace SynthEBD
         public void LoadInitialSettingsViewModels() // view models that should be loaded before plugin VMs
         {
             // Load general settings
-            _generalSettingsVM.CopyInFromModel(_patcherState, _raceAliasFactory, _linkedNPCFactory, _environmentProvider.LinkCache);
+            _generalSettingsVM.CopyInFromModel(_patcherState.GeneralSettings, _raceAliasFactory, _linkedNPCFactory, _environmentProvider.LinkCache);
             _texMeshSettingsVM.CopyInViewModelFromModel(_patcherState.TexMeshSettings);
             _blockList.CopyInViewModelFromModel(_patcherState.BlockList, _blockedNPCFactory, _blockedPluginFactory);
             _settingsModManager.CopyInViewModelFromModel(_patcherState.ModManagerSettings);
@@ -161,16 +158,16 @@ namespace SynthEBD
             _bodyGenSettingsVM.CopyInViewModelFromModel(_patcherState.BodyGenConfigs, _patcherState.BodyGenSettings, _bodyGenConfigFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings);
             _settingsOBody.CopyInViewModelFromModel(_patcherState.OBodySettings, _generalSettingsVM.RaceGroupingEditor.RaceGroupings, _bodyShapeDescriptorCreator, _oBodyMiscSettingsFactory, _bodySlideFactory, _descriptorSelectionFactory, _attributeCreator, _logger);
             // load asset packs after BodyGen/BodySlide
-            VM_AssetPack.GetViewModelsFromModels(_patcherState.AssetPacks, _texMeshSettingsVM, _patcherState.TexMeshSettings, _assetPackFactory, _raceGroupingFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings); // add asset pack view models to TexMesh shell view model here
+            VM_AssetPack.GetViewModelsFromModels(_patcherState.AssetPacks, _texMeshSettingsVM, _patcherState.TexMeshSettings, _assetPackFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings); // add asset pack view models to TexMesh shell view model here
             _texMeshSettingsVM.AssetPresenterPrimary.AssetPack = _texMeshSettingsVM.AssetPacks.Where(x => x.GroupName == _texMeshSettingsVM.LastViewedAssetPackName).FirstOrDefault();
 
             VM_HeightConfig.GetViewModelsFromModels(_heightSettingsVM.AvailableHeightConfigs, _patcherState.HeightConfigs, _heightConfigFactory, _heightAssignmentFactory);
-            VM_SettingsHeight.GetViewModelFromModel(_heightSettingsVM, _patcherState.HeightSettings); /// must do after populating configs
+            _heightSettingsVM.CopyInFromModel(_patcherState.HeightSettings); /// must do after populating configs
         }
 
         public void LoadFinalSettingsViewModels() // view models that should be loaded after plugin VMs because they depend on the loaded plugins
         {
-            _texMeshSettingsVM.AssetOrderingMenu.CopyInFromModel(_patcherState.TexMeshSettings.AssetOrder);
+            _texMeshSettingsVM.AssetOrderingMenu.CopyInFromModel(_patcherState.TexMeshSettings?.AssetOrder ?? null);
             _headPartSettingsVM.Initialize();
             _headPartSettingsVM.CopyInFromModel(_patcherState.HeadPartSettings, _generalSettingsVM.RaceGroupingEditor.RaceGroupings);
 

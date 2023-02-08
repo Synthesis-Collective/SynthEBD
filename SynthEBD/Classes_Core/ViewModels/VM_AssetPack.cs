@@ -372,9 +372,13 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         VM_SettingsTexMesh texMesh,
         Settings_TexMesh texMeshSettings, 
         Factory assetPackFactory,
-        VM_RaceGrouping.Factory raceGroupingFactory,
         ObservableCollection<VM_RaceGrouping> mainRaceGroupings)
     {
+        if (texMeshSettings == null)
+        {
+            return;
+        }
+
         texMesh.AssetPacks.Clear();
         for (int i = 0; i < assetPacks.Count; i++)
         {

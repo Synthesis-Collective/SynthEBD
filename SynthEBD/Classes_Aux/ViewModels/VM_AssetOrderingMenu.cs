@@ -61,6 +61,11 @@ namespace SynthEBD
 
         public void CopyInFromModel(List<string> assetOrder)
         {
+            if (assetOrder == null)
+            {
+                return;
+            }
+
             AssignmentOrder.Clear();
             foreach (var asset in assetOrder)
             {

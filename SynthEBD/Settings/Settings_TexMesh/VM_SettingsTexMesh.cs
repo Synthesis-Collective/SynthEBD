@@ -274,6 +274,10 @@ public class VM_SettingsTexMesh : VM
 
     public void CopyInViewModelFromModel(Settings_TexMesh model)
     {
+        if (model == null)
+        {
+            return;
+        }
         bChangeNPCTextures = model.bChangeNPCTextures;
         bChangeNPCMeshes = model.bChangeNPCMeshes;
         bChangeNPCHeadParts = model.bChangeNPCHeadParts;

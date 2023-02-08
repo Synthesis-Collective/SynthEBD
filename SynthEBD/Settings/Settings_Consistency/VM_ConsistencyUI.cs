@@ -126,6 +126,11 @@ public class VM_ConsistencyUI : VM
 
     public static void GetViewModelsFromModels(Dictionary<string, NPCAssignment> models, ObservableCollection<VM_ConsistencyAssignment> viewModels, ObservableCollection<VM_AssetPack> AssetPackVMs, VM_Settings_Headparts headParts, Logger logger)
     {
+        if (models == null)
+        {
+            return;
+        }
+
         viewModels.Clear();
         foreach (var model in models)
         {

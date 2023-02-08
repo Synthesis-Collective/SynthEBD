@@ -132,6 +132,11 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
 
     public void CopyInFromModel(Settings_Headparts model, ObservableCollection<VM_RaceGrouping> raceGroupings)
     {
+        if (model == null)
+        {
+            return;
+        }
+
         RaceGroupings = raceGroupings;
         SettingsMenu.GetViewModelFromModel(model);
         foreach (var type in model.Types.Keys)
