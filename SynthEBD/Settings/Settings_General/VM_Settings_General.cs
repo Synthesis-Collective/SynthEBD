@@ -264,7 +264,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.ExcludePresets = ExcludePresets;
         model.bLinkNPCsWithSameName = bLinkNPCsWithSameName;
         model.LinkedNPCNameExclusions = LinkedNameExclusions.Select(x => x.Content).ToList();
-        VM_LinkedNPCGroup.DumpViewModelsToModels(_patcherState.GeneralSettings.LinkedNPCGroups, LinkedNPCGroups);
+        VM_LinkedNPCGroup.DumpViewModelsToModels(model.LinkedNPCGroups, LinkedNPCGroups);
         model.bVerboseModeAssetsNoncompliant = bVerboseModeAssetsNoncompliant;
         model.bVerboseModeAssetsAll = bVerboseModeAssetsAll;
         model.VerboseModeNPClist = verboseModeNPClist.ToList();
