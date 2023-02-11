@@ -27,6 +27,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<SettingsIO_Height>().AsSelf().SingleInstance();
         builder.RegisterType<SettingsIO_ModManager>().AsSelf().SingleInstance();
         builder.RegisterType<SettingsIO_Misc>().AsSelf().SingleInstance();
+        builder.RegisterType<FaceTextureScriptWriter>().AsSelf().SingleInstance();
         builder.RegisterType<HeadPartWriter>().AsSelf().SingleInstance();
         builder.RegisterType<OBodyWriter>().AsSelf().SingleInstance();
         builder.RegisterType<BodyGenWriter>().AsSelf().SingleInstance();

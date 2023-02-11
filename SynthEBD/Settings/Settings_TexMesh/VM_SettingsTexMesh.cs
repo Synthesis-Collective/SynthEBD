@@ -63,6 +63,10 @@ public class VM_SettingsTexMesh : VM
 
         AssetPacks.ToObservableChangeSet().Subscribe(_ => RefreshDisplayedAssetPackString()).DisposeWith(this);
 
+        AddTriggerEvent = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => TriggerEvents.Add(new VM_CollectionMemberString("", TriggerEvents))
+        );
 
         AddTrimPath = new RelayCommand(
             canExecute: _ => true,
@@ -223,6 +227,8 @@ public class VM_SettingsTexMesh : VM
     public bool bEasyNPCCompatibilityMode { get; set; } = true;
     public bool bApplyFixedScripts { get; set; } = true;
     public bool bCacheRecords { get; set; } = true;
+    public bool bLegacyEBDMode { get; set; } = true;
+    public bool bNewEBDModeVerbose { get; set; } = false;
 
     private static string oldSKSEversion = "< 1.5.97";
     private static string newSKSEversion = "1.5.97 or higher";
@@ -236,6 +242,8 @@ public class VM_SettingsTexMesh : VM
     public ObservableCollection<TrimPath> TrimPaths { get; set; } = new();
     public ObservableCollection<VM_AssetPack> AssetPacks { get; set; } = new();
 
+    public ObservableCollection<VM_CollectionMemberString> TriggerEvents { get; set; } = new();
+
     public RelayCommand AddTrimPath { get; }
     public RelayCommand RemoveTrimPath { get; }
     public RelayCommand ValidateAll { get; }
@@ -245,6 +253,7 @@ public class VM_SettingsTexMesh : VM
     public RelayCommand CreateConfigArchive { get; }
     public RelayCommand SplitScreenToggle { get; }
     public RelayCommand MenuButtonsToggle { get; }
+    public RelayCommand AddTriggerEvent { get; }
     public string LastViewedAssetPackName { get; set; }
     public bool bShowSecondaryAssetPack { get; set; } = false;
     public VM_AssetPresenter AssetPresenterPrimary { get; set; }
@@ -293,6 +302,9 @@ public class VM_SettingsTexMesh : VM
         LastViewedAssetPackName = model.LastViewedAssetPack;
         bEasyNPCCompatibilityMode = model.bEasyNPCCompatibilityMode;
         bApplyFixedScripts = model.bApplyFixedScripts;
+        bLegacyEBDMode = model.bLegacyEBDMode;
+        bNewEBDModeVerbose = model.bNewEBDModeVerbose;
+        TriggerEvents = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(model.TriggerEvents);
 
         if (model.bFixedScriptsOldSKSEversion)
         {
@@ -304,6 +316,7 @@ public class VM_SettingsTexMesh : VM
         }
 
         bCacheRecords = model.bCacheRecords;
+        
     }
 
     public Settings_TexMesh DumpViewModelToModel()
@@ -330,7 +343,10 @@ public class VM_SettingsTexMesh : VM
         model.bApplyFixedScripts = bApplyFixedScripts;
         model.bFixedScriptsOldSKSEversion = SKSEversionSSE == oldSKSEversion;
         model.bCacheRecords = bCacheRecords;
+        model.bLegacyEBDMode = bLegacyEBDMode;
+        model.bNewEBDModeVerbose = bNewEBDModeVerbose;
         model.AssetOrder = AssetOrderingMenu.DumpToModel();
+        model.TriggerEvents = TriggerEvents.Select(x => x.Content).ToList();
         return model;
     }
 

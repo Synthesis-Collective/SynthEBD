@@ -35,6 +35,8 @@
     <None Remove="InternalData\7Zip\x64\7z.exe" />
     <None Remove="InternalData\7Zip\x86\7z.dll" />
     <None Remove="InternalData\7Zip\x86\7z.exe" />
+    <None Remove="InternalData\EBD Code\SynthEBD Face Texture\Source\SynthEBDFaceTextureScript.psc" />
+    <None Remove="InternalData\EBD Code\SynthEBD Face Texture\SynthEBDFaceTextureScript.pex" />
     <None Remove="InternalData\FirstLaunchResources\Default Config.json" />
     <None Remove="InternalData\FirstLaunchResources\Record Templates.esp" />
     <None Remove="Record Templates\Record Templates.esp" />
@@ -87,6 +89,12 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="InternalData\7Zip\x86\7z.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="InternalData\EBD Code\SynthEBD Face Texture\Source\SynthEBDFaceTextureScript.psc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="InternalData\EBD Code\SynthEBD Face Texture\SynthEBDFaceTextureScript.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="InternalData\FirstLaunchResources\Default Config.json">

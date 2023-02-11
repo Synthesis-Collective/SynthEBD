@@ -9,6 +9,7 @@
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <local:InvertableBooleanToVisibilityConverter x:Key="IBoolToVis"/>
     </UserControl.Resources>
 
     <Grid>
@@ -102,12 +103,37 @@
             <TextBlock Grid.Row="8" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Remove SkinNaked WNAM records assigned to NPCs by EasyNPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">EasyNPC Compatibility Mode</TextBlock>
             <CheckBox Grid.Row="8" Grid.Column="1" IsChecked="{Binding Path=bEasyNPCCompatibilityMode, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="9" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Overwrites some original EBD scripts with updated and fixed versions" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Fix EBD Script</TextBlock>
-            <StackPanel Orientation="Horizontal" Grid.Row="9" Grid.Column="1">
-                <CheckBox IsChecked="{Binding Path=bApplyFixedScripts, Mode=TwoWay}"/>
-                <TextBlock Text="SSE Version: " Margin="3 0 3 0" VerticalAlignment="Center" Visibility="{Binding Path = bShowSKSEversionOptions, Converter={StaticResource BoolToVis}}"/>
-                <ComboBox SelectedItem="{Binding SKSEversionSSE}" ItemsSource="{Binding SKSEversionOptions}" Visibility="{Binding Path = bShowSKSEversionOptions, Converter={StaticResource BoolToVis}}"/>
-            </StackPanel>
+            <TextBlock Grid.Row="9" Grid.Column="0"  VerticalAlignment="Center" Text="EBD Options"/>
+            <WrapPanel Orientation="Horizontal" Grid.Row="9" Grid.Column="1">
+                <TextBlock Margin="0 0 5 0" VerticalAlignment="Center" ToolTip="Overwrites some original EBD scripts with updated and fixed versions" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Fix EBD Script</TextBlock>
+                <CheckBox VerticalAlignment="Center" IsChecked="{Binding Path=bApplyFixedScripts, Mode=TwoWay}"/>
+                <TextBlock Text="SSE Version: " Margin="5 0 5 0" VerticalAlignment="Center" Visibility="{Binding Path = bShowSKSEversionOptions, Converter={StaticResource BoolToVis}}"/>
+                <ComboBox SelectedItem="{Binding SKSEversionSSE}" ItemsSource="{Binding SKSEversionOptions}" Visibility="{Binding Path = bShowSKSEversionOptions, Converter={StaticResource BoolToVis}}" />
+                <TextBlock Margin="5 0 5 0" VerticalAlignment="Center" ToolTip="Use original EBD Scripts instead of new SynthEBD versions (bug fix will still be applied if Fix EBD Script is checked)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Use Original EBD Scripts</TextBlock>
+                <CheckBox VerticalAlignment="Center" IsChecked="{Binding Path=bLegacyEBDMode, Mode=TwoWay}"/>
+                <Expander Margin="5 0 0 0" Header="Refresh Triggers" ExpandDirection="Down" Visibility="{Binding bLegacyEBDMode, Converter={StaticResource IBoolToVis}, ConverterParameter=Inverted}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="auto"/>
+                            <RowDefinition Height="auto"/>
+                        </Grid.RowDefinitions>
+
+                        <ItemsControl Grid.Row="0" ItemsSource="{Binding TriggerEvents, UpdateSourceTrigger=PropertyChanged}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type local:VM_CollectionMemberString}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBox Text="{Binding Content}" MinWidth="100"></TextBox>
+                                        <Button Command="{Binding DeleteCommand}" Foreground="FireBrick">X</Button>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button Grid.Row="1" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddTriggerEvent}" Foreground="LightGreen">Add New</Button>
+                    </Grid>
+                </Expander>
+                <TextBlock Margin="5 0 5 0" VerticalAlignment="Center" ToolTip="Show notifications in top left corner and write detailed events to Papyrus log (recommmended for testing only)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding bLegacyEBDMode, Converter={StaticResource IBoolToVis}, ConverterParameter=Inverted}">Verbose</TextBlock>
+                <CheckBox VerticalAlignment="Center" IsChecked="{Binding Path=bNewEBDModeVerbose, Mode=TwoWay}" Visibility="{Binding bLegacyEBDMode, Converter={StaticResource IBoolToVis}, ConverterParameter=Inverted}"/>
+            </WrapPanel>
 
             <TextBlock Grid.Row="10" Grid.Column="0" VerticalAlignment="Center" ToolTip="Generate log to display generated and assigned assets" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Generate combination assignment log</TextBlock>
             <CheckBox Grid.Row="10"  Grid.Column="1" IsChecked="{Binding Path=bGenerateAssignmentLog, Mode=TwoWay}"></CheckBox>

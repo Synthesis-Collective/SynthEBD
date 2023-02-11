@@ -33,6 +33,7 @@ public class Patcher
     private readonly HeadPartSelector _headPartSelector;
     private readonly HeadPartWriter _headPartWriter;
     private readonly CommonScripts _commonScripts;
+    private readonly FaceTextureScriptWriter _faceTextureScriptWriter;
     private readonly EBDScripts _EBDScripts;
     private readonly JContainersDomain _jContainersDomain;
     private readonly QuestInit _questInit;
@@ -45,7 +46,7 @@ public class Patcher
     private AssetStatsTracker _assetsStatsTracker { get; set; }
     private int _patchedNpcCount { get; set; }
 
-    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory)
+    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -70,6 +71,7 @@ public class Patcher
         _headPartSelector = headPartSelector;
         _headPartWriter = headPartWriter;
         _commonScripts = commonScripts;
+        _faceTextureScriptWriter = faceTextureScriptWriter;
         _EBDScripts = ebdScripts;
         _jContainersDomain = jContainersDomain;
         _questInit = questInit;
@@ -87,7 +89,7 @@ public class Patcher
         // General pre-patching tasks: 
         if (_paths.OutputDataFolder.IsNullOrEmpty())
         {
-            if(_patcherState.GeneralSettings.OutputDataFolder.IsNullOrEmpty())
+            if (_patcherState.GeneralSettings.OutputDataFolder.IsNullOrEmpty())
             {
                 _paths.OutputDataFolder = _environmentProvider.DataFolderPath;
             }
@@ -96,7 +98,7 @@ public class Patcher
                 _paths.OutputDataFolder = _patcherState.GeneralSettings.OutputDataFolder;
             }
         }
-        
+
         var outputMod = _environmentProvider.OutputMod;
         var allNPCs = _environmentProvider.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
         _raceResolver.ResolvePatchableRaces();
@@ -124,7 +126,15 @@ public class Patcher
         CategorizedFlattenedAssetPacks availableAssetPacks = null;
         Keyword EBDFaceKW = null;
         Keyword EBDScriptKW = null;
-        Spell EBDHelperSpell = null;
+
+        // write resources for EBD face texture script even if it will be superceded by the updated version
+        EBDCoreRecords.CreateCoreRecords(outputMod, out EBDFaceKW, out EBDScriptKW, out Spell EBDHelperSpell);
+
+        // write resources for new face texture script even if it will be deactivated
+        (var synthEBDFaceKW, var gEnableFaceTextureScript, var gFaceTextureVerboseMode) = _faceTextureScriptWriter.InitializeToggleRecords(outputMod);
+        _faceTextureScriptWriter.CopyFaceTextureScript();
+        Spell synthEBDHelperSpell = _faceTextureScriptWriter.CreateSynthEBDFaceTextureSpell(outputMod, synthEBDFaceKW, gEnableFaceTextureScript, gFaceTextureVerboseMode, _patcherState.TexMeshSettings.TriggerEvents);
+
         if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)
         {
             UpdateRecordTemplateAdditonalRaces(assetPacks, _patcherState.RecordTemplateLinkCache, _patcherState.RecordTemplatePlugins);
@@ -133,8 +143,15 @@ public class Patcher
             PathTrimmer.TrimFlattenedAssetPacks(flattenedAssetPacks, _patcherState.TexMeshSettings.TrimPaths.ToHashSet());
             availableAssetPacks = new CategorizedFlattenedAssetPacks(flattenedAssetPacks);
 
-            EBDCoreRecords.CreateCoreRecords(outputMod, out EBDFaceKW, out EBDScriptKW, out EBDHelperSpell);
-            ApplyRacialSpell.ApplySpell(outputMod, EBDHelperSpell, _environmentProvider.LinkCache, _patcherState);
+            if (_patcherState.TexMeshSettings.bLegacyEBDMode)
+            {
+                ApplyRacialSpell.ApplySpell(outputMod, EBDHelperSpell, _environmentProvider.LinkCache, _patcherState);
+            }
+            else
+            {
+                gEnableFaceTextureScript.Data = 1;
+                ApplyRacialSpell.ApplySpell(outputMod, synthEBDHelperSpell, _environmentProvider.LinkCache, _patcherState);
+            }
 
             if (_patcherState.TexMeshSettings.bApplyFixedScripts) { _EBDScripts.ApplyFixedScripts(); }
 
@@ -260,7 +277,7 @@ public class Patcher
             if (removedHeadParts)
             {
                 _logger.LogMessage("Some head parts will not be distributed because they are no longer present in your load order.");
-            } 
+            }
 
             _headPartPreprocessing.CompilePresetRaces(copiedHeadPartSettings);
             _headPartPreprocessing.ConvertBodyShapeDescriptorRules(copiedHeadPartSettings);
@@ -276,9 +293,9 @@ public class Patcher
         _statusBar.ProgressBarCurrent = 0;
         _statusBar.ProgressBarDisp = "Patched " + _statusBar.ProgressBarCurrent + " NPCs";
         // Patch main NPCs
-        MainLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
+        MainLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs, synthEBDFaceKW, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
         // Finish assigning non-primary linked NPCs
-        MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
+        MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs, synthEBDFaceKW, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
 
         _logger.StopTimer();
         _logger.LogMessage("Finished patching in " + _logger.GetEllapsedTime());
@@ -347,6 +364,7 @@ public class Patcher
         _statusBar.IsPatching = false;
     }
 
+
     public static Dictionary<string, Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>> UniqueAssignmentsByName = new Dictionary<string, Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>>();
 
     private void timer_Tick(object sender, EventArgs e)
@@ -374,7 +392,7 @@ public class Patcher
         CategorizedFlattenedAssetPacks sortedAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings,
         HeightConfig currentHeightConfig, Settings_Headparts headPartSettings, 
         HashSet<LinkedNPCGroupInfo> generatedLinkGroups, HashSet<INpcGetter> skippedLinkedNPCs,
-        Keyword EBDFaceKW, Keyword EBDScriptKW, FacePartCompliance facePartComplianceMaintainer,
+        Keyword synthEBDFaceKW, Keyword EBDFaceKW, Keyword EBDScriptKW, FacePartCompliance facePartComplianceMaintainer,
         HashSet<Npc> headPartNPCs)
     {
         bool blockAssets;
@@ -582,9 +600,17 @@ public class Patcher
                     _recordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, _patcherState.RecordTemplateLinkCache, npcObjectMap, objectCaches, outputMod, assignedPaths, generatedHeadParts);
                     _combinationLog.LogAssignment(currentNPCInfo, assignedCombinations, assignedPaths);
                     if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
-                    npcRecord.Keywords.Add(EBDFaceKW);
-                    npcRecord.Keywords.Add(EBDScriptKW);
-                    RecordGenerator.AddKeywordsToNPC(assignedCombinations, npcRecord, outputMod);
+
+                    if (_patcherState.TexMeshSettings.bLegacyEBDMode)
+                    {
+                        npcRecord.Keywords.Add(EBDFaceKW);
+                        npcRecord.Keywords.Add(EBDScriptKW);
+                    }
+                    else
+                    {
+                        npcRecord.Keywords.Add(synthEBDFaceKW);
+                    }
+                    RecordGenerator.AddCustomKeywordsToNPC(assignedCombinations, npcRecord, outputMod);
 
                     if (assignedPaths.Where(x => x.DestinationStr.StartsWith("HeadParts")).Any())
                     {

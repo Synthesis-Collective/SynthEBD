@@ -21,6 +21,8 @@ public class Settings_TexMesh
     public bool bApplyFixedScripts { get; set; } = true;
     public bool bFixedScriptsOldSKSEversion { get; set; } = false;
     public bool bCacheRecords { get; set; } = true;
+    public bool bLegacyEBDMode { get; set; } = true;
+    public bool bNewEBDModeVerbose { get; set; } = false;
     public List<TrimPath> TrimPaths { get; set; } = new()
     {
         new TrimPath()
@@ -40,4 +42,5 @@ public class Settings_TexMesh
         }
     };
     public List<string> AssetOrder { get; set; } = new();
+    public List<string> TriggerEvents { get; set; } = new() { "OStim_PreStart", "OStim_Start", "OStim_End" };
 }

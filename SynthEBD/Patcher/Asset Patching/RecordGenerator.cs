@@ -623,7 +623,7 @@ public class RecordGenerator
 
     private static Dictionary<string, Keyword> GeneratedKeywords = new Dictionary<string, Keyword>();
 
-    public static void AddKeywordsToNPC(List<SubgroupCombination> assignedCombinations, Npc npc, ISkyrimMod outputMod)
+    public static void AddCustomKeywordsToNPC(List<SubgroupCombination> assignedCombinations, Npc npc, ISkyrimMod outputMod)
     {
         foreach (var combination in assignedCombinations)
         {
