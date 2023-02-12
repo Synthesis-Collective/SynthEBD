@@ -26,7 +26,7 @@
         <Button Grid.Row="0" Grid.Column="0" Command="{Binding SetAllowedDescriptorMatchModes}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0 0 5 0" Foreground="MediumPurple">Set All Allowed BodyShape Descriptors To</Button>
         <ComboBox Grid.Row="0" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding AllowedDescriptorMatchMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DescriptorMatchMode}}}" IsSynchronizedWithCurrentItem="True"/>
 
-        <Button Grid.Row="1" Grid.Column="0" Command="{Binding SetDisallowedDescriptorMatchModes}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0 0 5 0" Foreground="MediumPurple">Set All Allowed BodyShape Descriptors To</Button>
+        <Button Grid.Row="1" Grid.Column="0" Command="{Binding SetDisallowedDescriptorMatchModes}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0 0 5 0" Foreground="MediumPurple">Set All Disallowed BodyShape Descriptors To</Button>
         <ComboBox Grid.Row="1" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding DisallowedDescriptorMatchMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DescriptorMatchMode}}}" IsSynchronizedWithCurrentItem="True"/>
 
         <Button Grid.Row="2" Grid.Column="0" Command="{Binding AddMixInToSpecificAssignments}" VerticalAlignment="Center" Margin="0 0 5 0" Foreground="MediumPurple" Visibility="{Binding Path = ShowMixInCommands, Converter={StaticResource BoolToVis}}">Add to all Specific NPC Assignment Forced MixIns</Button>
