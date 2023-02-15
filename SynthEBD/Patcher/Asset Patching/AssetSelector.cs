@@ -566,7 +566,12 @@ public class AssetSelector
             _logger.OpenReportSubsection("AssetPack", npcInfo);
             _logger.LogReport("Evaluating distribution rules for asset pack: " + ap.GroupName, false, npcInfo);
             var candidatePack = ap.ShallowCopy();
-            if (!SubgroupValidForCurrentNPC(candidatePack.DistributionRules, npcInfo, mode, assignedBodyGen, assignedBodySlide)) // check distribution rules for whole config
+            if (forcedAssetPack != null && candidatePack.GroupName == forcedAssetPack.GroupName)
+            {
+                _logger.LogReport("Skipped evaluation of Whole Config Distribution Rules for Asset Pack " + ap.GroupName + " because it is forced by Specific NPC Assignments.", false, npcInfo);
+                filteredByMainConfigRules.Add(candidatePack);
+            }
+            else if (!SubgroupValidForCurrentNPC(candidatePack.DistributionRules, npcInfo, mode, assignedBodyGen, assignedBodySlide)) // check distribution rules for whole config
             {
                 _logger.LogReport("Asset Pack " + ap.GroupName + " is invalid due to its main distribution rules.", false, npcInfo);
             }
