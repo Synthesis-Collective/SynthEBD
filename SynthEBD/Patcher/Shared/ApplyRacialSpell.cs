@@ -17,11 +17,14 @@ namespace SynthEBD
             foreach (var raceGetter in CompilePatchableRaces(linkCache, patcherState))
             {
                 var patchableRace = outputMod.Races.GetOrAddAsOverride(raceGetter);
-                if (patchableRace.ActorEffect == null)
+                if (patchableRace != null)
                 {
-                    patchableRace.ActorEffect = new Noggog.ExtendedList<IFormLinkGetter<ISpellRecordGetter>>();
+                    if (patchableRace.ActorEffect == null)
+                    {
+                        patchableRace.ActorEffect = new Noggog.ExtendedList<IFormLinkGetter<ISpellRecordGetter>>();
+                    }
+                    patchableRace.ActorEffect.Add(spell);
                 }
-                patchableRace.ActorEffect.Add(spell);
             }
         }
 
