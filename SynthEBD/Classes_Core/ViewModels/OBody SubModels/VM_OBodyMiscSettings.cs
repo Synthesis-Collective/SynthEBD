@@ -1,3 +1,5 @@
+using Noggog;
+using ReactiveUI;
 using System.Collections.ObjectModel;
 
 namespace SynthEBD;
@@ -6,11 +8,15 @@ public class VM_OBodyMiscSettings : VM
 {
     private readonly Logger _logger;
     private readonly RaceMenuIniHandler _raceMenuHandler;
+    private readonly VM_Settings_General _generalSettingsVM;
     public delegate VM_OBodyMiscSettings Factory();
-    public VM_OBodyMiscSettings(Logger logger, RaceMenuIniHandler raceMenuHandler)
+    public VM_OBodyMiscSettings(Logger logger, RaceMenuIniHandler raceMenuHandler, VM_Settings_General generalSettingsVM)
     {
         _logger = logger;
         _raceMenuHandler = raceMenuHandler;
+        _generalSettingsVM = generalSettingsVM;
+
+        generalSettingsVM.WhenAnyValue(x => x.BSSelectionMode).Subscribe(x => ShowAutoBodySelectionMode = x == BodySlideSelectionMode.AutoBody).DisposeWith(this);
 
         AddMaleSliderGroup = new RelayCommand(
             canExecute: _ => true,
@@ -36,6 +42,8 @@ public class VM_OBodyMiscSettings : VM
                 }
             }
         );
+
+
     }
 
     public ObservableCollection<VM_CollectionMemberString> MaleBodySlideGroups { get; set; } = new();
@@ -46,10 +54,11 @@ public class VM_OBodyMiscSettings : VM
 
     public RelayCommand AddMaleSliderGroup { get; set; }
     public RelayCommand AddFemaleSliderGroup { get; set; }
+    public bool ShowAutoBodySelectionMode { get; set; }
 
     public VM_OBodyMiscSettings GetViewModelFromModel(Settings_OBody model)
     {
-        VM_OBodyMiscSettings viewModel = new VM_OBodyMiscSettings(_logger, _raceMenuHandler);
+        VM_OBodyMiscSettings viewModel = new VM_OBodyMiscSettings(_logger, _raceMenuHandler, _generalSettingsVM);
         viewModel.MaleBodySlideGroups.Clear();
         foreach (var g in model.MaleSliderGroups)
         {

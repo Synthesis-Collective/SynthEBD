@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SynthEBD.UC_OBodyMiscSettings"
+<UserControl x:Class="SynthEBD.UC_OBodyMiscSettings"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -7,6 +7,11 @@
              xmlns:local="clr-namespace:SynthEBD"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+    
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -53,7 +58,7 @@
         <TextBlock Grid.Row="3" Grid.Column="0" ToolTip="Display in-game notification when assigning a Bodyslide" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Use Verbose Scripts</TextBlock>
         <CheckBox Grid.Row="3" Grid.Column="1" IsChecked="{Binding UseVerboseScripts}"></CheckBox>
 
-        <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" ToolTip="INI recommended; JSON doesn't work in VR as of current build" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">AutoBody Assignment Mode</TextBlock>
-        <ComboBox Grid.Row="4" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding AutoBodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AutoBodySelectionMode}}}" IsSynchronizedWithCurrentItem="True"/>
+        <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" ToolTip="INI recommended; JSON doesn't work in VR as of current build" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ShowAutoBodySelectionMode, Converter={StaticResource BoolToVis}}">AutoBody Assignment Mode</TextBlock>
+        <ComboBox Grid.Row="4" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding AutoBodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AutoBodySelectionMode}}}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding ShowAutoBodySelectionMode, Converter={StaticResource BoolToVis}}"/>
     </Grid>
 </UserControl>
