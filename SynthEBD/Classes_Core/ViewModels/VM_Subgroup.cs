@@ -682,6 +682,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         clone.DistributionEnabled = DistributionEnabled;
         clone.ID = ID;
         clone.Name = Name;
+        clone.Notes = Notes;
         clone.RequiredSubgroupIDs = new HashSet<string>(RequiredSubgroupIDs);
         clone.ExcludedSubgroupIDs = new HashSet<string>(ExcludedSubgroupIDs);
         clone.RequiredSubgroups = new ObservableCollection<VM_Subgroup>(RequiredSubgroups);
