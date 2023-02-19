@@ -206,6 +206,7 @@ namespace SynthEBD
                 {
                     var groupVM = _attributeGroupFactory(_oBodyUI.AttributeGroupMenu);
                     groupVM.CopyInViewModelFromModel(group);
+                    _oBodyUI.AttributeGroupMenu.Groups.Add(groupVM);
                 }
             }
 
