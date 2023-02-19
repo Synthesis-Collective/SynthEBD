@@ -199,9 +199,7 @@ namespace SynthEBD
         {
             _patcherState.GeneralSettings = _generalSettingsVM.DumpViewModelToModel();
             _patcherState.TexMeshSettings = _texMeshSettingsVM.DumpViewModelToModel();
-            VM_AssetPack.DumpViewModelsToModels(_texMeshSettingsVM.AssetPacks, _patcherState.AssetPacks);
             _patcherState.HeightSettings = _heightSettingsVM.DumpViewModelToModel();
-            VM_HeightConfig.DumpViewModelsToModels(_heightSettingsVM.AvailableHeightConfigs, _patcherState.HeightConfigs, _logger);
             _patcherState.BodyGenSettings = _bodyGenSettingsVM.DumpViewModelToModel();
             _patcherState.OBodySettings = _settingsOBody.DumpViewModelToModel();
             _patcherState.HeadPartSettings = _headPartSettingsVM.DumpViewModelToModel();
@@ -209,6 +207,7 @@ namespace SynthEBD
             _patcherState.BlockList = _blockList.DumpViewModelToModel();
             _patcherState.Consistency = _consistencyUi.DumpViewModelsToModels();
             _patcherState.ModManagerSettings = _settingsModManager.DumpViewModelToModel();
+            SavePluginViewModels();
         }
 
         public void SaveViewModelsToDrive()
