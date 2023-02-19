@@ -20,6 +20,7 @@ public class AssetPack : IModelHasSubgroups
     public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
     public List<RaceGrouping> RaceGroupings { get; set; } = new();
     public ConfigDistributionRules DistributionRules { get; set; }
+    public List<ModKey> AssociatedBsaModKeys { get; set; } = new();
     [Newtonsoft.Json.JsonIgnore]
     public string FilePath { get; set; }
 

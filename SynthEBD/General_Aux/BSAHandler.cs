@@ -3,6 +3,10 @@ using System.IO;
 using Mutagen.Bethesda.Archives;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Plugins.Order;
+using ReactiveUI;
+using Noggog;
+using Noggog.WPF;
 
 namespace SynthEBD;
 
@@ -12,14 +16,23 @@ public class PathedArchiveReader
     public Noggog.FilePath FilePath { get; set; }
 }
 
-public class BSAHandler
+public class BSAHandler : ViewModel
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
+    private HashSet<ModKey> _enabledMods = new();
+    private HashSet<string> _enabledModNames = new();
     public BSAHandler(IEnvironmentStateProvider environmentProvider, Logger logger)
     {
         _environmentProvider = environmentProvider;
         _logger = logger;
+        _environmentProvider.WhenAnyValue(x => x.LoadOrder)
+            .Subscribe(x =>
+            {
+                _enabledMods = x.ListedOrder.Where(x => x.Enabled).Select(y => y.ModKey).ToHashSet();
+                _enabledModNames = _enabledMods.Select(x => x.FileName.String).ToHashSet();
+            }).DisposeWith(this);
+        
     }
 
     //This function expects a FilePathReplacement-formatted expectedFilePath (e.g. one that starts with the mod name, such as "Skyrim.esm\textures\myTextures.dds"
@@ -45,7 +58,7 @@ public class BSAHandler
             modName = modKeyStr;
         }
 
-        if (!_environmentProvider.LoadOrder.ListedOrder.Where(x => x.Enabled).Select(x => x.FileName).Contains(modKeyStr, StringComparer.OrdinalIgnoreCase))
+        if (!_enabledModNames.Contains(modKeyStr, StringComparer.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -69,6 +82,35 @@ public class BSAHandler
         {
             return false;
         }
+    }
+
+    public bool ReferencedPathExists(string expectedFilePath, IEnumerable<ModKey> candidateMods, out bool archiveExists, out string modName)
+    {
+        archiveExists = false;
+        modName = "";
+
+        foreach (var candidateMod in candidateMods)
+        {
+            if (!_enabledMods.Contains(candidateMod))
+            {
+                continue;
+            }
+
+            if (!TryOpenCorrespondingArchiveReaders(candidateMod, out var archiveReaders))
+            {
+                continue;
+            }
+            else
+            {
+                archiveExists = true;
+            }
+
+            if (ReadersHaveFile(expectedFilePath, archiveReaders, out _))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     public bool TryOpenCorrespondingArchiveReaders(ModKey modKey, out HashSet<IArchiveReader> archiveReaders)

@@ -1,7 +1,10 @@
+using DynamicData.Binding;
+using Mutagen.Bethesda.Plugins;
 using Noggog;
 using ReactiveUI;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,7 +17,7 @@ namespace SynthEBD
         private readonly VM_AssetPack _parent;
 
         public delegate VM_AssetPackMiscMenu Factory(VM_AssetPack parentPack);
-        public VM_AssetPackMiscMenu(VM_AssetPack parentPack, VM_SpecificNPCAssignmentsUI specificAssignmentsUI, VM_SpecificNPCAssignment.VM_MixInSpecificAssignment.Factory mixInFactory)
+        public VM_AssetPackMiscMenu(VM_AssetPack parentPack, IEnvironmentStateProvider environmentProvider, VM_SpecificNPCAssignmentsUI specificAssignmentsUI, VM_SpecificNPCAssignment.VM_MixInSpecificAssignment.Factory mixInFactory)
         {
             _parent = parentPack;
 
@@ -22,6 +25,11 @@ namespace SynthEBD
             {
                 ShowMixInCommands = y == AssetPackType.MixIn;
             }).DisposeWith(this);
+
+            environmentProvider.WhenAnyValue(x => x.LoadOrder)
+           .Subscribe(x => LoadOrder = x.Where(y => y.Value != null && y.Value.Enabled).Select(x => x.Value.ModKey)).DisposeWith(this);
+
+            AssociatedBsaModKeys.ToObservableChangeSet().Subscribe(_ => UpdateFilePathStatuses()).DisposeWith(this);
 
             SetAllowedDescriptorMatchModes = new RelayCommand(
                 canExecute: _ => true,
@@ -68,6 +76,47 @@ namespace SynthEBD
 
         private const string AllowedStr = "Allowed";
         private const string DisallowedStr = "Disallowed";
+        public ObservableCollection<ModKey> AssociatedBsaModKeys { get; set; } = new();
+        public IEnumerable<ModKey> LoadOrder { get; private set; }
+
+        public void CopyInViewModelFromModel(AssetPack model)
+        {
+            AssociatedBsaModKeys.Clear();
+            AssociatedBsaModKeys.AddRange(model.AssociatedBsaModKeys);
+        }
+
+        public void MergeIntoModel(AssetPack model)
+        {
+            model.AssociatedBsaModKeys.Clear();
+            model.AssociatedBsaModKeys.AddRange(AssociatedBsaModKeys);
+        }
+
+        private void UpdateFilePathStatuses()
+        {
+            foreach (var subgroup in _parent.Subgroups)
+            {
+                UpdateSubgroupFilePathStatuses(subgroup);
+            }
+            foreach (var replacer in _parent.ReplacersMenu.ReplacerGroups)
+            {
+                foreach (var subgroup in replacer.Subgroups)
+                {
+                    UpdateSubgroupFilePathStatuses(subgroup);
+                }
+            }
+        }
+
+        private void UpdateSubgroupFilePathStatuses(VM_Subgroup subgroup)
+        {
+            foreach (var path in subgroup.PathsMenu.Paths)
+            {
+                path.RefreshSourceColor();
+            }
+            foreach (var sg in subgroup.Subgroups)
+            {
+                UpdateSubgroupFilePathStatuses(sg);
+            }
+        }
 
         public void SetMatchModes(string descriptorTypes, DescriptorMatchMode mode)
         {

@@ -422,6 +422,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         ReplacersMenu = _assetPackDirectReplacerMenuFactory(this);
         ReplacersMenu.CopyInViewModelFromModels(model.ReplacerGroups);
 
+        MiscMenu.CopyInViewModelFromModel(model);
+
         DefaultTemplateFK = model.DefaultRecordTemplate;
         foreach(var additionalTemplateAssignment in model.AdditionalRecordTemplateAssignments)
         {
@@ -487,6 +489,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         VM_AttributeGroupMenu.DumpViewModelToModels(AttributeGroupMenu, model.AttributeGroups);
 
         model.RaceGroupings = RaceGroupingEditor.DumpToModel();
+
+        MiscMenu.MergeIntoModel(model);
 
         foreach (var svm in Subgroups)
         {

@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
              xmlns:local="clr-namespace:SynthEBD"
              d:DataContext="{d:DesignInstance Type=local:VM_AssetPackMiscMenu}"
              mc:Ignorable="d" 
@@ -36,5 +37,8 @@
             <TextBlock Text="Override Existing"/>
             <CheckBox Margin="5 0 0 0" IsChecked="{Binding OverrideExistingSNA}"/>
         </StackPanel>
+
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Get BSA Assets from"/>
+        <plugins:ModKeyMultiPicker Grid.Row="3" Grid.Column="1" ModKeys="{Binding AssociatedBsaModKeys}" SearchableMods="{Binding LoadOrder}" />
     </Grid>
 </UserControl>

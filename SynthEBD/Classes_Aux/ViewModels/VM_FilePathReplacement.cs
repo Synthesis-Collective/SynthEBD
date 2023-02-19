@@ -156,8 +156,8 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 
     public void RefreshSourceColor()
     {
-        var searchStr = Path.Combine(_environmentProvider.DataFolderPath, this.Source);
-        if (LongPathHandler.PathExists(searchStr) || _bsaHandler.ReferencedPathExists(this.Source, out _, out _))
+        var searchStr = Path.Combine(_environmentProvider.DataFolderPath, Source);
+        if (!Source.IsNullOrWhitespace() && (LongPathHandler.PathExists(searchStr) || _bsaHandler.ReferencedPathExists(Source, out _, out _) || _bsaHandler.ReferencedPathExists(Source, ParentMenu.ParentSubgroup.ParentAssetPack.MiscMenu.AssociatedBsaModKeys, out _, out _)))
         {
             SourceExists = true;
             this.SourceBorderColor = new SolidColorBrush(Colors.LightGreen);
@@ -171,7 +171,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 
     public void RefreshDestColor()
     {
-        if(LinkCache != null && ReferenceNPCFormKey != null && LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC) && _recordPathParser.GetObjectAtPath(refNPC, refNPC, this.IntellisensedPath, new Dictionary<string, dynamic>(), ParentMenu.ReferenceLinkCache, true, _logger.GetNPCLogNameString(refNPC), out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
+        if (!IntellisensedPath.IsNullOrWhitespace() && LinkCache != null && ReferenceNPCFormKey != null && LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC) && _recordPathParser.GetObjectAtPath(refNPC, refNPC, IntellisensedPath, new Dictionary<string, dynamic>(), ParentMenu.ReferenceLinkCache, true, _logger.GetNPCLogNameString(refNPC), out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
         {
             DestinationExists = true;
             this.DestBorderColor = new SolidColorBrush(Colors.LightGreen);
