@@ -105,12 +105,17 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
             if (shell == null)
             {
                 shell = _descriptorCreator.CreateNewShell(TemplateDescriptors, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig);
+                shell.Category = model.ID.Category;
+                TemplateDescriptors.Add(shell);
             }
 
             var descriptor = shell.Descriptors.Where(x => x.Value == model.ID.Value).FirstOrDefault();
             if (descriptor == null)
             {
-                _descriptorCreator.CreateNew(shell, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig);
+                descriptor = _descriptorCreator.CreateNew(shell, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig);
+                descriptor.Value = model.ID.Value;
+                descriptor.AssociatedRules.CopyInViewModelFromModel(model.AssociatedRules, _generalSettings.RaceGroupingEditor.RaceGroupings);
+                shell.Descriptors.Add(descriptor);
             }
         }
     }
