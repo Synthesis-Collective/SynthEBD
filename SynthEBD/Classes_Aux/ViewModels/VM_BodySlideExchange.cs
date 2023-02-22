@@ -213,7 +213,11 @@ namespace SynthEBD
             if (IncludeRaceGroupings)
             {
                 var missingGroupings = exchange.RaceGroupings.Where(x => !_generalUI.RaceGroupingEditor.RaceGroupings.Select(x => x.Label).Contains(x.Label)).ToList();
-                VM_RaceGrouping.GetViewModelsFromModels(missingGroupings, _generalUI.RaceGroupingEditor, _raceGroupingFactory);
+                foreach (var group in missingGroupings)
+                {
+                    var groupVM = _raceGroupingFactory(group, _generalUI.RaceGroupingEditor);
+                    _generalUI.RaceGroupingEditor.RaceGroupings.Add(groupVM);
+                }
             }
 
             List<(string, int, int)> multiplexWarnings = new();
