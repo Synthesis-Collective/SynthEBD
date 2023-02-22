@@ -235,44 +235,37 @@ namespace SynthEBD
             return true;
         }
 
-        public void ImportGendered(ObservableCollection<VM_BodySlideSetting> bodySlides, List<BodySlideSetting> sourceList, List<(string, int, int)> multiplexWarnings)
+        public void ImportGendered(ObservableCollection<VM_BodySlideSetting> currentBodySlides, List<BodySlideSetting> importedBodySlides, List<(string, int, int)> multiplexWarnings)
         {
-            HashSet<string> alreadyAnnotatedMultiple = new();
+            var groupedAnnotations = importedBodySlides.GroupBy(x => x.ReferencedBodySlide).ToArray(); // group annotations by the bodyslide that they're referencing (remember that BodySlide annotation can be cloned)
 
-            foreach (var newBS in sourceList)
+            foreach (var groupedAnnotation in groupedAnnotations) // match imported annotations to their counterparts in the user's settings if they exist
             {
-                var existingBodySlides = bodySlides.Where(x => x.ReferencedBodySlide == newBS.ReferencedBodySlide).ToList();
-                if (!existingBodySlides.Any())
-                {
-                    continue;
-                }
-                else if (existingBodySlides.Count() == 1)
-                {
-                    var existingBS = existingBodySlides.First();
-                    ImportBodySlide(bodySlides, newBS, existingBS);
-                }
-                else
-                {
-                    if (alreadyAnnotatedMultiple.Contains(newBS.ReferencedBodySlide)) { continue; }
-                    alreadyAnnotatedMultiple.Add(newBS.ReferencedBodySlide);
+                var existingBodySlides = currentBodySlides.Where(x => x.ReferencedBodySlide == groupedAnnotation.Key).ToList();
+                var importedBodySlideAnnotations = groupedAnnotation.ToList();
 
-                    var newAnnotations = sourceList.Where(x => x.ReferencedBodySlide == newBS.ReferencedBodySlide).ToList();
-                    
-                    if(existingBodySlides.Count == 1)
+                if (existingBodySlides.Count == 0)
+                {
+                    continue; // move on if the user doesn't have the given bodyslide installed
+                }
+                else if (existingBodySlides.Count == 1 && importedBodySlideAnnotations.Count > 1) // if an imported bodyslide annotation is cloned and the corresponding bodyslide is not cloned in the user's settings, clone it for them
+                {
+                    var template = existingBodySlides.First();
+                    while (existingBodySlides.Count < importedBodySlideAnnotations.Count)
                     {
-                        ImportBodySlide(bodySlides, newBS, existingBodySlides.First());
+                        existingBodySlides.Add(template.Clone());
                     }
-                    else if (newAnnotations.Count == existingBodySlides.Count)
-                    {
-                        for (int i = 0; i < newAnnotations.Count; i++)
-                        {
-                            ImportBodySlide(bodySlides, newAnnotations[i], existingBodySlides[i]);
-                        }
-                    }
-                    else
-                    {
-                        multiplexWarnings.Add((newBS.ReferencedBodySlide, existingBodySlides.Count, newAnnotations.Count));
-                    }
+                }
+                else if (existingBodySlides.Count != importedBodySlideAnnotations.Count)
+                {
+                    multiplexWarnings.Add((groupedAnnotation.Key, existingBodySlides.Count, importedBodySlideAnnotations.Count));
+                }
+
+                for (int i = 0; i < existingBodySlides.Count; i++)
+                {
+                    var existingBodySlide = existingBodySlides[i];
+                    var importedAnnotation = importedBodySlideAnnotations[i];
+                    ImportBodySlide(currentBodySlides, importedAnnotation, existingBodySlide);
                 }
             }
         }

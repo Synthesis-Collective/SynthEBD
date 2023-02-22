@@ -135,7 +135,7 @@
                 <TextBox Grid.Row="17" Grid.Column="2" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ProbabilityWeighting}"/>
 
                 <Button Grid.Row="19" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding ToggleHide}" ToolTip="Hide this BodySlide preset in the preset list" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Foreground="MediumPurple" Content="{Binding HideButtonText}"></Button>
-                <Button Grid.Row="20" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding Clone}" ToolTip="Clone this BodySlide preset (intended for presets that vary drastically with NPC weight)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Foreground="MediumPurple">Clone Preset</Button>
+                <Button Grid.Row="20" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding CloneCommand}" ToolTip="Clone this BodySlide preset (intended for presets that vary drastically with NPC weight)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Foreground="MediumPurple">Clone Preset</Button>
                 <Button Grid.Row="21" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding DeleteMe}" ToolTip="Delete this preset (will be re-added if the preset remains installed when SynthEBD is next launched)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Delete Preset</Button>
             </Grid>
         </ScrollViewer>

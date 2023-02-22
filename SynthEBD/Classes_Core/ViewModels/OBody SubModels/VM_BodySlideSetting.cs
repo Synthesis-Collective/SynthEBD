@@ -102,15 +102,9 @@ public class VM_BodySlideSetting : VM
             UpdateStatusDisplay();
         }).DisposeWith(this);
 
-        Clone = new RelayCommand(
+        CloneCommand = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { 
-                var cloneModel = DumpViewModelToModel(this);
-                var cloneViewModel = _selfFactory(bodyShapeDescriptors, raceGroupingVMs, ParentCollection);
-                cloneViewModel.CopyInViewModelFromModel(cloneModel);
-                int lastClonePosition = cloneViewModel.RenameByIndex();
-                parentCollection.Insert(lastClonePosition + 1, cloneViewModel);
-            }
+            execute: _ => Clone()
         );
 
         this.WhenAnyValue(x => x.DescriptorsSelectionMenu.Header).Subscribe(x => UpdateStatusDisplay()).DisposeWith(this);
@@ -145,7 +139,7 @@ public class VM_BodySlideSetting : VM
     public RelayCommand AddAllowedAttribute { get; }
     public RelayCommand AddDisallowedAttribute { get; }
     public RelayCommand DeleteMe { get; }
-    public RelayCommand Clone { get; }
+    public RelayCommand CloneCommand { get; }
     public RelayCommand ToggleHide { get; }
     public ObservableCollection<VM_BodySlideSetting> ParentCollection { get; set; }
 
@@ -160,6 +154,16 @@ public class VM_BodySlideSetting : VM
     public static SolidColorBrush BorderColorMissing = new SolidColorBrush(Colors.Red);
     public static SolidColorBrush BorderColorUnannotated = new SolidColorBrush(Colors.Yellow);
     public static SolidColorBrush BorderColorValid = new SolidColorBrush(Colors.LightGreen);
+
+    public VM_BodySlideSetting Clone()
+    {
+        var cloneModel = DumpViewModelToModel(this);
+        var cloneViewModel = _selfFactory(_bodyShapeDescriptors, _raceGroupingVMs, ParentCollection);
+        cloneViewModel.CopyInViewModelFromModel(cloneModel);
+        int lastClonePosition = cloneViewModel.RenameByIndex();
+        ParentCollection.Insert(lastClonePosition + 1, cloneViewModel);
+        return cloneViewModel;
+    }
 
     public int RenameByIndex()
     {
