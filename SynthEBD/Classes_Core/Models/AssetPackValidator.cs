@@ -62,13 +62,13 @@ public class AssetPackValidator
             }
         }
 
-        if (!ValidateSubgroups(assetPack.Subgroups, errors, assetPack, referencedBodyGenConfig, oBodySettings, false))
+        if (!ValidateSubgroups(assetPack.Subgroups, errors, assetPack, referencedBodyGenConfig, oBodySettings, false, assetPack.AssociatedBsaModKeys))
         {
             isValidated = false;
         }
         foreach (var replacer in assetPack.ReplacerGroups)
         {
-            if (!ValidateReplacer(replacer, referencedBodyGenConfig,oBodySettings, errors))
+            if (!ValidateReplacer(replacer, referencedBodyGenConfig,oBodySettings, errors, assetPack.AssociatedBsaModKeys))
             {
                 isValidated = false;
             }
@@ -82,12 +82,12 @@ public class AssetPackValidator
         return isValidated;
     }
 
-    private bool ValidateSubgroups(List<AssetPack.Subgroup> subgroups, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, bool isReplacer)
+    private bool ValidateSubgroups(List<AssetPack.Subgroup> subgroups, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, bool isReplacer, List<ModKey> associatedBSAmodKeys)
     {
         bool isValid = true;
         for (int i = 0; i < subgroups.Count; i++)
         {
-            if (!ValidateSubgroup(subgroups[i], errors, parent, bodyGenConfig, oBodySettings, i, isReplacer))
+            if (!ValidateSubgroup(subgroups[i], errors, parent, bodyGenConfig, oBodySettings, i, isReplacer, associatedBSAmodKeys))
             {
                 isValid = false;
             }
@@ -95,7 +95,7 @@ public class AssetPackValidator
         return isValid;
     }
 
-    private bool ValidateSubgroup(AssetPack.Subgroup subgroup, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, int topLevelIndex, bool isReplacer)
+    private bool ValidateSubgroup(AssetPack.Subgroup subgroup, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, int topLevelIndex, bool isReplacer, List<ModKey> associatedBSAmodKeys)
     {
         if (!subgroup.Enabled) { return true; }
 
@@ -208,12 +208,16 @@ public class AssetPackValidator
         foreach (var path in subgroup.Paths)
         {
             var fullPath = System.IO.Path.Combine(_environmentProvider.DataFolderPath, path.Source);
-            if (!System.IO.File.Exists(fullPath) && !_bsaHandler.ReferencedPathExists(path.Source, out bool archiveExists, out string modName))
+            if (!System.IO.File.Exists(fullPath) && !_bsaHandler.ReferencedPathExists(path.Source, out bool archiveExists, out string modName) && !_bsaHandler.ReferencedPathExists(path.Source, associatedBSAmodKeys, out bool specifiedArchiveExists, out string specifiedModName))
             {
                 string pathError = "No file exists at " + fullPath;
                 if (archiveExists)
                 {
                     pathError += " or any BSA archives corresponding to " + modName;
+                }
+                else if(specifiedArchiveExists)
+                {
+                    pathError += " or any BSA archives corresponding to " + specifiedModName;
                 }
                 subErrors.Add(pathError);
                 isValid = false;
@@ -262,7 +266,7 @@ public class AssetPackValidator
 
         foreach (var subSubgroup in subgroup.Subgroups)
         {
-            if (!ValidateSubgroup(subSubgroup, errors, parent, bodyGenConfig, oBodySettings, topLevelIndex, isReplacer))
+            if (!ValidateSubgroup(subSubgroup, errors, parent, bodyGenConfig, oBodySettings, topLevelIndex, isReplacer, associatedBSAmodKeys))
             {
                 isValid = false;
             }
@@ -282,7 +286,7 @@ public class AssetPackValidator
         { return false; }
     }
 
-    private bool ValidateReplacer(AssetReplacerGroup group, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, List<string> errors)
+    private bool ValidateReplacer(AssetReplacerGroup group, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, List<string> errors, List<ModKey> associatedBSAmodKeys)
     {
         bool isValid = true;
         if (string.IsNullOrWhiteSpace(group.Label))
@@ -291,7 +295,7 @@ public class AssetPackValidator
             isValid = false;
         }
 
-        ValidateSubgroups(group.Subgroups, errors, group, bodyGenConfig, oBodySettings, true);
+        ValidateSubgroups(group.Subgroups, errors, group, bodyGenConfig, oBodySettings, true, associatedBSAmodKeys);
         return isValid;
     }
 
