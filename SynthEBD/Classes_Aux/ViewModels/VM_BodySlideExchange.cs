@@ -223,7 +223,7 @@ namespace SynthEBD
             _oBodyUI.DescriptorUI.MergeInMissingModels(exchange.TemplateDescriptors, DescriptorMergeMode, mergedDescriptors);
             if (mergedDescriptors.Any())
             {
-                CustomMessageBox.DisplayNotificationOK("Descriptor Merge", "The following already existing Descriptors were merged from the imported. Please check their associated distribution rules to make sure the merge product is consistent with your preferences." + Environment.NewLine + string.Join(Environment.NewLine, mergedDescriptors));
+                CustomMessageBox.DisplayNotificationOK("Descriptor Merge", "The following already existing Descriptors were merged from the imported file. Please check their associated distribution rules to make sure the merged product is consistent with your preferences." + Environment.NewLine + string.Join(Environment.NewLine, mergedDescriptors));
             }
 
             List<(string, int, int)> multiplexWarnings = new();
