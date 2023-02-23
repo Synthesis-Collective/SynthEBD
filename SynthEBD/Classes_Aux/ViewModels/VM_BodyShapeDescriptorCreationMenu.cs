@@ -97,8 +97,10 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
         return models;
     }
 
-    public void MergeInMissingModels(HashSet<BodyShapeDescriptor> models)
+    public void MergeInMissingModels(HashSet<BodyShapeDescriptor> models, DescriptorRulesMergeMode mode, List<string> mergedDescriptors)
     {
+        mergedDescriptors.Clear();
+
         foreach (var model in models)
         {
             var shell = TemplateDescriptors.Where(x => x.Category == model.ID.Category).FirstOrDefault();
@@ -117,6 +119,19 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
                 descriptor.AssociatedRules.CopyInViewModelFromModel(model.AssociatedRules, _generalSettings.RaceGroupingEditor.RaceGroupings);
                 shell.Descriptors.Add(descriptor);
             }
+            else
+            {
+                switch (mode)
+                {
+                    case DescriptorRulesMergeMode.Skip: break;
+                    case DescriptorRulesMergeMode.Overwrite: descriptor.AssociatedRules.CopyInViewModelFromModel(model.AssociatedRules, _generalSettings.RaceGroupingEditor.RaceGroupings); break;
+                    case DescriptorRulesMergeMode.Merge: 
+                        descriptor.AssociatedRules.MergeInViewModelFromModel(model.AssociatedRules, _generalSettings.RaceGroupingEditor.RaceGroupings);
+                        mergedDescriptors.Add(descriptor.Signature);
+                        break;
+
+                }
+            }
         }
     }
 
@@ -127,4 +142,13 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
 
     public RelayCommand AddTemplateDescriptorShell { get; }
     public RelayCommand RemoveTemplateDescriptorShell { get; }
+
+
+}
+
+public enum DescriptorRulesMergeMode
+{
+    Skip,
+    Overwrite,
+    Merge
 }

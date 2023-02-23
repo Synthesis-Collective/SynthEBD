@@ -39,6 +39,24 @@ public class BodyGenVisibilityConverter : System.Windows.Data.IValueConverter
     }
 }
 
+public class BSImportVisibilityConverter : System.Windows.Data.IValueConverter
+{
+    public object Convert(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        bool visibility = false;
+        if (value is ExchangeMode)
+        {
+            visibility = (ExchangeMode)value == ExchangeMode.Import;
+        }
+        return visibility ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+    }
+    public object ConvertBack(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        System.Windows.Visibility visibility = (System.Windows.Visibility)value;
+        return (visibility == System.Windows.Visibility.Visible);
+    }
+}
+
 //https://stackoverflow.com/questions/2502178/hide-grid-row-in-wpf
 // visibility hidden if binding is FALSE
 [ValueConversion(typeof(bool), typeof(GridLength))]

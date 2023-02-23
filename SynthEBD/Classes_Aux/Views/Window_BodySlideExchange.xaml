@@ -6,10 +6,11 @@
         xmlns:local="clr-namespace:SynthEBD"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=local:VM_BodySlideExchange}"
-        Title="BodySlide Exchange" Height="150" Width="250">
+        Title="BodySlide Exchange" Height="150" Width="320">
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <local:BSImportVisibilityConverter x:Key="ImportModeOnly" />
     </Window.Resources>
     
     <Grid>
@@ -19,6 +20,7 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
@@ -51,7 +53,10 @@
         <TextBlock Grid.Row="3" Grid.Column="0" Foreground="White" Text="Include Needed Race Groupings" ToolTip="Include the Race Groupings required by the BodySlides' distribution rules" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ExchangeRules, Converter={StaticResource BoolToVis}}"/>
         <CheckBox Grid.Row="3" Grid.Column="2" IsChecked="{Binding IncludeRaceGroupings}" Visibility="{Binding ExchangeRules, Converter={StaticResource BoolToVis}}"/>
 
-        <Button Grid.Row="4" Grid.Column="0" Command="{Binding ActionCommand}" Foreground="LightGreen" ToolTip="Run the BodySlide Exchanger" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Content="{Binding Mode}"/>
+        <TextBlock Grid.Row="4" Grid.Column="0" Foreground="White" Text="Descriptor Distribution Rules Handling" ToolTip="If some of the descriptors being imported already exist in your settings, choose what happens to its distribution rules" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{ Binding Mode, Converter={StaticResource ImportModeOnly}}"/>
+        <ComboBox Grid.Row="4" Grid.Column="2" SelectedValue="{Binding DescriptorMergeMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DescriptorRulesMergeMode}}}" IsSynchronizedWithCurrentItem="True"  Visibility="{ Binding Mode, Converter={StaticResource ImportModeOnly}}"/>
+        
+        <Button Grid.Row="5" Grid.Column="0" Command="{Binding ActionCommand}" Foreground="LightGreen" ToolTip="Run the BodySlide Exchanger" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Content="{Binding Mode}"/>
 
     </Grid>
 </Window>

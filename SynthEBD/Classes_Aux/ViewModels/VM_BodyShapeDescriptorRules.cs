@@ -112,4 +112,53 @@ public class VM_BodyShapeDescriptorRules : VM
         model.WeightRange = WeightRange;
         return model;
     }
+
+    public void MergeInViewModelFromModel(BodyShapeDescriptorRules model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
+    {
+        AllowedRaces.AddRange(model.AllowedRaces.Where(x => !AllowedRaces.Contains(x)));
+        foreach (var grouping in AllowedRaceGroupings.RaceGroupingSelections)
+        {
+            if (model.AllowedRaceGroupings.Contains(grouping.SubscribedMasterRaceGrouping.Label))
+            {
+                grouping.IsSelected = true;
+            }
+        }
+
+        DisallowedRaces.AddRange(model.DisallowedRaces.Where(x => !DisallowedRaces.Contains(x)));
+        foreach (var grouping in DisallowedRaceGroupings.RaceGroupingSelections)
+        {
+            if (model.DisallowedRaceGroupings.Contains(grouping.SubscribedMasterRaceGrouping.Label))
+            {
+                grouping.IsSelected = true;
+            }
+        }
+
+        AllowedAttributes.AddRange(_attributeCreator.GetViewModelsFromModels(model.AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null));
+        DisallowedAttributes.AddRange(_attributeCreator.GetViewModelsFromModels(model.DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null));
+        foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
+
+        if (bAllowUnique == false || model.AllowUnique == false) { bAllowUnique = false; }
+        else { bAllowUnique = true; }
+
+        if (bAllowNonUnique == false || model.AllowNonUnique == false) { bAllowNonUnique = false; }
+        else { bAllowNonUnique = true; }
+
+        if (bAllowRandom == false || model.AllowRandom == false) { bAllowRandom = false; }
+        else { bAllowRandom = true; }
+
+        if (ProbabilityWeighting == 1 && model.ProbabilityWeighting != 1)
+        {
+            ProbabilityWeighting = model.ProbabilityWeighting;
+        }
+
+        if (model.WeightRange.Lower > WeightRange.Lower)
+        {
+            WeightRange.Lower = model.WeightRange.Lower;
+        }
+
+        if (model.WeightRange.Upper < WeightRange.Upper)
+        {
+            WeightRange.Upper = model.WeightRange.Upper;
+        }
+    }
 }
