@@ -58,6 +58,7 @@ namespace SynthEBD
         public bool ExchangeNotes { get; set; } = true;
         public bool IncludeAttributeGroups { get; set; } = true; 
         public bool IncludeRaceGroupings { get; set; } = true;
+        public DescriptorRulesMergeMode DescriptorMergeMode { get; set; } = DescriptorRulesMergeMode.Merge;
 
         public RelayCommand ActionCommand { get; }
 
@@ -198,8 +199,6 @@ namespace SynthEBD
                 }
             }
 
-            _oBodyUI.DescriptorUI.MergeInMissingModels(exchange.TemplateDescriptors);
-
             if (IncludeAttributeGroups)
             {
                 foreach (var group in exchange.AttributeGroups.Where(x => !_oBodyUI.AttributeGroupMenu.Groups.Select(x => x.Label).Contains(x.Label)))
@@ -218,6 +217,13 @@ namespace SynthEBD
                     var groupVM = _raceGroupingFactory(group, _generalUI.RaceGroupingEditor);
                     _generalUI.RaceGroupingEditor.RaceGroupings.Add(groupVM);
                 }
+            }
+
+            List<string> mergedDescriptors = new();
+            _oBodyUI.DescriptorUI.MergeInMissingModels(exchange.TemplateDescriptors, DescriptorMergeMode, mergedDescriptors);
+            if (mergedDescriptors.Any())
+            {
+                CustomMessageBox.DisplayNotificationOK("Descriptor Merge", "The following already existing Descriptors were merged from the imported. Please check their associated distribution rules to make sure the merge product is consistent with your preferences." + Environment.NewLine + string.Join(Environment.NewLine, mergedDescriptors));
             }
 
             List<(string, int, int)> multiplexWarnings = new();
