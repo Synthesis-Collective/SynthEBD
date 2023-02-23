@@ -65,7 +65,7 @@
         <TextBox Grid.Row="1" Grid.Column="1" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Name, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
         <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Notes about this subgroup (for information purposes only)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Notes</TextBlock>
-        <TextBox Grid.Row="2" Grid.Column="1" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Foreground="White" Text="{Binding Notes}" MaxHeight="50"/>
+        <TextBox Grid.Row="2" Grid.Column="1" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Foreground="White" Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" MaxHeight="50"/>
         
         <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to distribute this subgroup" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Subgroup Distribution Enabled</TextBlock>
         <CheckBox Grid.Row="3" Grid.Column="1" IsChecked="{Binding Path=Enabled, Mode=TwoWay}"></CheckBox>
