@@ -26,8 +26,8 @@ namespace SynthEBD
 
             ActionCommand = new RelayCommand(
                 canExecute: _ => true,
-                execute: _ => { 
-                    switch(Mode)
+                execute: _ => {
+                    switch (Mode)
                     {
                         case ExchangeMode.Import:
                             if (Import())
@@ -46,7 +46,7 @@ namespace SynthEBD
             );
         }
 
-        public  ExchangeMode Mode { get; }
+        public ExchangeMode Mode { get; }
         private readonly VM_SettingsOBody _oBodyUI;
         private readonly VM_Settings_General _generalUI;
         private readonly VM_BodySlideSetting.Factory _bodySlideFactory;
@@ -56,7 +56,7 @@ namespace SynthEBD
 
         public bool ExchangeRules { get; set; } = true;
         public bool ExchangeNotes { get; set; } = true;
-        public bool IncludeAttributeGroups { get; set; } = true; 
+        public bool IncludeAttributeGroups { get; set; } = true;
         public bool IncludeRaceGroupings { get; set; } = true;
         public DescriptorRulesMergeMode DescriptorMergeMode { get; set; } = DescriptorRulesMergeMode.Merge;
 
@@ -71,6 +71,8 @@ namespace SynthEBD
 
             ExportGendered(_oBodyUI.BodySlidesUI.BodySlidesMale, exchange.BodySlidesMale, referencedAttributeGroups, referencedRaceGroupings, referencedDescriptors);
             ExportGendered(_oBodyUI.BodySlidesUI.BodySlidesFemale, exchange.BodySlidesFemale, referencedAttributeGroups, referencedRaceGroupings, referencedDescriptors);
+
+            CompileDescriptorAttributeAndRaceGroups(referencedDescriptors, referencedAttributeGroups, referencedRaceGroupings); // get referenced groups from Descriptors' Associated Rules
 
             exchange.TemplateDescriptors = _oBodyUI.DescriptorUI.DumpSelectedToViewModels(referencedDescriptors);
 
@@ -167,9 +169,46 @@ namespace SynthEBD
             }
         }
 
+        public void CompileDescriptorAttributeAndRaceGroups(HashSet<BodyShapeDescriptor.LabelSignature> referencedDescriptors, HashSet<string> referencedAttributeGroups, HashSet<string> referencedRaceGroupings)
+        {
+            var referencedDescriptorStrings = referencedDescriptors.Select(x => x.ToString()).ToArray();
+            foreach (var category in _oBodyUI.DescriptorUI.TemplateDescriptors)
+            {
+                foreach (var value in category.Descriptors)
+                {
+                    if (referencedDescriptorStrings.Contains(value.Signature))
+                    {
+                        // add missing attributes
+                        foreach (var attribute in value.AssociatedRules.AllowedAttributes.And(value.AssociatedRules.DisallowedAttributes).Select(x => VM_NPCAttribute.DumpViewModelToModel(x)))
+                        {
+                            foreach (var subAttribute in attribute.SubAttributes.Where(x => x.Type == NPCAttributeType.Group))
+                            {
+                                var groupAttribute = (NPCAttributeGroup)subAttribute;
+                                foreach (var selection in groupAttribute.SelectedLabels.Where(x => !referencedAttributeGroups.Contains(x)).ToArray())
+                                {
+                                    referencedAttributeGroups.Add(selection);
+                                }
+                            }
+                        }
+
+                        // add missing race groupings
+                        var allowedGroupings = value.AssociatedRules.AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToArray();
+                        var disallowedGroupings = value.AssociatedRules.DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToArray();
+                        foreach (var racegrouping in allowedGroupings.And(disallowedGroupings))
+                        {
+                            if (!referencedRaceGroupings.Contains(racegrouping))
+                            {
+                                referencedRaceGroupings.Add(racegrouping);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         public bool Import()
         {
-            if(!IO_Aux.SelectFile("", "Bodyslide files (*.json)|*.json", "Select Export File", out string loadPath))
+            if (!IO_Aux.SelectFile("", "Bodyslide files (*.json)|*.json", "Select Export File", out string loadPath))
             {
                 return false;
             }
