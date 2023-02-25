@@ -1029,46 +1029,27 @@ public class AssetSelector
 
     public void RecordMixInAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo, string mixInName, bool declinedViaProbability) // MixIn 
     {
-        if (_patcherState.GeneralSettings.bEnableConsistency)
+        bool addMixInAssignmentToConsistency = assignedCombination != null || declinedViaProbability;
+        if (_patcherState.GeneralSettings.bEnableConsistency && addMixInAssignmentToConsistency)
         {
             var consistencyMixIn = npcInfo.ConsistencyNPCAssignment.MixInAssignments.Where(x => x.AssetPackName == mixInName).FirstOrDefault();
             if (consistencyMixIn == null)
             {
-                var mixInAssignment = new NPCAssignment.MixInAssignment();
-                mixInAssignment.AssetPackName = mixInName;
-                if (declinedViaProbability)
-                {
-                    mixInAssignment.DeclinedAssignment = true;
-                }
-                else if (assignedCombination != null)
-                {
-                    mixInAssignment.SubgroupIDs = assignedCombination.ContainedSubgroups.Where(x => x.Id != AssetPack.ConfigDistributionRules.SubgroupIDString).Select(x => x.Id).ToList();
-                    mixInAssignment.DeclinedAssignment = false;
-                }
-
-                if (assignedCombination != null || declinedViaProbability)
-                {
-                    npcInfo.ConsistencyNPCAssignment.MixInAssignments.Add(mixInAssignment);
-                }
+                consistencyMixIn = new NPCAssignment.MixInAssignment();
+                npcInfo.ConsistencyNPCAssignment.MixInAssignments.Add(consistencyMixIn);
             }
-            else
+            consistencyMixIn.AssetPackName = mixInName;
+            if (declinedViaProbability)
             {
-                consistencyMixIn.AssetPackName = mixInName;
-                if (declinedViaProbability)
-                {
-                    consistencyMixIn.DeclinedAssignment = true;
-                }
-                else if (assignedCombination != null)
-                {
-                    npcInfo.ConsistencyNPCAssignment.MixInAssignments.Remove(consistencyMixIn);
-                }
-                else
-                {
-                    consistencyMixIn.SubgroupIDs = assignedCombination.ContainedSubgroups.Where(x => x.Id != AssetPack.ConfigDistributionRules.SubgroupIDString).Select(x => x.Id).ToList();
-                    consistencyMixIn.DeclinedAssignment = false;
-                }
+                consistencyMixIn.DeclinedAssignment = true;
+            }
+            else if (assignedCombination != null)
+            {
+                consistencyMixIn.SubgroupIDs = assignedCombination.ContainedSubgroups.Where(x => x.Id != AssetPack.ConfigDistributionRules.SubgroupIDString).Select(x => x.Id).ToList();
+                consistencyMixIn.DeclinedAssignment = false;
             }
         }
+
         if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary && assignedCombination != null)
         {
             if (npcInfo.AssociatedLinkGroup.MixInAssignments.ContainsKey(mixInName))
@@ -1081,7 +1062,7 @@ public class AssetSelector
             }
         }
 
-        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.MixInAssets) == null)
+        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && assignedCombination != null && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.MixInAssets) == null)
         {
             if (Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].MixInAssignments.ContainsKey(mixInName))
             {
