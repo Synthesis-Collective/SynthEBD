@@ -365,8 +365,11 @@ public class RecordPathParser
             }
             else
             {
-                string currentSubPath = "[" + arrIndex + "]";
-                _logger.LogError("Could not get object at " + currentSubPath + " because the " + currentObj.GetType() + " does not have an element at index " + iIndex);
+                if (!suppressMissingPathErrors)
+                {
+                    string currentSubPath = "[" + arrIndex + "]";
+                    _logger.LogError("Could not get object at " + currentSubPath + " because the " + currentObj.GetType() + " does not have an element at index " + iIndex);
+                }
                 return false;
             }
         }
@@ -388,8 +391,11 @@ public class RecordPathParser
             }
             else
             {
-                string currentSubPath = "[" + arrIndex + "]";
-                _logger.LogError("Could not get object at " + currentSubPath + " because " + currentObj.GetType() + " does not have an element that matches condition: " + arrIndex);
+                if (!suppressMissingPathErrors)
+                {
+                    string currentSubPath = "[" + arrIndex + "]";
+                    _logger.LogError("Could not get object at " + currentSubPath + " because " + currentObj.GetType() + " does not have an element that matches condition: " + arrIndex);
+                }
                 return false;
             }
         }
