@@ -37,7 +37,10 @@ namespace SynthEBD
             MGEFApplyHeadParts.Name = "Applies head part assignment to NPC";
             MGEFApplyHeadParts.Flags |= MagicEffect.Flag.HideInUI;
             MGEFApplyHeadParts.Flags |= MagicEffect.Flag.NoDeathDispel;
-            MGEFApplyHeadParts.Archetype.Type = MagicEffectArchetype.TypeEnum.Script;
+            MGEFApplyHeadParts.Archetype = new MagicEffectArchetype()
+            {
+                Type = MagicEffectArchetype.TypeEnum.Script
+            };
             MGEFApplyHeadParts.TargetType = TargetType.Self;
             MGEFApplyHeadParts.CastType = CastType.ConstantEffect;
             MGEFApplyHeadParts.VirtualMachineAdapter = new VirtualMachineAdapter();

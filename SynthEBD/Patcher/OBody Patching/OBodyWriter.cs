@@ -34,7 +34,10 @@ public class OBodyWriter
         MGEFApplyBodySlide.Name = "Applies BodySlide assignment to NPC";
         MGEFApplyBodySlide.Flags |= MagicEffect.Flag.HideInUI;
         MGEFApplyBodySlide.Flags |= MagicEffect.Flag.NoDeathDispel;
-        MGEFApplyBodySlide.Archetype.Type = MagicEffectArchetype.TypeEnum.Script;
+        MGEFApplyBodySlide.Archetype = new MagicEffectArchetype()
+        {
+            Type = MagicEffectArchetype.TypeEnum.Script
+        };
         MGEFApplyBodySlide.TargetType = TargetType.Self;
         MGEFApplyBodySlide.CastType = CastType.ConstantEffect;
         MGEFApplyBodySlide.VirtualMachineAdapter = new VirtualMachineAdapter();
