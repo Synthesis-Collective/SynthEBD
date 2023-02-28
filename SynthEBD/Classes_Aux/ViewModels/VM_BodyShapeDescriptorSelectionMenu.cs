@@ -67,7 +67,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
             bool found = false;
             foreach (var sourceShell in this.TrackedMenu.TemplateDescriptors)
             {
-                if (this.DescriptorShells[i].TrackedShell.Category == sourceShell.Category)
+                if (DescriptorShells[i].TrackedShell.Category == sourceShell.Category)
                 {
                     found = true;
                     break;
@@ -75,16 +75,16 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
             }
             if (found == false)
             {
-                this.DescriptorShells.RemoveAt(i);
+                DescriptorShells.RemoveAt(i);
                 i--;
             }
         }
 
         // add new shells
-        foreach (var sourceShell in this.TrackedMenu.TemplateDescriptors)
+        foreach (var sourceShell in TrackedMenu.TemplateDescriptors)
         {
             bool found = false;
-            foreach (var destShell in this.DescriptorShells)
+            foreach (var destShell in DescriptorShells)
             {
                 if (destShell.TrackedShell.Category == sourceShell.Category)
                 {
@@ -94,7 +94,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
             }
             if (found == false)
             {
-                this.DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(sourceShell, this));
+                DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(sourceShell, this));
             }
         }
     }
@@ -194,7 +194,7 @@ public class VM_BodyShapeDescriptorShellSelector : VM
             bool found = false;
             foreach (var sourceDescriptor in this.TrackedShell.Descriptors)
             {
-                if (this.DescriptorSelectors[i].TrackedDescriptor.Value == sourceDescriptor.Value)
+                if (DescriptorSelectors[i].TrackedDescriptor.Value == sourceDescriptor.Value)
                 {
                     found = true;
                     break;
@@ -202,16 +202,16 @@ public class VM_BodyShapeDescriptorShellSelector : VM
             }
             if (found == false)
             {
-                this.DescriptorSelectors.RemoveAt(i);
+                DescriptorSelectors.RemoveAt(i);
                 i--;
             }
         }
 
         // add new Descriptors
-        foreach (var sourceDescriptor in this.TrackedShell.Descriptors)
+        foreach (var sourceDescriptor in TrackedShell.Descriptors)
         {
             bool found = false;
-            foreach (var destDescriptor in this.DescriptorSelectors)
+            foreach (var destDescriptor in DescriptorSelectors)
             {
                 if (destDescriptor.TrackedDescriptor.Value == sourceDescriptor.Value)
                 {
@@ -221,7 +221,7 @@ public class VM_BodyShapeDescriptorShellSelector : VM
             }
             if (found == false)
             {
-                this.DescriptorSelectors.Add(new VM_BodyShapeDescriptorSelector(sourceDescriptor, this.ParentMenu));
+                DescriptorSelectors.Add(new VM_BodyShapeDescriptorSelector(sourceDescriptor, ParentMenu));
             }
         }
     }

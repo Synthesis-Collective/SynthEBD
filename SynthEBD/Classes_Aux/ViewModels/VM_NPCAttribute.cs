@@ -946,8 +946,8 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
 {
     public VM_NPCAttributeGroup(VM_NPCAttribute parentAttributeVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> sourceAttributeGroups)
     {
-        this.ParentVM = parentAttributeVM;
-        this.ParentShell = parentShell;
+        ParentVM = parentAttributeVM;
+        ParentShell = parentShell;
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentAttributeVM.GroupedSubAttributes.Remove(parentShell));
 
         SubscribedAttributeGroups = sourceAttributeGroups;
