@@ -6,7 +6,7 @@ namespace SynthEBD;
 public class PatcherState
 {
     // Version
-    public static string Version = "0.9.6.5";
+    public static string Version = "0.9.6.6";
     // Settings
     public Settings_General GeneralSettings { get; set; }
     public Settings_TexMesh TexMeshSettings { get; set; }
@@ -38,6 +38,7 @@ public class PatcherState
         else
         {
             sb.AppendLine("Main Settings:");
+            sb.AppendLine("Validation Disabled: " + GeneralSettings.bDisableValidation);
             sb.AppendLine("Apply Assets: " + GeneralSettings.bChangeMeshesOrTextures);
             sb.AppendLine("Apply BodyShapes via: " + GeneralSettings.BodySelectionMode);
             if (GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
