@@ -933,26 +933,16 @@ public class RecordPathParser
         else if (objType.Name == "FormLink`1")
         {
             var formLink = currentObject as IFormLinkGetter;
-            if (LoquiRegistration.IsLoquiType(formLink.Type))
+            if (formLink != null)
             {
                 registerType = formLink.Type;
                 return true;
             }
         }
-        else if (objType.Name == "FormLinkNullable`1")
+        else if (objType.Name == "FormLinkNullable`1" && currentObject.Type != null)
         {
-            try
-            {
-                if (LoquiRegistration.IsLoquiType(currentObject.Type))
-                {
-                    registerType = currentObject.Type;
-                    return true;
-                }
-            }
-            catch
-            {
-                //fall through
-            }
+            registerType = currentObject.Type;
+            return true;
         }
         registerType = null;
         return false;
