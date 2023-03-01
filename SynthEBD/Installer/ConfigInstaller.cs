@@ -244,6 +244,7 @@ public class ConfigInstaller
             ExtractArchiveNew(dependencyArchive.Path, Path.Combine(tempFolderPath, subPath), false);
         }
 
+        bool triggerExtractionPathWarning = false;
         List<string> missingFiles = new List<string>();
         Dictionary<string, string> reversedAssetPathMapping = new Dictionary<string, string>();
         if (assetPathMapping.Keys.Any())
@@ -305,6 +306,10 @@ public class ConfigInstaller
                 if (!File.Exists(extractedFullPath))
                 {
                     missingFiles.Add(assetPath);
+                    if (extractedFullPath.Length > _patcherState.ModManagerSettings.FilePathLimit)
+                    {
+                        triggerExtractionPathWarning = true;
+                    }
                     continue;
                 }
 
@@ -338,7 +343,14 @@ public class ConfigInstaller
 
         if (missingFiles.Any())
         {
-            CustomMessageBox.DisplayNotificationOK("Installation warning", "The following expected files were not found in the selected mod archives:" + Environment.NewLine + string.Join(Environment.NewLine, missingFiles));
+            string missingFilesWarnStr = "The following expected files were not found in the selected mod archives:" + Environment.NewLine + string.Join(Environment.NewLine, missingFiles);
+            if (triggerExtractionPathWarning)
+            {
+                missingFilesWarnStr += Environment.NewLine + "Some extracted paths were longer than your Mod Manager Settings file path length limit of " + _patcherState.ModManagerSettings.FilePathLimit + ". ";
+                missingFilesWarnStr += Environment.NewLine + "You may need to move your Temp Folder in your Mod Manager Settings to a shorter path.";
+            }
+            missingFilesWarnStr += Environment.NewLine + "You will likely need to reinstall this config file to correctly extract the missing files.";
+            CustomMessageBox.DisplayNotificationOK("Installation warning", missingFilesWarnStr);
         }
         if (assetPathCopyErrors)
         {
