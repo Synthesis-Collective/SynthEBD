@@ -84,7 +84,7 @@ public class Settings_OBody
                     }
                     if (!genderFound) { continue; }
 
-                    if (currentBodySlides.Where(x => x.Label == presetName).Any()) // skip already loaded presets
+                    if (currentBodySlides.Where(x => x.ReferencedBodySlide == presetName).Any()) // skip already loaded presets
                     {
                         continue;
                     }
