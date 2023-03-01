@@ -169,6 +169,17 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
                 _paths.OutputDataFolder = _environmentProvider.DataFolderPath;
             }
         }).DisposeWith(this);
+
+        this.WhenAnyValue(x => x.DisableValidation).Skip(1).Subscribe(y =>
+        {
+            if (!IsCurrentlyLoading && y)
+            {
+                if (!CustomMessageBox.DisplayNotificationYesNo("Are you sure?", "SynthEBD can ignore validation, but Skyrim itself cannot. If you disable validation, you may run into issues such as NPCs missing textures and turning blue, or even Papyrus script issues. This option is mainly intended for config file devs to share and troubleshoot configs without having to download the corresponding large texture mods. Are you sure you meant to disable validation?"))
+                {
+                    DisableValidation = false;
+                }
+            }
+        }).DisposeWith(this);
     }
 
     public VM_Settings_Environment EnvironmentSettingsVM { get; set; }
@@ -197,6 +208,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public RelayCommand AddRaceAlias { get; }
     public VM_AttributeGroupMenu AttributeGroupMenu { get; }
     public bool OverwritePluginAttGroups { get; set; } = true;
+    public bool DisableValidation { get; set; } = false;
+    public bool IsCurrentlyLoading { get; set; } = false;
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> RacePickerFormKeys { get; } = typeof(IRaceGetter).AsEnumerable();
     public IEnumerable<Type> NPCPickerFormKeys { get; } = typeof(INpcGetter).AsEnumerable();
@@ -215,6 +228,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         {
             return;
         }
+        IsCurrentlyLoading = true;
+
         OutputDataFolder = model.OutputDataFolder;
         bShowToolTips = model.bShowToolTips;
         bChangeMeshesOrTextures = model.bChangeMeshesOrTextures;
@@ -239,8 +254,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         OverwritePluginRaceGroups = model.OverwritePluginRaceGroups;
         AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
         OverwritePluginAttGroups = model.OverwritePluginAttGroups;
-
+        DisableValidation = model.bDisableValidation;
         _bFirstRun = model.bFirstRun;
+        IsCurrentlyLoading = false;
     }
 
     public void Refresh()
@@ -279,7 +295,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         }
         VM_AttributeGroupMenu.DumpViewModelToModels(AttributeGroupMenu, model.AttributeGroups);
         model.OverwritePluginAttGroups = OverwritePluginAttGroups;
-
+        model.bDisableValidation = DisableValidation;
         model.bFirstRun = false;
         return model;
     }

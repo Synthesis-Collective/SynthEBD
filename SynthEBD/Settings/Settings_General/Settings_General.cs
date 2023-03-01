@@ -218,6 +218,8 @@ public class Settings_General
     };
 
     public bool OverwritePluginAttGroups { get; set; } = true;
+
+    public bool bDisableValidation { get; set; } = false;
 }
 
 public enum BodyShapeSelectionMode

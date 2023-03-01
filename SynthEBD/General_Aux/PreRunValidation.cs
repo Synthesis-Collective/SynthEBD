@@ -27,6 +27,12 @@ namespace SynthEBD
         {
             bool valid = true;
 
+            if (_patcherState.GeneralSettings.bDisableValidation)
+            {
+                _logger.LogMessage("Pre-run validation is disabled");
+                return true;
+            }
+
             if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)
             {
                 if (!_miscValidation.VerifyEBDInstalled())

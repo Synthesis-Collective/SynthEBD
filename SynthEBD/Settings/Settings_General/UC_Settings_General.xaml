@@ -49,6 +49,7 @@
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
             <local:UC_Settings_Environment Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="3" DataContext="{Binding EnvironmentSettingsVM}" Visibility="{Binding IsStandalone, Converter={StaticResource BoolToVis}}"/>
@@ -218,6 +219,9 @@
 
             <TextBlock Grid.Column="0" Grid.Row="24" ToolTip="Show attribute names instead of FormKeys in Verbose Logs (significantly slower)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Verbose Mode Detailed Attributes</TextBlock>
             <CheckBox Grid.Column="2" Grid.Row="24" IsChecked="{Binding Path=VerboseModeDetailedAttributes, Mode=TwoWay}"></CheckBox>
+
+            <TextBlock Grid.Column="0" Grid.Row="25" ToolTip="Disable error checks before running patcher" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disable Pre-Run Validation</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="25" IsChecked="{Binding Path=DisableValidation, Mode=TwoWay}"></CheckBox>
         </Grid>
     </ScrollViewer>
 </UserControl>
