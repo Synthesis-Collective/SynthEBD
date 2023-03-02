@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 
 namespace SynthEBD;
 
@@ -6,11 +6,11 @@ public class VM_BodyGenGroupsMenu : VM
 {
     public VM_BodyGenGroupsMenu(VM_BodyGenConfig parentMenu)
     {
-        this.ParentMenu = parentMenu;
+        ParentMenu = parentMenu;
 
         AddTemplateGroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.TemplateGroups.Add(new VM_CollectionMemberString("", this.TemplateGroups))
+            execute: _ => TemplateGroups.Add(new VM_CollectionMemberString("", TemplateGroups))
         );
     }
 

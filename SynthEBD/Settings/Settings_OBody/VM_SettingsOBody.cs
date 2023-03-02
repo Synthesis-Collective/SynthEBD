@@ -29,7 +29,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
         ClickBodySlidesMenu = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.DisplayedUI = BodySlidesUI
+            execute: _ => DisplayedUI = BodySlidesUI
         );
 
         ClickDescriptorsMenu = new RelayCommand(

@@ -43,7 +43,7 @@ namespace SynthEBD
             AddMixInToSpecificAssignments = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => { 
-                    foreach (var assignment in specificAssignmentsUI.Assignments.Where(x => x.Gender == _parent.Gender))
+                    foreach (var assignment in specificAssignmentsUI.Assignments.Where(x => x.Gender == _parent.Gender).ToArray())
                     {
                         var existingMixInAssignment = assignment.ForcedMixIns.Where(x => x.ForcedAssetPack.GroupName == _parent.GroupName).FirstOrDefault();
                         if (existingMixInAssignment != null)

@@ -1,3 +1,4 @@
+using Noggog;
 using Noggog.WPF;
 using ReactiveUI;
 using System;
@@ -12,7 +13,6 @@ using static System.Resources.ResXFileRef;
 
 namespace SynthEBD
 {
-
     public class ViewModelLoader : VM
     {
         private readonly IEnvironmentStateProvider _environmentProvider;
@@ -122,7 +122,7 @@ namespace SynthEBD
                 (_, _) => { return 0; })
             .Subscribe(_ => {
                 Reinitialize();
-            });
+            }).DisposeWith(this);
         }
 
         public void SaveAndRefreshPlugins()

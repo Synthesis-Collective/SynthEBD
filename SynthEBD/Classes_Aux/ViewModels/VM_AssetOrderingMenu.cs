@@ -37,7 +37,7 @@ namespace SynthEBD
                 AssignmentOrder.Add(PrimaryLabel);
             }
             // add any new mix ins to list
-            var mixInLabels = _texMeshVM.AssetPacks.Where(x => x.ConfigType == AssetPackType.MixIn && x.IsSelected).Select(x => x.GroupName);
+            var mixInLabels = _texMeshVM.AssetPacks.Where(x => x.ConfigType == AssetPackType.MixIn && x.IsSelected).Select(x => x.GroupName).ToArray();
             foreach (var mixin in mixInLabels)
             {
                 if (!AssignmentOrder.Contains(mixin))

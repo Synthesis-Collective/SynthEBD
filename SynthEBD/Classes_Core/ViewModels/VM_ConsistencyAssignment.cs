@@ -21,8 +21,8 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
             canExecute: _ => true,
             execute: x => 
             {
-                this.AssetPackName = "";
-                this.SubgroupIDs.Clear();
+                AssetPackName = "";
+                SubgroupIDs.Clear();
             }
         );
 

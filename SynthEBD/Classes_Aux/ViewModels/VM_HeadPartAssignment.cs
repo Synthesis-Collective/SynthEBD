@@ -71,7 +71,7 @@ namespace SynthEBD
         public void RefreshAvailable()
         {
             var all = ParentConfig.Types[Type].HeadPartList.ToHashSet();
-            var available = all.Where(x => HeadPartGenderMatches(ParentAssignmentGender.Gender, x));
+            var available = all.Where(x => HeadPartGenderMatches(ParentAssignmentGender.Gender, x)).ToArray();
             AvailableHeadParts = new ObservableCollection<VM_HeadPart>(available);
         }
 

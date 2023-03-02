@@ -21,9 +21,9 @@ public class VM_SettingsBodyGen : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                this.CurrentlyDisplayedConfig = this.CurrentMaleConfig;
-                this.DisplayedConfigIsFemale = false;
-                this.DisplayedConfigIsMale = true;
+                CurrentlyDisplayedConfig = CurrentMaleConfig;
+                DisplayedConfigIsFemale = false;
+                DisplayedConfigIsMale = true;
             }
         );
 
@@ -31,9 +31,9 @@ public class VM_SettingsBodyGen : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                this.CurrentlyDisplayedConfig = this.CurrentFemaleConfig;
-                this.DisplayedConfigIsFemale = true;
-                this.DisplayedConfigIsMale = false;
+                CurrentlyDisplayedConfig = CurrentFemaleConfig;
+                DisplayedConfigIsFemale = true;
+                DisplayedConfigIsMale = false;
             }
         );
 
@@ -41,13 +41,13 @@ public class VM_SettingsBodyGen : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                var newConfig = bodyGenConfigFactory(this.MaleConfigs);
+                var newConfig = bodyGenConfigFactory(MaleConfigs);
                 newConfig.Gender = Gender.Male;
-                this.MaleConfigs.Add(newConfig);
-                this.CurrentMaleConfig = newConfig;
-                this.CurrentlyDisplayedConfig = newConfig;
-                this.DisplayedConfigIsMale = true;
-                this.DisplayedConfigIsFemale = false;
+                MaleConfigs.Add(newConfig);
+                CurrentMaleConfig = newConfig;
+                CurrentlyDisplayedConfig = newConfig;
+                DisplayedConfigIsMale = true;
+                DisplayedConfigIsFemale = false;
                 InitializeNewBodyGenConfig(newConfig, generalSettingsVM);
             });
 
@@ -55,13 +55,13 @@ public class VM_SettingsBodyGen : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                var newConfig = bodyGenConfigFactory(this.FemaleConfigs);
+                var newConfig = bodyGenConfigFactory(FemaleConfigs);
                 newConfig.Gender = Gender.Female;
-                this.FemaleConfigs.Add(newConfig);
-                this.CurrentFemaleConfig = newConfig;
-                this.CurrentlyDisplayedConfig = newConfig;
-                this.DisplayedConfigIsFemale = true;
-                this.DisplayedConfigIsMale = false;
+                FemaleConfigs.Add(newConfig);
+                CurrentFemaleConfig = newConfig;
+                CurrentlyDisplayedConfig = newConfig;
+                DisplayedConfigIsFemale = true;
+                DisplayedConfigIsMale = false;
                 InitializeNewBodyGenConfig(newConfig, generalSettingsVM);
             });
 

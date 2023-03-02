@@ -47,7 +47,7 @@ public class VM_BodyGenTemplateMenu : VM
                     }
 
                     var newTemplates = _bodyGenIO.LoadTemplatesINI(templatePath);
-                    foreach (var template in newTemplates.Where(x => !Templates.Select(x => x.Label).Contains(x.Label)))
+                    foreach (var template in newTemplates.Where(x => !Templates.Select(x => x.Label).Contains(x.Label)).ToArray())
                     {
                         var templateVM = _bodyGenTemplateFactory(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, Templates, parentConfig);
                         templateVM.CopyInViewModelFromModel(template, parentConfig.DescriptorUI, raceGroupingVMs);
@@ -241,14 +241,14 @@ public class VM_BodyGenTemplate : VM
         var updatedCollection = new ObservableCollection<VM_BodyGenTemplate>();
         var excludedCollection = new ObservableCollection<VM_BodyGenTemplate>();
 
-        foreach (var template in this.ParentCollection)
+        foreach (var template in ParentCollection)
         {
             bool inGroup = false;
             foreach (var group in template.GroupSelectionCheckList.CollectionMemberStrings)
             {
                 if (group.IsSelected == false) { continue; }
 
-                foreach (var thisGroup in this.GroupSelectionCheckList.CollectionMemberStrings)
+                foreach (var thisGroup in GroupSelectionCheckList.CollectionMemberStrings)
                 {
                     if (thisGroup.IsSelected == false) { continue; }
                         
@@ -279,7 +279,7 @@ public class VM_BodyGenTemplate : VM
     public void UpdateStatusDisplay()
     {
         var belongsToGroup = false;
-        foreach (var group in this.GroupSelectionCheckList.CollectionMemberStrings)
+        foreach (var group in GroupSelectionCheckList.CollectionMemberStrings)
         {
             if (group.IsSelected)
             {

@@ -210,7 +210,7 @@ public class BSAHandler : ViewModel
     {
         file = null;
         if (bsaReader == null) { return false; }
-        var files = bsaReader.Files.Where(candidate => candidate.Path.Equals(subpath, StringComparison.OrdinalIgnoreCase));
+        var files = bsaReader.Files.Where(candidate => candidate.Path.Equals(subpath, StringComparison.OrdinalIgnoreCase)).ToArray();
         if (files.Any())
         {
             file = files.First();

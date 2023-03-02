@@ -48,7 +48,7 @@ namespace SynthEBD
             RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(raceGroupings, this, _raceGroupingFactory);
             if (generalSettingsGroups != null)
             {
-                var originals = RaceGroupings.Select(x => x.Label);
+                var originals = RaceGroupings.Select(x => x.Label).ToArray();
                 foreach (var candidate in generalSettingsGroups) // add groups from General Settings that are not overwritten by local definitions
                 {
                     if (!originals.Contains(candidate.Label))

@@ -584,7 +584,7 @@ public static string GetNPCLogReportingString(INpcGetter npc)
     public bool GetRaceGroupingLogString(string allowStatus, VM_RaceGroupingCheckboxList raceGroupings, out string reportStr)
     {
         reportStr = "";
-        var selectedGroupings = raceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label);
+        var selectedGroupings = raceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToArray();
         if (selectedGroupings.Any())
         {
             reportStr = allowStatus + " Race Groupings: " + string.Join(", ", selectedGroupings);
@@ -600,7 +600,7 @@ public static string GetNPCLogReportingString(INpcGetter npc)
         {
             List<string> attributeStrs = new();
             var models = VM_NPCAttribute.DumpViewModelsToModels(attributes);
-            var attributeLogs = models.Select(x => x.ToLogString(true, _environmentProvider.LinkCache));
+            var attributeLogs = models.Select(x => x.ToLogString(true, _environmentProvider.LinkCache)).ToArray();
             reportStr = allowStatus + " Attributes: " + string.Join(", ", attributeLogs);
             return true;
         }

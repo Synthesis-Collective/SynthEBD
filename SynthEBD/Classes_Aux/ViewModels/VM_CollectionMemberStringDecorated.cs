@@ -12,8 +12,8 @@ namespace SynthEBD
     {
         public VM_CollectionMemberStringDecorated(string content, ObservableCollection<VM_CollectionMemberStringDecorated> parentCollection, Mode mode)
         {
-            this.Content = content;
-            this.ParentCollection = parentCollection;
+            Content = content;
+            ParentCollection = parentCollection;
             DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
             switch(mode)
             {

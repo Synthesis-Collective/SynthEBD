@@ -78,7 +78,7 @@ namespace SynthEBD
 
             if (IncludeAttributeGroups)
             {
-                foreach (var group in _oBodyUI.AttributeGroupMenu.Groups.Where(x => referencedAttributeGroups.Contains(x.Label)))
+                foreach (var group in _oBodyUI.AttributeGroupMenu.Groups.Where(x => referencedAttributeGroups.Contains(x.Label)).ToArray())
                 {
                     exchange.AttributeGroups.Add(VM_AttributeGroup.DumpViewModelToModel(group));
                 }
@@ -86,7 +86,7 @@ namespace SynthEBD
 
             if (IncludeRaceGroupings)
             {
-                foreach (var grouping in _generalUI.RaceGroupingEditor.RaceGroupings.Where(x => referencedRaceGroupings.Contains(x.Label)))
+                foreach (var grouping in _generalUI.RaceGroupingEditor.RaceGroupings.Where(x => referencedRaceGroupings.Contains(x.Label)).ToArray())
                 {
                     exchange.RaceGroupings.Add(grouping.DumpViewModelToModel());
                 }
@@ -112,7 +112,7 @@ namespace SynthEBD
 
         public void ExportGendered(ObservableCollection<VM_BodySlideSetting> bodySlides, List<BodySlideSetting> destinationList, HashSet<string> referencedAttributeGroups, HashSet<string> referencedRaceGroupings, HashSet<BodyShapeDescriptor.LabelSignature> referencedDescriptors)
         {
-            foreach (var bsVM in bodySlides.Where(x => !x.IsHidden))
+            foreach (var bsVM in bodySlides.Where(x => !x.IsHidden).ToArray())
             {
                 var fullModel = VM_BodySlideSetting.DumpViewModelToModel(bsVM);
                 var model = new BodySlideSetting();
@@ -141,10 +141,10 @@ namespace SynthEBD
 
                 foreach (var attribute in fullModel.AllowedAttributes.And(fullModel.DisallowedAttributes))
                 {
-                    foreach (var subAttribute in attribute.SubAttributes.Where(x => x.Type == NPCAttributeType.Group))
+                    foreach (var subAttribute in attribute.SubAttributes.Where(x => x.Type == NPCAttributeType.Group).ToArray())
                     {
                         var groupAttribute = (NPCAttributeGroup)subAttribute;
-                        foreach (var selection in groupAttribute.SelectedLabels.Where(x => !referencedAttributeGroups.Contains(x)))
+                        foreach (var selection in groupAttribute.SelectedLabels.Where(x => !referencedAttributeGroups.Contains(x)).ToArray())
                         {
                             referencedAttributeGroups.Add(selection);
                         }
@@ -181,7 +181,7 @@ namespace SynthEBD
                         // add missing attributes
                         foreach (var attribute in value.AssociatedRules.AllowedAttributes.And(value.AssociatedRules.DisallowedAttributes).Select(x => VM_NPCAttribute.DumpViewModelToModel(x)))
                         {
-                            foreach (var subAttribute in attribute.SubAttributes.Where(x => x.Type == NPCAttributeType.Group))
+                            foreach (var subAttribute in attribute.SubAttributes.Where(x => x.Type == NPCAttributeType.Group).ToArray())
                             {
                                 var groupAttribute = (NPCAttributeGroup)subAttribute;
                                 foreach (var selection in groupAttribute.SelectedLabels.Where(x => !referencedAttributeGroups.Contains(x)).ToArray())
@@ -240,7 +240,7 @@ namespace SynthEBD
 
             if (IncludeAttributeGroups)
             {
-                foreach (var group in exchange.AttributeGroups.Where(x => !_oBodyUI.AttributeGroupMenu.Groups.Select(x => x.Label).Contains(x.Label)))
+                foreach (var group in exchange.AttributeGroups.Where(x => !_oBodyUI.AttributeGroupMenu.Groups.Select(x => x.Label).Contains(x.Label)).ToArray())
                 {
                     var groupVM = _attributeGroupFactory(_oBodyUI.AttributeGroupMenu);
                     groupVM.CopyInViewModelFromModel(group);

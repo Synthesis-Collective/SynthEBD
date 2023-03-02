@@ -99,7 +99,8 @@ public class StandaloneRunEnvironmentStateProvider : VM, IOutputEnvironmentState
                 x => x.SkyrimVersion,
                 x => x.OutputModName,
                 x => x.DataFolderPath)
-            .Subscribe(_ => UpdateEnvironment());
+            .Subscribe(_ => UpdateEnvironment())
+            .DisposeWith(this);
     }
 
     private void LogEnvironmentEvent(string logString)
@@ -278,7 +279,7 @@ public static class LoadOrderExtensions
         {
             if (mod.ModKey.FileName == outputModName) { continue; }
 
-            var masterFiles = mod.Mod.ModHeader.MasterReferences.Select(x => x.Master.ToString());
+            var masterFiles = mod.Mod.ModHeader.MasterReferences.Select(x => x.Master.ToString()).ToArray();
 
             if (masterFiles.Contains(outputModName, StringComparer.OrdinalIgnoreCase))
             {

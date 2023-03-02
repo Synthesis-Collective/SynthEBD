@@ -14,14 +14,14 @@ public class VM_RaceAlias : VM
     public VM_RaceAlias(RaceAlias alias, VM_Settings_General parentVM, IEnvironmentStateProvider environmentProvider)
     {
         _environmentProvider = environmentProvider;
-        this.race = alias.Race;
-        this.aliasRace = alias.AliasRace;
-        this.bMale = alias.bMale;
-        this.bFemale = alias.bFemale;
-        this.bApplyToAssets = alias.bApplyToAssets;
-        this.bApplyToBodyGen = alias.bApplyToBodyGen;
-        this.bApplyToHeight = alias.bApplyToHeight;
-        this.bApplyToHeadParts = alias.bApplyToHeadParts;
+        Race = alias.Race;
+        AliasRace = alias.AliasRace;
+        bMale = alias.bMale;
+        bFemale = alias.bFemale;
+        bApplyToAssets = alias.bApplyToAssets;
+        bApplyToBodyGen = alias.bApplyToBodyGen;
+        bApplyToHeight = alias.bApplyToHeight;
+        bApplyToHeadParts = alias.bApplyToHeadParts;
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
@@ -29,8 +29,8 @@ public class VM_RaceAlias : VM
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.raceAliases.Remove(this));
     }
 
-    public FormKey race { get; set; }
-    public FormKey aliasRace { get; set; }
+    public FormKey Race { get; set; }
+    public FormKey AliasRace { get; set; }
     public bool bMale { get; set; }
     public bool bFemale { get; set; }
 
@@ -61,8 +61,8 @@ public class VM_RaceAlias : VM
     public static RaceAlias DumpViewModelToModel(VM_RaceAlias viewModel)
     {
         RaceAlias model = new RaceAlias();
-        model.Race = viewModel.race;
-        model.AliasRace = viewModel.aliasRace;
+        model.Race = viewModel.Race;
+        model.AliasRace = viewModel.AliasRace;
         model.bMale = viewModel.bMale;
         model.bFemale = viewModel.bFemale;
         model.bApplyToAssets = viewModel.bApplyToAssets;

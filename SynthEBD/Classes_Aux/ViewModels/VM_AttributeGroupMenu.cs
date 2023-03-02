@@ -71,7 +71,7 @@ public class VM_AttributeGroupMenu : VM
                         var correspondingVM = Groups.Where(x => x.Label == model.Label).First();
                         foreach (var groupAttribute in correspondingVM.Attributes)
                         {
-                            var groupAttributes = groupAttribute.GroupedSubAttributes.Where(x => x.Type == NPCAttributeType.Group);
+                            var groupAttributes = groupAttribute.GroupedSubAttributes.Where(x => x.Type == NPCAttributeType.Group).ToArray();
                             foreach (var groupAtt in groupAttributes)
                             {
                                 var castGroupAtt = (VM_NPCAttributeGroup)groupAtt.Attribute;

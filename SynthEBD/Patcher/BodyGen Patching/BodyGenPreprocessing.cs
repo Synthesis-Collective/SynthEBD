@@ -55,7 +55,7 @@ public class BodyGenPreprocessing
     {
         var output = new List<RaceGrouping>();
 
-        var mainGroupingLabels = _patcherState.GeneralSettings.RaceGroupings.Select(x => x.Label);
+        var mainGroupingLabels = _patcherState.GeneralSettings.RaceGroupings.Select(x => x.Label).ToArray();
         if (_patcherState.GeneralSettings.OverwritePluginRaceGroups)
         {
             var toOverwrite = new List<RaceGrouping>();

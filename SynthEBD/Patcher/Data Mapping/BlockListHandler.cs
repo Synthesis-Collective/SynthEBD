@@ -32,7 +32,7 @@ class BlockListHandler
         output.BodyShape = false;
         output.Height = false;
 
-        foreach (var modKey in contexts.Select(x => x.ModKey))
+        foreach (var modKey in contexts.Select(x => x.ModKey).ToArray())
         {
             var blockedPlugin = blockList.Plugins.Where(x => x.ModKey == modKey).FirstOrDefault();
             if (blockedPlugin != null)

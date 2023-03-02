@@ -269,7 +269,7 @@ public class MiscValidation
     {
         if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)
         {
-            foreach (var assetPack in _patcherState.AssetPacks.Where(x => _patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)))
+            foreach (var assetPack in _patcherState.AssetPacks.Where(x => _patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)).ToArray())
             {
                 if (HasBlankAttribute(assetPack.DistributionRules.AllowedAttributes) || HasBlankAttribute(assetPack.DistributionRules.DisallowedAttributes))
                 {

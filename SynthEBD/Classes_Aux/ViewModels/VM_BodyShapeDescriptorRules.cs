@@ -115,7 +115,7 @@ public class VM_BodyShapeDescriptorRules : VM
 
     public void MergeInViewModelFromModel(BodyShapeDescriptorRules model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
-        AllowedRaces.AddRange(model.AllowedRaces.Where(x => !AllowedRaces.Contains(x)));
+        AllowedRaces.AddRange(model.AllowedRaces.Where(x => !AllowedRaces.Contains(x)).ToArray());
         foreach (var grouping in AllowedRaceGroupings.RaceGroupingSelections)
         {
             if (model.AllowedRaceGroupings.Contains(grouping.SubscribedMasterRaceGrouping.Label))
@@ -124,7 +124,7 @@ public class VM_BodyShapeDescriptorRules : VM
             }
         }
 
-        DisallowedRaces.AddRange(model.DisallowedRaces.Where(x => !DisallowedRaces.Contains(x)));
+        DisallowedRaces.AddRange(model.DisallowedRaces.Where(x => !DisallowedRaces.Contains(x)).ToArray());
         foreach (var grouping in DisallowedRaceGroupings.RaceGroupingSelections)
         {
             if (model.DisallowedRaceGroupings.Contains(grouping.SubscribedMasterRaceGrouping.Label))

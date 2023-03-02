@@ -20,7 +20,7 @@ public class VM_AssetPackDirectReplacerMenu : VM
 
         AddGroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.ReplacerGroups.Add(assetReplaceGroupFactory(this))
+            execute: _ => ReplacerGroups.Add(assetReplaceGroupFactory(this))
         );
     }
     public ObservableCollection<VM_AssetReplacerGroup> ReplacerGroups { get; set; } = new();
@@ -76,7 +76,7 @@ public class VM_AssetReplacerGroup : VM
 
         AddTopLevelSubgroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.Subgroups.Add(subGroupFactory(parent.ParentAssetPack.RaceGroupingEditor.RaceGroupings, Subgroups, parent.ParentAssetPack, null, true))
+            execute: _ => Subgroups.Add(subGroupFactory(parent.ParentAssetPack.RaceGroupingEditor.RaceGroupings, Subgroups, parent.ParentAssetPack, null, true))
         );
             
         this.WhenAnyValue(x => x.TemplateNPCFK).Subscribe(x =>

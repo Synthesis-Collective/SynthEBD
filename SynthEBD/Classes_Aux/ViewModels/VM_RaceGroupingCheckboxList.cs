@@ -11,11 +11,11 @@ public class VM_RaceGroupingCheckboxList : VM
 {
     public VM_RaceGroupingCheckboxList(ObservableCollection<VM_RaceGrouping> RaceGroupingVMs)
     {
-        this.SubscribedMasterList = RaceGroupingVMs;
+        SubscribedMasterList = RaceGroupingVMs;
         
         foreach (var rgvm in SubscribedMasterList)
         {
-            this.RaceGroupingSelections.Add(new RaceGroupingSelection(rgvm, this));
+            RaceGroupingSelections.Add(new RaceGroupingSelection(rgvm, this));
         }
 
         BuildHeaderCaption();
@@ -95,8 +95,8 @@ public class VM_RaceGroupingCheckboxList : VM
     {
         public RaceGroupingSelection(VM_RaceGrouping raceGroupingVM, VM_RaceGroupingCheckboxList parent)
         {
-            this.SubscribedMasterRaceGrouping = raceGroupingVM;
-            this.ParentCheckList = parent;
+            SubscribedMasterRaceGrouping = raceGroupingVM;
+            ParentCheckList = parent;
             this.WhenAnyValue(x => x.IsSelected).Subscribe(x => ParentCheckList.BuildHeaderCaption()).DisposeWith(this);
         }
         public bool IsSelected { get; set; } = false;

@@ -102,14 +102,14 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         ParentCollection = texMesh.AssetPacks;
 
         CurrentBodyGenSettings = bodyGen;
-        switch (Gender)
-        {
-            case Gender.Female: AvailableBodyGenConfigs = CurrentBodyGenSettings.FemaleConfigs; break;
-            case Gender.Male: AvailableBodyGenConfigs = CurrentBodyGenSettings.MaleConfigs; break;
-        }
 
-        PropertyChanged += RefreshTrackedBodyGenConfig;
-        CurrentBodyGenSettings.PropertyChanged += RefreshTrackedBodyGenConfig;
+        this.WhenAnyValue(x => x.Gender).Subscribe(x => {
+            switch (Gender)
+            {
+                case Gender.Female: AvailableBodyGenConfigs = CurrentBodyGenSettings.FemaleConfigs; break;
+                case Gender.Male: AvailableBodyGenConfigs = CurrentBodyGenSettings.MaleConfigs; break;
+            }
+        }).DisposeWith(this);
 
         AttributeGroupMenu = _attributeGroupMenuFactory(general.AttributeGroupMenu, true);
 
@@ -230,21 +230,21 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
                 var reloadedVM = _selfFactory();
                 reloadedVM.CopyInViewModelFromModel(reloaded, _general.RaceGroupingEditor.RaceGroupings);
-                this.IsSelected = reloadedVM.IsSelected;
-                this.AttributeGroupMenu = reloadedVM.AttributeGroupMenu;
-                this.AvailableBodyGenConfigs = reloadedVM.AvailableBodyGenConfigs;
-                this.ConfigType = reloadedVM.ConfigType;
-                this.CurrentBodyGenSettings = reloadedVM.CurrentBodyGenSettings;
-                this.DefaultTemplateFK = reloadedVM.DefaultTemplateFK;
-                this.DefaultRecordTemplateAdditionalRacesPaths = reloadedVM.DefaultRecordTemplateAdditionalRacesPaths;
-                this.DistributionRules = reloadedVM.DistributionRules;
-                this.Gender = reloadedVM.Gender;
-                this.GroupName = reloadedVM.GroupName;
-                this.ReplacersMenu = reloadedVM.ReplacersMenu;
-                this.ShortName = reloadedVM.ShortName;
-                this.SourcePath = reloadedVM.SourcePath;
-                this.Subgroups = reloadedVM.Subgroups;
-                this.TrackedBodyGenConfig = reloadedVM.TrackedBodyGenConfig;
+                IsSelected = reloadedVM.IsSelected;
+                AttributeGroupMenu = reloadedVM.AttributeGroupMenu;
+                AvailableBodyGenConfigs = reloadedVM.AvailableBodyGenConfigs;
+                ConfigType = reloadedVM.ConfigType;
+                CurrentBodyGenSettings = reloadedVM.CurrentBodyGenSettings;
+                DefaultTemplateFK = reloadedVM.DefaultTemplateFK;
+                DefaultRecordTemplateAdditionalRacesPaths = reloadedVM.DefaultRecordTemplateAdditionalRacesPaths;
+                DistributionRules = reloadedVM.DistributionRules;
+                Gender = reloadedVM.Gender;
+                GroupName = reloadedVM.GroupName;
+                ReplacersMenu = reloadedVM.ReplacersMenu;
+                ShortName = reloadedVM.ShortName;
+                SourcePath = reloadedVM.SourcePath;
+                Subgroups = reloadedVM.Subgroups;
+                TrackedBodyGenConfig = reloadedVM.TrackedBodyGenConfig;
                 _logger.CallTimedNotifyStatusUpdateAsync("Discarded Changes", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
             }
         );
@@ -264,7 +264,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         SelectedSubgroupChanged = new RelayCommand(
             canExecute: _ => true,
-            execute: x => this.DisplayedSubgroup = (VM_Subgroup)x
+            execute: x => DisplayedSubgroup = (VM_Subgroup)x
         );
 
         ViewSubgroupEditor = new RelayCommand(
@@ -603,15 +603,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
     }
 
-    public void RefreshTrackedBodyGenConfig(object sender, PropertyChangedEventArgs e)
-    {
-        switch (this.Gender)
-        {
-            case Gender.Female: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.FemaleConfigs; break;
-            case Gender.Male: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.MaleConfigs; break;
-        }
-    }
-
     public void MergeInAssetPack(string assetPackDirPath)
     {
         List<string> newSubgroupNames = new List<string>();
@@ -627,18 +618,18 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 // first add completely new top-level subgroups if necessary
                 foreach (var subgroup in newAssetPackVM.Subgroups)
                 {
-                    if (!this.Subgroups.Select(x => x .ID).Contains(subgroup.ID, StringComparer.OrdinalIgnoreCase))
+                    if (!Subgroups.Select(x => x .ID).Contains(subgroup.ID, StringComparer.OrdinalIgnoreCase))
                     {
                         var clone = subgroup.Clone() as VM_Subgroup;
                         clone.ParentAssetPack = this;
-                        clone.ParentCollection = this.Subgroups;
-                        this.Subgroups.Add(clone);
+                        clone.ParentCollection = Subgroups;
+                        Subgroups.Add(clone);
                         newSubgroupNames.Add(clone.ID + ": " + clone.Name);
                     }
                 }
 
                 // merge existing subgroups
-                foreach (var subgroup in this.Subgroups)
+                foreach (var subgroup in Subgroups)
                 {
                     var matchedSubgroup = newAssetPackVM.Subgroups.Where(x => x.ID == subgroup.ID).FirstOrDefault();
                     if (matchedSubgroup != null)
@@ -778,7 +769,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public void DuplicateBodyPathsAsFeet(VM_Subgroup subgroup, List<string> modifications)
     {
         var newFeetPaths = new HashSet<VM_FilePathReplacement>();
-        foreach (var path in subgroup.PathsMenu.Paths.Where(x => FilePathDestinationMap.MaleTorsoPaths.ContainsValue(x.IntellisensedPath) || FilePathDestinationMap.FemaleTorsoPaths.ContainsValue(x.IntellisensedPath)))
+        foreach (var path in subgroup.PathsMenu.Paths.Where(x => FilePathDestinationMap.MaleTorsoPaths.ContainsValue(x.IntellisensedPath) || FilePathDestinationMap.FemaleTorsoPaths.ContainsValue(x.IntellisensedPath)).ToArray())
         {
             var newPath = _filePathReplacementFactory(path.ParentMenu);
             newPath.Source = path.Source;
@@ -825,7 +816,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             "argonianfemalebody_s.dds",
         };
 
-        foreach (var path in subgroup.PathsMenu.Paths.Where(x => pathsNeedingTails.Contains(Path.GetFileName(x.Source), StringComparer.OrdinalIgnoreCase)))
+        foreach (var path in subgroup.PathsMenu.Paths.Where(x => pathsNeedingTails.Contains(Path.GetFileName(x.Source), StringComparer.OrdinalIgnoreCase)).ToArray())
         {
             var newPath = _filePathReplacementFactory(path.ParentMenu);
             newPath.Source = path.Source;
@@ -868,7 +859,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
     public static void SetDefaultSubgroupFilePaths(VM_Subgroup subgroup, List<string> modifications)
     {
-        foreach (var path in subgroup.PathsMenu.Paths.Where(x => !string.IsNullOrWhiteSpace(x.Source)))
+        foreach (var path in subgroup.PathsMenu.Paths.Where(x => !string.IsNullOrWhiteSpace(x.Source)).ToArray())
         {
             var fileName = Path.GetFileName(path.Source);
 
@@ -1172,7 +1163,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             {
                 foreach (var subDirectory in Directory.GetDirectories(modDirectory))
                 {
-                    var candidatePrefixDirectories = Directory.GetDirectories(subDirectory).Select(x => new DirectoryInfo(x).Name);
+                    var candidatePrefixDirectories = Directory.GetDirectories(subDirectory).Select(x => new DirectoryInfo(x).Name).ToArray();
                     if(candidatePrefixDirectories.Where(x => prefixes.Contains(x)).Any())
                     {
                         currentModDir = modDirectory;

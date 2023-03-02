@@ -26,17 +26,17 @@ namespace SynthEBD
             _attributeCreator = attributeCreator;
             _descriptorSelectionFactory = descriptorSelectionFactory;
 
-            this.ParentMenu = parentConfig;
-            this.ParentCollection = parentCollection;
+            ParentMenu = parentConfig;
+            ParentCollection = parentCollection;
 
             FormKey = headPartFormKey;
-            this.AllowedBodySlideDescriptors = descriptorSelectionFactory(bodyShapeDescriptors, raceGroupingVMs, parentConfig, true, DescriptorMatchMode.All);
-            this.DisallowedBodySlideDescriptors = descriptorSelectionFactory(bodyShapeDescriptors, raceGroupingVMs, parentConfig, true, DescriptorMatchMode.Any);
+            AllowedBodySlideDescriptors = descriptorSelectionFactory(bodyShapeDescriptors, raceGroupingVMs, parentConfig, true, DescriptorMatchMode.All);
+            DisallowedBodySlideDescriptors = descriptorSelectionFactory(bodyShapeDescriptors, raceGroupingVMs, parentConfig, true, DescriptorMatchMode.Any);
             this.WhenAnyValue(x => x.ParentMenu.SettingsMenu.TrackedBodyGenConfigMale).Subscribe(_ => RefreshBodyGenDescriptorsMale(raceGroupingVMs)).DisposeWith(this);
             this.WhenAnyValue(x => x.ParentMenu.SettingsMenu.TrackedBodyGenConfigFemale).Subscribe(_ => RefreshBodyGenDescriptorsFemale(raceGroupingVMs)).DisposeWith(this);
 
-            this.AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
-            this.DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+            AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+            DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
             _environmentProvider.WhenAnyValue(x => x.LinkCache)
                 .Subscribe(x => lk = x)
@@ -44,17 +44,17 @@ namespace SynthEBD
 
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.AllowedAttributes.Add(_attributeCreator.CreateNewFromUI(AllowedAttributes, true, null, ParentMenu.AttributeGroupMenu.Groups))
+                execute: _ => AllowedAttributes.Add(_attributeCreator.CreateNewFromUI(AllowedAttributes, true, null, ParentMenu.AttributeGroupMenu.Groups))
             );
 
             AddDisallowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, ParentMenu.AttributeGroupMenu.Groups))
+                execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, ParentMenu.AttributeGroupMenu.Groups))
             );
 
             DeleteMe = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: _ => this.ParentCollection.Remove(this)
+                execute: _ => ParentCollection.Remove(this)
             );
 
             this.WhenAnyValue(x => x.FormKey).Subscribe(x =>

@@ -190,7 +190,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
     public HashSet<NPCAssignment> DumpViewModelToModels()
     {
         HashSet<NPCAssignment> models = new();
-        foreach (var vm in Assignments.Where(x => x is not null)) // null check needed for when user leaves blank specific assignment
+        foreach (var vm in Assignments.Where(x => x is not null).ToArray()) // null check needed for when user leaves blank specific assignment
         {
             models.Add(vm.DumpViewModelToModel());
         }
@@ -224,7 +224,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
                     var assignmentVM = VM_SpecificNPCAssignment.GetViewModelFromModel(model, _assetPackFactory, _texMeshSettings, _bodyGenSettings, _headPartSettings, _specificNpcAssignmentFactory, _logger, _converters, _environmentProvider);
                     if (assignmentVM != null) // null if the imported NPC doesn't exist in the current load order
                     {
-                        this.Assignments.Add(assignmentVM);
+                        Assignments.Add(assignmentVM);
                     }
                 }
             }

@@ -332,7 +332,7 @@ public class VM_NPCAttributeShell : VM
     {
         if (InitializedVMcache[type] is not null)
         {
-            this.Attribute = InitializedVMcache[type];
+            Attribute = InitializedVMcache[type];
         }
         else
         {
@@ -464,7 +464,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         _recordIntellisense = recordIntellisense;
         _selfFactory = selfFactory;
 
-        foreach (var reg in Loqui.LoquiRegistration.StaticRegister.Registrations.Where(x => x.ProtocolKey.Namespace == "Skyrim").Where(x => x.GetterType.IsAssignableTo(typeof(Mutagen.Bethesda.Plugins.Records.IMajorRecordGetter))))
+        foreach (var reg in Loqui.LoquiRegistration.StaticRegister.Registrations.Where(x => x.ProtocolKey.Namespace == "Skyrim").Where(x => x.GetterType.IsAssignableTo(typeof(Mutagen.Bethesda.Plugins.Records.IMajorRecordGetter))).ToArray())
         {
             ValueGetterTypes.Add(reg.Name, reg.GetterType);
         }
@@ -480,9 +480,9 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         this.WhenAnyValue(x => x.ValueFKtype).Subscribe(x => UpdateFormKeyPickerRecordType()).DisposeWith(this);
 
         this.WhenAnyValue(x => x.ValueStr).Subscribe(x => Evaluate()).DisposeWith(this);
-        this.WhenAnyValue(x => x.ValueFKs).Subscribe(x => Evaluate()).DisposeWith(this);
+        ValueFKs.ToObservableChangeSet().Subscribe(x => Evaluate()).DisposeWith(this);
         this.WhenAnyValue(x => x.ChosenComparator).Subscribe(x => Evaluate()).DisposeWith(this);
-        this.ValueFKs.CollectionChanged += Evaluate;
+
         this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => Evaluate()).DisposeWith(this);
         this.WhenAnyValue(x => x.ReferenceNPCFormKey).Subscribe(x => Evaluate()).DisposeWith(this);
         
@@ -548,97 +548,93 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         return model;
     }
 
-    public void Evaluate(object sender, NotifyCollectionChangedEventArgs e)
-    {
-        Evaluate();
-    }
     public void Evaluate()
     {
-        if (this.ReferenceNPCFormKey.IsNull)
+        if (ReferenceNPCFormKey.IsNull)
         {
             EvalResult = "Can't evaluate: Reference NPC not set";
-            this.StatusFontColor = new SolidColorBrush(Colors.Yellow);
+            StatusFontColor = new SolidColorBrush(Colors.Yellow);
         }
-        else if (this.CustomType != CustomAttributeType.Record && this.ValueStr == "")
+        else if (CustomType != CustomAttributeType.Record && ValueStr == "")
         {
             EvalResult = "Can't evaluate: No value provided";
-            this.StatusFontColor = new SolidColorBrush(Colors.Yellow);
+            StatusFontColor = new SolidColorBrush(Colors.Yellow);
         }
-        else if (this.CustomType == CustomAttributeType.Record && !this.ValueFKs.Any())
+        else if (CustomType == CustomAttributeType.Record && !ValueFKs.Any())
         {
             EvalResult = "Can't evaluate: No FormKeys selected";
-            this.StatusFontColor = new SolidColorBrush(Colors.Yellow);
+            StatusFontColor = new SolidColorBrush(Colors.Yellow);
         }
-        else if (this.CustomType == CustomAttributeType.Integer && !Int32.TryParse(ValueStr, out _))
+        else if (CustomType == CustomAttributeType.Integer && !Int32.TryParse(ValueStr, out _))
         {
             EvalResult = "Can't convert " + ValueStr + " to an Integer value";
-            this.StatusFontColor = new SolidColorBrush(Colors.Red);
+            StatusFontColor = new SolidColorBrush(Colors.Red);
         }
-        else if (this.CustomType == CustomAttributeType.Decimal && !float.TryParse(ValueStr, out _))
+        else if (CustomType == CustomAttributeType.Decimal && !float.TryParse(ValueStr, out _))
         {
             EvalResult = "Can't convert " + ValueStr + " to a Decimal value";
-            this.StatusFontColor = new SolidColorBrush(Colors.Red);
+            StatusFontColor = new SolidColorBrush(Colors.Red);
         }
-        else if (this.CustomType == CustomAttributeType.Boolean && !bool.TryParse(ValueStr, out _))
+        else if (CustomType == CustomAttributeType.Boolean && !bool.TryParse(ValueStr, out _))
         {
             EvalResult = "Can't convert " + ValueStr + " to a Boolean value";
-            this.StatusFontColor = new SolidColorBrush(Colors.Red);
+            StatusFontColor = new SolidColorBrush(Colors.Red);
         }
         else
         {
             if (!_environmentProvider.LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC))
             {
                 EvalResult = "Error: can't resolve reference NPC.";
-                this.StatusFontColor = new SolidColorBrush(Colors.Red);
+                StatusFontColor = new SolidColorBrush(Colors.Red);
             }
             bool matched = _attributeMatcher.EvaluateCustomAttribute(refNPC, DumpViewModelToModel(this, VM_NPCAttributeShell.AttributeAllowStr), LinkCache, out string dispMessage);
             if (matched)
             {
                 EvalResult = "Matched!";
-                this.StatusFontColor = new SolidColorBrush(Colors.Green);
+                StatusFontColor = new SolidColorBrush(Colors.Green);
             }
             else
             {
                 EvalResult = dispMessage;
-                this.StatusFontColor = new SolidColorBrush(Colors.Red);
+                StatusFontColor = new SolidColorBrush(Colors.Red);
             }
         }
     }
 
     public void UpdateValueDisplay()
     {
-        if (this.CustomType == CustomAttributeType.Record)
+        if (CustomType == CustomAttributeType.Record)
         {
-            this.ShowValueFormKeyPicker = true;
-            this.ShowValueTextField = false;
-            this.ShowValueBoolPicker = false;
+            ShowValueFormKeyPicker = true;
+            ShowValueTextField = false;
+            ShowValueBoolPicker = false;
         }
-        else if (this.CustomType == CustomAttributeType.Boolean)
+        else if (CustomType == CustomAttributeType.Boolean)
         {
-            this.ShowValueFormKeyPicker = false;
-            this.ShowValueTextField = false;
-            this.ShowValueBoolPicker = true;
+            ShowValueFormKeyPicker = false;
+            ShowValueTextField = false;
+            ShowValueBoolPicker = true;
         }
         else
         {
-            this.ShowValueFormKeyPicker = false;
-            this.ShowValueTextField = true;
-            this.ShowValueBoolPicker = false;
+            ShowValueFormKeyPicker = false;
+            ShowValueTextField = true;
+            ShowValueBoolPicker = false;
         }
 
-        this.Comparators = new ObservableCollection<string>() { "=", "!=" };
-        if (this.CustomType == CustomAttributeType.Integer || this.CustomType == CustomAttributeType.Decimal)
+        Comparators = new ObservableCollection<string>() { "=", "!=" };
+        if (CustomType == CustomAttributeType.Integer || CustomType == CustomAttributeType.Decimal)
         {
-            this.Comparators.Add("<");
-            this.Comparators.Add("<=");
-            this.Comparators.Add(">");
-            this.Comparators.Add(">=");
+            Comparators.Add("<");
+            Comparators.Add("<=");
+            Comparators.Add(">");
+            Comparators.Add(">=");
         }
-        else if (this.CustomType == CustomAttributeType.Text)
+        else if (CustomType == CustomAttributeType.Text)
         {
-            this.Comparators.Add("Contains");
-            this.Comparators.Add("Starts With");
-            this.Comparators.Add("Ends With");
+            Comparators.Add("Contains");
+            Comparators.Add("Starts With");
+            Comparators.Add("Ends With");
         }
 
         Evaluate();
@@ -1009,7 +1005,7 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
     {
         var newAtt = new VM_NPCAttributeGroup(parentVM, parentShell, attributeGroups);
             
-        foreach (var group in newAtt.SelectableAttributeGroups.Where(x => model.SelectedLabels.Contains(x.SubscribedAttributeGroup.Label)))
+        foreach (var group in newAtt.SelectableAttributeGroups.Where(x => model.SelectedLabels.Contains(x.SubscribedAttributeGroup.Label)).ToArray())
         {
             group.IsSelected = true;
         }

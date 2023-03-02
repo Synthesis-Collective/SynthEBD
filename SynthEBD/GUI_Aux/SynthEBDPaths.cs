@@ -39,7 +39,8 @@ public class SynthEBDPaths : VM
             .Skip(1) // don't re-evaluate during initialization
             .Subscribe(_ => {
                 GetRootPath();
-            });
+            })
+            .DisposeWith(this);
 
         // create relevant paths if necessary - only in the "home" directory. To avoid inadvertent clutter in the data folder, user must create these directories manually in their data folder
 

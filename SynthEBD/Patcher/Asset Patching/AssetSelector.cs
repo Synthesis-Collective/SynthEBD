@@ -305,12 +305,12 @@ public class AssetSelector
                 else if ((i - 1) == iterationInfo.ChosenSeed.TopLevelSubgroupIndex) // skip over the seed subgroup
                 {
                     _logger.LogReport("No subgroups remain at position (" + i + "). Selecting a different subgroup at position " + (i - 2), false, npcInfo);
-                    i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination, generatedCombination.ContainedSubgroups[i - 2], i, 2);
+                    i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination.ContainedSubgroups[i - 2], i, 2);
                 }
                 else
                 {
                     _logger.LogReport("No subgroups remain at position (" + i + "). Selecting a different subgroup at position " + (i - 1), false, npcInfo);
-                    i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination, generatedCombination.ContainedSubgroups[i - 1], i, 1);
+                    i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination.ContainedSubgroups[i - 1], i, 1);
                 }
                 continue;
             }
@@ -357,7 +357,7 @@ public class AssetSelector
                 }
 
                 _logger.LogReport("Selecting a different subgroup at position " + i + ".", false, npcInfo);
-                i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination, nextSubgroup, i, 0);
+                i = AssignmentIteration.BackTrack(iterationInfo, nextSubgroup, i, 0);
                 continue;
             }
             else
@@ -399,7 +399,7 @@ public class AssetSelector
         }
 
         // check if incoming subgroup is allowed by all existing subgroups
-        foreach (var subgroup in currentCombination.ContainedSubgroups.Where(x => x is not null))
+        foreach (var subgroup in currentCombination.ContainedSubgroups.Where(x => x is not null).ToArray())
         {
             foreach (var index in subgroup.RequiredSubgroupIDs)
             {

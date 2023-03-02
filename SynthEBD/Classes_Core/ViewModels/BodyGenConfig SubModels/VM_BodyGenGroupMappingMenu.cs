@@ -173,9 +173,9 @@ public class VM_BodyGenCombination : VM
 
     public void CheckForEmptyCombination()
     {
-        if (this.Members.Count == 0)
+        if (Members.Count == 0)
         {
-            this.Parent.Combinations.Remove(this);
+            Parent.Combinations.Remove(this);
         }
     }
 }

@@ -110,7 +110,7 @@ public class VM_SettingsTexMesh : VM
                 newSG.ID = "FS";
                 newSG.Name = "First Subgroup";
                 newAP.Subgroups.Add(newSG);
-                this.AssetPacks.Add(newAP);
+                AssetPacks.Add(newAP);
                 AssetPresenterPrimary.AssetPack = newAP;
             }
         );
@@ -355,7 +355,7 @@ public class VM_SettingsTexMesh : VM
         InstalledConfigsInCurrentSession.AddRange(installedConfigs);
         Cursor.Current = Cursors.WaitCursor;
         _getVMLoader().SaveAndRefreshPlugins();
-        foreach (var newConfig in AssetPacks.Where(x => InstalledConfigsInCurrentSession.Contains(x.GroupName)))
+        foreach (var newConfig in AssetPacks.Where(x => InstalledConfigsInCurrentSession.Contains(x.GroupName)).ToArray())
         {
             newConfig.IsSelected = true;
         }

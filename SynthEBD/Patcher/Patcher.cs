@@ -850,7 +850,7 @@ public class Patcher
             }
             else
             {
-                foreach (var entry in AssignmentsByGenderAndRace[Gender.Male].OrderBy(x => GetRaceDisplayString(x.Key)))
+                foreach (var entry in AssignmentsByGenderAndRace[Gender.Male].OrderBy(x => GetRaceDisplayString(x.Key)).ToArray())
                 {
                     if (entry.Key.TryResolve(_linkCache, out _))
                     {
@@ -865,7 +865,7 @@ public class Patcher
             }
             else
             {
-                foreach (var entry in AssignmentsByGenderAndRace[Gender.Female].OrderBy(x => GetRaceDisplayString(x.Key)))
+                foreach (var entry in AssignmentsByGenderAndRace[Gender.Female].OrderBy(x => GetRaceDisplayString(x.Key)).ToArray())
                 {
                     if (entry.Key.TryResolve(_linkCache, out _))
                     {

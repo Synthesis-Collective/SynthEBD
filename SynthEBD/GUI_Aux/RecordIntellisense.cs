@@ -1,6 +1,7 @@
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
+using Noggog;
 using ReactiveUI;
 using System.Collections.ObjectModel;
 using System.Reactive.Linq;
@@ -17,7 +18,7 @@ public interface IImplementsRecordIntellisense
     public string IntellisensedPath { get; set; }
     public ILinkCache LinkCache { get; }
 }
-public class RecordIntellisense
+public class RecordIntellisense : VM
 {
     private readonly RecordPathParser _recordPathParser;
     private readonly Logger _logger;
@@ -28,9 +29,9 @@ public class RecordIntellisense
     }
     public void InitializeSubscriptions(IImplementsRecordIntellisense parent)
     {
-        parent.WhenAnyValue(x => x.ReferenceNPCFormKey).Subscribe(x => RefreshPathSuggestions(parent));
-        parent.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => RefreshPathSuggestions(parent));
-        parent.WhenAnyValue(vm => vm.ChosenPathSuggestion).Skip(1).WhereNotNull().Subscribe(pathSuggestion => UpdatePath(parent));
+        parent.WhenAnyValue(x => x.ReferenceNPCFormKey).Subscribe(x => RefreshPathSuggestions(parent)).DisposeWith(this);
+        parent.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => RefreshPathSuggestions(parent)).DisposeWith(this);
+        parent.WhenAnyValue(vm => vm.ChosenPathSuggestion).Skip(1).WhereNotNull().Subscribe(pathSuggestion => UpdatePath(parent)).DisposeWith(this);
     }
     public void RefreshPathSuggestions(IImplementsRecordIntellisense parent)
     {

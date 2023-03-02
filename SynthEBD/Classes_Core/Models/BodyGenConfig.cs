@@ -274,9 +274,9 @@ public class zEBDBodyGenConfig
             }
         }
 
-        newTemplate.AllowedAttributes = _converters.StringArraysToAttributes(zTemplate.allowedAttributes);
-        newTemplate.DisallowedAttributes = _converters.StringArraysToAttributes(zTemplate.disallowedAttributes);
-        Converters.ImportzEBDForceIfAttributes(newTemplate.AllowedAttributes, _converters.StringArraysToAttributes(zTemplate.forceIfAttributes));
+        newTemplate.AllowedAttributes = _converters.zEBDStringArraysToAttributes(zTemplate.allowedAttributes);
+        newTemplate.DisallowedAttributes = _converters.zEBDStringArraysToAttributes(zTemplate.disallowedAttributes);
+        Converters.ImportzEBDForceIfAttributes(newTemplate.AllowedAttributes, _converters.zEBDStringArraysToAttributes(zTemplate.forceIfAttributes));
 
         newTemplate.WeightRange = Converters.StringArrayToWeightRange(zTemplate.weightRange);
 

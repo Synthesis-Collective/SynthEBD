@@ -43,8 +43,8 @@ namespace SynthEBD
             {
                 i.Dispose();
             }
-            this.PreviewImages.Clear();
-            this.PreviewImages = new ObservableCollection<VM_PreviewImage>();
+            PreviewImages.Clear();
+            PreviewImages = new ObservableCollection<VM_PreviewImage>();
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();

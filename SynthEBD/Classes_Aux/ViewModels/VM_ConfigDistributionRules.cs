@@ -80,7 +80,7 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
                 }
                 bIsMixIn = true;
             }
-        });
+        }).DisposeWith(this);
     }
 
     public ObservableCollection<FormKey> AllowedRaces { get; set; } = new();
@@ -170,7 +170,6 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
     public List<string> GetRulesSummary()
     {
         List<string> rulesSummary = new();
-        bool shouldReport = false;
         string tmpReport = "";
         if (_logger.GetRaceLogString("Allowed", AllowedRaces, out tmpReport)) { rulesSummary.Add(tmpReport); }
         if (_logger.GetRaceGroupingLogString("Allowed", AllowedRaceGroupings, out tmpReport)) { rulesSummary.Add(tmpReport); }
@@ -183,8 +182,7 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
         if (ProbabilityWeighting != 1) { rulesSummary.Add("Probability Weighting: " + ProbabilityWeighting.ToString()); }
         if (WeightRange.Lower != 0 || WeightRange.Upper != 100) { rulesSummary.Add("Weight Range: " + WeightRange.Lower.ToString() + " to " + WeightRange.Upper.ToString()); }
 
-        shouldReport = rulesSummary.Any();
-        if (shouldReport)
+        if (rulesSummary.Any())
         {
             rulesSummary.Insert(0, "");
             rulesSummary.Insert(0, "Whole-Config Distribution Rules:");

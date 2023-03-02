@@ -17,7 +17,7 @@ public class BodyGenWriter
     public void WriteBodyGenOutputs(BodyGenConfigs bodyGenConfigs, string outputDataFolder)
     {
         string templates = CompileTemplateINI(bodyGenConfigs);
-        string morphs = CompileMorphsINI(bodyGenConfigs);
+        string morphs = CompileMorphsINI();
 
         string outputDirPath = Path.Combine(outputDataFolder, "Meshes", "actors", "character", "BodyGenData", _patcherState.GeneralSettings.PatchFileName + ".esp");
         Directory.CreateDirectory(outputDirPath);
@@ -37,7 +37,7 @@ public class BodyGenWriter
         foreach (var assignment in Patcher.BodyGenTracker.AllChosenMorphsMale)
         {
             var currentConfig = bodyGenConfigs.Male.Where(x => x.Label == assignment.Key).First(); // first instead of single in case user has duplicate configs installed
-            var assignedTemplates = currentConfig.Templates.Where(x => assignment.Value.Contains(x.Label));
+            var assignedTemplates = currentConfig.Templates.Where(x => assignment.Value.Contains(x.Label)).ToArray();
 
             foreach (var template in assignedTemplates)
             {
@@ -48,7 +48,7 @@ public class BodyGenWriter
         foreach (var assignment in Patcher.BodyGenTracker.AllChosenMorphsFemale)
         {
             var currentConfig = bodyGenConfigs.Female.Where(x => x.Label == assignment.Key).First();  // first instead of single in case user has duplicate configs installed
-            var assignedTemplates = currentConfig.Templates.Where(x => assignment.Value.Contains(x.Label));
+            var assignedTemplates = currentConfig.Templates.Where(x => assignment.Value.Contains(x.Label)).ToArray();
 
             foreach (var template in assignedTemplates)
             {
@@ -59,7 +59,7 @@ public class BodyGenWriter
         return output;
     }
 
-    private static string CompileMorphsINI(BodyGenConfigs bodyGenConfigs)
+    private static string CompileMorphsINI()
     {
         string output = "";
         foreach (var npcAssignment in Patcher.BodyGenTracker.NPCAssignments)

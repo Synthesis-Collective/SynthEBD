@@ -27,10 +27,10 @@
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Column="0" Grid.Row="0" ToolTip="Treat this race as if it were the Alias Race" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Race</TextBlock>
-            <plugins:FormKeyPicker x:Name="RaceFormKeyPicker" Grid.Column="1" Grid.Row="0" FormKey="{Binding race}" LinkCache="{Binding lk}" ScopedTypes="{Binding FormKeyPickerTypes}"/> <!-- Needs something like "{Binding Path=Race}"  -->
+            <plugins:FormKeyPicker x:Name="RaceFormKeyPicker" Grid.Column="1" Grid.Row="0" FormKey="{Binding Race}" LinkCache="{Binding lk}" ScopedTypes="{Binding FormKeyPickerTypes}"/> <!-- Needs something like "{Binding Path=Race}"  -->
 
             <TextBlock Grid.Column="0" Grid.Row="1">Alias Race</TextBlock>
-            <plugins:FormKeyPicker x:Name="AliasFormKeyPicker" Grid.Column="1" Grid.Row="1" FormKey="{Binding aliasRace}" LinkCache="{Binding lk}" ScopedTypes="{Binding FormKeyPickerTypes}"/> <!-- Needs something like "{Binding Path=AliasRace}"  -->
+            <plugins:FormKeyPicker x:Name="AliasFormKeyPicker" Grid.Column="1" Grid.Row="1" FormKey="{Binding AliasRace}" LinkCache="{Binding lk}" ScopedTypes="{Binding FormKeyPickerTypes}"/> <!-- Needs something like "{Binding Path=AliasRace}"  -->
 
             <TextBlock Grid.Column="0" Grid.Row="2">Apply to Males</TextBlock>
             <CheckBox Grid.Column="1" Grid.Row="2" IsChecked="{Binding Path=bMale, Mode=TwoWay}"></CheckBox>

@@ -48,7 +48,7 @@ public class RecordPathParser
         int? indexInParentArray = null;
         bool isRecord = false;
         bool isNullFormLink = false;
-        Type loquiType = null;
+        Type objectType = null;
         FormKey recordFormKey = new FormKey();
 
         if (rootObj == null)
@@ -62,9 +62,9 @@ public class RecordPathParser
             if (ObjectHasFormKey(rootObj))
             {
                 outputObjInfo.HasFormKey = true;
-                if (TryGetRegister(outputObj, out loquiType))
+                if (TryGetRegister(outputObj, out objectType))
                 {
-                    outputObjInfo.RecordType = loquiType;
+                    outputObjInfo.RecordType = objectType;
                 }
             }
 
@@ -81,7 +81,7 @@ public class RecordPathParser
             indexInParentArray = null;
             isRecord = false;
             isNullFormLink = false;
-            loquiType = null;
+            objectType = null;
             recordFormKey = new FormKey();
 
             if (currentObj == null)
@@ -90,7 +90,7 @@ public class RecordPathParser
             }
 
             // check object cache to see if the given object has already been resolved
-            string concatPath = RecordGenerator.BuildPath(splitPath.ToList().GetRange(0, i + 1)); //String.Join(".", splitPath.ToList().GetRange(0, i+1));
+            string concatPath = RecordGenerator.BuildPath(splitPath.ToList().GetRange(0, i + 1)); 
             if (objectCache.ContainsKey(concatPath))
             {
                 currentObj = objectCache[concatPath];
@@ -120,7 +120,7 @@ public class RecordPathParser
             IMajorRecordGetter subRecordGetter = null;
             if (ObjectHasFormKey(currentObj, out FormKey? subrecordFK))
             {
-                if (!subrecordFK.Value.IsNull && TryGetRegister(currentObj, out loquiType) && linkCache.TryResolve(subrecordFK.Value, loquiType, out subRecordGetter))
+                if (!subrecordFK.Value.IsNull && TryGetRegister(currentObj, out objectType) && linkCache.TryResolve(subrecordFK.Value, objectType, out subRecordGetter))
                 {
                     isRecord = true;
                     recordFormKey = subrecordFK.Value;
@@ -141,12 +141,12 @@ public class RecordPathParser
         outputObjInfo.HasFormKey = isRecord;
         outputObjInfo.IsNullFormLink = isNullFormLink;
         outputObjInfo.RecordFormKey = recordFormKey;
-        outputObjInfo.RecordType = loquiType;
+        outputObjInfo.RecordType = objectType;
         outputObjInfo.IndexInParentArray = indexInParentArray;
 
         if (isRecord)
         {
-            outputObjInfo.LoquiRegistration = LoquiRegistration.GetRegister(loquiType);
+            outputObjInfo.LoquiRegistration = LoquiRegistration.GetRegister(objectType);
         }
 
         outputObj = currentObj;
@@ -177,7 +177,7 @@ public class RecordPathParser
             }
 
             // check object cache to see if the given object has already been resolved
-            string concatPath = RecordGenerator.BuildPath(splitPath.ToList().GetRange(0, i + 1)); //String.Join(".", splitPath.ToList().GetRange(0, i+1));
+            string concatPath = RecordGenerator.BuildPath(splitPath.ToList().GetRange(0, i + 1));
             if (objectCache.ContainsKey(concatPath))
             {
                 currentObj = objectCache[concatPath];

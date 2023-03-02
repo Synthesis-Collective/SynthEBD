@@ -81,7 +81,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
     public HashSet<BodyShapeDescriptor> DumpSelectedToViewModels(IEnumerable<BodyShapeDescriptor.LabelSignature> selectedDescriptors)
     {
         HashSet<BodyShapeDescriptor> models = new();
-        var selectedSignatures = selectedDescriptors.Select(x => x.ToString());
+        var selectedSignatures = selectedDescriptors.Select(x => x.ToString()).ToArray();
 
         foreach (var categoryVM in TemplateDescriptors)
         {

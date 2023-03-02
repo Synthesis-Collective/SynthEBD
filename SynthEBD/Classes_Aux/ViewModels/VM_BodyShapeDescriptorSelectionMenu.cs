@@ -31,7 +31,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         {
             foreach (var Descriptor in TrackedMenu.TemplateDescriptors)
             {
-                this.DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(Descriptor, this));
+                DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(Descriptor, this));
             }
             TrackedMenu.TemplateDescriptors.ToObservableChangeSet().Subscribe(_ => UpdateShellList()).DisposeWith(this);
         }
@@ -78,10 +78,10 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
     public void UpdateShellList()
     {
         // remove deleted shells
-        for (int i = 0; i < this.DescriptorShells.Count; i++)
+        for (int i = 0; i < DescriptorShells.Count; i++)
         {
             bool found = false;
-            foreach (var sourceShell in this.TrackedMenu.TemplateDescriptors)
+            foreach (var sourceShell in TrackedMenu.TemplateDescriptors)
             {
                 if (DescriptorShells[i].TrackedShell.Category == sourceShell.Category)
                 {
@@ -190,13 +190,13 @@ public class VM_BodyShapeDescriptorShellSelector : VM
 {
     public VM_BodyShapeDescriptorShellSelector(VM_BodyShapeDescriptorShell trackedShell, VM_BodyShapeDescriptorSelectionMenu parentMenu)
     {
-        this.TrackedShell = trackedShell;
-        this.ParentMenu = parentMenu;
-        foreach (var descriptor in this.TrackedShell.Descriptors)
+        TrackedShell = trackedShell;
+        ParentMenu = parentMenu;
+        foreach (var descriptor in TrackedShell.Descriptors)
         {
-            this.DescriptorSelectors.Add(new VM_BodyShapeDescriptorSelector(descriptor, this.ParentMenu));
+            DescriptorSelectors.Add(new VM_BodyShapeDescriptorSelector(descriptor, ParentMenu));
         }
-        TrackedShell.Descriptors.ToObservableChangeSet().Subscribe(_ => UpdateDescriptorList());
+        TrackedShell.Descriptors.ToObservableChangeSet().Subscribe(_ => UpdateDescriptorList()).DisposeWith(this);
         TrackedShell.Descriptors.ToObservableChangeSet()
             .QueryWhenChanged(x => x)
             .Subscribe(x =>
@@ -216,7 +216,7 @@ public class VM_BodyShapeDescriptorShellSelector : VM
         for (int i = 0; i < this.DescriptorSelectors.Count; i++)
         {
             bool found = false;
-            foreach (var sourceDescriptor in this.TrackedShell.Descriptors)
+            foreach (var sourceDescriptor in TrackedShell.Descriptors)
             {
                 if (DescriptorSelectors[i].TrackedDescriptor.Value == sourceDescriptor.Value)
                 {
@@ -259,7 +259,7 @@ public class VM_BodyShapeDescriptorSelector : VM
         ParentMenu = parentMenu;
         Value = TrackedDescriptor.Value;
 
-        TrackedDescriptor.WhenAnyValue(x => x.Value).Subscribe(_ => Value = TrackedDescriptor.Value);
+        TrackedDescriptor.WhenAnyValue(x => x.Value).Subscribe(_ => Value = TrackedDescriptor.Value).DisposeWith(this);
     }
 
     public VM_BodyShapeDescriptor TrackedDescriptor { get; set; }

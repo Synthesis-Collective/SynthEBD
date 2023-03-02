@@ -18,7 +18,7 @@ public class VM_ConsistencyUI : VM
         _environmentProvider = environmentProvider;
         _logger = logger;
 
-        this.PropertyChanged += RefereshCurrentAssignment;
+        this.WhenAnyValue(x => x.SelectedNPCFormKey).Subscribe(x => CurrentlyDisplayedAssignment = Assignments.Where(y => y.NPCFormKey.Equals(x)).FirstOrDefault()).DisposeWith(this);
         
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
@@ -118,11 +118,6 @@ public class VM_ConsistencyUI : VM
     public RelayCommand DeleteAllHeight { get; set; }
     public RelayCommand DeleteAllHeadParts { get; set; }
     public RelayCommand DeleteAllNPCs { get; set; }
-
-    public void RefereshCurrentAssignment(object sender, PropertyChangedEventArgs e)
-    {
-        CurrentlyDisplayedAssignment = this.Assignments.Where(x => x.NPCFormKey.ToString() == SelectedNPCFormKey.ToString()).FirstOrDefault();
-    }
 
     public static void GetViewModelsFromModels(Dictionary<string, NPCAssignment> models, ObservableCollection<VM_ConsistencyAssignment> viewModels, ObservableCollection<VM_AssetPack> AssetPackVMs, VM_Settings_Headparts headParts, Logger logger)
     {

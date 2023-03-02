@@ -41,7 +41,7 @@ namespace SynthEBD
                 }
 
                 List<string> assetPackErrors = new();
-                foreach (var assetPack in _patcherState.AssetPacks.Where(x => _patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)))
+                foreach (var assetPack in _patcherState.AssetPacks.Where(x => _patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)).ToArray())
                 {
                     if (!_assetPackValidator.Validate(assetPack, assetPackErrors, _patcherState.BodyGenConfigs, _patcherState.OBodySettings))
                     {

@@ -296,7 +296,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
                 paths.Add(imagePathWithSource);
             }
         }
-        //paths.UnionWith(ddsPaths.Select(x => System.IO.Path.Combine(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, x)));
+
         foreach (var subgroup in Subgroups)
         {
             subgroup.GetDDSPaths(paths);
@@ -366,7 +366,6 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
                     ids.Add(string.Join("", chars));
                 }
             }
-
 
             ID = string.Join('.', ids);
             ID = TrimTrailingNonAlphaNumeric(ID);

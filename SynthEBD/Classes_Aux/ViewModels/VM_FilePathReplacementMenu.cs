@@ -84,7 +84,7 @@ public class VM_FilePathReplacementMenu : VM
         {
             candidateRecordTemplates.Add(ParentSubgroup.ParentAssetPack.DefaultTemplateFK);
         }
-        candidateRecordTemplates.AddRange(ParentSubgroup.ParentAssetPack.AdditionalRecordTemplateAssignments.Where(x => x.TemplateNPC != null).Select(x => x.TemplateNPC));
+        candidateRecordTemplates.AddRange(ParentSubgroup.ParentAssetPack.AdditionalRecordTemplateAssignments.Where(x => x.TemplateNPC != null).Select(x => x.TemplateNPC).ToArray());
 
         foreach (var referenceNPCformkey in candidateRecordTemplates)
         {

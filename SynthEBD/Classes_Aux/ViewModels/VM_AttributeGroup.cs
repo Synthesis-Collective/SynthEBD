@@ -102,7 +102,7 @@ public class VM_AttributeGroup : VM
             {
                 var groupAttribute = (VM_NPCAttributeGroup)subAttributeShell.Attribute;
                 
-                foreach (var label in groupAttribute.SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label))
+                foreach (var label in groupAttribute.SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label).ToArray())
                 {
                     var selectedSubGroup = allGroups.Where(x => x.Label == label).FirstOrDefault();
                     if (selectedSubGroup != null)

@@ -179,7 +179,7 @@ namespace SynthEBD
             var outputDir = Path.Combine(_paths.OutputDataFolder, "SynthEBD");
             if (!Directory.Exists(outputDir)) { return; }
 
-            var oldFiles = Directory.GetFiles(outputDir).Where(x => Path.GetFileName(x).StartsWith("HeadPartDict"));
+            var oldFiles = Directory.GetFiles(outputDir).Where(x => Path.GetFileName(x).StartsWith("HeadPartDict")).ToArray();
             foreach (var path in oldFiles)
             {
                 _patcherIO.TryDeleteFile(path, _logger);
