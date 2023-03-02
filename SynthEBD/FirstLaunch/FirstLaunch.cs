@@ -83,7 +83,7 @@ namespace SynthEBD
 
             if (_environmentProvider.RunMode == EnvironmentMode.Synthesis)
             {
-                _modManager.TempFolder = Path.Combine(_environmentProvider.ExtraSettingsDataPath, "Temp");
+                _modManager.TempFolder = Path.Combine(_environmentProvider.InternalDataPath, "Temp");
             }
         }
 
