@@ -20,6 +20,7 @@ public interface IEnvironmentStateProvider
     // core properties "seeded" by Noggog
     ILoadOrderGetter<IModListingGetter<ISkyrimModGetter>> LoadOrder { get; }
     ILinkCache<ISkyrimMod, ISkyrimModGetter> LinkCache { get; }
+    public DirectoryPath DefaultSettingsDataPath { get; }
     DirectoryPath ExtraSettingsDataPath { get; }
     DirectoryPath InternalDataPath { get; }
     //Additional properties needed by SynthEBD
