@@ -20,7 +20,6 @@ public interface IEnvironmentStateProvider
     // core properties "seeded" by Noggog
     ILoadOrderGetter<IModListingGetter<ISkyrimModGetter>> LoadOrder { get; }
     ILinkCache<ISkyrimMod, ISkyrimModGetter> LinkCache { get; }
-    public DirectoryPath DefaultSettingsDataPath { get; }
     DirectoryPath ExtraSettingsDataPath { get; }
     DirectoryPath InternalDataPath { get; }
     //Additional properties needed by SynthEBD
@@ -53,7 +52,6 @@ public class StandaloneRunEnvironmentStateProvider : VM, IOutputEnvironmentState
     public ILoadOrderGetter<IModListingGetter<ISkyrimModGetter>> LoadOrder => _environment.LoadOrder;
     public ILinkCache<ISkyrimMod, ISkyrimModGetter> LinkCache => _environment.LinkCache;
     [Reactive] public SkyrimRelease SkyrimVersion { get; set; }
-    public DirectoryPath DefaultSettingsDataPath { get; set; }
     public DirectoryPath ExtraSettingsDataPath { get; set; }
     public DirectoryPath InternalDataPath { get; set; }
     [Reactive] public DirectoryPath DataFolderPath { get; set; }
@@ -83,7 +81,6 @@ public class StandaloneRunEnvironmentStateProvider : VM, IOutputEnvironmentState
         }
 
         LogFolderPath = Path.Combine(exeLocation, "Logs");
-        DefaultSettingsDataPath = Path.Combine(exeLocation, "Settings");
         ExtraSettingsDataPath = Path.Combine(exeLocation, "Settings");
         InternalDataPath = Path.Combine(exeLocation, "InternalData");
 
@@ -204,7 +201,6 @@ public class OpenForSettingsWrapper : IEnvironmentStateProvider
 
     public ILoadOrderGetter<IModListingGetter<ISkyrimModGetter>> LoadOrder => _env.Value.LoadOrder;
     public ILinkCache<ISkyrimMod, ISkyrimModGetter> LinkCache => _env.Value.LinkCache;
-    public DirectoryPath DefaultSettingsDataPath => _state.DefaultSettingsDataPath ?? throw new Exception("Could not locate Default Settings Data Path");
     public DirectoryPath ExtraSettingsDataPath => _state.ExtraSettingsDataPath ?? throw new Exception("Could not locate Extra Settings Data Path");
     public DirectoryPath InternalDataPath => _state.InternalDataPath ?? throw new Exception("Could not locate Internal Data Path");
     public DirectoryPath DataFolderPath { get; set; }
@@ -232,7 +228,6 @@ public class RunnabilitySettingsWrapper : IEnvironmentStateProvider
 
     public ILoadOrderGetter<IModListingGetter<ISkyrimModGetter>> LoadOrder => _env.Value.LoadOrder;
     public ILinkCache<ISkyrimMod, ISkyrimModGetter> LinkCache => _env.Value.LinkCache;
-    public DirectoryPath DefaultSettingsDataPath => _state.DefaultSettingsDataPath ?? throw new Exception("Could not locate Default Settings Data Path");
     public DirectoryPath ExtraSettingsDataPath => _state.ExtraSettingsDataPath ?? throw new Exception("Could not locate Extra Settings Data Path");
     public DirectoryPath InternalDataPath => _state.InternalDataPath ?? throw new Exception("Could not locate Internal Data Path");
     public DirectoryPath DataFolderPath { get; set; }
@@ -259,7 +254,6 @@ public class PatcherStateWrapper : IOutputEnvironmentStateProvider
 
     public ILoadOrderGetter<IModListingGetter<ISkyrimModGetter>> LoadOrder => _state.LoadOrder;
     public ILinkCache<ISkyrimMod, ISkyrimModGetter> LinkCache => _state.LinkCache;
-    public DirectoryPath DefaultSettingsDataPath => _state.DefaultSettingsDataPath ?? throw new Exception("Could not locate Default Settings Data Path");
     public DirectoryPath ExtraSettingsDataPath => _state.ExtraSettingsDataPath ?? throw new Exception("Could not locate Extra Settings Data Path");
     public DirectoryPath InternalDataPath => _state.InternalDataPath ?? throw new Exception("Could not locate Internal Data Path");
     public DirectoryPath DataFolderPath { get; set; }

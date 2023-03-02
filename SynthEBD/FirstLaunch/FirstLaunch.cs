@@ -83,7 +83,11 @@ namespace SynthEBD
 
             if (_environmentProvider.RunMode == EnvironmentMode.Synthesis)
             {
-                _modManager.TempFolder = Path.Combine(_environmentProvider.DefaultSettingsDataPath, "Temp");
+                _customMessageBox.DisplayNotificationOK_WindowSafe("", "Please select a temp folder to which archives can be extracted during installation. You should not pick a deeply nested folder to avoid issues during config file installation. You can change this folder later in the Mod Manager Integration Menu.");
+                if (IO_Aux.SelectFolder("", out var tmpFolder))
+                {
+                    _modManager.TempFolder = tmpFolder;
+                }
             }
         }
 
