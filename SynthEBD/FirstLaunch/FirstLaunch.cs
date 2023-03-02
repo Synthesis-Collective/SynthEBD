@@ -83,11 +83,9 @@ namespace SynthEBD
 
             if (_environmentProvider.RunMode == EnvironmentMode.Synthesis)
             {
-                _customMessageBox.DisplayNotificationOK_WindowSafe("", "Please select a temp folder to which archives can be extracted during installation. You should not pick a deeply nested folder to avoid issues during config file installation. You can change this folder later in the Mod Manager Integration Menu.");
-                if (IO_Aux.SelectFolder("", out var tmpFolder))
-                {
-                    _modManager.TempFolder = tmpFolder;
-                }
+                var tmpFolder = Path.Combine(_environmentProvider.ExtraSettingsDataPath, "Temp");
+                _patcherState.ModManagerSettings.TempExtractionFolder = tmpFolder; // under normal conditions, this function runs before the mod manager VM reads in the model
+                _modManager.TempFolder = tmpFolder; // just in case model loading has already occurred, set it directly in the VM as well
             }
         }
 
