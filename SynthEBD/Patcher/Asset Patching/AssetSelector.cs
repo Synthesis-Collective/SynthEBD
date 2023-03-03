@@ -256,10 +256,7 @@ public class AssetSelector
 
             _logger.OpenReportSubsection("Seed-" + iterationInfo.ChosenSeed.Id.Replace('.', '_'), npcInfo);
 
-            for (int i = 0; i < iterationInfo.ChosenAssetPack.Subgroups.Count; i++)
-            {
-                generatedCombination.ContainedSubgroups.Add(null); // set up placeholders for subgroups
-            }
+            GenerateSubgroupPlaceHolders(generatedCombination, iterationInfo.ChosenAssetPack);
 
             iterationInfo.ChosenAssetPack.Subgroups[iterationInfo.ChosenSeed.TopLevelSubgroupIndex] = new List<FlattenedSubgroup>() { iterationInfo.ChosenSeed }; // filter the seed index so that the seed is the only option
             generatedCombination.AssetPackName = iterationInfo.ChosenAssetPack.GroupName;
@@ -282,6 +279,10 @@ public class AssetSelector
             }
         }
         #endregion
+        else
+        {
+            GenerateSubgroupPlaceHolders(generatedCombination, iterationInfo.ChosenAssetPack);
+        }
 
         _logger.LogReport("Available Subgroups:" + Logger.SpreadFlattenedAssetPack(iterationInfo.ChosenAssetPack, 0, false), false, npcInfo);
 
@@ -471,6 +472,14 @@ public class AssetSelector
 
         filteredAssetPack.Subgroups = trialSubgroups;
         return true;
+    }
+
+    private static void GenerateSubgroupPlaceHolders(SubgroupCombination generatedCombination, FlattenedAssetPack chosenAssetPack)
+    {
+        for (int i = 0; i < chosenAssetPack.Subgroups.Count; i++)
+        {
+            generatedCombination.ContainedSubgroups.Add(null); // set up placeholders for subgroups
+        }
     }
 
     public static List<FlattenedSubgroup> GetAllSubgroups(HashSet<FlattenedAssetPack> availableAssetPacks)
