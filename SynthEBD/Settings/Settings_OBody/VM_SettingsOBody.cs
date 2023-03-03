@@ -6,17 +6,20 @@ namespace SynthEBD;
 
 public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 {
+    private readonly Logger _logger;
     private readonly VM_AttributeGroupMenu.Factory _attributeGroupFactory;
     private readonly VM_BodySlidesMenu.Factory _bodySlidesMenuFactory;
 
     public VM_SettingsOBody(
         VM_Settings_General generalSettingsVM,
+        Logger logger,
         VM_BodyShapeDescriptorCreationMenu.Factory bodyShapeDescriptorCreationMenuFactory,
         VM_BodySlidesMenu.Factory bodySlidesMenuFactory,
         VM_OBodyMiscSettings.Factory miscSettingsFactory,
         VM_AttributeGroupMenu.Factory attributeGroupFactory
         )
     {
+        _logger = logger;
         _attributeGroupFactory = attributeGroupFactory;
         _bodySlidesMenuFactory = bodySlidesMenuFactory;
 
@@ -65,6 +68,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         {
             return;
         }
+        _logger.LogStartupEventStart("Loading OBody Menu UI");
         AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups); // get this first so other properties can reference it
 
         DescriptorUI.CopyInViewModelsFromModels(model.TemplateDescriptors);
@@ -89,6 +93,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         var existingPresets = new HashSet<string>();
         foreach (var preset in model.BodySlidesMale)
         {
+            _logger.LogStartupEventStart("Loading UI for BodySlide " + preset.Label);
             var presetVM = bodySlideFactory(DescriptorUI, raceGroupingVMs, BodySlidesUI.BodySlidesMale);
             presetVM.CopyInViewModelFromModel(preset);
             if (existingPresets.Contains(presetVM.Label))
@@ -97,11 +102,13 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
             }
             BodySlidesUI.BodySlidesMale.Add(presetVM);
             existingPresets.Add(presetVM.Label);
+            _logger.LogStartupEventEnd("Loading UI for BodySlide " + preset.Label);
         }
 
         existingPresets.Clear();
         foreach (var preset in model.BodySlidesFemale)
         {
+            _logger.LogStartupEventStart("Loading UI for BodySlide " + preset.Label);
             var presetVM = bodySlideFactory(DescriptorUI, raceGroupingVMs, BodySlidesUI.BodySlidesFemale);
             presetVM.CopyInViewModelFromModel(preset);
             if (existingPresets.Contains(presetVM.Label))
@@ -110,11 +117,13 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
             }
             BodySlidesUI.BodySlidesFemale.Add(presetVM);
             existingPresets.Add(presetVM.Label);
+            _logger.LogStartupEventEnd("Loading UI for BodySlide " + preset.Label);
         }
 
         MiscUI = MiscUI.GetViewModelFromModel(model);
 
         CurrentlyExistingBodySlides = model.CurrentlyExistingBodySlides;
+        _logger.LogStartupEventEnd("Loading OBody Menu UI");
     }
 
     public Settings_OBody DumpViewModelToModel()

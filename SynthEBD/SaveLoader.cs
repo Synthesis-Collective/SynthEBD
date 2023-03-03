@@ -81,7 +81,7 @@ public class SaveLoader
         _patcherState.BodyGenSettings = _bodyGenIO.LoadBodyGenSettings(out loadSuccess);
         _patcherState.OBodySettings = _oBodyIO.LoadOBodySettings(out loadSuccess);
         // load OBody settings before asset packs - asset packs depend on BodyGen but not vice versa
-        _patcherState.OBodySettings.ImportBodySlides(_patcherState.OBodySettings.TemplateDescriptors, _oBodyIO, _environmentProvider.DataFolderPath);
+        _patcherState.OBodySettings.ImportBodySlides(_patcherState.OBodySettings.TemplateDescriptors, _oBodyIO, _environmentProvider.DataFolderPath, _logger);
         _patcherState.HeadPartSettings = _headpartIO.LoadHeadPartSettings(out loadSuccess); // load head part settings
         _patcherState.HeightSettings = _heightIO.LoadHeightSettings(out loadSuccess); // load heights
         _patcherState.BlockList = _blockListIO.LoadBlockList(out loadSuccess); // load BlockList

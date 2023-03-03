@@ -176,6 +176,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
             return;
         }
 
+        logger.LogStartupEventStart("Loading UI for Specific NPC Assignments Menu");
         viewModel.Assignments.Clear();
         foreach (var assignment in models)
         {
@@ -185,6 +186,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
                 viewModel.Assignments.Add(vm);
             }
         }
+        logger.LogStartupEventEnd("Loading UI for Specific NPC Assignments Menu");
     }
 
     public HashSet<NPCAssignment> DumpViewModelToModels()

@@ -126,12 +126,14 @@ public class VM_ConsistencyUI : VM
             return;
         }
 
+        logger.LogStartupEventStart("Loading UI for Consistency Menu");
         viewModels.Clear();
         foreach (var model in models)
         {
             if (model.Value == null) { continue; }
             viewModels.Add(VM_ConsistencyAssignment.GetViewModelFromModel(model.Value, AssetPackVMs, logger));
         }
+        logger.LogStartupEventEnd("Loading UI for Consistency Menu");
     }
 
     public Dictionary<string, NPCAssignment> DumpViewModelsToModels()

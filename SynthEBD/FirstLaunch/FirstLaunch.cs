@@ -49,7 +49,7 @@ namespace SynthEBD
                 if (heightConfigLoaded)
                 {
                     
-                    VM_HeightConfig.GetViewModelsFromModels(_heightSettingsVM.AvailableHeightConfigs, new List<HeightConfig>() { newConfig }, _heightConfigFactory, _heightAssignmentFactory);
+                    VM_HeightConfig.GetViewModelsFromModels(_heightSettingsVM.AvailableHeightConfigs, new List<HeightConfig>() { newConfig }, _heightConfigFactory, _heightAssignmentFactory, _logger);
                 }
                 else
                 {

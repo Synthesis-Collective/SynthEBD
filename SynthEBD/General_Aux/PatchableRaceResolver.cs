@@ -26,17 +26,20 @@ namespace SynthEBD
         public HashSet<IFormLinkGetter<IRaceGetter>> PatchableRaces { get; set; } = new();
         public void ResolvePatchableRaces()
         {
+            _logger.LogStartupEventStart("Compiling patchable races");
             if (_environmentProvider.LinkCache is null)
             {
                 _logger.LogError("Error: Link cache is null.");
-                return;
             }
-
-            PatchableRaces = new();
-            foreach (var race in CompilePatchableRaces(_environmentProvider.LinkCache, _patcherState, true, true, true))
+            else
             {
-                PatchableRaces.Add(race.ToLinkGetter());
+                PatchableRaces = new();
+                foreach (var race in CompilePatchableRaces(_environmentProvider.LinkCache, _patcherState, true, true, true))
+                {
+                    PatchableRaces.Add(race.ToLinkGetter());
+                }
             }
+            _logger.LogStartupEventEnd("Compiling patchable races");
         }
 
         public static HashSet<IRaceGetter> CompilePatchableRaces(ILinkCache linkCache, PatcherState patcherState, bool includeGroupings, bool includeAliases, bool includeDefault) // combines explicit patchable races, race groupings, and aliases

@@ -13,6 +13,7 @@ public class SettingsIO_BlockList
     }
     public BlockList LoadBlockList(out bool loadSuccess)
     {
+        _logger.LogStartupEventStart("Loading BlockList from disk");
         BlockList loadedList = new BlockList();
 
         loadSuccess = true;
@@ -52,7 +53,7 @@ public class SettingsIO_BlockList
                 }
             }
         }
-
+        _logger.LogStartupEventEnd("Loading BlockList from disk");
         return loadedList;
     }
 

@@ -228,6 +228,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         {
             return;
         }
+        _logger.LogStartupEventStart("Loading General Settings UI");
         IsCurrentlyLoading = true;
 
         OutputDataFolder = model.OutputDataFolder;
@@ -257,6 +258,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         DisableValidation = model.bDisableValidation;
         _bFirstRun = model.bFirstRun;
         IsCurrentlyLoading = false;
+        _logger.LogStartupEventEnd("Loading General Settings UI");
     }
 
     public void Refresh()

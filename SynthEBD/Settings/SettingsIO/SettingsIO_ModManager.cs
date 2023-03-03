@@ -16,6 +16,7 @@ public class SettingsIO_ModManager
 
     public Settings_ModManager LoadModManagerSettings(out bool loadSuccess)
     {
+        _logger.LogStartupEventStart("Loading Mod Manager Settings from disk");
         Settings_ModManager modManagerSettings = new Settings_ModManager();
         modManagerSettings.Initialize(_environmentProvider);
 
@@ -34,6 +35,7 @@ public class SettingsIO_ModManager
             }
         }
 
+        _logger.LogStartupEventEnd("Loading Mod Manager Settings from disk");
         return modManagerSettings;
     }
 }

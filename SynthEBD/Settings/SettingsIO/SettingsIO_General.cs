@@ -17,6 +17,7 @@ public class SettingsIO_General
     }
     public void LoadGeneralSettings(out bool loadSuccess)
     {
+        _logger.LogStartupEventStart("Loading general settings from disk");
         if (File.Exists(_paths.GeneralSettingsPath))
         {
             _patcherState.GeneralSettings = JSONhandler<Settings_General>.LoadJSONFile(_paths.GeneralSettingsPath, out loadSuccess, out string exceptionStr);
@@ -34,6 +35,7 @@ public class SettingsIO_General
             _patcherState.GeneralSettings = new Settings_General();
             loadSuccess = true;
         }
+        _logger.LogStartupEventEnd("Loading general settings from disk");
     }
 
     public void DumpVMandSave(VM_Settings_General generalSettingsVM)

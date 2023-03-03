@@ -36,8 +36,9 @@ public class Settings_OBody
     [JsonIgnore]
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new();
 
-    public void ImportBodySlides(HashSet<BodyShapeDescriptor> templateDescriptors, SettingsIO_OBody oBodyIO, string gameDataFolder)
+    public void ImportBodySlides(HashSet<BodyShapeDescriptor> templateDescriptors, SettingsIO_OBody oBodyIO, string gameDataFolder, Logger logger)
     {
+        logger.LogStartupEventStart("Detecting currently installed BodySlides");
         if (!MaleSliderGroups.Any()) { MaleSliderGroups = new HashSet<string>() { "HIMBO" }; }
         if (!FemaleSliderGroups.Any()) { FemaleSliderGroups = new HashSet<string>() { "CBBE", "3BBB", "3BA", "UNP", "Unified UNP", "BHUNP 3BBB" }; }
 
@@ -129,6 +130,7 @@ public class Settings_OBody
                 }
             }
         }
+        logger.LogStartupEventEnd("Detecting currently installed BodySlides");
     }
 }
 

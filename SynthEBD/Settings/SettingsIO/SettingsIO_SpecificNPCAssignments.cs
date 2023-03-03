@@ -13,6 +13,7 @@ public class SettingsIO_SpecificNPCAssignments
     }
     public HashSet<NPCAssignment> LoadAssignments(out bool loadSuccess)
     {
+        _logger.LogStartupEventStart("Loading Specific NPC Assignments from disk");
         HashSet<NPCAssignment> specificNPCAssignments = new HashSet<NPCAssignment>();
 
         loadSuccess = true;
@@ -34,7 +35,7 @@ public class SettingsIO_SpecificNPCAssignments
             }
         }
         // note: No need to alert user if Specific NPC Assignments can't be loaded - it won't be available until assignments are made in UI
-
+        _logger.LogStartupEventEnd("Loading Specific NPC Assignments from disk");
         return specificNPCAssignments;
     }
 

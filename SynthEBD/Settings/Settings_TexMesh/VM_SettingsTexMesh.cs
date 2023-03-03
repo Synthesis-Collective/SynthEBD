@@ -287,6 +287,7 @@ public class VM_SettingsTexMesh : VM
         {
             return;
         }
+        _logger.LogStartupEventStart("Loading TexMesh Settings UI");
         bChangeNPCTextures = model.bChangeNPCTextures;
         bChangeNPCMeshes = model.bChangeNPCMeshes;
         bChangeNPCHeadParts = model.bChangeNPCHeadParts;
@@ -316,7 +317,7 @@ public class VM_SettingsTexMesh : VM
         }
 
         bCacheRecords = model.bCacheRecords;
-        
+        _logger.LogStartupEventEnd("Loading TexMesh Settings UI");
     }
 
     public Settings_TexMesh DumpViewModelToModel()

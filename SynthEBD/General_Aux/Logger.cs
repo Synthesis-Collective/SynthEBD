@@ -25,6 +25,9 @@ public sealed class Logger : VM
     private readonly PatcherIO _patcherIO;
     private SynthEBDPaths _paths;
 
+    private List<string> _startupLog = new();
+    private Dictionary<string, System.Diagnostics.Stopwatch> _startupTimers = new();
+
     public string StatusString { get; set; }
     public string BackupStatusString { get; set; }
     public ObservableCollection<string> LoggedEvents { get; set; } = new();
@@ -91,6 +94,54 @@ public sealed class Logger : VM
     public void Clear()
     {
         LoggedEvents.Clear();
+    }
+
+    public void LogStartupEventStart(string message)
+    {
+        _startupLog.Add(FormatTimeStamp(DateTime.Now) + message);
+        System.Diagnostics.Stopwatch sw = new();
+        sw.Start();
+        if(!_startupTimers.ContainsKey(message))
+        {
+            _startupTimers.Add(message, sw);
+        }
+    }
+
+    public void LogStartupEventEnd(string message)
+    {
+        if (_startupTimers.ContainsKey(message))
+        {
+            var sw = _startupTimers[message];
+            sw.Stop();
+            _startupLog.Add(FormatTimeStamp(DateTime.Now) + "Completed " + message + " in: " + string.Format("{0:D2}:{1:D2}:{2:D2}", sw.Elapsed.Hours, sw.Elapsed.Minutes, sw.Elapsed.Seconds));
+            _startupTimers.Remove(message);
+        }
+    }
+
+    public static string FormatTimeStamp(DateTime dt)
+    {
+        return "[" + DateTimeToHMS(dt) + "] ";
+    }
+    public static string DateTimeToHMS(DateTime dt)
+    {
+        return string.Format("{0:D2}:{1:D2}:{2:D2}", dt.Hour, dt.Minute, dt.Second);
+    }
+
+    public void WriteStartupLog()
+    {
+        _startupLog.InsertRange(0, _environmentProvider.StartUpLog);
+
+        if (_startupTimers.Any())
+        {
+            _startupLog.Add("The following events were never logged as completed:");
+            foreach (var entry in _startupTimers)
+            {
+                _startupLog.Add(entry.Key);
+            }
+        }
+
+        string path = Path.Combine(_paths.LogFolderPath, "StartupLog.txt");
+        Task.Run(() => PatcherIO.WriteTextFile(path, _startupLog, this));
     }
 
     public void TriggerNPCReporting(NPCInfo npcInfo)

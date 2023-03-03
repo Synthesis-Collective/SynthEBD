@@ -372,7 +372,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         VM_SettingsTexMesh texMesh,
         Settings_TexMesh texMeshSettings, 
         Factory assetPackFactory,
-        ObservableCollection<VM_RaceGrouping> mainRaceGroupings)
+        ObservableCollection<VM_RaceGrouping> mainRaceGroupings,
+        Logger logger)
     {
         if (texMeshSettings == null)
         {
@@ -382,10 +383,12 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         texMesh.AssetPacks.Clear();
         for (int i = 0; i < assetPacks.Count; i++)
         {
+            logger.LogStartupEventStart("Loading UI for Asset Config File " + assetPacks[i].GroupName);
             var viewModel = assetPackFactory();
             viewModel.CopyInViewModelFromModel(assetPacks[i], mainRaceGroupings);
             viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].GroupName);
             texMesh.AssetPacks.Add(viewModel);
+            logger.LogStartupEventEnd("Loading UI for Asset Config File " + assetPacks[i].GroupName);
         }
     }
     

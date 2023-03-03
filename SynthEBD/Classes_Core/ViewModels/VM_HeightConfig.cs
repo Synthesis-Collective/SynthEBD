@@ -62,11 +62,12 @@ public class VM_HeightConfig : VM
     public RelayCommand SetAllDistModes { get; }
     public RelayCommand Save { get; }
 
-    public static void GetViewModelsFromModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models, VM_HeightConfig.Factory configFactory, VM_HeightAssignment.Factory assignmentFactory)
+    public static void GetViewModelsFromModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models, VM_HeightConfig.Factory configFactory, VM_HeightAssignment.Factory assignmentFactory, Logger logger)
     {
         viewModels.Clear();
         for (int i = 0; i < models.Count; i++)
         {
+            logger.LogStartupEventStart("Loading UI for Height Config File " + models[i].Label);
             var vm = configFactory();
             vm.Label = models[i].Label;
             vm.HeightAssignments = VM_HeightAssignment.GetViewModelsFromModels(models[i].HeightAssignments, assignmentFactory);
@@ -74,6 +75,7 @@ public class VM_HeightConfig : VM
             vm.SourcePath = models[i].FilePath;
 
             viewModels.Add(vm);
+            logger.LogStartupEventEnd("Loading UI for Height Config File " + models[i].Label);
         }
     }
 

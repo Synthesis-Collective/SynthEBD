@@ -7,13 +7,15 @@ namespace SynthEBD;
 public class VM_BodyShapeDescriptorCreationMenu : VM
 {
     private readonly VM_Settings_General _generalSettings;
+    private readonly Logger _logger;
     private readonly VM_BodyShapeDescriptor.VM_BodyShapeDescriptorCreator _descriptorCreator;
     private readonly IHasAttributeGroupMenu _parentConfig;
     public delegate VM_BodyShapeDescriptorCreationMenu Factory(IHasAttributeGroupMenu parentConfig);
     
-    public VM_BodyShapeDescriptorCreationMenu(IHasAttributeGroupMenu parentConfig, VM_Settings_General generalSettings, VM_BodyShapeDescriptor.VM_BodyShapeDescriptorCreator descriptorCreator)
+    public VM_BodyShapeDescriptorCreationMenu(IHasAttributeGroupMenu parentConfig, VM_Settings_General generalSettings, Logger logger, VM_BodyShapeDescriptor.VM_BodyShapeDescriptorCreator descriptorCreator)
     {
         _generalSettings = generalSettings;
+        _logger = logger;
         _descriptorCreator = descriptorCreator;
         _parentConfig = parentConfig;
 
@@ -32,6 +34,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
 
     public void CopyInViewModelsFromModels(HashSet<BodyShapeDescriptor> models)
     {
+        _logger.LogStartupEventStart("Generating BodyShape Descriptor Creator UI");
         List<string> usedCategories = new List<string>();
 
         foreach (var model in models)
@@ -61,6 +64,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
                 TemplateDescriptors[index].Descriptors.Add(subVm);
             }
         }
+        _logger.LogStartupEventEnd("Generating BodyShape Descriptor Creator UI");
     }
 
     public HashSet<BodyShapeDescriptor> DumpToViewModels()

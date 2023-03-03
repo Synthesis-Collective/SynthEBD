@@ -21,6 +21,7 @@ public class SettingsIO_BodyGen
     }
     public Settings_BodyGen LoadBodyGenSettings(out bool loadSuccess)
     {
+        _logger.LogStartupEventStart("Loading BodyGen settings from disk");
         Settings_BodyGen bodygenSettings = new Settings_BodyGen();
 
         loadSuccess = true;
@@ -41,7 +42,7 @@ public class SettingsIO_BodyGen
                 _logger.LogError("Could not load BodyGen settings. Error: " + exceptionStr);
             }
         }
-
+        _logger.LogStartupEventEnd("Loading BodyGen settings from disk");
         return bodygenSettings;
     }
 
@@ -67,6 +68,7 @@ public class SettingsIO_BodyGen
 
         foreach (string s in filePaths)
         {
+            _logger.LogStartupEventStart("Loading BodyGen Config from disk at " + s);
             var synthEBDconfig = new BodyGenConfig();
 
             synthEBDconfig = JSONhandler<BodyGenConfig>.LoadJSONFile(s, out bool success, out string exceptionStr);
@@ -90,6 +92,7 @@ public class SettingsIO_BodyGen
                 {
                     _logger.LogMessage("Could not deserialize BodyGen config at " + s + " as SynthEBD or zEBD BodyGen config. Error: " + exceptionStr);
                     loadSuccess = false;
+                    _logger.LogStartupEventEnd("Loading BodyGen Config from disk at " + s);
                     continue;
                 }
 
@@ -139,6 +142,7 @@ public class SettingsIO_BodyGen
             if (synthEBDconfig is null)
             {
                 _logger.LogError("Could not read BodyGen Config File at " + s);
+                _logger.LogStartupEventEnd("Loading BodyGen Config from disk at " + s);
                 continue;
             }
 
@@ -152,6 +156,8 @@ public class SettingsIO_BodyGen
                     loadedPacks.Male.Add(synthEBDconfig);
                     break;
             }
+
+            _logger.LogStartupEventEnd("Loading BodyGen Config from disk at " + s);
         }
 
         foreach (var maleConfig in loadedPacks.Male)
