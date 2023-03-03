@@ -40,7 +40,8 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
             .ToObservableChangeSet()
             .Transform(x =>
                 x.WhenAnyObservable(y => y.NeedsRefresh)
-                .Subscribe(_ => BuildHeader()))
+                .Subscribe(_ => BuildHeader())
+                .DisposeWith(this))
             .DisposeMany() // Dispose subscriptions related to removed attributes
             .Subscribe()  // Execute my instructions
             .DisposeWith(this);

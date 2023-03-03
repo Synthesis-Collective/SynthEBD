@@ -48,7 +48,8 @@ public class VM_AttributeGroup : VM
             .ToObservableChangeSet()
             .Transform(x =>
                 x.WhenAnyObservable(y => y.NeedsRefresh)
-                .Subscribe(_ => CheckGroupForCircularReferences()))
+                .Subscribe(_ => CheckGroupForCircularReferences())
+                .DisposeWith(this))
             .DisposeMany() // Dispose subscriptions related to removed attributes
             .Subscribe()  // Execute my instructions
             .DisposeWith(this);
