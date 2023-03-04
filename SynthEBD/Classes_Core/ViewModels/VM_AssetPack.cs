@@ -384,7 +384,9 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         for (int i = 0; i < assetPacks.Count; i++)
         {
             logger.LogStartupEventStart("Loading UI for Asset Config File " + assetPacks[i].GroupName);
+            logger.LogStartupEventStart("Creating new Asset Pack UI");
             var viewModel = assetPackFactory();
+            logger.LogStartupEventEnd("Creating new Asset Pack UI");
             viewModel.CopyInViewModelFromModel(assetPacks[i], mainRaceGroupings);
             viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].GroupName);
             texMesh.AssetPacks.Add(viewModel);
@@ -394,6 +396,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     
     public void CopyInViewModelFromModel(AssetPack model, ObservableCollection<VM_RaceGrouping> mainRaceGroupings)
     {
+        _logger.LogStartupEventStart("Loading UI for Asset Pack Main Settings");
         GroupName = model.GroupName;
         ShortName = model.ShortName;
         ConfigType = model.ConfigType;
@@ -441,21 +444,32 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         {
             DefaultRecordTemplateAdditionalRacesPaths.Add(new VM_CollectionMemberString(path, DefaultRecordTemplateAdditionalRacesPaths));
         }
+        _logger.LogStartupEventEnd("Loading UI for Asset Pack Main Settings");
 
+        _logger.LogStartupEventStart("Loading UI for Subgroups");
         foreach (var sg in model.Subgroups)
         {
+            _logger.LogStartupEventStart("Creating UI for Subgroup " + sg.ID);
             var subVm = _subgroupFactory(RaceGroupingEditor.RaceGroupings, Subgroups, this, null, false);
+            _logger.LogStartupEventEnd("Creating UI for Subgroup " + sg.ID);
+            _logger.LogStartupEventStart("Loading UI for Subgroup " + sg.ID);
             subVm.CopyInViewModelFromModel(sg);
+            _logger.LogStartupEventEnd("Loading UI for Subgroup " + sg.ID);
             Subgroups.Add(subVm);
         }
+        _logger.LogStartupEventEnd("Loading UI for Subgroups");
 
         // go back through now that all subgroups have corresponding view models, and link the required and excluded subgroups
+        _logger.LogStartupEventStart("Linking required and excluded subgroups");
         ObservableCollection<VM_Subgroup> flattenedSubgroupList = FlattenSubgroupVMs(Subgroups, new ObservableCollection<VM_Subgroup>());
         LinkRequiredSubgroups(flattenedSubgroupList);
         LinkExcludedSubgroups(flattenedSubgroupList);
+        _logger.LogStartupEventEnd("Linking required and excluded subgroups");
 
+        _logger.LogStartupEventStart("Loading config distribution rules");
         DistributionRules = _configDistributionRulesFactory(RaceGroupingEditor.RaceGroupings, this);
         DistributionRules.CopyInViewModelFromModel(model.DistributionRules, RaceGroupingEditor.RaceGroupings, this);
+        _logger.LogStartupEventEnd("Loading config distribution rules");
 
         SourcePath = model.FilePath;
     }

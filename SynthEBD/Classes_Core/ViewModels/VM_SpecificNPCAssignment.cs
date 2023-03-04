@@ -69,11 +69,12 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
         AssetOrderingMenu = new(texMesh);
 
-        this.SubscribedAssetPacks = texMesh.AssetPacks;
+        SubscribedAssetPacks = texMesh.AssetPacks;
 
         this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => RefreshAll()).DisposeWith(this);
 
-        this.SubscribedAssetPacks.ToObservableChangeSet().Subscribe(x => RefreshAssets()).DisposeWith(this);
+        SubscribedAssetPacks.ToObservableChangeSet().Subscribe(x => RefreshAssets()).DisposeWith(this);
+
         DynamicData.ObservableListEx
             .Transform(SubscribedAssetPacks.ToObservableChangeSet(), x => x.WhenAnyValue(y => y.IsSelected)
                 .Subscribe(_ => RefreshAssets())
@@ -255,7 +256,10 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         Converters converters,
         IEnvironmentStateProvider environmentProvider)
     {
+        logger.LogStartupEventStart("Generating UI for Specific NPC Assignment for " + model.DispName);
+        logger.LogStartupEventStart("Creating new Specific NPC Assignment UI Instance");
         var viewModel = specificNpcAssignmentFactory();
+        logger.LogStartupEventEnd("Creating new Specific NPC Assignment UI Instance");
         viewModel.NPCFormKey = model.NPCFormKey;
 
         if (viewModel.NPCFormKey.IsNull)
@@ -263,6 +267,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             return null;
         }
 
+        logger.LogStartupEventStart("Loading game info for " + model.DispName);
         var npcFormLink = new FormLink<INpcGetter>(viewModel.NPCFormKey);
 
         if (!npcFormLink.TryResolve(environmentProvider.LinkCache, out var npcRecord))
@@ -271,15 +276,22 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         }
 
         viewModel.Gender = GetGender(viewModel.NPCFormKey, logger, environmentProvider);
+        logger.LogStartupEventEnd("Loading game info for " + model.DispName);
 
+        logger.LogStartupEventStart("Getting forced asset pack for " + model.DispName);
         if (model.AssetPackName.Length != 0)
         {
             LinkAssetPackToForcedAssignment(model, viewModel, model.AssetPackName, texMesh.AssetPacks, logger);
         }
+        logger.LogStartupEventEnd("Getting forced asset pack for " + model.DispName);
 
+        logger.LogStartupEventStart("Getting forced MixIns for " + model.DispName);
         viewModel.CopyInMixInViewModels(model.MixInAssignments);
+        logger.LogStartupEventEnd("Getting forced MixIns for " + model.DispName);
 
+        logger.LogStartupEventStart("Getting forced asset order for " + model.DispName);
         viewModel.AssetOrderingMenu.CopyInFromModel(model.AssetOrder);
+        logger.LogStartupEventEnd("Getting forced asset order for " + model.DispName);
 
         if (model.Height != null)
         {
@@ -290,6 +302,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             viewModel.ForcedHeight = "";
         }
 
+        logger.LogStartupEventStart("Getting forced BodyGen for " + model.DispName);
         ObservableCollection<VM_BodyGenTemplate> templates = new ObservableCollection<VM_BodyGenTemplate>();
         switch (viewModel.Gender)
         {
@@ -332,8 +345,9 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                 logger.LogError("Warning: The forced BodyGen morph " + forcedMorph + " for NPC " + viewModel.DispName + " no longer exists.");
             }
         }
+        logger.LogStartupEventEnd("Getting forced BodyGen for " + model.DispName);
 
-
+        logger.LogStartupEventStart("Getting forced asset replacements for " + model.DispName);
         foreach (var replacer in model.AssetReplacerAssignments)
         {
             var parentAssetPack = texMesh.AssetPacks.Where(x => x.GroupName == replacer.AssetPackName).FirstOrDefault();
@@ -348,9 +362,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                 logger.LogError("Warning: The forced Asset Replacer " + replacer.AssetPackName + " for NPC " + viewModel.DispName + " no longer exists.");
             }
         }
+        logger.LogStartupEventEnd("Getting forced asset replacements for " + model.DispName);
 
         viewModel.ForcedBodySlide = model.BodySlidePreset;
 
+        logger.LogStartupEventStart("Getting forced headparts for " + model.DispName);
         foreach (var headPartType in viewModel.HeadParts.Keys)
         {
             if (!model.HeadParts.ContainsKey(headPartType)) { model.HeadParts.Add(headPartType, new()); }
@@ -359,9 +375,13 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                 viewModel.HeadParts[headPartType] = VM_HeadPartAssignment.GetViewModelFromModel(model.HeadParts[headPartType], headPartType, headParts, viewModel, viewModel, environmentProvider);
             }
         }
+        logger.LogStartupEventEnd("Getting forced headparts for " + model.DispName);
 
+        logger.LogStartupEventStart("Getting display name for " + model.DispName);
         viewModel.DispName = converters.CreateNPCDispNameFromFormKey(viewModel.NPCFormKey);
+        logger.LogStartupEventEnd("Getting display name for " + model.DispName);
 
+        logger.LogStartupEventEnd("Generating UI for Specific NPC Assignment for " + model.DispName);
         return viewModel;
     }
 

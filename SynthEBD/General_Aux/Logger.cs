@@ -27,7 +27,7 @@ public sealed class Logger : VM
 
     private List<string> _startupLog = new();
     private Dictionary<string, System.Diagnostics.Stopwatch> _startupTimers = new();
-
+    private int _startupLogIndentCount = 0;
     public string StatusString { get; set; }
     public string BackupStatusString { get; set; }
     public ObservableCollection<string> LoggedEvents { get; set; } = new();
@@ -98,7 +98,8 @@ public sealed class Logger : VM
 
     public void LogStartupEventStart(string message)
     {
-        _startupLog.Add(FormatTimeStamp(DateTime.Now) + message);
+        _startupLog.Add(FormatTimeStamp(DateTime.Now) + GetIndentString() + message);
+        _startupLogIndentCount++;
         System.Diagnostics.Stopwatch sw = new();
         sw.Start();
         if(!_startupTimers.ContainsKey(message))
@@ -113,9 +114,23 @@ public sealed class Logger : VM
         {
             var sw = _startupTimers[message];
             sw.Stop();
-            _startupLog.Add(FormatTimeStamp(DateTime.Now) + "Completed " + message + " in: " + string.Format("{0:D2}:{1:D2}:{2:D2}", sw.Elapsed.Hours, sw.Elapsed.Minutes, sw.Elapsed.Seconds));
+            if (_startupLogIndentCount > 0)
+            {
+                _startupLogIndentCount--;
+            }
+            _startupLog.Add(FormatTimeStamp(DateTime.Now) + GetIndentString() + "Completed " + message + " in: " + string.Format("{0:D2}:{1:D2}:{2:D2}:{3:D2}", sw.Elapsed.Hours, sw.Elapsed.Minutes, sw.Elapsed.Seconds, sw.Elapsed.Milliseconds));
             _startupTimers.Remove(message);
         }
+    }
+
+    public string GetIndentString()
+    {
+        string s = "";
+        for (int i = 0; i < _startupLogIndentCount; i++)
+        {
+            s += "\t";
+        }
+        return s;
     }
 
     public static string FormatTimeStamp(DateTime dt)
