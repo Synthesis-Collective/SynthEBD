@@ -96,30 +96,38 @@ public sealed class Logger : VM
         LoggedEvents.Clear();
     }
 
+    private static readonly object LockStartupLogMethod = new object();
+
     public void LogStartupEventStart(string message)
     {
-        _startupLog.Add(FormatTimeStamp(DateTime.Now) + GetIndentString() + message);
-        _startupLogIndentCount++;
-        System.Diagnostics.Stopwatch sw = new();
-        sw.Start();
-        if(!_startupTimers.ContainsKey(message))
+        lock (LockStartupLogMethod)
         {
-            _startupTimers.Add(message, sw);
+            _startupLog.Add(FormatTimeStamp(DateTime.Now) + GetIndentString() + message);
+            _startupLogIndentCount++;
+            System.Diagnostics.Stopwatch sw = new();
+            sw.Start();
+            if (!_startupTimers.ContainsKey(message))
+            {
+                _startupTimers.Add(message, sw);
+            }
         }
     }
 
     public void LogStartupEventEnd(string message)
     {
-        if (_startupTimers.ContainsKey(message))
+        lock (LockStartupLogMethod)
         {
-            var sw = _startupTimers[message];
-            sw.Stop();
-            if (_startupLogIndentCount > 0)
+            if (_startupTimers.ContainsKey(message))
             {
-                _startupLogIndentCount--;
+                var sw = _startupTimers[message];
+                sw.Stop();
+                if (_startupLogIndentCount > 0)
+                {
+                    _startupLogIndentCount--;
+                }
+                _startupLog.Add(FormatTimeStamp(DateTime.Now) + GetIndentString() + "Completed " + message + " in: " + string.Format("{0:D2}:{1:D2}:{2:D2}:{3:D2}", sw.Elapsed.Hours, sw.Elapsed.Minutes, sw.Elapsed.Seconds, sw.Elapsed.Milliseconds));
+                _startupTimers.Remove(message);
             }
-            _startupLog.Add(FormatTimeStamp(DateTime.Now) + GetIndentString() + "Completed " + message + " in: " + string.Format("{0:D2}:{1:D2}:{2:D2}:{3:D2}", sw.Elapsed.Hours, sw.Elapsed.Minutes, sw.Elapsed.Seconds, sw.Elapsed.Milliseconds));
-            _startupTimers.Remove(message);
         }
     }
 

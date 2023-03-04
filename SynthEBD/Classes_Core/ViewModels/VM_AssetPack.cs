@@ -143,13 +143,17 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         AddSubgroup = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { Subgroups.Add(subgroupFactory(RaceGroupingEditor.RaceGroupings, Subgroups, this, null, false)); }
-        );
+            execute: _ =>
+            {
+                var newSubgroup = subgroupFactory(RaceGroupingEditor.RaceGroupings, Subgroups, this, null, false);
+                newSubgroup.AutoGenerateID(false, 0);
+                Subgroups.Add(newSubgroup);
+            });
 
         RemoveAssetPackConfigFile = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
-                if (_fileDialogs.ConfirmFileDeletion(this.SourcePath, "Asset Pack Config File"))
+                if (_fileDialogs.ConfirmFileDeletion(SourcePath, "Asset Pack Config File"))
                 {
                     DeleteAssetFiles(); // prompts user after collecting data
                     ParentCollection.Remove(this);
@@ -451,11 +455,12 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         {
             _logger.LogStartupEventStart("Creating UI for Subgroup " + sg.ID);
             var subVm = _subgroupFactory(RaceGroupingEditor.RaceGroupings, Subgroups, this, null, false);
-            _logger.LogStartupEventEnd("Creating UI for Subgroup " + sg.ID);
-            _logger.LogStartupEventStart("Loading UI for Subgroup " + sg.ID);
-            subVm.CopyInViewModelFromModel(sg);
-            _logger.LogStartupEventEnd("Loading UI for Subgroup " + sg.ID);
             Subgroups.Add(subVm);
+            _logger.LogStartupEventEnd("Creating UI for Subgroup " + sg.ID);
+            Task.Run(() =>
+            {
+                subVm.CopyInViewModelFromModel(sg);
+            });
         }
         _logger.LogStartupEventEnd("Loading UI for Subgroups");
 

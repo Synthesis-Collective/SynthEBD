@@ -98,8 +98,6 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         PathsMenu.Paths.ToObservableChangeSet().Subscribe(x => GetDDSPaths(ImagePaths)).DisposeWith(this);
         this.WhenAnyValue(x => x.ParentAssetPack, x => x.ParentSubgroup).Subscribe(x => GetDDSPaths(ImagePaths)).DisposeWith(this);
 
-        AutoGenerateID(false, 0);
-
         AutoGenerateIDcommand = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => AutoGenerateID(false, 0)
@@ -137,8 +135,11 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 
         AddSubgroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => Subgroups.Add(selfFactory(raceGroupingVMs, Subgroups, ParentAssetPack, this, setExplicitReferenceNPC))
-        );
+            execute: _ => {
+                var newSubgroup = selfFactory(raceGroupingVMs, Subgroups, ParentAssetPack, this, setExplicitReferenceNPC);
+                newSubgroup.AutoGenerateID(false, 0);
+                Subgroups.Add(newSubgroup);              
+            });
 
         DeleteMe = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -209,10 +210,8 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
     public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
     public ObservableCollection<ImagePreviewHandler.ImagePathWithSource> ImagePaths { get; set; } = new();
 
-    public void CopyInViewModelFromModel(
-        AssetPack.Subgroup model)
+    public void CopyInViewModelFromModel(AssetPack.Subgroup model)
     {
-        _logger.LogStartupEventStart("Loading subgroup info");
         ID = model.ID;
         Name = model.Name;
         Enabled = model.Enabled;
@@ -231,46 +230,34 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         ProbabilityWeighting = model.ProbabilityWeighting;
         PathsMenu = VM_FilePathReplacementMenu.GetViewModelFromModels(model.Paths, this, SetExplicitReferenceNPC, _filePathReplacementMenuFactory, _filePathReplacementFactory);
         WeightRange = model.WeightRange;
-        _logger.LogStartupEventEnd("Loading subgroup info");
-        _logger.LogStartupEventStart("Loading Attributes");
         AllowedAttributes = _attributeCreator.GetViewModelsFromModels(model.AllowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, true, null);
         DisallowedAttributes = _attributeCreator.GetViewModelsFromModels(model.DisallowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, false, null);
-        _logger.LogStartupEventEnd("Loading Attributes");
-        _logger.LogStartupEventStart("Loading Race Groupings");
         AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, ParentAssetPack.RaceGroupingEditor.RaceGroupings);
         DisallowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.DisallowedRaceGroupings, ParentAssetPack.RaceGroupingEditor.RaceGroupings);
-        _logger.LogStartupEventEnd("Loading Race Groupings");
-
-        _logger.LogStartupEventStart("Loading Body Shape Descriptors");
         if (ParentAssetPack.TrackedBodyGenConfig != null)
         {
             AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodyGenDescriptors, ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, model.AllowedBodyGenMatchMode, _descriptorSelectionFactory);
             DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodyGenDescriptors, ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, model.DisallowedBodyGenMatchMode, _descriptorSelectionFactory);
         }
-
         AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, model.AllowedBodySlideMatchMode, _descriptorSelectionFactory);
         DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, model.DisallowedBodySlideMatchMode, _descriptorSelectionFactory);
-        _logger.LogStartupEventEnd("Loading Body Shape Descriptors");
 
         //dds preview
-        _logger.LogStartupEventStart("Loading image preview paths");
         GetDDSPaths(ImagePaths);
-        _logger.LogStartupEventEnd("Loading image preview paths");
 
         foreach (var sg in model.Subgroups)
         {
-            _logger.LogStartupEventStart("Creating UI for Subgroup " + sg.ID);
             var subVm = _selfFactory(
                 ParentAssetPack.RaceGroupingEditor.RaceGroupings,
                 Subgroups,
                 ParentAssetPack,
                 this,
                 SetExplicitReferenceNPC);
-            _logger.LogStartupEventEnd("Creating UI for Subgroup " + sg.ID);
-            _logger.LogStartupEventStart("Loading UI for Subgroup " + sg.ID);
-            subVm.CopyInViewModelFromModel(sg);
-            _logger.LogStartupEventEnd("Loading UI for Subgroup " + sg.ID);
             Subgroups.Add(subVm);
+            Task.Run(() =>
+            {
+                subVm.CopyInViewModelFromModel(sg);
+            });
         }
     }
     public void RefreshListBoxLabel(ObservableCollection<VM_Subgroup> listSource, SubgroupListBox whichBox)
