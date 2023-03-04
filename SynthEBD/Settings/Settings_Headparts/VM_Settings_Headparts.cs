@@ -144,7 +144,7 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
         SettingsMenu.GetViewModelFromModel(model);
         foreach (var type in model.Types.Keys)
         {
-            Types[type].CopyInFromModel(model.Types[type], RaceGroupings, AttributeGroupMenu);
+            Task.Run(() => Types[type].CopyInFromModel(model.Types[type], RaceGroupings, AttributeGroupMenu));
         }
         _logger.LogStartupEventEnd("Loading UI for HeadParts Menu");
     }

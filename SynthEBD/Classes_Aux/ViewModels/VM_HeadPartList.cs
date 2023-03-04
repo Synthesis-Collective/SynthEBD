@@ -75,7 +75,9 @@ namespace SynthEBD
         {
             foreach (var hp in model.HeadParts)
             {
-                HeadPartList.Add(VM_HeadPart.GetViewModelFromModel(hp, _headPartFactory, raceGroupingVMs, attributeGroupMenu, _oBodySettings.DescriptorUI, _headPartMenuVM, HeadPartList, _attributeCreator, _logger, _descriptorSelectionFactory, _environmentProvider.LinkCache));
+                var viewModel = _headPartFactory(hp.HeadPartFormKey, _oBodySettings.DescriptorUI, raceGroupingVMs, HeadPartList, _headPartMenuVM);
+                HeadPartList.Add(viewModel);
+                Task.Run(() => viewModel.CopyInFromModel(hp, raceGroupingVMs, attributeGroupMenu, _oBodySettings.DescriptorUI, _headPartMenuVM, HeadPartList, _attributeCreator, _logger, _descriptorSelectionFactory, _environmentProvider.LinkCache));
             }
 
             TypeRuleSet = VM_HeadPartCategoryRules.GetViewModelFromModel(model, raceGroupingVMs, attributeGroupMenu, _headPartMenuVM, _oBodySettings, _attributeCreator, _logger, _headPartCategoryRulesFactory, _descriptorSelectionFactory);
