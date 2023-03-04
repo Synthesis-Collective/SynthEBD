@@ -308,6 +308,7 @@ namespace SynthEBD
                 else if (existingBodySlides.Count != importedBodySlideAnnotations.Count)
                 {
                     multiplexWarnings.Add((groupedAnnotation.Key, existingBodySlides.Count, importedBodySlideAnnotations.Count));
+                    continue;
                 }
 
                 for (int i = 0; i < existingBodySlides.Count; i++)
