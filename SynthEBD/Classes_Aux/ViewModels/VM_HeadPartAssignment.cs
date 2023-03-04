@@ -20,11 +20,7 @@ namespace SynthEBD
         public VM_HeadPartAssignment(VM_HeadPart template, VM_Settings_Headparts parentConfig, HeadPart.TypeEnum type, IHasSynthEBDGender parentAssignmentGender, IHasHeadPartAssignments parentAssignment, IEnvironmentStateProvider environmentProvider)
         {
             _environmentProvider = environmentProvider;
-            if (template is not null)
-            {
-                FormKey = template.FormKey;
-                EditorID = template.Label;
-            }
+            
             Type = type;
             ParentConfig = parentConfig;
             ParentAssignmentGender = parentAssignmentGender;
@@ -81,10 +77,13 @@ namespace SynthEBD
             else { return false; }
         }
 
-        public static VM_HeadPartAssignment GetViewModelFromModel(HeadPartConsistency assignment, HeadPart.TypeEnum type, VM_Settings_Headparts parentConfig, IHasSynthEBDGender parentAssignmentGender, IHasHeadPartAssignments parentAssignment, IEnvironmentStateProvider environmentProvider)
+        public void CopyInFromModel(HeadPartConsistency model, HeadPart.TypeEnum type, VM_Settings_Headparts parentConfig, IHasSynthEBDGender parentAssignmentGender, IHasHeadPartAssignments parentAssignment, IEnvironmentStateProvider environmentProvider)
         {
-            var referencedHeadPart = parentConfig.Types[type].HeadPartList.Where(x => x.FormKey.Equals(assignment.FormKey)).FirstOrDefault();
-            return new VM_HeadPartAssignment(referencedHeadPart, parentConfig, type, parentAssignmentGender, parentAssignment, environmentProvider);
+            if (model is not null)
+            {
+                FormKey = model.FormKey;
+                EditorID = EditorIDHandler.GetEditorIDSafely<IHeadPartGetter>(FormKey, _environmentProvider.LinkCache);
+            }
         }
 
         public HeadPartConsistency DumpToModel()
