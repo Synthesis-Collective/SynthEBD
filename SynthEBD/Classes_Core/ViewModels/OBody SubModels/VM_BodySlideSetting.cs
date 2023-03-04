@@ -256,9 +256,9 @@ public class VM_BodySlideSetting : VM
             ReferencedBodySlide = Label;
         }
         Notes = model.Notes;
-        DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.BodyShapeDescriptors, ParentMenuVM.DescriptorUI, _raceGroupingVMs, ParentMenuVM, false, DescriptorMatchMode.Any, _descriptorSelectionFactory);
-        AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
-        AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(_raceGroupingVMs);
+        DescriptorsSelectionMenu.CopyInFromHashSet(model.BodyShapeDescriptors);
+        AllowedRaces.AddRange(model.AllowedRaces);
+        AllowedRaceGroupings.CopyInRaceGroupingsByLabel(model.AllowedRaceGroupings, _raceGroupingVMs);
         foreach (var grouping in AllowedRaceGroupings.RaceGroupingSelections)
         {
             if (model.AllowedRaceGroupings.Contains(grouping.SubscribedMasterRaceGrouping.Label))
@@ -268,8 +268,8 @@ public class VM_BodySlideSetting : VM
             else { grouping.IsSelected = false; }
         }
 
-        DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
-        DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(_raceGroupingVMs);
+        DisallowedRaces.AddRange(model.DisallowedRaces);
+        DisallowedRaceGroupings.CopyInRaceGroupingsByLabel(model.DisallowedRaceGroupings, _raceGroupingVMs);
 
         foreach (var grouping in DisallowedRaceGroupings.RaceGroupingSelections)
         {
@@ -280,8 +280,8 @@ public class VM_BodySlideSetting : VM
             else { grouping.IsSelected = false; }
         }
 
-        AllowedAttributes = _attributeCreator.GetViewModelsFromModels(model.AllowedAttributes, ParentMenuVM.AttributeGroupMenu.Groups, true, null);
-        DisallowedAttributes = _attributeCreator.GetViewModelsFromModels(model.DisallowedAttributes, ParentMenuVM.AttributeGroupMenu.Groups, false, null);
+        _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentMenuVM.AttributeGroupMenu.Groups, true, null);
+        _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentMenuVM.AttributeGroupMenu.Groups, false, null);
         foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
         bAllowUnique = model.AllowUnique;
         bAllowNonUnique = model.AllowNonUnique;

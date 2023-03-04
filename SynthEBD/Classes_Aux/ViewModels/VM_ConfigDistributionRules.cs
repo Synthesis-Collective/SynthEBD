@@ -115,27 +115,27 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
     {
         if (model != null)
         {
-            AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
-            AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, raceGroupingVMs);
-            DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
-            DisallowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.DisallowedRaceGroupings, raceGroupingVMs);
-            AllowedAttributes = _attributeCreator.GetViewModelsFromModels(model.AllowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, true, null);
-            DisallowedAttributes = _attributeCreator.GetViewModelsFromModels(model.DisallowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, false, null);
+            Noggog.ListExt.AddRange(AllowedRaces, model.AllowedRaces);
+            AllowedRaceGroupings.CopyInRaceGroupingsByLabel(model.AllowedRaceGroupings, raceGroupingVMs);
+            Noggog.ListExt.AddRange(DisallowedRaces, model.DisallowedRaces);
+            DisallowedRaceGroupings.CopyInRaceGroupingsByLabel(model.DisallowedRaceGroupings, raceGroupingVMs);
+            _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, true, null);
+            _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, false, null);
             foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
             AllowUnique = model.AllowUnique;
             AllowNonUnique = model.AllowNonUnique;
-            AddKeywords = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(model.AddKeywords);
+            VM_CollectionMemberString.CopyInObservableCollectionFromICollection(model.AddKeywords, AddKeywords);
             ProbabilityWeighting = model.ProbabilityWeighting;
             WeightRange = model.WeightRange;
 
             if (parentAssetPack.TrackedBodyGenConfig != null)
             {
-                AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, model.AllowedBodyGenMatchMode, _descriptorSelectionFactory);
-                DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, model.DisallowedBodyGenMatchMode, _descriptorSelectionFactory);
+                AllowedBodyGenDescriptors.CopyInFromHashSet(model.AllowedBodyGenDescriptors);
+                DisallowedBodyGenDescriptors.CopyInFromHashSet(model.DisallowedBodyGenDescriptors);
             }
 
-            AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, model.AllowedBodySlideMatchMode, _descriptorSelectionFactory);
-            DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, model.DisallowedBodySlideMatchMode, _descriptorSelectionFactory);
+            AllowedBodySlideDescriptors.CopyInFromHashSet(model.AllowedBodySlideDescriptors);
+            DisallowedBodySlideDescriptors.CopyInFromHashSet(model.DisallowedBodySlideDescriptors);
         }
     }
 

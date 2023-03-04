@@ -58,7 +58,7 @@ public class VM_AttributeGroup : VM
     public void CopyInViewModelFromModel(AttributeGroup model)
     {
         Label = model.Label;
-        Attributes = _attributeCreator.GetViewModelsFromModels(model.Attributes, ParentMenu.Groups, false, true);
+        _attributeCreator.CopyInFromModels(model.Attributes, Attributes, ParentMenu.Groups, false, true);
         SubscribeToCircularReferenceCheck(); // need to call again because this ObservableCollection is a different object than the one subscribed to in the constructor.
     }
 

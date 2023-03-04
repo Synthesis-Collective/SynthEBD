@@ -453,14 +453,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         _logger.LogStartupEventStart("Loading UI for Subgroups");
         foreach (var sg in model.Subgroups)
         {
-            _logger.LogStartupEventStart("Creating UI for Subgroup " + sg.ID);
-            var subVm = _subgroupFactory(RaceGroupingEditor.RaceGroupings, Subgroups, this, null, false);
-            Subgroups.Add(subVm);
-            _logger.LogStartupEventEnd("Creating UI for Subgroup " + sg.ID);
-            Task.Run(() =>
-            {
-                subVm.CopyInViewModelFromModel(sg);
-            });
+            CreateSubgroupVMRecursive(sg, Subgroups, null);
         }
         _logger.LogStartupEventEnd("Loading UI for Subgroups");
 
@@ -477,6 +470,23 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         _logger.LogStartupEventEnd("Loading config distribution rules");
 
         SourcePath = model.FilePath;
+    }
+
+    // Creating subgroups here reather than within the CopyInFromModel function because all subgroups must be created on the main thread
+    private void CreateSubgroupVMRecursive(AssetPack.Subgroup model, ObservableCollection<VM_Subgroup> parentCollection, VM_Subgroup parentSubgroup)
+    {
+        var subVm = _subgroupFactory(RaceGroupingEditor.RaceGroupings, parentCollection, this, parentSubgroup, false);
+        parentCollection.Add(subVm);
+
+        Task.Run(() =>
+        {
+            subVm.CopyInViewModelFromModel(model);
+        });
+
+        foreach (var sg in model.Subgroups)
+        {
+            CreateSubgroupVMRecursive(sg, subVm.Subgroups, subVm);
+        }
     }
 
     public static void DumpViewModelsToModels(ObservableCollection<VM_AssetPack> viewModels, List<AssetPack> models)
@@ -1051,7 +1061,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
                 if (draggedSubgroup.IsParentOf(dropTarget)) { return; } // prevent mis-click when user releases the click on treeview expander arrow slightly below where they initiated the click, simulating a drop into or before the child node and causing the parent to disappear into the abyss.
 
-                var clone = (VM_Subgroup)draggedSubgroup.Clone(dropTarget.Subgroups);
+                var clone = (VM_Subgroup)draggedSubgroup.Clone(dropTarget.Subgroups, dropTarget.ParentAssetPack);
                 clone.ParentAssetPack = dropTarget.ParentAssetPack;
 
                 if (dropInfo.DropTargetAdorner.Name == "DropTargetInsertionAdorner")
@@ -1076,7 +1086,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 var dropTarget = (VM_AssetPack)targetTV.DataContext;
                 if (targetTV.Name == "TVsubgroups" && dropTarget != null)
                 {
-                    var clone = (VM_Subgroup)draggedSubgroup.Clone(dropTarget.Subgroups);
+                    var clone = (VM_Subgroup)draggedSubgroup.Clone(dropTarget.Subgroups, dropTarget);
                     clone.ParentCollection = dropTarget.Subgroups;
                     clone.ParentAssetPack = dropTarget;
                     clone.ParentSubgroup = null;

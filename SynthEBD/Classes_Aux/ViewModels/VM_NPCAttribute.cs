@@ -130,14 +130,12 @@ public class VM_NPCAttribute : VM
             return _shellFactory(parentVM, displayForceIfOption, displayForceIfWeight, attributeGroups);
         }
 
-        public ObservableCollection<VM_NPCAttribute> GetViewModelsFromModels(HashSet<NPCAttribute> models, ObservableCollection<VM_AttributeGroup> attributeGroups, bool displayForceIfOption, bool? displayForceIfWeight)
+        public void CopyInFromModels(HashSet<NPCAttribute> models, ObservableCollection<VM_NPCAttribute> viewModelCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, bool displayForceIfOption, bool? displayForceIfWeight)
         {
-            ObservableCollection<VM_NPCAttribute> oc = new ObservableCollection<VM_NPCAttribute>();
             foreach (var m in models)
             {
-                oc.Add(GetViewModelFromModel(m, oc, attributeGroups, displayForceIfOption, displayForceIfWeight));
+                viewModelCollection.Add(GetViewModelFromModel(m, viewModelCollection, attributeGroups, displayForceIfOption, displayForceIfWeight));
             }
-            return oc;
         }
 
         public VM_NPCAttribute GetViewModelFromModel(NPCAttribute model, ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, bool displayForceIfOption, bool? displayForceIfWeight)
