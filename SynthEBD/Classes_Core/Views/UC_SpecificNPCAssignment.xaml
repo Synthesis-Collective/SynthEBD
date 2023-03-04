@@ -15,7 +15,7 @@
         <local:BodySlideVisibilityConverter x:Key="BSVisibilityConverter" />
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
     </UserControl.Resources>
-    
+    <ScrollViewer>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -229,4 +229,5 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
     </Grid>
+    </ScrollViewer>
 </UserControl>
