@@ -33,7 +33,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
             {
                 DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(Descriptor, this));
             }
-            TrackedMenu.TemplateDescriptors.ToObservableChangeSet().Subscribe(_ => UpdateShellList()).DisposeWith(this);
+            TrackedMenu.TemplateDescriptors.ToObservableChangeSet().Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler).Subscribe(_ => UpdateShellList()).DisposeWith(this);
         }
 
         DescriptorShells
