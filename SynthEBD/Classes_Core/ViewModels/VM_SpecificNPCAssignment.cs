@@ -8,6 +8,7 @@ using System.Collections.Specialized;
 using ReactiveUI;
 using DynamicData.Binding;
 using System.Linq;
+using System.Reactive.Linq;
 
 namespace SynthEBD;
 
@@ -69,11 +70,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
         AssetOrderingMenu = new(texMesh);
 
-        this.SubscribedAssetPacks = texMesh.AssetPacks;
+        SubscribedAssetPacks = texMesh.AssetPacks;
 
         this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => RefreshAll()).DisposeWith(this);
 
-        this.SubscribedAssetPacks.ToObservableChangeSet().Subscribe(x => RefreshAssets()).DisposeWith(this);
+        SubscribedAssetPacks.ToObservableChangeSet().Subscribe(x => RefreshAssets()).DisposeWith(this);
         DynamicData.ObservableListEx
             .Transform(SubscribedAssetPacks.ToObservableChangeSet(), x => x.WhenAnyValue(y => y.IsSelected)
                 .Subscribe(_ => RefreshAssets())
@@ -109,16 +110,21 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
         ForcedSubgroups.ToObservableChangeSet().Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.SubscribedBodyGenSettings).Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
-        ForcedBodyGenMorphs.ToObservableChangeSet().Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
-        SubscribedBodyGenSettings.MaleConfigs.ToObservableChangeSet().Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
-        SubscribedBodyGenSettings.FemaleConfigs.ToObservableChangeSet().Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
-        SubscribedBodyGenSettings.WhenAnyValue(x => x.CurrentMaleConfig).Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
-        SubscribedBodyGenSettings.WhenAnyValue(x => x.CurrentFemaleConfig).Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
+        Observable.CombineLatest(
+                this.WhenAnyValue(x => x.SubscribedBodyGenSettings),
+                ForcedBodyGenMorphs.ToObservableChangeSet(),
+                SubscribedBodyGenSettings.MaleConfigs.ToObservableChangeSet(),
+                SubscribedBodyGenSettings.FemaleConfigs.ToObservableChangeSet(),
+                SubscribedBodyGenSettings.WhenAnyValue(x => x.CurrentMaleConfig),
+                SubscribedBodyGenSettings.WhenAnyValue(x => x.CurrentFemaleConfig),
+                (_, _, _, _, _, _) => { return 0; })
+            .Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler)
+            .Subscribe(_ => {
+                UpdateAvailableMorphs(this);
+            }).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => UpdateAvailableBodySlides()).DisposeWith(this);
-        SubscribedOBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesFemale).Subscribe(x => UpdateAvailableBodySlides()).DisposeWith(this);
-        SubscribedOBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesMale).Subscribe(x => UpdateAvailableBodySlides()).DisposeWith(this);
+        //SubscribedOBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesFemale).Subscribe(x => UpdateAvailableBodySlides()).DisposeWith(this);
+        //SubscribedOBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesMale).Subscribe(x => UpdateAvailableBodySlides()).DisposeWith(this);
 
         this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x =>
         {
