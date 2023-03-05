@@ -1250,7 +1250,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
 
             var parentDir = Directory.GetParent(candidatePath);
-            if (!Directory.EnumerateFileSystemEntries(parentDir.FullName).Any())
+            if (parentDir != null && parentDir.Exists && !Directory.EnumerateFileSystemEntries(parentDir.FullName).Any())
             {
                 _auxIO.TryDeleteDirectory(parentDir.FullName, false);
             } 
