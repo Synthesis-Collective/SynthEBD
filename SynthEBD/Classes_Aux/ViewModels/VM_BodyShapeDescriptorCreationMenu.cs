@@ -35,35 +35,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
     public void CopyInViewModelsFromModels(HashSet<BodyShapeDescriptor> models)
     {
         _logger.LogStartupEventStart("Generating BodyShape Descriptor Creator UI");
-        List<string> usedCategories = new List<string>();
-
-        foreach (var model in models)
-        {
-            VM_BodyShapeDescriptor subVm = _descriptorCreator.CreateNew(
-                _descriptorCreator.CreateNewShell(
-                    new ObservableCollection<VM_BodyShapeDescriptorShell>(),
-                    _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig),
-                _generalSettings.RaceGroupingEditor.RaceGroupings,
-                _parentConfig);
-
-            subVm.CopyInViewModelFromModel(model, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig);
-
-            if (!usedCategories.Contains(model.ID.Category))
-            {
-                var shellViewModel = _descriptorCreator.CreateNewShell(TemplateDescriptors, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig);
-                shellViewModel.Category = model.ID.Category;
-                subVm.ParentShell = shellViewModel;
-                shellViewModel.Descriptors.Add(subVm);
-                TemplateDescriptors.Add(shellViewModel);
-                usedCategories.Add(model.ID.Category);
-            }
-            else
-            {
-                int index = usedCategories.IndexOf(model.ID.Category);
-                subVm.ParentShell = TemplateDescriptors[index];
-                TemplateDescriptors[index].Descriptors.Add(subVm);
-            }
-        }
+        MergeInMissingModels(models, DescriptorRulesMergeMode.Overwrite, new List<string>());
         _logger.LogStartupEventEnd("Generating BodyShape Descriptor Creator UI");
     }
 
