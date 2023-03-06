@@ -478,10 +478,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         var subVm = _subgroupFactory(RaceGroupingEditor.RaceGroupings, parentCollection, this, parentSubgroup, false);
         parentCollection.Add(subVm);
 
-        Task.Run(() =>
-        {
-            subVm.CopyInViewModelFromModel(model);
-        });
+        subVm.CopyInViewModelFromModel(model);
 
         foreach (var sg in model.Subgroups)
         {
