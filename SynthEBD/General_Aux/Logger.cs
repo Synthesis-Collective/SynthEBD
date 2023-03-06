@@ -102,7 +102,7 @@ public sealed class Logger : VM
     {
         lock (LockStartupLogMethod)
         {
-            _startupLog.Add(FormatTimeStamp(DateTime.Now) + GetIndentString() + message);
+            //_startupLog.Add(FormatTimeStamp(DateTime.Now) + GetIndentString() + message);
             _startupLogIndentCount++;
             System.Diagnostics.Stopwatch sw = new();
             sw.Start();
@@ -125,7 +125,10 @@ public sealed class Logger : VM
                 {
                     _startupLogIndentCount--;
                 }
-                _startupLog.Add(FormatTimeStamp(DateTime.Now) + GetIndentString() + "Completed " + message + " in: " + string.Format("{0:D2}:{1:D2}:{2:D2}:{3:D2}", sw.Elapsed.Hours, sw.Elapsed.Minutes, sw.Elapsed.Seconds, sw.Elapsed.Milliseconds));
+                if (sw.ElapsedMilliseconds > 5)
+                {
+                    _startupLog.Add(FormatTimeStamp(DateTime.Now) + GetIndentString() + "Completed " + message + " in: " + string.Format("{0:D2}:{1:D2}:{2:D2}:{3:D2}", sw.Elapsed.Hours, sw.Elapsed.Minutes, sw.Elapsed.Seconds, sw.Elapsed.Milliseconds));
+                }
                 _startupTimers.Remove(message);
             }
         }
