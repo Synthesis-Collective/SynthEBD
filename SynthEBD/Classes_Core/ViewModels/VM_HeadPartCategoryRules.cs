@@ -129,14 +129,14 @@ namespace SynthEBD
             model.AllowedBodySlideMatchMode = AllowedBodySlideDescriptors.MatchMode;
             model.DisallowedBodySlideDescriptors = DisallowedBodySlideDescriptors.DumpToHashSet();
             model.DisallowedBodySlideMatchMode = DisallowedBodySlideDescriptors.MatchMode;
-            model.AllowedBodyGenDescriptorsMale = AllowedBodyGenDescriptorsMale.DumpToHashSet();
-            model.AllowedBodyGenDescriptorMatchModeMale = AllowedBodyGenDescriptorsMale.MatchMode;
-            model.DisallowedBodyGenDescriptorsMale = DisallowedBodyGenDescriptorsMale.DumpToHashSet();
-            model.DisallowedBodyGenDescriptorMatchModeMale = DisallowedBodyGenDescriptorsMale.MatchMode;
-            model.AllowedBodyGenDescriptorsFemale = AllowedBodyGenDescriptorsFemale.DumpToHashSet();
-            model.AllowedBodyGenDescriptorMatchModeFemale = AllowedBodyGenDescriptorsFemale.MatchMode;
-            model.DisallowedBodyGenDescriptorsFemale = DisallowedBodyGenDescriptorsFemale.DumpToHashSet();
-            model.DisallowedBodyGenDescriptorMatchModeFemale = DisallowedBodyGenDescriptorsFemale.MatchMode;
+            model.AllowedBodyGenDescriptorsMale = AllowedBodyGenDescriptorsMale?.DumpToHashSet() ?? new();
+            model.AllowedBodyGenDescriptorMatchModeMale = AllowedBodyGenDescriptorsMale?.MatchMode ?? DescriptorMatchMode.All;
+            model.DisallowedBodyGenDescriptorsMale = DisallowedBodyGenDescriptorsMale?.DumpToHashSet() ?? new();
+            model.DisallowedBodyGenDescriptorMatchModeMale = DisallowedBodyGenDescriptorsMale?.MatchMode ?? DescriptorMatchMode.Any;
+            model.AllowedBodyGenDescriptorsFemale = AllowedBodyGenDescriptorsFemale?.DumpToHashSet() ?? new();
+            model.AllowedBodyGenDescriptorMatchModeFemale = AllowedBodyGenDescriptorsFemale?.MatchMode ?? DescriptorMatchMode.All;
+            model.DisallowedBodyGenDescriptorsFemale = DisallowedBodyGenDescriptorsFemale?.DumpToHashSet() ?? new();
+            model.DisallowedBodyGenDescriptorMatchModeFemale = DisallowedBodyGenDescriptorsFemale?.MatchMode ?? DescriptorMatchMode.Any;
         }
 
         public void RefreshBodyGenDescriptorsMale(ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
