@@ -94,6 +94,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
                 descriptor.Value = model.ID.Value;
                 descriptor.AssociatedRules.CopyInViewModelFromModel(model.AssociatedRules, _generalSettings.RaceGroupingEditor.RaceGroupings);
                 shell.Descriptors.Add(descriptor);
+                TemplateDescriptorList.Add(descriptor);
             }
             else
             {
@@ -118,8 +119,6 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
 
     public RelayCommand AddTemplateDescriptorShell { get; }
     public RelayCommand RemoveTemplateDescriptorShell { get; }
-
-
 }
 
 public enum DescriptorRulesMergeMode

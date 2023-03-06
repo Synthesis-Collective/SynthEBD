@@ -20,18 +20,18 @@ public class VM_BodySlideSetting : VM
     private readonly VM_BodySlideSetting.Factory _selfFactory;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
 
-    public delegate VM_BodySlideSetting Factory(VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection);
-    public VM_BodySlideSetting(VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+    public delegate VM_BodySlideSetting Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection);
+    public VM_BodySlideSetting(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
         ParentMenuVM = oBodySettingsVM;
         _environmentProvider = environmentProvider;
         _attributeCreator = attributeCreator;
-        _bodyShapeDescriptors = bodyShapeDescriptors;
+        _bodyShapeDescriptors = oBodySettingsVM.DescriptorUI;
         _raceGroupingVMs = raceGroupingVMs;
         _selfFactory = selfFactory;
         _descriptorSelectionFactory = descriptorSelectionFactory;
 
-        DescriptorsSelectionMenu = _descriptorSelectionFactory(bodyShapeDescriptors, raceGroupingVMs, oBodySettingsVM, false, DescriptorMatchMode.Any);
+        DescriptorsSelectionMenu = _descriptorSelectionFactory(_bodyShapeDescriptors, raceGroupingVMs, oBodySettingsVM, false, DescriptorMatchMode.Any);
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
@@ -151,14 +151,15 @@ public class VM_BodySlideSetting : VM
     public string StatusText { get; set; }
     public bool ShowStatus { get; set; }
 
-    public static SolidColorBrush BorderColorMissing = new SolidColorBrush(Colors.Red);
-    public static SolidColorBrush BorderColorUnannotated = new SolidColorBrush(Colors.Yellow);
-    public static SolidColorBrush BorderColorValid = new SolidColorBrush(Colors.LightGreen);
+    public static SolidColorBrush BorderColorMissing = CommonColors.Red;
+    public static SolidColorBrush BorderColorUnannotated = CommonColors.Yellow;
+    public static SolidColorBrush BorderColorValid = CommonColors.LightGreen;
+    public static SolidColorBrush BorderColorHidden = CommonColors.LightSlateGrey;
 
     public VM_BodySlideSetting Clone()
     {
         var cloneModel = DumpViewModelToModel(this);
-        var cloneViewModel = _selfFactory(_bodyShapeDescriptors, _raceGroupingVMs, ParentCollection);
+        var cloneViewModel = _selfFactory(_raceGroupingVMs, ParentCollection);
         cloneViewModel.CopyInViewModelFromModel(cloneModel);
         int lastClonePosition = cloneViewModel.RenameByIndex();
         ParentCollection.Insert(lastClonePosition + 1, cloneViewModel);
@@ -216,7 +217,7 @@ public class VM_BodySlideSetting : VM
     public VM_BodySlideSetting CopyToNewCollection(ObservableCollection<VM_BodySlideSetting> parentCollection)
     {
         var model = DumpViewModelToModel(this);
-        return _selfFactory(_bodyShapeDescriptors, _raceGroupingVMs, parentCollection);
+        return _selfFactory(_raceGroupingVMs, parentCollection);
     }
     public void UpdateStatusDisplay()
     {

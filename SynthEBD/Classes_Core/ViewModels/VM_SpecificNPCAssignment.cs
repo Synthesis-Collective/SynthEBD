@@ -618,7 +618,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             case Gender.Male: SubscribedBodySlides = _oBodySettings.BodySlidesUI.BodySlidesMale; break;
             case Gender.Female: SubscribedBodySlides = _oBodySettings.BodySlidesUI.BodySlidesFemale; break;
         }
-        AvailableBodySlides = new ObservableCollection<VM_BodySlideSetting>() { _bodySlideFactory(_oBodySettings.DescriptorUI, _generalSettings.RaceGroupingEditor.RaceGroupings, AvailableBodySlides) }; // blank entry
+        AvailableBodySlides = new ObservableCollection<VM_BodySlideSetting>() { _bodySlideFactory(_generalSettings.RaceGroupingEditor.RaceGroupings, AvailableBodySlides) }; // blank entry
         AvailableBodySlides.AddRange(SubscribedBodySlides);
     }
 

@@ -24,7 +24,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         _bodySlidesMenuFactory = bodySlidesMenuFactory;
 
         DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this);
-        BodySlidesUI = _bodySlidesMenuFactory(this, generalSettingsVM.RaceGroupingEditor.RaceGroupings);
+        BodySlidesUI = _bodySlidesMenuFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings);
         AttributeGroupMenu = _attributeGroupFactory(generalSettingsVM.AttributeGroupMenu, true);
         MiscUI = miscSettingsFactory();
 
@@ -73,18 +73,6 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
         DescriptorUI.CopyInViewModelsFromModels(model.TemplateDescriptors);
 
-        DescriptorUI.TemplateDescriptorList.Clear();
-        foreach (var descriptor in model.TemplateDescriptors)
-        {
-            var subVm = descriptorCreator.CreateNew(descriptorCreator.CreateNewShell(
-                new ObservableCollection<VM_BodyShapeDescriptorShell>(), 
-                raceGroupingVMs, this),
-                raceGroupingVMs, 
-                this);
-            subVm.CopyInViewModelFromModel(descriptor, raceGroupingVMs, this);
-            DescriptorUI.TemplateDescriptorList.Add(subVm);
-        }
-
         BodySlidesUI.CurrentlyExistingBodySlides = model.CurrentlyExistingBodySlides; // must load before presets
 
         BodySlidesUI.BodySlidesMale.Clear();
@@ -93,7 +81,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         foreach (var preset in model.BodySlidesMale)
         {
             _logger.LogStartupEventStart("Loading UI for BodySlide " + preset.Label);
-            var presetVM = bodySlideFactory(DescriptorUI, raceGroupingVMs, BodySlidesUI.BodySlidesMale);
+            var presetVM = bodySlideFactory(raceGroupingVMs, BodySlidesUI.BodySlidesMale);
             BodySlidesUI.BodySlidesMale.Add(presetVM);
             Task.Run(() => presetVM.CopyInViewModelFromModel(preset));       
             _logger.LogStartupEventEnd("Loading UI for BodySlide " + preset.Label);
@@ -113,7 +101,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         foreach (var preset in model.BodySlidesFemale)
         {
             _logger.LogStartupEventStart("Loading UI for BodySlide " + preset.Label);
-            var presetVM = bodySlideFactory(DescriptorUI, raceGroupingVMs, BodySlidesUI.BodySlidesFemale);
+            var presetVM = bodySlideFactory(raceGroupingVMs, BodySlidesUI.BodySlidesFemale);
             BodySlidesUI.BodySlidesFemale.Add(presetVM);
             Task.Run(() => presetVM.CopyInViewModelFromModel(preset));
             _logger.LogStartupEventEnd("Loading UI for BodySlide " + preset.Label);

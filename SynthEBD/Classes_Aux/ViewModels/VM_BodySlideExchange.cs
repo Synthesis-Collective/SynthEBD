@@ -327,7 +327,7 @@ namespace SynthEBD
             if (ExchangeRules)
             {
                 var index = bodySlides.IndexOf(existingBS);
-                var newVM = _bodySlideFactory(_oBodyUI.DescriptorUI, _generalUI.RaceGroupingEditor.RaceGroupings, bodySlides);
+                var newVM = _bodySlideFactory(_generalUI.RaceGroupingEditor.RaceGroupings, bodySlides);
                 newVM.CopyInViewModelFromModel(importedBS);
                 bodySlides.Remove(existingBS);
                 bodySlides.Insert(index, newVM);

@@ -6,13 +6,13 @@ namespace SynthEBD;
 
 public class VM_BodySlidesMenu : VM
 {
-    public delegate VM_BodySlidesMenu Factory(VM_SettingsOBody parentVM, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
-    public VM_BodySlidesMenu(VM_SettingsOBody parentVM, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodySlideSetting.Factory bodySlideFactory, VM_BodySlideExchange.Factory exchangeFactory)
+    public delegate VM_BodySlidesMenu Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
+    public VM_BodySlidesMenu(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodySlideSetting.Factory bodySlideFactory, VM_BodySlideExchange.Factory exchangeFactory)
     {
         AddPreset = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
-                var newPreset = bodySlideFactory(parentVM.DescriptorUI, raceGroupingVMs, this.CurrentlyDisplayedBodySlides);
+                var newPreset = bodySlideFactory(raceGroupingVMs, CurrentlyDisplayedBodySlides);
                 newPreset.UnlockReference();
                 CurrentlyDisplayedBodySlides.Add(newPreset); 
             }
