@@ -24,6 +24,7 @@ namespace SynthEBD
         }
         
         public HashSet<IFormLinkGetter<IRaceGetter>> PatchableRaces { get; set; } = new();
+        public HashSet<FormKey> PatchableRaceFormKeys { get; set; } = new();
         public void ResolvePatchableRaces()
         {
             _logger.LogStartupEventStart("Compiling patchable races");
@@ -37,6 +38,7 @@ namespace SynthEBD
                 foreach (var race in CompilePatchableRaces(_environmentProvider.LinkCache, _patcherState, true, true, true))
                 {
                     PatchableRaces.Add(race.ToLinkGetter());
+                    PatchableRaceFormKeys.Add(race.FormKey);
                 }
             }
             _logger.LogStartupEventEnd("Compiling patchable races");

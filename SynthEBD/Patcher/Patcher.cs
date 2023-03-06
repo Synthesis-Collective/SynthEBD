@@ -488,7 +488,7 @@ public class Patcher
             AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment primaryAssetsAndBodyShape = new AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment();
 
             #region Asset Assignment
-            if (_patcherState.GeneralSettings.bChangeMeshesOrTextures && !blockAssets && _patcherState.GeneralSettings.PatchableRaces.Contains(currentNPCInfo.AssetsRace))
+            if (_patcherState.GeneralSettings.bChangeMeshesOrTextures && !blockAssets && _raceResolver.PatchableRaceFormKeys.Contains(currentNPCInfo.AssetsRace))
             {
                 assetsAssigned = false;
                 switch (currentNPCInfo.Gender)
@@ -632,7 +632,7 @@ public class Patcher
                 case BodyShapeSelectionMode.None: break;
 
                 case BodyShapeSelectionMode.BodyGen:
-                    if (!blockBodyShape && _patcherState.GeneralSettings.PatchableRaces.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && BodyGenSelector.BodyGenAvailableForGender(currentNPCInfo.Gender, bodyGenConfigs))
+                    if (!blockBodyShape && _raceResolver.PatchableRaceFormKeys.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && BodyGenSelector.BodyGenAvailableForGender(currentNPCInfo.Gender, bodyGenConfigs))
                     {
                         _logger.LogReport("Assigning a BodyGen morph independently of Asset Combination", false, currentNPCInfo);
                         assignedMorphs = _bodyGenSelector.SelectMorphs(currentNPCInfo, out bool success, bodyGenConfigs, null, new List<SubgroupCombination>(), out _);
@@ -649,7 +649,7 @@ public class Patcher
                     }
                     break;
                 case BodyShapeSelectionMode.BodySlide:
-                    if (!blockBodyShape && _patcherState.GeneralSettings.PatchableRaces.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && _oBodySelector.CurrentNPCHasAvailablePresets(currentNPCInfo, oBodySettings))
+                    if (!blockBodyShape && _raceResolver.PatchableRaceFormKeys.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && _oBodySelector.CurrentNPCHasAvailablePresets(currentNPCInfo, oBodySettings))
                     {
                         _logger.LogReport("Assigning a BodySlide preset independently of Asset Combination", false, currentNPCInfo);
                         assignedBodySlide = _oBodySelector.SelectBodySlidePreset(currentNPCInfo, out bool success, oBodySettings, new List<SubgroupCombination>(), out _);
@@ -669,7 +669,7 @@ public class Patcher
             #endregion
 
             #region Height assignment
-            if (_patcherState.GeneralSettings.bChangeHeight && !blockHeight && _patcherState.GeneralSettings.PatchableRaces.Contains(currentNPCInfo.HeightRace))
+            if (_patcherState.GeneralSettings.bChangeHeight && !blockHeight && _raceResolver.PatchableRaceFormKeys.Contains(currentNPCInfo.HeightRace))
             {
                 _heightPatcher.AssignNPCHeight(currentNPCInfo, currentHeightConfig, outputMod);
             }
@@ -677,7 +677,7 @@ public class Patcher
 
             #region Head Part assignment
             HeadPartSelection assignedHeadParts = new();
-            if (_patcherState.GeneralSettings.bChangeHeadParts && !blockHeadParts)
+            if (_patcherState.GeneralSettings.bChangeHeadParts && !blockHeadParts && _raceResolver.PatchableRaceFormKeys.Contains(currentNPCInfo.HeadPartsRace))
             {
                 assignedHeadParts = _headPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, assignedBodySlide, assignedMorphs);
             }
