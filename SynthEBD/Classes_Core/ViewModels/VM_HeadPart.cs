@@ -61,12 +61,12 @@ namespace SynthEBD
             {
                 if (lk.TryResolve<IHeadPartGetter>(FormKey, out var getter))
                 {
-                    BorderColor = new SolidColorBrush(Colors.Green);
+                    BorderColor = CommonColors.Green;
                     StatusString = String.Empty;
                 }
                 else
                 {
-                    BorderColor = new SolidColorBrush(Colors.Red);
+                    BorderColor = CommonColors.Red;
                     StatusString = "This head part is no longer present in your load order";
                 }
             }).DisposeWith(this);
@@ -117,7 +117,7 @@ namespace SynthEBD
         public RelayCommand ToggleHide { get; }
         public VM_Settings_Headparts ParentMenu { get; set; }
         public ObservableCollection<VM_HeadPart> ParentCollection { get; set; }
-        public SolidColorBrush BorderColor { get; set; } = new SolidColorBrush(Colors.Green);
+        public SolidColorBrush BorderColor { get; set; } = CommonColors.Green;
         public string StatusString { get; set; } = string.Empty;
 
         public void CopyInFromModel(HeadPartSetting model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AttributeGroupMenu attributeGroupMenu, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, VM_Settings_Headparts parentConfig, ObservableCollection<VM_HeadPart> parentCollection, VM_NPCAttributeCreator creator, Logger logger, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, ILinkCache linkCache)
@@ -140,10 +140,16 @@ namespace SynthEBD
             WeightRange = model.WeightRange;
             AllowedBodySlideDescriptors.CopyInFromHashSet(model.AllowedBodySlideDescriptors);
             DisallowedBodySlideDescriptors.CopyInFromHashSet(model.DisallowedBodySlideDescriptors);
-            AllowedBodyGenDescriptorsMale.CopyInFromHashSet(model.AllowedBodyGenDescriptorsMale);
-            DisallowedBodyGenDescriptorsMale.CopyInFromHashSet(model.DisallowedBodyGenDescriptorsMale);
-            AllowedBodyGenDescriptorsFemale.CopyInFromHashSet(model.AllowedBodyGenDescriptorsFemale);
-            DisallowedBodyGenDescriptorsFemale.CopyInFromHashSet(model.DisallowedBodyGenDescriptorsFemale);
+            if (AllowedBodyGenDescriptorsMale != null)
+            {
+                AllowedBodyGenDescriptorsMale.CopyInFromHashSet(model.AllowedBodyGenDescriptorsMale);
+                DisallowedBodyGenDescriptorsMale.CopyInFromHashSet(model.DisallowedBodyGenDescriptorsMale);
+            }
+            if (AllowedBodyGenDescriptorsFemale != null)
+            {
+                AllowedBodyGenDescriptorsFemale.CopyInFromHashSet(model.AllowedBodyGenDescriptorsFemale);
+                DisallowedBodyGenDescriptorsFemale.CopyInFromHashSet(model.DisallowedBodyGenDescriptorsFemale);
+            }
         }
 
         public HeadPartSetting DumpToModel()
