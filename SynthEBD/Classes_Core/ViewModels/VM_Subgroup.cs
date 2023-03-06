@@ -12,6 +12,7 @@ using GongSolutions.Wpf.DragDrop;
 using DynamicData.Binding;
 using System.Text.RegularExpressions;
 using static SynthEBD.VM_NPCAttribute;
+using System.Reactive.Linq;
 
 namespace SynthEBD;
 
@@ -69,7 +70,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
 
-        RefreshBodyGenDescriptors();
+        //RefreshBodyGenDescriptors();
         this.WhenAnyValue(x => x.ParentAssetPack.TrackedBodyGenConfig).Subscribe(_ => RefreshBodyGenDescriptors()).DisposeWith(this);
         AllowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.All);
         DisallowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.Any);
@@ -95,8 +96,15 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
             parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => PathsMenu.ReferenceLinkCache = parentAssetPack.RecordTemplateLinkCache).DisposeWith(this);
         }
 
-        PathsMenu.Paths.ToObservableChangeSet().Subscribe(x => GetDDSPaths(ImagePaths)).DisposeWith(this);
-        this.WhenAnyValue(x => x.ParentAssetPack, x => x.ParentSubgroup).Subscribe(x => GetDDSPaths(ImagePaths)).DisposeWith(this);
+        Observable.CombineLatest(
+                PathsMenu.Paths.ToObservableChangeSet(),
+                this.WhenAnyValue(x => x.ParentAssetPack),
+                this.WhenAnyValue(x => x.ParentSubgroup),
+                (_, _, _) => { return 0; })
+            .Subscribe(_ => {
+                GetDDSPaths(ImagePaths);
+            })
+            .DisposeWith(this);
 
         AutoGenerateIDcommand = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -212,6 +220,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 
     public void CopyInViewModelFromModel(AssetPack.Subgroup model)
     {
+        _logger.LogStartupEventStart("Copying in model for subgroup " + model.ID);
         ID = model.ID;
         Name = model.Name;
         Enabled = model.Enabled;
@@ -226,25 +235,40 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         ExcludedSubgroupIDs = model.ExcludedSubgroups;
         VM_CollectionMemberString.CopyInObservableCollectionFromICollection(model.AddKeywords, AddKeywords);
         ProbabilityWeighting = model.ProbabilityWeighting;
+        _logger.LogStartupEventStart("Copying in pathsmenu for subgroup " + model.ID);
         PathsMenu.CopyInFromModels(model.Paths, _filePathReplacementFactory);
+        _logger.LogStartupEventEnd("Copying in pathsmenu for subgroup " + model.ID);
         WeightRange = model.WeightRange;
-        //_attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, true, null);
-        //_attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, false, null);
+
+        _logger.LogStartupEventStart("Copying in attributes for subgroup " + model.ID);
+        _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, true, null);
+        _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, false, null);
+        _logger.LogStartupEventEnd("Copying in attributes for subgroup " + model.ID);
+        _logger.LogStartupEventStart("Copying in race groupings for subgroup " + model.ID);
         AllowedRaceGroupings.CopyInRaceGroupingsByLabel(model.AllowedRaceGroupings, ParentAssetPack.RaceGroupingEditor.RaceGroupings);
         DisallowedRaceGroupings.CopyInRaceGroupingsByLabel(model.DisallowedRaceGroupings, ParentAssetPack.RaceGroupingEditor.RaceGroupings);
+        _logger.LogStartupEventEnd("Copying in race groupings for subgroup " + model.ID);
+        _logger.LogStartupEventStart("Copying in bodyGen for subgroup " + model.ID);
         if (ParentAssetPack.TrackedBodyGenConfig != null)
         {
             AllowedBodyGenDescriptors.CopyInFromHashSet(model.AllowedBodyGenDescriptors);
             DisallowedBodyGenDescriptors.CopyInFromHashSet(model.DisallowedBodyGenDescriptors);
         }
+        _logger.LogStartupEventEnd("Copying in bodyGen for subgroup " + model.ID);
+        _logger.LogStartupEventStart("Copying in bodySlide for subgroup " + model.ID);
         AllowedBodySlideDescriptors.CopyInFromHashSet(model.AllowedBodySlideDescriptors);
         DisallowedBodySlideDescriptors.CopyInFromHashSet(model.DisallowedBodySlideDescriptors);
+        _logger.LogStartupEventEnd("Copying in bodySlide for subgroup " + model.ID);
 
         //dds preview
+        _logger.LogStartupEventStart("Copying in DDS Paths for subgroup " + model.ID);
         GetDDSPaths(ImagePaths);
+        _logger.LogStartupEventEnd("Copying in DDS Paths for subgroup " + model.ID);
+        _logger.LogStartupEventEnd("Copying in model for subgroup " + model.ID);
     }
     public void RefreshListBoxLabel(ObservableCollection<VM_Subgroup> listSource, SubgroupListBox whichBox)
     {
+        _logger.LogStartupEventStart("Refreshing ListBox Label for subgroup " + ID);
         string label = "";
         if (listSource.Any())
         {
@@ -260,6 +284,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
             case SubgroupListBox.Required: RequiredSubgroupsLabel = label; break;
             case SubgroupListBox.Excluded: ExcludedSubgroupsLabel = label; break;
         }
+        _logger.LogStartupEventEnd("Refreshing ListBox Label for subgroup " + ID);
     }
     public enum SubgroupListBox
     {
@@ -268,6 +293,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
     }
     public void GetDDSPaths(ObservableCollection<ImagePreviewHandler.ImagePathWithSource> paths)
     {
+        _logger.LogStartupEventStart("Getting DDS Paths for subgroup " + ID);
         var ddsPaths = PathsMenu.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(_environmentProvider.DataFolderPath, x.Source)))
             .Select(x => x.Source)
             .Select(x => System.IO.Path.Combine(_environmentProvider.DataFolderPath, x))
@@ -285,6 +311,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
         {
             subgroup.GetDDSPaths(paths);
         }
+        _logger.LogStartupEventEnd("Getting DDS Paths for subgroup " + ID);
     }
 
     public void AutoGenerateID(bool recursive, int skipLayers)
@@ -809,6 +836,7 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
 
     public void RefreshBodyGenDescriptors()
     {
+        _logger.LogStartupEventStart("Refreshing BodyGen Descriptors for subgroup " + ID);
         DescriptorMatchMode allowedMode = DescriptorMatchMode.All;
         DescriptorMatchMode disallowedMode = DescriptorMatchMode.Any;
 
@@ -827,5 +855,6 @@ public class VM_Subgroup : VM, ICloneable, IDropTarget, IHasSubgroupViewModels
             AllowedBodyGenDescriptors = _descriptorSelectionFactory(ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, allowedMode);
             DisallowedBodyGenDescriptors = _descriptorSelectionFactory(ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, disallowedMode);
         }
+        _logger.LogStartupEventEnd("Refreshing BodyGen Descriptors for subgroup " + ID);
     }
 }
