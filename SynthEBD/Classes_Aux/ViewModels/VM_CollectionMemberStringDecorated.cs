@@ -23,8 +23,8 @@ namespace SynthEBD
         }
         public string Content { get; set; }
         public ObservableCollection<VM_CollectionMemberStringDecorated> ParentCollection { get; set; }
-        public SolidColorBrush BorderColor { get; set; } = new SolidColorBrush(Colors.White);
-        public SolidColorBrush TextColor { get; set; } = new SolidColorBrush(Colors.White);
+        public SolidColorBrush BorderColor { get; set; } = CommonColors.White;
+        public SolidColorBrush TextColor { get; set; } = CommonColors.White;
         public RelayCommand DeleteCommand { get; }
         public bool TextBox { get; set; }
         public bool TextBlock { get; set; }

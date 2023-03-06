@@ -229,7 +229,7 @@ public class VM_BodySlideSetting : VM
         }
         else if (IsHidden)
         {
-            BorderColor = new SolidColorBrush(Colors.LightSlateGray);
+            BorderColor = BorderColorHidden;
         }
         else if(!DescriptorsSelectionMenu.IsAnnotated())
         {

@@ -290,21 +290,21 @@ public class VM_BodyGenTemplate : VM
 
         if (!belongsToGroup)
         {
-            BorderColor = new SolidColorBrush(Colors.Red);
+            BorderColor = CommonColors.Red;
             StatusHeader = "Warning:";
             StatusText = "Morph does not belong to any Morph Groups. Will not be assigned.";
             ShowStatus = true;
         }
         else if (!DescriptorsSelectionMenu.IsAnnotated())
         {
-            BorderColor = new SolidColorBrush(Colors.Yellow);
+            BorderColor = CommonColors.Yellow;
             StatusHeader = "Warning:";
             StatusText = "Bodyslide has not been annotated with descriptors. May not pair correctly with textures.";
             ShowStatus = true;
         }
         else
         {
-            BorderColor = new SolidColorBrush(Colors.LightGreen);
+            BorderColor = CommonColors.Green;
             StatusHeader = string.Empty;
             StatusText = string.Empty;
             ShowStatus = false;

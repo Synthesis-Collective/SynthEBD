@@ -180,15 +180,15 @@ namespace SynthEBD
 
             if (invalidEditorIDs.Any())
             {
-                return new SolidColorBrush(Colors.Red);
+                return CommonColors.Red;
             }
             if (collection.Any())
             {
-                return new SolidColorBrush(Colors.Green);
+                return CommonColors.Green;
             }
             else
             {
-                return new SolidColorBrush(Colors.Gray);
+                return CommonColors.LightSlateGrey;
             }
         }
 

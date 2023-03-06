@@ -35,9 +35,9 @@ public sealed class Logger : VM
     public SolidColorBrush StatusColor { get; set; }
     public SolidColorBrush BackupStatusColor { get; set; }
 
-    public SolidColorBrush ReadyColor = new SolidColorBrush(Colors.Green);
-    public SolidColorBrush WarningColor = new SolidColorBrush(Colors.Yellow);
-    public SolidColorBrush ErrorColor = new SolidColorBrush(Colors.Red);
+    public SolidColorBrush ReadyColor = CommonColors.Green;
+    public SolidColorBrush WarningColor = CommonColors.Yellow;
+    public SolidColorBrush ErrorColor = CommonColors.Red;
     public string ReadyString = "Ready To Patch";
 
     private readonly Subject<Unit> _loggedError = new();

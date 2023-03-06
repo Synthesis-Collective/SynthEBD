@@ -551,50 +551,50 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         if (ReferenceNPCFormKey.IsNull)
         {
             EvalResult = "Can't evaluate: Reference NPC not set";
-            StatusFontColor = new SolidColorBrush(Colors.Yellow);
+            StatusFontColor = CommonColors.Yellow;
         }
         else if (CustomType != CustomAttributeType.Record && ValueStr == "")
         {
             EvalResult = "Can't evaluate: No value provided";
-            StatusFontColor = new SolidColorBrush(Colors.Yellow);
+            StatusFontColor = CommonColors.Yellow;
         }
         else if (CustomType == CustomAttributeType.Record && !ValueFKs.Any())
         {
             EvalResult = "Can't evaluate: No FormKeys selected";
-            StatusFontColor = new SolidColorBrush(Colors.Yellow);
+            StatusFontColor = CommonColors.Yellow;
         }
         else if (CustomType == CustomAttributeType.Integer && !Int32.TryParse(ValueStr, out _))
         {
             EvalResult = "Can't convert " + ValueStr + " to an Integer value";
-            StatusFontColor = new SolidColorBrush(Colors.Red);
+            StatusFontColor = CommonColors.Red;
         }
         else if (CustomType == CustomAttributeType.Decimal && !float.TryParse(ValueStr, out _))
         {
             EvalResult = "Can't convert " + ValueStr + " to a Decimal value";
-            StatusFontColor = new SolidColorBrush(Colors.Red);
+            StatusFontColor = CommonColors.Red;
         }
         else if (CustomType == CustomAttributeType.Boolean && !bool.TryParse(ValueStr, out _))
         {
             EvalResult = "Can't convert " + ValueStr + " to a Boolean value";
-            StatusFontColor = new SolidColorBrush(Colors.Red);
+            StatusFontColor = CommonColors.Red;
         }
         else
         {
             if (!_environmentProvider.LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC))
             {
                 EvalResult = "Error: can't resolve reference NPC.";
-                StatusFontColor = new SolidColorBrush(Colors.Red);
+                StatusFontColor = CommonColors.Red;
             }
             bool matched = _attributeMatcher.EvaluateCustomAttribute(refNPC, DumpViewModelToModel(this, VM_NPCAttributeShell.AttributeAllowStr), LinkCache, out string dispMessage);
             if (matched)
             {
                 EvalResult = "Matched!";
-                StatusFontColor = new SolidColorBrush(Colors.Green);
+                StatusFontColor = CommonColors.Green;
             }
             else
             {
                 EvalResult = dispMessage;
-                StatusFontColor = new SolidColorBrush(Colors.Red);
+                StatusFontColor = CommonColors.Red;
             }
         }
     }

@@ -175,8 +175,8 @@ namespace SynthEBD
                         sgString.Count = combinations.Where(x => x.AssetPackName == ap.GroupName && x.ContainedSubgroups[i].Id == subgroup.Id).Count();
 
                         var reportString = new VM_ReportCountableStringWrapper(sgString);
-                        if (sgString.Count > 0) { reportString.TextColor = new SolidColorBrush(Colors.White); }
-                        else {  reportString.TextColor = new SolidColorBrush(Colors.Firebrick); }
+                        if (sgString.Count > 0) { reportString.TextColor = CommonColors.White; }
+                        else { reportString.TextColor = CommonColors.FireBrick; }
                         reportString.GetExplainStringSubgroup(npcInfo, ap.GroupName, subgroup.Id, subgroup.Name);
                         assetReport.SubgroupStrings.Add(reportString);
                     }
@@ -209,7 +209,7 @@ namespace SynthEBD
             }
 
             public CountableString ReferencedStr { get; set; }
-            public SolidColorBrush TextColor { get; set; } = new SolidColorBrush(Colors.White);
+            public SolidColorBrush TextColor { get; set; } = CommonColors.White;
             public RelayCommand ExplainCommand { get; }
             public string ExplainStr { get; set; }
 

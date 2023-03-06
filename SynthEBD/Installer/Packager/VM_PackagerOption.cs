@@ -198,18 +198,18 @@ namespace SynthEBD
             var trialPath = System.IO.Path.Combine(rootPath, pathVM.Content);
             if (System.IO.File.Exists(trialPath))
             {
-                pathVM.BorderColor = new SolidColorBrush(Colors.LightGreen);
+                pathVM.BorderColor = CommonColors.LightGreen;
             }
             else
             {
-                pathVM.BorderColor = new SolidColorBrush(Colors.Firebrick);
+                pathVM.BorderColor = CommonColors.FireBrick;
             }
         }
 
         public static void AddEmptyPath(ObservableCollection<VM_CollectionMemberStringDecorated> collection)
         {
             var newPath = new VM_CollectionMemberStringDecorated("", collection, VM_CollectionMemberStringDecorated.Mode.TextBlock);
-            newPath.BorderColor = new SolidColorBrush(Colors.Red);
+            newPath.BorderColor = CommonColors.Red;
             collection.Add(newPath);
         }
 
