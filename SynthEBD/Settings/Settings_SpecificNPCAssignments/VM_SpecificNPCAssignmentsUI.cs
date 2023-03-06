@@ -187,7 +187,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
 
             var vm = specificNpcAssignmentFactory();
             viewModel.Assignments.Add(vm);
-            Task.Run(() => vm.CopyInFromModel(assignment, texMesh, bodyGen, headParts, logger, converters, environmentProvider));
+            vm.CopyInFromModel(assignment, texMesh, bodyGen, headParts, logger, converters, environmentProvider);
         }
         logger.LogStartupEventEnd("Loading UI for Specific NPC Assignments Menu");
     }
