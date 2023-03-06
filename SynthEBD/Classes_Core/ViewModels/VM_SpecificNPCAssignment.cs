@@ -75,6 +75,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => RefreshAll()).DisposeWith(this);
 
         SubscribedAssetPacks.ToObservableChangeSet().Subscribe(x => RefreshAssets()).DisposeWith(this);
+
         DynamicData.ObservableListEx
             .Transform(SubscribedAssetPacks.ToObservableChangeSet(), x => x.WhenAnyValue(y => y.IsSelected)
                 .Subscribe(_ => RefreshAssets())
@@ -250,54 +251,51 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     public RelayCommand AddHeadPart { get; set; }
     public RelayCommand SyncThisAssetOrder { get; set; }
     public RelayCommand SyncAllAssetOrders { get; set; }
-    public static VM_SpecificNPCAssignment GetViewModelFromModel(
+    public void CopyInFromModel(
         NPCAssignment model, 
-        VM_AssetPack.Factory assetPackFactory, 
         VM_SettingsTexMesh texMesh,
         VM_SettingsBodyGen bodyGen,
         VM_Settings_Headparts headParts,
-        Factory specificNpcAssignmentFactory, 
         Logger logger,
         Converters converters,
         IEnvironmentStateProvider environmentProvider)
     {
-        var viewModel = specificNpcAssignmentFactory();
-        viewModel.NPCFormKey = model.NPCFormKey;
+        NPCFormKey = model.NPCFormKey;
 
-        if (viewModel.NPCFormKey.IsNull)
+        if (NPCFormKey.IsNull)
         {
-            return null;
+            return;
         }
 
-        var npcFormLink = new FormLink<INpcGetter>(viewModel.NPCFormKey);
+        var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
 
         if (!npcFormLink.TryResolve(environmentProvider.LinkCache, out var npcRecord))
         {
-            logger.LogError("Warning: the target NPC of the Specific NPC Assignment with FormKey " + viewModel.NPCFormKey.ToString() + " was not found in the current load order.");
+            logger.LogError("Warning: the target NPC of the Specific NPC Assignment with FormKey " + NPCFormKey.ToString() + " was not found in the current load order.");
         }
 
-        viewModel.Gender = GetGender(viewModel.NPCFormKey, logger, environmentProvider);
+        Gender = GetGender(NPCFormKey, logger, environmentProvider);
 
         if (model.AssetPackName.Length != 0)
         {
-            LinkAssetPackToForcedAssignment(model, viewModel, model.AssetPackName, texMesh.AssetPacks, logger);
+            LinkAssetPackToForcedAssignment(model, this, model.AssetPackName, texMesh.AssetPacks, logger);
         }
 
-        viewModel.CopyInMixInViewModels(model.MixInAssignments);
+        CopyInMixInViewModels(model.MixInAssignments);
 
-        viewModel.AssetOrderingMenu.CopyInFromModel(model.AssetOrder);
+        AssetOrderingMenu.CopyInFromModel(model.AssetOrder);
 
         if (model.Height != null)
         {
-            viewModel.ForcedHeight = model.Height.ToString();
+            ForcedHeight = model.Height.ToString();
         }
         else
         {
-            viewModel.ForcedHeight = "";
+            ForcedHeight = "";
         }
 
         ObservableCollection<VM_BodyGenTemplate> templates = new ObservableCollection<VM_BodyGenTemplate>();
-        switch (viewModel.Gender)
+        switch (Gender)
         {
             case Gender.Male:
                 if (bodyGen.CurrentMaleConfig != null)
@@ -328,47 +326,44 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             {
                 if (morph.Label == forcedMorph)
                 {
-                    viewModel.ForcedBodyGenMorphs.Add(morph);
+                    ForcedBodyGenMorphs.Add(morph);
                     morphFound = true;
                     break; ;
                 }
             }
             if (morphFound == false)
             {
-                logger.LogError("Warning: The forced BodyGen morph " + forcedMorph + " for NPC " + viewModel.DispName + " no longer exists.");
+                logger.LogError("Warning: The forced BodyGen morph " + forcedMorph + " for NPC " + DispName + " no longer exists.");
             }
         }
-
 
         foreach (var replacer in model.AssetReplacerAssignments)
         {
             var parentAssetPack = texMesh.AssetPacks.Where(x => x.GroupName == replacer.AssetPackName).FirstOrDefault();
             if (parentAssetPack != null)
             {
-                VM_AssetReplacementAssignment subVm = new VM_AssetReplacementAssignment(parentAssetPack, viewModel.ForcedAssetReplacements);
+                VM_AssetReplacementAssignment subVm = new VM_AssetReplacementAssignment(parentAssetPack, ForcedAssetReplacements);
                 subVm.CopyInViewModelFromModel(replacer);
-                viewModel.ForcedAssetReplacements.Add(subVm);
+                ForcedAssetReplacements.Add(subVm);
             }
             else
             {
-                logger.LogError("Warning: The forced Asset Replacer " + replacer.AssetPackName + " for NPC " + viewModel.DispName + " no longer exists.");
+                logger.LogError("Warning: The forced Asset Replacer " + replacer.AssetPackName + " for NPC " + DispName + " no longer exists.");
             }
         }
 
-        viewModel.ForcedBodySlide = model.BodySlidePreset;
+        ForcedBodySlide = model.BodySlidePreset;
 
-        foreach (var headPartType in viewModel.HeadParts.Keys)
+        foreach (var headPartType in HeadParts.Keys)
         {
             if (!model.HeadParts.ContainsKey(headPartType)) { model.HeadParts.Add(headPartType, new()); }
             else
             {
-                viewModel.HeadParts[headPartType] = VM_HeadPartAssignment.GetViewModelFromModel(model.HeadParts[headPartType], headPartType, headParts, viewModel, viewModel, environmentProvider);
+                HeadParts[headPartType].CopyInFromModel(model.HeadParts[headPartType], headPartType, headParts, this, this, environmentProvider);
             }
         }
 
-        viewModel.DispName = converters.CreateNPCDispNameFromFormKey(viewModel.NPCFormKey);
-
-        return viewModel;
+        DispName = converters.CreateNPCDispNameFromFormKey(NPCFormKey);
     }
 
     private static bool LinkAssetPackToForcedAssignment(NPCAssignment model, IHasForcedAssets viewModel, string assetPackName, ObservableCollection<VM_AssetPack> assetPacks, Logger logger)

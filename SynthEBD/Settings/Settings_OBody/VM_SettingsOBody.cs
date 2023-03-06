@@ -90,19 +90,23 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         BodySlidesUI.BodySlidesMale.Clear();
         BodySlidesUI.BodySlidesFemale.Clear();
 
-        var existingPresets = new HashSet<string>();
         foreach (var preset in model.BodySlidesMale)
         {
             _logger.LogStartupEventStart("Loading UI for BodySlide " + preset.Label);
             var presetVM = bodySlideFactory(DescriptorUI, raceGroupingVMs, BodySlidesUI.BodySlidesMale);
-            presetVM.CopyInViewModelFromModel(preset);
+            BodySlidesUI.BodySlidesMale.Add(presetVM);
+            Task.Run(() => presetVM.CopyInViewModelFromModel(preset));       
+            _logger.LogStartupEventEnd("Loading UI for BodySlide " + preset.Label);
+        }
+
+        var existingPresets = new HashSet<string>();
+        foreach (var presetVM in BodySlidesUI.BodySlidesMale)
+        {
             if (existingPresets.Contains(presetVM.Label))
             {
                 presetVM.RenameByIndex();
             }
-            BodySlidesUI.BodySlidesMale.Add(presetVM);
             existingPresets.Add(presetVM.Label);
-            _logger.LogStartupEventEnd("Loading UI for BodySlide " + preset.Label);
         }
 
         existingPresets.Clear();
@@ -110,14 +114,18 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         {
             _logger.LogStartupEventStart("Loading UI for BodySlide " + preset.Label);
             var presetVM = bodySlideFactory(DescriptorUI, raceGroupingVMs, BodySlidesUI.BodySlidesFemale);
-            presetVM.CopyInViewModelFromModel(preset);
+            BodySlidesUI.BodySlidesFemale.Add(presetVM);
+            Task.Run(() => presetVM.CopyInViewModelFromModel(preset));
+            _logger.LogStartupEventEnd("Loading UI for BodySlide " + preset.Label);
+        }
+
+        foreach (var presetVM in BodySlidesUI.BodySlidesFemale)
+        {
             if (existingPresets.Contains(presetVM.Label))
             {
                 presetVM.RenameByIndex();
             }
-            BodySlidesUI.BodySlidesFemale.Add(presetVM);
             existingPresets.Add(presetVM.Label);
-            _logger.LogStartupEventEnd("Loading UI for BodySlide " + preset.Label);
         }
 
         MiscUI = MiscUI.GetViewModelFromModel(model);

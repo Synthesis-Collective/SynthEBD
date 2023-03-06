@@ -245,5 +245,4 @@ public partial class App : Application
 
         Application.Current.MainWindow.Close();
     }
-
 }

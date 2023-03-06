@@ -63,8 +63,8 @@ public class VM_BodyShapeDescriptorRules : VM
 
     public void CopyInViewModelFromModel(BodyShapeDescriptorRules model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
-        AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
-        AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+        AllowedRaces.AddRange(model.AllowedRaces);
+        AllowedRaceGroupings.CopyInRaceGroupingsByLabel(model.AllowedRaceGroupings, raceGroupingVMs);
         foreach (var grouping in AllowedRaceGroupings.RaceGroupingSelections)
         {
             if (model.AllowedRaceGroupings.Contains(grouping.SubscribedMasterRaceGrouping.Label))
@@ -74,8 +74,8 @@ public class VM_BodyShapeDescriptorRules : VM
             else { grouping.IsSelected = false; }
         }
 
-        DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
-        DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+        DisallowedRaces.AddRange(model.DisallowedRaces);
+        DisallowedRaceGroupings.CopyInRaceGroupingsByLabel(model.DisallowedRaceGroupings, raceGroupingVMs);
 
         foreach (var grouping in DisallowedRaceGroupings.RaceGroupingSelections)
         {
@@ -86,8 +86,8 @@ public class VM_BodyShapeDescriptorRules : VM
             else { grouping.IsSelected = false; }
         }
 
-        AllowedAttributes = _attributeCreator.GetViewModelsFromModels(model.AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null);
-        DisallowedAttributes = _attributeCreator.GetViewModelsFromModels(model.DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null);
+        _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null);
+        _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null);
         foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
         bAllowUnique = model.AllowUnique;
         bAllowNonUnique = model.AllowNonUnique;
@@ -133,8 +133,8 @@ public class VM_BodyShapeDescriptorRules : VM
             }
         }
 
-        AllowedAttributes.AddRange(_attributeCreator.GetViewModelsFromModels(model.AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null));
-        DisallowedAttributes.AddRange(_attributeCreator.GetViewModelsFromModels(model.DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null));
+        _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null);
+        _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null);
         foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
 
         if (bAllowUnique == false || model.AllowUnique == false) { bAllowUnique = false; }

@@ -335,7 +335,7 @@ namespace SynthEBD
             }
             else
             {
-                existingBS.DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(importedBS.BodyShapeDescriptors, _oBodyUI.DescriptorUI, _generalUI.RaceGroupingEditor.RaceGroupings, _oBodyUI, false, DescriptorMatchMode.Any, _decriptorSelectionFactory);
+                existingBS.DescriptorsSelectionMenu.CopyInFromHashSet(importedBS.BodyShapeDescriptors);
             }
 
             if (ExchangeNotes)

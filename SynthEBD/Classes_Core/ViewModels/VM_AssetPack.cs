@@ -143,13 +143,17 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         AddSubgroup = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { Subgroups.Add(subgroupFactory(RaceGroupingEditor.RaceGroupings, Subgroups, this, null, false)); }
-        );
+            execute: _ =>
+            {
+                var newSubgroup = subgroupFactory(RaceGroupingEditor.RaceGroupings, Subgroups, this, null, false);
+                newSubgroup.AutoGenerateID(false, 0);
+                Subgroups.Add(newSubgroup);
+            });
 
         RemoveAssetPackConfigFile = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
-                if (_fileDialogs.ConfirmFileDeletion(this.SourcePath, "Asset Pack Config File"))
+                if (_fileDialogs.ConfirmFileDeletion(SourcePath, "Asset Pack Config File"))
                 {
                     DeleteAssetFiles(); // prompts user after collecting data
                     ParentCollection.Remove(this);
@@ -384,7 +388,9 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         for (int i = 0; i < assetPacks.Count; i++)
         {
             logger.LogStartupEventStart("Loading UI for Asset Config File " + assetPacks[i].GroupName);
+            logger.LogStartupEventStart("Creating new Asset Pack UI");
             var viewModel = assetPackFactory();
+            logger.LogStartupEventEnd("Creating new Asset Pack UI");
             viewModel.CopyInViewModelFromModel(assetPacks[i], mainRaceGroupings);
             viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].GroupName);
             texMesh.AssetPacks.Add(viewModel);
@@ -394,6 +400,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     
     public void CopyInViewModelFromModel(AssetPack model, ObservableCollection<VM_RaceGrouping> mainRaceGroupings)
     {
+        _logger.LogStartupEventStart("Loading UI for Asset Pack Main Settings");
         GroupName = model.GroupName;
         ShortName = model.ShortName;
         ConfigType = model.ConfigType;
@@ -441,23 +448,42 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         {
             DefaultRecordTemplateAdditionalRacesPaths.Add(new VM_CollectionMemberString(path, DefaultRecordTemplateAdditionalRacesPaths));
         }
+        _logger.LogStartupEventEnd("Loading UI for Asset Pack Main Settings");
 
+        _logger.LogStartupEventStart("Loading UI for Subgroups");
         foreach (var sg in model.Subgroups)
         {
-            var subVm = _subgroupFactory(RaceGroupingEditor.RaceGroupings, Subgroups, this, null, false);
-            subVm.CopyInViewModelFromModel(sg);
-            Subgroups.Add(subVm);
+            CreateSubgroupVMRecursive(sg, Subgroups, null);
         }
+        _logger.LogStartupEventEnd("Loading UI for Subgroups");
 
         // go back through now that all subgroups have corresponding view models, and link the required and excluded subgroups
+        _logger.LogStartupEventStart("Linking required and excluded subgroups");
         ObservableCollection<VM_Subgroup> flattenedSubgroupList = FlattenSubgroupVMs(Subgroups, new ObservableCollection<VM_Subgroup>());
         LinkRequiredSubgroups(flattenedSubgroupList);
         LinkExcludedSubgroups(flattenedSubgroupList);
+        _logger.LogStartupEventEnd("Linking required and excluded subgroups");
 
+        _logger.LogStartupEventStart("Loading config distribution rules");
         DistributionRules = _configDistributionRulesFactory(RaceGroupingEditor.RaceGroupings, this);
         DistributionRules.CopyInViewModelFromModel(model.DistributionRules, RaceGroupingEditor.RaceGroupings, this);
+        _logger.LogStartupEventEnd("Loading config distribution rules");
 
         SourcePath = model.FilePath;
+    }
+
+    // Creating subgroups here reather than within the CopyInFromModel function because all subgroups must be created on the main thread
+    private void CreateSubgroupVMRecursive(AssetPack.Subgroup model, ObservableCollection<VM_Subgroup> parentCollection, VM_Subgroup parentSubgroup)
+    {
+        var subVm = _subgroupFactory(RaceGroupingEditor.RaceGroupings, parentCollection, this, parentSubgroup, false);
+        parentCollection.Add(subVm);
+
+        subVm.CopyInViewModelFromModel(model);
+
+        foreach (var sg in model.Subgroups)
+        {
+            CreateSubgroupVMRecursive(sg, subVm.Subgroups, subVm);
+        }
     }
 
     public static void DumpViewModelsToModels(ObservableCollection<VM_AssetPack> viewModels, List<AssetPack> models)
@@ -1032,7 +1058,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
                 if (draggedSubgroup.IsParentOf(dropTarget)) { return; } // prevent mis-click when user releases the click on treeview expander arrow slightly below where they initiated the click, simulating a drop into or before the child node and causing the parent to disappear into the abyss.
 
-                var clone = (VM_Subgroup)draggedSubgroup.Clone(dropTarget.Subgroups);
+                var clone = (VM_Subgroup)draggedSubgroup.Clone(dropTarget.Subgroups, dropTarget.ParentAssetPack);
                 clone.ParentAssetPack = dropTarget.ParentAssetPack;
 
                 if (dropInfo.DropTargetAdorner.Name == "DropTargetInsertionAdorner")
@@ -1057,7 +1083,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 var dropTarget = (VM_AssetPack)targetTV.DataContext;
                 if (targetTV.Name == "TVsubgroups" && dropTarget != null)
                 {
-                    var clone = (VM_Subgroup)draggedSubgroup.Clone(dropTarget.Subgroups);
+                    var clone = (VM_Subgroup)draggedSubgroup.Clone(dropTarget.Subgroups, dropTarget);
                     clone.ParentCollection = dropTarget.Subgroups;
                     clone.ParentAssetPack = dropTarget;
                     clone.ParentSubgroup = null;

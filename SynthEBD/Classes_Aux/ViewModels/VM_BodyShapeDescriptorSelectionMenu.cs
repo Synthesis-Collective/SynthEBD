@@ -58,7 +58,9 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
     public VM_BodyShapeDescriptorSelectionMenu Clone()
     {
         var modelDump = DumpToHashSet();
-        return InitializeFromHashSet(modelDump, TrackedMenu, TrackedRaceGroupings, Parent, ShowMatchMode, MatchMode, _selfFactory);
+        VM_BodyShapeDescriptorSelectionMenu clone = _selfFactory(TrackedMenu, TrackedRaceGroupings, Parent, ShowMatchMode, MatchMode);
+        clone.CopyInFromHashSet(modelDump);
+        return clone;
     }
 
     public bool IsAnnotated()
@@ -116,15 +118,14 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         }
     }
 
-    public static VM_BodyShapeDescriptorSelectionMenu InitializeFromHashSet(HashSet<BodyShapeDescriptor.LabelSignature> bodyShapeDescriptors, VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, bool showMatchMode, DescriptorMatchMode matchMode, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+    public void CopyInFromHashSet(HashSet<BodyShapeDescriptor.LabelSignature> bodyShapeDescriptors)
     {
-        var menu = descriptorSelectionFactory(trackedMenu, raceGroupingVMs, parentConfig, showMatchMode, matchMode);
         if (bodyShapeDescriptors != null)
         {
             foreach (var descriptor in bodyShapeDescriptors)
             {
                 bool keepLooking = true;
-                foreach (var Descriptor in menu.DescriptorShells)
+                foreach (var Descriptor in DescriptorShells)
                 {
                     foreach (var selectableDescriptor in Descriptor.DescriptorSelectors)
                     {
@@ -139,7 +140,6 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
                 }
             }
         }
-        return menu;
     }
 
     public HashSet<BodyShapeDescriptor.LabelSignature> DumpToHashSet()

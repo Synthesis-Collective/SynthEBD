@@ -72,13 +72,11 @@ public class VM_RaceGroupingCheckboxList : VM
         HeaderCaption = string.Join(", ", selections);
     }
 
-    public static VM_RaceGroupingCheckboxList GetRaceGroupingsByLabel(HashSet<string> groupingStrings, ObservableCollection<VM_RaceGrouping> allRaceGroupings)
+    public void CopyInRaceGroupingsByLabel(HashSet<string> groupingStrings, ObservableCollection<VM_RaceGrouping> allRaceGroupings)
     {
-        VM_RaceGroupingCheckboxList checkBoxList = new VM_RaceGroupingCheckboxList(allRaceGroupings);
-
         foreach (string s in groupingStrings) // loop through all of the RaceGrouping labels stored in the models
         {
-            foreach (var raceGroupingSelection in checkBoxList.RaceGroupingSelections) // loop through all available RaceGroupings
+            foreach (var raceGroupingSelection in RaceGroupingSelections) // loop through all available RaceGroupings
             {
                 if (raceGroupingSelection.SubscribedMasterRaceGrouping.Label == s)
                 {
@@ -87,8 +85,6 @@ public class VM_RaceGroupingCheckboxList : VM
                 }
             }
         }
-
-        return checkBoxList;
     }
 
     public class RaceGroupingSelection : VM

@@ -236,9 +236,9 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         {
             _logger.LogStartupEventStart("Generating UI for BodyGen Morph " + template.Label);
             var templateVM = _templateFactory(GroupUI.TemplateGroups, DescriptorUI, RaceGroupingEditor.RaceGroupings, TemplateMorphUI.Templates, this);
-            templateVM.CopyInViewModelFromModel(template, DescriptorUI, RaceGroupingEditor.RaceGroupings);
             TemplateMorphUI.Templates.Add(templateVM);
             _logger.LogStartupEventEnd("Generating UI for BodyGen Morph " + template.Label);
+            Task.Run(() => templateVM.CopyInViewModelFromModel(template, DescriptorUI, RaceGroupingEditor.RaceGroupings));
         }
 
         AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
