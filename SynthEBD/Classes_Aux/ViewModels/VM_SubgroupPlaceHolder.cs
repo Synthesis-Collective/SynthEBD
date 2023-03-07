@@ -73,6 +73,16 @@ namespace SynthEBD
         public RelayCommand DeleteMe { get; }
         public RelayCommand AddSubgroup { get; }
 
+        public void SaveToModel()
+        {
+            AssociatedModel.Subgroups.Clear();
+            foreach (var subgroup in Subgroups)
+            {
+                subgroup.SaveToModel();
+                AssociatedModel.Subgroups.Add(subgroup.AssociatedModel);
+            }
+        }
+
         public void Refresh()
         {
             ID = AssociatedModel.ID;

@@ -520,12 +520,16 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         MiscMenu.MergeIntoModel(model);
 
-        /*
+        if (DisplayedSubgroup != null)
+        {
+            DisplayedSubgroup.AssociatedPlaceHolder.AssociatedModel = DisplayedSubgroup.DumpViewModelToModel();
+        }
+
         foreach (var svm in Subgroups)
         {
-            model.Subgroups.Add(svm.DumpViewModelToModel());
+            svm.SaveToModel();
+            model.Subgroups.Add(svm.AssociatedModel);
         }
-        */
 
         model.ReplacerGroups = VM_AssetPackDirectReplacerMenu.DumpViewModelToModels(ReplacersMenu);
 

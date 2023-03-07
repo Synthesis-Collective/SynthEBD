@@ -44,7 +44,7 @@ public class VM_AssetPackDirectReplacerMenu : VM
         List<AssetReplacerGroup> models = new List<AssetReplacerGroup>();
         foreach (var subViewModel in viewModel.ReplacerGroups)
         {
-            models.Add(VM_AssetReplacerGroup.DumpViewModelToModel(subViewModel));
+            models.Add(subViewModel.DumpViewModelToModel());
         }
         return models;
     }
@@ -130,17 +130,22 @@ public class VM_AssetReplacerGroup : VM, IHasSubgroupViewModels
         }
     }
 
-    public static AssetReplacerGroup DumpViewModelToModel(VM_AssetReplacerGroup viewModel)
+    public AssetReplacerGroup DumpViewModelToModel()
     {
         AssetReplacerGroup model = new AssetReplacerGroup();
-        model.Label = viewModel.Label;
-        model.TemplateNPCFormKey = viewModel.TemplateNPCFK;
-        /*
-        foreach (var svm in viewModel.Subgroups)
+        model.Label = Label;
+        model.TemplateNPCFormKey = TemplateNPCFK;
+
+        if (DisplayedSubgroup != null)
         {
-            model.Subgroups.Add(svm.DumpViewModelToModel());
+            DisplayedSubgroup.AssociatedPlaceHolder.AssociatedModel = DisplayedSubgroup.DumpViewModelToModel();
         }
-        */
+
+        foreach (var svm in Subgroups)
+        {
+            svm.SaveToModel();
+            model.Subgroups.Add(svm.AssociatedModel);
+        }
         return model;
     }
 
