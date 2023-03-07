@@ -153,7 +153,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         );
         DeleteForcedSubgroup = new RelayCommand(
             canExecute: _ => true,
-            execute: x => ForcedSubgroups.Remove((VM_Subgroup)x)
+            execute: x => ForcedSubgroups.Remove((VM_SubgroupPlaceHolder)x)
         );
 
         DeleteForcedMorph = new RelayCommand(
@@ -175,7 +175,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             canExecute: _ => true,
             execute: x =>
             {
-                var toDelete = (VM_Subgroup)x;
+                var toDelete = (VM_SubgroupPlaceHolder)x;
                 foreach (var mixin in ForcedMixIns)
                 {
                     if (mixin.ForcedSubgroups.Contains(toDelete))
@@ -213,7 +213,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     public FormKey NPCFormKey { get; set; } = new();
     public VM_AssetPack ForcedAssetPack { get; set; }
     public bool ShowSubgroupAssignments { get; set; } = false;
-    public ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; } = new();
+    public ObservableCollection<VM_SubgroupPlaceHolder> ForcedSubgroups { get; set; } = new();
     public ObservableCollection<VM_MixInSpecificAssignment> ForcedMixIns { get; set; } = new();
     public ObservableCollection<VM_AssetReplacementAssignment> ForcedAssetReplacements { get; set; } = new();
     public string ForcedHeight { get; set; } = "";
@@ -225,7 +225,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     public ObservableCollection<VM_AssetPack> AvailableAssetPacks { get; set; } = new();
     public ObservableCollection<VM_AssetPack> SubscribedAssetPacks { get; set; }
 
-    public ObservableCollection<VM_Subgroup> AvailableSubgroups { get; set; } = new();
+    public ObservableCollection<VM_SubgroupPlaceHolder> AvailableSubgroups { get; set; } = new();
 
     public ObservableCollection<VM_AssetPack> AvailableMixInAssetPacks { get; set; } = new();
     public ObservableCollection<VM_BodyGenTemplate> AvailableMorphs { get; set; } = new();
@@ -378,8 +378,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
                 foreach (var id in model.SubgroupIDs)
                 {
-                    var foundSubgroup = GetSubgroupByID(ap.Subgroups, id);
-                    if (foundSubgroup != null)
+                    if (ap.TryGetSubgroupByID(id, out var foundSubgroup))
                     {
                         viewModel.ForcedSubgroups.Add(foundSubgroup);
                         continue;
@@ -412,8 +411,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
                 foreach (var id in model.SubgroupIDs)
                 {
-                    var foundSubgroup = GetSubgroupByID(ap.Subgroups, id);
-                    if (foundSubgroup != null)
+                    if (ap.TryGetSubgroupByID(id, out var foundSubgroup))
                     {
                         viewModel.ForcedSubgroups.Add(foundSubgroup);
                         continue;
@@ -533,7 +531,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         }
     }
 
-    public static bool ContainsSubgroupID(ObservableCollection<VM_Subgroup> subgroups, string id)
+    public static bool ContainsSubgroupID(ObservableCollection<VM_SubgroupPlaceHolder> subgroups, string id)
     {
         foreach(var sg in subgroups)
         {
@@ -544,20 +542,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             }
         }
         return false;
-    }
-
-    public static VM_Subgroup GetSubgroupByID(ObservableCollection<VM_Subgroup> subgroups, string id)
-    {
-        foreach (var sg in subgroups)
-        {
-            if (sg.ID == id) { return sg; }
-            else
-            {
-                var candidate = GetSubgroupByID(sg.Subgroups, id);
-                if (candidate != null) { return candidate; }
-            }
-        }
-        return null;
     }
 
     public static void UpdateAvailableMorphs(VM_SpecificNPCAssignment assignment)
@@ -699,7 +683,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             ParentCollection = Parent.ForcedMixIns;
 
             AvailableMixInAssetPacks = Parent.AvailableMixInAssetPacks;
-            ForcedAssetPack = assetPackFactory();
+            ForcedAssetPack = assetPackFactory(new AssetPack());
 
             this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
             ForcedSubgroups.ToObservableChangeSet().Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
@@ -723,7 +707,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
             DeleteForcedSubgroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: x => ForcedSubgroups.Remove((VM_Subgroup)x)
+                execute: x => ForcedSubgroups.Remove((VM_SubgroupPlaceHolder)x)
             );
 
             AddForcedReplacer = new SynthEBD.RelayCommand(
@@ -743,8 +727,8 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         public ObservableCollection<VM_AssetPack> AvailableMixInAssetPacks { get; set; }
         public bool Decline { get; set; } = false;
         public bool ShowSubgroupAssignments { get; set; }
-        public ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; } = new();
-        public ObservableCollection<VM_Subgroup> AvailableSubgroups { get; set; } = new();
+        public ObservableCollection<VM_SubgroupPlaceHolder> ForcedSubgroups { get; set; } = new();
+        public ObservableCollection<VM_SubgroupPlaceHolder> AvailableSubgroups { get; set; } = new();
         public ObservableCollection<VM_AssetReplacementAssignment> ForcedAssetReplacements { get; set; } = new();
         public ObservableCollection<VM_MixInSpecificAssignment> ParentCollection { get; set; }
         public VM_SpecificNPCAssignment Parent { get; set; }
@@ -773,6 +757,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 public interface IHasForcedAssets
 {
     public VM_AssetPack ForcedAssetPack { get; set; }
-    ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; }
-    public ObservableCollection<VM_Subgroup> AvailableSubgroups { get; set; }
+    ObservableCollection<VM_SubgroupPlaceHolder> ForcedSubgroups { get; set; }
+    public ObservableCollection<VM_SubgroupPlaceHolder> AvailableSubgroups { get; set; }
 }

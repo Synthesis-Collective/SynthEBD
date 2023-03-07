@@ -185,7 +185,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
     {
         Task.Run(() =>
         {
-            if (!IntellisensedPath.IsNullOrWhitespace() && LinkCache != null && ReferenceNPCFormKey != null && LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC) && _recordPathParser.GetObjectAtPath(refNPC, refNPC, IntellisensedPath, new Dictionary<string, dynamic>(), ParentMenu.ReferenceLinkCache, true, _logger.GetNPCLogNameString(refNPC), out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
+            if (DestinationPathExists(IntellisensedPath, LinkCache, ReferenceNPCFormKey, _recordPathParser, _logger))
             {
                 DestinationExists = true;
                 DestBorderColor = CommonColors.LightGreen;
@@ -196,6 +196,36 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
                 DestBorderColor = CommonColors.Red;
             }
         });
+    }
+
+    public static bool DestinationPathExists(string destinationPath, ILinkCache linkCache, FormKey referenceNPCFormKey, RecordPathParser recordPathParser, Logger logger)
+    {
+        if (!destinationPath.IsNullOrWhitespace() && 
+            linkCache != null &&
+            referenceNPCFormKey != null && 
+            linkCache.TryResolve<INpcGetter>(referenceNPCFormKey, out var refNPC) && 
+            recordPathParser.GetObjectAtPath(refNPC, refNPC, destinationPath, new Dictionary<string, dynamic>(), linkCache, true, logger.GetNPCLogNameString(refNPC), out var objAtPath) && 
+            objAtPath is not null && 
+            objAtPath.GetType() == typeof(string))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    public static bool DestinationPathExists(string destinationPath, ILinkCache linkCache, IEnumerable<FormKey> referenceNPCFormKeys, RecordPathParser recordPathParser, Logger logger)
+    {
+        foreach (var referenceFormKey in referenceNPCFormKeys)
+        {
+            if (DestinationPathExists(destinationPath, linkCache, referenceFormKey, recordPathParser, logger))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private bool TrimKnownPrefix(string s, out string trimmed)

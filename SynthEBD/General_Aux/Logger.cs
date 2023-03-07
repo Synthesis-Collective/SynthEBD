@@ -578,6 +578,11 @@ public static string GetNPCLogReportingString(INpcGetter npc)
         return subgroup.ID + ": " + subgroup.Name;
     }
 
+    public static string GetSubgroupIDString(VM_SubgroupPlaceHolder subgroup)
+    {
+        return subgroup.ID + ": " + subgroup.Name;
+    }
+
     public static string GetBodyShapeDescriptorString(Dictionary<string, HashSet<string>> descriptorList)
     {
         List<string> sections = new List<string>();
@@ -637,7 +642,7 @@ public static string GetNPCLogReportingString(INpcGetter npc)
         }
     }
 
-    public bool GetRaceLogString(string allowStatus, ObservableCollection<FormKey> races, out string reportStr)
+    public bool GetRaceLogString(string allowStatus, IEnumerable<FormKey> races, out string reportStr)
     {
         reportStr = "";
         if (races.Any())
@@ -669,6 +674,16 @@ public static string GetNPCLogReportingString(INpcGetter npc)
         }
         return false;
     }
+    public bool GetRaceGroupingLogString(string allowStatus, HashSet<string> raceGroupings, out string reportStr)
+    {
+        reportStr = "";
+        if (raceGroupings.Any())
+        {
+            reportStr = allowStatus + " Race Groupings: " + string.Join(", ", raceGroupings);
+            return true;
+        }
+        return false;
+    }
 
     public bool GetAttributeLogString(string allowStatus, ObservableCollection<VM_NPCAttribute> attributes, out string reportStr)
     {
@@ -678,6 +693,17 @@ public static string GetNPCLogReportingString(INpcGetter npc)
             List<string> attributeStrs = new();
             var models = VM_NPCAttribute.DumpViewModelsToModels(attributes);
             var attributeLogs = models.Select(x => x.ToLogString(true, _environmentProvider.LinkCache)).ToArray();
+            reportStr = allowStatus + " Attributes: " + string.Join(", ", attributeLogs);
+            return true;
+        }
+        return false;
+    }
+    public bool GetAttributeLogString(string allowStatus, HashSet<NPCAttribute> attributes, out string reportStr)
+    {
+        reportStr = "";
+        if (attributes.Any())
+        {
+            var attributeLogs = attributes.Select(x => x.ToLogString(true, _environmentProvider.LinkCache)).ToArray();
             reportStr = allowStatus + " Attributes: " + string.Join(", ", attributeLogs);
             return true;
         }

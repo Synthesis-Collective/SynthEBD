@@ -1,5 +1,7 @@
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
+using Noggog;
+using System.Text.RegularExpressions;
 
 namespace SynthEBD;
 
@@ -76,7 +78,7 @@ public class AssetPack : IModelHasSubgroups
             return subgroup;
         }
     }
-    
+
     public class Subgroup : IProbabilityWeighted, IModelHasSubgroups
     {
         public string ID { get; set; } = "";

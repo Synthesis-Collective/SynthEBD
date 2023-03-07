@@ -29,7 +29,7 @@ namespace SynthEBD
             environmentProvider.WhenAnyValue(x => x.LoadOrder)
            .Subscribe(x => LoadOrder = x.Where(y => y.Value != null && y.Value.Enabled).Select(x => x.Value.ModKey)).DisposeWith(this);
 
-            AssociatedBsaModKeys.ToObservableChangeSet().Subscribe(_ => UpdateFilePathStatuses()).DisposeWith(this);
+            //AssociatedBsaModKeys.ToObservableChangeSet().Subscribe(_ => UpdateFilePathStatuses()).DisposeWith(this);
 
             SetAllowedDescriptorMatchModes = new RelayCommand(
                 canExecute: _ => true,
@@ -91,6 +91,7 @@ namespace SynthEBD
             model.AssociatedBsaModKeys.AddRange(AssociatedBsaModKeys);
         }
 
+        /*
         private void UpdateFilePathStatuses()
         {
             foreach (var subgroup in _parent.Subgroups)
@@ -117,6 +118,7 @@ namespace SynthEBD
                 UpdateSubgroupFilePathStatuses(sg);
             }
         }
+        */
 
         public void SetMatchModes(string descriptorTypes, DescriptorMatchMode mode)
         {
@@ -133,17 +135,17 @@ namespace SynthEBD
             }
         }
 
-        public static void SetSubgroupMatchModes(VM_Subgroup subgroup, string descriptorType, DescriptorMatchMode mode)
+        public static void SetSubgroupMatchModes(VM_SubgroupPlaceHolder subgroup, string descriptorType, DescriptorMatchMode mode)
         {
             switch(descriptorType)
             {
                 case AllowedStr:
-                    subgroup.AllowedBodyGenDescriptors.MatchMode = mode;
-                    subgroup.AllowedBodySlideDescriptors.MatchMode = mode;
+                    subgroup.AssociatedModel.AllowedBodyGenMatchMode = mode;
+                    subgroup.AssociatedModel.AllowedBodySlideMatchMode = mode;
                     break;
                 case DisallowedStr:
-                    subgroup.DisallowedBodyGenDescriptors.MatchMode = mode;
-                    subgroup.DisallowedBodySlideDescriptors.MatchMode = mode;
+                    subgroup.AssociatedModel.DisallowedBodyGenMatchMode = mode;
+                    subgroup.AssociatedModel.DisallowedBodySlideMatchMode = mode;
                     break;
             }
 

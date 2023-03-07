@@ -10,7 +10,7 @@ public class ImagePreviewHandler
 {
     public class ImagePathWithSource
     {
-        public ImagePathWithSource(string path, VM_Subgroup source)
+        public ImagePathWithSource(string path, VM_SubgroupPlaceHolder source)
         {
             Path = path;
             PrimarySource = source;
@@ -18,15 +18,15 @@ public class ImagePreviewHandler
             AddParentToChain(source, SourceChain);
         }
         public string Path { get; set; }
-        public HashSet<VM_Subgroup> SourceChain { get; set; } = new();
-        public VM_Subgroup PrimarySource { get; set; }
+        public HashSet<VM_SubgroupPlaceHolder> SourceChain { get; set; } = new();
+        public VM_SubgroupPlaceHolder PrimarySource { get; set; }
 
         public ImagePathWithSource Clone()
         {
             return new ImagePathWithSource(Path, PrimarySource);
         }
 
-        public void AddParentToChain(VM_Subgroup subgroup, HashSet<VM_Subgroup> sourceChain)
+        public void AddParentToChain(VM_SubgroupPlaceHolder subgroup, HashSet<VM_SubgroupPlaceHolder> sourceChain)
         {
             if (subgroup.ParentSubgroup is not null)
             {

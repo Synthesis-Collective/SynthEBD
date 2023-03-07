@@ -115,6 +115,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_AssetPackMiscMenu>().AsSelf();
         builder.RegisterType<VM_AssetPackDirectReplacerMenu>().AsSelf();
         builder.RegisterType<VM_AssetReplacerGroup>().AsSelf();
+        builder.RegisterType<VM_SubgroupPlaceHolder>().AsSelf();
         builder.RegisterType<VM_Subgroup>().AsSelf();
         builder.RegisterType<VM_SpecificNPCAssignment>().AsSelf();
         builder.RegisterType<VM_ConsistencyAssignment>().AsSelf();
