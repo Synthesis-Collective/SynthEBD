@@ -33,15 +33,15 @@ public class VM_Subgroup : VM, IDropTarget, IHasSubgroupViewModels
     public delegate VM_Subgroup Factory(
         ObservableCollection<VM_RaceGrouping> raceGroupingVMs,
         VM_AssetPack parentAssetPack,
-        VM_Subgroup parentSubgroup,
+        VM_SubgroupPlaceHolder associatedPlaceHolder,
         bool setExplicitReferenceNPC);
-    
+
     public VM_Subgroup(IEnvironmentStateProvider environmentProvider,
         Logger logger,
         SynthEBDPaths paths,
         ObservableCollection<VM_RaceGrouping> raceGroupingVMs,
-        VM_AssetPack parentAssetPack, 
-        VM_Subgroup parentSubgroup,
+        VM_AssetPack parentAssetPack,
+        VM_SubgroupPlaceHolder associatedPlaceHolder,
         bool setExplicitReferenceNPC,
         VM_SettingsOBody oBody,
         VM_NPCAttributeCreator attributeCreator,
@@ -64,6 +64,7 @@ public class VM_Subgroup : VM, IDropTarget, IHasSubgroupViewModels
         _descriptorSelectionFactory = descriptorSelectionFactory;
         _updateHandler = updateHandler;
 
+        AssociatedPlaceHolder = associatedPlaceHolder;
         SetExplicitReferenceNPC = setExplicitReferenceNPC;
         ParentAssetPack = parentAssetPack;
         SubscribedRaceGroupings = ParentAssetPack.RaceGroupingEditor.RaceGroupings;
@@ -79,10 +80,13 @@ public class VM_Subgroup : VM, IDropTarget, IHasSubgroupViewModels
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => LinkCache = x)
             .DisposeWith(this);
-        
+
         //UI-related
         RequiredSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(RequiredSubgroups, SubgroupListBox.Required)).DisposeWith(this);
         ExcludedSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(ExcludedSubgroups, SubgroupListBox.Excluded)).DisposeWith(this);
+
+        this.WhenAnyValue(x => x.ID).Subscribe(x => AssociatedPlaceHolder.ID = x).DisposeWith(this);
+        this.WhenAnyValue(x => x.Name).Subscribe(x => AssociatedPlaceHolder.Name = x).DisposeWith(this);
 
         // must be set after Parent Asset Pack
         if (SetExplicitReferenceNPC)
@@ -107,13 +111,24 @@ public class VM_Subgroup : VM, IDropTarget, IHasSubgroupViewModels
 
         AutoGenerateIDcommand = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => AssociatedPlaceHolder?.AutoGenerateID(false, 0)
-        );
+            execute: _ =>
+            {
+                if (AssociatedPlaceHolder != null)
+                {
+                    AssociatedPlaceHolder.AutoGenerateID(false, 0);
+                    ID = AssociatedPlaceHolder.ID;
+                }
+            });
 
         AutoGenerateID_Children_Command = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => AssociatedPlaceHolder?.AutoGenerateID(true, 1)
-        );
+            execute: _ => {
+                if (AssociatedPlaceHolder != null)
+                {
+                    AssociatedPlaceHolder.AutoGenerateID(true, 1);
+                    ID = AssociatedPlaceHolder.ID;
+                }
+            });
 
         AutoGenerateID_All_Command = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -201,16 +216,14 @@ public class VM_Subgroup : VM, IDropTarget, IHasSubgroupViewModels
     public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
     public ObservableCollection<ImagePreviewHandler.ImagePathWithSource> ImagePaths { get; set; } = new();
 
-    public void CopyInViewModelFromModel(VM_SubgroupPlaceHolder subgroupPlaceholder)
+    public void CopyInViewModelFromModel()
     {
-        if (subgroupPlaceholder == null)
+        var model = AssociatedPlaceHolder.AssociatedModel;
+        if (model == null)
         {
-            _logger.LogMessage("Error: Can't read in subgroup VM from empty placeholder");
             return;
         }
-        var model = subgroupPlaceholder.AssociatedModel;
         _logger.LogStartupEventStart("Copying in model for subgroup " + model.ID);
-        AssociatedPlaceHolder = subgroupPlaceholder;
         ID = model.ID;
         Name = model.Name;
         Enabled = model.Enabled;

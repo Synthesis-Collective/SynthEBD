@@ -90,8 +90,8 @@ public class VM_AssetReplacerGroup : VM, IHasSubgroupViewModels
                     DisplayedSubgroup.AssociatedPlaceHolder.AssociatedModel = DisplayedSubgroup.DumpViewModelToModel();
                 }
                 var displayedSubgroupPlaceHolder = (VM_SubgroupPlaceHolder)x;
-                DisplayedSubgroup = _subgroupFactory(_generalSettingsVm.RaceGroupingEditor.RaceGroupings, ParentMenu.ParentAssetPack, null, false);
-                DisplayedSubgroup.CopyInViewModelFromModel(displayedSubgroupPlaceHolder);
+                DisplayedSubgroup = _subgroupFactory(_generalSettingsVm.RaceGroupingEditor.RaceGroupings, ParentMenu.ParentAssetPack, displayedSubgroupPlaceHolder, true);
+                DisplayedSubgroup.CopyInViewModelFromModel();
             });
         /*
         this.WhenAnyValue(x => x.TemplateNPCFK).Subscribe(x =>

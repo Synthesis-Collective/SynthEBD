@@ -43,7 +43,7 @@
             <!-- https://stackoverflow.com/questions/1238304/get-selecteditem-from-treeview/32845182#32845182 -->
             <i:Interaction.Triggers>
                 <i:EventTrigger EventName="SelectedItemChanged">
-                    <i:InvokeCommandAction Command="{Binding SelectedSubgroupChanged}" CommandParameter="{Binding ElementName=TVsubgroups, Path=SelectedItem}"/>
+                    <i:InvokeCommandAction Command="{Binding SelectedSubgroupChanged}" CommandParameter="{Binding ElementName=ReplacerTV, Path=SelectedItem}"/>
                 </i:EventTrigger>
             </i:Interaction.Triggers>
         </TreeView>

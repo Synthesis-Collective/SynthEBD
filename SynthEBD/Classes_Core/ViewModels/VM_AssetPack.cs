@@ -284,8 +284,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                     DisplayedSubgroup.AssociatedPlaceHolder.AssociatedModel = DisplayedSubgroup.DumpViewModelToModel();
                 }
                 var displayedSubgroupPlaceHolder = (VM_SubgroupPlaceHolder)x;
-                DisplayedSubgroup = _subgroupFactory(_general.RaceGroupingEditor.RaceGroupings, this, null, false);
-                DisplayedSubgroup.CopyInViewModelFromModel(displayedSubgroupPlaceHolder);
+                DisplayedSubgroup = _subgroupFactory(_general.RaceGroupingEditor.RaceGroupings, this, displayedSubgroupPlaceHolder, false);
+                DisplayedSubgroup.CopyInViewModelFromModel();
             });
 
         ViewSubgroupEditor = new RelayCommand(
@@ -473,7 +473,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         _logger.LogStartupEventStart("Loading UI for Subgroups");
         foreach (var sg in model.Subgroups)
         {
-            CreateSubgroupVMRecursive(sg, Subgroups, null);
+            Subgroups.Add(_subgroupPlaceHolderFactory(sg, null, this, Subgroups));
         }
         _logger.LogStartupEventEnd("Loading UI for Subgroups");
 
@@ -483,18 +483,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         _logger.LogStartupEventEnd("Loading config distribution rules");
 
         SourcePath = model.FilePath;
-    }
-
-    // Creating subgroups here reather than within the CopyInFromModel function because all subgroups must be created on the main thread
-    private void CreateSubgroupVMRecursive(AssetPack.Subgroup model, ObservableCollection<VM_SubgroupPlaceHolder> parentCollection, VM_SubgroupPlaceHolder parentSubgroup)
-    {
-        var subVM = _subgroupPlaceHolderFactory(model, parentSubgroup, this, parentCollection);
-        parentCollection.Add(subVM);
-
-        foreach (var sg in model.Subgroups)
-        {
-            CreateSubgroupVMRecursive(sg, subVM.Subgroups, subVM);
-        }
     }
 
     public static void DumpViewModelsToModels(ObservableCollection<VM_AssetPack> viewModels, List<AssetPack> models)
@@ -598,6 +586,11 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         foreach (var subgroupVM in Subgroups)
         {
             subgroupVM.Refresh();
+        }
+        
+        if (DisplayedSubgroup.AssociatedPlaceHolder != null)
+        {
+            DisplayedSubgroup.ID = DisplayedSubgroup.AssociatedPlaceHolder.ID;
         }
     }
 
@@ -1024,7 +1017,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
     public void DragOver(IDropInfo dropInfo)
     {
-        if (dropInfo.Data is VM_Subgroup)
+        if (dropInfo.Data is VM_SubgroupPlaceHolder)
         {
             var isTreeViewItem = dropInfo.InsertPosition.HasFlag(RelativeInsertPosition.TargetItemCenter) && dropInfo.VisualTargetItem is TreeViewItem; //https://github.com/punker76/gong-wpf-dragdrop/blob/d8545166eb08e4d71fc2d2aa67713ba7da70f92c/src/GongSolutions.WPF.DragDrop/DefaultDropHandler.cs#L150
             dropInfo.DropTargetAdorner = isTreeViewItem ? DropTargetAdorners.Highlight : DropTargetAdorners.Insert;
@@ -1070,7 +1063,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             {
                 var targetTV = (TreeView)dropInfo.VisualTarget;
                 var dropTarget = (VM_AssetPack)targetTV.DataContext;
-                if (targetTV.Name == "TVsubgroups" && dropTarget != null)
+                if ((targetTV.Name == "TVsubgroups" || targetTV.Name == "ReplacerTV") && dropTarget != null)
                 {
                     var clone = draggedSubgroup.Clone(dropTarget, dropTarget.Subgroups);
                     clone.ParentCollection = dropTarget.Subgroups;

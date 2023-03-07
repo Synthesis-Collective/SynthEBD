@@ -1,3 +1,4 @@
+using GongSolutions.Wpf.DragDrop;
 using Noggog;
 using System;
 using System.Collections.Generic;
@@ -31,6 +32,23 @@ namespace SynthEBD
             ParentAssetPack = parentAssetPack;
             ParentCollection = parentCollection;
 
+            if (Name.IsNullOrWhitespace())
+            {
+                Name = "New Subgroup";
+                associatedModel.Name = Name;
+            }
+
+            if (ID.IsNullOrWhitespace())
+            {
+                AutoGenerateID(false, 0);
+                associatedModel.ID = ID;
+            }
+
+            foreach(var subgroup in AssociatedModel.Subgroups)
+            {
+                Subgroups.Add(_selfFactory(subgroup, this, ParentAssetPack, Subgroups));
+            }
+
             DeleteMe = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => ParentCollection.Remove(this)
@@ -49,7 +67,7 @@ namespace SynthEBD
         public string ID { get; set; }
         public string Name { get; set; }
         public ObservableCollection<VM_SubgroupPlaceHolder> Subgroups { get; set; } = new();
-        public VM_SubgroupPlaceHolder ParentSubgroup { get; set; } = null;
+        public VM_SubgroupPlaceHolder? ParentSubgroup { get; set; } = null;
         public VM_AssetPack ParentAssetPack { get; set; } = null;
         public ObservableCollection<VM_SubgroupPlaceHolder> ParentCollection { get; set; }
         public RelayCommand DeleteMe { get; }
