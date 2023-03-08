@@ -223,7 +223,6 @@ public class VM_Subgroup : VM, IDropTarget, IHasSubgroupViewModels
         {
             return;
         }
-        _logger.LogStartupEventStart("Copying in model for subgroup " + model.ID);
         ID = model.ID;
         Name = model.Name;
         Enabled = model.Enabled;
@@ -255,36 +254,28 @@ public class VM_Subgroup : VM, IDropTarget, IHasSubgroupViewModels
 
         VM_CollectionMemberString.CopyInObservableCollectionFromICollection(model.AddKeywords, AddKeywords);
         ProbabilityWeighting = model.ProbabilityWeighting;
-        _logger.LogStartupEventStart("Copying in pathsmenu for subgroup " + model.ID);
         PathsMenu.CopyInFromModels(model.Paths, _filePathReplacementFactory);
-        _logger.LogStartupEventEnd("Copying in pathsmenu for subgroup " + model.ID);
         WeightRange = model.WeightRange;
-
-        _logger.LogStartupEventStart("Copying in attributes for subgroup " + model.ID);
         _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, true, null);
         _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, false, null);
-        _logger.LogStartupEventEnd("Copying in attributes for subgroup " + model.ID);
-        _logger.LogStartupEventStart("Copying in race groupings for subgroup " + model.ID);
         AllowedRaceGroupings.CopyInRaceGroupingsByLabel(model.AllowedRaceGroupings, ParentAssetPack.RaceGroupingEditor.RaceGroupings);
         DisallowedRaceGroupings.CopyInRaceGroupingsByLabel(model.DisallowedRaceGroupings, ParentAssetPack.RaceGroupingEditor.RaceGroupings);
-        _logger.LogStartupEventEnd("Copying in race groupings for subgroup " + model.ID);
-        _logger.LogStartupEventStart("Copying in bodyGen for subgroup " + model.ID);
+        
         if (ParentAssetPack.TrackedBodyGenConfig != null)
         {
             AllowedBodyGenDescriptors.CopyInFromHashSet(model.AllowedBodyGenDescriptors);
+            AllowedBodyGenDescriptors.MatchMode = model.AllowedBodyGenMatchMode;
             DisallowedBodyGenDescriptors.CopyInFromHashSet(model.DisallowedBodyGenDescriptors);
+            DisallowedBodyGenDescriptors.MatchMode = model.DisallowedBodyGenMatchMode;
         }
-        _logger.LogStartupEventEnd("Copying in bodyGen for subgroup " + model.ID);
-        _logger.LogStartupEventStart("Copying in bodySlide for subgroup " + model.ID);
+
         AllowedBodySlideDescriptors.CopyInFromHashSet(model.AllowedBodySlideDescriptors);
+        AllowedBodyGenDescriptors.MatchMode = model.AllowedBodySlideMatchMode;
         DisallowedBodySlideDescriptors.CopyInFromHashSet(model.DisallowedBodySlideDescriptors);
-        _logger.LogStartupEventEnd("Copying in bodySlide for subgroup " + model.ID);
+        DisallowedBodySlideDescriptors.MatchMode = model.DisallowedBodySlideMatchMode;
 
         //dds preview
-        _logger.LogStartupEventStart("Copying in DDS Paths for subgroup " + model.ID);
         GetDDSPaths(ImagePaths);
-        _logger.LogStartupEventEnd("Copying in DDS Paths for subgroup " + model.ID);
-        _logger.LogStartupEventEnd("Copying in model for subgroup " + model.ID);
     }
     public void RefreshListBoxLabel(ObservableCollection<VM_SubgroupPlaceHolder> listSource, SubgroupListBox whichBox)
     {
