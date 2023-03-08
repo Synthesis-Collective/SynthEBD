@@ -29,7 +29,7 @@ namespace SynthEBD
             environmentProvider.WhenAnyValue(x => x.LoadOrder)
            .Subscribe(x => LoadOrder = x.Where(y => y.Value != null && y.Value.Enabled).Select(x => x.Value.ModKey)).DisposeWith(this);
 
-            //AssociatedBsaModKeys.ToObservableChangeSet().Subscribe(_ => UpdateFilePathStatuses()).DisposeWith(this);
+            AssociatedBsaModKeys.ToObservableChangeSet().Subscribe(_ => UpdateFilePathStatus()).DisposeWith(this);
 
             SetAllowedDescriptorMatchModes = new RelayCommand(
                 canExecute: _ => true,
@@ -91,34 +91,16 @@ namespace SynthEBD
             model.AssociatedBsaModKeys.AddRange(AssociatedBsaModKeys);
         }
 
-        /*
-        private void UpdateFilePathStatuses()
+        private void UpdateFilePathStatus()
         {
-            foreach (var subgroup in _parent.Subgroups)
+            if (_parent.DisplayedSubgroup != null)
             {
-                UpdateSubgroupFilePathStatuses(subgroup);
-            }
-            foreach (var replacer in _parent.ReplacersMenu.ReplacerGroups)
-            {
-                foreach (var subgroup in replacer.Subgroups)
+                foreach (var path in _parent.DisplayedSubgroup.PathsMenu.Paths)
                 {
-                    UpdateSubgroupFilePathStatuses(subgroup);
+                    path.RefreshSourceColor();
                 }
             }
         }
-
-        private void UpdateSubgroupFilePathStatuses(VM_Subgroup subgroup)
-        {
-            foreach (var path in subgroup.PathsMenu.Paths)
-            {
-                path.RefreshSourceColor();
-            }
-            foreach (var sg in subgroup.Subgroups)
-            {
-                UpdateSubgroupFilePathStatuses(sg);
-            }
-        }
-        */
 
         public void SetMatchModes(string descriptorTypes, DescriptorMatchMode mode)
         {
