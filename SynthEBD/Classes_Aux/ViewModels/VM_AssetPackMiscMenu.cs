@@ -122,6 +122,21 @@ namespace SynthEBD
 
         public void SetMatchModes(string descriptorTypes, DescriptorMatchMode mode)
         {
+            if (_parent.DisplayedSubgroup != null)
+            {
+                switch (descriptorTypes)
+                {
+                    case AllowedStr:
+                        _parent.DisplayedSubgroup.AllowedBodyGenDescriptors.MatchMode = mode;
+                        _parent.DisplayedSubgroup.AllowedBodySlideDescriptors.MatchMode = mode;
+                        break;
+                    case DisallowedStr:
+                        _parent.DisplayedSubgroup.DisallowedBodyGenDescriptors.MatchMode = mode;
+                        _parent.DisplayedSubgroup.DisallowedBodySlideDescriptors.MatchMode = mode;
+                        break;
+                }
+            }
+
             foreach(var subgroup in _parent.Subgroups)
             {
                 SetSubgroupMatchModes(subgroup, descriptorTypes, mode);
