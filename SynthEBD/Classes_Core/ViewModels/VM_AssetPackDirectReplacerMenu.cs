@@ -4,6 +4,7 @@ using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
 using ReactiveUI;
+using System.Reactive.Linq;
 
 namespace SynthEBD;
 
@@ -13,10 +14,32 @@ public class VM_AssetPackDirectReplacerMenu : VM
 
     public delegate VM_AssetPackDirectReplacerMenu Factory(VM_AssetPack parent);
     
-    public VM_AssetPackDirectReplacerMenu(VM_AssetPack parent, VM_AssetReplacerGroup.Factory assetReplaceGroupFactory)
+    public VM_AssetPackDirectReplacerMenu(VM_AssetPack parent, VM_AssetReplacerGroup.Factory assetReplaceGroupFactory, VM_Subgroup.Factory subgroupFactory)
     {
         _assetReplaceGroupFactory = assetReplaceGroupFactory;
         ParentAssetPack = parent;
+
+       this.WhenAnyValue(vm => vm.DisplayedGroup)
+          .Buffer(2, 1)
+          .Select(b => (Previous: b[0], Current: b[1]))
+          .Subscribe(t => {
+              if (t.Previous != null && t.Previous.DisplayedSubgroup != null)
+              {
+                  t.Previous.DisplayedSubgroup.DumpViewModelToModel();
+              }
+
+              if (t.Current != null && t.Current.Subgroups.Any())
+              {
+                  t.Current.DisplayedSubgroup = subgroupFactory(parent.RaceGroupingEditor.RaceGroupings, ParentAssetPack, t.Current.Subgroups.First(), true);
+                  t.Current.DisplayedSubgroup.PathsMenu.ReferenceNPCFK = t.Current.TemplateNPCFK;
+                  t.Current.DisplayedSubgroup.CopyInViewModelFromModel();
+              }
+          });
+
+        this.WhenAnyValue(x => x.DisplayedGroup).Subscribe(x =>
+        {
+            
+        }).DisposeWith(this);
 
         AddGroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -91,16 +114,17 @@ public class VM_AssetReplacerGroup : VM, IHasSubgroupViewModels
                 }
                 var displayedSubgroupPlaceHolder = (VM_SubgroupPlaceHolder)x;
                 DisplayedSubgroup = _subgroupFactory(_generalSettingsVm.RaceGroupingEditor.RaceGroupings, ParentMenu.ParentAssetPack, displayedSubgroupPlaceHolder, true);
+                DisplayedSubgroup.PathsMenu.ReferenceNPCFK = TemplateNPCFK;
                 DisplayedSubgroup.CopyInViewModelFromModel();
             });
-        /*
+
         this.WhenAnyValue(x => x.TemplateNPCFK).Subscribe(x =>
         {
-            foreach (var sg in Subgroups)
+            if (DisplayedSubgroup != null)
             {
-                SetTemplates(sg, TemplateNPCFK);
+                DisplayedSubgroup.PathsMenu.ReferenceNPCFK = x;
             }
-        }).DisposeWith(this);*/
+        }).DisposeWith(this);
     }
 
     public string Label { get; set; } = "";
