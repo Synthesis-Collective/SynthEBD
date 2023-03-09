@@ -26,7 +26,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     private readonly VM_Settings_Headparts _headPartSettings;
     private readonly VM_SpecificNPCAssignment.Factory _specificNPCAssignmentFactory;
     private readonly VM_AssetPack.Factory _assetPackFactory;
-    private readonly VM_BodySlideSetting.Factory _bodySlideFactory;
+    private readonly VM_BodySlidePlaceHolder.Factory _bodySlidePlaceHolderFactory;
     private readonly VM_HeadPartAssignment.Factory _headPartFactory;
     private readonly Converters _converters;
 
@@ -41,7 +41,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         VM_Settings_Headparts headParts,
         VM_SpecificNPCAssignmentsUI parentUI,
         VM_AssetPack.Factory assetPackFactory,
-        VM_BodySlideSetting.Factory bodySlideFactory,
+        VM_BodySlidePlaceHolder.Factory bodySlidePlaceHolderFactory,
         VM_HeadPartAssignment.Factory headPartFactory,
         VM_SpecificNPCAssignment.Factory specificNPCAssignmentFactory,
         Converters converters)
@@ -55,7 +55,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         _oBodySettings = oBody;
         _headPartSettings = headParts;
         _assetPackFactory = assetPackFactory;
-        _bodySlideFactory = bodySlideFactory;
+        _bodySlidePlaceHolderFactory = bodySlidePlaceHolderFactory;
         _headPartFactory = headPartFactory;
         _specificNPCAssignmentFactory = specificNPCAssignmentFactory;
         _converters = converters;
@@ -230,8 +230,8 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     public ObservableCollection<VM_AssetPack> AvailableMixInAssetPacks { get; set; } = new();
     public ObservableCollection<VM_BodyGenTemplatePlaceHolder> AvailableMorphs { get; set; } = new();
     public VM_SettingsBodyGen SubscribedBodyGenSettings { get; set; }
-    public ObservableCollection<VM_BodySlideSetting> SubscribedBodySlides { get; set; }
-    public ObservableCollection<VM_BodySlideSetting> AvailableBodySlides { get; set; }
+    public ObservableCollection<VM_BodySlidePlaceHolder> SubscribedBodySlides { get; set; }
+    public ObservableCollection<VM_BodySlidePlaceHolder> AvailableBodySlides { get; set; }
     public VM_BodyGenTemplate SelectedTemplate { get; set; }
 
     public Gender Gender { get; set; }
@@ -602,7 +602,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             case Gender.Male: SubscribedBodySlides = _oBodySettings.BodySlidesUI.BodySlidesMale; break;
             case Gender.Female: SubscribedBodySlides = _oBodySettings.BodySlidesUI.BodySlidesFemale; break;
         }
-        AvailableBodySlides = new ObservableCollection<VM_BodySlideSetting>() { _bodySlideFactory(_generalSettings.RaceGroupingEditor.RaceGroupings, AvailableBodySlides) }; // blank entry
+        AvailableBodySlides = new() { _bodySlidePlaceHolderFactory(new BodySlideSetting(), AvailableBodySlides) }; // blank entry
         AvailableBodySlides.AddRange(SubscribedBodySlides);
     }
 

@@ -40,7 +40,7 @@
         <Button Grid.Row="2" Grid.Column="0" Command="{Binding AddPreset}" Foreground="Lightgreen">Add New</Button>
         <ScrollViewer Grid.Row="3" Grid.Column="0">
             <StackPanel >
-                <ListBox SelectedValue="{Binding CurrentlyDisplayedBodySlide}" ItemsSource="{Binding CurrentlyDisplayedBodySlides}" IsSynchronizedWithCurrentItem="False" >
+                <ListBox SelectedValue="{Binding SelectedPlaceHolder}" ItemsSource="{Binding CurrentlyDisplayedBodySlides}" IsSynchronizedWithCurrentItem="False" >
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Border BorderThickness="1" BorderBrush="{Binding BorderColor}">

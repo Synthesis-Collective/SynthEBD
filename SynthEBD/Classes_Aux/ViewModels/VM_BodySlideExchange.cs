@@ -14,12 +14,12 @@ namespace SynthEBD
     public class VM_BodySlideExchange
     {
         public delegate VM_BodySlideExchange Factory(ExchangeMode mode, Window_BodySlideExchange window);
-        public VM_BodySlideExchange(ExchangeMode mode, Window_BodySlideExchange window, VM_SettingsOBody oBodyUI, VM_Settings_General generalUI, VM_BodySlideSetting.Factory bodySlideFactory, VM_AttributeGroup.Factory attributeGroupFactory, VM_RaceGrouping.Factory raceGroupingFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+        public VM_BodySlideExchange(ExchangeMode mode, Window_BodySlideExchange window, VM_SettingsOBody oBodyUI, VM_Settings_General generalUI, VM_BodySlidePlaceHolder.Factory placeHolderFactory, VM_AttributeGroup.Factory attributeGroupFactory, VM_RaceGrouping.Factory raceGroupingFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
             Mode = mode;
             _oBodyUI = oBodyUI;
             _generalUI = generalUI;
-            _bodySlideFactory = bodySlideFactory;
+            _placeHolderFactory = placeHolderFactory;
             _attributeGroupFactory = attributeGroupFactory;
             _raceGroupingFactory = raceGroupingFactory;
             _decriptorSelectionFactory = descriptorSelectionFactory;
@@ -49,7 +49,7 @@ namespace SynthEBD
         public ExchangeMode Mode { get; }
         private readonly VM_SettingsOBody _oBodyUI;
         private readonly VM_Settings_General _generalUI;
-        private readonly VM_BodySlideSetting.Factory _bodySlideFactory;
+        private readonly VM_BodySlidePlaceHolder.Factory _placeHolderFactory;
         private readonly VM_AttributeGroup.Factory _attributeGroupFactory;
         private readonly VM_RaceGrouping.Factory _raceGroupingFactory;
         private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _decriptorSelectionFactory;
@@ -110,11 +110,10 @@ namespace SynthEBD
             return closeWindow;
         }
 
-        public void ExportGendered(ObservableCollection<VM_BodySlideSetting> bodySlides, List<BodySlideSetting> destinationList, HashSet<string> referencedAttributeGroups, HashSet<string> referencedRaceGroupings, HashSet<BodyShapeDescriptor.LabelSignature> referencedDescriptors)
+        public void ExportGendered(ObservableCollection<VM_BodySlidePlaceHolder> bodySlides, List<BodySlideSetting> destinationList, HashSet<string> referencedAttributeGroups, HashSet<string> referencedRaceGroupings, HashSet<BodyShapeDescriptor.LabelSignature> referencedDescriptors)
         {
-            foreach (var bsVM in bodySlides.Where(x => !x.IsHidden).ToArray())
+            foreach (var fullModel in bodySlides.Where(x => !x.IsHidden).Select(x => x.AssociatedModel).ToArray())
             {
-                var fullModel = VM_BodySlideSetting.DumpViewModelToModel(bsVM);
                 var model = new BodySlideSetting();
                 model.BodyShapeDescriptors = fullModel.BodyShapeDescriptors;
 
@@ -284,13 +283,13 @@ namespace SynthEBD
             return true;
         }
 
-        public void ImportGendered(ObservableCollection<VM_BodySlideSetting> currentBodySlides, List<BodySlideSetting> importedBodySlides, List<(string, int, int)> multiplexWarnings)
+        public void ImportGendered(ObservableCollection<VM_BodySlidePlaceHolder> currentBodySlides, List<BodySlideSetting> importedBodySlides, List<(string, int, int)> multiplexWarnings)
         {
             var groupedAnnotations = importedBodySlides.GroupBy(x => x.ReferencedBodySlide).ToArray(); // group annotations by the bodyslide that they're referencing (remember that BodySlide annotation can be cloned)
 
             foreach (var groupedAnnotation in groupedAnnotations) // match imported annotations to their counterparts in the user's settings if they exist
             {
-                var existingBodySlides = currentBodySlides.Where(x => x.ReferencedBodySlide == groupedAnnotation.Key).ToList();
+                var existingBodySlides = currentBodySlides.Where(x => x.AssociatedModel.ReferencedBodySlide == groupedAnnotation.Key).ToList();
                 var importedBodySlideAnnotations = groupedAnnotation.ToList();
 
                 if (existingBodySlides.Count == 0)
@@ -302,7 +301,8 @@ namespace SynthEBD
                     var template = existingBodySlides.First();
                     while (existingBodySlides.Count < importedBodySlideAnnotations.Count)
                     {
-                        existingBodySlides.Add(template.Clone());
+                        var clonedModel = template.AssociatedModel.DeepCopyByExpressionTree();
+                        existingBodySlides.Add(_placeHolderFactory(clonedModel, template.ParentCollection));
                     }
                 }
                 else if (existingBodySlides.Count != importedBodySlideAnnotations.Count)
@@ -313,38 +313,36 @@ namespace SynthEBD
 
                 for (int i = 0; i < existingBodySlides.Count; i++)
                 {
-                    var existingBodySlide = existingBodySlides[i];
+                    var targetPlaceHolder = existingBodySlides[i];
                     var importedAnnotation = importedBodySlideAnnotations[i];
-                    ImportBodySlide(currentBodySlides, importedAnnotation, existingBodySlide);
+                    ImportBodySlide(currentBodySlides, importedAnnotation, targetPlaceHolder);
                 }
             }
         }
 
-        public void ImportBodySlide(ObservableCollection<VM_BodySlideSetting> bodySlides, BodySlideSetting importedBS, VM_BodySlideSetting existingBS)
+        public void ImportBodySlide(ObservableCollection<VM_BodySlidePlaceHolder> bodySlides, BodySlideSetting importedBS, VM_BodySlidePlaceHolder targetPlaceHolder)
         {
-            var notesBak = existingBS.Notes;
+            var notesBak = targetPlaceHolder.AssociatedModel.Notes;
 
             if (ExchangeRules)
             {
-                var index = bodySlides.IndexOf(existingBS);
-                var newVM = _bodySlideFactory(_generalUI.RaceGroupingEditor.RaceGroupings, bodySlides);
-                newVM.CopyInViewModelFromModel(importedBS);
-                bodySlides.Remove(existingBS);
-                bodySlides.Insert(index, newVM);
-                existingBS = newVM;
+                var index = bodySlides.IndexOf(targetPlaceHolder);
+                targetPlaceHolder.AssociatedModel = importedBS;
+                bodySlides.Remove(targetPlaceHolder);
+                bodySlides.Insert(index, targetPlaceHolder);
             }
             else
             {
-                existingBS.DescriptorsSelectionMenu.CopyInFromHashSet(importedBS.BodyShapeDescriptors);
+                targetPlaceHolder.AssociatedModel.BodyShapeDescriptors = importedBS.BodyShapeDescriptors;
             }
 
             if (ExchangeNotes)
             {
-                existingBS.Notes = importedBS.Notes;
+                targetPlaceHolder.AssociatedModel.Notes = importedBS.Notes;
             }
             else
             {
-                existingBS.Notes = notesBak;
+                targetPlaceHolder.AssociatedModel.Notes = notesBak;
             }
         }
     }

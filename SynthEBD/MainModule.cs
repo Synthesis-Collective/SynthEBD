@@ -139,6 +139,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_BodyShapeDescriptorRules>().AsSelf();
         builder.RegisterType<VM_BodyShapeDescriptorCreationMenu>().AsSelf();
         builder.RegisterType<VM_BodyShapeDescriptorSelectionMenu>().AsSelf();
+        builder.RegisterType<VM_BodySlidePlaceHolder>().AsSelf();
         builder.RegisterType<VM_BodySlideSetting>().AsSelf();
         builder.RegisterType<VM_FilePathReplacementMenu>().AsSelf();
         builder.RegisterType<VM_FilePathReplacement>().AsSelf();

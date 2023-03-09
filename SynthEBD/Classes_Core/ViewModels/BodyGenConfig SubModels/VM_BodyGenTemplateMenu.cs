@@ -142,6 +142,7 @@ public class VM_BodyGenTemplate : VM
 
         AssociatedPlaceHolder = associatedPlaceHolder;
         AssociatedPlaceHolder.AssociatedViewModel = this;
+
         SubscribedTemplateGroups = templateGroups;
         GroupSelectionCheckList = new VM_CollectionMemberStringCheckboxList(SubscribedTemplateGroups);
         DescriptorsSelectionMenu = descriptorSelectionFactory(BodyShapeDescriptors, raceGroupingVMs, parentConfig, false, DescriptorMatchMode.Any);

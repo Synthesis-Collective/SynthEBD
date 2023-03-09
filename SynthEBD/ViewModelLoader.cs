@@ -157,7 +157,7 @@ namespace SynthEBD
         public void LoadPluginViewModels()
         {
             _bodyGenSettingsVM.CopyInViewModelFromModel(_patcherState.BodyGenConfigs, _patcherState.BodyGenSettings, _bodyGenConfigFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings);
-            _settingsOBody.CopyInViewModelFromModel(_patcherState.OBodySettings, _generalSettingsVM.RaceGroupingEditor.RaceGroupings, _bodyShapeDescriptorCreator, _oBodyMiscSettingsFactory, _bodySlideFactory, _descriptorSelectionFactory, _attributeCreator, _logger);
+            _settingsOBody.CopyInViewModelFromModel(_patcherState.OBodySettings, _bodyShapeDescriptorCreator, _oBodyMiscSettingsFactory, _descriptorSelectionFactory, _attributeCreator, _logger);
             // load asset packs after BodyGen/BodySlide
             VM_AssetPack.GetViewModelsFromModels(_patcherState.AssetPacks, _texMeshSettingsVM, _patcherState.TexMeshSettings, _assetPackFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings, _logger); // add asset pack view models to TexMesh shell view model here
             _texMeshSettingsVM.AssetPresenterPrimary.AssetPack = _texMeshSettingsVM.AssetPacks.Where(x => x.GroupName == _texMeshSettingsVM.LastViewedAssetPackName).FirstOrDefault();

@@ -17,13 +17,18 @@ public class VM_BodySlideSetting : VM
     private readonly VM_NPCAttributeCreator _attributeCreator;
     private readonly VM_BodyShapeDescriptorCreationMenu _bodyShapeDescriptors;
     private readonly ObservableCollection<VM_RaceGrouping> _raceGroupingVMs;
+    private readonly VM_BodySlidePlaceHolder.Factory _placeHolderFactory;
     private readonly VM_BodySlideSetting.Factory _selfFactory;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
 
-    public delegate VM_BodySlideSetting Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection);
-    public VM_BodySlideSetting(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodySlideSetting> parentCollection, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+    public delegate VM_BodySlideSetting Factory(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
+    public VM_BodySlideSetting(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
         ParentMenuVM = oBodySettingsVM;
+
+        AssociatedPlaceHolder = associatedPlaceHolder;
+        AssociatedPlaceHolder.AssociatedViewModel = this;
+
         _environmentProvider = environmentProvider;
         _attributeCreator = attributeCreator;
         _bodyShapeDescriptors = oBodySettingsVM.DescriptorUI;
@@ -34,8 +39,6 @@ public class VM_BodySlideSetting : VM
         DescriptorsSelectionMenu = _descriptorSelectionFactory(_bodyShapeDescriptors, raceGroupingVMs, oBodySettingsVM, false, DescriptorMatchMode.Any);
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
-
-        ParentCollection = parentCollection;
 
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
@@ -69,38 +72,25 @@ public class VM_BodySlideSetting : VM
 
         DeleteMe = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => ParentCollection.Remove(this)
+            execute: _ => AssociatedPlaceHolder.ParentCollection.Remove(AssociatedPlaceHolder)
         );
 
         ToggleHide = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
-                if (IsHidden)
+                if (AssociatedPlaceHolder.IsHidden)
                 {
-                    IsHidden = false;
+                    AssociatedPlaceHolder.IsHidden = false;
                     HideButtonText = "Hide";
                 }
                 else
                 {
-                    IsHidden = true;
+                    AssociatedPlaceHolder.IsHidden = true;
                     HideButtonText = "Unhide";
                 }
             }
         );
-
-        this.WhenAnyValue(x => x.IsHidden).Subscribe(x =>
-        {
-            if (!oBodySettingsVM.BodySlidesUI.ShowHidden && IsHidden)
-            {
-                IsVisible = false;
-            }
-            else
-            {
-                IsVisible = true;
-            }
-            UpdateStatusDisplay();
-        }).DisposeWith(this);
 
         CloneCommand = new RelayCommand(
             canExecute: _ => true,
@@ -133,6 +123,7 @@ public class VM_BodySlideSetting : VM
     private static string LockOffLabel = "Lock";
     public string LockLabel { get; set; } = LockOnLabel;
 
+    public VM_BodySlidePlaceHolder AssociatedPlaceHolder { get; }
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
     public RelayCommand ToggleLock { get; }
@@ -141,11 +132,9 @@ public class VM_BodySlideSetting : VM
     public RelayCommand DeleteMe { get; }
     public RelayCommand CloneCommand { get; }
     public RelayCommand ToggleHide { get; }
-    public ObservableCollection<VM_BodySlideSetting> ParentCollection { get; set; }
 
     public SolidColorBrush BorderColor { get; set; }
-    public bool IsVisible {  get; set; } = true;
-    public bool IsHidden { get; set; } = false; // not the same as IsVisible. IsVisible can be set true if the "show hidden" button is checked.
+
     public string HideButtonText { get; set; } = "Hide";
     public string StatusHeader { get; set; }
     public string StatusText { get; set; }
@@ -158,49 +147,16 @@ public class VM_BodySlideSetting : VM
 
     public VM_BodySlideSetting Clone()
     {
-        var cloneModel = DumpViewModelToModel(this);
-        var cloneViewModel = _selfFactory(_raceGroupingVMs, ParentCollection);
+        var cloneModel = DumpToModel();
+        var clonePlaceHolder = _placeHolderFactory(cloneModel, AssociatedPlaceHolder.ParentCollection);
+        var cloneViewModel = _selfFactory(clonePlaceHolder, _raceGroupingVMs);
         cloneViewModel.CopyInViewModelFromModel(cloneModel);
-        int lastClonePosition = cloneViewModel.RenameByIndex();
-        ParentCollection.Insert(lastClonePosition + 1, cloneViewModel);
+        int lastClonePosition = clonePlaceHolder.RenameByIndex();
+        clonePlaceHolder.ParentCollection.Insert(lastClonePosition + 1, clonePlaceHolder);
         return cloneViewModel;
     }
 
-    public int RenameByIndex()
-    {
-        int cloneIndex = 0;
-        int lastClonePosition = 0;
 
-        for (int i = 0; i < ParentCollection.Count; i++)
-        {
-            var clone = ParentCollection[i];
-            if (clone.ReferencedBodySlide != ReferencedBodySlide) { continue; }
-            lastClonePosition = i;
-            if (GetTrailingInt(clone.Label, out int currentIndex) && currentIndex > cloneIndex)
-            {
-                cloneIndex = currentIndex;
-            }
-        }
-
-        if (cloneIndex == 0)
-        {
-            cloneIndex = 2;
-        }
-        else
-        {
-            cloneIndex++;
-        }
-
-        if (GetTrailingInt(Label, out int selectedCloneIndex))
-        {
-            Label = Label.TrimEnd(selectedCloneIndex.ToString()) + cloneIndex.ToString();
-        }
-        else
-        {
-            Label += cloneIndex;
-        }
-        return lastClonePosition;
-    }
 
     public void UnlockReference()
     {
@@ -214,10 +170,10 @@ public class VM_BodySlideSetting : VM
         LockLabel = LockOnLabel;
     }
 
-    public VM_BodySlideSetting CopyToNewCollection(ObservableCollection<VM_BodySlideSetting> parentCollection)
+    public VM_BodySlidePlaceHolder CopyToNewCollection(ObservableCollection<VM_BodySlidePlaceHolder> parentCollection)
     {
-        var model = DumpViewModelToModel(this);
-        return _selfFactory(_raceGroupingVMs, parentCollection);
+        var model = DumpToModel();
+        return _placeHolderFactory(model, parentCollection);
     }
     public void UpdateStatusDisplay()
     {
@@ -228,7 +184,7 @@ public class VM_BodySlideSetting : VM
             StatusText = "Source BodySlide XML files are missing. Will not be assigned.";
             ShowStatus = true;
         }
-        else if (IsHidden)
+        else if (AssociatedPlaceHolder.IsHidden)
         {
             BorderColor = BorderColorHidden;
         }
@@ -289,55 +245,27 @@ public class VM_BodySlideSetting : VM
         bAllowRandom = model.AllowRandom;
         ProbabilityWeighting = model.ProbabilityWeighting;
         WeightRange = model.WeightRange.Clone();
-
-        IsHidden = model.HideInMenu;
     }
 
-    public static BodySlideSetting DumpViewModelToModel(VM_BodySlideSetting viewModel)
+    public BodySlideSetting DumpToModel()
     {
         BodySlideSetting model = new BodySlideSetting();
-        model.Label = viewModel.Label;
-        model.ReferencedBodySlide = viewModel.ReferencedBodySlide;
-        model.Notes = viewModel.Notes;
-        model.BodyShapeDescriptors = viewModel.DescriptorsSelectionMenu.DumpToHashSet();
-        model.AllowedRaces = viewModel.AllowedRaces.ToHashSet();
-        model.AllowedRaceGroupings = viewModel.AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
-        model.DisallowedRaces = viewModel.DisallowedRaces.ToHashSet();
-        model.DisallowedRaceGroupings = viewModel.DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
-        model.AllowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.AllowedAttributes);
-        model.DisallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.DisallowedAttributes);
-        model.AllowUnique = viewModel.bAllowUnique;
-        model.AllowNonUnique = viewModel.bAllowNonUnique;
-        model.AllowRandom = viewModel.bAllowRandom;
-        model.ProbabilityWeighting = viewModel.ProbabilityWeighting;
-        model.WeightRange = viewModel.WeightRange.Clone();
-        model.HideInMenu = viewModel.IsHidden;
+        model.Label = Label;
+        model.ReferencedBodySlide = ReferencedBodySlide;
+        model.Notes = Notes;
+        model.BodyShapeDescriptors = DescriptorsSelectionMenu.DumpToHashSet();
+        model.AllowedRaces = AllowedRaces.ToHashSet();
+        model.AllowedRaceGroupings = AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
+        model.DisallowedRaces = DisallowedRaces.ToHashSet();
+        model.DisallowedRaceGroupings = DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
+        model.AllowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(AllowedAttributes);
+        model.DisallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(DisallowedAttributes);
+        model.AllowUnique = bAllowUnique;
+        model.AllowNonUnique = bAllowNonUnique;
+        model.AllowRandom = bAllowRandom;
+        model.ProbabilityWeighting = ProbabilityWeighting;
+        model.WeightRange = WeightRange.Clone();
+        model.HideInMenu = AssociatedPlaceHolder.IsHidden;
         return model;
-    }
-
-    private static bool GetTrailingInt(string input, out int number)
-    {
-        number = 0;
-        var stack = new Stack<char>();
-
-        for (var i = input.Length - 1; i >= 0; i--)
-        {
-            if (!char.IsNumber(input[i]))
-            {
-                break;
-            }
-
-            stack.Push(input[i]);
-        }
-
-        var result = new string(stack.ToArray());
-        if (result == null || !int.TryParse(result, out number))
-        {
-            return false;
-        }
-        else
-        {
-            return true;
-        }
     }
 }
