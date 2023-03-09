@@ -33,7 +33,7 @@
         
         <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddAssignment}" Foreground="Lightgreen" ToolTip="Add a new forced assignment for an NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Add New</Button>
         <ScrollViewer Grid.Column="0" Grid.Row="2">
-            <ListBox SelectedValue="{Binding CurrentlyDisplayedAssignment}" ItemsSource="{Binding Assignments}" IsSynchronizedWithCurrentItem="True" >
+            <ListBox SelectedValue="{Binding SelectedPlaceHolder}" ItemsSource="{Binding Assignments}" IsSynchronizedWithCurrentItem="False" >
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <Grid>

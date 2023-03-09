@@ -13,13 +13,11 @@ namespace SynthEBD
     public class VM_BodySlidePlaceHolder : VM
     {
         private PatcherState _patcherState;
-        private VM_SettingsOBody _oBodySettingsVM;
         public delegate VM_BodySlidePlaceHolder Factory(BodySlideSetting model, ObservableCollection<VM_BodySlidePlaceHolder> parentCollection);
 
         public VM_BodySlidePlaceHolder(BodySlideSetting model, ObservableCollection<VM_BodySlidePlaceHolder> parentCollection, PatcherState patcherState, VM_SettingsOBody oBodySettingsVM)
         {
             _patcherState = patcherState;
-            _oBodySettingsVM = oBodySettingsVM;
 
             AssociatedModel = model;
             Label = model.Label;

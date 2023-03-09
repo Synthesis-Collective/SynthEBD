@@ -17,7 +17,7 @@ namespace SynthEBD
         private readonly VM_AssetPack _parent;
 
         public delegate VM_AssetPackMiscMenu Factory(VM_AssetPack parentPack);
-        public VM_AssetPackMiscMenu(VM_AssetPack parentPack, IEnvironmentStateProvider environmentProvider, VM_SpecificNPCAssignmentsUI specificAssignmentsUI, VM_SpecificNPCAssignment.VM_MixInSpecificAssignment.Factory mixInFactory)
+        public VM_AssetPackMiscMenu(VM_AssetPack parentPack, IEnvironmentStateProvider environmentProvider, VM_SpecificNPCAssignmentsUI specificAssignmentsUI, VM_SpecificNPCAssignment.VM_MixInSpecificAssignment.Factory mixInFactory, Logger logger)
         {
             _parent = parentPack;
 
@@ -43,22 +43,22 @@ namespace SynthEBD
             AddMixInToSpecificAssignments = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => { 
-                    foreach (var assignment in specificAssignmentsUI.Assignments.Where(x => x.Gender == _parent.Gender).ToArray())
+                    foreach (var assignment in specificAssignmentsUI.Assignments.Where(x => VM_SpecificNPCAssignment.GetGender(x.AssociatedModel.NPCFormKey, logger, environmentProvider) == _parent.Gender).ToArray())
                     {
-                        var existingMixInAssignment = assignment.ForcedMixIns.Where(x => x.ForcedAssetPack.GroupName == _parent.GroupName).FirstOrDefault();
+                        var existingMixInAssignment = assignment.AssociatedModel.MixInAssignments.Where(x => x.AssetPackName == _parent.GroupName).FirstOrDefault();
                         if (existingMixInAssignment != null)
                         {
                             if (OverrideExistingSNA)
                             {
-                                existingMixInAssignment.Decline = AsDeclinedSNA;
+                                existingMixInAssignment.DeclinedAssignment = AsDeclinedSNA;
                             }
                         }
                         else
                         {
-                            var newMixIn = mixInFactory(assignment);
-                            newMixIn.ForcedAssetPack = _parent;
-                            newMixIn.Decline = AsDeclinedSNA;
-                            assignment.ForcedMixIns.Add(newMixIn);
+                            var newMixIn = new NPCAssignment.MixInAssignment();
+                            newMixIn.AssetPackName = _parent.GroupName;
+                            newMixIn.DeclinedAssignment = AsDeclinedSNA;
+                            assignment.AssociatedModel.MixInAssignments.Add(newMixIn);
                         }
                     }
                 }

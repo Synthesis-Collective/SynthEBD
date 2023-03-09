@@ -1,5 +1,7 @@
 using Mutagen.Bethesda.Skyrim;
+using ReactiveUI;
 using System.Collections.ObjectModel;
+using System.Reactive.Linq;
 
 namespace SynthEBD;
 
@@ -8,6 +10,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
+    private readonly VM_SpecificNPCAssignmentPlaceHolder.Factory _placeHolderFactory;
     private readonly VM_SpecificNPCAssignment.Factory _specificNpcAssignmentFactory;
     private readonly VM_SettingsTexMesh _texMeshSettings;
     private readonly VM_SettingsBodyGen _bodyGenSettings; 
@@ -23,7 +26,8 @@ public class VM_SpecificNPCAssignmentsUI : VM
         VM_SettingsBodyGen bodyGenSettings, 
         VM_Settings_General generalSettingsVM,
         VM_Settings_Headparts headPartSettings,
-        VM_AssetPack.Factory assetPackFactory, 
+        VM_AssetPack.Factory assetPackFactory,
+        VM_SpecificNPCAssignmentPlaceHolder.Factory placeHolderFactory,
         VM_SpecificNPCAssignment.Factory specificNpcAssignmentFactory,
         Logger logger,
         Converters converters,
@@ -35,6 +39,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
         _converters = converters;
         _specificAssignmentIO = specificAssignmentIO;
         _bodyGenIO = bodyGenIO;
+        _placeHolderFactory = placeHolderFactory;
         _specificNpcAssignmentFactory = specificNpcAssignmentFactory;
         _assetPackFactory = assetPackFactory;
 
@@ -48,12 +53,16 @@ public class VM_SpecificNPCAssignmentsUI : VM
 
         AddAssignment = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.Assignments.Add(specificNpcAssignmentFactory())
+            execute: _ => {
+                var newPlaceHolder = _placeHolderFactory(new NPCAssignment(), Assignments);
+                Assignments.Add(newPlaceHolder);
+                CurrentlyDisplayedAssignment = specificNpcAssignmentFactory(newPlaceHolder);
+            }
         );
 
         RemoveAssignment = new RelayCommand(
             canExecute: _ => true,
-            execute: x => this.Assignments.Remove((VM_SpecificNPCAssignment)x)
+            execute: x => Assignments.Remove((VM_SpecificNPCAssignmentPlaceHolder)x)
         );
 
         ImportFromZEBDcommand = new RelayCommand(
@@ -106,15 +115,16 @@ public class VM_SpecificNPCAssignmentsUI : VM
 
                             if (morphs.Any())
                             {
-                                var specificAssignment = Assignments.FirstOrDefault(x => x.NPCFormKey.Equals(assignment.Item1));
+                                var specificAssignment = Assignments.FirstOrDefault(x => x.AssociatedModel.NPCFormKey.Equals(assignment.Item1));
                                 if (specificAssignment == null)
                                 {
-                                    specificAssignment = specificNpcAssignmentFactory();
-                                    specificAssignment.NPCFormKey = assignment.Item1;
-                                    specificAssignment.DispName = _converters.CreateNPCDispNameFromFormKey(assignment.Item1);
+                                    NPCAssignment newAssignment = new();
+                                    newAssignment.NPCFormKey = assignment.Item1;
+                                    newAssignment.DispName = _converters.CreateNPCDispNameFromFormKey(assignment.Item1);
+                                    specificAssignment = _placeHolderFactory(newAssignment, Assignments);
                                     Assignments.Add(specificAssignment);
                                 }
-                                foreach (var morph in morphs) { specificAssignment.ForcedBodyGenMorphs.Add(morph); }
+                                foreach (var morph in morphs) { specificAssignment.AssociatedModel.BodyGenMorphNames.Add(morph.Label); }
                             }
                         }
                     }
@@ -140,12 +150,29 @@ public class VM_SpecificNPCAssignmentsUI : VM
         );
 
         Alphabetizer = new(Assignments, x => x.DispName, new(System.Windows.Media.Colors.MediumPurple));
+
+        this.WhenAnyValue(vm => vm.SelectedPlaceHolder)
+         .Buffer(2, 1)
+         .Select(b => (Previous: b[0], Current: b[1]))
+         .Subscribe(t => {
+             if (t.Previous != null && t.Previous.AssociatedViewModel != null)
+             {
+                 t.Previous.AssociatedModel = t.Previous.AssociatedViewModel.DumpViewModelToModel();
+             }
+
+             if (t.Current != null)
+             {
+                 CurrentlyDisplayedAssignment = _specificNpcAssignmentFactory(t.Current);
+                 CurrentlyDisplayedAssignment.CopyInFromModel(t.Current.AssociatedModel);
+             }
+         });
     }
 
-    public ObservableCollection<VM_SpecificNPCAssignment> Assignments { get; set; } = new();
+    public ObservableCollection<VM_SpecificNPCAssignmentPlaceHolder> Assignments { get; set; } = new();
+    public VM_SpecificNPCAssignmentPlaceHolder SelectedPlaceHolder { get; set; }
     public VM_SpecificNPCAssignment CurrentlyDisplayedAssignment { get; set; } = null;
 
-    public VM_Alphabetizer<VM_SpecificNPCAssignment, string> Alphabetizer { get; set; }
+    public VM_Alphabetizer<VM_SpecificNPCAssignmentPlaceHolder, string> Alphabetizer { get; set; }
 
     public VM_SettingsBodyGen BodyGenSettings { get; set; }
 
@@ -159,25 +186,15 @@ public class VM_SpecificNPCAssignmentsUI : VM
     public RelayCommand ImportBodyGenMorphsIni { get; set; }
     public RelayCommand Save { get; }
 
-    public static void GetViewModelFromModels(
-        VM_AssetPack.Factory assetPackFactory, 
-        VM_SettingsTexMesh texMesh,
-        VM_SettingsBodyGen bodyGen,
-        VM_Settings_Headparts headParts,
-        VM_SpecificNPCAssignment.Factory specificNpcAssignmentFactory,
-        VM_SpecificNPCAssignmentsUI viewModel, 
-        HashSet<NPCAssignment> models,
-        Logger logger,
-        Converters converters,
-        IEnvironmentStateProvider environmentProvider)
+    public void GetViewModelFromModels(HashSet<NPCAssignment> models)
     {
         if (models == null)
         {
             return;
         }
 
-        logger.LogStartupEventStart("Loading UI for Specific NPC Assignments Menu");
-        viewModel.Assignments.Clear();
+        _logger.LogStartupEventStart("Loading UI for Specific NPC Assignments Menu");
+        Assignments.Clear();
         foreach (var assignment in models)
         {
             if (assignment.NPCFormKey == null || assignment.NPCFormKey.IsNull)
@@ -185,19 +202,24 @@ public class VM_SpecificNPCAssignmentsUI : VM
                 continue;
             }
 
-            var vm = specificNpcAssignmentFactory();
-            viewModel.Assignments.Add(vm);
-            vm.CopyInFromModel(assignment, texMesh, bodyGen, headParts, logger, converters, environmentProvider);
+            var placeHolder = _placeHolderFactory(assignment, Assignments);
+            placeHolder.AssociatedModel = assignment;
+            Assignments.Add(placeHolder);
         }
-        logger.LogStartupEventEnd("Loading UI for Specific NPC Assignments Menu");
+        _logger.LogStartupEventEnd("Loading UI for Specific NPC Assignments Menu");
     }
 
     public HashSet<NPCAssignment> DumpViewModelToModels()
     {
+        if (CurrentlyDisplayedAssignment != null)
+        {
+            CurrentlyDisplayedAssignment.AssociatedPlaceHolder.AssociatedModel = CurrentlyDisplayedAssignment.AssociatedPlaceHolder.AssociatedViewModel.DumpViewModelToModel();
+        }
+
         HashSet<NPCAssignment> models = new();
         foreach (var vm in Assignments.Where(x => x is not null).ToArray()) // null check needed for when user leaves blank specific assignment
         {
-            models.Add(vm.DumpViewModelToModel());
+            models.Add(vm.AssociatedModel);
         }
         return models;
     }
@@ -230,10 +252,9 @@ public class VM_SpecificNPCAssignmentsUI : VM
                     {
                         continue;
                     }
-                    var assignmentVM = _specificNpcAssignmentFactory();
-                    Assignments.Add(assignmentVM);
-
-                    assignmentVM.CopyInFromModel(model, _texMeshSettings, _bodyGenSettings, _headPartSettings, _logger, _converters, _environmentProvider);
+                    var placeHolder = _placeHolderFactory(model, Assignments);
+                    placeHolder.AssociatedModel = model;
+                    Assignments.Add(placeHolder);
                 }
             }
             else

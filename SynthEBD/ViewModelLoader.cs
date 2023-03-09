@@ -32,6 +32,7 @@ namespace SynthEBD
         private readonly VM_Settings_Headparts _headPartSettingsVM;
         private readonly VM_SettingsModManager _settingsModManager;
         private readonly VM_SettingsOBody _settingsOBody;
+        private readonly VM_SpecificNPCAssignmentsUI _specificAssignmentsUI;
         private readonly VM_BodyShapeDescriptorCreator _bodyShapeDescriptorCreator;
         private readonly VM_OBodyMiscSettings.Factory _oBodyMiscSettingsFactory;
         private readonly VM_ConsistencyUI _consistencyUi;
@@ -65,7 +66,8 @@ namespace SynthEBD
             VM_SettingsBodyGen bodyGenSettingsVM, 
             VM_Settings_Headparts headPartSettingsVM, 
             VM_SettingsModManager settingsModManager, 
-            VM_SettingsOBody settingsOBody, 
+            VM_SettingsOBody settingsOBody,
+            VM_SpecificNPCAssignmentsUI specificAssignmentsUI,
             VM_BodyShapeDescriptorCreator bodyShapeDescriptorCreator, 
             VM_OBodyMiscSettings.Factory oBodyMiscSettingsFactory, 
             VM_ConsistencyUI consistencyUi, 
@@ -99,6 +101,7 @@ namespace SynthEBD
             _headPartSettingsVM = headPartSettingsVM;
             _settingsModManager = settingsModManager;
             _settingsOBody = settingsOBody;
+            _specificAssignmentsUI = specificAssignmentsUI;
             _bodyShapeDescriptorCreator = bodyShapeDescriptorCreator;
             _oBodyMiscSettingsFactory = oBodyMiscSettingsFactory;
             _consistencyUi = consistencyUi;
@@ -173,17 +176,7 @@ namespace SynthEBD
             _headPartSettingsVM.CopyInFromModel(_patcherState.HeadPartSettings, _generalSettingsVM.RaceGroupingEditor.RaceGroupings);
 
             // load specific assignments (must load after plugin view models)
-            VM_SpecificNPCAssignmentsUI.GetViewModelFromModels(
-                _assetPackFactory,
-                _texMeshSettingsVM,
-                _bodyGenSettingsVM,
-                _headPartSettingsVM,
-                _specificNpcAssignmentFactory,
-                _npcAssignmentsUi,
-                _patcherState.SpecificNPCAssignments,
-                _logger,
-                _converters,
-                _environmentProvider);
+            _specificAssignmentsUI.GetViewModelFromModels(_patcherState.SpecificNPCAssignments);
 
             // Load Consistency (must load after plugin view models)
             VM_ConsistencyUI.GetViewModelsFromModels(_patcherState.Consistency, _consistencyUi.Assignments, _texMeshSettingsVM.AssetPacks, _headPartSettingsVM, _logger);

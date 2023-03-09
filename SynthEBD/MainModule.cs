@@ -163,6 +163,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_RaceGrouping>().AsSelf();
         builder.RegisterType<VM_RaceAlias>().AsSelf();
         builder.RegisterType<VM_LinkedNPCGroup>().AsSelf();
+        builder.RegisterType<VM_SpecificNPCAssignmentPlaceHolder>().AsSelf();
         builder.RegisterType<VM_SpecificNPCAssignment>().AsSelf();
         builder.RegisterType<VM_SpecificNPCAssignment.VM_MixInSpecificAssignment>().AsSelf();
 

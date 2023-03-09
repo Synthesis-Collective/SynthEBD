@@ -14,7 +14,7 @@ namespace SynthEBD;
 
 public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender, IHasHeadPartAssignments
 {
-    public delegate VM_SpecificNPCAssignment Factory();
+    public delegate VM_SpecificNPCAssignment Factory(VM_SpecificNPCAssignmentPlaceHolder associatedPlaceHolder);
 
     private IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
@@ -24,13 +24,13 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     private readonly VM_SettingsBodyGen _bodyGenSettings;
     private readonly VM_SettingsOBody _oBodySettings;
     private readonly VM_Settings_Headparts _headPartSettings;
-    private readonly VM_SpecificNPCAssignment.Factory _specificNPCAssignmentFactory;
     private readonly VM_AssetPack.Factory _assetPackFactory;
     private readonly VM_BodySlidePlaceHolder.Factory _bodySlidePlaceHolderFactory;
     private readonly VM_HeadPartAssignment.Factory _headPartFactory;
     private readonly Converters _converters;
 
     public VM_SpecificNPCAssignment(
+        VM_SpecificNPCAssignmentPlaceHolder associatedPlaceHolder,
         IEnvironmentStateProvider environmentProvider,
         Logger logger, 
         SynthEBDPaths paths,
@@ -43,7 +43,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         VM_AssetPack.Factory assetPackFactory,
         VM_BodySlidePlaceHolder.Factory bodySlidePlaceHolderFactory,
         VM_HeadPartAssignment.Factory headPartFactory,
-        VM_SpecificNPCAssignment.Factory specificNPCAssignmentFactory,
         Converters converters)
     {
         _environmentProvider = environmentProvider;
@@ -57,8 +56,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         _assetPackFactory = assetPackFactory;
         _bodySlidePlaceHolderFactory = bodySlidePlaceHolderFactory;
         _headPartFactory = headPartFactory;
-        _specificNPCAssignmentFactory = specificNPCAssignmentFactory;
         _converters = converters;
+
+        AssociatedPlaceHolder = associatedPlaceHolder;
+        AssociatedPlaceHolder.AssociatedViewModel = this;
+
         SubscribedGeneralSettings = general;
         SubscribedOBodySettings = oBody;
         SubscribedBodyGenSettings = bodyGen;
@@ -124,9 +126,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                 UpdateAvailableMorphs(this);
             }).DisposeWith(this);
 
-        //SubscribedOBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesFemale).Subscribe(x => UpdateAvailableBodySlides()).DisposeWith(this);
-        //SubscribedOBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesMale).Subscribe(x => UpdateAvailableBodySlides()).DisposeWith(this);
-
         this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x =>
         {
             ForcedAssetReplacements.Remove(ForcedAssetReplacements.Where(x => x.ParentAssetPack != ForcedAssetPack));
@@ -188,7 +187,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
         SyncThisAssetOrder = new RelayCommand(
             canExecute: _ => true,
-            execute: x => SyncAssetOrderFromMain()
+            execute: x => AssociatedPlaceHolder.SyncAssetOrderFromMain()
         );
 
         SyncAllAssetOrders = new RelayCommand(
@@ -222,6 +221,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     public Dictionary<HeadPart.TypeEnum, VM_HeadPartAssignment> HeadParts { get; set; } = new();
 
     //Needed by UI
+    public VM_SpecificNPCAssignmentPlaceHolder AssociatedPlaceHolder { get; set; }
     public ObservableCollection<VM_AssetPack> AvailableAssetPacks { get; set; } = new();
     public ObservableCollection<VM_AssetPack> SubscribedAssetPacks { get; set; }
 
@@ -251,14 +251,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     public RelayCommand AddHeadPart { get; set; }
     public RelayCommand SyncThisAssetOrder { get; set; }
     public RelayCommand SyncAllAssetOrders { get; set; }
-    public void CopyInFromModel(
-        NPCAssignment model, 
-        VM_SettingsTexMesh texMesh,
-        VM_SettingsBodyGen bodyGen,
-        VM_Settings_Headparts headParts,
-        Logger logger,
-        Converters converters,
-        IEnvironmentStateProvider environmentProvider)
+    public void CopyInFromModel(NPCAssignment model)
     {
         NPCFormKey = model.NPCFormKey;
 
@@ -269,16 +262,16 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
         var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
 
-        if (!npcFormLink.TryResolve(environmentProvider.LinkCache, out var npcRecord))
+        if (!npcFormLink.TryResolve(_environmentProvider.LinkCache, out var npcRecord))
         {
-            logger.LogError("Warning: the target NPC of the Specific NPC Assignment with FormKey " + NPCFormKey.ToString() + " was not found in the current load order.");
+            _logger.LogError("Warning: the target NPC of the Specific NPC Assignment with FormKey " + NPCFormKey.ToString() + " was not found in the current load order.");
         }
 
-        Gender = GetGender(NPCFormKey, logger, environmentProvider);
+        Gender = GetGender(NPCFormKey, _logger, _environmentProvider);
 
         if (model.AssetPackName.Length != 0)
         {
-            LinkAssetPackToForcedAssignment(model, this, model.AssetPackName, texMesh.AssetPacks, logger);
+            LinkAssetPackToForcedAssignment(model, this, model.AssetPackName, _texMeshSettings.AssetPacks, _logger);
         }
 
         CopyInMixInViewModels(model.MixInAssignments);
@@ -298,9 +291,9 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         switch (Gender)
         {
             case Gender.Male:
-                if (bodyGen.CurrentMaleConfig != null)
+                if (_bodyGenSettings.CurrentMaleConfig != null)
                 {
-                    templates = bodyGen.CurrentMaleConfig.TemplateMorphUI.Templates;
+                    templates = _bodyGenSettings.CurrentMaleConfig.TemplateMorphUI.Templates;
                 }
                 else
                 {
@@ -308,9 +301,9 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                 }
                 break;
             case Gender.Female:
-                if (bodyGen.CurrentFemaleConfig != null)
+                if (_bodyGenSettings.CurrentFemaleConfig != null)
                 {
-                    templates = bodyGen.CurrentFemaleConfig.TemplateMorphUI.Templates;
+                    templates = _bodyGenSettings.CurrentFemaleConfig.TemplateMorphUI.Templates;
                 }
                 else
                 {
@@ -333,13 +326,13 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             }
             if (morphFound == false)
             {
-                logger.LogError("Warning: The forced BodyGen morph " + forcedMorph + " for NPC " + DispName + " no longer exists.");
+                _logger.LogError("Warning: The forced BodyGen morph " + forcedMorph + " for NPC " + DispName + " no longer exists.");
             }
         }
 
         foreach (var replacer in model.AssetReplacerAssignments)
         {
-            var parentAssetPack = texMesh.AssetPacks.Where(x => x.GroupName == replacer.AssetPackName).FirstOrDefault();
+            var parentAssetPack = _texMeshSettings.AssetPacks.Where(x => x.GroupName == replacer.AssetPackName).FirstOrDefault();
             if (parentAssetPack != null)
             {
                 VM_AssetReplacementAssignment subVm = new VM_AssetReplacementAssignment(parentAssetPack, ForcedAssetReplacements);
@@ -348,7 +341,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             }
             else
             {
-                logger.LogError("Warning: The forced Asset Replacer " + replacer.AssetPackName + " for NPC " + DispName + " no longer exists.");
+                _logger.LogError("Warning: The forced Asset Replacer " + replacer.AssetPackName + " for NPC " + DispName + " no longer exists.");
             }
         }
 
@@ -359,11 +352,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             if (!model.HeadParts.ContainsKey(headPartType)) { model.HeadParts.Add(headPartType, new()); }
             else
             {
-                HeadParts[headPartType].CopyInFromModel(model.HeadParts[headPartType], headPartType, headParts, this, this, environmentProvider);
+                HeadParts[headPartType].CopyInFromModel(model.HeadParts[headPartType], headPartType, _headPartSettings, this, this, _environmentProvider);
             }
         }
 
-        DispName = converters.CreateNPCDispNameFromFormKey(NPCFormKey);
+        DispName = _converters.CreateNPCDispNameFromFormKey(NPCFormKey);
     }
 
     private static bool LinkAssetPackToForcedAssignment(NPCAssignment model, IHasForcedAssets viewModel, string assetPackName, ObservableCollection<VM_AssetPack> assetPacks, Logger logger)
@@ -662,15 +655,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                 viewModel.Decline = model.DeclinedAssignment;
                 ForcedMixIns.Add(viewModel);
             }
-        }
-    }
-
-    public void SyncAssetOrderFromMain()
-    {
-        AssetOrderingMenu.AssignmentOrder.Clear();
-        foreach (var item in _texMeshSettings.AssetOrderingMenu.AssignmentOrder)
-        {
-            AssetOrderingMenu.AssignmentOrder.Add(item);
         }
     }
 

@@ -49,7 +49,7 @@
         <TextBlock Grid.Row="2" Grid.Column="1" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Available</TextBlock>
         <TreeView Grid.Row="3" Grid.Column="1" Name="TVsubgroups"  ItemsSource ="{Binding AvailableSubgroups}" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
             <TreeView.Resources>
-                <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
+                <HierarchicalDataTemplate DataType="{x:Type local:VM_SubgroupPlaceHolder}" ItemsSource="{Binding Subgroups}" >
                     <TextBlock Text="{Binding Path=Name}" />
                 </HierarchicalDataTemplate>
             </TreeView.Resources>
@@ -125,7 +125,7 @@
                             <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" ToolTip="Select subgroups from the selected Mix-In config file that must be assigned to this NPC (Drag and Drop)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Available</TextBlock>
                             <TreeView Grid.Row="3" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding AvailableSubgroups}" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
                                 <TreeView.Resources>
-                                    <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
+                                    <HierarchicalDataTemplate DataType="{x:Type local:VM_SubgroupPlaceHolder}" ItemsSource="{Binding Subgroups}" >
                                         <TextBlock Text="{Binding Path=Name}" />
                                     </HierarchicalDataTemplate>
                                 </TreeView.Resources>
