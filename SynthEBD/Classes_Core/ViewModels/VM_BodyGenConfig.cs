@@ -58,7 +58,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
 
         if (TemplateMorphUI.Templates.Any())
         {
-            TemplateMorphUI.CurrentlyDisplayedTemplate = TemplateMorphUI.Templates.First();
+            TemplateMorphUI.SelectedPlaceHolder = TemplateMorphUI.Templates.First();
         }
 
         ClickTemplateMenu = new RelayCommand(
@@ -234,11 +234,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
 
         foreach (var template in model.Templates)
         {
-            _logger.LogStartupEventStart("Generating UI for BodyGen Morph " + template.Label);
-            var templateVM = _templateFactory(GroupUI.TemplateGroups, DescriptorUI, RaceGroupingEditor.RaceGroupings, TemplateMorphUI.Templates, this);
-            TemplateMorphUI.Templates.Add(templateVM);
-            _logger.LogStartupEventEnd("Generating UI for BodyGen Morph " + template.Label);
-            templateVM.CopyInViewModelFromModel(template, DescriptorUI, RaceGroupingEditor.RaceGroupings);
+            TemplateMorphUI.Templates.Add(new VM_BodyGenTemplatePlaceHolder(template, TemplateMorphUI.Templates));
         }
 
         AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
@@ -246,11 +242,11 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         SourcePath = model.FilePath;
         IsLoadingFromViewModel = false;
         // set the Template "other tempate groups" fields now that all templates and groups have loaded in.
-        _logger.LogStartupEventStart("Updating available partner lists for BodyGen Templates");
-        foreach (var tempateVM in TemplateMorphUI.Templates)
-        {
-            tempateVM.UpdateThisOtherGroupsTemplateCollection();
-        }
+        //_logger.LogStartupEventStart("Updating available partner lists for BodyGen Templates");
+        //foreach (var tempateVM in TemplateMorphUI.Templates)
+        //{
+        //    tempateVM.UpdateThisOtherGroupsTemplateCollection();
+        //}
         _logger.LogStartupEventEnd("Updating available partner lists for BodyGen Templates");
     }
 
@@ -267,9 +263,15 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
             model.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.DumpViewModelToModel(RTG));
         }
         model.TemplateDescriptors = DescriptorUI.DumpToViewModels();
+
+        if (TemplateMorphUI.CurrentlyDisplayedTemplate != null)
+        {
+            TemplateMorphUI.CurrentlyDisplayedTemplate.DumpViewModelToModel();
+        }
+
         foreach (var template in TemplateMorphUI.Templates)
         {
-            model.Templates.Add(template.DumpViewModelToModel());
+            model.Templates.Add(template.AssociatedModel);
         }
         VM_AttributeGroupMenu.DumpViewModelToModels(AttributeGroupMenu, model.AttributeGroups);
         model.RaceGroupings = RaceGroupingEditor.DumpToModel();

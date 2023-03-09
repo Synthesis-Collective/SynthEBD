@@ -27,7 +27,7 @@
         <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddTemplate}" Foreground="Lightgreen">Add New</Button>
         <ScrollViewer Grid.Column="0" Grid.Row="2">
             <StackPanel >
-                <ListBox SelectedValue="{Binding CurrentlyDisplayedTemplate}" ItemsSource="{Binding Templates}" IsSynchronizedWithCurrentItem="True" >
+                <ListBox SelectedValue="{Binding SelectedPlaceHolder}" ItemsSource="{Binding Templates}" IsSynchronizedWithCurrentItem="True" >
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Border BorderThickness="1" BorderBrush="{Binding BorderColor}">

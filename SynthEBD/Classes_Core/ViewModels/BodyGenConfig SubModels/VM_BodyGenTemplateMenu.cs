@@ -9,6 +9,7 @@ using ReactiveUI;
 using System.Windows.Media;
 using DynamicData.Binding;
 using static SynthEBD.VM_NPCAttribute;
+using System.Reactive.Linq;
 
 namespace SynthEBD;
 
@@ -27,12 +28,16 @@ public class VM_BodyGenTemplateMenu : VM
 
         AddTemplate = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => Templates.Add(_bodyGenTemplateFactory(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, Templates, parentConfig))
-        );
+            execute: _ =>
+            {
+                var placeHolder = new VM_BodyGenTemplatePlaceHolder(new BodyGenConfig.BodyGenTemplate(), Templates);
+                Templates.Add(placeHolder);
+                SelectedPlaceHolder = placeHolder;
+            });
 
         RemoveTemplate = new RelayCommand(
             canExecute: _ => true,
-            execute: x => Templates.Remove((VM_BodyGenTemplate)x)
+            execute: x => Templates.Remove((VM_BodyGenTemplatePlaceHolder)x)
         );
 
         ImportBodyGen = new RelayCommand(
@@ -49,27 +54,77 @@ public class VM_BodyGenTemplateMenu : VM
                     var newTemplates = _bodyGenIO.LoadTemplatesINI(templatePath);
                     foreach (var template in newTemplates.Where(x => !Templates.Select(x => x.Label).Contains(x.Label)).ToArray())
                     {
+                        /*
                         var templateVM = _bodyGenTemplateFactory(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, Templates, parentConfig);
                         templateVM.CopyInViewModelFromModel(template, parentConfig.DescriptorUI, raceGroupingVMs);
-                        Templates.Add(templateVM);
+                        Templates.Add(templateVM);*/
+                        var placeHolder = new VM_BodyGenTemplatePlaceHolder(template, Templates);
+                        Templates.Add(placeHolder);
                     }
                 }
             }
         );
 
         Alphabetizer = new(Templates, x => x.Label, new(Colors.MediumPurple));
-    }
-    public ObservableCollection<VM_BodyGenTemplate> Templates { get; set; } = new();
 
+        this.WhenAnyValue(vm => vm.SelectedPlaceHolder)
+         .Buffer(2, 1)
+         .Select(b => (Previous: b[0], Current: b[1]))
+         .Subscribe(t => {
+             if (t.Previous != null && t.Previous.AssociatedViewModel != null)
+             {
+                 t.Previous.AssociatedViewModel.DumpViewModelToModel();
+             }
+
+             if (t.Current != null)
+             {
+                 CurrentlyDisplayedTemplate = _bodyGenTemplateFactory(t.Current, parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, parentConfig);
+                 CurrentlyDisplayedTemplate.CopyInViewModelFromModel(parentConfig.DescriptorUI, raceGroupingVMs);
+             }
+         });
+    }
+    public ObservableCollection<VM_BodyGenTemplatePlaceHolder> Templates { get; set; } = new();
+    public VM_BodyGenTemplatePlaceHolder SelectedPlaceHolder { get; set; }
     public VM_BodyGenTemplate CurrentlyDisplayedTemplate { get; set; }
 
-    public VM_Alphabetizer<VM_BodyGenTemplate, string> Alphabetizer { get; set; }
+    public VM_Alphabetizer<VM_BodyGenTemplatePlaceHolder, string> Alphabetizer { get; set; }
 
     public RelayCommand AddTemplate { get; }
     public RelayCommand RemoveTemplate { get; }
     public RelayCommand ImportBodyGen { get; }
 }
 
+public class VM_BodyGenTemplatePlaceHolder : VM
+{
+    public VM_BodyGenTemplatePlaceHolder(BodyGenConfig.BodyGenTemplate model, ObservableCollection<VM_BodyGenTemplatePlaceHolder> parentCollection)
+    {
+        AssociatedModel = model;
+        Label = model.Label;
+        ParentCollection = parentCollection;
+        if (!AssociatedModel.MemberOfTemplateGroups.Any())
+        {
+            BorderColor = CommonColors.Red;
+        }
+        else if (!AssociatedModel.BodyShapeDescriptors.Any())
+        {
+            BorderColor = CommonColors.Yellow;
+        }
+        else
+        {
+            BorderColor = CommonColors.Green;
+        }
+
+        this.WhenAnyValue(x => x.AssociatedViewModel.Label).Subscribe(y => Label = y).DisposeWith(this);
+        this.WhenAnyValue(x => x.AssociatedViewModel.BorderColor).Subscribe(y => BorderColor = y).DisposeWith(this);
+    }
+    
+    public string Label { get; set; }
+    public SolidColorBrush BorderColor { get; set; }
+    public BodyGenConfig.BodyGenTemplate AssociatedModel { get; set; }
+    public VM_BodyGenTemplate? AssociatedViewModel { get; set; }
+    public ObservableCollection<VM_BodyGenTemplatePlaceHolder> ParentCollection { get; set; }
+
+}
 
 public class VM_BodyGenTemplate : VM
 {
@@ -77,14 +132,16 @@ public class VM_BodyGenTemplate : VM
     private readonly VM_NPCAttributeCreator _attributeCreator;
     private readonly Logger _logger;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
-    public delegate VM_BodyGenTemplate Factory(ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodyGenTemplate> parentCollection, VM_BodyGenConfig parentConfig);
-    public VM_BodyGenTemplate(ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_BodyGenTemplate> parentCollection, VM_BodyGenConfig parentConfig, IEnvironmentStateProvider environmentProvider, VM_NPCAttributeCreator attributeCreator, Logger logger, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+    public delegate VM_BodyGenTemplate Factory(VM_BodyGenTemplatePlaceHolder associatedPlaceHolder, ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyGenConfig parentConfig);
+    public VM_BodyGenTemplate(VM_BodyGenTemplatePlaceHolder associatedPlaceHolder, ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyGenConfig parentConfig, IEnvironmentStateProvider environmentProvider, VM_NPCAttributeCreator attributeCreator, Logger logger, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
         _environmentProvider = environmentProvider;
         _attributeCreator = attributeCreator;
         _logger = logger;
         _descriptorSelectionFactory = descriptorSelectionFactory;
 
+        AssociatedPlaceHolder = associatedPlaceHolder;
+        AssociatedPlaceHolder.AssociatedViewModel = this;
         SubscribedTemplateGroups = templateGroups;
         GroupSelectionCheckList = new VM_CollectionMemberStringCheckboxList(SubscribedTemplateGroups);
         DescriptorsSelectionMenu = descriptorSelectionFactory(BodyShapeDescriptors, raceGroupingVMs, parentConfig, false, DescriptorMatchMode.Any);
@@ -92,9 +149,6 @@ public class VM_BodyGenTemplate : VM
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
         ParentConfig = parentConfig;
-        ParentCollection = parentCollection;
-
-        ParentCollection.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection()).DisposeWith(this);
         SubscribedTemplateGroups.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection()).DisposeWith(this);
         GroupSelectionCheckList.CollectionMemberStrings.ToObservableChangeSet().Subscribe(x => UpdateThisOtherGroupsTemplateCollection()).DisposeWith(this);
 
@@ -124,10 +178,11 @@ public class VM_BodyGenTemplate : VM
 
         DeleteMe = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => ParentCollection.Remove(this)
+            execute: _ => AssociatedPlaceHolder.ParentCollection.Remove(AssociatedPlaceHolder)
         );
     }
 
+    public VM_BodyGenTemplatePlaceHolder AssociatedPlaceHolder { get; }
     public string Label { get; set; } = "";
     public string Notes { get; set; } = "";
     public string Specs { get; set; } = ""; // will need special logic during I/O because in zEBD settings this is called "params" which is reserved in C#
@@ -158,15 +213,15 @@ public class VM_BodyGenTemplate : VM
 
     public VM_BodyGenConfig ParentConfig { get; set; }
     public ObservableCollection<VM_CollectionMemberString> SubscribedTemplateGroups { get; set;}
-    public ObservableCollection<VM_BodyGenTemplate> ParentCollection { get; set;}
-    public ObservableCollection<VM_BodyGenTemplate> OtherGroupsTemplateCollection { get; set; } = new();
+    public ObservableCollection<VM_BodyGenTemplatePlaceHolder> OtherGroupsTemplateCollection { get; set; } = new();
     public SolidColorBrush BorderColor { get; set; }
     public string StatusHeader { get; set; }
     public string StatusText { get; set; }
     public bool ShowStatus { get; set; }
 
-    public void CopyInViewModelFromModel(BodyGenConfig.BodyGenTemplate model, VM_BodyShapeDescriptorCreationMenu descriptorMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
+    public void CopyInViewModelFromModel(VM_BodyShapeDescriptorCreationMenu descriptorMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
+        var model = AssociatedPlaceHolder.AssociatedModel;
         Label = model.Label;
         Notes = model.Notes;
         Specs = model.Specs;
@@ -208,9 +263,9 @@ public class VM_BodyGenTemplate : VM
         UpdateStatusDisplay();
     }
 
-    public BodyGenConfig.BodyGenTemplate DumpViewModelToModel()
+    public void DumpViewModelToModel()
     {
-        BodyGenConfig.BodyGenTemplate model = new BodyGenConfig.BodyGenTemplate();
+        var model = AssociatedPlaceHolder.AssociatedModel;
         model.Label = Label;
         model.Notes = Notes;
         model.Specs = Specs;
@@ -228,52 +283,21 @@ public class VM_BodyGenTemplate : VM
         model.ProbabilityWeighting = ProbabilityWeighting;
         model.RequiredTemplates = RequiredTemplates.Select(x => x.Content).ToHashSet();
         model.WeightRange = WeightRange.Clone();
-        return model;
     }
 
-    public ObservableCollection<VM_BodyGenTemplate> UpdateThisOtherGroupsTemplateCollection()
+    public ObservableCollection<VM_BodyGenTemplatePlaceHolder> UpdateThisOtherGroupsTemplateCollection()
     {
         if (ParentConfig.IsLoadingFromViewModel)
         {
             return new(); // skip this when the parent BodyGen Config view model is being loaded in because every added Template will trigger this evaluation. 
         }
 
-        var updatedCollection = new ObservableCollection<VM_BodyGenTemplate>();
-        var excludedCollection = new ObservableCollection<VM_BodyGenTemplate>();
+        var sameGroups = ParentConfig.TemplateMorphUI.Templates.Where(x => x.AssociatedModel.MemberOfTemplateGroups.Intersect(AssociatedPlaceHolder.AssociatedModel.MemberOfTemplateGroups).Any()).ToArray();
+        var otherGroups = ParentConfig.TemplateMorphUI.Templates.Where(x => !x.AssociatedModel.MemberOfTemplateGroups.Intersect(AssociatedPlaceHolder.AssociatedModel.MemberOfTemplateGroups).Any()).ToArray();
 
-        foreach (var template in ParentCollection)
-        {
-            bool inGroup = false;
-            foreach (var group in template.GroupSelectionCheckList.CollectionMemberStrings)
-            {
-                if (group.IsSelected == false) { continue; }
+        OtherGroupsTemplateCollection = new(otherGroups);
 
-                foreach (var thisGroup in GroupSelectionCheckList.CollectionMemberStrings)
-                {
-                    if (thisGroup.IsSelected == false) { continue; }
-                        
-                    if (group.SubscribedString == thisGroup.SubscribedString)
-                    {
-                        inGroup = true;
-                        break;
-                    }
-                }
-                if (inGroup == true) { break; }
-            }
-
-            if (inGroup == false)
-            {
-                updatedCollection.Add(template);
-            }
-            else
-            {
-                excludedCollection.Add(template);
-            }    
-        }
-
-        OtherGroupsTemplateCollection = updatedCollection;
-
-        return excludedCollection;
+        return new(sameGroups);
     }
 
     public void UpdateStatusDisplay()

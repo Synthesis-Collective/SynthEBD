@@ -78,7 +78,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
                         if (_environmentProvider.LinkCache.TryResolve<INpcGetter>(assignment.Item1, out var npcGetter))
                         {
                             var morphNames = assignment.Item2.Split('|').Select(s => s.Trim());
-                            var morphs = new List<VM_BodyGenTemplate>();
+                            var morphs = new List<VM_BodyGenTemplatePlaceHolder>();
                             var gender = NPCInfo.GetGender(npcGetter);
                             switch(gender)
                             {

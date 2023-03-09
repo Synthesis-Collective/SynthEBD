@@ -158,7 +158,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
         DeleteForcedMorph = new RelayCommand(
             canExecute: _ => true,
-            execute: x => ForcedBodyGenMorphs.Remove((VM_BodyGenTemplate)x)
+            execute: x => ForcedBodyGenMorphs.Remove((VM_BodyGenTemplatePlaceHolder)x)
         );
 
         AddForcedMixIn = new RelayCommand(
@@ -217,7 +217,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     public ObservableCollection<VM_MixInSpecificAssignment> ForcedMixIns { get; set; } = new();
     public ObservableCollection<VM_AssetReplacementAssignment> ForcedAssetReplacements { get; set; } = new();
     public string ForcedHeight { get; set; } = "";
-    public ObservableCollection<VM_BodyGenTemplate> ForcedBodyGenMorphs { get; set; } = new();
+    public ObservableCollection<VM_BodyGenTemplatePlaceHolder> ForcedBodyGenMorphs { get; set; } = new();
     public string ForcedBodySlide { get; set; } = "";
     public Dictionary<HeadPart.TypeEnum, VM_HeadPartAssignment> HeadParts { get; set; } = new();
 
@@ -228,7 +228,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     public ObservableCollection<VM_SubgroupPlaceHolder> AvailableSubgroups { get; set; } = new();
 
     public ObservableCollection<VM_AssetPack> AvailableMixInAssetPacks { get; set; } = new();
-    public ObservableCollection<VM_BodyGenTemplate> AvailableMorphs { get; set; } = new();
+    public ObservableCollection<VM_BodyGenTemplatePlaceHolder> AvailableMorphs { get; set; } = new();
     public VM_SettingsBodyGen SubscribedBodyGenSettings { get; set; }
     public ObservableCollection<VM_BodySlideSetting> SubscribedBodySlides { get; set; }
     public ObservableCollection<VM_BodySlideSetting> AvailableBodySlides { get; set; }
@@ -294,7 +294,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             ForcedHeight = "";
         }
 
-        ObservableCollection<VM_BodyGenTemplate> templates = new ObservableCollection<VM_BodyGenTemplate>();
+        ObservableCollection<VM_BodyGenTemplatePlaceHolder> templates = new();
         switch (Gender)
         {
             case Gender.Male:
@@ -304,7 +304,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                 }
                 else
                 {
-                    templates = new ObservableCollection<VM_BodyGenTemplate>();
+                    templates = new ObservableCollection<VM_BodyGenTemplatePlaceHolder>();
                 }
                 break;
             case Gender.Female:
@@ -314,7 +314,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                 }
                 else
                 {
-                    templates = new ObservableCollection<VM_BodyGenTemplate>();
+                    templates = new ObservableCollection<VM_BodyGenTemplatePlaceHolder>();
                 }
                 break;
         }
@@ -549,7 +549,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         // clear available morphs besides the ones that are forced (removing those from the available morph list also clears their combobox selection)
         assignment.AvailableMorphs.Clear();
 
-        var allTemplateList = new ObservableCollection<VM_BodyGenTemplate>();
+        var allTemplateList = new ObservableCollection<VM_BodyGenTemplatePlaceHolder>();
         switch (assignment.Gender)
         {
             case Gender.Male:
@@ -575,11 +575,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
             bool groupOccupied = false;
 
-            var candidateGroups = candidateMorph.GroupSelectionCheckList.CollectionMemberStrings.Where(x => x.IsSelected).Select(x => x.SubscribedString.Content).ToArray();
+            var candidateGroups = candidateMorph.AssociatedModel.MemberOfTemplateGroups;
 
             foreach (var alreadyForcedMorph in assignment.ForcedBodyGenMorphs)
             {
-                var forcedGroups = alreadyForcedMorph.GroupSelectionCheckList.CollectionMemberStrings.Where(x => x.IsSelected).Select(x => x.SubscribedString.Content).ToArray();
+                var forcedGroups = alreadyForcedMorph.AssociatedModel.MemberOfTemplateGroups;
 
                 if (candidateGroups.Intersect(forcedGroups).ToArray().Length > 0)
                 {
