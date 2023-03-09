@@ -27,7 +27,7 @@ public class VM_SettingsTexMesh : VM
         VM_SettingsOBody oBody,
         VM_SettingsModManager modManager,
         VM_AssetPack.Factory assetPackFactory,
-        VM_Subgroup.Factory subgroupFactory,
+        VM_SubgroupPlaceHolder.Factory subgroupPlaceHolderFactory,
         IEnvironmentStateProvider environmentProvider,
         Logger logger,
         SynthEBDPaths paths,
@@ -105,13 +105,12 @@ public class VM_SettingsTexMesh : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                var newAP = assetPackFactory();
-                var newSG = subgroupFactory(general.RaceGroupingEditor.RaceGroupings, newAP.Subgroups, newAP, null, false);
-                newSG.ID = "FS";
-                newSG.Name = "First Subgroup";
+                var newAP = assetPackFactory(new AssetPack());
+                var newSG = subgroupPlaceHolderFactory(new AssetPack.Subgroup { ID = "FS", Name = "First Subgroup" }, null, newAP, newAP.Subgroups);
                 newAP.Subgroups.Add(newSG);
-                this.AssetPacks.Add(newAP);
+                AssetPacks.Add(newAP);
                 AssetPresenterPrimary.AssetPack = newAP;
+                //AssetPresenterPrimary.AssetPack.DisplayedSubgroup = 
             }
         );
 
@@ -155,7 +154,7 @@ public class VM_SettingsTexMesh : VM
                     if (loadSuccess)
                     {
                         newAssetPack.FilePath = System.IO.Path.Combine(_paths.AssetPackDirPath, System.IO.Path.GetFileName(newAssetPack.FilePath)); // overwrite existing filepath so it doesn't get deleted from source
-                        var newAssetPackVM = assetPackFactory();
+                        var newAssetPackVM = assetPackFactory(newAssetPack);
                         newAssetPackVM.CopyInViewModelFromModel(newAssetPack, general.RaceGroupingEditor.RaceGroupings);
                         newAssetPackVM.IsSelected = true;
                         ConfigVersionUpdate(Version.v090, new() { newAssetPackVM.GroupName});
@@ -287,6 +286,7 @@ public class VM_SettingsTexMesh : VM
         {
             return;
         }
+        _logger.LogStartupEventStart("Loading TexMesh Settings UI");
         bChangeNPCTextures = model.bChangeNPCTextures;
         bChangeNPCMeshes = model.bChangeNPCMeshes;
         bChangeNPCHeadParts = model.bChangeNPCHeadParts;
@@ -316,7 +316,7 @@ public class VM_SettingsTexMesh : VM
         }
 
         bCacheRecords = model.bCacheRecords;
-        
+        _logger.LogStartupEventEnd("Loading TexMesh Settings UI");
     }
 
     public Settings_TexMesh DumpViewModelToModel()
@@ -355,7 +355,7 @@ public class VM_SettingsTexMesh : VM
         InstalledConfigsInCurrentSession.AddRange(installedConfigs);
         Cursor.Current = Cursors.WaitCursor;
         _getVMLoader().SaveAndRefreshPlugins();
-        foreach (var newConfig in AssetPacks.Where(x => InstalledConfigsInCurrentSession.Contains(x.GroupName)))
+        foreach (var newConfig in AssetPacks.Where(x => InstalledConfigsInCurrentSession.Contains(x.GroupName)).ToArray())
         {
             newConfig.IsSelected = true;
         }
@@ -403,7 +403,7 @@ public class VM_SettingsTexMesh : VM
 
         foreach (var ap in toSearch)
         {
-            if (ap.CheckForVersionUpdate(version))
+            if (ap.VersionUpdate(version, UpdateMode.Check))
             {
                 toUpdate.Add(ap);
             }
@@ -420,7 +420,7 @@ public class VM_SettingsTexMesh : VM
             {
                 foreach (var ap in toUpdate)
                 {
-                    ap.PerformVersionUpdate(version);
+                    ap.VersionUpdate(version, UpdateMode.Perform);
                 }
             }
         }

@@ -32,7 +32,7 @@ namespace SynthEBD
             if (trialAttribute is not null && trialAttribute.GroupedSubAttributes.Any())
             {
                 HasRestrictions = true;
-                RestrictionColor = new SolidColorBrush(Colors.Green);
+                RestrictionColor = CommonColors.Green;
             }
             
             this.WhenAnyValue(x => x.NPCformkey).Subscribe(x => TestNPC()).DisposeWith(this);
@@ -44,11 +44,11 @@ namespace SynthEBD
         public NPCAttribute TrialAttribute { get; set; }
         public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
         public bool HasRestrictions { get; set; } = false;
-        public SolidColorBrush RestrictionColor { get; set; } = new SolidColorBrush(Colors.Yellow);
+        public SolidColorBrush RestrictionColor { get; set; } = CommonColors.Yellow;
         public bool MatchesRestrictions { get; set; }
-        public SolidColorBrush MatchColor { get; set; } = new SolidColorBrush(Colors.Yellow);
+        public SolidColorBrush MatchColor { get; set; } = CommonColors.Yellow;
         public int MatchedForceIfs { get; set; }
-        public SolidColorBrush ForceIfColor { get; set; } = new SolidColorBrush(Colors.Yellow);
+        public SolidColorBrush ForceIfColor { get; set; } = CommonColors.Yellow;
         public string MatchedLog { get; set; }
         public string UnMatchedLog { get; set; }
         public string ForceIfLog { get; set; }
@@ -67,23 +67,23 @@ namespace SynthEBD
 
                 if (matchedForceIfAttributeWeightedCount > 0)
                 {
-                    ForceIfColor = new SolidColorBrush(Colors.Green);
+                    ForceIfColor = CommonColors.Green;
                 }
             }
 
             if (!HasRestrictions)
             {
-                RestrictionColor = new SolidColorBrush(Colors.Red);
-                MatchColor = new SolidColorBrush(Colors.Yellow);
-                ForceIfColor = new SolidColorBrush(Colors.Yellow);
+                RestrictionColor = CommonColors.Red;
+                MatchColor = CommonColors.Yellow;
+                ForceIfColor = CommonColors.Yellow;
             }
             else if (MatchesRestrictions)
             {
-                MatchColor = new SolidColorBrush(Colors.Green);
+                MatchColor = CommonColors.Green;
             }
             else
             {
-                MatchColor = new SolidColorBrush(Colors.Red);
+                MatchColor = CommonColors.Red;
             }  
         }
     }

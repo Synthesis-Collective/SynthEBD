@@ -15,11 +15,13 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly VM_Settings_General _generalSettingsVM;
     private readonly VM_HeadPartList.Factory _listFactory;
+    private readonly Logger _logger;
     public VM_Settings_Headparts(VM_Settings_General generalSettingsVM, VM_SettingsOBody oBodySettings, VM_SettingsBodyGen bodyGenSettings, VM_HeadPartList.Factory listFactory, VM_HeadPart.Factory headPartFactory, Logger logger, IEnvironmentStateProvider environmentProvider)
     {
         _environmentProvider = environmentProvider;
         _generalSettingsVM = generalSettingsVM;
         _listFactory = listFactory;
+        _logger = logger;
 
         ImportMenu = new VM_HeadPartImport(this, logger, environmentProvider, headPartFactory);
         SettingsMenu = new(this, bodyGenSettings);
@@ -137,12 +139,14 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
             return;
         }
 
+        _logger.LogStartupEventStart("Loading UI for HeadParts Menu");
         RaceGroupings = raceGroupings;
-        SettingsMenu.GetViewModelFromModel(model);
+        SettingsMenu.GetViewModelFromModel(model); // must load before the VM_HeadPartLists
         foreach (var type in model.Types.Keys)
         {
             Types[type].CopyInFromModel(model.Types[type], RaceGroupings, AttributeGroupMenu);
         }
+        _logger.LogStartupEventEnd("Loading UI for HeadParts Menu");
     }
 
     public Settings_Headparts DumpViewModelToModel()

@@ -209,7 +209,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
 
         foreach (var RTG in model.RacialTemplateGroupMap)
         {
-            GroupMappingUI.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.GetViewModelFromModel(RTG, GroupUI, RaceGroupingEditor.RaceGroupings, _mappingFactory));
+            GroupMappingUI.RacialTemplateGroupMap.Add(VM_BodyGenRacialMapping.GetViewModelFromModel(RTG, GroupUI, RaceGroupingEditor.RaceGroupings, _mappingFactory, _logger));
         }
         
         if (GroupMappingUI.RacialTemplateGroupMap.Any())
@@ -221,6 +221,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
 
         foreach (var descriptor in model.TemplateDescriptors)
         {
+            _logger.LogStartupEventStart("Generating UI for BodyShape Descriptor " + descriptor.ID);
             var subVm = _descriptorCreator.CreateNew(
                 _descriptorCreator.CreateNewShell(
                     new ObservableCollection<VM_BodyShapeDescriptorShell>(), RaceGroupingEditor.RaceGroupings, this),
@@ -228,13 +229,16 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
                 this);
             subVm.CopyInViewModelFromModel(descriptor, RaceGroupingEditor.RaceGroupings, this);
             DescriptorUI.TemplateDescriptorList.Add(subVm);
+            _logger.LogStartupEventEnd("Generating UI for BodyShape Descriptor " + descriptor.ID);
         }
 
         foreach (var template in model.Templates)
         {
+            _logger.LogStartupEventStart("Generating UI for BodyGen Morph " + template.Label);
             var templateVM = _templateFactory(GroupUI.TemplateGroups, DescriptorUI, RaceGroupingEditor.RaceGroupings, TemplateMorphUI.Templates, this);
-            templateVM.CopyInViewModelFromModel(template, DescriptorUI, RaceGroupingEditor.RaceGroupings);
             TemplateMorphUI.Templates.Add(templateVM);
+            _logger.LogStartupEventEnd("Generating UI for BodyGen Morph " + template.Label);
+            templateVM.CopyInViewModelFromModel(template, DescriptorUI, RaceGroupingEditor.RaceGroupings);
         }
 
         AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups);
@@ -242,10 +246,12 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         SourcePath = model.FilePath;
         IsLoadingFromViewModel = false;
         // set the Template "other tempate groups" fields now that all templates and groups have loaded in.
+        _logger.LogStartupEventStart("Updating available partner lists for BodyGen Templates");
         foreach (var tempateVM in TemplateMorphUI.Templates)
         {
             tempateVM.UpdateThisOtherGroupsTemplateCollection();
         }
+        _logger.LogStartupEventEnd("Updating available partner lists for BodyGen Templates");
     }
 
     public BodyGenConfig DumpViewModelToModel()

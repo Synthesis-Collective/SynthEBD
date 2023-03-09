@@ -60,16 +60,16 @@ public class NPCInfo
 
         SpecificNPCAssignment = _patcherState.SpecificNPCAssignments.Where(x => x.NPCFormKey == npc.FormKey).FirstOrDefault();
 
-        if (_patcherState.Consistency.ContainsKey(this.NPC.FormKey.ToString()))
+        if (_patcherState.Consistency.ContainsKey(NPC.FormKey.ToString()))
         {
-            ConsistencyNPCAssignment = _patcherState.Consistency[this.NPC.FormKey.ToString()];
+            ConsistencyNPCAssignment = _patcherState.Consistency[NPC.FormKey.ToString()];
         }
         else
         {
             ConsistencyNPCAssignment = new NPCAssignment();
             ConsistencyNPCAssignment.NPCFormKey = NPC.FormKey;
             ConsistencyNPCAssignment.DispName = LogIDstring;
-            _patcherState.Consistency.Add(this.NPC.FormKey.ToString(), ConsistencyNPCAssignment);
+            _patcherState.Consistency.Add(NPC.FormKey.ToString(), ConsistencyNPCAssignment);
         }
 
         if (_patcherState.GeneralSettings.bChangeHeadParts)

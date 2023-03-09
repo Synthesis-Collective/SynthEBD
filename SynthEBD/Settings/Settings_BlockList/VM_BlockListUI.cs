@@ -78,6 +78,7 @@ public class VM_BlockListUI : VM
         {
             return;
         }
+        _logger.LogStartupEventStart("Loading BlockList UI");
         BlockedNPCs.Clear();
         foreach (var blockedNPC in model.NPCs)
         {
@@ -89,6 +90,7 @@ public class VM_BlockListUI : VM
         {
             BlockedPlugins.Add(VM_BlockedPlugin.GetViewModelFromModel(blockedPlugin, blockedPluginFactory));
         }
+        _logger.LogStartupEventEnd("Loading BlockList UI");
     }
 
     public BlockList DumpViewModelToModel()

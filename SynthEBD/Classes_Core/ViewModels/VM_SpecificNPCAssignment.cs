@@ -8,6 +8,7 @@ using System.Collections.Specialized;
 using ReactiveUI;
 using DynamicData.Binding;
 using System.Linq;
+using System.Reactive.Linq;
 
 namespace SynthEBD;
 
@@ -69,13 +70,14 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
         AssetOrderingMenu = new(texMesh);
 
-        this.SubscribedAssetPacks = texMesh.AssetPacks;
+        SubscribedAssetPacks = texMesh.AssetPacks;
 
         this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => RefreshAll()).DisposeWith(this);
 
-        this.SubscribedAssetPacks.ToObservableChangeSet().Subscribe(x => RefreshAssets()).DisposeWith(this);
+        SubscribedAssetPacks.ToObservableChangeSet().Subscribe(x => RefreshAssets()).DisposeWith(this);
+
         DynamicData.ObservableListEx
-            .Transform(this.SubscribedAssetPacks.ToObservableChangeSet(), x => x.WhenAnyValue(y => y.IsSelected)
+            .Transform(SubscribedAssetPacks.ToObservableChangeSet(), x => x.WhenAnyValue(y => y.IsSelected)
                 .Subscribe(_ => RefreshAssets())
                 .DisposeWith(this))
             .Subscribe()
@@ -107,18 +109,23 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             }
         }).DisposeWith(this);
 
-        this.ForcedSubgroups.ToObservableChangeSet().Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
+        ForcedSubgroups.ToObservableChangeSet().Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.SubscribedBodyGenSettings).Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
-        this.ForcedBodyGenMorphs.ToObservableChangeSet().Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
-        this.SubscribedBodyGenSettings.MaleConfigs.ToObservableChangeSet().Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
-        this.SubscribedBodyGenSettings.FemaleConfigs.ToObservableChangeSet().Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
-        this.SubscribedBodyGenSettings.WhenAnyValue(x => x.CurrentMaleConfig).Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
-        this.SubscribedBodyGenSettings.WhenAnyValue(x => x.CurrentFemaleConfig).Subscribe(x => UpdateAvailableMorphs(this)).DisposeWith(this);
+        Observable.CombineLatest(
+                this.WhenAnyValue(x => x.SubscribedBodyGenSettings),
+                ForcedBodyGenMorphs.ToObservableChangeSet(),
+                SubscribedBodyGenSettings.MaleConfigs.ToObservableChangeSet(),
+                SubscribedBodyGenSettings.FemaleConfigs.ToObservableChangeSet(),
+                SubscribedBodyGenSettings.WhenAnyValue(x => x.CurrentMaleConfig),
+                SubscribedBodyGenSettings.WhenAnyValue(x => x.CurrentFemaleConfig),
+                (_, _, _, _, _, _) => { return 0; })
+            .Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler)
+            .Subscribe(_ => {
+                UpdateAvailableMorphs(this);
+            }).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.NPCFormKey).Subscribe(x => UpdateAvailableBodySlides()).DisposeWith(this);
-        SubscribedOBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesFemale).Subscribe(x => UpdateAvailableBodySlides()).DisposeWith(this);
-        SubscribedOBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesMale).Subscribe(x => UpdateAvailableBodySlides()).DisposeWith(this);
+        //SubscribedOBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesFemale).Subscribe(x => UpdateAvailableBodySlides()).DisposeWith(this);
+        //SubscribedOBodySettings.BodySlidesUI.WhenAnyValue(x => x.BodySlidesMale).Subscribe(x => UpdateAvailableBodySlides()).DisposeWith(this);
 
         this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x =>
         {
@@ -146,7 +153,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         );
         DeleteForcedSubgroup = new RelayCommand(
             canExecute: _ => true,
-            execute: x => ForcedSubgroups.Remove((VM_Subgroup)x)
+            execute: x => ForcedSubgroups.Remove((VM_SubgroupPlaceHolder)x)
         );
 
         DeleteForcedMorph = new RelayCommand(
@@ -168,7 +175,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             canExecute: _ => true,
             execute: x =>
             {
-                var toDelete = (VM_Subgroup)x;
+                var toDelete = (VM_SubgroupPlaceHolder)x;
                 foreach (var mixin in ForcedMixIns)
                 {
                     if (mixin.ForcedSubgroups.Contains(toDelete))
@@ -206,7 +213,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     public FormKey NPCFormKey { get; set; } = new();
     public VM_AssetPack ForcedAssetPack { get; set; }
     public bool ShowSubgroupAssignments { get; set; } = false;
-    public ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; } = new();
+    public ObservableCollection<VM_SubgroupPlaceHolder> ForcedSubgroups { get; set; } = new();
     public ObservableCollection<VM_MixInSpecificAssignment> ForcedMixIns { get; set; } = new();
     public ObservableCollection<VM_AssetReplacementAssignment> ForcedAssetReplacements { get; set; } = new();
     public string ForcedHeight { get; set; } = "";
@@ -218,7 +225,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     public ObservableCollection<VM_AssetPack> AvailableAssetPacks { get; set; } = new();
     public ObservableCollection<VM_AssetPack> SubscribedAssetPacks { get; set; }
 
-    public ObservableCollection<VM_Subgroup> AvailableSubgroups { get; set; } = new();
+    public ObservableCollection<VM_SubgroupPlaceHolder> AvailableSubgroups { get; set; } = new();
 
     public ObservableCollection<VM_AssetPack> AvailableMixInAssetPacks { get; set; } = new();
     public ObservableCollection<VM_BodyGenTemplate> AvailableMorphs { get; set; } = new();
@@ -244,54 +251,51 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     public RelayCommand AddHeadPart { get; set; }
     public RelayCommand SyncThisAssetOrder { get; set; }
     public RelayCommand SyncAllAssetOrders { get; set; }
-    public static VM_SpecificNPCAssignment GetViewModelFromModel(
+    public void CopyInFromModel(
         NPCAssignment model, 
-        VM_AssetPack.Factory assetPackFactory, 
         VM_SettingsTexMesh texMesh,
         VM_SettingsBodyGen bodyGen,
         VM_Settings_Headparts headParts,
-        Factory specificNpcAssignmentFactory, 
         Logger logger,
         Converters converters,
         IEnvironmentStateProvider environmentProvider)
     {
-        var viewModel = specificNpcAssignmentFactory();
-        viewModel.NPCFormKey = model.NPCFormKey;
+        NPCFormKey = model.NPCFormKey;
 
-        if (viewModel.NPCFormKey.IsNull)
+        if (NPCFormKey.IsNull)
         {
-            return null;
+            return;
         }
 
-        var npcFormLink = new FormLink<INpcGetter>(viewModel.NPCFormKey);
+        var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
 
         if (!npcFormLink.TryResolve(environmentProvider.LinkCache, out var npcRecord))
         {
-            logger.LogError("Warning: the target NPC of the Specific NPC Assignment with FormKey " + viewModel.NPCFormKey.ToString() + " was not found in the current load order.");
+            logger.LogError("Warning: the target NPC of the Specific NPC Assignment with FormKey " + NPCFormKey.ToString() + " was not found in the current load order.");
         }
 
-        viewModel.Gender = GetGender(viewModel.NPCFormKey, logger, environmentProvider);
+        Gender = GetGender(NPCFormKey, logger, environmentProvider);
 
         if (model.AssetPackName.Length != 0)
         {
-            LinkAssetPackToForcedAssignment(model, viewModel, model.AssetPackName, texMesh.AssetPacks, logger);
+            LinkAssetPackToForcedAssignment(model, this, model.AssetPackName, texMesh.AssetPacks, logger);
         }
 
-        viewModel.CopyInMixInViewModels(model.MixInAssignments);
+        CopyInMixInViewModels(model.MixInAssignments);
 
-        viewModel.AssetOrderingMenu.CopyInFromModel(model.AssetOrder);
+        AssetOrderingMenu.CopyInFromModel(model.AssetOrder);
 
         if (model.Height != null)
         {
-            viewModel.ForcedHeight = model.Height.ToString();
+            ForcedHeight = model.Height.ToString();
         }
         else
         {
-            viewModel.ForcedHeight = "";
+            ForcedHeight = "";
         }
 
         ObservableCollection<VM_BodyGenTemplate> templates = new ObservableCollection<VM_BodyGenTemplate>();
-        switch (viewModel.Gender)
+        switch (Gender)
         {
             case Gender.Male:
                 if (bodyGen.CurrentMaleConfig != null)
@@ -322,47 +326,44 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             {
                 if (morph.Label == forcedMorph)
                 {
-                    viewModel.ForcedBodyGenMorphs.Add(morph);
+                    ForcedBodyGenMorphs.Add(morph);
                     morphFound = true;
                     break; ;
                 }
             }
             if (morphFound == false)
             {
-                logger.LogError("Warning: The forced BodyGen morph " + forcedMorph + " for NPC " + viewModel.DispName + " no longer exists.");
+                logger.LogError("Warning: The forced BodyGen morph " + forcedMorph + " for NPC " + DispName + " no longer exists.");
             }
         }
-
 
         foreach (var replacer in model.AssetReplacerAssignments)
         {
             var parentAssetPack = texMesh.AssetPacks.Where(x => x.GroupName == replacer.AssetPackName).FirstOrDefault();
             if (parentAssetPack != null)
             {
-                VM_AssetReplacementAssignment subVm = new VM_AssetReplacementAssignment(parentAssetPack, viewModel.ForcedAssetReplacements);
+                VM_AssetReplacementAssignment subVm = new VM_AssetReplacementAssignment(parentAssetPack, ForcedAssetReplacements);
                 subVm.CopyInViewModelFromModel(replacer);
-                viewModel.ForcedAssetReplacements.Add(subVm);
+                ForcedAssetReplacements.Add(subVm);
             }
             else
             {
-                logger.LogError("Warning: The forced Asset Replacer " + replacer.AssetPackName + " for NPC " + viewModel.DispName + " no longer exists.");
+                logger.LogError("Warning: The forced Asset Replacer " + replacer.AssetPackName + " for NPC " + DispName + " no longer exists.");
             }
         }
 
-        viewModel.ForcedBodySlide = model.BodySlidePreset;
+        ForcedBodySlide = model.BodySlidePreset;
 
-        foreach (var headPartType in viewModel.HeadParts.Keys)
+        foreach (var headPartType in HeadParts.Keys)
         {
             if (!model.HeadParts.ContainsKey(headPartType)) { model.HeadParts.Add(headPartType, new()); }
             else
             {
-                viewModel.HeadParts[headPartType] = VM_HeadPartAssignment.GetViewModelFromModel(model.HeadParts[headPartType], headPartType, headParts, viewModel, viewModel, environmentProvider);
+                HeadParts[headPartType].CopyInFromModel(model.HeadParts[headPartType], headPartType, headParts, this, this, environmentProvider);
             }
         }
 
-        viewModel.DispName = converters.CreateNPCDispNameFromFormKey(viewModel.NPCFormKey);
-
-        return viewModel;
+        DispName = converters.CreateNPCDispNameFromFormKey(NPCFormKey);
     }
 
     private static bool LinkAssetPackToForcedAssignment(NPCAssignment model, IHasForcedAssets viewModel, string assetPackName, ObservableCollection<VM_AssetPack> assetPacks, Logger logger)
@@ -377,8 +378,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
                 foreach (var id in model.SubgroupIDs)
                 {
-                    var foundSubgroup = GetSubgroupByID(ap.Subgroups, id);
-                    if (foundSubgroup != null)
+                    if (ap.TryGetSubgroupByID(id, out var foundSubgroup))
                     {
                         viewModel.ForcedSubgroups.Add(foundSubgroup);
                         continue;
@@ -411,8 +411,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
                 foreach (var id in model.SubgroupIDs)
                 {
-                    var foundSubgroup = GetSubgroupByID(ap.Subgroups, id);
-                    if (foundSubgroup != null)
+                    if (ap.TryGetSubgroupByID(id, out var foundSubgroup))
                     {
                         viewModel.ForcedSubgroups.Add(foundSubgroup);
                         continue;
@@ -455,7 +454,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             model.SubgroupIDs = new();
         }
 
-        foreach (var mixin in ForcedMixIns.Where(x => x.ForcedAssetPack != null && !x.ForcedAssetPack.GroupName.IsNullOrWhitespace()))
+        foreach (var mixin in ForcedMixIns.Where(x => x.ForcedAssetPack != null && !x.ForcedAssetPack.GroupName.IsNullOrWhitespace()).ToArray())
         {
             if (!model.MixInAssignments.Select(x => x.AssetPackName).Contains(mixin.ForcedAssetPack.GroupName))
             {
@@ -494,7 +493,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     {
         assignment.AvailableAssetPacks.Clear();
         assignment.AvailableMixInAssetPacks.Clear();
-        foreach (var assetPack in assignment.SubscribedAssetPacks.Where(x => x.IsSelected))
+        foreach (var assetPack in assignment.SubscribedAssetPacks.Where(x => x.IsSelected).ToArray())
         {
             if (assetPack.Gender == assignment.Gender)
             {
@@ -532,7 +531,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         }
     }
 
-    public static bool ContainsSubgroupID(ObservableCollection<VM_Subgroup> subgroups, string id)
+    public static bool ContainsSubgroupID(ObservableCollection<VM_SubgroupPlaceHolder> subgroups, string id)
     {
         foreach(var sg in subgroups)
         {
@@ -543,20 +542,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             }
         }
         return false;
-    }
-
-    public static VM_Subgroup GetSubgroupByID(ObservableCollection<VM_Subgroup> subgroups, string id)
-    {
-        foreach (var sg in subgroups)
-        {
-            if (sg.ID == id) { return sg; }
-            else
-            {
-                var candidate = GetSubgroupByID(sg.Subgroups, id);
-                if (candidate != null) { return candidate; }
-            }
-        }
-        return null;
     }
 
     public static void UpdateAvailableMorphs(VM_SpecificNPCAssignment assignment)
@@ -617,19 +602,19 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             case Gender.Male: SubscribedBodySlides = _oBodySettings.BodySlidesUI.BodySlidesMale; break;
             case Gender.Female: SubscribedBodySlides = _oBodySettings.BodySlidesUI.BodySlidesFemale; break;
         }
-        AvailableBodySlides = new ObservableCollection<VM_BodySlideSetting>() { _bodySlideFactory(_oBodySettings.DescriptorUI, _generalSettings.RaceGroupingEditor.RaceGroupings, AvailableBodySlides) }; // blank entry
+        AvailableBodySlides = new ObservableCollection<VM_BodySlideSetting>() { _bodySlideFactory(_generalSettings.RaceGroupingEditor.RaceGroupings, AvailableBodySlides) }; // blank entry
         AvailableBodySlides.AddRange(SubscribedBodySlides);
     }
 
     public void RefreshAll()
     {
-        if (this.NPCFormKey.IsNull)
+        if (NPCFormKey.IsNull)
         {
             return;
         }
 
-        this.DispName = _converters.CreateNPCDispNameFromFormKey(this.NPCFormKey);
-        this.Gender = GetGender(this.NPCFormKey, _logger, _environmentProvider);
+        DispName = _converters.CreateNPCDispNameFromFormKey(NPCFormKey);
+        Gender = GetGender(NPCFormKey, _logger, _environmentProvider);
 
         UpdateAvailableAssetPacks(this);
         UpdateAvailableSubgroups(this);
@@ -697,11 +682,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             Parent = parent;
             ParentCollection = Parent.ForcedMixIns;
 
-            this.AvailableMixInAssetPacks = Parent.AvailableMixInAssetPacks;
-            this.ForcedAssetPack = assetPackFactory();
+            AvailableMixInAssetPacks = Parent.AvailableMixInAssetPacks;
+            ForcedAssetPack = assetPackFactory(new AssetPack());
 
             this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
-            this.ForcedSubgroups.CollectionChanged += TriggerAvailableSubgroupsUpdate;
+            ForcedSubgroups.ToObservableChangeSet().Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
 
             this.WhenAnyValue(x => x.Decline).Subscribe(y =>
             {
@@ -722,12 +707,12 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
             DeleteForcedSubgroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: x => this.ForcedSubgroups.Remove((VM_Subgroup)x)
+                execute: x => ForcedSubgroups.Remove((VM_SubgroupPlaceHolder)x)
             );
 
             AddForcedReplacer = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: x => this.ForcedAssetReplacements.Add(new VM_AssetReplacementAssignment(ForcedAssetPack, ForcedAssetReplacements))
+                execute: x => ForcedAssetReplacements.Add(new VM_AssetReplacementAssignment(ForcedAssetPack, ForcedAssetReplacements))
             );
 
             this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x =>
@@ -742,8 +727,8 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         public ObservableCollection<VM_AssetPack> AvailableMixInAssetPacks { get; set; }
         public bool Decline { get; set; } = false;
         public bool ShowSubgroupAssignments { get; set; }
-        public ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; } = new();
-        public ObservableCollection<VM_Subgroup> AvailableSubgroups { get; set; } = new();
+        public ObservableCollection<VM_SubgroupPlaceHolder> ForcedSubgroups { get; set; } = new();
+        public ObservableCollection<VM_SubgroupPlaceHolder> AvailableSubgroups { get; set; } = new();
         public ObservableCollection<VM_AssetReplacementAssignment> ForcedAssetReplacements { get; set; } = new();
         public ObservableCollection<VM_MixInSpecificAssignment> ParentCollection { get; set; }
         public VM_SpecificNPCAssignment Parent { get; set; }
@@ -751,11 +736,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         public RelayCommand DeleteCommand { get; set; }
         public RelayCommand DeleteForcedSubgroup { get; set; }
         public RelayCommand AddForcedReplacer { get; set; }
-
-        public void TriggerAvailableSubgroupsUpdate(object sender, NotifyCollectionChangedEventArgs e)
-        {
-            UpdateAvailableSubgroups(this);
-        }
         
         public static NPCAssignment.MixInAssignment DumpViewModelToModel(VM_MixInSpecificAssignment viewModel)
         {
@@ -777,6 +757,6 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 public interface IHasForcedAssets
 {
     public VM_AssetPack ForcedAssetPack { get; set; }
-    ObservableCollection<VM_Subgroup> ForcedSubgroups { get; set; }
-    public ObservableCollection<VM_Subgroup> AvailableSubgroups { get; set; }
+    ObservableCollection<VM_SubgroupPlaceHolder> ForcedSubgroups { get; set; }
+    public ObservableCollection<VM_SubgroupPlaceHolder> AvailableSubgroups { get; set; }
 }

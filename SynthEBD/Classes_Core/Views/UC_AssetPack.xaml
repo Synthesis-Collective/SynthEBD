@@ -131,7 +131,6 @@
             </Control.Style>
         </Control>
 
-
         <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="BodyGen Config File to be distributed along with these assets" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Associated BodyGen Configuration</TextBlock>
         <ComboBox Grid.Row="10" Grid.Column="1" ItemsSource="{Binding AvailableBodyGenConfigs}" DisplayMemberPath="Label" SelectedValue="{Binding TrackedBodyGenConfig}"></ComboBox>
         

@@ -47,7 +47,7 @@ public class VM_BodyGenTemplateMenu : VM
                     }
 
                     var newTemplates = _bodyGenIO.LoadTemplatesINI(templatePath);
-                    foreach (var template in newTemplates.Where(x => !Templates.Select(x => x.Label).Contains(x.Label)))
+                    foreach (var template in newTemplates.Where(x => !Templates.Select(x => x.Label).Contains(x.Label)).ToArray())
                     {
                         var templateVM = _bodyGenTemplateFactory(parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, Templates, parentConfig);
                         templateVM.CopyInViewModelFromModel(template, parentConfig.DescriptorUI, raceGroupingVMs);
@@ -171,9 +171,9 @@ public class VM_BodyGenTemplate : VM
         Notes = model.Notes;
         Specs = model.Specs;
         GroupSelectionCheckList.InitializeFromHashSet(model.MemberOfTemplateGroups);
-        DescriptorsSelectionMenu = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.BodyShapeDescriptors, descriptorMenu, raceGroupingVMs, ParentConfig, false, DescriptorMatchMode.Any, _descriptorSelectionFactory);
-        AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
-        AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+        DescriptorsSelectionMenu.CopyInFromHashSet(model.BodyShapeDescriptors);
+        AllowedRaces.AddRange(model.AllowedRaces);
+        AllowedRaceGroupings.CopyInRaceGroupingsByLabel(model.AllowedRaceGroupings, raceGroupingVMs);
         foreach (var grouping in AllowedRaceGroupings.RaceGroupingSelections)
         {
             if (model.AllowedRaceGroupings.Contains(grouping.SubscribedMasterRaceGrouping.Label))
@@ -183,8 +183,8 @@ public class VM_BodyGenTemplate : VM
             else { grouping.IsSelected = false; }
         }
 
-        DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
-        DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
+        DisallowedRaces.AddRange(model.DisallowedRaces);
+        DisallowedRaceGroupings.CopyInRaceGroupingsByLabel(model.DisallowedRaceGroupings, raceGroupingVMs);
             
         foreach (var grouping in DisallowedRaceGroupings.RaceGroupingSelections)
         {
@@ -195,14 +195,14 @@ public class VM_BodyGenTemplate : VM
             else { grouping.IsSelected = false; }
         }
 
-        AllowedAttributes = _attributeCreator.GetViewModelsFromModels(model.AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null);
-        DisallowedAttributes = _attributeCreator.GetViewModelsFromModels(model.DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null);
+        _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null);
+        _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null);
         foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
         bAllowUnique = model.AllowUnique;
         bAllowNonUnique = model.AllowNonUnique;
         bAllowRandom = model.AllowRandom;
         ProbabilityWeighting = model.ProbabilityWeighting;
-        RequiredTemplates = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(model.RequiredTemplates);
+        VM_CollectionMemberString.CopyInObservableCollectionFromICollection(model.RequiredTemplates, RequiredTemplates);
         WeightRange = model.WeightRange.Clone();
 
         UpdateStatusDisplay();
@@ -241,14 +241,14 @@ public class VM_BodyGenTemplate : VM
         var updatedCollection = new ObservableCollection<VM_BodyGenTemplate>();
         var excludedCollection = new ObservableCollection<VM_BodyGenTemplate>();
 
-        foreach (var template in this.ParentCollection)
+        foreach (var template in ParentCollection)
         {
             bool inGroup = false;
             foreach (var group in template.GroupSelectionCheckList.CollectionMemberStrings)
             {
                 if (group.IsSelected == false) { continue; }
 
-                foreach (var thisGroup in this.GroupSelectionCheckList.CollectionMemberStrings)
+                foreach (var thisGroup in GroupSelectionCheckList.CollectionMemberStrings)
                 {
                     if (thisGroup.IsSelected == false) { continue; }
                         
@@ -279,7 +279,7 @@ public class VM_BodyGenTemplate : VM
     public void UpdateStatusDisplay()
     {
         var belongsToGroup = false;
-        foreach (var group in this.GroupSelectionCheckList.CollectionMemberStrings)
+        foreach (var group in GroupSelectionCheckList.CollectionMemberStrings)
         {
             if (group.IsSelected)
             {
@@ -290,21 +290,21 @@ public class VM_BodyGenTemplate : VM
 
         if (!belongsToGroup)
         {
-            BorderColor = new SolidColorBrush(Colors.Red);
+            BorderColor = CommonColors.Red;
             StatusHeader = "Warning:";
             StatusText = "Morph does not belong to any Morph Groups. Will not be assigned.";
             ShowStatus = true;
         }
         else if (!DescriptorsSelectionMenu.IsAnnotated())
         {
-            BorderColor = new SolidColorBrush(Colors.Yellow);
+            BorderColor = CommonColors.Yellow;
             StatusHeader = "Warning:";
             StatusText = "Bodyslide has not been annotated with descriptors. May not pair correctly with textures.";
             ShowStatus = true;
         }
         else
         {
-            BorderColor = new SolidColorBrush(Colors.LightGreen);
+            BorderColor = CommonColors.Green;
             StatusHeader = string.Empty;
             StatusText = string.Empty;
             ShowStatus = false;

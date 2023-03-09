@@ -1,6 +1,7 @@
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.FormKeys.SkyrimSE;
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using System;
 using System.Collections.Generic;
@@ -23,23 +24,77 @@ namespace SynthEBD
         }
         
         public HashSet<IFormLinkGetter<IRaceGetter>> PatchableRaces { get; set; } = new();
+        public HashSet<FormKey> PatchableRaceFormKeys { get; set; } = new();
         public void ResolvePatchableRaces()
         {
+            _logger.LogStartupEventStart("Compiling patchable races");
             if (_environmentProvider.LinkCache is null)
             {
                 _logger.LogError("Error: Link cache is null.");
-                return;
             }
-
-            PatchableRaces = new();
-            foreach (var raceFK in _patcherState.GeneralSettings.PatchableRaces)
+            else
             {
-                if (_environmentProvider.LinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter))
+                PatchableRaces = new();
+                foreach (var race in CompilePatchableRaces(_environmentProvider.LinkCache, _patcherState, true, true, true))
                 {
-                    PatchableRaces.Add(raceGetter.ToLinkGetter());
+                    PatchableRaces.Add(race.ToLinkGetter());
+                    PatchableRaceFormKeys.Add(race.FormKey);
                 }
             }
-            PatchableRaces.Add(Skyrim.Race.DefaultRace.Resolve(_environmentProvider.LinkCache).ToLinkGetter());
+            _logger.LogStartupEventEnd("Compiling patchable races");
+        }
+
+        public static HashSet<IRaceGetter> CompilePatchableRaces(ILinkCache linkCache, PatcherState patcherState, bool includeGroupings, bool includeAliases, bool includeDefault) // combines explicit patchable races, race groupings, and aliases
+        {
+            HashSet<FormKey> raceFKs = new();
+            foreach (var pr in patcherState.GeneralSettings.PatchableRaces)
+            {
+                if (!raceFKs.Contains(pr))
+                {
+                    raceFKs.Add(pr);
+                }
+            }
+
+            if (includeGroupings)
+            {
+                foreach (var grouping in patcherState.GeneralSettings.RaceGroupings)
+                {
+                    foreach (var member in grouping.Races)
+                    {
+                        if (!raceFKs.Contains(member))
+                        {
+                            raceFKs.Add(member);
+                        }
+                    }
+                }
+            }
+
+            if (includeAliases)
+            {
+                foreach (var alias in patcherState.GeneralSettings.RaceAliases)
+                {
+                    if (!raceFKs.Contains(alias.Race))
+                    {
+                        raceFKs.Add(alias.Race);
+                    }
+                }
+            }
+
+            HashSet<IRaceGetter> races = new();
+            foreach (var formKey in raceFKs)
+            {
+                if (linkCache.TryResolve<IRaceGetter>(formKey, out var raceGetter) && raceGetter is not null)
+                {
+                    races.Add(raceGetter);
+                }
+            }
+
+            if (includeDefault && linkCache.TryResolve<IRaceGetter>(Skyrim.Race.DefaultRace.FormKey, out var defaultRace))
+            {
+                races.Add(defaultRace);
+            }
+
+            return races;
         }
     }
 }

@@ -1,8 +1,9 @@
-﻿<UserControl x:Class="SynthEBD.UC_AssetReplacerGroup"
+<UserControl x:Class="SynthEBD.UC_AssetReplacerGroup"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              xmlns:dd="clr-namespace:GongSolutions.Wpf.DragDrop;assembly=GongSolutions.Wpf.DragDrop"
              xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
              d:DataContext="{d:DesignInstance Type=local:VM_AssetReplacerGroup}"
@@ -24,7 +25,7 @@
         <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Available replacer subgroups" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Subgroups</TextBlock>
         <TreeView Grid.Row="1" Grid.Column="0" Name="ReplacerTV"  ItemsSource ="{Binding Subgroups}" Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" MinWidth="75">
             <TreeView.Resources>
-                <HierarchicalDataTemplate DataType="{x:Type local:VM_Subgroup}" ItemsSource="{Binding Subgroups}" >
+                <HierarchicalDataTemplate DataType="{x:Type local:VM_SubgroupPlaceHolder}" ItemsSource="{Binding Subgroups}" >
                     <StackPanel Orientation="Horizontal">
                         <Button VerticalAlignment="Center" Command="{Binding AddSubgroup}" Foreground="Lightgreen">+</Button>
                         <TextBlock Margin="5 0 5 0" PreviewMouseLeftButtonDown="HandleSelectPreviewMouseDown" MouseLeftButtonUp="HandleSelectPreviewMouseUp">
@@ -39,10 +40,16 @@
                     </StackPanel>
                 </HierarchicalDataTemplate>
             </TreeView.Resources>
+            <!-- https://stackoverflow.com/questions/1238304/get-selecteditem-from-treeview/32845182#32845182 -->
+            <i:Interaction.Triggers>
+                <i:EventTrigger EventName="SelectedItemChanged">
+                    <i:InvokeCommandAction Command="{Binding SelectedSubgroupChanged}" CommandParameter="{Binding ElementName=ReplacerTV, Path=SelectedItem}"/>
+                </i:EventTrigger>
+            </i:Interaction.Triggers>
         </TreeView>
         <Button Grid.Row="2" Grid.Column="0" Command="{Binding AddTopLevelSubgroup}" Foreground="Lightgreen">Add New</Button>
 
-        <ContentPresenter Grid.Row="1" Grid.Column="1" Content="{Binding ElementName=ReplacerTV, Path=SelectedItem}">
+        <ContentPresenter Grid.Row="1" Grid.Column="1" Content="{Binding DisplayedSubgroup}">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_Subgroup}">
                     <local:UC_Subgroup Background="Black" Margin="0 0 0 10"/>

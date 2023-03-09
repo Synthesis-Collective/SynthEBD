@@ -15,6 +15,7 @@ public class SettingsIO_Height
     }
     public Settings_Height LoadHeightSettings(out bool loadSuccess)
     {
+        _logger.LogStartupEventStart("Loading Height settings from disk");
         Settings_Height heightSettings = new Settings_Height();
 
         loadSuccess = true;
@@ -35,7 +36,7 @@ public class SettingsIO_Height
                 _logger.LogError("Could not load height settings. Error: " + exceptionStr);
             }
         }
-
+        _logger.LogStartupEventEnd("Loading Height settings from disk");
         return heightSettings;
     }
 
@@ -65,6 +66,7 @@ public class SettingsIO_Height
 
         foreach (string s in filePaths)
         {
+            _logger.LogStartupEventStart("Loading Height Config File from " + s);
             string text = File.ReadAllText(s);
 
             if (text.Contains("\"EDID\":")) // zEBD formatted height config
@@ -74,6 +76,7 @@ public class SettingsIO_Height
                 {
                     _logger.LogError("Could not load Height Config at " + s + ". Error: " + exceptionStr);
                     loadSuccess = false;
+                    _logger.LogStartupEventEnd("Loading Height Config File from " + s);
                     continue;
                 }
                 HeightConfig fromZformat = new HeightConfig();
@@ -135,10 +138,12 @@ public class SettingsIO_Height
                 {
                     _logger.LogError("Could not load Height Config at " + s + ". Error: " + exceptionStr);
                     loadSuccess = false;
+                    _logger.LogStartupEventEnd("Loading Height Config File from " + s);
                     continue;
                 }
                 hc.FilePath = s;
                 loaded.Add(hc);
+                _logger.LogStartupEventEnd("Loading Height Config File from " + s);
             }
         }
 

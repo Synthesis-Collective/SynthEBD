@@ -151,8 +151,8 @@ public class CombinationLog
 
             currentCombinationRecord.NPCsAssignedTo.Add(npcInfo.LogIDstring);
 
-            var pathsForThisCombination = assignedPaths.Where(x => x.ParentCombination.Signature == combination.Signature);
-            foreach (var recordSet in pathsForThisCombination.Select(x => x.TraversedRecords))
+            var pathsForThisCombination = assignedPaths.Where(x => x.ParentCombination.Signature == combination.Signature).ToArray();
+            foreach (var recordSet in pathsForThisCombination.Select(x => x.TraversedRecords).ToArray())
             {
                 foreach (var recordInfo in recordSet)
                 {

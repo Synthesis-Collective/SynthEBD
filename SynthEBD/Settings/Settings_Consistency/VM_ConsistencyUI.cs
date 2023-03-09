@@ -18,7 +18,7 @@ public class VM_ConsistencyUI : VM
         _environmentProvider = environmentProvider;
         _logger = logger;
 
-        this.PropertyChanged += RefereshCurrentAssignment;
+        this.WhenAnyValue(x => x.SelectedNPCFormKey).Subscribe(x => CurrentlyDisplayedAssignment = Assignments.Where(y => y.NPCFormKey.Equals(x)).FirstOrDefault()).DisposeWith(this);
         
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
@@ -119,11 +119,6 @@ public class VM_ConsistencyUI : VM
     public RelayCommand DeleteAllHeadParts { get; set; }
     public RelayCommand DeleteAllNPCs { get; set; }
 
-    public void RefereshCurrentAssignment(object sender, PropertyChangedEventArgs e)
-    {
-        CurrentlyDisplayedAssignment = this.Assignments.Where(x => x.NPCFormKey.ToString() == SelectedNPCFormKey.ToString()).FirstOrDefault();
-    }
-
     public static void GetViewModelsFromModels(Dictionary<string, NPCAssignment> models, ObservableCollection<VM_ConsistencyAssignment> viewModels, ObservableCollection<VM_AssetPack> AssetPackVMs, VM_Settings_Headparts headParts, Logger logger)
     {
         if (models == null)
@@ -131,12 +126,14 @@ public class VM_ConsistencyUI : VM
             return;
         }
 
+        logger.LogStartupEventStart("Loading UI for Consistency Menu");
         viewModels.Clear();
         foreach (var model in models)
         {
             if (model.Value == null) { continue; }
             viewModels.Add(VM_ConsistencyAssignment.GetViewModelFromModel(model.Value, AssetPackVMs, logger));
         }
+        logger.LogStartupEventEnd("Loading UI for Consistency Menu");
     }
 
     public Dictionary<string, NPCAssignment> DumpViewModelsToModels()

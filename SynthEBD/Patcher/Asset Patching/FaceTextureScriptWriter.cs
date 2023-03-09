@@ -52,7 +52,10 @@ public class FaceTextureScriptWriter
         MGEFFixFaceTexture.Name = "Applies face texture to NPC";
         MGEFFixFaceTexture.Flags |= MagicEffect.Flag.HideInUI;
         MGEFFixFaceTexture.Flags |= MagicEffect.Flag.NoDeathDispel;
-        MGEFFixFaceTexture.Archetype.Type = MagicEffectArchetype.TypeEnum.Script;
+        MGEFFixFaceTexture.Archetype = new MagicEffectArchetype()
+        {
+            Type = MagicEffectArchetype.TypeEnum.Script
+        };
         MGEFFixFaceTexture.TargetType = TargetType.Self;
         MGEFFixFaceTexture.CastType = CastType.ConstantEffect;
         MGEFFixFaceTexture.VirtualMachineAdapter = new VirtualMachineAdapter();

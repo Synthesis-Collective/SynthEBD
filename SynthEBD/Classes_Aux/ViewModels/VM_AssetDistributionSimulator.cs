@@ -136,9 +136,9 @@ namespace SynthEBD
         public void GenerateReport(HashSet<SubgroupCombination> combinations, HashSet<FlattenedAssetPack> available, NPCInfo npcInfo)
         {
             List<CountableString> assetPacks = new();
-            foreach (var combo in combinations.Where(x => x.AssetPack != null))
+            foreach (var combo in combinations.Where(x => x.AssetPack != null).ToArray())
             {
-                var existing = assetPacks.Where(x => (x.Str) == combo.AssetPackName).FirstOrDefault();
+                var existing = assetPacks.Where(x => x.Str == combo.AssetPackName).FirstOrDefault();
                 if (existing != null) { existing.Count++; }
                 else
                 {
@@ -146,7 +146,8 @@ namespace SynthEBD
                 }
             }
 
-            foreach (var assetPack in available.Where(x => !assetPacks.Select(x => x.Str).Contains(x.GroupName)))
+            var candidatePacks = available.Where(x => !assetPacks.Select(x => x.Str).Contains(x.GroupName)).ToArray();
+            foreach (var assetPack in candidatePacks)
             {
                 assetPacks.Add(new() {  Str = assetPack.GroupName, Count = 0 });
             }
@@ -174,8 +175,8 @@ namespace SynthEBD
                         sgString.Count = combinations.Where(x => x.AssetPackName == ap.GroupName && x.ContainedSubgroups[i].Id == subgroup.Id).Count();
 
                         var reportString = new VM_ReportCountableStringWrapper(sgString);
-                        if (sgString.Count > 0) { reportString.TextColor = new SolidColorBrush(Colors.White); }
-                        else {  reportString.TextColor = new SolidColorBrush(Colors.Firebrick); }
+                        if (sgString.Count > 0) { reportString.TextColor = CommonColors.White; }
+                        else { reportString.TextColor = CommonColors.FireBrick; }
                         reportString.GetExplainStringSubgroup(npcInfo, ap.GroupName, subgroup.Id, subgroup.Name);
                         assetReport.SubgroupStrings.Add(reportString);
                     }
@@ -208,7 +209,7 @@ namespace SynthEBD
             }
 
             public CountableString ReferencedStr { get; set; }
-            public SolidColorBrush TextColor { get; set; } = new SolidColorBrush(Colors.White);
+            public SolidColorBrush TextColor { get; set; } = CommonColors.White;
             public RelayCommand ExplainCommand { get; }
             public string ExplainStr { get; set; }
 
@@ -226,7 +227,7 @@ namespace SynthEBD
 
                 string subgroupStrs = split2[0];
 
-                var subgroupStrArray = subgroupStrs.Split(Environment.NewLine).Where(x => !x.IsNullOrWhitespace());
+                var subgroupStrArray = subgroupStrs.Split(Environment.NewLine).Where(x => !x.IsNullOrWhitespace()).ToArray();
                 string matchStr = "Subgroup" + subGroupID + "(" + subgroupName + ")"; // remove all white space to remain agnostic to formatting
                 ExplainStr = subgroupStrArray.Where(x => ReplaceWhitespace(x, string.Empty).StartsWith(ReplaceWhitespace(matchStr, string.Empty))).FirstOrDefault() ?? "No relevant information found";
             }

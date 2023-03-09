@@ -161,10 +161,21 @@ public class OBodySelector
             _logger.LogReport("Chose BodySlide Preset: " + selectedPreset.Label, false, npcInfo);
             selectionMade = true;
 
-            if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && selectedPreset.Label != npcInfo.ConsistencyNPCAssignment.BodySlidePreset && availablePresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
+            if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null)
             {
-                _logger.LogReport("The consistency BodySlide preset " + npcInfo.ConsistencyNPCAssignment.BodySlidePreset + " could not be chosen because it no longer complied with the current distribution rules so a new BodySlide was selected.", true, npcInfo);
-            }
+                if (selectedPreset.Label != npcInfo.ConsistencyNPCAssignment.BodySlidePreset)
+                {
+                    statusFlags |= AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag.ConsistencyMorphIsInvalid;
+                    if (availablePresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
+                    {
+                        _logger.LogReport("The consistency BodySlide preset " + npcInfo.ConsistencyNPCAssignment.BodySlidePreset + " could not be chosen because it no longer complied with the current distribution rules so a new BodySlide was selected.", true, npcInfo);
+                    }                    
+                }
+                else
+                {
+                    statusFlags |= AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag.MatchesConsistency;
+                }
+            }   
         }
 
         //store selected bodyslide

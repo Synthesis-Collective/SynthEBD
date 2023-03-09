@@ -25,7 +25,7 @@ public class VM_SelectableCollectionMemberString : VM
 
     public void TriggerParentMemberChanged()
     {
-        this.Parent.CollectionMemberChangedAction();
+        Parent.CollectionMemberChangedAction();
     }
 }
 
@@ -44,7 +44,7 @@ public class VM_CollectionMemberStringCheckboxList : VM, ICollectionParent
 
         foreach (var cms in SubscribedMasterList)
         {
-            this.CollectionMemberStrings.Add(new VM_SelectableCollectionMemberString(cms, this));
+            CollectionMemberStrings.Add(new VM_SelectableCollectionMemberString(cms, this));
         }
 
         SubscribedMasterList.ToObservableChangeSet()
@@ -65,7 +65,7 @@ public class VM_CollectionMemberStringCheckboxList : VM, ICollectionParent
             if (!CollectionMemberStrings.Where(x => x.SubscribedString == item).Any())
             {
                 var newItem = new VM_SelectableCollectionMemberString(item, this);
-                this.CollectionMemberStrings.Add(newItem);
+                CollectionMemberStrings.Add(newItem);
             }
         }
 
@@ -86,7 +86,7 @@ public class VM_CollectionMemberStringCheckboxList : VM, ICollectionParent
         RefreshCheckList(SubscribedMasterList);
 
         string header = "";
-        foreach (var selection in this.CollectionMemberStrings)
+        foreach (var selection in CollectionMemberStrings)
         {
             if (selection.IsSelected)
             {
@@ -98,12 +98,12 @@ public class VM_CollectionMemberStringCheckboxList : VM, ICollectionParent
         {
             header = header.Remove(header.Length - 2, 2);
         }
-        this.Header = header;
+        Header = header;
     }
 
     public void InitializeFromHashSet(HashSet<string> selectedStrings)
     {
-        foreach (var cms in this.CollectionMemberStrings)
+        foreach (var cms in CollectionMemberStrings)
         {
             if (selectedStrings.Contains(cms.SubscribedString.Content))
             {

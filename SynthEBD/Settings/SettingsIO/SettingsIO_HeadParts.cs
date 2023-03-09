@@ -18,6 +18,7 @@ public class SettingsIO_HeadParts
     }
     public Settings_Headparts LoadHeadPartSettings(out bool loadSuccess)
     {
+        _logger.LogStartupEventStart("Loading HeadPart settings from disk");
         Settings_Headparts headPartSettings = new Settings_Headparts();
 
         loadSuccess = true;
@@ -43,7 +44,7 @@ public class SettingsIO_HeadParts
         {
             headPartSettings = new Settings_Headparts();
         }
-
+        _logger.LogStartupEventEnd("Loading HeadPart settings from disk");
         return headPartSettings;
     }
 }

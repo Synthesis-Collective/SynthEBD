@@ -176,21 +176,26 @@ public class VM_SpecificNPCAssignmentsUI : VM
             return;
         }
 
+        logger.LogStartupEventStart("Loading UI for Specific NPC Assignments Menu");
         viewModel.Assignments.Clear();
         foreach (var assignment in models)
         {
-            var vm = VM_SpecificNPCAssignment.GetViewModelFromModel(assignment, assetPackFactory, texMesh, bodyGen, headParts, specificNpcAssignmentFactory, logger, converters, environmentProvider);
-            if (vm != null)
+            if (assignment.NPCFormKey == null || assignment.NPCFormKey.IsNull)
             {
-                viewModel.Assignments.Add(vm);
+                continue;
             }
+
+            var vm = specificNpcAssignmentFactory();
+            viewModel.Assignments.Add(vm);
+            vm.CopyInFromModel(assignment, texMesh, bodyGen, headParts, logger, converters, environmentProvider);
         }
+        logger.LogStartupEventEnd("Loading UI for Specific NPC Assignments Menu");
     }
 
     public HashSet<NPCAssignment> DumpViewModelToModels()
     {
         HashSet<NPCAssignment> models = new();
-        foreach (var vm in Assignments.Where(x => x is not null)) // null check needed for when user leaves blank specific assignment
+        foreach (var vm in Assignments.Where(x => x is not null).ToArray()) // null check needed for when user leaves blank specific assignment
         {
             models.Add(vm.DumpViewModelToModel());
         }
@@ -221,11 +226,14 @@ public class VM_SpecificNPCAssignmentsUI : VM
 
                 foreach (var model in newModels)
                 {
-                    var assignmentVM = VM_SpecificNPCAssignment.GetViewModelFromModel(model, _assetPackFactory, _texMeshSettings, _bodyGenSettings, _headPartSettings, _specificNpcAssignmentFactory, _logger, _converters, _environmentProvider);
-                    if (assignmentVM != null) // null if the imported NPC doesn't exist in the current load order
+                    if (model.NPCFormKey == null || model.NPCFormKey.IsNull)
                     {
-                        this.Assignments.Add(assignmentVM);
+                        continue;
                     }
+                    var assignmentVM = _specificNpcAssignmentFactory();
+                    Assignments.Add(assignmentVM);
+
+                    assignmentVM.CopyInFromModel(model, _texMeshSettings, _bodyGenSettings, _headPartSettings, _logger, _converters, _environmentProvider);
                 }
             }
             else

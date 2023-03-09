@@ -15,14 +15,18 @@ namespace SynthEBD
 {
     public class VM_HeadPartCategoryRules : VM
     {
-        private IEnvironmentStateProvider _environmentProvider;
+        private readonly IEnvironmentStateProvider _environmentProvider;
         private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
+        private readonly ObservableCollection<VM_RaceGrouping> _raceGroupingVMs;
+        private readonly VM_NPCAttributeCreator _npcAttributeCreator;
         public VM_Settings_Headparts ParentMenu { get; set; } // needed for xaml binding
         public delegate VM_HeadPartCategoryRules Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
         public VM_HeadPartCategoryRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentMenu, VM_SettingsOBody oBody, VM_NPCAttributeCreator creator, IEnvironmentStateProvider environmentProvider, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
             _environmentProvider = environmentProvider;
             _descriptorSelectionFactory = descriptorSelectionFactory;
+            _raceGroupingVMs = raceGroupingVMs;
+            _npcAttributeCreator = creator;
             ParentMenu = parentMenu;
 
             AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
@@ -74,31 +78,35 @@ namespace SynthEBD
         public VM_BodyShapeDescriptorSelectionMenu AllowedBodyGenDescriptorsFemale { get; set; }
         public VM_BodyShapeDescriptorSelectionMenu DisallowedBodyGenDescriptorsFemale { get; set; }
 
-        public static VM_HeadPartCategoryRules GetViewModelFromModel(Settings_HeadPartType model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AttributeGroupMenu attributeGroupMenu, VM_Settings_Headparts parentConfig, VM_SettingsOBody oBody, VM_NPCAttributeCreator creator, Logger logger, VM_HeadPartCategoryRules.Factory rulesFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+        public void CopyInFromModel(Settings_HeadPartType model)
         {
-            VM_HeadPartCategoryRules viewModel = rulesFactory(raceGroupingVMs);
-            viewModel.bAllowFemale = model.bAllowFemale;
-            viewModel.bAllowMale = model.bAllowMale;
-            viewModel.bRestrictToNPCsWithThisType = model.bRestrictToNPCsWithThisType;
-            viewModel.AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
-            viewModel.AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, raceGroupingVMs);
-            viewModel.DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
-            viewModel.DisallowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.DisallowedRaceGroupings, raceGroupingVMs);
-            viewModel.AllowedAttributes = creator.GetViewModelsFromModels(model.AllowedAttributes, attributeGroupMenu.Groups, true, null);
-            viewModel.DisallowedAttributes = creator.GetViewModelsFromModels(model.DisallowedAttributes, attributeGroupMenu.Groups, false, null);
-            foreach (var x in viewModel.DisallowedAttributes) { x.DisplayForceIfOption = false; }
-            viewModel.bAllowUnique = model.bAllowUnique;
-            viewModel.bAllowNonUnique = model.bAllowNonUnique;
-            viewModel.bAllowRandom = model.bAllowRandom;
-            viewModel.DistributionProbability = model.RandomizationPercentage;
-            viewModel.WeightRange = model.WeightRange;
-            viewModel.AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, oBody.DescriptorUI, raceGroupingVMs, parentConfig, true, model.AllowedBodySlideMatchMode, descriptorSelectionFactory);
-            viewModel.DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, oBody.DescriptorUI, raceGroupingVMs, parentConfig, true, model.DisallowedBodySlideMatchMode, descriptorSelectionFactory);
-            viewModel.AllowedBodyGenDescriptorsMale = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodyGenDescriptorsMale, parentConfig.SettingsMenu.TrackedBodyGenConfigMale?.DescriptorUI ?? null, raceGroupingVMs, parentConfig, true, model.AllowedBodyGenDescriptorMatchModeMale, descriptorSelectionFactory);
-            viewModel.DisallowedBodyGenDescriptorsMale = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodyGenDescriptorsMale, parentConfig.SettingsMenu.TrackedBodyGenConfigMale?.DescriptorUI ?? null, raceGroupingVMs, parentConfig, true, model.DisallowedBodyGenDescriptorMatchModeMale, descriptorSelectionFactory);
-            viewModel.AllowedBodyGenDescriptorsFemale = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodyGenDescriptorsFemale, parentConfig.SettingsMenu.TrackedBodyGenConfigFemale?.DescriptorUI ?? null, raceGroupingVMs, parentConfig, true, model.AllowedBodyGenDescriptorMatchModeFemale, descriptorSelectionFactory);
-            viewModel.DisallowedBodyGenDescriptorsFemale = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodyGenDescriptorsFemale, parentConfig.SettingsMenu.TrackedBodyGenConfigFemale?.DescriptorUI ?? null, raceGroupingVMs, parentConfig, true, model.DisallowedBodyGenDescriptorMatchModeFemale, descriptorSelectionFactory);
-            return viewModel;
+            bAllowFemale = model.bAllowFemale;
+            bAllowMale = model.bAllowMale;
+            bRestrictToNPCsWithThisType = model.bRestrictToNPCsWithThisType;
+            AllowedRaces.AddRange(model.AllowedRaces);
+            AllowedRaceGroupings.CopyInRaceGroupingsByLabel(model.AllowedRaceGroupings, _raceGroupingVMs);
+            DisallowedRaces.AddRange(model.DisallowedRaces);
+            DisallowedRaceGroupings.CopyInRaceGroupingsByLabel(model.DisallowedRaceGroupings, _raceGroupingVMs);
+            _npcAttributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentMenu.AttributeGroupMenu.Groups, true, null);
+            _npcAttributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentMenu.AttributeGroupMenu.Groups, false, null);
+            foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
+            bAllowUnique = model.bAllowUnique;
+            bAllowNonUnique = model.bAllowNonUnique;
+            bAllowRandom = model.bAllowRandom;
+            DistributionProbability = model.RandomizationPercentage;
+            WeightRange = model.WeightRange;
+            AllowedBodySlideDescriptors.CopyInFromHashSet(model.AllowedBodySlideDescriptors);
+            DisallowedBodySlideDescriptors.CopyInFromHashSet(model.DisallowedBodySlideDescriptors);
+            if (ParentMenu.SettingsMenu.TrackedBodyGenConfigMale != null)
+            {
+                AllowedBodyGenDescriptorsMale.CopyInFromHashSet(model.AllowedBodyGenDescriptorsMale);
+                DisallowedBodyGenDescriptorsMale.CopyInFromHashSet(model.DisallowedBodyGenDescriptorsMale);
+            }
+            if (ParentMenu.SettingsMenu.TrackedBodyGenConfigFemale != null)
+            {
+                AllowedBodyGenDescriptorsFemale.CopyInFromHashSet(model.AllowedBodyGenDescriptorsFemale);
+                DisallowedBodyGenDescriptorsFemale.CopyInFromHashSet(model.DisallowedBodyGenDescriptorsFemale);
+            }
         }
 
         public void DumpToModel(Settings_HeadPartType model)
@@ -121,14 +129,14 @@ namespace SynthEBD
             model.AllowedBodySlideMatchMode = AllowedBodySlideDescriptors.MatchMode;
             model.DisallowedBodySlideDescriptors = DisallowedBodySlideDescriptors.DumpToHashSet();
             model.DisallowedBodySlideMatchMode = DisallowedBodySlideDescriptors.MatchMode;
-            model.AllowedBodyGenDescriptorsMale = AllowedBodyGenDescriptorsMale.DumpToHashSet();
-            model.AllowedBodyGenDescriptorMatchModeMale = AllowedBodyGenDescriptorsMale.MatchMode;
-            model.DisallowedBodyGenDescriptorsMale = DisallowedBodyGenDescriptorsMale.DumpToHashSet();
-            model.DisallowedBodyGenDescriptorMatchModeMale = DisallowedBodyGenDescriptorsMale.MatchMode;
-            model.AllowedBodyGenDescriptorsFemale = AllowedBodyGenDescriptorsFemale.DumpToHashSet();
-            model.AllowedBodyGenDescriptorMatchModeFemale = AllowedBodyGenDescriptorsFemale.MatchMode;
-            model.DisallowedBodyGenDescriptorsFemale = DisallowedBodyGenDescriptorsFemale.DumpToHashSet();
-            model.DisallowedBodyGenDescriptorMatchModeFemale = DisallowedBodyGenDescriptorsFemale.MatchMode;
+            model.AllowedBodyGenDescriptorsMale = AllowedBodyGenDescriptorsMale?.DumpToHashSet() ?? new();
+            model.AllowedBodyGenDescriptorMatchModeMale = AllowedBodyGenDescriptorsMale?.MatchMode ?? DescriptorMatchMode.All;
+            model.DisallowedBodyGenDescriptorsMale = DisallowedBodyGenDescriptorsMale?.DumpToHashSet() ?? new();
+            model.DisallowedBodyGenDescriptorMatchModeMale = DisallowedBodyGenDescriptorsMale?.MatchMode ?? DescriptorMatchMode.Any;
+            model.AllowedBodyGenDescriptorsFemale = AllowedBodyGenDescriptorsFemale?.DumpToHashSet() ?? new();
+            model.AllowedBodyGenDescriptorMatchModeFemale = AllowedBodyGenDescriptorsFemale?.MatchMode ?? DescriptorMatchMode.All;
+            model.DisallowedBodyGenDescriptorsFemale = DisallowedBodyGenDescriptorsFemale?.DumpToHashSet() ?? new();
+            model.DisallowedBodyGenDescriptorMatchModeFemale = DisallowedBodyGenDescriptorsFemale?.MatchMode ?? DescriptorMatchMode.Any;
         }
 
         public void RefreshBodyGenDescriptorsMale(ObservableCollection<VM_RaceGrouping> raceGroupingVMs)

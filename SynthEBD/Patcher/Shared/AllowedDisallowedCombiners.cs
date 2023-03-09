@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 
 namespace SynthEBD;
 
@@ -6,7 +6,7 @@ public class AllowedDisallowedCombiners
 {
     public static HashSet<FormKey> TrimDisallowedRacesFromAllowed(HashSet<FormKey> allowedRaces, HashSet<FormKey> disallowedRaces)
     {
-        var disallowedFKstrings = disallowedRaces.Select(x => x.ToString());
+        var disallowedFKstrings = disallowedRaces.Select(x => x.ToString()).ToArray();
         return allowedRaces.Where(x => disallowedFKstrings.Contains(x.ToString()) == false).ToHashSet();
     }
 

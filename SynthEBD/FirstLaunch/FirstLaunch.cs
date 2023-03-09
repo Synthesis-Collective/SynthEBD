@@ -18,15 +18,17 @@ namespace SynthEBD
         private readonly VM_SettingsHeight _heightSettingsVM;
         private readonly VM_HeightConfig.Factory _heightConfigFactory;
         private readonly VM_HeightAssignment.Factory _heightAssignmentFactory;
+        private readonly VM_SettingsModManager _modManager;
         private readonly SettingsIO_AssetPack _assetIO;
         private readonly PatcherState _patcherState;
         private readonly CustomMessageBox _customMessageBox;
-        public FirstLaunch(IEnvironmentStateProvider environmentProvider, SynthEBDPaths paths, Logger logger, VM_SettingsHeight heightSettingsVM, SettingsIO_AssetPack assetIO, PatcherState patcherState, VM_HeightConfig.Factory heightConfigFactory, VM_HeightAssignment.Factory heightAssignmentFactory, CustomMessageBox customMessageBox)
+        public FirstLaunch(IEnvironmentStateProvider environmentProvider, SynthEBDPaths paths, Logger logger, VM_SettingsHeight heightSettingsVM, VM_SettingsModManager modManager, SettingsIO_AssetPack assetIO, PatcherState patcherState, VM_HeightConfig.Factory heightConfigFactory, VM_HeightAssignment.Factory heightAssignmentFactory, CustomMessageBox customMessageBox)
         {
             _environmentProvider = environmentProvider;
             _paths = paths;
             _logger = logger;
             _heightSettingsVM = heightSettingsVM;
+            _modManager = modManager;
             _assetIO = assetIO;
             _patcherState = patcherState;
             _heightConfigFactory = heightConfigFactory;
@@ -47,7 +49,7 @@ namespace SynthEBD
                 if (heightConfigLoaded)
                 {
                     
-                    VM_HeightConfig.GetViewModelsFromModels(_heightSettingsVM.AvailableHeightConfigs, new List<HeightConfig>() { newConfig }, _heightConfigFactory, _heightAssignmentFactory);
+                    VM_HeightConfig.GetViewModelsFromModels(_heightSettingsVM.AvailableHeightConfigs, new List<HeightConfig>() { newConfig }, _heightConfigFactory, _heightAssignmentFactory, _logger);
                 }
                 else
                 {
@@ -77,6 +79,13 @@ namespace SynthEBD
                 {
                     _logger.LogErrorWithStatusUpdate("Could not load default record templates.", ErrorType.Warning);
                 }
+            }
+
+            if (_environmentProvider.RunMode == EnvironmentMode.Synthesis)
+            {
+                var tmpFolder = Path.Combine(_environmentProvider.ExtraSettingsDataPath, "Temp");
+                _patcherState.ModManagerSettings.TempExtractionFolder = tmpFolder; // under normal conditions, this function runs before the mod manager VM reads in the model
+                _modManager.TempFolder = tmpFolder; // just in case model loading has already occurred, set it directly in the VM as well
             }
         }
 

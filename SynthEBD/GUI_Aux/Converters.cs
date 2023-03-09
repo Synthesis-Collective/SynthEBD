@@ -59,7 +59,7 @@ public class Converters
         return "";
     }
 
-    public HashSet<NPCAttribute> StringArraysToAttributes(List<string[]> arrList)
+    public HashSet<NPCAttribute> zEBDStringArraysToAttributes(List<string[]> arrList)
     {
         HashSet<NPCAttribute> h = new HashSet<NPCAttribute>();
 

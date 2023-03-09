@@ -58,7 +58,6 @@ public class VM_BlockedNPC : VM
     public static VM_BlockedNPC GetViewModelFromModel(BlockedNPC model, VM_BlockedNPC.Factory factory)
     {
         VM_BlockedNPC viewModel = factory();
-        //viewModel.DispName = CreateNPCDispNameFromFormKey(model.FormKey, converters);
         viewModel.FormKey = model.FormKey;
         viewModel.Assets = model.Assets;
         viewModel.Height = model.Height;

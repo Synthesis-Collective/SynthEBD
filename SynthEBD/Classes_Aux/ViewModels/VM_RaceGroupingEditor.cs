@@ -15,14 +15,16 @@ namespace SynthEBD
     public class VM_RaceGroupingEditor : VM, IHasRaceGroupingVMs
     {
         private readonly Func<VM_Settings_General> _generalSettingsVM;
+        private readonly Logger _logger;
         private readonly VM_RaceGrouping.Factory _raceGroupingFactory;
         public delegate VM_RaceGroupingEditor Factory(IHasRaceGroupingEditor parent, bool showImportFromGeneral);
-        public VM_RaceGroupingEditor(IHasRaceGroupingEditor parent, bool showImportFromGeneral, VM_RaceGrouping.Factory raceGroupingFactory, Func<VM_Settings_General> generalSettingsVM)
+        public VM_RaceGroupingEditor(IHasRaceGroupingEditor parent, bool showImportFromGeneral, VM_RaceGrouping.Factory raceGroupingFactory, Func<VM_Settings_General> generalSettingsVM, Logger logger)
         {
             Parent = parent;
             ShowImportFromGeneral = showImportFromGeneral;
             _raceGroupingFactory = raceGroupingFactory;
             _generalSettingsVM = generalSettingsVM;
+            _logger = logger;
 
             AddRaceGrouping = new RelayCommand(
                 canExecute: _ => true,
@@ -45,10 +47,11 @@ namespace SynthEBD
 
         public void CopyInFromModel(List<RaceGrouping> raceGroupings, ObservableCollection<VM_RaceGrouping> generalSettingsGroups)
         {
+            _logger.LogStartupEventStart("Generating Race Grouping Editor UI");
             RaceGroupings = VM_RaceGrouping.GetViewModelsFromModels(raceGroupings, this, _raceGroupingFactory);
             if (generalSettingsGroups != null)
             {
-                var originals = RaceGroupings.Select(x => x.Label);
+                var originals = RaceGroupings.Select(x => x.Label).ToArray();
                 foreach (var candidate in generalSettingsGroups) // add groups from General Settings that are not overwritten by local definitions
                 {
                     if (!originals.Contains(candidate.Label))
@@ -57,6 +60,7 @@ namespace SynthEBD
                     }
                 }
             }
+            _logger.LogStartupEventEnd("Generating Race Grouping Editor UI");
         }
 
         public List<RaceGrouping> DumpToModel()

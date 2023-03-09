@@ -1,6 +1,12 @@
+using DynamicData;
+using DynamicData.Binding;
+using Noggog;
+using ReactiveUI;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Reactive;
+using System.Reactive.Linq;
 using static SynthEBD.VM_BodyShapeDescriptor;
 
 namespace SynthEBD;
@@ -19,18 +25,29 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         TrackedRaceGroupings = raceGroupingVMs;
         Parent = parentConfig;
         
-        this.CurrentlyDisplayedShell = new VM_BodyShapeDescriptorShellSelector(descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), raceGroupingVMs, parentConfig), this);
+        CurrentlyDisplayedShell = new VM_BodyShapeDescriptorShellSelector(descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), raceGroupingVMs, parentConfig), this);
 
         if (TrackedMenu != null)
         {
             foreach (var Descriptor in TrackedMenu.TemplateDescriptors)
             {
-                this.DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(Descriptor, this));
+                DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(Descriptor, this));
             }
-            TrackedMenu.TemplateDescriptors.CollectionChanged += UpdateShellList;
+            TrackedMenu.TemplateDescriptors.ToObservableChangeSet().Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler).Subscribe(_ => UpdateShellList()).DisposeWith(this);
         }
+
+        DescriptorShells
+            .ToObservableChangeSet()
+            .Transform(x =>
+                x.WhenAnyObservable(y => y.NeedsRefresh)
+                .Subscribe(_ => BuildHeader())
+                .DisposeWith(this))
+            .DisposeMany() // Dispose subscriptions related to removed attributes
+            .Subscribe()  // Execute my instructions
+            .DisposeWith(this);
+        
     }
-    public string Header => BuildHeader(this);
+    public string Header { get; set; }
     public VM_BodyShapeDescriptorCreationMenu TrackedMenu { get; set; }
     public IHasAttributeGroupMenu Parent { get; set; }
     public ObservableCollection<VM_BodyShapeDescriptorShellSelector> DescriptorShells { get; set; } = new();
@@ -41,7 +58,9 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
     public VM_BodyShapeDescriptorSelectionMenu Clone()
     {
         var modelDump = DumpToHashSet();
-        return InitializeFromHashSet(modelDump, TrackedMenu, TrackedRaceGroupings, Parent, ShowMatchMode, MatchMode, _selfFactory);
+        VM_BodyShapeDescriptorSelectionMenu clone = _selfFactory(TrackedMenu, TrackedRaceGroupings, Parent, ShowMatchMode, MatchMode);
+        clone.CopyInFromHashSet(modelDump);
+        return clone;
     }
 
     public bool IsAnnotated()
@@ -59,15 +78,15 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         return false;
     }
 
-    public void UpdateShellList(object sender, NotifyCollectionChangedEventArgs e)
+    public void UpdateShellList()
     {
         // remove deleted shells
-        for (int i = 0; i < this.DescriptorShells.Count; i++)
+        for (int i = 0; i < DescriptorShells.Count; i++)
         {
             bool found = false;
-            foreach (var sourceShell in this.TrackedMenu.TemplateDescriptors)
+            foreach (var sourceShell in TrackedMenu.TemplateDescriptors)
             {
-                if (this.DescriptorShells[i].TrackedShell.Category == sourceShell.Category)
+                if (DescriptorShells[i].TrackedShell.Category == sourceShell.Category)
                 {
                     found = true;
                     break;
@@ -75,16 +94,16 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
             }
             if (found == false)
             {
-                this.DescriptorShells.RemoveAt(i);
+                DescriptorShells.RemoveAt(i);
                 i--;
             }
         }
 
         // add new shells
-        foreach (var sourceShell in this.TrackedMenu.TemplateDescriptors)
+        foreach (var sourceShell in TrackedMenu.TemplateDescriptors)
         {
             bool found = false;
-            foreach (var destShell in this.DescriptorShells)
+            foreach (var destShell in DescriptorShells)
             {
                 if (destShell.TrackedShell.Category == sourceShell.Category)
                 {
@@ -94,20 +113,19 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
             }
             if (found == false)
             {
-                this.DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(sourceShell, this));
+                DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(sourceShell, this));
             }
         }
     }
 
-    public static VM_BodyShapeDescriptorSelectionMenu InitializeFromHashSet(HashSet<BodyShapeDescriptor.LabelSignature> bodyShapeDescriptors, VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, bool showMatchMode, DescriptorMatchMode matchMode, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+    public void CopyInFromHashSet(HashSet<BodyShapeDescriptor.LabelSignature> bodyShapeDescriptors)
     {
-        var menu = descriptorSelectionFactory(trackedMenu, raceGroupingVMs, parentConfig, showMatchMode, matchMode);
         if (bodyShapeDescriptors != null)
         {
             foreach (var descriptor in bodyShapeDescriptors)
             {
                 bool keepLooking = true;
-                foreach (var Descriptor in menu.DescriptorShells)
+                foreach (var Descriptor in DescriptorShells)
                 {
                     foreach (var selectableDescriptor in Descriptor.DescriptorSelectors)
                     {
@@ -122,7 +140,6 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
                 }
             }
         }
-        return menu;
     }
 
     public HashSet<BodyShapeDescriptor.LabelSignature> DumpToHashSet()
@@ -138,10 +155,10 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         return output;
     }
 
-    static string BuildHeader(VM_BodyShapeDescriptorSelectionMenu menu)
+    public void BuildHeader()
     {
         string header = "";
-        foreach (var Descriptor in menu.DescriptorShells)
+        foreach (var Descriptor in DescriptorShells)
         {
             string subHeader = "";
             string catHeader = Descriptor.TrackedShell.Category + ": ";
@@ -166,7 +183,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         {
             header = header.Remove(header.Length - 3);
         }
-        return header;
+        Header = header;
     }
 }
 
@@ -174,27 +191,35 @@ public class VM_BodyShapeDescriptorShellSelector : VM
 {
     public VM_BodyShapeDescriptorShellSelector(VM_BodyShapeDescriptorShell trackedShell, VM_BodyShapeDescriptorSelectionMenu parentMenu)
     {
-        this.TrackedShell = trackedShell;
-        this.ParentMenu = parentMenu;
-        foreach (var descriptor in this.TrackedShell.Descriptors)
+        TrackedShell = trackedShell;
+        ParentMenu = parentMenu;
+        foreach (var descriptor in TrackedShell.Descriptors)
         {
-            this.DescriptorSelectors.Add(new VM_BodyShapeDescriptorSelector(descriptor, this.ParentMenu));
+            DescriptorSelectors.Add(new VM_BodyShapeDescriptorSelector(descriptor, ParentMenu));
         }
-        this.TrackedShell.Descriptors.CollectionChanged += UpdateDescriptorList;
+        TrackedShell.Descriptors.ToObservableChangeSet().Subscribe(_ => UpdateDescriptorList()).DisposeWith(this);
+        TrackedShell.Descriptors.ToObservableChangeSet()
+            .QueryWhenChanged(x => x)
+            .Subscribe(x =>
+            {
+                NeedsRefresh = DescriptorSelectors.Select(x => x.WhenAnyValue(x => x.IsSelected)).Merge().Unit();
+            })
+            .DisposeWith(this);
     }
     public VM_BodyShapeDescriptorShell TrackedShell { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu ParentMenu { get; set; }
     public ObservableCollection<VM_BodyShapeDescriptorSelector> DescriptorSelectors { get; set; } = new();
+    public IObservable<Unit> NeedsRefresh { get; set; }
 
-    void UpdateDescriptorList(object sender, NotifyCollectionChangedEventArgs e)
+    void UpdateDescriptorList()
     {
         // remove deleted Descriptors
         for (int i = 0; i < this.DescriptorSelectors.Count; i++)
         {
             bool found = false;
-            foreach (var sourceDescriptor in this.TrackedShell.Descriptors)
+            foreach (var sourceDescriptor in TrackedShell.Descriptors)
             {
-                if (this.DescriptorSelectors[i].TrackedDescriptor.Value == sourceDescriptor.Value)
+                if (DescriptorSelectors[i].TrackedDescriptor.Value == sourceDescriptor.Value)
                 {
                     found = true;
                     break;
@@ -202,16 +227,16 @@ public class VM_BodyShapeDescriptorShellSelector : VM
             }
             if (found == false)
             {
-                this.DescriptorSelectors.RemoveAt(i);
+                DescriptorSelectors.RemoveAt(i);
                 i--;
             }
         }
 
         // add new Descriptors
-        foreach (var sourceDescriptor in this.TrackedShell.Descriptors)
+        foreach (var sourceDescriptor in TrackedShell.Descriptors)
         {
             bool found = false;
-            foreach (var destDescriptor in this.DescriptorSelectors)
+            foreach (var destDescriptor in DescriptorSelectors)
             {
                 if (destDescriptor.TrackedDescriptor.Value == sourceDescriptor.Value)
                 {
@@ -221,7 +246,7 @@ public class VM_BodyShapeDescriptorShellSelector : VM
             }
             if (found == false)
             {
-                this.DescriptorSelectors.Add(new VM_BodyShapeDescriptorSelector(sourceDescriptor, this.ParentMenu));
+                DescriptorSelectors.Add(new VM_BodyShapeDescriptorSelector(sourceDescriptor, ParentMenu));
             }
         }
     }
@@ -231,20 +256,15 @@ public class VM_BodyShapeDescriptorSelector : VM
 {
     public VM_BodyShapeDescriptorSelector(VM_BodyShapeDescriptor trackedDescriptor, VM_BodyShapeDescriptorSelectionMenu parentMenu)
     {
-        this.TrackedDescriptor = trackedDescriptor;
-        this.ParentMenu = parentMenu;
-        this.Value = TrackedDescriptor.Value;
+        TrackedDescriptor = trackedDescriptor;
+        ParentMenu = parentMenu;
+        Value = TrackedDescriptor.Value;
 
-        this.TrackedDescriptor.PropertyChanged += RefreshLabelAndHeader;
+        TrackedDescriptor.WhenAnyValue(x => x.Value).Subscribe(_ => Value = TrackedDescriptor.Value).DisposeWith(this);
     }
 
     public VM_BodyShapeDescriptor TrackedDescriptor { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu ParentMenu { get; set; }
     public string Value { get; set; }
     public bool IsSelected { get; set; } = false;
-
-    public void RefreshLabelAndHeader(object sender, PropertyChangedEventArgs e)
-    {
-        this.Value = TrackedDescriptor.Value;
-    }
 }

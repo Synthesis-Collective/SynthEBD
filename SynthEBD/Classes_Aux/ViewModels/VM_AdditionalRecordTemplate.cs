@@ -24,12 +24,12 @@ public class VM_AdditionalRecordTemplate : VM
 
         AddAdditionalRacesPath = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { this.AdditionalRacesPaths.Add(new VM_CollectionMemberString("", this.AdditionalRacesPaths)); }
+            execute: _ => { AdditionalRacesPaths.Add(new VM_CollectionMemberString("", AdditionalRacesPaths)); }
         );
 
         DeleteCommand = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { this.ParentCollection.Remove(this); }
+            execute: _ => { ParentCollection.Remove(this); }
         );
     }
 

@@ -8,8 +8,7 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
 
-    <ScrollViewer>
-        <Grid>
+    <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
             <ColumnDefinition Width="*"/>
@@ -24,49 +23,48 @@
         <TextBlock Grid.Column="0" Grid.Row="0" HorizontalAlignment="Center" ToolTip="Objects whose assets are to be replaced" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Replacer Group</TextBlock>
         <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddGroup}" Foreground="Lightgreen">Add New</Button>
         <ScrollViewer Grid.Column="0" Grid.Row="2" MaxHeight="750">
-            <StackPanel >
-                <ListBox SelectedValue="{Binding DisplayedGroup}" ItemsSource="{Binding ReplacerGroups}" IsSynchronizedWithCurrentItem="True" >
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="auto"/>
-                                </Grid.ColumnDefinitions>
+            <ListBox SelectedValue="{Binding DisplayedGroup}" ItemsSource="{Binding ReplacerGroups}" IsSynchronizedWithCurrentItem="True" >
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="auto"/>
+                            </Grid.ColumnDefinitions>
 
-                                <TextBox Grid.Column="0" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}" MinWidth="100" />
-                                <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding Remove}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
-                            </Grid>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
+                            <TextBox Grid.Column="0" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}" MinWidth="100" />
+                            <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding Remove}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
 
-                    <!-- the following ItemContainerStyle makes selecting the TextBox containing Category also toggle the ListBoxItem.IsSelected property to focus on that ListBox Item-->
-                    <ListBox.ItemContainerStyle>
-                        <Style TargetType="{x:Type ListBoxItem}">
-                            <Style.Triggers>
-                                <EventTrigger RoutedEvent="PreviewGotKeyboardFocus">
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <BooleanAnimationUsingKeyFrames Storyboard.TargetProperty="(ListBoxItem.IsSelected)">
-                                                <DiscreteBooleanKeyFrame KeyTime="0" Value="True"/>
-                                            </BooleanAnimationUsingKeyFrames>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </EventTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ListBox.ItemContainerStyle>
-                </ListBox>
-            </StackPanel>
+                <!-- the following ItemContainerStyle makes selecting the TextBox containing Category also toggle the ListBoxItem.IsSelected property to focus on that ListBox Item-->
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="{x:Type ListBoxItem}">
+                        <Style.Triggers>
+                            <EventTrigger RoutedEvent="PreviewGotKeyboardFocus">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <BooleanAnimationUsingKeyFrames Storyboard.TargetProperty="(ListBoxItem.IsSelected)">
+                                            <DiscreteBooleanKeyFrame KeyTime="0" Value="True"/>
+                                        </BooleanAnimationUsingKeyFrames>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+            </ListBox>
         </ScrollViewer>
 
         <ContentPresenter Grid.Row="0" Grid.Column="1" Grid.RowSpan="4" Content="{Binding DisplayedGroup}">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_AssetReplacerGroup}">
-                    <local:UC_AssetReplacerGroup/>
+                    <ScrollViewer>
+                        <local:UC_AssetReplacerGroup/>
+                    </ScrollViewer>
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>
     </Grid>
-    </ScrollViewer>
 </UserControl>

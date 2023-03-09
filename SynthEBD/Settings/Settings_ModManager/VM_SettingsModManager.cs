@@ -9,10 +9,12 @@ namespace SynthEBD;
 public class VM_SettingsModManager : VM
 {
     private readonly PatcherState _patcherState;
+    private readonly Logger _logger;
     public delegate VM_SettingsModManager Factory();
-    public VM_SettingsModManager(PatcherState patcherState)
+    public VM_SettingsModManager(PatcherState patcherState, Logger logger)
     {
         _patcherState = patcherState;
+        _logger = logger;
 
         SelectTempFolder = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -66,6 +68,7 @@ public class VM_SettingsModManager : VM
         {
             return;
         }
+        _logger.LogStartupEventStart("Loading Mod Manager Settings UI");
         MO2IntegrationVM.GetViewModelFromModel(model.MO2Settings);
         VortexIntegrationVM.GetViewModelFromModel(model.VortexSettings);
         TempFolder = model.TempExtractionFolder;
@@ -77,6 +80,7 @@ public class VM_SettingsModManager : VM
             case ModManager.Vortex: model.CurrentInstallationFolder = model.VortexSettings.StagingFolderPath; break;
         }
         FilePathLimit = model.FilePathLimit;
+        _logger.LogStartupEventEnd("Loading Mod Manager Settings UI");
     }
 
     public Settings_ModManager DumpViewModelToModel()

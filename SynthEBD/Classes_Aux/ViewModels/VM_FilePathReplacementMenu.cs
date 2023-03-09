@@ -44,26 +44,14 @@ public class VM_FilePathReplacementMenu : VM
         return clone;
     }
 
-    public static VM_FilePathReplacementMenu GetViewModelFromModels(HashSet<FilePathReplacement> models, VM_Subgroup parentSubgroup, bool setExplicitReferenceNPC, VM_FilePathReplacementMenu.Factory menuFactory, VM_FilePathReplacement.Factory filePathReplacementFactory)
+    public void CopyInFromModels(HashSet<FilePathReplacement> models, VM_FilePathReplacement.Factory filePathReplacementFactory)
     {
-        VM_FilePathReplacementMenu viewModel = null;
-
-        if (setExplicitReferenceNPC)
-        {
-            viewModel = menuFactory(parentSubgroup, setExplicitReferenceNPC, parentSubgroup.LinkCache);
-        }
-        else
-        {
-            viewModel = menuFactory(parentSubgroup, setExplicitReferenceNPC, parentSubgroup.ParentAssetPack.RecordTemplateLinkCache);
-        }
-
         foreach (var model in models)
         {
-            var subVm = filePathReplacementFactory(viewModel);
+            var subVm = filePathReplacementFactory(this);
             subVm.CopyInViewModelFromModel(model);
-            viewModel.Paths.Add(subVm);
+            Paths.Add(subVm);
         }
-        return viewModel;
     }
 
     public static HashSet<FilePathReplacement> DumpViewModelToModels(VM_FilePathReplacementMenu viewModel)
@@ -75,24 +63,5 @@ public class VM_FilePathReplacementMenu : VM
     {
         if (Paths.Any()) { HasContents = true; }
         else { HasContents = false; }
-    }
-
-    public bool CandidateTargetPathExists(string candidate)
-    {
-        List<FormKey> candidateRecordTemplates = new();
-        if (ParentSubgroup.ParentAssetPack.DefaultTemplateFK != null)
-        {
-            candidateRecordTemplates.Add(ParentSubgroup.ParentAssetPack.DefaultTemplateFK);
-        }
-        candidateRecordTemplates.AddRange(ParentSubgroup.ParentAssetPack.AdditionalRecordTemplateAssignments.Where(x => x.TemplateNPC != null).Select(x => x.TemplateNPC));
-
-        foreach (var referenceNPCformkey in candidateRecordTemplates)
-        {
-            if (ReferenceLinkCache != null && referenceNPCformkey != null && ReferenceLinkCache.TryResolve<INpcGetter>(referenceNPCformkey, out var refNPC) && _recordPathParser.GetObjectAtPath(refNPC, refNPC, candidate, new Dictionary<string, dynamic>(), ReferenceLinkCache, true, _logger.GetNPCLogNameString(refNPC), out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
-            {
-                return true;
-            }
-        }
-        return false;
     }
 }

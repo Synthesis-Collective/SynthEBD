@@ -1,3 +1,4 @@
+using Noggog;
 using Noggog.WPF;
 using ReactiveUI;
 using System;
@@ -12,7 +13,6 @@ using static System.Resources.ResXFileRef;
 
 namespace SynthEBD
 {
-
     public class ViewModelLoader : VM
     {
         private readonly IEnvironmentStateProvider _environmentProvider;
@@ -122,7 +122,7 @@ namespace SynthEBD
                 (_, _) => { return 0; })
             .Subscribe(_ => {
                 Reinitialize();
-            });
+            }).DisposeWith(this);
         }
 
         public void SaveAndRefreshPlugins()
@@ -141,6 +141,7 @@ namespace SynthEBD
             LoadInitialSettingsViewModels();
             LoadPluginViewModels();
             LoadFinalSettingsViewModels();
+            _logger.WriteStartupLog();
             System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.Default;
         }
 
@@ -158,10 +159,10 @@ namespace SynthEBD
             _bodyGenSettingsVM.CopyInViewModelFromModel(_patcherState.BodyGenConfigs, _patcherState.BodyGenSettings, _bodyGenConfigFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings);
             _settingsOBody.CopyInViewModelFromModel(_patcherState.OBodySettings, _generalSettingsVM.RaceGroupingEditor.RaceGroupings, _bodyShapeDescriptorCreator, _oBodyMiscSettingsFactory, _bodySlideFactory, _descriptorSelectionFactory, _attributeCreator, _logger);
             // load asset packs after BodyGen/BodySlide
-            VM_AssetPack.GetViewModelsFromModels(_patcherState.AssetPacks, _texMeshSettingsVM, _patcherState.TexMeshSettings, _assetPackFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings); // add asset pack view models to TexMesh shell view model here
+            VM_AssetPack.GetViewModelsFromModels(_patcherState.AssetPacks, _texMeshSettingsVM, _patcherState.TexMeshSettings, _assetPackFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings, _logger); // add asset pack view models to TexMesh shell view model here
             _texMeshSettingsVM.AssetPresenterPrimary.AssetPack = _texMeshSettingsVM.AssetPacks.Where(x => x.GroupName == _texMeshSettingsVM.LastViewedAssetPackName).FirstOrDefault();
 
-            VM_HeightConfig.GetViewModelsFromModels(_heightSettingsVM.AvailableHeightConfigs, _patcherState.HeightConfigs, _heightConfigFactory, _heightAssignmentFactory);
+            VM_HeightConfig.GetViewModelsFromModels(_heightSettingsVM.AvailableHeightConfigs, _patcherState.HeightConfigs, _heightConfigFactory, _heightAssignmentFactory, _logger);
             _heightSettingsVM.CopyInFromModel(_patcherState.HeightSettings); /// must do after populating configs
         }
 

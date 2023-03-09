@@ -41,6 +41,10 @@ public class EBDCoreRecords
         EBDHelperScriptEnabled.RawFloat = 1;
 
         var MGEF = outputMod.MagicEffects.AddNew();
+        MGEF.Archetype = new MagicEffectArchetype()
+        {
+            Type = MagicEffectArchetype.TypeEnum.ValueModifier
+        };
         MGEF.EditorID = "SP_EBD_EBDHelperScript_attacher_MGEF";
         MGEF.VirtualMachineAdapter = new VirtualMachineAdapter();
         MGEF.VirtualMachineAdapter.Version = 5;

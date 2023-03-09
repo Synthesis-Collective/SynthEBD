@@ -7,6 +7,7 @@ using Mutagen.Bethesda.Plugins.Order;
 using ReactiveUI;
 using Noggog;
 using Noggog.WPF;
+using System.Collections.Concurrent;
 
 namespace SynthEBD;
 
@@ -138,9 +139,9 @@ public class BSAHandler : ViewModel
                     _logger.LogError("Unable to open archive reader to BSA file " + bsaFile.Path);
                 }
             }
-            if (archiveReaders.Any())
+            if (archiveReaders.Any() && !OpenReaders.ContainsKey(modKey))
             {
-                OpenReaders.Add(modKey, archiveReaders);
+                OpenReaders.TryAdd(modKey, archiveReaders);
                 return true;
             }
         }
@@ -210,7 +211,7 @@ public class BSAHandler : ViewModel
     {
         file = null;
         if (bsaReader == null) { return false; }
-        var files = bsaReader.Files.Where(candidate => candidate.Path.Equals(subpath, StringComparison.OrdinalIgnoreCase));
+        var files = bsaReader.Files.Where(candidate => candidate.Path.Equals(subpath, StringComparison.OrdinalIgnoreCase)).ToArray();
         if (files.Any())
         {
             file = files.First();
@@ -236,5 +237,5 @@ public class BSAHandler : ViewModel
         return false;
     }
 
-    public Dictionary<ModKey, HashSet<IArchiveReader>> OpenReaders = new Dictionary<ModKey, HashSet<IArchiveReader>>();
+    public ConcurrentDictionary<ModKey, HashSet<IArchiveReader>> OpenReaders = new();
 }

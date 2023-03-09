@@ -1,3 +1,5 @@
+using Noggog;
+using ReactiveUI;
 using System.ComponentModel;
 using System.Windows.Media;
 
@@ -10,7 +12,9 @@ public class VM_StatusBar : VM
     public VM_StatusBar(Logger logger)
     {
         _logger = logger;
-        _logger.PropertyChanged += RefreshDisp;
+
+        _logger.WhenAnyValue(x => x.StatusString).Subscribe(x => DispString = x).DisposeWith(this);
+        _logger.WhenAnyValue(x => x.StatusColor).Subscribe(x => FontColor = x).DisposeWith(this);
     }
 
     public string DispString { get; set; } = "";
@@ -20,10 +24,4 @@ public class VM_StatusBar : VM
     public int ProgressBarCurrent { get; set; } = 0;
     public string ProgressBarDisp { get; set; } = "";
     public bool IsPatching { get; set; } = false;
-
-    public void RefreshDisp(object sender, PropertyChangedEventArgs e)
-    {
-        this.DispString = _logger.StatusString;
-        this.FontColor = _logger.StatusColor;
-    }
 }

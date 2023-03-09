@@ -7,23 +7,26 @@ namespace SynthEBD;
 public class VM_SettingsBodyGen : VM
 {
     private readonly PatcherState _patcherState;
+    private readonly Logger _logger;
     private readonly VM_BodyGenRacialMapping.Factory _mappingFactory;
     public VM_SettingsBodyGen(
         PatcherState patcherState,
+        Logger logger,
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
         VM_BodyGenRacialMapping.Factory mappingFactory,
         VM_Settings_General generalSettingsVM)
     {
         _patcherState = patcherState;
+        _logger = logger;
         _mappingFactory = mappingFactory;
 
         DisplayMaleConfig = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
-                this.CurrentlyDisplayedConfig = this.CurrentMaleConfig;
-                this.DisplayedConfigIsFemale = false;
-                this.DisplayedConfigIsMale = true;
+                CurrentlyDisplayedConfig = CurrentMaleConfig;
+                DisplayedConfigIsFemale = false;
+                DisplayedConfigIsMale = true;
             }
         );
 
@@ -31,9 +34,9 @@ public class VM_SettingsBodyGen : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                this.CurrentlyDisplayedConfig = this.CurrentFemaleConfig;
-                this.DisplayedConfigIsFemale = true;
-                this.DisplayedConfigIsMale = false;
+                CurrentlyDisplayedConfig = CurrentFemaleConfig;
+                DisplayedConfigIsFemale = true;
+                DisplayedConfigIsMale = false;
             }
         );
 
@@ -41,13 +44,13 @@ public class VM_SettingsBodyGen : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                var newConfig = bodyGenConfigFactory(this.MaleConfigs);
+                var newConfig = bodyGenConfigFactory(MaleConfigs);
                 newConfig.Gender = Gender.Male;
-                this.MaleConfigs.Add(newConfig);
-                this.CurrentMaleConfig = newConfig;
-                this.CurrentlyDisplayedConfig = newConfig;
-                this.DisplayedConfigIsMale = true;
-                this.DisplayedConfigIsFemale = false;
+                MaleConfigs.Add(newConfig);
+                CurrentMaleConfig = newConfig;
+                CurrentlyDisplayedConfig = newConfig;
+                DisplayedConfigIsMale = true;
+                DisplayedConfigIsFemale = false;
                 InitializeNewBodyGenConfig(newConfig, generalSettingsVM);
             });
 
@@ -55,13 +58,13 @@ public class VM_SettingsBodyGen : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                var newConfig = bodyGenConfigFactory(this.FemaleConfigs);
+                var newConfig = bodyGenConfigFactory(FemaleConfigs);
                 newConfig.Gender = Gender.Female;
-                this.FemaleConfigs.Add(newConfig);
-                this.CurrentFemaleConfig = newConfig;
-                this.CurrentlyDisplayedConfig = newConfig;
-                this.DisplayedConfigIsFemale = true;
-                this.DisplayedConfigIsMale = false;
+                FemaleConfigs.Add(newConfig);
+                CurrentFemaleConfig = newConfig;
+                CurrentlyDisplayedConfig = newConfig;
+                DisplayedConfigIsFemale = true;
+                DisplayedConfigIsMale = false;
                 InitializeNewBodyGenConfig(newConfig, generalSettingsVM);
             });
 
@@ -111,16 +114,20 @@ public class VM_SettingsBodyGen : VM
 
         foreach(var config in configModels.Female)
         {
+            _logger.LogStartupEventStart("Loading BodyGen Config UI for " + config.Label);
             var subConfig = bodyGenConfigFactory(FemaleConfigs);
             subConfig.CopyInViewModelFromModel(config, mainRaceGroupings);
             FemaleConfigs.Add(subConfig);
+            _logger.LogStartupEventEnd("Loading BodyGen Config UI for " + config.Label);
         }
 
         foreach(var config in configModels.Male)
         {
+            _logger.LogStartupEventStart("Loading BodyGen Config UI for " + config.Label);
             var subConfig = bodyGenConfigFactory(MaleConfigs);
             subConfig.CopyInViewModelFromModel(config, mainRaceGroupings);
             MaleConfigs.Add(subConfig);
+            _logger.LogStartupEventEnd("Loading BodyGen Config UI for " + config.Label);
         }
 
         CurrentMaleConfig = MaleConfigs.Where(x => x.Label == model.CurrentMaleConfig).FirstOrDefault();

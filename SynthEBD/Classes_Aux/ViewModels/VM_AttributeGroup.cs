@@ -48,7 +48,8 @@ public class VM_AttributeGroup : VM
             .ToObservableChangeSet()
             .Transform(x =>
                 x.WhenAnyObservable(y => y.NeedsRefresh)
-                .Subscribe(_ => CheckGroupForCircularReferences()))
+                .Subscribe(_ => CheckGroupForCircularReferences())
+                .DisposeWith(this))
             .DisposeMany() // Dispose subscriptions related to removed attributes
             .Subscribe()  // Execute my instructions
             .DisposeWith(this);
@@ -57,7 +58,7 @@ public class VM_AttributeGroup : VM
     public void CopyInViewModelFromModel(AttributeGroup model)
     {
         Label = model.Label;
-        Attributes = _attributeCreator.GetViewModelsFromModels(model.Attributes, ParentMenu.Groups, false, true);
+        _attributeCreator.CopyInFromModels(model.Attributes, Attributes, ParentMenu.Groups, false, true);
         SubscribeToCircularReferenceCheck(); // need to call again because this ObservableCollection is a different object than the one subscribed to in the constructor.
     }
 
@@ -102,7 +103,7 @@ public class VM_AttributeGroup : VM
             {
                 var groupAttribute = (VM_NPCAttributeGroup)subAttributeShell.Attribute;
                 
-                foreach (var label in groupAttribute.SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label))
+                foreach (var label in groupAttribute.SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label).ToArray())
                 {
                     var selectedSubGroup = allGroups.Where(x => x.Label == label).FirstOrDefault();
                     if (selectedSubGroup != null)

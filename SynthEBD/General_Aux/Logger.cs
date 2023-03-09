@@ -25,6 +25,9 @@ public sealed class Logger : VM
     private readonly PatcherIO _patcherIO;
     private SynthEBDPaths _paths;
 
+    private List<string> _startupLog = new();
+    private Dictionary<string, System.Diagnostics.Stopwatch> _startupTimers = new();
+    private int _startupLogIndentCount = 0;
     public string StatusString { get; set; }
     public string BackupStatusString { get; set; }
     public ObservableCollection<string> LoggedEvents { get; set; } = new();
@@ -32,9 +35,9 @@ public sealed class Logger : VM
     public SolidColorBrush StatusColor { get; set; }
     public SolidColorBrush BackupStatusColor { get; set; }
 
-    public SolidColorBrush ReadyColor = new SolidColorBrush(Colors.Green);
-    public SolidColorBrush WarningColor = new SolidColorBrush(Colors.Yellow);
-    public SolidColorBrush ErrorColor = new SolidColorBrush(Colors.Red);
+    public SolidColorBrush ReadyColor = CommonColors.Green;
+    public SolidColorBrush WarningColor = CommonColors.Yellow;
+    public SolidColorBrush ErrorColor = CommonColors.Red;
     public string ReadyString = "Ready To Patch";
 
     private readonly Subject<Unit> _loggedError = new();
@@ -91,6 +94,80 @@ public sealed class Logger : VM
     public void Clear()
     {
         LoggedEvents.Clear();
+    }
+
+    private static readonly object LockStartupLogMethod = new object();
+
+    public void LogStartupEventStart(string message)
+    {
+        lock (LockStartupLogMethod)
+        {
+            //_startupLog.Add(FormatTimeStamp(DateTime.Now) + GetIndentString() + message);
+            _startupLogIndentCount++;
+            System.Diagnostics.Stopwatch sw = new();
+            sw.Start();
+            if (!_startupTimers.ContainsKey(message))
+            {
+                _startupTimers.Add(message, sw);
+            }
+        }
+    }
+
+    public void LogStartupEventEnd(string message)
+    {
+        lock (LockStartupLogMethod)
+        {
+            if (_startupTimers.ContainsKey(message))
+            {
+                var sw = _startupTimers[message];
+                sw.Stop();
+                if (_startupLogIndentCount > 0)
+                {
+                    _startupLogIndentCount--;
+                }
+                if (sw.ElapsedMilliseconds > 5)
+                {
+                    _startupLog.Add(FormatTimeStamp(DateTime.Now) + GetIndentString() + "Completed " + message + " in: " + string.Format("{0:D2}:{1:D2}:{2:D2}:{3:D2}", sw.Elapsed.Hours, sw.Elapsed.Minutes, sw.Elapsed.Seconds, sw.Elapsed.Milliseconds));
+                }
+                _startupTimers.Remove(message);
+            }
+        }
+    }
+
+    public string GetIndentString()
+    {
+        string s = "";
+        for (int i = 0; i < _startupLogIndentCount; i++)
+        {
+            s += "\t";
+        }
+        return s;
+    }
+
+    public static string FormatTimeStamp(DateTime dt)
+    {
+        return "[" + DateTimeToHMS(dt) + "] ";
+    }
+    public static string DateTimeToHMS(DateTime dt)
+    {
+        return string.Format("{0:D2}:{1:D2}:{2:D2}", dt.Hour, dt.Minute, dt.Second);
+    }
+
+    public void WriteStartupLog()
+    {
+        _startupLog.InsertRange(0, _environmentProvider.StartUpLog);
+
+        if (_startupTimers.Any())
+        {
+            _startupLog.Add("The following events were never logged as completed:");
+            foreach (var entry in _startupTimers)
+            {
+                _startupLog.Add(entry.Key);
+            }
+        }
+
+        string path = Path.Combine(_paths.LogFolderPath, "StartupLog.txt");
+        Task.Run(() => PatcherIO.WriteTextFile(path, _startupLog, this));
     }
 
     public void TriggerNPCReporting(NPCInfo npcInfo)
@@ -501,6 +578,11 @@ public static string GetNPCLogReportingString(INpcGetter npc)
         return subgroup.ID + ": " + subgroup.Name;
     }
 
+    public static string GetSubgroupIDString(VM_SubgroupPlaceHolder subgroup)
+    {
+        return subgroup.ID + ": " + subgroup.Name;
+    }
+
     public static string GetBodyShapeDescriptorString(Dictionary<string, HashSet<string>> descriptorList)
     {
         List<string> sections = new List<string>();
@@ -560,7 +642,7 @@ public static string GetNPCLogReportingString(INpcGetter npc)
         }
     }
 
-    public bool GetRaceLogString(string allowStatus, ObservableCollection<FormKey> races, out string reportStr)
+    public bool GetRaceLogString(string allowStatus, IEnumerable<FormKey> races, out string reportStr)
     {
         reportStr = "";
         if (races.Any())
@@ -584,10 +666,20 @@ public static string GetNPCLogReportingString(INpcGetter npc)
     public bool GetRaceGroupingLogString(string allowStatus, VM_RaceGroupingCheckboxList raceGroupings, out string reportStr)
     {
         reportStr = "";
-        var selectedGroupings = raceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label);
+        var selectedGroupings = raceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToArray();
         if (selectedGroupings.Any())
         {
             reportStr = allowStatus + " Race Groupings: " + string.Join(", ", selectedGroupings);
+            return true;
+        }
+        return false;
+    }
+    public bool GetRaceGroupingLogString(string allowStatus, HashSet<string> raceGroupings, out string reportStr)
+    {
+        reportStr = "";
+        if (raceGroupings.Any())
+        {
+            reportStr = allowStatus + " Race Groupings: " + string.Join(", ", raceGroupings);
             return true;
         }
         return false;
@@ -600,7 +692,18 @@ public static string GetNPCLogReportingString(INpcGetter npc)
         {
             List<string> attributeStrs = new();
             var models = VM_NPCAttribute.DumpViewModelsToModels(attributes);
-            var attributeLogs = models.Select(x => x.ToLogString(true, _environmentProvider.LinkCache));
+            var attributeLogs = models.Select(x => x.ToLogString(true, _environmentProvider.LinkCache)).ToArray();
+            reportStr = allowStatus + " Attributes: " + string.Join(", ", attributeLogs);
+            return true;
+        }
+        return false;
+    }
+    public bool GetAttributeLogString(string allowStatus, HashSet<NPCAttribute> attributes, out string reportStr)
+    {
+        reportStr = "";
+        if (attributes.Any())
+        {
+            var attributeLogs = attributes.Select(x => x.ToLogString(true, _environmentProvider.LinkCache)).ToArray();
             reportStr = allowStatus + " Attributes: " + string.Join(", ", attributeLogs);
             return true;
         }

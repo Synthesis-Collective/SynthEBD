@@ -43,10 +43,12 @@ public class VM_BodyGenGroupMappingMenu : VM
 public class VM_BodyGenRacialMapping : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly Logger _logger;
     public delegate VM_BodyGenRacialMapping Factory(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
-    public VM_BodyGenRacialMapping(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IEnvironmentStateProvider environmentProvider)
+    public VM_BodyGenRacialMapping(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IEnvironmentStateProvider environmentProvider, Logger logger)
     {
         _environmentProvider = environmentProvider;
+        _logger = logger;
         RaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         MonitoredGroupsMenu = groupsMenu;
         
@@ -97,8 +99,9 @@ public class VM_BodyGenRacialMapping : VM
     public RelayCommand RemoveCombination { get; }
     public bool ShowAddNew { get; set; }
 
-    public static VM_BodyGenRacialMapping GetViewModelFromModel(BodyGenConfig.RacialMapping model, VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyGenRacialMapping.Factory mappingFactory)
+    public static VM_BodyGenRacialMapping GetViewModelFromModel(BodyGenConfig.RacialMapping model, VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyGenRacialMapping.Factory mappingFactory, Logger logger)
     {
+        logger.LogStartupEventStart("Generating BodyGen Group Map UI");
         VM_BodyGenRacialMapping viewModel = mappingFactory(groupsMenu, raceGroupingVMs);
 
         viewModel.Label = model.Label;
@@ -108,6 +111,7 @@ public class VM_BodyGenRacialMapping : VM
         {
             viewModel.Combinations.Add(VM_BodyGenCombination.GetViewModelFromModel(combination, groupsMenu, viewModel));
         }
+        logger.LogStartupEventEnd("Generating BodyGen Group Map UI");
         return viewModel;
     }
 
@@ -173,9 +177,9 @@ public class VM_BodyGenCombination : VM
 
     public void CheckForEmptyCombination()
     {
-        if (this.Members.Count == 0)
+        if (Members.Count == 0)
         {
-            this.Parent.Combinations.Remove(this);
+            Parent.Combinations.Remove(this);
         }
     }
 }

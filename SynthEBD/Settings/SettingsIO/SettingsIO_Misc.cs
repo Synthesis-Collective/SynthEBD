@@ -14,6 +14,7 @@ public class SettingsIO_Misc
 
     public Dictionary<string, NPCAssignment> LoadConsistency(out bool loadSuccess)
     {
+        _logger.LogStartupEventStart("Loading Consistency from disk");
         var loaded = new Dictionary<string, NPCAssignment>();
 
         loadSuccess = true;
@@ -37,6 +38,7 @@ public class SettingsIO_Misc
         // note: No need to alert user if consistency can't be loaded - it won't be available on first run
 
         if (loaded == null) { loaded = new(); } // this can happen when JSON parsing fails - loaded still gets assigned the failed null value
+        _logger.LogStartupEventEnd("Loading Consistency from disk");
         return loaded;
     }
     public void SaveConsistency(Dictionary<string, NPCAssignment> consistency, out bool saveSuccess)

@@ -4,6 +4,7 @@ using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
 using ReactiveUI;
+using System.Reactive.Linq;
 
 namespace SynthEBD;
 
@@ -13,14 +14,36 @@ public class VM_AssetPackDirectReplacerMenu : VM
 
     public delegate VM_AssetPackDirectReplacerMenu Factory(VM_AssetPack parent);
     
-    public VM_AssetPackDirectReplacerMenu(VM_AssetPack parent, VM_AssetReplacerGroup.Factory assetReplaceGroupFactory)
+    public VM_AssetPackDirectReplacerMenu(VM_AssetPack parent, VM_AssetReplacerGroup.Factory assetReplaceGroupFactory, VM_Subgroup.Factory subgroupFactory)
     {
         _assetReplaceGroupFactory = assetReplaceGroupFactory;
         ParentAssetPack = parent;
 
+       this.WhenAnyValue(vm => vm.DisplayedGroup)
+          .Buffer(2, 1)
+          .Select(b => (Previous: b[0], Current: b[1]))
+          .Subscribe(t => {
+              if (t.Previous != null && t.Previous.DisplayedSubgroup != null)
+              {
+                  t.Previous.DisplayedSubgroup.DumpViewModelToModel();
+              }
+
+              if (t.Current != null && t.Current.Subgroups.Any())
+              {
+                  t.Current.DisplayedSubgroup = subgroupFactory(parent.RaceGroupingEditor.RaceGroupings, ParentAssetPack, t.Current.Subgroups.First(), true);
+                  t.Current.DisplayedSubgroup.PathsMenu.ReferenceNPCFK = t.Current.TemplateNPCFK;
+                  t.Current.DisplayedSubgroup.CopyInViewModelFromModel();
+              }
+          });
+
+        this.WhenAnyValue(x => x.DisplayedGroup).Subscribe(x =>
+        {
+            
+        }).DisposeWith(this);
+
         AddGroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.ReplacerGroups.Add(assetReplaceGroupFactory(this))
+            execute: _ => ReplacerGroups.Add(assetReplaceGroupFactory(this))
         );
     }
     public ObservableCollection<VM_AssetReplacerGroup> ReplacerGroups { get; set; } = new();
@@ -44,25 +67,27 @@ public class VM_AssetPackDirectReplacerMenu : VM
         List<AssetReplacerGroup> models = new List<AssetReplacerGroup>();
         foreach (var subViewModel in viewModel.ReplacerGroups)
         {
-            models.Add(VM_AssetReplacerGroup.DumpViewModelToModel(subViewModel));
+            models.Add(subViewModel.DumpViewModelToModel());
         }
         return models;
     }
 }
 
-public class VM_AssetReplacerGroup : VM
+public class VM_AssetReplacerGroup : VM, IHasSubgroupViewModels
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly VM_Settings_General _generalSettingsVm;
-    private readonly VM_Subgroup.Factory _subGroupFactory;
+    private readonly VM_Subgroup.Factory _subgroupFactory;
+    private readonly VM_SubgroupPlaceHolder.Factory _subGroupPlaceHolderFactory;
 
     public delegate VM_AssetReplacerGroup Factory(VM_AssetPackDirectReplacerMenu parent);
     
-    public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, IEnvironmentStateProvider environmentProvider, VM_Settings_General generalSettingsVM, VM_Subgroup.Factory subGroupFactory)
+    public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, IEnvironmentStateProvider environmentProvider, VM_Settings_General generalSettingsVM, VM_Subgroup.Factory subgroupFactory, VM_SubgroupPlaceHolder.Factory subGroupPlaceHolderFactory)
     {
         _environmentProvider = environmentProvider;
         _generalSettingsVm = generalSettingsVM;
-        _subGroupFactory = subGroupFactory;
+        _subgroupFactory = subgroupFactory;
+        _subGroupPlaceHolderFactory = subGroupPlaceHolderFactory;
         ParentMenu = parent;
 
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
@@ -76,31 +101,42 @@ public class VM_AssetReplacerGroup : VM
 
         AddTopLevelSubgroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => this.Subgroups.Add(subGroupFactory(parent.ParentAssetPack.RaceGroupingEditor.RaceGroupings, Subgroups, parent.ParentAssetPack, null, true))
+            execute: _ => Subgroups.Add(subGroupPlaceHolderFactory(new AssetPack.Subgroup(), null, parent.ParentAssetPack, Subgroups))
         );
-            
+
+        SelectedSubgroupChanged = new RelayCommand(
+            canExecute: _ => true,
+            execute: x =>
+            {
+                if (DisplayedSubgroup != null)
+                {
+                    DisplayedSubgroup.AssociatedPlaceHolder.AssociatedModel = DisplayedSubgroup.DumpViewModelToModel();
+                }
+                var displayedSubgroupPlaceHolder = (VM_SubgroupPlaceHolder)x;
+                DisplayedSubgroup = _subgroupFactory(_generalSettingsVm.RaceGroupingEditor.RaceGroupings, ParentMenu.ParentAssetPack, displayedSubgroupPlaceHolder, true);
+                DisplayedSubgroup.PathsMenu.ReferenceNPCFK = TemplateNPCFK;
+                DisplayedSubgroup.CopyInViewModelFromModel();
+            });
+
         this.WhenAnyValue(x => x.TemplateNPCFK).Subscribe(x =>
         {
-            foreach (var sg in Subgroups)
+            if (DisplayedSubgroup != null)
             {
-                SetTemplates(sg, TemplateNPCFK);
+                DisplayedSubgroup.PathsMenu.ReferenceNPCFK = x;
             }
         }).DisposeWith(this);
     }
 
     public string Label { get; set; } = "";
-    public ObservableCollection<VM_Subgroup> Subgroups { get; set; } = new();
-
+    public ObservableCollection<VM_SubgroupPlaceHolder> Subgroups { get; set; } = new();
+    public VM_Subgroup DisplayedSubgroup { get; set; }
     public VM_AssetPackDirectReplacerMenu ParentMenu{ get; set; }
-
     public FormKey TemplateNPCFK { get; set; }
-    
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> NPCType { get; set; } = typeof(INpcGetter).AsEnumerable();
-
     public RelayCommand Remove { get; }
-
     public RelayCommand AddTopLevelSubgroup { get; }
+    public RelayCommand SelectedSubgroupChanged { get; }
 
     public void CopyInViewModelFromModel(AssetReplacerGroup model)
     {
@@ -108,33 +144,36 @@ public class VM_AssetReplacerGroup : VM
         TemplateNPCFK = model.TemplateNPCFormKey;
         foreach (var sg in model.Subgroups)
         {
-            var sgVM = _subGroupFactory(
-                _generalSettingsVm.RaceGroupingEditor.RaceGroupings,
-                Subgroups, 
-                ParentMenu.ParentAssetPack,
+            var sgVM = _subGroupPlaceHolderFactory(
+                sg,
                 null,
-                true);
-            sgVM.CopyInViewModelFromModel(sg);
-            SetTemplates(sgVM, TemplateNPCFK);
+                ParentMenu.ParentAssetPack,
+                Subgroups);
+            //SetTemplates(sgVM, TemplateNPCFK);
             Subgroups.Add(sgVM);
         }
-        ObservableCollection<VM_Subgroup> flattenedSubgroupList = VM_AssetPack.FlattenSubgroupVMs(Subgroups, new ObservableCollection<VM_Subgroup>());
-        VM_AssetPack.LinkRequiredSubgroups(flattenedSubgroupList);
-        VM_AssetPack.LinkExcludedSubgroups(flattenedSubgroupList);
     }
 
-    public static AssetReplacerGroup DumpViewModelToModel(VM_AssetReplacerGroup viewModel)
+    public AssetReplacerGroup DumpViewModelToModel()
     {
         AssetReplacerGroup model = new AssetReplacerGroup();
-        model.Label = viewModel.Label;
-        model.TemplateNPCFormKey = viewModel.TemplateNPCFK;
-        foreach (var svm in viewModel.Subgroups)
+        model.Label = Label;
+        model.TemplateNPCFormKey = TemplateNPCFK;
+
+        if (DisplayedSubgroup != null)
         {
-            model.Subgroups.Add(VM_Subgroup.DumpViewModelToModel(svm));
+            DisplayedSubgroup.AssociatedPlaceHolder.AssociatedModel = DisplayedSubgroup.DumpViewModelToModel();
+        }
+
+        foreach (var svm in Subgroups)
+        {
+            svm.SaveToModel();
+            model.Subgroups.Add(svm.AssociatedModel);
         }
         return model;
     }
 
+    /*
     private static void SetTemplates(VM_Subgroup subgroup, FormKey templateNPCFormKey)
     {
         subgroup.PathsMenu.ReferenceNPCFK = new FormKey(templateNPCFormKey.ModKey, templateNPCFormKey.ID);
@@ -143,4 +182,5 @@ public class VM_AssetReplacerGroup : VM
             SetTemplates(sg, templateNPCFormKey);
         }
     }
+    */
 }

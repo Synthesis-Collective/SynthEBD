@@ -11,11 +11,13 @@ public class VM_SettingsHeight : VM
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly VM_HeightConfig.Factory _configFactory;
     private readonly PatcherState _patcherState;
-    public VM_SettingsHeight(IEnvironmentStateProvider environmentProvider, FileDialogs fileDialogs, VM_HeightConfig.Factory configFactory, PatcherState patcherState)
+    private readonly Logger _logger;
+    public VM_SettingsHeight(IEnvironmentStateProvider environmentProvider, FileDialogs fileDialogs, VM_HeightConfig.Factory configFactory, PatcherState patcherState, Logger logger)
     {
         _environmentProvider = environmentProvider;
         _configFactory = configFactory;
         _patcherState = patcherState;
+        _logger = logger;
         SelectedHeightConfig = _configFactory();
 
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
@@ -68,6 +70,8 @@ public class VM_SettingsHeight : VM
             return;
         }
 
+        _logger.LogStartupEventStart("Loading UI for Height Menu");
+
         bChangeNPCHeight = model.bChangeNPCHeight;
         bChangeRaceHeight = model.bChangeRaceHeight;
         bOverwriteNonDefaultNPCHeights = model.bOverwriteNonDefaultNPCHeights;
@@ -85,6 +89,7 @@ public class VM_SettingsHeight : VM
         {
             SelectedHeightConfig = AvailableHeightConfigs.First();
         }
+        _logger.LogStartupEventEnd("Loading UI for Height Menu");
     }
 
     public Settings_Height DumpViewModelToModel()

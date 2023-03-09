@@ -127,7 +127,7 @@ public class BodyShapeDescriptor
 
     public bool PermitNPC(NPCInfo npcInfo, HashSet<AttributeGroup> attributeGroups, AttributeMatcher attMatcher, out string reportStr)
     {
-        return this.AssociatedRules.NPCisValid(this, attributeGroups, npcInfo, attMatcher, out reportStr);
+        return AssociatedRules.NPCisValid(this, attributeGroups, npcInfo, attMatcher, out reportStr);
     }
 
     public static bool DescriptorsMatch(Dictionary<string, HashSet<string>> DescriptorSet, HashSet<LabelSignature> shapeDescriptors, DescriptorMatchMode matchMode, out string firstMatch)
@@ -138,7 +138,7 @@ public class BodyShapeDescriptor
             return false;
         }
 
-        var categoriesToMatch = shapeDescriptors.Select(x => x.Category);
+        var categoriesToMatch = shapeDescriptors.Select(x => x.Category).ToArray();
 
         foreach (var category in DescriptorSet.Keys)
         {
@@ -156,7 +156,7 @@ public class BodyShapeDescriptor
             else
             {
                 var allowedMatches = DescriptorSet[category];
-                var relevantDescriptors = shapeDescriptors.Where(x => x.Category == category);
+                var relevantDescriptors = shapeDescriptors.Where(x => x.Category == category).ToArray();
                 bool currentCategoryMatched = false;
                 foreach (var candidateDescriptor in relevantDescriptors)
                 {

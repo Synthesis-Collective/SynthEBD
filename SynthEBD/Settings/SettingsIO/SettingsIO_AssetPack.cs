@@ -21,6 +21,7 @@ public class SettingsIO_AssetPack
     }
     public Settings_TexMesh LoadTexMeshSettings(out bool loadSuccess)
     {
+        _logger.LogStartupEventStart("Loading TexMesh settings from disk");
         Settings_TexMesh texMeshSettings = new Settings_TexMesh();
 
         loadSuccess = true;
@@ -41,7 +42,7 @@ public class SettingsIO_AssetPack
                 _logger.LogError("Could not load Texture/Mesh Settings. Error: " + exceptionStr);
             }
         }
-
+        _logger.LogStartupEventEnd("Loading TexMesh settings from disk");
         return texMeshSettings;
     }
 
@@ -64,6 +65,7 @@ public class SettingsIO_AssetPack
 
         foreach (string s in filePaths)
         {
+            _logger.LogStartupEventStart("Loading Asset Config File from " + s);
             var synthEBDconfig = LoadAssetPack(s, raceGroupings, recordTemplatePlugins, availableBodyGenConfigs, out bool success);
             if (success)
             {
@@ -73,6 +75,7 @@ public class SettingsIO_AssetPack
             {
                 loadSuccess = false;
             }
+            _logger.LogStartupEventEnd("Loading Asset Config File from " + s);
         }
 
         return loadedPacks;
@@ -117,6 +120,7 @@ public class SettingsIO_AssetPack
 
     public List<SkyrimMod> LoadRecordTemplates(out bool loadSuccess)
     {
+        _logger.LogStartupEventStart("Loading Record Template Plugins from disk");
         List<SkyrimMod> loadedTemplatePlugins = new List<SkyrimMod>();
 
         string[] filePaths;
@@ -150,6 +154,7 @@ public class SettingsIO_AssetPack
                 loadSuccess = false;
             }
         }
+        _logger.LogStartupEventEnd("Loading Record Template Plugins from disk");
         return loadedTemplatePlugins;
     }
 

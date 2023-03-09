@@ -39,6 +39,6 @@
         </StackPanel>
 
         <TextBlock Grid.Row="3" Grid.Column="0" Text="Get BSA Assets from"/>
-        <plugins:ModKeyMultiPicker Grid.Row="3" Grid.Column="1" ModKeys="{Binding AssociatedBsaModKeys}" SearchableMods="{Binding LoadOrder}" />
+        <plugins:ModKeyMultiPicker Grid.Row="3" Grid.Column="1" ModKeys="{Binding AssociatedBsaModKeys}" SearchableMods="{Binding LoadOrder}" MaxHeight="300" />
     </Grid>
 </UserControl>

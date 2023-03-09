@@ -168,7 +168,7 @@ public class AttributeMatcher
                                 if (!ModKeyHashSetComparer.Contains(modAttribute.ModKeys, npc.FormKey.ModKey)) { subAttributeMatched = false; }
                                 break;
                             case ModAttributeEnum.PatchedBy:
-                                var contexts = _environmentProvider.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npc.FormKey).Where(x => !x.ModKey.Equals(npc.FormKey.ModKey)); // contexts[0] is winning override. [Last] is source plugin. Omit the source plugin
+                                var contexts = _environmentProvider.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npc.FormKey).Where(x => !x.ModKey.Equals(npc.FormKey.ModKey)).ToArray(); // contexts[0] is winning override. [Last] is source plugin. Omit the source plugin
                                 bool foundContext = false;
                                 foreach (var context in contexts)
                                 {

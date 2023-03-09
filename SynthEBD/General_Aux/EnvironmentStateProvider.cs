@@ -32,6 +32,7 @@ public interface IEnvironmentStateProvider
     // Additional properties (for logging only)
     public string CreationClubListingsFilePath { get; }
     public string LoadOrderFilePath { get; }
+    public List<string> StartUpLog { get; set; }
 }
 
 public enum EnvironmentMode
@@ -66,9 +67,14 @@ public class StandaloneRunEnvironmentStateProvider : VM, IOutputEnvironmentState
     // Additional properties (for logging only)
     public string CreationClubListingsFilePath { get; set; }
     public string LoadOrderFilePath { get; set; }
+    public List<string> StartUpLog { get; set; } = new();
 
     public StandaloneRunEnvironmentStateProvider(PatcherEnvironmentSourceProvider environmentSourceProvider)
     {
+        StartUpLog.Add(Logger.FormatTimeStamp(DateTime.Now) + "Initializing Standalone SynthEBD Environment");
+        System.Diagnostics.Stopwatch sw = new();
+        sw.Start();
+
         string? exeLocation = null;
         var assembly = Assembly.GetEntryAssembly();
         if (assembly != null)
@@ -82,7 +88,7 @@ public class StandaloneRunEnvironmentStateProvider : VM, IOutputEnvironmentState
 
         LogFolderPath = Path.Combine(exeLocation, "Logs");
         ExtraSettingsDataPath = Path.Combine(exeLocation, "Settings");
-        InternalDataPath = System.IO.Path.Combine(exeLocation, "InternalData");
+        InternalDataPath = Path.Combine(exeLocation, "InternalData");
 
         SkyrimVersion = environmentSourceProvider.EnvironmentSource.Value.SkyrimVersion;
         if (!environmentSourceProvider.EnvironmentSource.Value.GameEnvironmentDirectory.IsNullOrWhitespace())
@@ -93,13 +99,19 @@ public class StandaloneRunEnvironmentStateProvider : VM, IOutputEnvironmentState
         {
             OutputModName = environmentSourceProvider.EnvironmentSource.Value.OutputModName;
         }
+
+        StartUpLog.Add(Logger.FormatTimeStamp(DateTime.Now) + "Building Game Environment");
         UpdateEnvironment();
 
         this.WhenAnyValue(
                 x => x.SkyrimVersion,
                 x => x.OutputModName,
                 x => x.DataFolderPath)
-            .Subscribe(_ => UpdateEnvironment());
+            .Subscribe(_ => UpdateEnvironment())
+            .DisposeWith(this);
+
+        sw.Stop();
+        StartUpLog.Add(Logger.FormatTimeStamp(DateTime.Now) + "Generated Standalone SynthEBD Environment in: " + string.Format("{0:D2}:{1:D2}:{2:D2}", sw.Elapsed.Hours, sw.Elapsed.Minutes, sw.Elapsed.Seconds));
     }
 
     private void LogEnvironmentEvent(string logString)
@@ -193,10 +205,17 @@ public class OpenForSettingsWrapper : IEnvironmentStateProvider
 
     public OpenForSettingsWrapper(IOpenForSettingsState state)
     {
+        StartUpLog.Add(Logger.FormatTimeStamp(DateTime.Now) + "Initializing Synthesis SynthEBD Environment");
+        System.Diagnostics.Stopwatch sw = new();
+        sw.Start();
+
         _state = state;
         _env = new Lazy<IGameEnvironment<ISkyrimMod, ISkyrimModGetter>>(
             () => state.GetEnvironmentState<ISkyrimMod, ISkyrimModGetter>());
         DataFolderPath = _state.DataFolderPath;
+
+        sw.Stop();
+        StartUpLog.Add(Logger.FormatTimeStamp(DateTime.Now) + "Generated Synthesis SynthEBD Environment in: " + string.Format("{0:D2}:{1:D2}:{2:D2}", sw.Elapsed.Hours, sw.Elapsed.Minutes, sw.Elapsed.Seconds));
     }
 
     public ILoadOrderGetter<IModListingGetter<ISkyrimModGetter>> LoadOrder => _env.Value.LoadOrder;
@@ -211,6 +230,7 @@ public class OpenForSettingsWrapper : IEnvironmentStateProvider
     public string LoadOrderFilePath => _state.LoadOrderFilePath;
     public string CreationClubListingsFilePath => _env.Value?.CreationClubListingsFilePath ?? "Not Available";
     public string OutputModName { get; set; } = "Not Available";
+    public List<string> StartUpLog { get; set; } = new();
 }
 
 public class RunnabilitySettingsWrapper : IEnvironmentStateProvider
@@ -238,6 +258,7 @@ public class RunnabilitySettingsWrapper : IEnvironmentStateProvider
     public string LoadOrderFilePath => _state.LoadOrderFilePath;
     public string CreationClubListingsFilePath => _env.Value?.CreationClubListingsFilePath ?? "Not Available";
     public string OutputModName { get; set; } = "Not Available";
+    public List<string> StartUpLog { get; set; } = new();
 }
 
 public class PatcherStateWrapper : IOutputEnvironmentStateProvider
@@ -265,6 +286,7 @@ public class PatcherStateWrapper : IOutputEnvironmentStateProvider
     public string CreationClubListingsFilePath => "Not Available";
     public string OutputModName { get; set; }
     public ISkyrimMod OutputMod { get; set; }
+    public List<string> StartUpLog { get; set; } = new();
 }
 
 public static class LoadOrderExtensions
@@ -278,7 +300,7 @@ public static class LoadOrderExtensions
         {
             if (mod.ModKey.FileName == outputModName) { continue; }
 
-            var masterFiles = mod.Mod.ModHeader.MasterReferences.Select(x => x.Master.ToString());
+            var masterFiles = mod.Mod.ModHeader.MasterReferences.Select(x => x.Master.ToString()).ToArray();
 
             if (masterFiles.Contains(outputModName, StringComparer.OrdinalIgnoreCase))
             {

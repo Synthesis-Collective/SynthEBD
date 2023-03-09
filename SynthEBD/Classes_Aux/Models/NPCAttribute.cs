@@ -524,7 +524,6 @@ public class NPCAttributeMod : ITypedNPCAttribute
 {
     public HashSet<ModKey> ModKeys { get; set; } = new();
     public ModAttributeEnum ModActionType { get; set; } = ModAttributeEnum.PatchedBy;
-
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Mod;
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;

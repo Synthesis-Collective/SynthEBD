@@ -74,7 +74,7 @@ public class RecordGenerator
             }
             #endregion
 
-            var groupedPathsAtI = nonHardcodedPaths.GroupBy(x => BuildPath(x.Destination.ToList().GetRange(0, i + 1))); // group paths by the current path segment
+            var groupedPathsAtI = nonHardcodedPaths.GroupBy(x => BuildPath(x.Destination.ToList().GetRange(0, i + 1))).ToArray(); // group paths by the current path segment
 
             foreach (var group in groupedPathsAtI)
             {

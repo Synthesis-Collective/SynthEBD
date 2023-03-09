@@ -29,7 +29,7 @@ namespace SynthEBD
             environmentProvider.WhenAnyValue(x => x.LoadOrder)
            .Subscribe(x => LoadOrder = x.Where(y => y.Value != null && y.Value.Enabled).Select(x => x.Value.ModKey)).DisposeWith(this);
 
-            AssociatedBsaModKeys.ToObservableChangeSet().Subscribe(_ => UpdateFilePathStatuses()).DisposeWith(this);
+            AssociatedBsaModKeys.ToObservableChangeSet().Subscribe(_ => UpdateFilePathStatus()).DisposeWith(this);
 
             SetAllowedDescriptorMatchModes = new RelayCommand(
                 canExecute: _ => true,
@@ -43,7 +43,7 @@ namespace SynthEBD
             AddMixInToSpecificAssignments = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => { 
-                    foreach (var assignment in specificAssignmentsUI.Assignments.Where(x => x.Gender == _parent.Gender))
+                    foreach (var assignment in specificAssignmentsUI.Assignments.Where(x => x.Gender == _parent.Gender).ToArray())
                     {
                         var existingMixInAssignment = assignment.ForcedMixIns.Where(x => x.ForcedAssetPack.GroupName == _parent.GroupName).FirstOrDefault();
                         if (existingMixInAssignment != null)
@@ -91,35 +91,34 @@ namespace SynthEBD
             model.AssociatedBsaModKeys.AddRange(AssociatedBsaModKeys);
         }
 
-        private void UpdateFilePathStatuses()
+        private void UpdateFilePathStatus()
         {
-            foreach (var subgroup in _parent.Subgroups)
+            if (_parent.DisplayedSubgroup != null)
             {
-                UpdateSubgroupFilePathStatuses(subgroup);
-            }
-            foreach (var replacer in _parent.ReplacersMenu.ReplacerGroups)
-            {
-                foreach (var subgroup in replacer.Subgroups)
+                foreach (var path in _parent.DisplayedSubgroup.PathsMenu.Paths)
                 {
-                    UpdateSubgroupFilePathStatuses(subgroup);
+                    path.RefreshSourceColor();
                 }
-            }
-        }
-
-        private void UpdateSubgroupFilePathStatuses(VM_Subgroup subgroup)
-        {
-            foreach (var path in subgroup.PathsMenu.Paths)
-            {
-                path.RefreshSourceColor();
-            }
-            foreach (var sg in subgroup.Subgroups)
-            {
-                UpdateSubgroupFilePathStatuses(sg);
             }
         }
 
         public void SetMatchModes(string descriptorTypes, DescriptorMatchMode mode)
         {
+            if (_parent.DisplayedSubgroup != null)
+            {
+                switch (descriptorTypes)
+                {
+                    case AllowedStr:
+                        _parent.DisplayedSubgroup.AllowedBodyGenDescriptors.MatchMode = mode;
+                        _parent.DisplayedSubgroup.AllowedBodySlideDescriptors.MatchMode = mode;
+                        break;
+                    case DisallowedStr:
+                        _parent.DisplayedSubgroup.DisallowedBodyGenDescriptors.MatchMode = mode;
+                        _parent.DisplayedSubgroup.DisallowedBodySlideDescriptors.MatchMode = mode;
+                        break;
+                }
+            }
+
             foreach(var subgroup in _parent.Subgroups)
             {
                 SetSubgroupMatchModes(subgroup, descriptorTypes, mode);
@@ -133,17 +132,17 @@ namespace SynthEBD
             }
         }
 
-        public static void SetSubgroupMatchModes(VM_Subgroup subgroup, string descriptorType, DescriptorMatchMode mode)
+        public static void SetSubgroupMatchModes(VM_SubgroupPlaceHolder subgroup, string descriptorType, DescriptorMatchMode mode)
         {
             switch(descriptorType)
             {
                 case AllowedStr:
-                    subgroup.AllowedBodyGenDescriptors.MatchMode = mode;
-                    subgroup.AllowedBodySlideDescriptors.MatchMode = mode;
+                    subgroup.AssociatedModel.AllowedBodyGenMatchMode = mode;
+                    subgroup.AssociatedModel.AllowedBodySlideMatchMode = mode;
                     break;
                 case DisallowedStr:
-                    subgroup.DisallowedBodyGenDescriptors.MatchMode = mode;
-                    subgroup.DisallowedBodySlideDescriptors.MatchMode = mode;
+                    subgroup.AssociatedModel.DisallowedBodyGenMatchMode = mode;
+                    subgroup.AssociatedModel.DisallowedBodySlideMatchMode = mode;
                     break;
             }
 

@@ -70,6 +70,11 @@ public class JSONhandler<T>
         }
     }
 
+    public static T CloneViaJSON(T input)
+    {
+        return Deserialize(Serialize(input, out _, out _), out _, out _);
+    }
+
     private class AttributeConverter : JsonConverter
     {
         public override bool CanConvert(Type objectType)

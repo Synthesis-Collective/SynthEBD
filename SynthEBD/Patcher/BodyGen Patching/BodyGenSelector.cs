@@ -127,7 +127,7 @@ public class BodyGenSelector
         #region Consistency
         if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null)
         {
-            availableCombinations = GetConsistencyCombinations(availableCombinations, npcInfo);
+            availableCombinations = GetConsistencyCombinations(availableCombinations, npcInfo, statusFlags, out statusFlags);
         }
         #endregion
 
@@ -284,9 +284,10 @@ public class BodyGenSelector
         }
     }
 
-    public HashSet<GroupCombinationObject> GetConsistencyCombinations(HashSet<GroupCombinationObject> availableCombinations, NPCInfo npcInfo)
+    public HashSet<GroupCombinationObject> GetConsistencyCombinations(HashSet<GroupCombinationObject> availableCombinations, NPCInfo npcInfo, AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags, out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag updatedStatusFlags)
     {
         var consistencyMorphs = npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames;
+        updatedStatusFlags = statusFlags;
         if (!consistencyMorphs.Any()) { return availableCombinations; }
 
         HashSet<GroupCombinationObject> consistencyCombinations = new HashSet<GroupCombinationObject>();
@@ -329,16 +330,19 @@ public class BodyGenSelector
 
         if (consistencyCombinations.Any())
         {
+            updatedStatusFlags |= AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag.MatchesConsistency;
             return consistencyCombinations;
         }
         else if (partialMatches.Any())
         {
             _logger.LogReport("NPC " + npcInfo.LogIDstring + "'s consistency morph [" + String.Join(", ", consistencyMorphs) + "] could not be fully matched. Attempting to assign the closest available partial match.", true, npcInfo);
+            updatedStatusFlags |= AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag.ConsistencyMorphIsInvalid;
             return partialMatches;
         }
         else
         {
             _logger.LogReport("NPC " + npcInfo.LogIDstring + "'s consistency morph [" + String.Join(", ", consistencyMorphs) + "] could not be matched. Assigning a random morph", true, npcInfo);
+            updatedStatusFlags |= AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag.ConsistencyMorphIsInvalid;
             return availableCombinations;
         }
     }

@@ -43,8 +43,8 @@ namespace SynthEBD
             {
                 i.Dispose();
             }
-            this.PreviewImages.Clear();
-            this.PreviewImages = new ObservableCollection<VM_PreviewImage>();
+            PreviewImages.Clear();
+            PreviewImages = new ObservableCollection<VM_PreviewImage>();
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
@@ -55,7 +55,7 @@ namespace SynthEBD
             {
                 var availableRAM = new Microsoft.VisualBasic.Devices.ComputerInfo().AvailablePhysicalMemory;
                 if (availableRAM <= ByteLimit) { continue; }
-                if (AssetPack.DisplayedSubgroup != null && sourcedImagePath.SourceChain != null & !sourcedImagePath.SourceChain.Contains(AssetPack.DisplayedSubgroup)) { continue; } // stop loading images from a previous subgroup if a different one is selected
+                if (AssetPack.DisplayedSubgroup != null && sourcedImagePath.SourceChain != null & !sourcedImagePath.SourceChain.Contains(AssetPack.DisplayedPlaceHolder)) { continue; } // stop loading images from a previous subgroup if a different one is selected
 
                 try
                 {                   
@@ -65,7 +65,7 @@ namespace SynthEBD
                         {
                             var bmp = ImagePreviewHandler.ResizeIImageAsBitMap(image, ParentUI.MaxPreviewImageSize);
                             var bmpSource = ImagePreviewHandler.CreateBitmapSourceFromGdiBitmap(bmp); // Try setting xaml to display bitmap directly
-                            if (!sourcedImagePath.SourceChain.Contains(AssetPack.DisplayedSubgroup)) { continue; } // Intentional duplication: Pfim.FromFile() takes some time to execute and may already be in progress when the user changes the active subgroup, leading to the last previous PreviewImage loading erroneously
+                            if (!sourcedImagePath.SourceChain.Contains(AssetPack.DisplayedPlaceHolder)) { continue; } // Intentional duplication: Pfim.FromFile() takes some time to execute and may already be in progress when the user changes the active subgroup, leading to the last previous PreviewImage loading erroneously
                             PreviewImages.Add(new VM_PreviewImage(bmpSource, sourcedImagePath.PrimarySource));
                         }
                     }

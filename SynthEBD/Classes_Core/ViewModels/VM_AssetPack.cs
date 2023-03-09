@@ -40,9 +40,11 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     private readonly VM_AssetPackDirectReplacerMenu.Factory _assetPackDirectReplacerMenuFactory;
     private readonly VM_AssetPackMiscMenu.Factory _miscMenuFactory;
     private readonly VM_Subgroup.Factory _subgroupFactory;
+    private readonly VM_SubgroupPlaceHolder.Factory _subgroupPlaceHolderFactory;
     private readonly VM_ConfigDistributionRules.Factory _configDistributionRulesFactory;
     private readonly VM_FilePathReplacement.Factory _filePathReplacementFactory;
     private readonly AssetPackValidator _assetPackValidator;
+    private readonly RecordPathParser _recordPathParser;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly IO_Aux _auxIO;
@@ -52,9 +54,10 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     private readonly VM_AttributeGroupMenu.Factory _attributeGroupMenuFactory;
     private readonly VM_RaceGroupingEditor.Factory _raceGroupingEditorFactory;
 
-    public delegate VM_AssetPack Factory();
+    public delegate VM_AssetPack Factory(AssetPack model);
 
     public VM_AssetPack(
+        AssetPack model,
         IEnvironmentStateProvider environmentProvider,
         PatcherState state,
         VM_SettingsBodyGen bodyGen,
@@ -66,9 +69,11 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         VM_AssetPackDirectReplacerMenu.Factory assetPackDirectReplacerMenuFactory,
         VM_AssetPackMiscMenu.Factory miscMenuFactory,
         VM_Subgroup.Factory subgroupFactory,
+        VM_SubgroupPlaceHolder.Factory subgroupPlaceHolderFactory,
         VM_FilePathReplacement.Factory filePathReplacementFactory,
         VM_ConfigDistributionRules.Factory configDistributionRulesFactory,
         AssetPackValidator assetPackValidator,
+        RecordPathParser recordPathParser,
         Logger logger,
         SynthEBDPaths paths,
         IO_Aux auxIO,
@@ -78,6 +83,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         VM_RaceGroupingEditor.Factory raceGroupingEditorFactory,
         Factory selfFactory)
     {
+        AssociatedModel = model;
         _environmentProvider = environmentProvider;
         _patcherState = state;
         _oBody = oBody;
@@ -87,9 +93,11 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         _assetPackDirectReplacerMenuFactory = assetPackDirectReplacerMenuFactory;
         _miscMenuFactory = miscMenuFactory;
         _subgroupFactory = subgroupFactory;
+        _subgroupPlaceHolderFactory = subgroupPlaceHolderFactory;
         _configDistributionRulesFactory = configDistributionRulesFactory;
         _filePathReplacementFactory = filePathReplacementFactory;
         _assetPackValidator = assetPackValidator;
+        _recordPathParser = recordPathParser;
         _logger = logger;
         _paths = paths;
         _auxIO = auxIO;
@@ -102,14 +110,14 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         ParentCollection = texMesh.AssetPacks;
 
         CurrentBodyGenSettings = bodyGen;
-        switch (Gender)
-        {
-            case Gender.Female: AvailableBodyGenConfigs = CurrentBodyGenSettings.FemaleConfigs; break;
-            case Gender.Male: AvailableBodyGenConfigs = CurrentBodyGenSettings.MaleConfigs; break;
-        }
 
-        PropertyChanged += RefreshTrackedBodyGenConfig;
-        CurrentBodyGenSettings.PropertyChanged += RefreshTrackedBodyGenConfig;
+        this.WhenAnyValue(x => x.Gender).Subscribe(x => {
+            switch (Gender)
+            {
+                case Gender.Female: AvailableBodyGenConfigs = CurrentBodyGenSettings.FemaleConfigs; break;
+                case Gender.Male: AvailableBodyGenConfigs = CurrentBodyGenSettings.MaleConfigs; break;
+            }
+        }).DisposeWith(this);
 
         AttributeGroupMenu = _attributeGroupMenuFactory(general.AttributeGroupMenu, true);
 
@@ -143,13 +151,18 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         AddSubgroup = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { Subgroups.Add(subgroupFactory(RaceGroupingEditor.RaceGroupings, Subgroups, this, null, false)); }
-        );
+            execute: _ =>
+            {
+                var newSubgroup = new AssetPack.Subgroup();
+                var newPlaceHolder = _subgroupPlaceHolderFactory(newSubgroup, null, this, Subgroups);
+                newPlaceHolder.AutoGenerateID(false, 0);
+                Subgroups.Add(newPlaceHolder);
+            });
 
         RemoveAssetPackConfigFile = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
-                if (_fileDialogs.ConfirmFileDeletion(this.SourcePath, "Asset Pack Config File"))
+                if (_fileDialogs.ConfirmFileDeletion(SourcePath, "Asset Pack Config File"))
                 {
                     DeleteAssetFiles(); // prompts user after collecting data
                     ParentCollection.Remove(this);
@@ -228,23 +241,23 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                     _logger.CallTimedLogErrorWithStatusUpdateAsync(GroupName + " could not be reloaded from drive.", ErrorType.Error, 3);
                 }
 
-                var reloadedVM = _selfFactory();
+                var reloadedVM = _selfFactory(reloaded);
                 reloadedVM.CopyInViewModelFromModel(reloaded, _general.RaceGroupingEditor.RaceGroupings);
-                this.IsSelected = reloadedVM.IsSelected;
-                this.AttributeGroupMenu = reloadedVM.AttributeGroupMenu;
-                this.AvailableBodyGenConfigs = reloadedVM.AvailableBodyGenConfigs;
-                this.ConfigType = reloadedVM.ConfigType;
-                this.CurrentBodyGenSettings = reloadedVM.CurrentBodyGenSettings;
-                this.DefaultTemplateFK = reloadedVM.DefaultTemplateFK;
-                this.DefaultRecordTemplateAdditionalRacesPaths = reloadedVM.DefaultRecordTemplateAdditionalRacesPaths;
-                this.DistributionRules = reloadedVM.DistributionRules;
-                this.Gender = reloadedVM.Gender;
-                this.GroupName = reloadedVM.GroupName;
-                this.ReplacersMenu = reloadedVM.ReplacersMenu;
-                this.ShortName = reloadedVM.ShortName;
-                this.SourcePath = reloadedVM.SourcePath;
-                this.Subgroups = reloadedVM.Subgroups;
-                this.TrackedBodyGenConfig = reloadedVM.TrackedBodyGenConfig;
+                IsSelected = reloadedVM.IsSelected;
+                AttributeGroupMenu = reloadedVM.AttributeGroupMenu;
+                AvailableBodyGenConfigs = reloadedVM.AvailableBodyGenConfigs;
+                ConfigType = reloadedVM.ConfigType;
+                CurrentBodyGenSettings = reloadedVM.CurrentBodyGenSettings;
+                DefaultTemplateFK = reloadedVM.DefaultTemplateFK;
+                DefaultRecordTemplateAdditionalRacesPaths = reloadedVM.DefaultRecordTemplateAdditionalRacesPaths;
+                DistributionRules = reloadedVM.DistributionRules;
+                Gender = reloadedVM.Gender;
+                GroupName = reloadedVM.GroupName;
+                ReplacersMenu = reloadedVM.ReplacersMenu;
+                ShortName = reloadedVM.ShortName;
+                SourcePath = reloadedVM.SourcePath;
+                Subgroups = reloadedVM.Subgroups;
+                TrackedBodyGenConfig = reloadedVM.TrackedBodyGenConfig;
                 _logger.CallTimedNotifyStatusUpdateAsync("Discarded Changes", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
             }
         );
@@ -255,7 +268,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 var copiedModel = DumpViewModelToModel();
                 copiedModel.GroupName += " (2)";
                 copiedModel.FilePath = String.Empty;
-                var copiedVM = selfFactory();
+                var copiedVM = selfFactory(copiedModel);
                 copiedVM.CopyInViewModelFromModel(copiedModel, _general.RaceGroupingEditor.RaceGroupings);
                 texMesh.AssetPacks.Add(copiedVM);
                 texMesh.AssetPresenterPrimary.AssetPack = copiedVM;
@@ -264,8 +277,16 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         SelectedSubgroupChanged = new RelayCommand(
             canExecute: _ => true,
-            execute: x => this.DisplayedSubgroup = (VM_Subgroup)x
-        );
+            execute: x =>
+            {
+                if (DisplayedSubgroup != null)
+                {
+                    DisplayedSubgroup.AssociatedPlaceHolder.AssociatedModel = DisplayedSubgroup.DumpViewModelToModel();
+                }
+                var displayedSubgroupPlaceHolder = (VM_SubgroupPlaceHolder)x;
+                DisplayedSubgroup = _subgroupFactory(_general.RaceGroupingEditor.RaceGroupings, this, displayedSubgroupPlaceHolder, false);
+                DisplayedSubgroup.CopyInViewModelFromModel();
+            });
 
         ViewSubgroupEditor = new RelayCommand(
             canExecute: _ => true,
@@ -304,13 +325,14 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         );
     }
 
+    public AssetPack AssociatedModel { get; }
     public string GroupName { get; set; } = "New Asset Pack";
     public string ShortName { get; set; } = "NAP";
     public AssetPackType ConfigType { get; set; } = AssetPackType.Primary;
     public Gender Gender { get; set; } = Gender.Male;
     public bool DisplayAlerts { get; set; } = true;
     public string UserAlert { get; set; } = "";
-    public ObservableCollection<VM_Subgroup> Subgroups { get; set; } = new();
+    public ObservableCollection<VM_SubgroupPlaceHolder> Subgroups { get; set; } = new();
     public VM_BodyGenConfig TrackedBodyGenConfig { get; set; }
     public ObservableCollection<VM_BodyGenConfig> AvailableBodyGenConfigs { get; set; }
     public VM_SettingsBodyGen CurrentBodyGenSettings { get; set; }
@@ -323,11 +345,13 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public VM_RaceGroupingEditor RaceGroupingEditor { get; set; }
     public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public ObservableCollection<VM_AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; } = new();
+    public IEnumerable<FormKey> AllReferenceNPCs => new FormKey[] { DefaultTemplateFK }.And(AdditionalRecordTemplateAssignments.Select(x=> x.TemplateNPC));
     public VM_AssetPackDirectReplacerMenu ReplacersMenu { get; set; }
     public VM_ConfigDistributionRules DistributionRules { get; set; }
     public VM_AssetPackMiscMenu MiscMenu { get; set; }
     public ObservableCollection<VM_AssetPack> ParentCollection { get; set; }
     public VM_Subgroup DisplayedSubgroup { get; set; }
+    public VM_SubgroupPlaceHolder DisplayedPlaceHolder => DisplayedSubgroup.AssociatedPlaceHolder ?? null;
     public RelayCommand RemoveAssetPackConfigFile { get; }
     public RelayCommand AddSubgroup { get; }
     public RelayCommand AddAdditionalRecordTemplateAssignment { get; }
@@ -372,7 +396,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         VM_SettingsTexMesh texMesh,
         Settings_TexMesh texMeshSettings, 
         Factory assetPackFactory,
-        ObservableCollection<VM_RaceGrouping> mainRaceGroupings)
+        ObservableCollection<VM_RaceGrouping> mainRaceGroupings,
+        Logger logger)
     {
         if (texMeshSettings == null)
         {
@@ -382,15 +407,20 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         texMesh.AssetPacks.Clear();
         for (int i = 0; i < assetPacks.Count; i++)
         {
-            var viewModel = assetPackFactory();
+            logger.LogStartupEventStart("Loading UI for Asset Config File " + assetPacks[i].GroupName);
+            logger.LogStartupEventStart("Creating new Asset Pack UI");
+            var viewModel = assetPackFactory(assetPacks[i]);
+            logger.LogStartupEventEnd("Creating new Asset Pack UI");
             viewModel.CopyInViewModelFromModel(assetPacks[i], mainRaceGroupings);
             viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].GroupName);
             texMesh.AssetPacks.Add(viewModel);
+            logger.LogStartupEventEnd("Loading UI for Asset Config File " + assetPacks[i].GroupName);
         }
     }
     
     public void CopyInViewModelFromModel(AssetPack model, ObservableCollection<VM_RaceGrouping> mainRaceGroupings)
     {
+        _logger.LogStartupEventStart("Loading UI for Asset Pack Main Settings");
         GroupName = model.GroupName;
         ShortName = model.ShortName;
         ConfigType = model.ConfigType;
@@ -438,21 +468,19 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         {
             DefaultRecordTemplateAdditionalRacesPaths.Add(new VM_CollectionMemberString(path, DefaultRecordTemplateAdditionalRacesPaths));
         }
+        _logger.LogStartupEventEnd("Loading UI for Asset Pack Main Settings");
 
+        _logger.LogStartupEventStart("Loading UI for Subgroups");
         foreach (var sg in model.Subgroups)
         {
-            var subVm = _subgroupFactory(RaceGroupingEditor.RaceGroupings, Subgroups, this, null, false);
-            subVm.CopyInViewModelFromModel(sg);
-            Subgroups.Add(subVm);
+            Subgroups.Add(_subgroupPlaceHolderFactory(sg, null, this, Subgroups));
         }
+        _logger.LogStartupEventEnd("Loading UI for Subgroups");
 
-        // go back through now that all subgroups have corresponding view models, and link the required and excluded subgroups
-        ObservableCollection<VM_Subgroup> flattenedSubgroupList = FlattenSubgroupVMs(Subgroups, new ObservableCollection<VM_Subgroup>());
-        LinkRequiredSubgroups(flattenedSubgroupList);
-        LinkExcludedSubgroups(flattenedSubgroupList);
-
+        _logger.LogStartupEventStart("Loading config distribution rules");
         DistributionRules = _configDistributionRulesFactory(RaceGroupingEditor.RaceGroupings, this);
         DistributionRules.CopyInViewModelFromModel(model.DistributionRules, RaceGroupingEditor.RaceGroupings, this);
+        _logger.LogStartupEventEnd("Loading config distribution rules");
 
         SourcePath = model.FilePath;
     }
@@ -492,9 +520,15 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         MiscMenu.MergeIntoModel(model);
 
+        if (DisplayedSubgroup != null)
+        {
+            DisplayedSubgroup.AssociatedPlaceHolder.AssociatedModel = DisplayedSubgroup.DumpViewModelToModel();
+        }
+
         foreach (var svm in Subgroups)
         {
-            model.Subgroups.Add(VM_Subgroup.DumpViewModelToModel(svm));
+            svm.SaveToModel();
+            model.Subgroups.Add(svm.AssociatedModel);
         }
 
         model.ReplacerGroups = VM_AssetPackDirectReplacerMenu.DumpViewModelToModels(ReplacersMenu);
@@ -528,54 +562,41 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         return success;
     }
 
-    public static ObservableCollection<VM_Subgroup> FlattenSubgroupVMs(ObservableCollection<VM_Subgroup> currentLevelSGs, ObservableCollection<VM_Subgroup> flattened)
+    // For UI Support
+    public bool TryGetSubgroupByID(string ID, out VM_SubgroupPlaceHolder subgroup)
     {
-        foreach(var sg in currentLevelSGs)
-        {
-            flattened.Add(sg);
-            FlattenSubgroupVMs(sg.Subgroups, flattened);
-        }
-        return flattened;
+        subgroup = VM_SubgroupPlaceHolder.GetSubgroupByID(Subgroups, ID);
+        return subgroup != null;
     }
 
-    public static void LinkRequiredSubgroups(ObservableCollection<VM_Subgroup> flattenedSubgroups)
+    public bool ContainsSubgroupID(string id)
     {
-        foreach (var sg in flattenedSubgroups)
+        foreach (var subgroup in Subgroups)
         {
-            foreach (string id in sg.RequiredSubgroupIDs)
+            if (subgroup.ContainsID(id))
             {
-                foreach (var candidate in flattenedSubgroups)
-                {
-                    if (candidate.ID == id)
-                    {
-                        sg.RequiredSubgroups.Add(candidate);
-                        break;
-                    }
-                }
+                return true;
             }
-            sg.RefreshListBoxLabel(sg.RequiredSubgroups, VM_Subgroup.SubgroupListBox.Required);
         }
+        return false;
     }
 
-    public static void LinkExcludedSubgroups(ObservableCollection<VM_Subgroup> flattenedSubgroups)
+    public void AutoGenerateSubgroupIDs()
     {
-        foreach (var sg in flattenedSubgroups)
+        foreach (var subgroup in Subgroups)
         {
-            foreach (string id in sg.ExcludedSubgroupIDs)
-            {
-                foreach (var candidate in flattenedSubgroups)
-                {
-                    if (candidate.ID == id)
-                    {
-                        sg.ExcludedSubgroups.Add(candidate);
-                        break;
-                    }
-                }
-            }
-            sg.RefreshListBoxLabel(sg.ExcludedSubgroups, VM_Subgroup.SubgroupListBox.Excluded);
+            subgroup.AutoGenerateSubgroupIDs();
+        }
+        foreach (var subgroupVM in Subgroups)
+        {
+            subgroupVM.Refresh();
+        }
+        
+        if (DisplayedSubgroup.AssociatedPlaceHolder != null)
+        {
+            DisplayedSubgroup.ID = DisplayedSubgroup.AssociatedPlaceHolder.ID;
         }
     }
-
 
     public void RemoveAssetPackDialog()
     {
@@ -603,15 +624,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
     }
 
-    public void RefreshTrackedBodyGenConfig(object sender, PropertyChangedEventArgs e)
-    {
-        switch (this.Gender)
-        {
-            case Gender.Female: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.FemaleConfigs; break;
-            case Gender.Male: this.AvailableBodyGenConfigs = this.CurrentBodyGenSettings.MaleConfigs; break;
-        }
-    }
-
     public void MergeInAssetPack(string assetPackDirPath)
     {
         List<string> newSubgroupNames = new List<string>();
@@ -621,24 +633,24 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             var newAssetPack = _assetPackIO.LoadAssetPack(path, _patcherState.GeneralSettings.RaceGroupings, _patcherState.RecordTemplatePlugins, _patcherState.BodyGenConfigs, out bool loadSuccess);
             if (loadSuccess)
             {
-                var newAssetPackVM = _selfFactory();
+                var newAssetPackVM = _selfFactory(newAssetPack);
                 newAssetPackVM.CopyInViewModelFromModel(newAssetPack, _general.RaceGroupingEditor.RaceGroupings);
                     
                 // first add completely new top-level subgroups if necessary
                 foreach (var subgroup in newAssetPackVM.Subgroups)
                 {
-                    if (!this.Subgroups.Select(x => x .ID).Contains(subgroup.ID, StringComparer.OrdinalIgnoreCase))
+                    if (!Subgroups.Select(x => x .ID).Contains(subgroup.ID, StringComparer.OrdinalIgnoreCase))
                     {
-                        var clone = subgroup.Clone() as VM_Subgroup;
+                        var clone = subgroup.Clone() as VM_SubgroupPlaceHolder;
                         clone.ParentAssetPack = this;
-                        clone.ParentCollection = this.Subgroups;
-                        this.Subgroups.Add(clone);
+                        clone.ParentCollection = Subgroups;
+                        Subgroups.Add(clone);
                         newSubgroupNames.Add(clone.ID + ": " + clone.Name);
                     }
                 }
 
                 // merge existing subgroups
-                foreach (var subgroup in this.Subgroups)
+                foreach (var subgroup in Subgroups)
                 {
                     var matchedSubgroup = newAssetPackVM.Subgroups.Where(x => x.ID == subgroup.ID).FirstOrDefault();
                     if (matchedSubgroup != null)
@@ -659,14 +671,14 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
     }
 
-    public static void MergeSubgroupLists(ObservableCollection<VM_Subgroup> ListA, ObservableCollection<VM_Subgroup> ListB, VM_AssetPack parentAssetPack, List<string> newSubgroupNames)
+    public static void MergeSubgroupLists(ObservableCollection<VM_SubgroupPlaceHolder> ListA, ObservableCollection<VM_SubgroupPlaceHolder> ListB, VM_AssetPack parentAssetPack, List<string> newSubgroupNames)
     {
-        foreach (VM_Subgroup candidateSubgroup in ListB)
+        foreach (VM_SubgroupPlaceHolder candidateSubgroup in ListB)
         {
             var matchedSubgroup = ListA.Where(x => x.ID == candidateSubgroup.ID).FirstOrDefault();
             if (matchedSubgroup is null)
             {
-                var clone = candidateSubgroup.Clone() as VM_Subgroup;
+                var clone = candidateSubgroup.Clone(parentAssetPack, ListA);
                 clone.ParentAssetPack = parentAssetPack;
                 clone.ParentCollection = ListA;
                 ListA.Add(clone);
@@ -775,16 +787,18 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
     }
 
-    public void DuplicateBodyPathsAsFeet(VM_Subgroup subgroup, List<string> modifications)
+    public void DuplicateBodyPathsAsFeet(VM_SubgroupPlaceHolder subgroup, List<string> modifications)
     {
-        var newFeetPaths = new HashSet<VM_FilePathReplacement>();
-        foreach (var path in subgroup.PathsMenu.Paths.Where(x => FilePathDestinationMap.MaleTorsoPaths.ContainsValue(x.IntellisensedPath) || FilePathDestinationMap.FemaleTorsoPaths.ContainsValue(x.IntellisensedPath)))
+        var newFeetPaths = new HashSet<FilePathReplacement>();
+        foreach (var path in subgroup.AssociatedModel.Paths.Where(x => FilePathDestinationMap.MaleTorsoPaths.ContainsValue(x.Destination) || FilePathDestinationMap.FemaleTorsoPaths.ContainsValue(x.Destination)).ToArray())
         {
-            var newPath = _filePathReplacementFactory(path.ParentMenu);
+            var newPath = new FilePathReplacement();
             newPath.Source = path.Source;
-            newPath.IntellisensedPath = path.IntellisensedPath.Replace("WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body)", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet)");
+            newPath.Destination = path.Destination.Replace("WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body)", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet)");
+            
+            bool newDestinationExists = VM_FilePathReplacement.DestinationPathExists(newPath.Destination, RecordTemplateLinkCache, AllReferenceNPCs, _recordPathParser, _logger);
 
-            if (newPath.DestinationExists && !subgroup.PathsMenu.Paths.Where(x => x.IntellisensedPath == newPath.IntellisensedPath).Any())
+            if (newDestinationExists && !subgroup.AssociatedModel.Paths.Where(x => x.Destination == newPath.Destination).Any())
             {
                 newFeetPaths.Add(newPath);
                 modifications.Add(Logger.GetSubgroupIDString(subgroup) + ": Duplicated torso texture to feet: " + newPath.Source);
@@ -793,7 +807,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         foreach (var path in newFeetPaths)
         {
-            subgroup.PathsMenu.Paths.Add(path);
+            subgroup.AssociatedModel.Paths.Add(path);
         }
 
         foreach (var sg in subgroup.Subgroups)
@@ -802,9 +816,9 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
     }
 
-    public void DuplicateBodyPathsAsTail(VM_Subgroup subgroup, List<string> modifications)
+    public void DuplicateBodyPathsAsTail(VM_SubgroupPlaceHolder subgroup, List<string> modifications)
     {
-        var newTailPaths = new HashSet<VM_FilePathReplacement>();
+        var newTailPaths = new HashSet<FilePathReplacement>();
         var pathsNeedingTails = new HashSet<string>()
         {
             //male khajiit
@@ -825,13 +839,15 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             "argonianfemalebody_s.dds",
         };
 
-        foreach (var path in subgroup.PathsMenu.Paths.Where(x => pathsNeedingTails.Contains(Path.GetFileName(x.Source), StringComparer.OrdinalIgnoreCase)))
+        foreach (var path in subgroup.AssociatedModel.Paths.Where(x => pathsNeedingTails.Contains(Path.GetFileName(x.Source), StringComparer.OrdinalIgnoreCase)).ToArray())
         {
-            var newPath = _filePathReplacementFactory(path.ParentMenu);
+            var newPath = new FilePathReplacement();
             newPath.Source = path.Source;
-            newPath.IntellisensedPath = path.IntellisensedPath.Replace("WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body)", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail)");
+            newPath.Destination = path.Destination.Replace("WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body)", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail)");
 
-            if (newPath.DestinationExists && !subgroup.PathsMenu.Paths.Where(x => x.IntellisensedPath == newPath.IntellisensedPath).Any())
+            bool newDestinationExists = VM_FilePathReplacement.DestinationPathExists(newPath.Destination, RecordTemplateLinkCache, AllReferenceNPCs, _recordPathParser, _logger);
+
+            if (newDestinationExists && !subgroup.AssociatedModel.Paths.Where(x => x.Destination == newPath.Destination).Any())
             {
                 newTailPaths.Add(newPath);
                 modifications.Add(Logger.GetSubgroupIDString(subgroup) + ": Duplicated torso texture to tail: " + newPath.Source);
@@ -840,7 +856,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         foreach (var path in newTailPaths)
         {
-            subgroup.PathsMenu.Paths.Add(path);
+            subgroup.AssociatedModel.Paths.Add(path);
         }
 
         foreach (var sg in subgroup.Subgroups)
@@ -849,9 +865,9 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
     }
 
-    public static bool SubgroupHasDestinationPath(VM_Subgroup subgroup, string destinationPath)
+    public static bool SubgroupHasDestinationPath(VM_SubgroupPlaceHolder subgroup, string destinationPath)
     {
-        if (subgroup.PathsMenu.Paths.Where(x => x.IntellisensedPath.Contains(destinationPath)).Any())
+        if (subgroup.AssociatedModel.Paths.Where(x => x.Destination.Contains(destinationPath)).Any())
         {
             return true;
         }
@@ -866,43 +882,43 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         return false;
     }
 
-    public static void SetDefaultSubgroupFilePaths(VM_Subgroup subgroup, List<string> modifications)
+    public void SetDefaultSubgroupFilePaths(VM_SubgroupPlaceHolder subgroup, List<string> modifications)
     {
-        foreach (var path in subgroup.PathsMenu.Paths.Where(x => !string.IsNullOrWhiteSpace(x.Source)))
+        foreach (var path in subgroup.AssociatedModel.Paths.Where(x => !string.IsNullOrWhiteSpace(x.Source)).ToArray())
         {
             var fileName = Path.GetFileName(path.Source);
 
-            if (FilePathDestinationMap.FileNameToDestMap.ContainsKey(fileName) && path.IntellisensedPath != FilePathDestinationMap.FileNameToDestMap[fileName])
+            if (FilePathDestinationMap.FileNameToDestMap.ContainsKey(fileName) && path.Destination != FilePathDestinationMap.FileNameToDestMap[fileName])
             {
                 var targetDestination = FilePathDestinationMap.FileNameToDestMap[fileName];
                 var feetAlternateDestination = targetDestination.Replace("BipedObjectFlag.Body", "BipedObjectFlag.Feet");
                 var tailAlternateDestination = targetDestination.Replace("BipedObjectFlag.Body", "BipedObjectFlag.Tail");
 
                 // try assigning the default destination path if the subgroup doesn't already assign an asset to that path
-                if (!subgroup.PathsMenu.Paths.Where(x => x.IntellisensedPath == targetDestination).Any())
+                if (!subgroup.AssociatedModel.Paths.Where(x => x.Destination == targetDestination).Any())
                 {
-                    path.IntellisensedPath = FilePathDestinationMap.FileNameToDestMap[fileName];
-                    modifications.Add(Logger.GetSubgroupIDString(subgroup) + ": " + path.Source + " --> " + path.IntellisensedPath);
+                    path.Destination = FilePathDestinationMap.FileNameToDestMap[fileName];
+                    modifications.Add(Logger.GetSubgroupIDString(subgroup) + ": " + path.Source + " --> " + path.Destination);
                 }
 
                 else if (
                     (FilePathDestinationMap.MaleTorsoPaths.ContainsKey(fileName) || FilePathDestinationMap.FemaleTorsoPaths.ContainsKey(fileName))  && 
-                    subgroup.PathsMenu.CandidateTargetPathExists(feetAlternateDestination) &&
-                    !subgroup.PathsMenu.Paths.Where(x => x.IntellisensedPath == feetAlternateDestination).Any()
+                    CandidateTargetPathExists(feetAlternateDestination) &&
+                    !subgroup.AssociatedModel.Paths.Where(x => x.Destination == feetAlternateDestination).Any()
                     )
                 {
-                    path.IntellisensedPath = feetAlternateDestination;
-                    modifications.Add(Logger.GetSubgroupIDString(subgroup) + ": " + path.Source + " (Duplicate) --> " + path.IntellisensedPath);
+                    path.Destination = feetAlternateDestination;
+                    modifications.Add(Logger.GetSubgroupIDString(subgroup) + ": " + path.Source + " (Duplicate) --> " + path.Destination);
                 }
 
                 else if (
                     (FilePathDestinationMap.MaleTorsoPaths.ContainsKey(fileName) || FilePathDestinationMap.FemaleTorsoPaths.ContainsKey(fileName)) &&
-                    subgroup.PathsMenu.CandidateTargetPathExists(tailAlternateDestination) &&
-                    !subgroup.PathsMenu.Paths.Where(x => x.IntellisensedPath == tailAlternateDestination).Any()
+                    CandidateTargetPathExists(tailAlternateDestination) &&
+                    !subgroup.AssociatedModel.Paths.Where(x => x.Destination == tailAlternateDestination).Any()
                     )
                 {
-                    path.IntellisensedPath = tailAlternateDestination;
-                    modifications.Add(Logger.GetSubgroupIDString(subgroup) + ": " + path.Source + " (Duplicate) --> " + path.IntellisensedPath);
+                    path.Destination = tailAlternateDestination;
+                    modifications.Add(Logger.GetSubgroupIDString(subgroup) + ": " + path.Source + " (Duplicate) --> " + path.Destination);
                 }
             }
         }
@@ -911,6 +927,25 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         {
             SetDefaultSubgroupFilePaths(sg, modifications);
         }
+    }
+
+    public bool CandidateTargetPathExists(string candidate)
+    {
+        List<FormKey> candidateRecordTemplates = new();
+        if (DefaultTemplateFK != null)
+        {
+            candidateRecordTemplates.Add(DefaultTemplateFK);
+        }
+        candidateRecordTemplates.AddRange(AdditionalRecordTemplateAssignments.Where(x => x.TemplateNPC != null).Select(x => x.TemplateNPC).ToArray());
+
+        foreach (var referenceNPCformkey in candidateRecordTemplates)
+        {
+            if (RecordTemplateLinkCache != null && referenceNPCformkey != null && RecordTemplateLinkCache.TryResolve<INpcGetter>(referenceNPCformkey, out var refNPC) && _recordPathParser.GetObjectAtPath(refNPC, refNPC, candidate, new Dictionary<string, dynamic>(), RecordTemplateLinkCache, true, _logger.GetNPCLogNameString(refNPC), out var objAtPath) && objAtPath is not null && objAtPath.GetType() == typeof(string))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static bool SubgroupHasSourcePath(VM_Subgroup subgroup, string destinationPath)
@@ -928,35 +963,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
         }
         return false;
-    }
-
-    public bool ContainsSubgroupID(string id)
-    {
-        foreach (var subgroup in Subgroups)
-        {
-            if (subgroup.ContainsID(id))
-            {
-                return true;
-            }    
-        }
-        return false;
-    }
-
-    public void AutoGenerateSubgroupIDs()
-    {
-        ClearSubgroupIDs();
-        foreach (var subgroup in Subgroups)
-        {
-            subgroup.AutoGenerateID(true, 0);
-        }
-    }
-
-    public void ClearSubgroupIDs()
-    {
-        foreach (var subgroup in Subgroups)
-        {
-            subgroup.ClearID(true);
-        }
     }
 
     public List<string> GetDisabledSubgroups()
@@ -1015,7 +1021,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
     public void DragOver(IDropInfo dropInfo)
     {
-        if (dropInfo.Data is VM_Subgroup)
+        if (dropInfo.Data is VM_SubgroupPlaceHolder)
         {
             var isTreeViewItem = dropInfo.InsertPosition.HasFlag(RelativeInsertPosition.TargetItemCenter) && dropInfo.VisualTargetItem is TreeViewItem; //https://github.com/punker76/gong-wpf-dragdrop/blob/d8545166eb08e4d71fc2d2aa67713ba7da70f92c/src/GongSolutions.WPF.DragDrop/DefaultDropHandler.cs#L150
             dropInfo.DropTargetAdorner = isTreeViewItem ? DropTargetAdorners.Highlight : DropTargetAdorners.Insert;
@@ -1029,16 +1035,16 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
     public void Drop(IDropInfo dropInfo)
     {
-        if (dropInfo.Data is VM_Subgroup)
+        if (dropInfo.Data is VM_SubgroupPlaceHolder)
         {
-            var draggedSubgroup = (VM_Subgroup)dropInfo.Data;
-            if (dropInfo.TargetItem is VM_Subgroup)
+            var draggedSubgroup = (VM_SubgroupPlaceHolder)dropInfo.Data;
+            if (dropInfo.TargetItem is VM_SubgroupPlaceHolder)
             {
-                VM_Subgroup dropTarget = (VM_Subgroup)dropInfo.TargetItem;
+                VM_SubgroupPlaceHolder dropTarget = (VM_SubgroupPlaceHolder)dropInfo.TargetItem;
 
                 if (draggedSubgroup.IsParentOf(dropTarget)) { return; } // prevent mis-click when user releases the click on treeview expander arrow slightly below where they initiated the click, simulating a drop into or before the child node and causing the parent to disappear into the abyss.
 
-                var clone = (VM_Subgroup)draggedSubgroup.Clone(dropTarget.Subgroups);
+                var clone = draggedSubgroup.Clone(dropTarget.ParentAssetPack, dropTarget.Subgroups);
                 clone.ParentAssetPack = dropTarget.ParentAssetPack;
 
                 if (dropInfo.DropTargetAdorner.Name == "DropTargetInsertionAdorner")
@@ -1061,9 +1067,9 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             {
                 var targetTV = (TreeView)dropInfo.VisualTarget;
                 var dropTarget = (VM_AssetPack)targetTV.DataContext;
-                if (targetTV.Name == "TVsubgroups" && dropTarget != null)
+                if ((targetTV.Name == "TVsubgroups" || targetTV.Name == "ReplacerTV") && dropTarget != null)
                 {
-                    var clone = (VM_Subgroup)draggedSubgroup.Clone(dropTarget.Subgroups);
+                    var clone = draggedSubgroup.Clone(dropTarget, dropTarget.Subgroups);
                     clone.ParentCollection = dropTarget.Subgroups;
                     clone.ParentAssetPack = dropTarget;
                     clone.ParentSubgroup = null;
@@ -1082,11 +1088,12 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
     public bool DropInitiatedRightClick { get; set; }
 
-    public bool CheckForVersionUpdate(Version version)
+    public bool VersionUpdate(Version version, UpdateMode updateAction)
     {
         foreach (var subgroup in Subgroups)
         {
-            if (subgroup.CheckForVersionUpdate(version))
+            var bUpdate = subgroup.VersionUpdate(version, updateAction);
+            if (bUpdate && updateAction == UpdateMode.Check)
             {
                 return true;
             }
@@ -1096,29 +1103,14 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         {
             foreach (var subgroup in replacer.Subgroups)
             {
-                if (subgroup.CheckForVersionUpdate(version))
+                var bUpdate = subgroup.VersionUpdate(version, updateAction);
+                if (bUpdate && updateAction == UpdateMode.Check)
                 {
                     return true;
                 }
             }
         }
         return false;
-    }
-
-    public void PerformVersionUpdate(Version version)
-    {
-        foreach (var subgroup in Subgroups)
-        {
-            subgroup.PerformVersionUpdate(version);
-        }
-
-        foreach (var replacer in ReplacersMenu.ReplacerGroups)
-        {
-            foreach (var subgroup in replacer.Subgroups)
-            {
-                subgroup.PerformVersionUpdate(version);
-            }
-        }
     }
 
     public void AddFallBackRaceGroupings(AssetPack model, ObservableCollection<VM_RaceGrouping> existingGroupings, ObservableCollection<VM_RaceGrouping> fallBackGroupings)
@@ -1172,7 +1164,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             {
                 foreach (var subDirectory in Directory.GetDirectories(modDirectory))
                 {
-                    var candidatePrefixDirectories = Directory.GetDirectories(subDirectory).Select(x => new DirectoryInfo(x).Name);
+                    var candidatePrefixDirectories = Directory.GetDirectories(subDirectory).Select(x => new DirectoryInfo(x).Name).ToArray();
                     if(candidatePrefixDirectories.Where(x => prefixes.Contains(x)).Any())
                     {
                         currentModDir = modDirectory;
@@ -1224,13 +1216,13 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
     }
 
-    private void GetPrefixes(VM_Subgroup sg, HashSet<string> prefixes)
+    private void GetPrefixes(VM_SubgroupPlaceHolder sg, HashSet<string> prefixes)
     {
         foreach (var ssg in sg.Subgroups)
         {
             GetPrefixes(ssg, prefixes);
         }
-        foreach (var path in sg.PathsMenu.Paths)
+        foreach (var path in sg.AssociatedModel.Paths)
         {
             string[] split = path.Source.Split(Path.DirectorySeparatorChar);
             if (split.Length >= 2 && !prefixes.Contains(split[1]))
@@ -1240,13 +1232,13 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
     }
 
-    private void DeleteSubgroupAssets(VM_Subgroup sg)
+    private void DeleteSubgroupAssets(VM_SubgroupPlaceHolder sg)
     {
         foreach (var ssg in sg.Subgroups)
         {
             DeleteSubgroupAssets(ssg);
         }
-        foreach (var path in sg.PathsMenu.Paths)
+        foreach (var path in sg.AssociatedModel.Paths)
         {
             if (path.Source == null) { continue; }
             string candidatePath = Path.Combine(_environmentProvider.DataFolderPath, path.Source);
@@ -1256,7 +1248,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
 
             var parentDir = Directory.GetParent(candidatePath);
-            if (!Directory.EnumerateFileSystemEntries(parentDir.FullName).Any())
+            if (parentDir != null && parentDir.Exists && !Directory.EnumerateFileSystemEntries(parentDir.FullName).Any())
             {
                 _auxIO.TryDeleteDirectory(parentDir.FullName, false);
             } 
@@ -1266,5 +1258,5 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
 public interface IHasSubgroupViewModels
 {
-    ObservableCollection<VM_Subgroup> Subgroups { get; }
+    ObservableCollection<VM_SubgroupPlaceHolder> Subgroups { get; }
 }

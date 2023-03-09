@@ -53,13 +53,14 @@ namespace SynthEBD
             .Subscribe(_ => UpdateSelections())
             .DisposeWith(this);
 
-            this.Imports[HeadPart.TypeEnum.Eyebrows].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyebrows)).DisposeWith(this);
-            this.Imports[HeadPart.TypeEnum.Eyes].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyes)).DisposeWith(this);
-            this.Imports[HeadPart.TypeEnum.Face].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Face)).DisposeWith(this);
-            this.Imports[HeadPart.TypeEnum.FacialHair].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.FacialHair)).DisposeWith(this);
-            this.Imports[HeadPart.TypeEnum.Hair].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Hair)).DisposeWith(this);
-            this.Imports[HeadPart.TypeEnum.Misc].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Misc)).DisposeWith(this);
-            this.Imports[HeadPart.TypeEnum.Scars].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Scars)).DisposeWith(this);
+            Imports[HeadPart.TypeEnum.Eyebrows].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyebrows)).DisposeWith(this);
+            Imports[HeadPart.TypeEnum.Eyes].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Eyes)).DisposeWith(this);
+            Imports[HeadPart.TypeEnum.Face].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Face)).DisposeWith(this);
+            Imports[HeadPart.TypeEnum.FacialHair].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.FacialHair)).DisposeWith(this);
+            Imports[HeadPart.TypeEnum.Hair].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Hair)).DisposeWith(this);
+            Imports[HeadPart.TypeEnum.Misc].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Misc)).DisposeWith(this);
+            Imports[HeadPart.TypeEnum.Scars].FormKeys.ToObservableChangeSet().Subscribe(x => ValidateNewSelection(HeadPart.TypeEnum.Scars)).DisposeWith(this);
+            
             Import = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => ImportSelections()
@@ -179,15 +180,15 @@ namespace SynthEBD
 
             if (invalidEditorIDs.Any())
             {
-                return new SolidColorBrush(Colors.Red);
+                return CommonColors.Red;
             }
             if (collection.Any())
             {
-                return new SolidColorBrush(Colors.Green);
+                return CommonColors.Green;
             }
             else
             {
-                return new SolidColorBrush(Colors.Gray);
+                return CommonColors.LightSlateGrey;
             }
         }
 
@@ -231,7 +232,7 @@ namespace SynthEBD
 
             if (parentConfig.ImportMenu.bRespectHeadPartRaces && _environmentProvider.LinkCache.TryResolve<IFormListGetter>(headPart.ValidRaces.FormKey, out var raceFormList) && raceFormList.Items.Any())
             {
-                var races = raceFormList.Items.Select(x => x.FormKey);
+                var races = raceFormList.Items.Select(x => x.FormKey).ToArray();
                 var matchedGroupings = VM_RaceGrouping.CollectionMatchesRaceGrouping(races, raceGroupingVMs);
                 if (matchedGroupings.Any())
                 {

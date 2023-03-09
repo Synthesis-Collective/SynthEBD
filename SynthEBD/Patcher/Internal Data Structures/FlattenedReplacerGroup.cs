@@ -35,7 +35,7 @@ public class FlattenedReplacerGroup
     public FlattenedReplacerGroup ShallowCopy()
     {
         var copy = new FlattenedReplacerGroup(this);
-        foreach (var subgroupList in this.Subgroups)
+        foreach (var subgroupList in Subgroups)
         {
             copy.Subgroups.Add(new List<FlattenedSubgroup>(subgroupList));
         }

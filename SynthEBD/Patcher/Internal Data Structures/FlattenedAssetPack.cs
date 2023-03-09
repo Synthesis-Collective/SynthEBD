@@ -134,11 +134,11 @@ public class FlattenedAssetPack
     {
         var output = new List<RaceGrouping>();
 
-        var mainGroupingLabels = _patcherState.GeneralSettings.RaceGroupings.Select(x => x.Label);
+        var mainGroupingLabels = _patcherState.GeneralSettings.RaceGroupings.Select(x => x.Label).ToArray();
         if(_patcherState.GeneralSettings.OverwritePluginRaceGroups)
         {
             var toOverwrite = new List<RaceGrouping>();
-            foreach (var grouping in Source.RaceGroupings.Where(x => mainGroupingLabels.Contains(x.Label)))
+            foreach (var grouping in Source.RaceGroupings.Where(x => mainGroupingLabels.Contains(x.Label)).ToArray())
             {
                 var overwriteGrouping = _patcherState.GeneralSettings.RaceGroupings.Where(x => x.Label == grouping.Label).First();
                 output.Add(new RaceGrouping() { Label = overwriteGrouping.Label, Races = new(overwriteGrouping.Races) });

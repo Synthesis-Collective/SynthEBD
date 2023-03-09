@@ -17,6 +17,7 @@ public class SettingsIO_OBody
     }
     public Settings_OBody LoadOBodySettings(out bool loadSuccess)
     {
+        _logger.LogStartupEventStart("Loading OBody settings from disk");
         Settings_OBody oBodySettings = new();
 
         loadSuccess = true;
@@ -50,7 +51,7 @@ public class SettingsIO_OBody
                 oBodySettings.AttributeGroups.Add(new AttributeGroup() { Label = attributeGroup.Label, Attributes = new HashSet<NPCAttribute>(attributeGroup.Attributes) });
             }
         }
-
+        _logger.LogStartupEventEnd("Loading OBody settings from disk");
         return oBodySettings;
     }
 

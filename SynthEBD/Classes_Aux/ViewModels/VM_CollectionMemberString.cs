@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using ReactiveUI;
 
 namespace SynthEBD;
@@ -24,5 +24,14 @@ public class VM_CollectionMemberString : VM
             parentCollection.Add(newCMS);
         }
         return parentCollection;
+    }
+
+    public static void CopyInObservableCollectionFromICollection(ICollection<string> source, ObservableCollection<VM_CollectionMemberString> parentCollection)
+    {
+        foreach (string s in source)
+        {
+            var newCMS = new VM_CollectionMemberString(s, parentCollection);
+            parentCollection.Add(newCMS);
+        }
     }
 }

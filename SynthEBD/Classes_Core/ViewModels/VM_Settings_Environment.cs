@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
-    public class VM_Settings_Environment
+    public class VM_Settings_Environment : VM
     {
         public StandaloneRunEnvironmentStateProvider EnvironmentProvider { get; set; }
         public RelayCommand SelectGameDataFolder { get; }

@@ -80,7 +80,7 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
                 }
                 bIsMixIn = true;
             }
-        });
+        }).DisposeWith(this);
     }
 
     public ObservableCollection<FormKey> AllowedRaces { get; set; } = new();
@@ -115,27 +115,27 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
     {
         if (model != null)
         {
-            AllowedRaces = new ObservableCollection<FormKey>(model.AllowedRaces);
-            AllowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.AllowedRaceGroupings, raceGroupingVMs);
-            DisallowedRaces = new ObservableCollection<FormKey>(model.DisallowedRaces);
-            DisallowedRaceGroupings = VM_RaceGroupingCheckboxList.GetRaceGroupingsByLabel(model.DisallowedRaceGroupings, raceGroupingVMs);
-            AllowedAttributes = _attributeCreator.GetViewModelsFromModels(model.AllowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, true, null);
-            DisallowedAttributes = _attributeCreator.GetViewModelsFromModels(model.DisallowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, false, null);
+            Noggog.ListExt.AddRange(AllowedRaces, model.AllowedRaces);
+            AllowedRaceGroupings.CopyInRaceGroupingsByLabel(model.AllowedRaceGroupings, raceGroupingVMs);
+            Noggog.ListExt.AddRange(DisallowedRaces, model.DisallowedRaces);
+            DisallowedRaceGroupings.CopyInRaceGroupingsByLabel(model.DisallowedRaceGroupings, raceGroupingVMs);
+            _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, true, null);
+            _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, false, null);
             foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
             AllowUnique = model.AllowUnique;
             AllowNonUnique = model.AllowNonUnique;
-            AddKeywords = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(model.AddKeywords);
+            VM_CollectionMemberString.CopyInObservableCollectionFromICollection(model.AddKeywords, AddKeywords);
             ProbabilityWeighting = model.ProbabilityWeighting;
             WeightRange = model.WeightRange;
 
             if (parentAssetPack.TrackedBodyGenConfig != null)
             {
-                AllowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, model.AllowedBodyGenMatchMode, _descriptorSelectionFactory);
-                DisallowedBodyGenDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodyGenDescriptors, parentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, model.DisallowedBodyGenMatchMode, _descriptorSelectionFactory);
+                AllowedBodyGenDescriptors.CopyInFromHashSet(model.AllowedBodyGenDescriptors);
+                DisallowedBodyGenDescriptors.CopyInFromHashSet(model.DisallowedBodyGenDescriptors);
             }
 
-            AllowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.AllowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, model.AllowedBodySlideMatchMode, _descriptorSelectionFactory);
-            DisallowedBodySlideDescriptors = VM_BodyShapeDescriptorSelectionMenu.InitializeFromHashSet(model.DisallowedBodySlideDescriptors, _oBody.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, model.DisallowedBodySlideMatchMode, _descriptorSelectionFactory);
+            AllowedBodySlideDescriptors.CopyInFromHashSet(model.AllowedBodySlideDescriptors);
+            DisallowedBodySlideDescriptors.CopyInFromHashSet(model.DisallowedBodySlideDescriptors);
         }
     }
 
@@ -170,7 +170,6 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
     public List<string> GetRulesSummary()
     {
         List<string> rulesSummary = new();
-        bool shouldReport = false;
         string tmpReport = "";
         if (_logger.GetRaceLogString("Allowed", AllowedRaces, out tmpReport)) { rulesSummary.Add(tmpReport); }
         if (_logger.GetRaceGroupingLogString("Allowed", AllowedRaceGroupings, out tmpReport)) { rulesSummary.Add(tmpReport); }
@@ -183,8 +182,7 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
         if (ProbabilityWeighting != 1) { rulesSummary.Add("Probability Weighting: " + ProbabilityWeighting.ToString()); }
         if (WeightRange.Lower != 0 || WeightRange.Upper != 100) { rulesSummary.Add("Weight Range: " + WeightRange.Lower.ToString() + " to " + WeightRange.Upper.ToString()); }
 
-        shouldReport = rulesSummary.Any();
-        if (shouldReport)
+        if (rulesSummary.Any())
         {
             rulesSummary.Insert(0, "");
             rulesSummary.Insert(0, "Whole-Config Distribution Rules:");

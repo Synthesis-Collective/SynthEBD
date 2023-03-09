@@ -130,14 +130,12 @@ public class VM_NPCAttribute : VM
             return _shellFactory(parentVM, displayForceIfOption, displayForceIfWeight, attributeGroups);
         }
 
-        public ObservableCollection<VM_NPCAttribute> GetViewModelsFromModels(HashSet<NPCAttribute> models, ObservableCollection<VM_AttributeGroup> attributeGroups, bool displayForceIfOption, bool? displayForceIfWeight)
+        public void CopyInFromModels(HashSet<NPCAttribute> models, ObservableCollection<VM_NPCAttribute> viewModelCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, bool displayForceIfOption, bool? displayForceIfWeight)
         {
-            ObservableCollection<VM_NPCAttribute> oc = new ObservableCollection<VM_NPCAttribute>();
             foreach (var m in models)
             {
-                oc.Add(GetViewModelFromModel(m, oc, attributeGroups, displayForceIfOption, displayForceIfWeight));
+                viewModelCollection.Add(GetViewModelFromModel(m, viewModelCollection, attributeGroups, displayForceIfOption, displayForceIfWeight));
             }
-            return oc;
         }
 
         public VM_NPCAttribute GetViewModelFromModel(NPCAttribute model, ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, bool displayForceIfOption, bool? displayForceIfWeight)
@@ -332,7 +330,7 @@ public class VM_NPCAttributeShell : VM
     {
         if (InitializedVMcache[type] is not null)
         {
-            this.Attribute = InitializedVMcache[type];
+            Attribute = InitializedVMcache[type];
         }
         else
         {
@@ -464,7 +462,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         _recordIntellisense = recordIntellisense;
         _selfFactory = selfFactory;
 
-        foreach (var reg in Loqui.LoquiRegistration.StaticRegister.Registrations.Where(x => x.ProtocolKey.Namespace == "Skyrim").Where(x => x.GetterType.IsAssignableTo(typeof(Mutagen.Bethesda.Plugins.Records.IMajorRecordGetter))))
+        foreach (var reg in Loqui.LoquiRegistration.StaticRegister.Registrations.Where(x => x.ProtocolKey.Namespace == "Skyrim").Where(x => x.GetterType.IsAssignableTo(typeof(Mutagen.Bethesda.Plugins.Records.IMajorRecordGetter))).ToArray())
         {
             ValueGetterTypes.Add(reg.Name, reg.GetterType);
         }
@@ -480,9 +478,9 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         this.WhenAnyValue(x => x.ValueFKtype).Subscribe(x => UpdateFormKeyPickerRecordType()).DisposeWith(this);
 
         this.WhenAnyValue(x => x.ValueStr).Subscribe(x => Evaluate()).DisposeWith(this);
-        this.WhenAnyValue(x => x.ValueFKs).Subscribe(x => Evaluate()).DisposeWith(this);
+        ValueFKs.ToObservableChangeSet().Subscribe(x => Evaluate()).DisposeWith(this);
         this.WhenAnyValue(x => x.ChosenComparator).Subscribe(x => Evaluate()).DisposeWith(this);
-        this.ValueFKs.CollectionChanged += Evaluate;
+
         this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => Evaluate()).DisposeWith(this);
         this.WhenAnyValue(x => x.ReferenceNPCFormKey).Subscribe(x => Evaluate()).DisposeWith(this);
         
@@ -548,97 +546,93 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         return model;
     }
 
-    public void Evaluate(object sender, NotifyCollectionChangedEventArgs e)
-    {
-        Evaluate();
-    }
     public void Evaluate()
     {
-        if (this.ReferenceNPCFormKey.IsNull)
+        if (ReferenceNPCFormKey.IsNull)
         {
             EvalResult = "Can't evaluate: Reference NPC not set";
-            this.StatusFontColor = new SolidColorBrush(Colors.Yellow);
+            StatusFontColor = CommonColors.Yellow;
         }
-        else if (this.CustomType != CustomAttributeType.Record && this.ValueStr == "")
+        else if (CustomType != CustomAttributeType.Record && ValueStr == "")
         {
             EvalResult = "Can't evaluate: No value provided";
-            this.StatusFontColor = new SolidColorBrush(Colors.Yellow);
+            StatusFontColor = CommonColors.Yellow;
         }
-        else if (this.CustomType == CustomAttributeType.Record && !this.ValueFKs.Any())
+        else if (CustomType == CustomAttributeType.Record && !ValueFKs.Any())
         {
             EvalResult = "Can't evaluate: No FormKeys selected";
-            this.StatusFontColor = new SolidColorBrush(Colors.Yellow);
+            StatusFontColor = CommonColors.Yellow;
         }
-        else if (this.CustomType == CustomAttributeType.Integer && !Int32.TryParse(ValueStr, out _))
+        else if (CustomType == CustomAttributeType.Integer && !Int32.TryParse(ValueStr, out _))
         {
             EvalResult = "Can't convert " + ValueStr + " to an Integer value";
-            this.StatusFontColor = new SolidColorBrush(Colors.Red);
+            StatusFontColor = CommonColors.Red;
         }
-        else if (this.CustomType == CustomAttributeType.Decimal && !float.TryParse(ValueStr, out _))
+        else if (CustomType == CustomAttributeType.Decimal && !float.TryParse(ValueStr, out _))
         {
             EvalResult = "Can't convert " + ValueStr + " to a Decimal value";
-            this.StatusFontColor = new SolidColorBrush(Colors.Red);
+            StatusFontColor = CommonColors.Red;
         }
-        else if (this.CustomType == CustomAttributeType.Boolean && !bool.TryParse(ValueStr, out _))
+        else if (CustomType == CustomAttributeType.Boolean && !bool.TryParse(ValueStr, out _))
         {
             EvalResult = "Can't convert " + ValueStr + " to a Boolean value";
-            this.StatusFontColor = new SolidColorBrush(Colors.Red);
+            StatusFontColor = CommonColors.Red;
         }
         else
         {
             if (!_environmentProvider.LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC))
             {
                 EvalResult = "Error: can't resolve reference NPC.";
-                this.StatusFontColor = new SolidColorBrush(Colors.Red);
+                StatusFontColor = CommonColors.Red;
             }
             bool matched = _attributeMatcher.EvaluateCustomAttribute(refNPC, DumpViewModelToModel(this, VM_NPCAttributeShell.AttributeAllowStr), LinkCache, out string dispMessage);
             if (matched)
             {
                 EvalResult = "Matched!";
-                this.StatusFontColor = new SolidColorBrush(Colors.Green);
+                StatusFontColor = CommonColors.Green;
             }
             else
             {
                 EvalResult = dispMessage;
-                this.StatusFontColor = new SolidColorBrush(Colors.Red);
+                StatusFontColor = CommonColors.Red;
             }
         }
     }
 
     public void UpdateValueDisplay()
     {
-        if (this.CustomType == CustomAttributeType.Record)
+        if (CustomType == CustomAttributeType.Record)
         {
-            this.ShowValueFormKeyPicker = true;
-            this.ShowValueTextField = false;
-            this.ShowValueBoolPicker = false;
+            ShowValueFormKeyPicker = true;
+            ShowValueTextField = false;
+            ShowValueBoolPicker = false;
         }
-        else if (this.CustomType == CustomAttributeType.Boolean)
+        else if (CustomType == CustomAttributeType.Boolean)
         {
-            this.ShowValueFormKeyPicker = false;
-            this.ShowValueTextField = false;
-            this.ShowValueBoolPicker = true;
+            ShowValueFormKeyPicker = false;
+            ShowValueTextField = false;
+            ShowValueBoolPicker = true;
         }
         else
         {
-            this.ShowValueFormKeyPicker = false;
-            this.ShowValueTextField = true;
-            this.ShowValueBoolPicker = false;
+            ShowValueFormKeyPicker = false;
+            ShowValueTextField = true;
+            ShowValueBoolPicker = false;
         }
 
-        this.Comparators = new ObservableCollection<string>() { "=", "!=" };
-        if (this.CustomType == CustomAttributeType.Integer || this.CustomType == CustomAttributeType.Decimal)
+        Comparators = new ObservableCollection<string>() { "=", "!=" };
+        if (CustomType == CustomAttributeType.Integer || CustomType == CustomAttributeType.Decimal)
         {
-            this.Comparators.Add("<");
-            this.Comparators.Add("<=");
-            this.Comparators.Add(">");
-            this.Comparators.Add(">=");
+            Comparators.Add("<");
+            Comparators.Add("<=");
+            Comparators.Add(">");
+            Comparators.Add(">=");
         }
-        else if (this.CustomType == CustomAttributeType.Text)
+        else if (CustomType == CustomAttributeType.Text)
         {
-            this.Comparators.Add("Contains");
-            this.Comparators.Add("Starts With");
-            this.Comparators.Add("Ends With");
+            Comparators.Add("Contains");
+            Comparators.Add("Starts With");
+            Comparators.Add("Ends With");
         }
 
         Evaluate();
@@ -946,8 +940,8 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
 {
     public VM_NPCAttributeGroup(VM_NPCAttribute parentAttributeVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> sourceAttributeGroups)
     {
-        this.ParentVM = parentAttributeVM;
-        this.ParentShell = parentShell;
+        ParentVM = parentAttributeVM;
+        ParentShell = parentShell;
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentAttributeVM.GroupedSubAttributes.Remove(parentShell));
 
         SubscribedAttributeGroups = sourceAttributeGroups;
@@ -1009,7 +1003,7 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
     {
         var newAtt = new VM_NPCAttributeGroup(parentVM, parentShell, attributeGroups);
             
-        foreach (var group in newAtt.SelectableAttributeGroups.Where(x => model.SelectedLabels.Contains(x.SubscribedAttributeGroup.Label)))
+        foreach (var group in newAtt.SelectableAttributeGroups.Where(x => model.SelectedLabels.Contains(x.SubscribedAttributeGroup.Label)).ToArray())
         {
             group.IsSelected = true;
         }
