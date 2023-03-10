@@ -94,6 +94,25 @@ public class VM_AssetReplacerGroup : VM, IHasSubgroupViewModels
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
+        this.WhenAnyValue(vm => vm.SelectedPlaceHolder)
+         .Buffer(2, 1)
+         .Select(b => (Previous: b[0], Current: b[1]))
+         .Subscribe(t => {
+             if (t.Previous != null && t.Previous.AssociatedViewModel != null)
+             {
+                 t.Previous.AssociatedModel = t.Previous.AssociatedViewModel.DumpViewModelToModel();
+             }
+
+             if (t.Current != null)
+             {
+                 DisplayedSubgroup = _subgroupFactory(t.Current, ParentMenu.ParentAssetPack, true);
+                 DisplayedSubgroup.CopyInViewModelFromModel();
+                 DisplayedSubgroup.PathsMenu.ReferenceNPCFK = TemplateNPCFK;
+                 ParentMenu.ParentAssetPack.SelectedPlaceHolder = t.Current;
+                 t.Current.GetDDSPaths();
+             }
+         }).DisposeWith(this);
+
         Remove = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => ParentMenu.ReplacerGroups.Remove(this)
@@ -103,20 +122,6 @@ public class VM_AssetReplacerGroup : VM, IHasSubgroupViewModels
             canExecute: _ => true,
             execute: _ => Subgroups.Add(subGroupPlaceHolderFactory(new AssetPack.Subgroup(), null, parent.ParentAssetPack, Subgroups))
         );
-
-        SelectedSubgroupChanged = new RelayCommand(
-            canExecute: _ => true,
-            execute: x =>
-            {
-                if (DisplayedSubgroup != null)
-                {
-                    DisplayedSubgroup.AssociatedPlaceHolder.AssociatedModel = DisplayedSubgroup.DumpViewModelToModel();
-                }
-                var displayedSubgroupPlaceHolder = (VM_SubgroupPlaceHolder)x;
-                DisplayedSubgroup = _subgroupFactory(displayedSubgroupPlaceHolder, ParentMenu.ParentAssetPack, true);
-                DisplayedSubgroup.PathsMenu.ReferenceNPCFK = TemplateNPCFK;
-                DisplayedSubgroup.CopyInViewModelFromModel();
-            });
 
         this.WhenAnyValue(x => x.TemplateNPCFK).Subscribe(x =>
         {
@@ -130,13 +135,13 @@ public class VM_AssetReplacerGroup : VM, IHasSubgroupViewModels
     public string Label { get; set; } = "";
     public ObservableCollection<VM_SubgroupPlaceHolder> Subgroups { get; set; } = new();
     public VM_Subgroup DisplayedSubgroup { get; set; }
+    public VM_SubgroupPlaceHolder SelectedPlaceHolder { get; set; }
     public VM_AssetPackDirectReplacerMenu ParentMenu{ get; set; }
     public FormKey TemplateNPCFK { get; set; }
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> NPCType { get; set; } = typeof(INpcGetter).AsEnumerable();
     public RelayCommand Remove { get; }
     public RelayCommand AddTopLevelSubgroup { get; }
-    public RelayCommand SelectedSubgroupChanged { get; }
 
     public void CopyInViewModelFromModel(AssetReplacerGroup model)
     {
@@ -149,7 +154,6 @@ public class VM_AssetReplacerGroup : VM, IHasSubgroupViewModels
                 null,
                 ParentMenu.ParentAssetPack,
                 Subgroups);
-            //SetTemplates(sgVM, TemplateNPCFK);
             Subgroups.Add(sgVM);
         }
     }
@@ -172,15 +176,4 @@ public class VM_AssetReplacerGroup : VM, IHasSubgroupViewModels
         }
         return model;
     }
-
-    /*
-    private static void SetTemplates(VM_Subgroup subgroup, FormKey templateNPCFormKey)
-    {
-        subgroup.PathsMenu.ReferenceNPCFK = new FormKey(templateNPCFormKey.ModKey, templateNPCFormKey.ID);
-        foreach (var sg in subgroup.Subgroups)
-        {
-            SetTemplates(sg, templateNPCFormKey);
-        }
-    }
-    */
 }
