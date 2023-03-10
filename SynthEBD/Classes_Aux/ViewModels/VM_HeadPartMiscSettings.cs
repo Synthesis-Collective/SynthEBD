@@ -59,16 +59,32 @@ namespace SynthEBD
             {
                 switch(descriptorTypes)
                 {
-                    case AllowedStr: entry.Value.TypeRuleSet.AllowedBodySlideDescriptors.MatchMode = mode; break;
-                    case DisallowedStr: entry.Value.TypeRuleSet.DisallowedBodySlideDescriptors.MatchMode = mode; break;
+                    case AllowedStr: 
+                        entry.Value.TypeRuleSet.AllowedBodySlideDescriptors.MatchMode = mode; 
+                        entry.Value.TypeRuleSet.AllowedBodyGenDescriptorsMale.MatchMode = mode;
+                        entry.Value.TypeRuleSet.AllowedBodyGenDescriptorsFemale.MatchMode = mode;
+                        break;
+                    case DisallowedStr: 
+                        entry.Value.TypeRuleSet.DisallowedBodySlideDescriptors.MatchMode = mode;
+                        entry.Value.TypeRuleSet.DisallowedBodyGenDescriptorsMale.MatchMode = mode;
+                        entry.Value.TypeRuleSet.DisallowedBodyGenDescriptorsFemale.MatchMode = mode;
+                        break;
                 }
                 
                 foreach (var headPart in entry.Value.HeadPartList)
                 {
                     switch (descriptorTypes)
                     {
-                        case AllowedStr: headPart.AllowedBodySlideDescriptors.MatchMode = mode; break;
-                        case DisallowedStr: headPart.DisallowedBodySlideDescriptors.MatchMode = mode; break;
+                        case AllowedStr:
+                            headPart.AssociatedModel.AllowedBodySlideMatchMode = mode;
+                            headPart.AssociatedModel.AllowedBodyGenDescriptorMatchModeMale = mode;
+                            headPart.AssociatedModel.AllowedBodyGenDescriptorMatchModeFemale = mode;
+                            break;
+                        case DisallowedStr:
+                            headPart.AssociatedModel.DisallowedBodySlideMatchMode = mode;
+                            headPart.AssociatedModel.DisallowedBodyGenDescriptorMatchModeMale = mode;
+                            headPart.AssociatedModel.DisallowedBodyGenDescriptorMatchModeFemale = mode;
+                            break;
                     }
                 }
             }

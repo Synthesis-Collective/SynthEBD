@@ -34,7 +34,7 @@ namespace SynthEBD
                 var assignment = parentConfig.Types[type].HeadPartList.Where(x => x.Label == EditorID).FirstOrDefault();
                 if (assignment != null)
                 {
-                    FormKey = assignment.FormKey;
+                    FormKey = assignment.AssociatedModel.HeadPartFormKey;
                 }
             }).DisposeWith(this);
 
@@ -60,18 +60,18 @@ namespace SynthEBD
         public Gender? Gender { get; set; }
         public HeadPart.TypeEnum Type { get; set; }
         public VM_Settings_Headparts ParentConfig { get; set; }
-        public ObservableCollection<VM_HeadPart> AvailableHeadParts { get; set; }
+        public ObservableCollection<VM_HeadPartPlaceHolder> AvailableHeadParts { get; set; }
         public RelayCommand ClearSelection { get; set; }
         public SolidColorBrush BorderColor { get; set; }
 
         public void RefreshAvailable()
         {
             var all = ParentConfig.Types[Type].HeadPartList.ToHashSet();
-            var available = all.Where(x => HeadPartGenderMatches(ParentAssignmentGender.Gender, x)).ToArray();
-            AvailableHeadParts = new ObservableCollection<VM_HeadPart>(available);
+            var available = all.Where(x => HeadPartGenderMatches(ParentAssignmentGender.Gender, x.AssociatedModel)).ToArray();
+            AvailableHeadParts = new(available);
         }
 
-        public static bool HeadPartGenderMatches(Gender npcGender, VM_HeadPart headPart)
+        public static bool HeadPartGenderMatches(Gender npcGender, HeadPartSetting headPart)
         {
             if ((npcGender == SynthEBD.Gender.Male && headPart.bAllowMale) || (npcGender == SynthEBD.Gender.Female && headPart.bAllowFemale)) { return true; }
             else { return false; }

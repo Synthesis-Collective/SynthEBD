@@ -16,14 +16,14 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
     private readonly VM_Settings_General _generalSettingsVM;
     private readonly VM_HeadPartList.Factory _listFactory;
     private readonly Logger _logger;
-    public VM_Settings_Headparts(VM_Settings_General generalSettingsVM, VM_SettingsOBody oBodySettings, VM_SettingsBodyGen bodyGenSettings, VM_HeadPartList.Factory listFactory, VM_HeadPart.Factory headPartFactory, Logger logger, IEnvironmentStateProvider environmentProvider)
+    public VM_Settings_Headparts(VM_Settings_General generalSettingsVM, VM_SettingsOBody oBodySettings, VM_SettingsBodyGen bodyGenSettings, VM_HeadPartList.Factory listFactory, VM_HeadPartPlaceHolder.Factory placeHolderFactory, Logger logger, IEnvironmentStateProvider environmentProvider)
     {
         _environmentProvider = environmentProvider;
         _generalSettingsVM = generalSettingsVM;
         _listFactory = listFactory;
         _logger = logger;
 
-        ImportMenu = new VM_HeadPartImport(this, logger, environmentProvider, headPartFactory);
+        ImportMenu = new VM_HeadPartImport(this, logger, environmentProvider, placeHolderFactory);
         SettingsMenu = new(this, bodyGenSettings);
         AttributeGroupMenu = generalSettingsVM.AttributeGroupMenu;
         RaceGroupings = generalSettingsVM.RaceGroupingEditor.RaceGroupings;

@@ -129,6 +129,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_BodySlideExchange>().AsSelf();
         builder.RegisterType<VM_HeightConfig>().AsSelf();
         builder.RegisterType<VM_HeightAssignment>().AsSelf();
+        builder.RegisterType<VM_HeadPartPlaceHolder>().AsSelf();
         builder.RegisterType<VM_HeadPart>().AsSelf();
         builder.RegisterType<VM_HeadPartList>().AsSelf();
         builder.RegisterType<VM_HeadPartAssignment>().AsSelf();

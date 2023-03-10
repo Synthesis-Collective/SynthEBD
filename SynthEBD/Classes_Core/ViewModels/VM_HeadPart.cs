@@ -19,15 +19,17 @@ namespace SynthEBD
         private IEnvironmentStateProvider _environmentProvider;
         private readonly VM_NPCAttributeCreator _attributeCreator;
         private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
-        public delegate VM_HeadPart Factory(FormKey headPartFormKey, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig);
-        public VM_HeadPart(FormKey headPartFormKey, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig, IEnvironmentStateProvider environmentProvider, VM_NPCAttributeCreator attributeCreator, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+        public delegate VM_HeadPart Factory(FormKey headPartFormKey, VM_HeadPartPlaceHolder associatedPlaceHolder, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig);
+        public VM_HeadPart(FormKey headPartFormKey, VM_HeadPartPlaceHolder associatedPlaceHolder, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig, IEnvironmentStateProvider environmentProvider, VM_NPCAttributeCreator attributeCreator, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
             _environmentProvider = environmentProvider;
             _attributeCreator = attributeCreator;
             _descriptorSelectionFactory = descriptorSelectionFactory;
 
+            AssociatedPlaceHolder = associatedPlaceHolder;
+            AssociatedPlaceHolder.AssociatedViewModel = this;
+
             ParentMenu = parentConfig;
-            ParentCollection = parentCollection;
 
             FormKey = headPartFormKey;
             AllowedBodySlideDescriptors = descriptorSelectionFactory(bodyShapeDescriptors, raceGroupingVMs, parentConfig, true, DescriptorMatchMode.All);
@@ -42,6 +44,11 @@ namespace SynthEBD
                 .Subscribe(x => lk = x)
                 .DisposeWith(this);
 
+            DeleteMe = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: _ => AssociatedPlaceHolder.ParentCollection.Remove(AssociatedPlaceHolder)
+            );
+
             AddAllowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => AllowedAttributes.Add(_attributeCreator.CreateNewFromUI(AllowedAttributes, true, null, ParentMenu.AttributeGroupMenu.Groups))
@@ -50,11 +57,6 @@ namespace SynthEBD
             AddDisallowedAttribute = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, ParentMenu.AttributeGroupMenu.Groups))
-            );
-
-            DeleteMe = new SynthEBD.RelayCommand(
-                canExecute: _ => true,
-                execute: _ => ParentCollection.Remove(this)
             );
 
             this.WhenAnyValue(x => x.FormKey).Subscribe(x =>
@@ -107,31 +109,32 @@ namespace SynthEBD
         public VM_BodyShapeDescriptorSelectionMenu AllowedBodyGenDescriptorsFemale { get; set; }
         public VM_BodyShapeDescriptorSelectionMenu DisallowedBodyGenDescriptorsFemale { get; set; }
 
+        public HeadPartSetting AssociatedModel { get; set; }
+        public VM_HeadPartPlaceHolder AssociatedPlaceHolder { get; }
+
         public ILinkCache lk { get; private set; }
         public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
-
+        public RelayCommand DeleteMe { get; }
         public RelayCommand AddAllowedAttribute { get; }
         public RelayCommand AddDisallowedAttribute { get; }
-        public RelayCommand DeleteMe { get; }
         public RelayCommand Clone { get; }
         public RelayCommand ToggleHide { get; }
         public VM_Settings_Headparts ParentMenu { get; set; }
-        public ObservableCollection<VM_HeadPart> ParentCollection { get; set; }
         public SolidColorBrush BorderColor { get; set; } = CommonColors.Green;
         public string StatusString { get; set; } = string.Empty;
 
-        public void CopyInFromModel(HeadPartSetting model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AttributeGroupMenu attributeGroupMenu, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, VM_Settings_Headparts parentConfig, ObservableCollection<VM_HeadPart> parentCollection, VM_NPCAttributeCreator creator, Logger logger, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, ILinkCache linkCache)
+        public void CopyInFromModel(HeadPartSetting model)
         {
             FormKey = model.HeadPartFormKey;
-            Label = EditorIDHandler.GetEditorIDSafely<IHeadPartGetter>(FormKey, linkCache);
+            Label = EditorIDHandler.GetEditorIDSafely<IHeadPartGetter>(FormKey, lk);
             bAllowFemale = model.bAllowFemale;
             bAllowMale = model.bAllowMale;
             AllowedRaces.AddRange(model.AllowedRaces);
-            AllowedRaceGroupings.CopyInRaceGroupingsByLabel(model.AllowedRaceGroupings, raceGroupingVMs);
+            AllowedRaceGroupings.CopyInRaceGroupingsByLabel(model.AllowedRaceGroupings, ParentMenu.RaceGroupings);
             DisallowedRaces.AddRange(model.DisallowedRaces);
-            DisallowedRaceGroupings.CopyInRaceGroupingsByLabel(model.DisallowedRaceGroupings, raceGroupingVMs);
-            creator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, attributeGroupMenu.Groups, true, null);
-            creator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, attributeGroupMenu.Groups, false, null);
+            DisallowedRaceGroupings.CopyInRaceGroupingsByLabel(model.DisallowedRaceGroupings, ParentMenu.RaceGroupings);
+            _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentMenu.AttributeGroupMenu.Groups, true, null);
+            _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentMenu.AttributeGroupMenu.Groups, false, null);
             foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
             bAllowUnique = model.bAllowUnique;
             bAllowNonUnique = model.bAllowNonUnique;

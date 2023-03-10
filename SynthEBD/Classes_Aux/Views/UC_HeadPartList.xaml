@@ -42,7 +42,7 @@
         
         <ScrollViewer Grid.Row="2" Grid.Column="0">
             <StackPanel >
-                <ListBox SelectedValue="{Binding DisplayedHeadPart}" ItemsSource="{Binding DisplayedList}" IsSynchronizedWithCurrentItem="False" >
+                <ListBox SelectedValue="{Binding SelectedPlaceHolder}" ItemsSource="{Binding DisplayedList}" IsSynchronizedWithCurrentItem="False" >
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Border BorderThickness="1" BorderBrush="{Binding BorderColor}">

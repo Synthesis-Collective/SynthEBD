@@ -20,13 +20,13 @@ namespace SynthEBD
     {
         private IEnvironmentStateProvider _environmentProvider;
         private readonly Logger _logger;
-        private readonly VM_HeadPart.Factory _headPartFactory;
-        public VM_HeadPartImport(VM_Settings_Headparts parentMenu, Logger logger, IEnvironmentStateProvider environmentProvider, VM_HeadPart.Factory headPartFactory)
+        private readonly VM_HeadPartPlaceHolder.Factory _placeHolderFactory;
+        public VM_HeadPartImport(VM_Settings_Headparts parentMenu, Logger logger, IEnvironmentStateProvider environmentProvider, VM_HeadPartPlaceHolder.Factory placeholderFactory)
         {
             ParentMenu = parentMenu;
             _environmentProvider = environmentProvider;
             _logger = logger;
-            _headPartFactory = headPartFactory;
+            _placeHolderFactory = placeholderFactory;
 
             _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
@@ -202,7 +202,7 @@ namespace SynthEBD
                 {
                     if (_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                     {
-                        if (!ParentMenu.Types[entry.Key].HeadPartList.Where(x => x.FormKey.Equals(headPartFK)).Any())
+                        if (!ParentMenu.Types[entry.Key].HeadPartList.Where(x => x.AssociatedModel.HeadPartFormKey.Equals(headPartFK)).Any())
                         {
                             ParentMenu.Types[entry.Key].HeadPartList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Types[entry.Key].HeadPartList, ParentMenu));
                             importCount++;
@@ -223,28 +223,29 @@ namespace SynthEBD
             _logger.CallTimedNotifyStatusUpdateAsync("Imported " + importCount + " head parts.", 5);
         }
 
-        public VM_HeadPart ImportHeadPart(IHeadPartGetter headPart, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPart> parentCollection, VM_Settings_Headparts parentConfig)
+        public VM_HeadPartPlaceHolder ImportHeadPart(IHeadPartGetter headPart, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPartPlaceHolder> parentCollection, VM_Settings_Headparts parentConfig)
         {
-            var imported = _headPartFactory(headPart.FormKey, bodyShapeDescriptors, raceGroupingVMs, parentCollection, parentConfig);
-            imported.Label = EditorIDHandler.GetEditorIDSafely(headPart);
+            var imported = new HeadPartSetting() { HeadPartFormKey = headPart.FormKey};
+            var placeHolder = _placeHolderFactory(imported, parentCollection);
+            imported.EditorID = EditorIDHandler.GetEditorIDSafely(headPart);
             imported.bAllowMale = headPart.Flags.HasFlag(HeadPart.Flag.Male);
             imported.bAllowFemale = headPart.Flags.HasFlag(HeadPart.Flag.Female);
 
             if (parentConfig.ImportMenu.bRespectHeadPartRaces && _environmentProvider.LinkCache.TryResolve<IFormListGetter>(headPart.ValidRaces.FormKey, out var raceFormList) && raceFormList.Items.Any())
             {
-                var races = raceFormList.Items.Select(x => x.FormKey).ToArray();
-                var matchedGroupings = VM_RaceGrouping.CollectionMatchesRaceGrouping(races, raceGroupingVMs);
+                var races = raceFormList.Items.Select(x => x.FormKey).ToHashSet();
+                var matchedGroupings = VM_RaceGrouping.CollectionMatchesRaceGrouping(races, raceGroupingVMs).Select(x => x.Label).ToHashSet();
                 if (matchedGroupings.Any())
                 {
-                    imported.AllowedRaceGroupings.ActivateSelectedRaceGroupings(matchedGroupings);
+                    imported.AllowedRaceGroupings = matchedGroupings;
                 }
                 else
                 {
-                    imported.AllowedRaces.AddRange(races);
+                    imported.AllowedRaces = races;
                 }
             }
 
-            return imported;
+            return placeHolder;
         }
     }
 }
