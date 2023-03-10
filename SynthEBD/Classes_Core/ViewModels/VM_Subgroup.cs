@@ -16,55 +16,42 @@ using System.Reactive.Linq;
 
 namespace SynthEBD;
 
-public class VM_Subgroup : VM, IDropTarget, IHasSubgroupViewModels
+public class VM_Subgroup : VM, IDropTarget
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
-    private readonly SynthEBDPaths _paths;
-    private readonly VM_SettingsOBody _oBody;
     private readonly VM_NPCAttributeCreator _attributeCreator;
-    private readonly Factory _selfFactory;
-    private readonly VM_SubgroupPlaceHolder.Factory _placeHolderFactory;
     private readonly VM_FilePathReplacementMenu.Factory _filePathReplacementMenuFactory;
     private readonly VM_FilePathReplacement.Factory _filePathReplacementFactory;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
-    private readonly UpdateHandler _updateHandler;
 
     public delegate VM_Subgroup Factory(
-        ObservableCollection<VM_RaceGrouping> raceGroupingVMs,
-        VM_AssetPack parentAssetPack,
         VM_SubgroupPlaceHolder associatedPlaceHolder,
+        VM_AssetPack parentAssetPack,
         bool setExplicitReferenceNPC);
 
-    public VM_Subgroup(IEnvironmentStateProvider environmentProvider,
+    public VM_Subgroup(
+        VM_SubgroupPlaceHolder associatedPlaceHolder, 
+        IEnvironmentStateProvider environmentProvider,
         Logger logger,
-        SynthEBDPaths paths,
-        ObservableCollection<VM_RaceGrouping> raceGroupingVMs,
         VM_AssetPack parentAssetPack,
-        VM_SubgroupPlaceHolder associatedPlaceHolder,
         bool setExplicitReferenceNPC,
         VM_SettingsOBody oBody,
         VM_NPCAttributeCreator attributeCreator,
-        Factory selfFactory,
-        VM_SubgroupPlaceHolder.Factory placeHolderFactory,
         VM_FilePathReplacementMenu.Factory filePathReplacementMenuFactory,
         VM_FilePathReplacement.Factory filePathReplacementFactory,
-        VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory,
-        UpdateHandler updateHandler)
+        VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
         _environmentProvider = environmentProvider;
         _logger = logger;
-        _paths = paths;
-        _oBody = oBody;
         _attributeCreator = attributeCreator;
-        _selfFactory = selfFactory;
-        _placeHolderFactory = placeHolderFactory;
         _filePathReplacementMenuFactory = filePathReplacementMenuFactory;
         _filePathReplacementFactory = filePathReplacementFactory;
         _descriptorSelectionFactory = descriptorSelectionFactory;
-        _updateHandler = updateHandler;
 
         AssociatedPlaceHolder = associatedPlaceHolder;
+        AssociatedPlaceHolder.AssociatedViewModel = this;
+
         SetExplicitReferenceNPC = setExplicitReferenceNPC;
         ParentAssetPack = parentAssetPack;
         SubscribedRaceGroupings = ParentAssetPack.RaceGroupingEditor.RaceGroupings;
@@ -85,9 +72,6 @@ public class VM_Subgroup : VM, IDropTarget, IHasSubgroupViewModels
         RequiredSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(RequiredSubgroups, SubgroupListBox.Required)).DisposeWith(this);
         ExcludedSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(ExcludedSubgroups, SubgroupListBox.Excluded)).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.ID).Subscribe(x => AssociatedPlaceHolder.ID = x).DisposeWith(this);
-        this.WhenAnyValue(x => x.Name).Subscribe(x => AssociatedPlaceHolder.Name = x).DisposeWith(this);
-
         // must be set after Parent Asset Pack
         if (SetExplicitReferenceNPC)
         {
@@ -98,16 +82,6 @@ public class VM_Subgroup : VM, IDropTarget, IHasSubgroupViewModels
             PathsMenu = _filePathReplacementMenuFactory(this, SetExplicitReferenceNPC, parentAssetPack.RecordTemplateLinkCache);
             parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => PathsMenu.ReferenceLinkCache = parentAssetPack.RecordTemplateLinkCache).DisposeWith(this);
         }
-
-        Observable.CombineLatest(
-                PathsMenu.Paths.ToObservableChangeSet(),
-                this.WhenAnyValue(x => x.ParentAssetPack),
-                this.WhenAnyValue(x => x.ParentSubgroup),
-                (_, _, _) => { return 0; })
-            .Subscribe(_ => {
-                GetDDSPaths(ImagePaths);
-            })
-            .DisposeWith(this);
 
         AutoGenerateIDcommand = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -190,7 +164,6 @@ public class VM_Subgroup : VM, IDropTarget, IHasSubgroupViewModels
     public VM_BodyShapeDescriptorSelectionMenu AllowedBodySlideDescriptors { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu DisallowedBodySlideDescriptors { get; set; }
     public NPCWeightRange WeightRange { get; set; } = new();
-    public ObservableCollection<VM_SubgroupPlaceHolder> Subgroups { get; set; } = new();
 
     //UI-related
     public ILinkCache LinkCache { get; private set; }
@@ -214,7 +187,6 @@ public class VM_Subgroup : VM, IDropTarget, IHasSubgroupViewModels
     public VM_AssetPack ParentAssetPack { get; set; }
     public VM_SubgroupPlaceHolder ParentSubgroup { get; set; }
     public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
-    public ObservableCollection<ImagePreviewHandler.ImagePathWithSource> ImagePaths { get; set; } = new();
 
     public void CopyInViewModelFromModel()
     {
@@ -273,13 +245,9 @@ public class VM_Subgroup : VM, IDropTarget, IHasSubgroupViewModels
         AllowedBodyGenDescriptors.MatchMode = model.AllowedBodySlideMatchMode;
         DisallowedBodySlideDescriptors.CopyInFromHashSet(model.DisallowedBodySlideDescriptors);
         DisallowedBodySlideDescriptors.MatchMode = model.DisallowedBodySlideMatchMode;
-
-        //dds preview
-        GetDDSPaths(ImagePaths);
     }
     public void RefreshListBoxLabel(ObservableCollection<VM_SubgroupPlaceHolder> listSource, SubgroupListBox whichBox)
     {
-        _logger.LogStartupEventStart("Refreshing ListBox Label for subgroup " + ID);
         string label = "";
         if (listSource.Any())
         {
@@ -295,35 +263,11 @@ public class VM_Subgroup : VM, IDropTarget, IHasSubgroupViewModels
             case SubgroupListBox.Required: RequiredSubgroupsLabel = label; break;
             case SubgroupListBox.Excluded: ExcludedSubgroupsLabel = label; break;
         }
-        _logger.LogStartupEventEnd("Refreshing ListBox Label for subgroup " + ID);
     }
     public enum SubgroupListBox
     {
         Required,
         Excluded
-    }
-    public void GetDDSPaths(ObservableCollection<ImagePreviewHandler.ImagePathWithSource> paths)
-    {
-        if (AssociatedPlaceHolder == null) { return; }
-        _logger.LogStartupEventStart("Getting DDS Paths for subgroup " + ID);
-        var ddsPaths = AssociatedPlaceHolder.AssociatedModel.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(_environmentProvider.DataFolderPath, x.Source)))
-            .Select(x => x.Source)
-            .Select(x => System.IO.Path.Combine(_environmentProvider.DataFolderPath, x))
-            .ToHashSet() ?? new HashSet<string>();
-        foreach (var path in ddsPaths)
-        {
-            var imagePathWithSource = new ImagePreviewHandler.ImagePathWithSource(path, AssociatedPlaceHolder);
-            if (!paths.Contains(imagePathWithSource))
-            {
-                paths.Add(imagePathWithSource);
-            }
-        }
-
-        foreach (var subgroup in Subgroups)
-        {
-            subgroup.GetDDSPaths(paths);
-        }
-        _logger.LogStartupEventEnd("Getting DDS Paths for subgroup " + ID);
     }
 
     public AssetPack.Subgroup DumpViewModelToModel()
@@ -359,63 +303,9 @@ public class VM_Subgroup : VM, IDropTarget, IHasSubgroupViewModels
         model.DisallowedBodySlideDescriptors = DisallowedBodySlideDescriptors.DumpToHashSet();
         model.DisallowedBodySlideMatchMode = DisallowedBodySlideDescriptors.MatchMode;
 
-        /*
-        foreach (var sg in Subgroups)
-        {
-            model.Subgroups.Add(sg.DumpViewModelToModel());
-        }
-        */
-
         return model;
     }
 
-    /*
-    public object Clone(ObservableCollection<VM_Subgroup> parentCollection, VM_AssetPack newParentAssetPack)
-    {
-        var clone = _selfFactory(SubscribedRaceGroupings, parentCollection, newParentAssetPack, this, SetExplicitReferenceNPC);
-        clone.AddKeywords = new ObservableCollection<VM_CollectionMemberString>(AddKeywords);
-        clone.AllowedAttributes = new ObservableCollection<VM_NPCAttribute>();
-        foreach (var at in AllowedAttributes) { clone.AllowedAttributes.Add(at.Clone(clone.AllowedAttributes)); }
-        clone.DisallowedAttributes = new ObservableCollection<VM_NPCAttribute>();
-        foreach (var at in DisallowedAttributes) { clone.DisallowedAttributes.Add(at.Clone(clone.DisallowedAttributes)); }
-        if (AllowedBodyGenDescriptors is not null)
-        {
-            clone.AllowedBodyGenDescriptors = AllowedBodyGenDescriptors.Clone();
-        }
-        if (DisallowedBodyGenDescriptors is not null)
-        {
-            clone.DisallowedBodyGenDescriptors = DisallowedBodyGenDescriptors.Clone();
-        }
-        clone.AllowedBodySlideDescriptors = AllowedBodySlideDescriptors.Clone();
-        clone.DisallowedBodySlideDescriptors = DisallowedBodySlideDescriptors.Clone();
-        clone.AllowedRaceGroupings = AllowedRaceGroupings.Clone();
-        clone.DisallowedRaceGroupings = DisallowedRaceGroupings.Clone();
-        clone.AllowedRaces.AddRange(AllowedRaces);
-        clone.DisallowedRaces.AddRange(DisallowedRaces);
-        clone.AllowUnique = AllowUnique;
-        clone.AllowNonUnique = AllowNonUnique;
-        clone.DistributionEnabled = DistributionEnabled;
-        clone.ID = ID;
-        clone.Name = Name;
-        clone.Notes = Notes;
-        clone.RequiredSubgroupIDs = new HashSet<string>(RequiredSubgroupIDs);
-        clone.ExcludedSubgroupIDs = new HashSet<string>(ExcludedSubgroupIDs);
-        clone.RequiredSubgroups.AddRange(RequiredSubgroups);
-        clone.ExcludedSubgroups.AddRange(ExcludedSubgroups);
-        clone.WeightRange = WeightRange.Clone();
-        clone.ProbabilityWeighting = ProbabilityWeighting;
-        clone.PathsMenu = PathsMenu.Clone();
-        clone.GetDDSPaths(clone.ImagePaths);
-
-        clone.Subgroups.Clear();
-        foreach (var subgroup in Subgroups)
-        {
-            clone.Subgroups.Add(subgroup.Clone(clone.Subgroups, newParentAssetPack) as VM_Subgroup);
-        }
-
-        return clone;
-    }
-    */
 
     public void DragOver(IDropInfo dropInfo)
     {

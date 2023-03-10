@@ -50,7 +50,6 @@ public class VM_AttributeGroupMenu : VM
 
     public void CopyInViewModelFromModels(HashSet<AttributeGroup> models)
     {
-        _logger.LogStartupEventStart("Generating Attribute Group Creator UI");
         Groups.Clear();
         // first add each group to the menu
         foreach (var model in models)
@@ -87,7 +86,6 @@ public class VM_AttributeGroupMenu : VM
                 }
             }
         }
-        _logger.LogStartupEventEnd("Generating Attribute Group Creator UI");
     }
 
     public static void DumpViewModelToModels(VM_AttributeGroupMenu viewModel, HashSet<AttributeGroup> models)

@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Windows.Media;
 using Pfim;
 using Noggog;
+using DynamicData.Binding;
 
 namespace SynthEBD
 {
@@ -22,13 +23,39 @@ namespace SynthEBD
 
             _logger = logger;
 
+            this.WhenAnyValue(x => x.AssetPack.SelectedPlaceHolder)
+                .Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler)
+                .Subscribe(x =>
+            {
+                if (x != null && AssetPack != null)
+                {
+                    ClearPreviewImages();
+                    x.ImagePaths.ToObservableChangeSet().Subscribe(_ => 
+                        UpdatePreviewImages(AssetPack)
+                    ).DisposeWith(x);
+                }
+            }).DisposeWith(this);
+
+            /*
+            Observable.CombineLatest(
+                this.WhenAnyValue(x => x.AssetPack.SelectedPlaceHolder),
+                AssetPack.SelectedPlaceHolder.ImagePaths.ToObservableChangeSet(),
+                (_, _) => { return 0; })
+            .Subscribe(_ => 
+                UpdatePreviewImages(AssetPack)
+            ).DisposeWith(this);
+            */
+            /*
             this.WhenAnyValue(
-                x => x.AssetPack.DisplayedSubgroup.ImagePaths,
+                x => x.AssetPack.SelectedPlaceHolder.ImagePaths,
                 x => x.ParentUI.bShowPreviewImages,
                 // Just pass along the signal, don't care about the triggering values
                 (_, _) => Unit.Default)
             .Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler)
-            .Subscribe(_ => UpdatePreviewImages(AssetPack)).DisposeWith(this);
+            .Subscribe(_ => 
+                UpdatePreviewImages(AssetPack))
+            .DisposeWith(this);
+            */
         }
 
         public VM_SettingsTexMesh ParentUI { get; private set; }
@@ -38,24 +65,14 @@ namespace SynthEBD
 
         public async void UpdatePreviewImages(VM_AssetPack source)
         {
-            #region Try to free memory as completely as possible before loading more images
-            foreach (var i in PreviewImages)
-            {
-                i.Dispose();
-            }
-            PreviewImages.Clear();
-            PreviewImages = new ObservableCollection<VM_PreviewImage>();
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-            #endregion
+            ClearPreviewImages(); // Try to free memory as completely as possible before loading more images
 
             if (source == null || source.DisplayedSubgroup == null) { return; }
-            foreach (var sourcedImagePath in source.DisplayedSubgroup.ImagePaths)
+            foreach (var sourcedImagePath in source.SelectedPlaceHolder.ImagePaths)
             {
                 var availableRAM = new Microsoft.VisualBasic.Devices.ComputerInfo().AvailablePhysicalMemory;
                 if (availableRAM <= ByteLimit) { continue; }
-                if (AssetPack.DisplayedSubgroup != null && sourcedImagePath.SourceChain != null & !sourcedImagePath.SourceChain.Contains(AssetPack.DisplayedPlaceHolder)) { continue; } // stop loading images from a previous subgroup if a different one is selected
+                if (AssetPack.DisplayedSubgroup != null && sourcedImagePath.SourceChain != null & !sourcedImagePath.SourceChain.Contains(AssetPack.SelectedPlaceHolder)) { continue; } // stop loading images from a previous subgroup if a different one is selected
 
                 try
                 {                   
@@ -65,7 +82,7 @@ namespace SynthEBD
                         {
                             var bmp = ImagePreviewHandler.ResizeIImageAsBitMap(image, ParentUI.MaxPreviewImageSize);
                             var bmpSource = ImagePreviewHandler.CreateBitmapSourceFromGdiBitmap(bmp); // Try setting xaml to display bitmap directly
-                            if (!sourcedImagePath.SourceChain.Contains(AssetPack.DisplayedPlaceHolder)) { continue; } // Intentional duplication: Pfim.FromFile() takes some time to execute and may already be in progress when the user changes the active subgroup, leading to the last previous PreviewImage loading erroneously
+                            if (!sourcedImagePath.SourceChain.Contains(AssetPack.SelectedPlaceHolder)) { continue; } // Intentional duplication: Pfim.FromFile() takes some time to execute and may already be in progress when the user changes the active subgroup, leading to the last previous PreviewImage loading erroneously
                             PreviewImages.Add(new VM_PreviewImage(bmpSource, sourcedImagePath.PrimarySource));
                         }
                     }
@@ -77,6 +94,19 @@ namespace SynthEBD
                 }
             }
             return;
+        }
+
+        private void ClearPreviewImages()
+        {
+            foreach (var i in PreviewImages)
+            {
+                i.Dispose();
+            }
+            PreviewImages.Clear();
+            PreviewImages = new ObservableCollection<VM_PreviewImage>();
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
         }
     }
 }

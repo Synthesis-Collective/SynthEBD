@@ -24,7 +24,7 @@
             <Button VerticalAlignment="Center" HorizontalAlignment="Right" Command="{Binding AddSubgroup}" Foreground="Lightgreen" Margin="0 0 15 0">+</Button>
         </DockPanel>
 
-        <TreeView Grid.Row="1" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding Subgroups}"  Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.DropHandler="{Binding}" dd:DragDrop.DragHandler="{Binding}"  dd:DragDrop.CanDragWithMouseRightButton="True" ScrollViewer.CanContentScroll="True" ScrollViewer.VerticalScrollBarVisibility="Visible">
+        <local:ExtendedTreeView Grid.Row="1" Grid.Column="0" x:Name="TVsubgroups" SelectedItem_ ="{Binding SelectedPlaceHolder, Mode=TwoWay}" ItemsSource ="{Binding Subgroups}"  Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.DropHandler="{Binding}" dd:DragDrop.DragHandler="{Binding}"  dd:DragDrop.CanDragWithMouseRightButton="True" ScrollViewer.CanContentScroll="True" ScrollViewer.VerticalScrollBarVisibility="Visible">
             <TreeView.Resources>
                 <HierarchicalDataTemplate DataType="{x:Type local:VM_SubgroupPlaceHolder}" ItemsSource="{Binding Subgroups}" >
                     <StackPanel Orientation="Horizontal">
@@ -41,14 +41,7 @@
                     </StackPanel>
                 </HierarchicalDataTemplate>
             </TreeView.Resources>
-
-            <!-- https://stackoverflow.com/questions/1238304/get-selecteditem-from-treeview/32845182#32845182 -->
-            <i:Interaction.Triggers>
-                <i:EventTrigger EventName="SelectedItemChanged">
-                    <i:InvokeCommandAction Command="{Binding SelectedSubgroupChanged}" CommandParameter="{Binding ElementName=TVsubgroups, Path=SelectedItem}"/>
-                </i:EventTrigger>
-            </i:Interaction.Triggers>
-        </TreeView>
+        </local:ExtendedTreeView>
 
         <ScrollViewer Grid.Row="1" Grid.Column="1">
             <!--<ContentPresenter Content="{Binding ElementName=TVsubgroups, Path=SelectedItem}" Name="SubgroupPresenter">-->

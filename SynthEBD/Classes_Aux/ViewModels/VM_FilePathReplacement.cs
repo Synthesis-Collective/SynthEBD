@@ -6,6 +6,7 @@ using Mutagen.Bethesda.Skyrim;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Noggog;
+using System.Reactive.Linq;
 
 namespace SynthEBD;
 
@@ -33,11 +34,9 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         ReferenceNPCFormKey = parentMenu.ReferenceNPCFK;
         LinkCache = parentMenu.ReferenceLinkCache;
 
-        _logger.LogStartupEventStart("FilePathReplacement subscription initialization");
         _recordIntellisense.InitializeSubscriptions(this);
         parentMenu.WhenAnyValue(x => x.ReferenceNPCFK).Subscribe(x => SyncReferenceWithParent()).DisposeWith(this); // can be changed from record templates without the user modifying parentMenu.NPCFK, so need an explicit watch
         parentMenu.WhenAnyValue(x => x.ReferenceLinkCache).Subscribe(x => LinkCache = parentMenu.ReferenceLinkCache).DisposeWith(this);
-        _logger.LogStartupEventEnd("FilePathReplacement subscription initialization");
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentMenu.Paths.Remove(this));
         FindPath = new RelayCommand(
@@ -76,6 +75,12 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
                         Source = dialog.FileName;
                     }
 
+                    RefreshSourceColor();
+                    if (SourceBorderColor == BorderColorValid)
+                    {
+                        ParentMenu.ParentSubgroup.AssociatedPlaceHolder.GetDDSPaths();
+                    }
+
                     if (string.IsNullOrWhiteSpace(IntellisensedPath) && FilePathDestinationMap.FileNameToDestMap.ContainsKey(Path.GetFileName(Source)))
                     {
                         IntellisensedPath = FilePathDestinationMap.FileNameToDestMap[Path.GetFileName(Source)];
@@ -97,19 +102,21 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 
         ParentMenu = parentMenu;
 
-        _logger.LogStartupEventStart("FilePathReplacement subscription initialization 2");
-        this.WhenAnyValue(x => x.Source).Subscribe(x => RefreshSourceColor()).DisposeWith(this);
+        this.WhenAnyValue(x => x.Source).Subscribe(x =>
+        {
+            RefreshSourceColor();
+        }).DisposeWith(this);
+
         this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => RefreshReferenceNPC()).DisposeWith(this);
         this.WhenAnyValue(x => x.ParentMenu.ReferenceNPCFK).Subscribe(x => RefreshReferenceNPC()).DisposeWith(this);
-        _logger.LogStartupEventEnd("FilePathReplacement subscription initialization 2");
     }
 
     public VM_FilePathReplacement Clone(VM_FilePathReplacementMenu parentMenu)
     {
         VM_FilePathReplacement clone = _selfFactory(parentMenu);
         clone.Source = Source;
-        clone.IntellisensedPath = this.IntellisensedPath;
-        clone.ReferenceNPCFormKey = this.ReferenceNPCFormKey.DeepCopyByExpressionTree();
+        clone.IntellisensedPath = IntellisensedPath;
+        clone.ReferenceNPCFormKey = ReferenceNPCFormKey.DeepCopyByExpressionTree();
         return clone;
     }
 
@@ -119,8 +126,11 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
     public bool SourceExists { get; set; } = false;
     public bool DestinationExists { get; set; } = false;
 
-    public SolidColorBrush SourceBorderColor { get; set; } = CommonColors.Red;
-    public SolidColorBrush DestBorderColor { get; set; } = CommonColors.Red;
+    public static SolidColorBrush BorderColorValid = CommonColors.LightGreen;
+    public static SolidColorBrush BorderColorInvalid = CommonColors.Red;
+
+    public SolidColorBrush SourceBorderColor { get; set; } = BorderColorInvalid;
+    public SolidColorBrush DestBorderColor { get; set; } = BorderColorInvalid;
 
     public RelayCommand DeleteCommand { get; }
     public RelayCommand FindPath { get; }
@@ -133,10 +143,8 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 
     public void CopyInViewModelFromModel(FilePathReplacement model)
     {
-        _logger.LogStartupEventStart("FilePathReplacement CopyIn");
         Source = model.Source;
         IntellisensedPath = model.Destination;
-        _logger.LogStartupEventEnd("FilePathReplacement CopyIn");
     }
 
     public void RefreshReferenceNPC()
@@ -165,37 +173,31 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 
     public void RefreshSourceColor()
     {
-        Task.Run(() =>
+        var searchStr = Path.Combine(_environmentProvider.DataFolderPath, Source);
+        if (!Source.IsNullOrWhitespace() && (LongPathHandler.PathExists(searchStr) || _bsaHandler.ReferencedPathExists(Source, out _, out _) || _bsaHandler.ReferencedPathExists(Source, ParentMenu.ParentSubgroup.ParentAssetPack.MiscMenu.AssociatedBsaModKeys, out _, out _)))
         {
-            var searchStr = Path.Combine(_environmentProvider.DataFolderPath, Source);
-            if (!Source.IsNullOrWhitespace() && (LongPathHandler.PathExists(searchStr) || _bsaHandler.ReferencedPathExists(Source, out _, out _) || _bsaHandler.ReferencedPathExists(Source, ParentMenu.ParentSubgroup.ParentAssetPack.MiscMenu.AssociatedBsaModKeys, out _, out _)))
-            {
-                SourceExists = true;
-                SourceBorderColor = CommonColors.LightGreen;
-            }
-            else
-            {
-                SourceExists = false;
-                SourceBorderColor = CommonColors.Red;
-            }
-        });
+            SourceExists = true;
+            SourceBorderColor = BorderColorValid;
+        }
+        else
+        {
+            SourceExists = false;
+            SourceBorderColor = BorderColorInvalid;
+        }
     }
 
     public void RefreshDestColor()
     {
-        Task.Run(() =>
+        if (DestinationPathExists(IntellisensedPath, LinkCache, ReferenceNPCFormKey, _recordPathParser, _logger))
         {
-            if (DestinationPathExists(IntellisensedPath, LinkCache, ReferenceNPCFormKey, _recordPathParser, _logger))
-            {
-                DestinationExists = true;
-                DestBorderColor = CommonColors.LightGreen;
-            }
-            else
-            {
-                DestinationExists = false;
-                DestBorderColor = CommonColors.Red;
-            }
-        });
+            DestinationExists = true;
+            DestBorderColor = BorderColorValid;
+        }
+        else
+        {
+            DestinationExists = false;
+            DestBorderColor = BorderColorInvalid;
+        }
     }
 
     public static bool DestinationPathExists(string destinationPath, ILinkCache linkCache, FormKey referenceNPCFormKey, RecordPathParser recordPathParser, Logger logger)

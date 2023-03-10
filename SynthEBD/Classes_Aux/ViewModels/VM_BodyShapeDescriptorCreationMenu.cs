@@ -34,9 +34,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
 
     public void CopyInViewModelsFromModels(HashSet<BodyShapeDescriptor> models)
     {
-        _logger.LogStartupEventStart("Generating BodyShape Descriptor Creator UI");
         MergeInMissingModels(models, DescriptorRulesMergeMode.Overwrite, new List<string>());
-        _logger.LogStartupEventEnd("Generating BodyShape Descriptor Creator UI");
     }
 
     public HashSet<BodyShapeDescriptor> DumpToViewModels()

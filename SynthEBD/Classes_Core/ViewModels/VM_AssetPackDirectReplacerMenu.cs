@@ -30,7 +30,7 @@ public class VM_AssetPackDirectReplacerMenu : VM
 
               if (t.Current != null && t.Current.Subgroups.Any())
               {
-                  t.Current.DisplayedSubgroup = subgroupFactory(parent.RaceGroupingEditor.RaceGroupings, ParentAssetPack, t.Current.Subgroups.First(), true);
+                  t.Current.DisplayedSubgroup = subgroupFactory(t.Current.Subgroups.First(), ParentAssetPack, true);
                   t.Current.DisplayedSubgroup.PathsMenu.ReferenceNPCFK = t.Current.TemplateNPCFK;
                   t.Current.DisplayedSubgroup.CopyInViewModelFromModel();
               }
@@ -113,7 +113,7 @@ public class VM_AssetReplacerGroup : VM, IHasSubgroupViewModels
                     DisplayedSubgroup.AssociatedPlaceHolder.AssociatedModel = DisplayedSubgroup.DumpViewModelToModel();
                 }
                 var displayedSubgroupPlaceHolder = (VM_SubgroupPlaceHolder)x;
-                DisplayedSubgroup = _subgroupFactory(_generalSettingsVm.RaceGroupingEditor.RaceGroupings, ParentMenu.ParentAssetPack, displayedSubgroupPlaceHolder, true);
+                DisplayedSubgroup = _subgroupFactory(displayedSubgroupPlaceHolder, ParentMenu.ParentAssetPack, true);
                 DisplayedSubgroup.PathsMenu.ReferenceNPCFK = TemplateNPCFK;
                 DisplayedSubgroup.CopyInViewModelFromModel();
             });

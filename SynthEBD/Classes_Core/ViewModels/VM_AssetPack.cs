@@ -138,6 +138,23 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         this.WhenAnyValue(x => x.Gender).Subscribe(x => SetDefaultRecordTemplate()).DisposeWith(this);
 
+        this.WhenAnyValue(vm => vm.SelectedPlaceHolder)
+         .Buffer(2, 1)
+         .Select(b => (Previous: b[0], Current: b[1]))
+         .Subscribe(t => {
+             if (t.Previous != null && t.Previous.AssociatedViewModel != null)
+             {
+                 t.Previous.AssociatedModel = t.Previous.AssociatedViewModel.DumpViewModelToModel();
+             }
+
+             if (t.Current != null)
+             {
+                 DisplayedSubgroup = _subgroupFactory(t.Current, this, false);
+                 DisplayedSubgroup.CopyInViewModelFromModel();
+                 t.Current.GetDDSPaths();
+             }
+         }).DisposeWith(this);
+
         UpdateOrderingMenu = Observable.CombineLatest(
                 this.WhenAnyValue(x => x.GroupName),
                 this.WhenAnyValue(x => x.ConfigType),
@@ -275,19 +292,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
         );
 
-        SelectedSubgroupChanged = new RelayCommand(
-            canExecute: _ => true,
-            execute: x =>
-            {
-                if (DisplayedSubgroup != null)
-                {
-                    DisplayedSubgroup.AssociatedPlaceHolder.AssociatedModel = DisplayedSubgroup.DumpViewModelToModel();
-                }
-                var displayedSubgroupPlaceHolder = (VM_SubgroupPlaceHolder)x;
-                DisplayedSubgroup = _subgroupFactory(_general.RaceGroupingEditor.RaceGroupings, this, displayedSubgroupPlaceHolder, false);
-                DisplayedSubgroup.CopyInViewModelFromModel();
-            });
-
         ViewSubgroupEditor = new RelayCommand(
             canExecute: _ => true,
             execute:
@@ -351,7 +355,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public VM_AssetPackMiscMenu MiscMenu { get; set; }
     public ObservableCollection<VM_AssetPack> ParentCollection { get; set; }
     public VM_Subgroup DisplayedSubgroup { get; set; }
-    public VM_SubgroupPlaceHolder DisplayedPlaceHolder => DisplayedSubgroup.AssociatedPlaceHolder ?? null;
+    public VM_SubgroupPlaceHolder SelectedPlaceHolder { get; set; }
     public RelayCommand RemoveAssetPackConfigFile { get; }
     public RelayCommand AddSubgroup { get; }
     public RelayCommand AddAdditionalRecordTemplateAssignment { get; }
@@ -363,7 +367,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public RelayCommand SaveButton { get; }
     public RelayCommand DiscardButton { get; }
     public RelayCommand CopyButton { get; }
-    public RelayCommand SelectedSubgroupChanged { get; }
     public RelayCommand SetDefaultTargetDestPaths { get; }
     public BodyShapeSelectionMode BodyShapeMode { get; set; }
     public AssetPackMenuVisibility DisplayedMenuType { get; set; } = AssetPackMenuVisibility.SubgroupEditor;
@@ -420,7 +423,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     
     public void CopyInViewModelFromModel(AssetPack model, ObservableCollection<VM_RaceGrouping> mainRaceGroupings)
     {
-        _logger.LogStartupEventStart("Loading UI for Asset Pack Main Settings");
         GroupName = model.GroupName;
         ShortName = model.ShortName;
         ConfigType = model.ConfigType;
@@ -468,19 +470,12 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         {
             DefaultRecordTemplateAdditionalRacesPaths.Add(new VM_CollectionMemberString(path, DefaultRecordTemplateAdditionalRacesPaths));
         }
-        _logger.LogStartupEventEnd("Loading UI for Asset Pack Main Settings");
-
-        _logger.LogStartupEventStart("Loading UI for Subgroups");
         foreach (var sg in model.Subgroups)
         {
             Subgroups.Add(_subgroupPlaceHolderFactory(sg, null, this, Subgroups));
         }
-        _logger.LogStartupEventEnd("Loading UI for Subgroups");
-
-        _logger.LogStartupEventStart("Loading config distribution rules");
         DistributionRules = _configDistributionRulesFactory(RaceGroupingEditor.RaceGroupings, this);
         DistributionRules.CopyInViewModelFromModel(model.DistributionRules, RaceGroupingEditor.RaceGroupings, this);
-        _logger.LogStartupEventEnd("Loading config distribution rules");
 
         SourcePath = model.FilePath;
     }
@@ -948,6 +943,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         return false;
     }
 
+    /*
     public static bool SubgroupHasSourcePath(VM_Subgroup subgroup, string destinationPath)
     {
         if (subgroup.PathsMenu.Paths.Where(x => Path.GetFileName(x.Source).Equals(destinationPath, StringComparison.OrdinalIgnoreCase)).Any())
@@ -963,7 +959,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
         }
         return false;
-    }
+    }*/
 
     public List<string> GetDisabledSubgroups()
     {

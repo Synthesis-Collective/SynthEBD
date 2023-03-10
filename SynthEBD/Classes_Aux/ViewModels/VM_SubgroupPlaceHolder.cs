@@ -1,5 +1,6 @@
 using GongSolutions.Wpf.DragDrop;
 using Noggog;
+using ReactiveUI;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -49,6 +50,9 @@ namespace SynthEBD
                 Subgroups.Add(_selfFactory(subgroup, this, ParentAssetPack, Subgroups));
             }
 
+            this.WhenAnyValue(x => x.AssociatedViewModel.ID).Subscribe(y => ID = y).DisposeWith(this);
+            this.WhenAnyValue(x => x.AssociatedViewModel.Name).Subscribe(y => Name = y).DisposeWith(this);
+
             DeleteMe = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: _ => ParentCollection.Remove(this)
@@ -64,12 +68,14 @@ namespace SynthEBD
         }
 
         public AssetPack.Subgroup AssociatedModel { get; set; } = new();
+        public VM_Subgroup? AssociatedViewModel { get; set; }
         public string ID { get; set; }
         public string Name { get; set; }
         public ObservableCollection<VM_SubgroupPlaceHolder> Subgroups { get; set; } = new();
         public VM_SubgroupPlaceHolder? ParentSubgroup { get; set; } = null;
         public VM_AssetPack ParentAssetPack { get; set; } = null;
         public ObservableCollection<VM_SubgroupPlaceHolder> ParentCollection { get; set; }
+        public ObservableCollection<ImagePreviewHandler.ImagePathWithSource> ImagePaths { get; set; } = new();
         public RelayCommand DeleteMe { get; }
         public RelayCommand AddSubgroup { get; }
 
@@ -414,13 +420,31 @@ namespace SynthEBD
             return false;
         }
 
-        public void GetDDSPaths(ObservableCollection<ImagePreviewHandler.ImagePathWithSource> paths)
+        public void GetDDSPaths()
         {
-            _logger.LogStartupEventStart("Getting DDS Paths for subgroup " + ID);
-            var ddsPaths = AssociatedModel.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(_environmentProvider.DataFolderPath, x.Source)))
-                .Select(x => x.Source)
-                .Select(x => System.IO.Path.Combine(_environmentProvider.DataFolderPath, x))
-                .ToHashSet() ?? new HashSet<string>();
+            ImagePaths.Clear();
+            GetDDSPaths(ImagePaths);
+        }
+
+        private void GetDDSPaths(ObservableCollection<ImagePreviewHandler.ImagePathWithSource> paths)
+        {
+            HashSet<string> ddsPaths = new HashSet<string>();
+            if (ParentAssetPack.SelectedPlaceHolder == this && AssociatedViewModel != null)
+            {
+                ddsPaths = AssociatedViewModel.PathsMenu.Paths
+                    .Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(_environmentProvider.DataFolderPath, x.Source)))
+                    .Select(x => x.Source)
+                    .Select(x => System.IO.Path.Combine(_environmentProvider.DataFolderPath, x))
+                    .ToHashSet();
+            }
+            else
+            {
+                ddsPaths = AssociatedModel.Paths.Where(x => x.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(System.IO.Path.Combine(_environmentProvider.DataFolderPath, x.Source)))
+                    .Select(x => x.Source)
+                    .Select(x => System.IO.Path.Combine(_environmentProvider.DataFolderPath, x))
+                    .ToHashSet() ?? new HashSet<string>();
+            }
+
             foreach (var path in ddsPaths)
             {
                 var imagePathWithSource = new ImagePreviewHandler.ImagePathWithSource(path, this);
@@ -434,7 +458,6 @@ namespace SynthEBD
             {
                 subgroup.GetDDSPaths(paths);
             }
-            _logger.LogStartupEventEnd("Getting DDS Paths for subgroup " + ID);
         }
 
         public bool VersionUpdate(Version version, UpdateMode updateAction)
