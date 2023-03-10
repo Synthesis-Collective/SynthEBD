@@ -1,5 +1,5 @@
-using Mutagen.Bethesda.Fallout4;
 using Mutagen.Bethesda.Plugins.Cache;
+using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using ReactiveUI;
 using System;
@@ -25,7 +25,7 @@ namespace SynthEBD
 
             Label = associatedModel.EditorID;
 
-            if (_environmentProvider.LinkCache.TryResolve(AssociatedModel.HeadPartFormKey, out var testHeadPartGetter))
+            if (_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(AssociatedModel.HeadPartFormKey, out var testHeadPartGetter))
             {
                 BorderColor = CommonColors.Green;
             }
