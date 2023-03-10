@@ -113,6 +113,11 @@ public sealed class Logger : VM
         }
     }
 
+    public void LogStartupEventInsert(string message)
+    {
+        _startupLog.Add(FormatTimeStamp(DateTime.Now) + GetIndentString() + message);
+    }
+
     public void LogStartupEventEnd(string message)
     {
         lock (LockStartupLogMethod)

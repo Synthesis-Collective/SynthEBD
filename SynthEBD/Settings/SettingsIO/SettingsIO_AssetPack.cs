@@ -54,18 +54,22 @@ public class SettingsIO_AssetPack
 
         string[] filePaths;
 
+        string logSearchPath = _paths.AssetPackDirPath;
+
         if (Directory.Exists(_paths.AssetPackDirPath))
         {
             filePaths = Directory.GetFiles(_paths.AssetPackDirPath, "*.json");
         }
         else
         {
-            filePaths = Directory.GetFiles(_paths.GetFallBackPath(_paths.AssetPackDirPath), "*.json");
+            logSearchPath = _paths.GetFallBackPath(_paths.AssetPackDirPath);
+            filePaths = Directory.GetFiles(logSearchPath , "*.json");
         }
+
+        _logger.LogStartupEventStart("Loading " + filePaths.Count().ToString() + " config files from " + logSearchPath);
 
         foreach (string s in filePaths)
         {
-            _logger.LogStartupEventStart("Loading Asset Config File from " + s);
             var synthEBDconfig = LoadAssetPack(s, raceGroupings, recordTemplatePlugins, availableBodyGenConfigs, out bool success);
             if (success)
             {
@@ -74,9 +78,11 @@ public class SettingsIO_AssetPack
             else
             {
                 loadSuccess = false;
+                _logger.LogError("Failed to load config file from " + s);
             }
-            _logger.LogStartupEventEnd("Loading Asset Config File from " + s);
         }
+
+        _logger.LogStartupEventEnd("Loading " + filePaths.Count().ToString() + " config files from " + logSearchPath);
 
         return loadedPacks;
     }
