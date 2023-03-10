@@ -410,14 +410,10 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         texMesh.AssetPacks.Clear();
         for (int i = 0; i < assetPacks.Count; i++)
         {
-            logger.LogStartupEventStart("Loading UI for Asset Config File " + assetPacks[i].GroupName);
-            logger.LogStartupEventStart("Creating new Asset Pack UI");
             var viewModel = assetPackFactory(assetPacks[i]);
-            logger.LogStartupEventEnd("Creating new Asset Pack UI");
             viewModel.CopyInViewModelFromModel(assetPacks[i], mainRaceGroupings);
             viewModel.IsSelected = texMeshSettings.SelectedAssetPacks.Contains(assetPacks[i].GroupName);
             texMesh.AssetPacks.Add(viewModel);
-            logger.LogStartupEventEnd("Loading UI for Asset Config File " + assetPacks[i].GroupName);
         }
     }
     

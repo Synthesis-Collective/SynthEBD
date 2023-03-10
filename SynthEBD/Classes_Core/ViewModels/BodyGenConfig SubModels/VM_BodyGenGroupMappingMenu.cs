@@ -101,7 +101,6 @@ public class VM_BodyGenRacialMapping : VM
 
     public static VM_BodyGenRacialMapping GetViewModelFromModel(BodyGenConfig.RacialMapping model, VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyGenRacialMapping.Factory mappingFactory, Logger logger)
     {
-        logger.LogStartupEventStart("Generating BodyGen Group Map UI");
         VM_BodyGenRacialMapping viewModel = mappingFactory(groupsMenu, raceGroupingVMs);
 
         viewModel.Label = model.Label;
@@ -111,7 +110,6 @@ public class VM_BodyGenRacialMapping : VM
         {
             viewModel.Combinations.Add(VM_BodyGenCombination.GetViewModelFromModel(combination, groupsMenu, viewModel));
         }
-        logger.LogStartupEventEnd("Generating BodyGen Group Map UI");
         return viewModel;
     }
 
