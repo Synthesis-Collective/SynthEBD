@@ -76,6 +76,7 @@ namespace SynthEBD
         public VM_AssetPack ParentAssetPack { get; set; } = null;
         public ObservableCollection<VM_SubgroupPlaceHolder> ParentCollection { get; set; }
         public ObservableCollection<ImagePreviewHandler.ImagePathWithSource> ImagePaths { get; set; } = new();
+        public int ImageRefreshTrigger { get; set; } = 0; // this seems ridiculous but actually works well
         public RelayCommand DeleteMe { get; }
         public RelayCommand AddSubgroup { get; }
 

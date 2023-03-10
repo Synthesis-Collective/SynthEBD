@@ -23,39 +23,16 @@ namespace SynthEBD
 
             _logger = logger;
 
-            this.WhenAnyValue(x => x.AssetPack.SelectedPlaceHolder)
-                .Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler)
-                .Subscribe(x =>
-            {
-                if (x != null && AssetPack != null)
-                {
-                    ClearPreviewImages();
-                    x.ImagePaths.ToObservableChangeSet().Subscribe(_ => 
-                        UpdatePreviewImages(AssetPack)
-                    ).DisposeWith(x);
-                }
-            }).DisposeWith(this);
-
-            /*
-            Observable.CombineLatest(
-                this.WhenAnyValue(x => x.AssetPack.SelectedPlaceHolder),
-                AssetPack.SelectedPlaceHolder.ImagePaths.ToObservableChangeSet(),
-                (_, _) => { return 0; })
-            .Subscribe(_ => 
-                UpdatePreviewImages(AssetPack)
-            ).DisposeWith(this);
-            */
-            /*
             this.WhenAnyValue(
-                x => x.AssetPack.SelectedPlaceHolder.ImagePaths,
+                x => x.AssetPack.SelectedPlaceHolder,
                 x => x.ParentUI.bShowPreviewImages,
+                x => x.AssetPack.SelectedPlaceHolder.ImageRefreshTrigger,
                 // Just pass along the signal, don't care about the triggering values
-                (_, _) => Unit.Default)
-            .Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler)
+                (_, _, _) => Unit.Default)
+            .Throttle(TimeSpan.FromMilliseconds(50), RxApp.MainThreadScheduler)
             .Subscribe(_ => 
                 UpdatePreviewImages(AssetPack))
             .DisposeWith(this);
-            */
         }
 
         public VM_SettingsTexMesh ParentUI { get; private set; }
