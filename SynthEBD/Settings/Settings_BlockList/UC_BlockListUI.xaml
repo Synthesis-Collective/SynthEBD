@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SynthEBD.UC_BlockListUI"
+<UserControl x:Class="SynthEBD.UC_BlockListUI"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -27,7 +27,7 @@
         <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddBlockedNPC}" Foreground="Lightgreen">Add New</Button>
         <ScrollViewer Grid.Column="0" Grid.Row="2">
             <StackPanel >
-                <ListBox SelectedValue="{Binding DisplayedNPC}" ItemsSource="{Binding BlockedNPCs}" IsSynchronizedWithCurrentItem="True" >
+                <ListBox SelectedValue="{Binding SelectedNPC}" ItemsSource="{Binding BlockedNPCs}" IsSynchronizedWithCurrentItem="True" >
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Grid>
@@ -57,7 +57,7 @@
         <Button Grid.Column="0" Grid.Row="4" Command="{Binding AddBlockedPlugin}" Foreground="Lightgreen">Add New</Button>
         <ScrollViewer Grid.Column="0" Grid.Row="5">
             <StackPanel >
-                <ListBox SelectedValue="{Binding DisplayedPlugin}" ItemsSource="{Binding BlockedPlugins}" IsSynchronizedWithCurrentItem="True" >
+                <ListBox SelectedValue="{Binding SelectedPlugin}" ItemsSource="{Binding BlockedPlugins}" IsSynchronizedWithCurrentItem="True" >
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Grid>

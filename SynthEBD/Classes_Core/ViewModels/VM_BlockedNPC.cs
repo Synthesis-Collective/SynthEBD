@@ -12,11 +12,15 @@ public class VM_BlockedNPC : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Converters _converters;
-    public delegate VM_BlockedNPC Factory();
-    public VM_BlockedNPC(IEnvironmentStateProvider environmentProvider, Converters converters)
+    public delegate VM_BlockedNPC Factory(VM_BlockedNPCPlaceHolder associatedPlaceHolder);
+    public VM_BlockedNPC(VM_BlockedNPCPlaceHolder associatedPlaceHolder, IEnvironmentStateProvider environmentProvider, Converters converters)
     {
         _environmentProvider = environmentProvider;
         _converters = converters;
+
+        AssociatedPlaceHolder = associatedPlaceHolder;
+        AssociatedPlaceHolder.AssociatedViewModel = this;
+
         this.WhenAnyValue(x => x.FormKey).Subscribe(x =>
         {
             if (!FormKey.IsNull)
@@ -52,30 +56,46 @@ public class VM_BlockedNPC : VM
         new(HeadPart.TypeEnum.Scars, false)
     };
 
+    public VM_BlockedNPCPlaceHolder AssociatedPlaceHolder { get; }
+
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
 
-    public static VM_BlockedNPC GetViewModelFromModel(BlockedNPC model, VM_BlockedNPC.Factory factory)
+    public static VM_BlockedNPC CreateViewModel(VM_BlockedNPCPlaceHolder placeHolder, VM_BlockedNPC.Factory factory)
     {
-        VM_BlockedNPC viewModel = factory();
-        viewModel.FormKey = model.FormKey;
-        viewModel.Assets = model.Assets;
-        viewModel.Height = model.Height;
-        viewModel.BodyShape = model.BodyShape;
-        viewModel.HeadParts = model.HeadParts;
-        foreach (var type in model.HeadPartTypes.Keys) { viewModel.HeadPartTypes.Where(x => x.Type == type).First().Block = model.HeadPartTypes[type]; }
+        VM_BlockedNPC viewModel = factory(placeHolder);
+        viewModel.FormKey = placeHolder.AssociatedModel.FormKey;
+        viewModel.Assets = placeHolder.AssociatedModel.Assets;
+        viewModel.Height = placeHolder.AssociatedModel.Height;
+        viewModel.BodyShape = placeHolder.AssociatedModel.BodyShape;
+        viewModel.HeadParts = placeHolder.AssociatedModel.HeadParts;
+        foreach (var type in placeHolder.AssociatedModel.HeadPartTypes.Keys) { viewModel.HeadPartTypes.Where(x => x.Type == type).First().Block = placeHolder.AssociatedModel.HeadPartTypes[type]; }
         return viewModel;
     }
 
-    public static BlockedNPC DumpViewModelToModel(VM_BlockedNPC viewModel)
+    public BlockedNPC DumpViewModelToModel()
     {
         BlockedNPC model = new BlockedNPC();
-        model.FormKey = viewModel.FormKey;
-        model.Assets = viewModel.Assets;
-        model.Height = viewModel.Height;
-        model.BodyShape = viewModel.BodyShape;
-        model.HeadParts = viewModel.HeadParts;
-        foreach (var type in model.HeadPartTypes.Keys) { model.HeadPartTypes[type] = viewModel.HeadPartTypes.Where(x => x.Type == type).First().Block; }
+        model.FormKey = FormKey;
+        model.Assets = Assets;
+        model.Height = Height;
+        model.BodyShape = BodyShape;
+        model.HeadParts = HeadParts;
+        foreach (var type in model.HeadPartTypes.Keys) { model.HeadPartTypes[type] = HeadPartTypes.Where(x => x.Type == type).First().Block; }
         return model;
     }
+}
+
+public class VM_BlockedNPCPlaceHolder: VM
+{
+    public delegate VM_BlockedNPCPlaceHolder Factory(BlockedNPC associatedModel);
+    public VM_BlockedNPCPlaceHolder(BlockedNPC associatedModel, Converters converters)
+    {
+        AssociatedModel = associatedModel;
+        DispName = converters.CreateNPCDispNameFromFormKey(associatedModel.FormKey);
+        this.WhenAnyValue(x => x.AssociatedViewModel.DispName).Subscribe(y => DispName = y).DisposeWith(this);
+    }
+    public string DispName { get; set; }
+    public BlockedNPC AssociatedModel { get; set; }
+    public VM_BlockedNPC? AssociatedViewModel { get; set; }
 }

@@ -153,7 +153,7 @@ namespace SynthEBD
             // Load general settings
             _generalSettingsVM.CopyInFromModel(_patcherState.GeneralSettings, _raceAliasFactory, _linkedNPCFactory, _environmentProvider.LinkCache);
             _texMeshSettingsVM.CopyInViewModelFromModel(_patcherState.TexMeshSettings);
-            _blockList.CopyInViewModelFromModel(_patcherState.BlockList, _blockedNPCFactory, _blockedPluginFactory);
+            _blockList.CopyInViewModelFromModel(_patcherState.BlockList);
             _settingsModManager.CopyInViewModelFromModel(_patcherState.ModManagerSettings);
         }
 

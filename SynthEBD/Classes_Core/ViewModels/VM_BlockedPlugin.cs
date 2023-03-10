@@ -12,10 +12,14 @@ namespace SynthEBD;
 public class VM_BlockedPlugin : VM
 {
     private IEnvironmentStateProvider _environmentProvider;
-    public delegate VM_BlockedPlugin Factory();
-    public VM_BlockedPlugin(IEnvironmentStateProvider environmentProvider)
+    public delegate VM_BlockedPlugin Factory(VM_BlockedPluginPlaceHolder associatedPlaceHolder);
+    public VM_BlockedPlugin(VM_BlockedPluginPlaceHolder associatedPlaceHolder, IEnvironmentStateProvider environmentProvider)
     {
         _environmentProvider = environmentProvider;
+
+        AssociatedPlaceHolder = associatedPlaceHolder;
+        AssociatedPlaceHolder.AssociatedViewModel = this;
+
         this.WhenAnyValue(x => x.ModKey).Subscribe(x =>
         {
             if (!ModKey.IsNull)
@@ -56,37 +60,52 @@ public class VM_BlockedPlugin : VM
         new(HeadPart.TypeEnum.Scars, false)
     };
 
+    public VM_BlockedPluginPlaceHolder AssociatedPlaceHolder { get; }
+
     public ILinkCache lk { get; private set; }
     public ILoadOrderGetter LoadOrder { get; private set; }
 
-    public static VM_BlockedPlugin GetViewModelFromModel(BlockedPlugin model, VM_BlockedPlugin.Factory factory)
+    public static VM_BlockedPlugin CreateViewModel(VM_BlockedPluginPlaceHolder placeHolder, VM_BlockedPlugin.Factory factory)
     {
-        VM_BlockedPlugin viewModel = factory();
-        viewModel.DispName = model.ModKey.FileName;
-        viewModel.ModKey = model.ModKey;
-        viewModel.Assets = model.Assets;
-        viewModel.Height = model.Height;
-        viewModel.BodyShape = model.BodyShape;
-        viewModel.HeadParts = model.HeadParts;
-        foreach (var type in model.HeadPartTypes.Keys) 
+        VM_BlockedPlugin viewModel = factory(placeHolder);
+        viewModel.DispName = placeHolder.AssociatedModel.ModKey.FileName;
+        viewModel.ModKey = placeHolder.AssociatedModel.ModKey;
+        viewModel.Assets = placeHolder.AssociatedModel.Assets;
+        viewModel.Height = placeHolder.AssociatedModel.Height;
+        viewModel.BodyShape = placeHolder.AssociatedModel.BodyShape;
+        viewModel.HeadParts = placeHolder.AssociatedModel.HeadParts;
+        foreach (var type in placeHolder.AssociatedModel.HeadPartTypes.Keys) 
         { 
-            viewModel.HeadPartTypes.Where(x => x.Type == type).First().Block = model.HeadPartTypes[type]; 
+            viewModel.HeadPartTypes.Where(x => x.Type == type).First().Block = placeHolder.AssociatedModel.HeadPartTypes[type]; 
         }
         return viewModel;
     }
 
-    public static BlockedPlugin DumpViewModelToModel(VM_BlockedPlugin viewModel)
+    public BlockedPlugin DumpViewModelToModel()
     {
         BlockedPlugin model = new BlockedPlugin();
-        model.ModKey = viewModel.ModKey;
-        model.Assets = viewModel.Assets;
-        model.Height = viewModel.Height;
-        model.BodyShape = viewModel.BodyShape;
-        model.HeadParts = viewModel.HeadParts;
+        model.ModKey = ModKey;
+        model.Assets = Assets;
+        model.Height = Height;
+        model.BodyShape = BodyShape;
+        model.HeadParts = HeadParts;
         foreach (var type in model.HeadPartTypes.Keys) 
         { 
-            model.HeadPartTypes[type] = viewModel.HeadPartTypes.Where(x => x.Type == type).First().Block; 
+            model.HeadPartTypes[type] = HeadPartTypes.Where(x => x.Type == type).First().Block; 
         }
         return model;
     }
+}
+
+public class VM_BlockedPluginPlaceHolder : VM
+{
+    public VM_BlockedPluginPlaceHolder(BlockedPlugin associatedModel)
+    {
+        AssociatedModel = associatedModel;
+        DispName = associatedModel.ModKey.FileName;
+        this.WhenAnyValue(x => x.AssociatedViewModel.DispName).Subscribe(y => DispName = y).DisposeWith(this);
+    }
+    public string DispName { get; set; }
+    public BlockedPlugin AssociatedModel { get; set; }
+    public VM_BlockedPlugin? AssociatedViewModel { get; set; }
 }

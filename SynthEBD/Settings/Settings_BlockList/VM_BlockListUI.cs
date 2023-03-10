@@ -1,5 +1,8 @@
 using Mutagen.Bethesda.Skyrim;
+using Noggog;
+using ReactiveUI;
 using System.Collections.ObjectModel;
+using System.Reactive.Linq;
 
 namespace SynthEBD;
 
@@ -9,32 +12,77 @@ public class VM_BlockListUI : VM
     private readonly SettingsIO_BlockList _blockListIO;
     private readonly VM_BlockedNPC.Factory _blockedNPCFactory;
     private readonly VM_BlockedPlugin.Factory _blockedPluginFactory;
-    public VM_BlockListUI(Logger logger, SettingsIO_BlockList blockListIO, VM_BlockedNPC.Factory blockedNPCFactory, VM_BlockedPlugin.Factory blockedPluginFactory)
+    private readonly VM_BlockedNPCPlaceHolder.Factory _blockedNPCPlaceHolderFactory;
+    public VM_BlockListUI(Logger logger, SettingsIO_BlockList blockListIO, VM_BlockedNPC.Factory blockedNPCFactory, VM_BlockedPlugin.Factory blockedPluginFactory, VM_BlockedNPCPlaceHolder.Factory npcPlaceHolderFactory)
     {
         _logger = logger;
         _blockListIO = blockListIO;
         _blockedNPCFactory = blockedNPCFactory;
         _blockedPluginFactory = blockedPluginFactory;
+        _blockedNPCPlaceHolderFactory = npcPlaceHolderFactory;
+
+        this.WhenAnyValue(vm => vm.SelectedNPC)
+             .Buffer(2, 1)
+             .Select(b => (Previous: b[0], Current: b[1]))
+             .Subscribe(t => {
+                 if (t.Previous != null && t.Previous.AssociatedViewModel != null)
+                 {
+                     t.Previous.AssociatedModel = t.Previous.AssociatedViewModel.DumpViewModelToModel();
+                 }
+
+                 if (t.Current != null)
+                 {
+                     DisplayedNPC = VM_BlockedNPC.CreateViewModel(t.Current, blockedNPCFactory);
+                 }
+             }).DisposeWith(this);
+
+        this.WhenAnyValue(vm => vm.SelectedPlugin)
+             .Buffer(2, 1)
+             .Select(b => (Previous: b[0], Current: b[1]))
+             .Subscribe(t => {
+                 if (t.Previous != null && t.Previous.AssociatedViewModel != null)
+                 {
+                     t.Previous.AssociatedModel = t.Previous.AssociatedViewModel.DumpViewModelToModel();
+                 }
+
+                 if (t.Current != null)
+                 {
+                     DisplayedPlugin = VM_BlockedPlugin.CreateViewModel(t.Current, blockedPluginFactory);
+                 }
+             }).DisposeWith(this);
 
         AddBlockedNPC = new RelayCommand(
             canExecute: _ => true,
-            execute: x => BlockedNPCs.Add(blockedNPCFactory())
-        );
+            execute: x => {
+                var newBlockedNPC = npcPlaceHolderFactory(new BlockedNPC());
+                var newBlockedVM = blockedNPCFactory(newBlockedNPC);
+                BlockedNPCs.Add(newBlockedNPC);
+                SelectedNPC = newBlockedNPC;
+                });
 
         RemoveBlockedNPC = new RelayCommand(
             canExecute: _ => true,
-            execute: x => BlockedNPCs.Remove((VM_BlockedNPC)x)
-        );
+            execute: x => { 
+                BlockedNPCs.Remove((VM_BlockedNPCPlaceHolder)x);
+                DisplayedNPC = null;
+            });
 
         AddBlockedPlugin = new RelayCommand(
             canExecute: _ => true,
-            execute: x => BlockedPlugins.Add(_blockedPluginFactory())
-        );
+            execute: x => {
+                var newBlockedPlugin = new VM_BlockedPluginPlaceHolder(new BlockedPlugin());
+                var newBlockedVM = blockedPluginFactory(newBlockedPlugin);
+                BlockedPlugins.Add(newBlockedPlugin);
+                SelectedPlugin = newBlockedPlugin;
+            });
 
         RemoveBlockedPlugin = new RelayCommand(
             canExecute: _ => true,
-            execute: x => BlockedPlugins.Remove((VM_BlockedPlugin)x)
-        );
+            execute: x =>
+            {
+                BlockedPlugins.Remove((VM_BlockedPluginPlaceHolder)x);
+                DisplayedPlugin = null;
+            });
 
         ImportFromZEBDcommand = new RelayCommand(
             canExecute: _ => true,
@@ -59,8 +107,11 @@ public class VM_BlockListUI : VM
         );
     }
 
-    public ObservableCollection<VM_BlockedNPC> BlockedNPCs { get; set; } = new();
-    public ObservableCollection<VM_BlockedPlugin> BlockedPlugins { get; set; } = new();
+    public ObservableCollection<VM_BlockedNPCPlaceHolder> BlockedNPCs { get; set; } = new();
+    public ObservableCollection<VM_BlockedPluginPlaceHolder> BlockedPlugins { get; set; } = new();
+
+    public VM_BlockedNPCPlaceHolder SelectedNPC { get; set; }
+    public VM_BlockedPluginPlaceHolder SelectedPlugin { get; set; }
 
     public VM_BlockedNPC DisplayedNPC { get; set; }
     public VM_BlockedPlugin DisplayedPlugin { get; set; }
@@ -72,7 +123,7 @@ public class VM_BlockListUI : VM
     public RelayCommand ImportFromZEBDcommand { get; set; }
     public RelayCommand Save { get; }
 
-    public void CopyInViewModelFromModel(BlockList model, VM_BlockedNPC.Factory blockedNPCFactory, VM_BlockedPlugin.Factory blockedPluginFactory)
+    public void CopyInViewModelFromModel(BlockList model)
     {
         if (model == null)
         {
@@ -82,29 +133,39 @@ public class VM_BlockListUI : VM
         BlockedNPCs.Clear();
         foreach (var blockedNPC in model.NPCs)
         {
-            BlockedNPCs.Add(VM_BlockedNPC.GetViewModelFromModel(blockedNPC, blockedNPCFactory));
+            BlockedNPCs.Add(_blockedNPCPlaceHolderFactory(blockedNPC));
         }
 
         BlockedPlugins.Clear();
         foreach (var blockedPlugin in model.Plugins)
         {
-            BlockedPlugins.Add(VM_BlockedPlugin.GetViewModelFromModel(blockedPlugin, blockedPluginFactory));
+            BlockedPlugins.Add(new VM_BlockedPluginPlaceHolder(blockedPlugin));
         }
         _logger.LogStartupEventEnd("Loading BlockList UI");
     }
 
     public BlockList DumpViewModelToModel()
     {
+        if (DisplayedNPC != null)
+        {
+            DisplayedNPC.AssociatedPlaceHolder.AssociatedModel = DisplayedNPC.DumpViewModelToModel();
+        }
+
+        if (DisplayedPlugin != null)
+        {
+            DisplayedPlugin.AssociatedPlaceHolder.AssociatedModel = DisplayedPlugin.DumpViewModelToModel();
+        }
+
         BlockList model = new();
         model.NPCs.Clear();
         foreach (var npc in BlockedNPCs)
         {
-            model.NPCs.Add(VM_BlockedNPC.DumpViewModelToModel(npc));
+            model.NPCs.Add(npc.AssociatedModel);
         }
         model.Plugins.Clear();
         foreach (var plugin in BlockedPlugins)
         {
-            model.Plugins.Add(VM_BlockedPlugin.DumpViewModelToModel(plugin));
+            model.Plugins.Add(plugin.AssociatedModel);
         }
         return model;
     }
@@ -130,7 +191,7 @@ public class VM_BlockListUI : VM
             if (parsed)
             {
                 var loadedList = loadedZList.ToSynthEBD();
-                CopyInViewModelFromModel(loadedList, _blockedNPCFactory, _blockedPluginFactory);
+                CopyInViewModelFromModel(loadedList);
             }
             else
             {
