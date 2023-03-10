@@ -178,8 +178,8 @@ namespace SynthEBD
             // load specific assignments (must load after plugin view models)
             _specificAssignmentsUI.GetViewModelFromModels(_patcherState.SpecificNPCAssignments);
 
-            // Load Consistency (must load after plugin view models)
-            VM_ConsistencyUI.GetViewModelsFromModels(_patcherState.Consistency, _consistencyUi.Assignments, _texMeshSettingsVM.AssetPacks, _headPartSettingsVM, _logger);
+            // Consistency VMs no longer need to be loaded. Load Consistency (must load after plugin view models)
+            //VM_ConsistencyUI.GetViewModelsFromModels(_patcherState.Consistency, _consistencyUi.Assignments, _texMeshSettingsVM.AssetPacks, _headPartSettingsVM, _logger);
         }
 
         public void SavePluginViewModels()

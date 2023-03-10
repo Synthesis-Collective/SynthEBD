@@ -5,20 +5,38 @@ using Noggog;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using ReactiveUI;
+using System.Reactive.Linq;
 
 namespace SynthEBD;
 
 public class VM_ConsistencyUI : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
-    public readonly Logger _logger;
+    private readonly PatcherState _patcherState;
+    private readonly Logger _logger;
+    private readonly VM_ConsistencyAssignment.Factory _consistencyFactory;
 
-    public VM_ConsistencyUI(IEnvironmentStateProvider environmentProvider, Logger logger)
+    public VM_ConsistencyUI(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, VM_ConsistencyAssignment.Factory consistencyFactory)
     {
         _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
         _logger = logger;
+        _consistencyFactory = consistencyFactory;
 
-        this.WhenAnyValue(x => x.SelectedNPCFormKey).Subscribe(x => CurrentlyDisplayedAssignment = Assignments.Where(y => y.NPCFormKey.Equals(x)).FirstOrDefault()).DisposeWith(this);
+        this.WhenAnyValue(x => x.SelectedNPCFormKey)
+            .Buffer(2, 1)
+            .Select(b => (Previous: b[0], Current: b[1]))
+            .Subscribe(x =>
+            {
+                if (x.Previous != null && !x.Previous.IsNull && CurrentlyDisplayedAssignment != null)
+                {
+                    CurrentlyDisplayedAssignment.DumpViewModelToModel();
+                }
+                if (x.Current != null && !x.Current.IsNull)
+                {
+                    ReloadActiveViewModel();
+                }
+            }).DisposeWith(this);
         
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
@@ -28,8 +46,12 @@ public class VM_ConsistencyUI : VM
             canExecute: _ => true,
             execute: x =>
             {
-                this.CurrentlyDisplayedAssignment = null;
-                this.Assignments.Remove(CurrentlyDisplayedAssignment);
+               CurrentlyDisplayedAssignment = null;
+                var currentFKstr = SelectedNPCFormKey.ToString();
+                if (_patcherState.Consistency.ContainsKey(currentFKstr))
+                {
+                    _patcherState.Consistency.Remove(currentFKstr);
+                }
             }
         );
 
@@ -37,14 +59,15 @@ public class VM_ConsistencyUI : VM
             canExecute: _ => true,
             execute: x =>
             {
-                foreach (var assignment in Assignments)
+                foreach (var assignment in _patcherState.Consistency.Values)
                 {
                     assignment.AssetPackName = "";
-                    assignment.SubgroupIDs.Clear();
-                    assignment.AssetReplacements.Clear();
-                    assignment.MixInAssignments.Clear();
+                    assignment.SubgroupIDs?.Clear();
+                    assignment.AssetReplacerAssignments?.Clear();
+                    assignment.MixInAssignments?.Clear();
                 }
                 _logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared asset consistency", ErrorType.Warning, 2);
+                ReloadActiveViewModel();
             }
         );
 
@@ -52,12 +75,13 @@ public class VM_ConsistencyUI : VM
             canExecute: _ => true,
             execute: x =>
             {
-                foreach (var assignment in Assignments)
+                foreach (var assignment in _patcherState.Consistency.Values)
                 {
-                    assignment.BodyGenMorphNames.Clear();
+                    assignment.BodyGenMorphNames?.Clear();
                     assignment.BodySlidePreset = "";
                 }
                 _logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared body shape consistency", ErrorType.Warning, 2);
+                ReloadActiveViewModel();
             }
         );
 
@@ -65,11 +89,12 @@ public class VM_ConsistencyUI : VM
             canExecute: _ => true,
             execute: x =>
             {
-                foreach (var assignment in Assignments)
+                foreach (var assignment in _patcherState.Consistency.Values)
                 {
-                    assignment.Height = "";
+                    assignment.Height = null;
                 }
                 _logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared height consistency", ErrorType.Warning, 2);
+                ReloadActiveViewModel();
             }
         );
 
@@ -77,17 +102,12 @@ public class VM_ConsistencyUI : VM
             canExecute: _ => true,
             execute: x =>
             {
-                foreach (var assignment in Assignments)
+                foreach (var assignment in _patcherState.Consistency.Values)
                 {
-                    foreach (var headpart in assignment.HeadParts)
-                    {
-                        if (headpart.Value != null)
-                        {
-                            headpart.Value.ClearAssignment();
-                        }
-                    }
+                    assignment.HeadParts?.Clear();
                 }
                 _logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared head part consistency", ErrorType.Warning, 2);
+                ReloadActiveViewModel();
             }
         );
 
@@ -98,14 +118,14 @@ public class VM_ConsistencyUI : VM
                 if (CustomMessageBox.DisplayNotificationYesNo("Confirmation", "Are you sure you want to completely clear the consistency file?"))
                 {
                     CurrentlyDisplayedAssignment = null;
-                    Assignments.Clear();
+                    _patcherState.Consistency.Clear();
                 }
                 _logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared all consistency", ErrorType.Warning, 2);
+                ReloadActiveViewModel();
             }
         );
     }
 
-    public ObservableCollection<VM_ConsistencyAssignment> Assignments { get; set; } = new();
     public VM_ConsistencyAssignment CurrentlyDisplayedAssignment { get; set; } = null;
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> AllowedFormKeyTypes { get; } = typeof(INpcGetter).AsEnumerable();
@@ -119,6 +139,19 @@ public class VM_ConsistencyUI : VM
     public RelayCommand DeleteAllHeadParts { get; set; }
     public RelayCommand DeleteAllNPCs { get; set; }
 
+    public void ReloadActiveViewModel()
+    {
+        if (SelectedNPCFormKey != null && !SelectedNPCFormKey.IsNull)
+        {
+            var key = SelectedNPCFormKey.ToString();
+            if (_patcherState.Consistency.ContainsKey(key))
+            {
+                CurrentlyDisplayedAssignment = _consistencyFactory(_patcherState.Consistency[key]);
+                CurrentlyDisplayedAssignment.GetViewModelFromModel(_patcherState.Consistency[key]);
+            }
+        }
+    }
+    /*
     public static void GetViewModelsFromModels(Dictionary<string, NPCAssignment> models, ObservableCollection<VM_ConsistencyAssignment> viewModels, ObservableCollection<VM_AssetPack> AssetPackVMs, VM_Settings_Headparts headParts, Logger logger)
     {
         if (models == null)
@@ -135,14 +168,13 @@ public class VM_ConsistencyUI : VM
         }
         logger.LogStartupEventEnd("Loading UI for Consistency Menu");
     }
-
+    */
     public Dictionary<string, NPCAssignment> DumpViewModelsToModels()
     {
-        Dictionary<string, NPCAssignment> models = new();
-        foreach (var viewModel in Assignments)
+        if (CurrentlyDisplayedAssignment != null)
         {
-            models.Add(viewModel.NPCFormKey.ToString(), viewModel.DumpViewModelToModel());
+            CurrentlyDisplayedAssignment.DumpViewModelToModel();
         }
-        return models;
+        return _patcherState.Consistency;
     }
 }

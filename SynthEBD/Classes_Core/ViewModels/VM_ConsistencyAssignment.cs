@@ -8,9 +8,13 @@ namespace SynthEBD;
 
 public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
 {
+    private readonly VM_SettingsTexMesh _texMeshUI;
     private readonly Logger _logger;
-    public VM_ConsistencyAssignment(Logger logger)
+    public delegate VM_ConsistencyAssignment Factory(NPCAssignment model);
+    public VM_ConsistencyAssignment(NPCAssignment model, VM_SettingsTexMesh texMeshUI, Logger logger)
     {
+        AssociatedModel = model;
+        _texMeshUI = texMeshUI;
         _logger = logger;
 
         this.WhenAnyValue(x => x.AssetPackName).Subscribe(x => AssetPackAssigned = AssetPackName != null && AssetPackName.Any()).DisposeWith(this);
@@ -57,6 +61,8 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
     public string DispName { get; set; }
     public FormKey NPCFormKey { get; set; }
 
+    public NPCAssignment AssociatedModel { get; set; }
+
     public RelayCommand DeleteAssetPackCommand { get; set; }
     public RelayCommand DeleteBodySlideCommand { get; set; }
     public RelayCommand DeleteHeightCommand { get; set; }
@@ -66,97 +72,93 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
     public bool HeightAssigned { get; set; } = false;
     public Gender Gender { get; set; } // only needs to satisfy the HeadPart assignment view model.
 
-    public static VM_ConsistencyAssignment GetViewModelFromModel(NPCAssignment model, ObservableCollection<VM_AssetPack> AssetPackVMs, Logger logger)
+    public void GetViewModelFromModel(NPCAssignment model)
     {
-        VM_ConsistencyAssignment viewModel = new VM_ConsistencyAssignment(logger);
-        viewModel.AssetPackName = model.AssetPackName;
-        viewModel.SubgroupIDs = new ObservableCollection<VM_CollectionMemberString>();
+        AssetPackName = model.AssetPackName;
+        SubgroupIDs = new ObservableCollection<VM_CollectionMemberString>();
         if (model.SubgroupIDs != null)
         {
             foreach (var id in model.SubgroupIDs)
             {
-                viewModel.SubgroupIDs.Add(new VM_CollectionMemberString(id, viewModel.SubgroupIDs));
+                SubgroupIDs.Add(new VM_CollectionMemberString(id, SubgroupIDs));
             }
         }
         foreach (var mixIn in model.MixInAssignments)
         {
-            var mixInVM = new VM_MixInConsistencyAssignment(viewModel.MixInAssignments) { AssetPackName = mixIn.AssetPackName};
+            var mixInVM = new VM_MixInConsistencyAssignment(MixInAssignments) { AssetPackName = mixIn.AssetPackName};
             foreach (var id in mixIn.SubgroupIDs)
             {
                 mixInVM.SubgroupIDs.Add(new VM_CollectionMemberString(id, mixInVM.SubgroupIDs));
             }
             mixInVM.DeclinedAssignment = mixIn.DeclinedAssignment;
-            viewModel.MixInAssignments.Add(mixInVM);
+            MixInAssignments.Add(mixInVM);
         }
         foreach(var replacer in model.AssetReplacerAssignments)
         {
-            var parentAssetPack = AssetPackVMs.Where(x => x.GroupName == replacer.AssetPackName).FirstOrDefault();
+            var parentAssetPack = _texMeshUI.AssetPacks.Where(x => x.GroupName == replacer.AssetPackName).FirstOrDefault();
             if (parentAssetPack != null)
             {
-                VM_AssetReplacementAssignment subVm = new VM_AssetReplacementAssignment(parentAssetPack, viewModel.AssetReplacements);
+                VM_AssetReplacementAssignment subVm = new VM_AssetReplacementAssignment(parentAssetPack, AssetReplacements);
                 subVm.CopyInViewModelFromModel(replacer);
-                viewModel.AssetReplacements.Add(subVm);
+                AssetReplacements.Add(subVm);
             }
         }
-        viewModel.BodyGenMorphNames = new ObservableCollection<VM_CollectionMemberString>();
+        BodyGenMorphNames = new ObservableCollection<VM_CollectionMemberString>();
         if (model.BodyGenMorphNames != null)
         {
             foreach (var morph in model.BodyGenMorphNames)
             {
-                viewModel.BodyGenMorphNames.Add(new VM_CollectionMemberString(morph, viewModel.BodyGenMorphNames));
+                BodyGenMorphNames.Add(new VM_CollectionMemberString(morph, BodyGenMorphNames));
             }
         }
-        viewModel.BodySlidePreset = model.BodySlidePreset;
+        BodySlidePreset = model.BodySlidePreset;
         if (model.Height != null)
         {
-            viewModel.Height = model.Height.ToString();
+            Height = model.Height.ToString();
         }
         else
         {
-            viewModel.Height = "";
+            Height = "";
         }
 
-        foreach (var headPartType in viewModel.HeadParts.Keys)
+        foreach (var headPartType in HeadParts.Keys)
         {
             if (!model.HeadParts.ContainsKey(headPartType)) { model.HeadParts.Add(headPartType, new()); }
             else
             {
-                viewModel.HeadParts[headPartType] = VM_HeadPartConsistency.GetViewModelFromModel(model.HeadParts[headPartType]);
+                HeadParts[headPartType] = VM_HeadPartConsistency.GetViewModelFromModel(model.HeadParts[headPartType]);
             }
         }
 
-        viewModel.DispName = model.DispName;
-        viewModel.NPCFormKey = model.NPCFormKey;
-
-        return viewModel;
+        DispName = model.DispName;
+        NPCFormKey = model.NPCFormKey;
     }
 
-    public NPCAssignment DumpViewModelToModel()
+    public void DumpViewModelToModel()
     {
-        NPCAssignment model = new NPCAssignment();
-        model.AssetPackName = AssetPackName;
-        model.SubgroupIDs = SubgroupIDs.Select(x => x.Content).ToList();
-        if (model.SubgroupIDs.Count == 0) { model.SubgroupIDs = null; }
-        model.MixInAssignments.Clear();
+        AssociatedModel.AssetPackName = AssetPackName;
+        AssociatedModel.SubgroupIDs = SubgroupIDs.Select(x => x.Content).ToList();
+        if (AssociatedModel.SubgroupIDs.Count == 0) { AssociatedModel.SubgroupIDs = null; }
+        AssociatedModel.MixInAssignments.Clear();
         foreach (var mixInVM in MixInAssignments)
         {
-            model.MixInAssignments.Add(new NPCAssignment.MixInAssignment() { AssetPackName = mixInVM.AssetPackName, SubgroupIDs = mixInVM.SubgroupIDs.Select(x => x.Content).ToList(), DeclinedAssignment = mixInVM.DeclinedAssignment });
+            AssociatedModel.MixInAssignments.Add(new NPCAssignment.MixInAssignment() { AssetPackName = mixInVM.AssetPackName, SubgroupIDs = mixInVM.SubgroupIDs.Select(x => x.Content).ToList(), DeclinedAssignment = mixInVM.DeclinedAssignment });
         }
-        model.AssetReplacerAssignments.Clear();
+        AssociatedModel.AssetReplacerAssignments.Clear();
         foreach (var replacer in AssetReplacements)
         {
-            model.AssetReplacerAssignments.Add(VM_AssetReplacementAssignment.DumpViewModelToModel(replacer));
+            AssociatedModel.AssetReplacerAssignments.Add(VM_AssetReplacementAssignment.DumpViewModelToModel(replacer));
         }
-        model.BodyGenMorphNames = BodyGenMorphNames.Select(x => x.Content).ToList();
-        if (model.BodyGenMorphNames.Count == 0) { model.BodyGenMorphNames = null; }
-        model.BodySlidePreset = BodySlidePreset;
+        AssociatedModel.BodyGenMorphNames = BodyGenMorphNames.Select(x => x.Content).ToList();
+        if (AssociatedModel.BodyGenMorphNames.Count == 0) { AssociatedModel.BodyGenMorphNames = null; }
+        AssociatedModel.BodySlidePreset = BodySlidePreset;
         if (Height == "")
         {
-            model.Height = null;
+            AssociatedModel.Height = null;
         }
         else if (float.TryParse(Height, out var height))
         {
-            model.Height = height;
+            AssociatedModel.Height = height;
         }
         else
         {
@@ -165,12 +167,11 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
 
         foreach (var headPartType in HeadParts.Keys)
         {
-            model.HeadParts[headPartType] = HeadParts[headPartType].DumpToModel();
+            AssociatedModel.HeadParts[headPartType] = HeadParts[headPartType].DumpToModel();
         }
 
-        model.DispName = DispName;
-        model.NPCFormKey = NPCFormKey;
-        return model;
+        AssociatedModel.DispName = DispName;
+        AssociatedModel.NPCFormKey = NPCFormKey;
     }
 
     public class VM_MixInConsistencyAssignment
