@@ -121,7 +121,7 @@ public class VM_BodySlidesMenu : VM
                  CurrentlyDisplayedBodySlide = bodySlideFactory(t.Current, raceGroupingVMs);
                  CurrentlyDisplayedBodySlide.CopyInViewModelFromModel(t.Current.AssociatedModel);
              }
-         });
+         }).DisposeWith(this);
 
         this.WhenAnyValue(x => x.SelectedGender).Subscribe(x =>
         {
