@@ -137,7 +137,7 @@ public class VM_SettingsTexMesh : VM
                 var installedConfigs = _configInstaller.InstallConfigFile(out bool triggerGeneralVMRefresh);
                 if (installedConfigs.Any())
                 {
-                    ConfigVersionUpdate(Version.v090, installedConfigs);
+                    ConfigUpdateAll(installedConfigs);
                     RefreshInstalledConfigs(installedConfigs);
                 }
                 if (triggerGeneralVMRefresh)
@@ -157,11 +157,14 @@ public class VM_SettingsTexMesh : VM
                     if (loadSuccess)
                     {
                         newAssetPack.FilePath = System.IO.Path.Combine(_paths.AssetPackDirPath, System.IO.Path.GetFileName(newAssetPack.FilePath)); // overwrite existing filepath so it doesn't get deleted from source
+                        List<string> installedConfigsSingle = new() { newAssetPack.GroupName };
                         var newAssetPackVM = assetPackFactory(newAssetPack);
                         newAssetPackVM.CopyInViewModelFromModel(newAssetPack, general.RaceGroupingEditor.RaceGroupings);
                         newAssetPackVM.IsSelected = true;
-                        ConfigVersionUpdate(Version.v090, new() { newAssetPackVM.GroupName});
                         AssetPacks.Add(newAssetPackVM);
+                        ConfigUpdateAll(installedConfigsSingle);
+
+                        AssetPresenterPrimary.AssetPack = newAssetPackVM;
                     }
                 }
             }
@@ -387,6 +390,14 @@ public class VM_SettingsTexMesh : VM
         else
         {
             bShowSKSEversionOptions = false;
+        }
+    }
+
+    public void ConfigUpdateAll(List<string> assetPacks)
+    {
+        foreach (Version version in Enum.GetValues(typeof(Version)))
+        {
+            ConfigVersionUpdate(version, assetPacks);
         }
     }
 

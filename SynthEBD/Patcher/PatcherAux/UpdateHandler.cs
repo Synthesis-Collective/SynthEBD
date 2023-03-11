@@ -26,7 +26,7 @@ namespace SynthEBD
         }
         private void UpdateAssetPacks(VM_SettingsTexMesh texMeshVM)
         {
-            texMeshVM.ConfigVersionUpdate(Version.v090, new());
+            texMeshVM.ConfigUpdateAll(new());
         }    
         public void CleanSPIDiniHeadParts()
         {
