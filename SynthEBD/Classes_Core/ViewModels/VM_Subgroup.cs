@@ -220,7 +220,7 @@ public class VM_Subgroup : VM, IDropTarget
         {
             if (ParentAssetPack.TryGetSubgroupByID(exID, out var exSubgroup))
             {
-                RequiredSubgroups.Add(exSubgroup);
+                ExcludedSubgroups.Add(exSubgroup);
             }
         }
 
