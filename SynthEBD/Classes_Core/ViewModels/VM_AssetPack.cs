@@ -543,7 +543,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         {
             if (success)
             {
-                _logger.CallTimedNotifyStatusUpdateAsync(GroupName + " Saved.", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+                _logger.CallTimedNotifyStatusUpdateAsync(GroupName + " Saved.", 2, CommonColors.Yellow);
             }
             else
             {
@@ -939,24 +939,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         return false;
     }
 
-    /*
-    public static bool SubgroupHasSourcePath(VM_Subgroup subgroup, string destinationPath)
-    {
-        if (subgroup.PathsMenu.Paths.Where(x => Path.GetFileName(x.Source).Equals(destinationPath, StringComparison.OrdinalIgnoreCase)).Any())
-        {
-            return true;
-        }
-
-        foreach (var sg in subgroup.Subgroups)
-        {
-            if (SubgroupHasDestinationPath(sg, destinationPath))
-            {
-                return true;
-            }
-        }
-        return false;
-    }*/
-
     public List<string> GetDisabledSubgroups()
     {
         List<string> disabledSubgroups = new();
@@ -1244,6 +1226,79 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             {
                 _auxIO.TryDeleteDirectory(parentDir.FullName, false);
             } 
+        }
+    }
+
+    public void DeleteMissingDescriptors()
+    {
+        foreach (var subgroup in Subgroups)
+        {
+            DeletedMissingDescriptors(subgroup.AssociatedModel, _patcherState.OBodySettings, TrackedBodyGenConfig.DumpViewModelToModel());
+        }
+        if (DisplayedSubgroup != null)
+        {
+            DisplayedSubgroup.CopyInViewModelFromModel();
+        }
+
+        _logger.CallTimedNotifyStatusUpdateAsync("Deleted Missing Descriptors", 2, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow));
+    }
+
+    private static void DeletedMissingDescriptors(Subgroup subgroup, Settings_OBody oBodySettings, BodyGenConfig? bodyGenConfig)
+    {
+        if (bodyGenConfig != null)
+        {
+            var allowedDescriptorsBG = subgroup.AllowedBodyGenDescriptors.ToList();
+            for (int i = 0; i < allowedDescriptorsBG.Count; i++)
+            {
+                var descriptor = allowedDescriptorsBG[i];
+                if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors))
+                {
+                    subgroup.AllowedBodyGenDescriptors.Remove(descriptor);
+                    allowedDescriptorsBG.RemoveAt(i);
+                    i--;
+                }
+            }
+
+            var disallowedDescriptorsBG = subgroup.DisallowedBodyGenDescriptors.ToList();
+            for (int i = 0; i < disallowedDescriptorsBG.Count; i++)
+            {
+                var descriptor = disallowedDescriptorsBG[i];
+                if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors))
+                {
+                    subgroup.DisallowedBodyGenDescriptors.Remove(descriptor);
+                    disallowedDescriptorsBG.RemoveAt(i);
+                    i--;
+                }
+            }
+        }
+
+        var allowedDescriptorsBS = subgroup.AllowedBodySlideDescriptors.ToList();
+        for (int i = 0; i < allowedDescriptorsBS.Count; i++)
+        {
+            var descriptor = allowedDescriptorsBS[i];
+            if (!descriptor.CollectionContainsThisDescriptor(oBodySettings.TemplateDescriptors))
+            {
+                subgroup.AllowedBodySlideDescriptors.Remove(descriptor);
+                allowedDescriptorsBS.RemoveAt(i);
+                i--;
+            }
+        }
+
+        var disallowedDescriptorsBS = subgroup.DisallowedBodySlideDescriptors.ToList();
+        for (int i = 0; i < disallowedDescriptorsBS.Count; i++)
+        {
+            var descriptor = disallowedDescriptorsBS[i];
+            if (!descriptor.CollectionContainsThisDescriptor(oBodySettings.TemplateDescriptors))
+            {
+                subgroup.DisallowedBodySlideDescriptors.Remove(descriptor);
+                disallowedDescriptorsBS.RemoveAt(i);
+                i--;
+            }
+        }
+
+        foreach (var sg in subgroup.Subgroups)
+        {
+            DeletedMissingDescriptors(sg, oBodySettings, bodyGenConfig);
         }
     }
 }

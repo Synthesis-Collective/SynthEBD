@@ -35,9 +35,15 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ => SetMatchModes(AllowedStr, AllowedDescriptorMatchMode)
             );
+
             SetDisallowedDescriptorMatchModes = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => SetMatchModes(DisallowedStr, DisallowedDescriptorMatchMode)
+            );
+
+            DeleteMissingDescriptors = new RelayCommand(
+                canExecute: _ => true,
+                execute: _ => parentPack.DeleteMissingDescriptors()
             );
 
             AddMixInToSpecificAssignments = new RelayCommand(
@@ -69,6 +75,7 @@ namespace SynthEBD
         public DescriptorMatchMode AllowedDescriptorMatchMode { get; set; } = DescriptorMatchMode.All;
         public RelayCommand SetDisallowedDescriptorMatchModes { get; }
         public DescriptorMatchMode DisallowedDescriptorMatchMode { get; set; } = DescriptorMatchMode.Any;
+        public RelayCommand DeleteMissingDescriptors { get; }
         public bool ShowMixInCommands { get; set; } = false;
         public RelayCommand AddMixInToSpecificAssignments { get; }
         public bool AsDeclinedSNA { get; set; }
