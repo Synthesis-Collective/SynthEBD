@@ -245,6 +245,15 @@ public class VM_BodySlideSetting : VM
         bAllowRandom = model.AllowRandom;
         ProbabilityWeighting = model.ProbabilityWeighting;
         WeightRange = model.WeightRange.Clone();
+
+        if (model.HideInMenu)
+        {
+            HideButtonText = "Unhide";
+        }
+        else
+        {
+            HideButtonText = "Hide";
+        }
     }
 
     public BodySlideSetting DumpToModel()

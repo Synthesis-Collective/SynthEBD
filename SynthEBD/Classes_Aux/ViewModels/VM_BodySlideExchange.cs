@@ -326,10 +326,7 @@ namespace SynthEBD
 
             if (ExchangeRules)
             {
-                var index = bodySlides.IndexOf(targetPlaceHolder);
                 targetPlaceHolder.AssociatedModel = importedBS;
-                bodySlides.Remove(targetPlaceHolder);
-                bodySlides.Insert(index, targetPlaceHolder);
             }
             else
             {
@@ -343,6 +340,12 @@ namespace SynthEBD
             else
             {
                 targetPlaceHolder.AssociatedModel.Notes = notesBak;
+            }
+
+            targetPlaceHolder.InitializeBorderColor(); // refresh border around the list member
+            if (targetPlaceHolder.AssociatedViewModel != null) 
+            {
+                targetPlaceHolder.AssociatedViewModel.CopyInViewModelFromModel(targetPlaceHolder.AssociatedModel); // refresh displayed view model with new descriptors
             }
         }
     }

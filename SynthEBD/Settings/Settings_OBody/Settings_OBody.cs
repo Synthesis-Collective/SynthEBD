@@ -92,27 +92,17 @@ public class Settings_OBody
 
                     BodySlideSetting newPreset = new BodySlideSetting();
                     newPreset.Label = presetName;
+                    newPreset.ReferencedBodySlide = presetName;
 
-                    if (newPreset.Label.Contains("Zero for OBody", StringComparison.OrdinalIgnoreCase))
+                    if (newPreset.Label.Contains("Zero for OBody", StringComparison.OrdinalIgnoreCase) ||
+                        newPreset.Label.Contains("Zeroed Sliders", StringComparison.OrdinalIgnoreCase) ||
+                        newPreset.Label.Contains("Clothes", StringComparison.OrdinalIgnoreCase) ||
+                        newPreset.Label.Contains("Outfit", StringComparison.OrdinalIgnoreCase) ||
+                        newPreset.Label.Contains("Refit ", StringComparison.OrdinalIgnoreCase))
                     {
                         newPreset.AllowRandom = false;
                         newPreset.HideInMenu = true;
-                    }
-                    if (newPreset.Label.Contains("Zeroed Sliders", StringComparison.OrdinalIgnoreCase))
-                    {
-                        newPreset.AllowRandom = false;
-                        newPreset.HideInMenu = true;
-                    }
-                    if (newPreset.Label.Contains("Clothes", StringComparison.OrdinalIgnoreCase))
-                    {
-                        newPreset.AllowRandom = false;
-                        newPreset.HideInMenu = true;
-                    }
-                    if (newPreset.Label.Contains("Outfit", StringComparison.OrdinalIgnoreCase))
-                    {
-                        newPreset.AllowRandom = false;
-                        newPreset.HideInMenu = true;
-                    }
+                    }                    
 
                     if (defaultAnnotationDict.ContainsKey(presetName))
                     {

@@ -23,23 +23,12 @@ namespace SynthEBD
             Label = model.Label;
             ParentCollection = parentCollection;
 
-            IsVisible = !AssociatedModel.HideInMenu;
-
-            if (!_patcherState.OBodySettings.CurrentlyExistingBodySlides.Contains(AssociatedModel.ReferencedBodySlide))
-            {
-                BorderColor = CommonColors.Red;
-            }
-            else if (!AssociatedModel.BodyShapeDescriptors.Any())
-            {
-                BorderColor = CommonColors.Yellow;
-            }
-            else
-            {
-                BorderColor = CommonColors.Green;
-            }
+            InitializeBorderColor();
 
             this.WhenAnyValue(x => x.AssociatedViewModel.Label).Subscribe(y => Label = y).DisposeWith(this);
             this.WhenAnyValue(x => x.AssociatedViewModel.BorderColor).Subscribe(y => BorderColor = y).DisposeWith(this);
+
+            IsHidden = AssociatedModel.HideInMenu;
 
             this.WhenAnyValue(x => x.IsHidden).Subscribe(x =>
             {
@@ -66,6 +55,22 @@ namespace SynthEBD
         public BodySlideSetting AssociatedModel { get; set; }
         public VM_BodySlideSetting? AssociatedViewModel { get; set; }
         public ObservableCollection<VM_BodySlidePlaceHolder> ParentCollection { get; set; }
+
+        public void InitializeBorderColor()
+        {
+            if (!_patcherState.OBodySettings.CurrentlyExistingBodySlides.Contains(AssociatedModel.ReferencedBodySlide))
+            {
+                BorderColor = CommonColors.Red;
+            }
+            else if (!AssociatedModel.BodyShapeDescriptors.Any())
+            {
+                BorderColor = CommonColors.Yellow;
+            }
+            else
+            {
+                BorderColor = CommonColors.Green;
+            }
+        }
 
         public int RenameByIndex()
         {
