@@ -479,7 +479,6 @@ namespace SynthEBD
                                 path.Destination = MiscFunctions.ReplaceLastOccurrence(path.Destination, lastClass, _updateHandler.V09PathReplacements[lastClass]);
                                 break;
                         }
-                        return true;
                     }
                 }
             }
