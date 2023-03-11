@@ -44,7 +44,7 @@ namespace SynthEBD
         {
             ClearPreviewImages(); // Try to free memory as completely as possible before loading more images
 
-            if (source == null || source.DisplayedSubgroup == null) { return; }
+            if (source == null || source.DisplayedSubgroup == null || source.SelectedPlaceHolder == null) { return; }
             foreach (var sourcedImagePath in source.SelectedPlaceHolder.ImagePaths)
             {
                 var availableRAM = new Microsoft.VisualBasic.Devices.ComputerInfo().AvailablePhysicalMemory;
