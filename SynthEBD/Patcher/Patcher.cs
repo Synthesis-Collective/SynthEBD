@@ -122,7 +122,10 @@ public class Patcher
 
         // Asset Pre-patching tasks:
         _assetsStatsTracker = new(_patcherState, _logger, _environmentProvider.LinkCache);
-        var assetPacks = _patcherState.AssetPacks.Where(x => _patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)).ToList();
+        var assetPacks = _patcherState.AssetPacks
+            .Where(x => _patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName))
+            .Select(x => JSONhandler<AssetPack>.CloneViaJSON(x))
+            .ToList();
         CategorizedFlattenedAssetPacks availableAssetPacks = null;
         Keyword EBDFaceKW = null;
         Keyword EBDScriptKW = null;
