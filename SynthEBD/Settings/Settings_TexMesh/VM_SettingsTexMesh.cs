@@ -28,6 +28,7 @@ public class VM_SettingsTexMesh : VM
         VM_SettingsModManager modManager,
         VM_AssetPack.Factory assetPackFactory,
         VM_SubgroupPlaceHolder.Factory subgroupPlaceHolderFactory,
+        VM_Subgroup.Factory subgroupFactory,
         IEnvironmentStateProvider environmentProvider,
         Logger logger,
         SynthEBDPaths paths,
@@ -110,7 +111,9 @@ public class VM_SettingsTexMesh : VM
                 newAP.Subgroups.Add(newSG);
                 AssetPacks.Add(newAP);
                 AssetPresenterPrimary.AssetPack = newAP;
-                //AssetPresenterPrimary.AssetPack.DisplayedSubgroup = 
+                var sVM = subgroupFactory(newSG, newAP, false);
+                sVM.CopyInViewModelFromModel();
+                AssetPresenterPrimary.AssetPack.DisplayedSubgroup = sVM;
             }
         );
 
