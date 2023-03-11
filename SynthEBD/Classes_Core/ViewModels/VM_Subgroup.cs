@@ -242,7 +242,7 @@ public class VM_Subgroup : VM, IDropTarget
         }
 
         AllowedBodySlideDescriptors.CopyInFromHashSet(model.AllowedBodySlideDescriptors);
-        AllowedBodyGenDescriptors.MatchMode = model.AllowedBodySlideMatchMode;
+        AllowedBodySlideDescriptors.MatchMode = model.AllowedBodySlideMatchMode;
         DisallowedBodySlideDescriptors.CopyInFromHashSet(model.DisallowedBodySlideDescriptors);
         DisallowedBodySlideDescriptors.MatchMode = model.DisallowedBodySlideMatchMode;
     }
