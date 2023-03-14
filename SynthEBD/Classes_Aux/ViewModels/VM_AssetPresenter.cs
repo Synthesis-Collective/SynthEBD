@@ -44,31 +44,38 @@ namespace SynthEBD
         {
             ClearPreviewImages(); // Try to free memory as completely as possible before loading more images
 
-            if (source == null || source.DisplayedSubgroup == null || source.SelectedPlaceHolder == null) { return; }
-            foreach (var sourcedImagePath in source.SelectedPlaceHolder.ImagePaths)
+            try
             {
-                var availableRAM = new Microsoft.VisualBasic.Devices.ComputerInfo().AvailablePhysicalMemory;
-                if (availableRAM <= ByteLimit) { continue; }
-                if (AssetPack.DisplayedSubgroup != null && sourcedImagePath.SourceChain != null & !sourcedImagePath.SourceChain.Contains(AssetPack.SelectedPlaceHolder)) { continue; } // stop loading images from a previous subgroup if a different one is selected
+                if (source == null || source.DisplayedSubgroup == null || source.SelectedPlaceHolder == null) { return; }
+                foreach (var sourcedImagePath in source.SelectedPlaceHolder.ImagePaths)
+                {
+                    var availableRAM = new Microsoft.VisualBasic.Devices.ComputerInfo().AvailablePhysicalMemory;
+                    if (availableRAM <= ByteLimit) { continue; }
+                    if (AssetPack.DisplayedSubgroup != null && sourcedImagePath.SourceChain != null & !sourcedImagePath.SourceChain.Contains(AssetPack.SelectedPlaceHolder)) { continue; } // stop loading images from a previous subgroup if a different one is selected
 
-                try
-                {                   
-                    using (IImage image = await Task.Run(() => Pfimage.FromFile(sourcedImagePath.Path)))
+                    try
                     {
-                        if (image != null)
+                        using (IImage image = await Task.Run(() => Pfimage.FromFile(sourcedImagePath.Path)))
                         {
-                            var bmp = ImagePreviewHandler.ResizeIImageAsBitMap(image, ParentUI.MaxPreviewImageSize);
-                            var bmpSource = ImagePreviewHandler.CreateBitmapSourceFromGdiBitmap(bmp); // Try setting xaml to display bitmap directly
-                            if (!sourcedImagePath.SourceChain.Contains(AssetPack.SelectedPlaceHolder)) { continue; } // Intentional duplication: Pfim.FromFile() takes some time to execute and may already be in progress when the user changes the active subgroup, leading to the last previous PreviewImage loading erroneously
-                            PreviewImages.Add(new VM_PreviewImage(bmpSource, sourcedImagePath.PrimarySource));
+                            if (image != null)
+                            {
+                                var bmp = ImagePreviewHandler.ResizeIImageAsBitMap(image, ParentUI.MaxPreviewImageSize);
+                                var bmpSource = ImagePreviewHandler.CreateBitmapSourceFromGdiBitmap(bmp); // Try setting xaml to display bitmap directly
+                                if (!sourcedImagePath.SourceChain.Contains(AssetPack.SelectedPlaceHolder)) { continue; } // Intentional duplication: Pfim.FromFile() takes some time to execute and may already be in progress when the user changes the active subgroup, leading to the last previous PreviewImage loading erroneously
+                                PreviewImages.Add(new VM_PreviewImage(bmpSource, sourcedImagePath.PrimarySource));
+                            }
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        string errorStr = "Failed to load preview image from Subgroup " + sourcedImagePath.PrimarySource + " : " + sourcedImagePath.Path + Environment.NewLine + ExceptionLogger.GetExceptionStack(ex);
+                        _logger.LogMessage(errorStr);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    string errorStr = "Failed to load preview image from Subgroup " + sourcedImagePath.PrimarySource + " : " + sourcedImagePath.Path + Environment.NewLine + ExceptionLogger.GetExceptionStack(ex);
-                    _logger.LogMessage(errorStr);
-                }
+            }
+            catch
+            {
+                // fall through silently if user is spammy and triggers exception "Collection was modified; enumeration operation may not execute."
             }
             return;
         }
