@@ -22,7 +22,7 @@ public class VM_BodySlideSetting : VM
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
 
     public delegate VM_BodySlideSetting Factory(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
-    public VM_BodySlideSetting(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+    public VM_BodySlideSetting(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_BodySlidePlaceHolder.Factory placeHolderFactory)
     {
         ParentMenuVM = oBodySettingsVM;
 
@@ -34,6 +34,7 @@ public class VM_BodySlideSetting : VM
         _bodyShapeDescriptors = oBodySettingsVM.DescriptorUI;
         _raceGroupingVMs = raceGroupingVMs;
         _selfFactory = selfFactory;
+        _placeHolderFactory = placeHolderFactory;
         _descriptorSelectionFactory = descriptorSelectionFactory;
 
         DescriptorsSelectionMenu = _descriptorSelectionFactory(_bodyShapeDescriptors, raceGroupingVMs, oBodySettingsVM, false, DescriptorMatchMode.Any);

@@ -106,7 +106,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         existingPresets.Clear();
         foreach (var preset in model.BodySlidesFemale)
         {
-            var presetVM = _bodySlidePlaceHolderFactory(preset, BodySlidesUI.BodySlidesMale);
+            var presetVM = _bodySlidePlaceHolderFactory(preset, BodySlidesUI.BodySlidesFemale);
             BodySlidesUI.BodySlidesFemale.Add(presetVM);
         }
 

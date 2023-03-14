@@ -80,7 +80,10 @@ namespace SynthEBD
             for (int i = 0; i < ParentCollection.Count; i++)
             {
                 var clone = ParentCollection[i];
-                if (clone.AssociatedModel.ReferencedBodySlide != clone.AssociatedModel.ReferencedBodySlide) { continue; }
+                if (AssociatedModel.ReferencedBodySlide != clone.AssociatedModel.ReferencedBodySlide) 
+                { 
+                    continue; 
+                }
                 lastClonePosition = i;
                 if (GetTrailingInt(clone.Label, out int currentIndex) && currentIndex > cloneIndex)
                 {
@@ -104,6 +107,12 @@ namespace SynthEBD
             else
             {
                 Label += cloneIndex;
+            }
+
+            AssociatedModel.Label = Label;
+            if (AssociatedViewModel != null)
+            {
+                AssociatedViewModel.Label = Label;
             }
             return lastClonePosition;
         }
