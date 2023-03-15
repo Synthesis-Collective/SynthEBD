@@ -559,6 +559,10 @@ namespace SynthEBD
         }
         public VM_SubgroupPlaceHolder Clone(VM_AssetPack parentAssetPack, ObservableCollection<VM_SubgroupPlaceHolder> parentCollection)
         {
+            if (AssociatedViewModel != null)
+            {
+               AssociatedModel = AssociatedViewModel.DumpViewModelToModel();
+            }
             var clonedModel = JSONhandler<AssetPack.Subgroup>.CloneViaJSON(AssociatedModel);
             return _selfFactory(clonedModel, this, parentAssetPack, parentCollection);
         }
