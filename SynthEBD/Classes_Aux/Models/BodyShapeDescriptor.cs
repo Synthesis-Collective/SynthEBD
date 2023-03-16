@@ -123,6 +123,17 @@ public class BodyShapeDescriptor
                 return true;
             }
         }
+
+        public override bool Equals(object? obj)
+        {
+            var otherDescriptor = obj as LabelSignature;
+            return otherDescriptor != null && otherDescriptor.Category == Category && otherDescriptor.Value == Value;
+        }
+
+        public override int GetHashCode()
+        {
+            return this.Category.GetHashCode() ^ this.Value.GetHashCode();
+        }
     }
 
     public bool PermitNPC(NPCInfo npcInfo, HashSet<AttributeGroup> attributeGroups, AttributeMatcher attMatcher, out string reportStr)
