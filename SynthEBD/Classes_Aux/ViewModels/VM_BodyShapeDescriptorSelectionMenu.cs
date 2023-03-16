@@ -55,6 +55,9 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
     public VM_BodyShapeDescriptorShellSelector CurrentlyDisplayedShell { get; set; }
     public bool ShowMatchMode { get; set; } = false;
     public DescriptorMatchMode MatchMode { get; set; } = DescriptorMatchMode.All;
+
+    public HashSet<BodyShapeDescriptor.LabelSignature> BackupStash { get; set; } = new(); // if a descriptor is present in the model but not present in the corresponding UI, stash here to write back to the model
+
     public VM_BodyShapeDescriptorSelectionMenu Clone()
     {
         var modelDump = DumpToHashSet();
@@ -138,13 +141,15 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
                     }
                     if (keepLooking == false) { break; }
                 }
+                // if the code got here, the given descriptor isn't present in the UI
+                BackupStash.Add(descriptor);
             }
         }
     }
 
     public HashSet<BodyShapeDescriptor.LabelSignature> DumpToHashSet()
     {
-        HashSet<BodyShapeDescriptor.LabelSignature> output = new HashSet<BodyShapeDescriptor.LabelSignature>();
+        HashSet<BodyShapeDescriptor.LabelSignature> output = new(BackupStash);
         if (this is not null && DescriptorShells is not null)
         {
             foreach (var shell in DescriptorShells)
