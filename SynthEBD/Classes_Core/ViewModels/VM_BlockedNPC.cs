@@ -92,7 +92,10 @@ public class VM_BlockedNPCPlaceHolder: VM
     public VM_BlockedNPCPlaceHolder(BlockedNPC associatedModel, Converters converters)
     {
         AssociatedModel = associatedModel;
-        DispName = converters.CreateNPCDispNameFromFormKey(associatedModel.FormKey);
+        if (associatedModel.FormKey != null && !associatedModel.FormKey.IsNull)
+        {
+            DispName = converters.CreateNPCDispNameFromFormKey(associatedModel.FormKey);
+        }
         this.WhenAnyValue(x => x.AssociatedViewModel.DispName).Subscribe(y => DispName = y).DisposeWith(this);
     }
     public string DispName { get; set; }
