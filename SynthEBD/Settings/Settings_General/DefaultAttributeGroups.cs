@@ -16,7 +16,6 @@ public class DefaultAttributeGroups
                 {
                     new NPCAttributeFactions()
                     {
-                        Type = NPCAttributeType.Faction,
                         FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                         {
                             Skyrim.Faction.ServicesMarkarthCastleCook.FormKey
@@ -30,7 +29,6 @@ public class DefaultAttributeGroups
                 {
                     new NPCAttributeClass()
                     {
-                        Type = NPCAttributeType.Class,
                         FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                         {
                             Skyrim.Class.Bard.FormKey,
@@ -59,7 +57,6 @@ public class DefaultAttributeGroups
                 {
                     new NPCAttributeFactions()
                     {
-                        Type = NPCAttributeType.Faction,
                         FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                         {
                             Skyrim.Faction.PenitusOculatusFaction.FormKey,
@@ -84,7 +81,6 @@ public class DefaultAttributeGroups
                 {
                     new NPCAttributeClass()
                     {
-                        Type = NPCAttributeType.Class,
                         FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                         {
                             Skyrim.Class.CombatAssassin.FormKey,
@@ -135,7 +131,6 @@ public class DefaultAttributeGroups
                 {
                     new NPCAttributeClass()
                     {
-                        Type = NPCAttributeType.Class,
                         FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                         {
                             Skyrim.Class.CombatAssassin.FormKey,
@@ -179,7 +174,6 @@ public class DefaultAttributeGroups
                 {
                     new NPCAttributeClass()
                     {
-                        Type = NPCAttributeType.Class,
                         FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                         {
                             Skyrim.Class.Blade.FormKey,
@@ -206,7 +200,6 @@ public class DefaultAttributeGroups
                 {
                     new NPCAttributeNPC()
                     {
-                        Type = NPCAttributeType.NPC,
                         FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                         {
                             Skyrim.Npc.AelaTheHuntress.FormKey,
@@ -241,7 +234,6 @@ public class DefaultAttributeGroups
                 {
                     new NPCAttributeClass()
                     {
-                        Type = NPCAttributeType.Class,
                         FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                         {
                             Skyrim.Class.EncClassBanditMissile.FormKey,
@@ -263,7 +255,6 @@ public class DefaultAttributeGroups
                 {
                     new NPCAttributeNPC()
                     {
-                        Type= NPCAttributeType.NPC,
                         FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                         {
                             Skyrim.Npc.Nazeem.FormKey
@@ -278,7 +269,6 @@ public class DefaultAttributeGroups
                 {
                     new NPCAttributeFactions()
                     {
-                        Type = NPCAttributeType.Faction,
                         FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                         {
                             Skyrim.Faction.ServicesMarkarthCastleCook.FormKey
@@ -300,7 +290,6 @@ public class DefaultAttributeGroups
                 {
                     new NPCAttributeClass()
                     {
-                        Type = NPCAttributeType.Class,
                         FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                         {
                             Skyrim.Class.Bard.FormKey,
@@ -320,7 +309,6 @@ public class DefaultAttributeGroups
                 {
                     new NPCAttributeFactions()
                     {
-                        Type = NPCAttributeType.Faction,
                         FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                         {
                             Skyrim.Faction.ServicesMarkarthCastleCook.FormKey,
@@ -344,7 +332,6 @@ public class DefaultAttributeGroups
                 {
                     new NPCAttributeClass()
                     {
-                        Type = NPCAttributeType.Class,
                         FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                         {
                             Skyrim.Class.EncClassBanditMelee.FormKey,
@@ -368,7 +355,6 @@ public class DefaultAttributeGroups
                 {
                     new NPCAttributeClass()
                     {
-                        Type = NPCAttributeType.Class,
                         FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                         {
                             Skyrim.Class.Beggar.FormKey,
@@ -391,7 +377,6 @@ public class DefaultAttributeGroups
                 {
                     new NPCAttributeVoiceType()
                     {
-                        Type = NPCAttributeType.VoiceType,
                         FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                         {
                             Skyrim.VoiceType.MaleYoungEager.FormKey,
@@ -406,7 +391,6 @@ public class DefaultAttributeGroups
                 {
                     new NPCAttributeNPC()
                     {
-                        Type = NPCAttributeType.NPC,
                         FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                         {
                             FormKey.Factory("052FE7:3DNPC.esp") // Hjoromir
@@ -420,10 +404,22 @@ public class DefaultAttributeGroups
                 {
                     new NPCAttributeClass()
                     {
-                        Type = NPCAttributeType.NPC,
                         FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                         {
                             Skyrim.Class.Bard.FormKey
+                        }
+                    }
+                }
+            },
+            new NPCAttribute()
+            {
+                SubAttributes = new HashSet<ITypedNPCAttribute>()
+                {
+                    new NPCAttributeFactions()
+                    {
+                        FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+                        {
+                            Skyrim.Faction.JobInnServer.FormKey
                         }
                     }
                 }

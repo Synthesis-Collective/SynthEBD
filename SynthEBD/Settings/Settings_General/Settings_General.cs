@@ -214,7 +214,14 @@ public class Settings_General
         DefaultAttributeGroups.CannotHaveScars,
         DefaultAttributeGroups.CanBeDirty,
         DefaultAttributeGroups.MustBeDirty,
-        DefaultAttributeGroups.CanGetChubbyMorph
+        DefaultAttributeGroups.CanGetChubbyMorph,
+        DefaultAttributeGroups.MustGetYoungFace,
+        DefaultAttributeGroups.Age40,
+        DefaultAttributeGroups.Age40Rough,
+        DefaultAttributeGroups.Age50,
+        DefaultAttributeGroups.Freckles,
+        DefaultAttributeGroups.Rough01,
+        DefaultAttributeGroups.Rough02
     };
 
     public bool OverwritePluginAttGroups { get; set; } = true;
