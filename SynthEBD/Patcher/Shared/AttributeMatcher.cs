@@ -74,21 +74,21 @@ public class AttributeMatcher
 
                     case NPCAttributeType.Faction:
                         var factionAttribute = (NPCAttributeFactions)subAttribute;
+                        bool factionMatched = false;
                         foreach (var factionFK in factionAttribute.FormKeys)
                         {
-                            bool factionMatched = false;
                             foreach (var npcFaction in npc.Factions)
                             {
-                                if (npcFaction.Faction.FormKey.Equals(factionFK) && npcFaction.Rank > factionAttribute.RankMin && npcFaction.Rank < factionAttribute.RankMax)
+                                if (npcFaction.Faction.FormKey.Equals(factionFK) && npcFaction.Rank >= factionAttribute.RankMin && npcFaction.Rank <= factionAttribute.RankMax)
                                 {
                                     factionMatched = true;
                                     break;
                                 }
                             }
-                            if (!factionMatched)
-                            {
-                                subAttributeMatched = false;
-                            }
+                        }
+                        if (!factionMatched)
+                        {
+                            subAttributeMatched = false;
                         }
                         break;
                     case NPCAttributeType.FaceTexture:
