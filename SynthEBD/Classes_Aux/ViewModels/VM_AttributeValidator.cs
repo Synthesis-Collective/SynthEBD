@@ -58,7 +58,7 @@ namespace SynthEBD
 
             if (lk.TryResolve<INpcGetter>(NPCformkey, out var npc))
             {
-                _attributeMatcher.MatchNPCtoAttributeList(attList, npc, AttributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog, null);
+                _attributeMatcher.MatchNPCtoAttributeList(attList, npc, AttributeGroups, true, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog, null);
                 HasRestrictions = hasAttributeRestrictions;
                 MatchesRestrictions = matchesAttributeRestrictions;
                 MatchedLog = matchLog;

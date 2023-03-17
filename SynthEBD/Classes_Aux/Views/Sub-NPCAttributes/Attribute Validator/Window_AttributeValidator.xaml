@@ -7,7 +7,7 @@
         d:DataContext="{d:DesignInstance Type=local:VM_AttributeValidator}"
         xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
         mc:Ignorable="d"
-        Title="Window_AttributeValidator" Height="575" Width="800">
+        Title="Attribute Validator" Height="575" Width="800">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>

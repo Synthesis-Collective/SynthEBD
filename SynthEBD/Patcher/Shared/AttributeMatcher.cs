@@ -31,7 +31,7 @@ public class AttributeMatcher
     /// <param name="unmatchedLog">"Output: Log of unmatched Attributes</param>
     /// <param name="unmatchedLog">"Output: Log of matched ForceIf Attributes and their respective weights</param>
     /// <param name="overrideForceIf">"overrideForceIf: if not null, overrides the AttributeForcing on all sub-attributes (allows Group type attributes to forward its own forcing to recursive calls)</param>
-    public void MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, HashSet<AttributeGroup> attributeGroups, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog, AttributeForcing? overrideForceIf)
+    public void MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, HashSet<AttributeGroup> attributeGroups, bool bDetailedAttributeLogging, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog, AttributeForcing? overrideForceIf)
     {
         hasAttributeRestrictions = false;
         matchesAttributeRestrictions = false;
@@ -111,7 +111,7 @@ public class AttributeMatcher
                             else
                             {
                                 var recursiveForceMode = overrideForceIf ?? subAttribute.ForceMode;
-                                MatchNPCtoAttributeList(attributeGroup.Attributes, npc, attributeGroups, out _, out bool groupMatched, out int groupForceIfCount, out _, out _, out _, recursiveForceMode);
+                                MatchNPCtoAttributeList(attributeGroup.Attributes, npc, attributeGroups, bDetailedAttributeLogging, out _, out bool groupMatched, out int groupForceIfCount, out _, out _, out _, recursiveForceMode);
                                 if (groupMatched)
                                 {
                                     groupWeightingMultiplier = groupForceIfCount;
@@ -210,7 +210,7 @@ public class AttributeMatcher
                 if (!subAttributeMatchedWithNot && subAttribute.ForceMode != AttributeForcing.ForceIf && (overrideForceIf == null || overrideForceIf.Value != AttributeForcing.ForceIf)) //  "ForceIf" mode does not cause attribute to fail matching because it implies the user does not want this sub-attribute to restrict distribute (otherwise it would be ForceIfAndRestrict) 
                 {
                     if (unmatchedLog.Any()) { unmatchedLog += " | "; }
-                    unmatchedLog += subAttribute.ToLogString(_patcherState.GeneralSettings.VerboseModeDetailedAttributes, _environmentProvider.LinkCache);
+                    unmatchedLog += subAttribute.ToLogString(bDetailedAttributeLogging, _environmentProvider.LinkCache);
                     break; // stop evaluating sub-attributes if one sub-attribute isn't matched
                 }
                 else if (subAttributeMatchedWithNot && (subAttribute.ForceMode == AttributeForcing.ForceIf || subAttribute.ForceMode == AttributeForcing.ForceIfAndRestrict || forceIfFromOverride)) 
@@ -233,12 +233,12 @@ public class AttributeMatcher
 
             if (matchesAttributeRestrictions)
             {
-                matchLog += "\n" + attribute.ToLogString(_patcherState.GeneralSettings.VerboseModeDetailedAttributes, _environmentProvider.LinkCache);
+                matchLog += "\n" + attribute.ToLogString(bDetailedAttributeLogging, _environmentProvider.LinkCache);
             }
 
             if (currentAttributeForceIfWeight > 0)
             {
-                forceIfLog += "\n" + attribute.ToLogString(_patcherState.GeneralSettings.VerboseModeDetailedAttributes, _environmentProvider.LinkCache) + " (Weighting: " + currentAttributeForceIfWeight + ")";
+                forceIfLog += "\n" + attribute.ToLogString(bDetailedAttributeLogging, _environmentProvider.LinkCache) + " (Weighting: " + currentAttributeForceIfWeight + ")";
             }
         }
 

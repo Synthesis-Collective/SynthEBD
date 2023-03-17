@@ -136,9 +136,9 @@ public class BodyShapeDescriptor
         }
     }
 
-    public bool PermitNPC(NPCInfo npcInfo, HashSet<AttributeGroup> attributeGroups, AttributeMatcher attMatcher, out string reportStr)
+    public bool PermitNPC(NPCInfo npcInfo, HashSet<AttributeGroup> attributeGroups, AttributeMatcher attMatcher, bool bDetailedAttributeLogging, out string reportStr)
     {
-        return AssociatedRules.NPCisValid(this, attributeGroups, npcInfo, attMatcher, out reportStr);
+        return AssociatedRules.NPCisValid(this, attributeGroups, npcInfo, attMatcher, bDetailedAttributeLogging, out reportStr);
     }
 
     public static bool DescriptorsMatch(Dictionary<string, HashSet<string>> DescriptorSet, HashSet<LabelSignature> shapeDescriptors, DescriptorMatchMode matchMode, out string firstMatch)
