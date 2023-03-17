@@ -1,4 +1,5 @@
-﻿using Mutagen.Bethesda.FormKeys.SkyrimSE;
+using Mutagen.Bethesda.FormKeys.SkyrimSE;
+using Mutagen.Bethesda.Plugins;
 
 namespace SynthEBD;
 
@@ -372,6 +373,249 @@ public class DefaultAttributeGroups
                         {
                             Skyrim.Class.Beggar.FormKey,
                             Skyrim.Class.Miner.FormKey
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    public static AttributeGroup MustGetYoungFace = new AttributeGroup()
+    {
+        Label = "Must Get Young Face",
+        Attributes = new HashSet<NPCAttribute>()
+        {
+            new NPCAttribute()
+            {
+                SubAttributes = new HashSet<ITypedNPCAttribute>()
+                {
+                    new NPCAttributeVoiceType()
+                    {
+                        Type = NPCAttributeType.VoiceType,
+                        FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+                        {
+                            Skyrim.VoiceType.MaleYoungEager.FormKey,
+                            Skyrim.VoiceType.FemaleYoungEager.FormKey
+                        }
+                    }
+                }
+            },
+            new NPCAttribute()
+            {
+                SubAttributes = new HashSet<ITypedNPCAttribute>()
+                {
+                    new NPCAttributeNPC()
+                    {
+                        Type = NPCAttributeType.NPC,
+                        FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+                        {
+                            FormKey.Factory("052FE7:3DNPC.esp") // Hjoromir
+                        }
+                    }
+                }
+            },
+            new NPCAttribute()
+            {
+                SubAttributes = new HashSet<ITypedNPCAttribute>()
+                {
+                    new NPCAttributeClass()
+                    {
+                        Type = NPCAttributeType.NPC,
+                        FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+                        {
+                            Skyrim.Class.Bard.FormKey
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    public static AttributeGroup Age40 = new AttributeGroup()
+    {
+        Label = "Must Get Age40 Face",
+        Attributes = new HashSet<NPCAttribute>()
+        {
+            new NPCAttribute()
+            {
+                SubAttributes = new HashSet<ITypedNPCAttribute>()
+                {
+                    new NPCAttributeFaceTexture()
+                    {
+                        FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+                        {
+                            Skyrim.TextureSet.SkinHeadFemaleBretonComplexion_Age40.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleDarkElfComplexion_Age40.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleHighElfComplexion_Age40.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleImperialComplexion_Age40.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleNordComplexion_Age40.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleOrcComplexion_Age40.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleRedguardComplexion_Age40.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleWoodElfComplexion_Age40.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleBretonComplexion_Age40.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleDarkElfComplexion_Age40.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleHighElfComplexion_Age40.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleImperialComplexion_Age40.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleNordComplexion_Age40.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleOrcComplexion_Age40.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleRedGuardComplexion_Age40.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleWoodElfComplexion_Age40.FormKey
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    public static AttributeGroup Age40Rough = new AttributeGroup()
+    {
+        Label = "Must Get Age40 Rough Face",
+        Attributes = new HashSet<NPCAttribute>()
+        {
+            new NPCAttribute()
+            {
+                SubAttributes = new HashSet<ITypedNPCAttribute>()
+                {
+                    new NPCAttributeFaceTexture()
+                    {
+                        FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+                        {
+                            Skyrim.TextureSet.SkinHeadMaleBretonComplexion_Age40Rough.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleDarkElfComplexion_Age40Rough.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleHighElfComplexion_Age40Rough.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleImperialComplexion_Age40Rough.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleNordComplexion_Age40Rough.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleOrcComplexion_Age40Rough.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleRedGuardComplexion_Age40Rough.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleWoodElfComplexion_Age40Rough.FormKey
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    public static AttributeGroup Age50 = new AttributeGroup()
+    {
+        Label = "Must Get Age50 Face",
+        Attributes = new HashSet<NPCAttribute>()
+        {
+            new NPCAttribute()
+            {
+                SubAttributes = new HashSet<ITypedNPCAttribute>()
+                {
+                    new NPCAttributeFaceTexture()
+                    {
+                        FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+                        {
+                            Skyrim.TextureSet.SkinHeadFemaleBretonComplexion_Age50.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleDarkElfComplexion_Age50.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleHighElfComplexion_Age50.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleImperialComplexion_Age50.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleNordComplexion_Age50.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleOrcComplexion_Age50.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleRedguardComplexion_Age50.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleWoodElfComplexion_Age50.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleBretonComplexion_Age50.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleDarkElfComplexion_Age50.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleHighElfComplexion_Age50.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleImperialComplexion_Age50.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleNordComplexion_Age50.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleOrcComplexion_Age50.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleRedGuardComplexion_Age50.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleWoodElfComplexion_Age50.FormKey
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    public static AttributeGroup Freckles = new AttributeGroup()
+    {
+        Label = "Must Get Face Freckles",
+        Attributes = new HashSet<NPCAttribute>()
+        {
+            new NPCAttribute()
+            {
+                SubAttributes = new HashSet<ITypedNPCAttribute>()
+                {
+                    new NPCAttributeFaceTexture()
+                    {
+                        FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+                        {
+                            Skyrim.TextureSet.SkinHeadFemaleBretonComplexion_Frekles.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleDarkElfComplexion_Frekles.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleHighElfComplexion_Frekles.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleImperialComplexion_Frekles.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleNordComplexion_Frekles.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleOrcComplexion_Frekles.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleRedguardComplexion_Frekles.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleWoodElfComplexion_Frekles.FormKey
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    public static AttributeGroup Rough01 = new AttributeGroup()
+    {
+        Label = "Must Get Rough01 Face",
+        Attributes = new HashSet<NPCAttribute>()
+        {
+            new NPCAttribute()
+            {
+                SubAttributes = new HashSet<ITypedNPCAttribute>()
+                {
+                    new NPCAttributeFaceTexture()
+                    {
+                        FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+                        {
+                            Skyrim.TextureSet.SkinHeadFemaleBretonComplexion_Rough01.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleDarkElfComplexion_Rough01.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleHighElfComplexion_Rough01.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleImperialComplexion_Rough.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleNordRough.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleOrcComplexion_Rough01.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleRedguardComplexion_Rough01.FormKey,
+                            Skyrim.TextureSet.SkinHeadFemaleWoodElfComplexion_Rough01.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleBretonComplexion_Rough01.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleDarkElfComplexion_Rough01.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleHighElfComplexion_Rough01.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleImperialComplexion_Rough01.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleNordComplexion_Rough01.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleOrcComplexion_Rough01.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleRedGuardComplexion_Rough01.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleWoodElfComplexion_Rough01.FormKey
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    public static AttributeGroup Rough02 = new AttributeGroup()
+    {
+        Label = "Must Get Rough02 Face",
+        Attributes = new HashSet<NPCAttribute>()
+        {
+            new NPCAttribute()
+            {
+                SubAttributes = new HashSet<ITypedNPCAttribute>()
+                {
+                    new NPCAttributeFaceTexture()
+                    {
+                        FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+                        {
+                            Skyrim.TextureSet.SkinHeadMaleBretonComplexion_Rough02.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleDarkElfComplexion_Rough02.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleHighElfComplexion_Rough02.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleImperialComplexion_Rough02.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleNordComplexion_Rough02.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleOrcComplexion_Rough02.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleRedGuardComplexion_Rough02.FormKey,
+                            Skyrim.TextureSet.SkinHeadMaleWoodElfComplexion_Rough02.FormKey
                         }
                     }
                 }
