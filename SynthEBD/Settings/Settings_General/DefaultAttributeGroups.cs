@@ -427,8 +427,18 @@ public class DefaultAttributeGroups
                     {
                         FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
                         {
+                            Skyrim.Faction.JobBardFaction.FormKey,
+                            Skyrim.Faction.BardSingerFaction.FormKey,
                             Skyrim.Faction.JobInnServer.FormKey
                         }
+                    },
+                    new NPCAttributeNPC()
+                    {
+                        FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+                        {
+                            Skyrim.Npc.TalsgarTheWanderer.FormKey
+                        },
+                        Not = true
                     }
                 }
             }
