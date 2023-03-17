@@ -289,6 +289,7 @@ public class VM_NPCAttributeShell : VM
     public int ForceIfWeight { get; set; } = 1;
     public bool DisplayForceIfOption { get; set; }
     public bool DisplayForceIfWeight { get; set; }
+    public bool Not { get; set; } = false;
 
     public RelayCommand AddAdditionalSubAttributeToParent { get; }
     public RelayCommand DeleteCommand { get; }
@@ -404,11 +405,12 @@ public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
         var newAtt = factory(parentVM, parentShell);
         newAtt.VoiceTypeFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
         parentShell.ForceIfWeight = model.Weighting;
+        parentShell.Not = model.Not;
         return newAtt;
     }
     public static NPCAttributeVoiceType DumpViewModelToModel(VM_NPCAttributeVoiceType viewModel, string forceModeStr)
     {
-        return new NPCAttributeVoiceType() { Type = NPCAttributeType.VoiceType, FormKeys = viewModel.VoiceTypeFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight};
+        return new NPCAttributeVoiceType() { Type = NPCAttributeType.VoiceType, FormKeys = viewModel.VoiceTypeFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
@@ -442,12 +444,13 @@ public class VM_NPCAttributeClass : VM, ISubAttributeViewModel
         var newAtt = factory(parentVM, parentShell);
         newAtt.ClassFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
         parentShell.ForceIfWeight = model.Weighting;
+        parentShell.Not = model.Not;
         return newAtt;
     }
 
     public static NPCAttributeClass DumpViewModelToModel(VM_NPCAttributeClass viewModel, string forceModeStr)
     {
-        return new NPCAttributeClass() { Type = NPCAttributeType.Class, FormKeys = viewModel.ClassFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
+        return new NPCAttributeClass() { Type = NPCAttributeType.Class, FormKeys = viewModel.ClassFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
@@ -530,6 +533,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         viewModel.ReferenceNPCFormKey = model.ReferenceNPCFK;
         viewModel.ChosenPathSuggestion = null;
         parentShell.ForceIfWeight = model.Weighting;
+        parentShell.Not = model.Not;
         return viewModel;
     }
 
@@ -546,6 +550,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         model.Weighting = viewModel.ParentShell.ForceIfWeight;
         model.ReferenceNPCFK = viewModel.ReferenceNPCFormKey;
         model.SelectedFormKeyType = viewModel.ValueFKtype;
+        model.Not = viewModel.ParentShell.Not;
         return model;
     }
 
@@ -683,11 +688,12 @@ public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
         newAtt.RankMin = model.RankMin;
         newAtt.RankMax = model.RankMax;
         parentShell.ForceIfWeight = model.Weighting;
+        parentShell.Not = model.Not;
         return newAtt;
     }
     public static NPCAttributeFactions DumpViewModelToModel(VM_NPCAttributeFactions viewModel, string forceModeStr)
     {
-        return new NPCAttributeFactions() { Type = NPCAttributeType.Faction, FormKeys = viewModel.FactionFormKeys.ToHashSet(), RankMin = viewModel.RankMin, RankMax = viewModel.RankMax, ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
+        return new NPCAttributeFactions() { Type = NPCAttributeType.Faction, FormKeys = viewModel.FactionFormKeys.ToHashSet(), RankMin = viewModel.RankMin, RankMax = viewModel.RankMax, ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
@@ -722,12 +728,13 @@ public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
         var newAtt = factory(parentVM, parentShell);
         newAtt.FaceTextureFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
         parentShell.ForceIfWeight = model.Weighting;
+        parentShell.Not = model.Not;
         return newAtt;
     }
 
     public static NPCAttributeFaceTexture DumpViewModelToModel(VM_NPCAttributeFaceTexture viewModel, string forceModeStr)
     {
-        return new NPCAttributeFaceTexture() { Type = NPCAttributeType.FaceTexture, FormKeys = viewModel.FaceTextureFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
+        return new NPCAttributeFaceTexture() { Type = NPCAttributeType.FaceTexture, FormKeys = viewModel.FaceTextureFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
@@ -762,12 +769,13 @@ public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
         var newAtt = factory(parentVM, parentShell);
         newAtt.RaceFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
         parentShell.ForceIfWeight = model.Weighting;
+        parentShell.Not = model.Not;
         return newAtt;
     }
 
     public static NPCAttributeRace DumpViewModelToModel(VM_NPCAttributeRace viewModel, string forceModeStr)
     {
-        return new NPCAttributeRace() { Type = NPCAttributeType.Race, FormKeys = viewModel.RaceFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
+        return new NPCAttributeRace() { Type = NPCAttributeType.Race, FormKeys = viewModel.RaceFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
@@ -823,6 +831,7 @@ public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
         newAtt.EvalGender = model.EvalGender;
         newAtt.NPCGender = model.NPCGender;
         parentShell.ForceIfWeight = model.Weighting;
+        parentShell.Not = model.Not;
         return newAtt;
     }
     public static NPCAttributeMisc DumpViewModelToModel(VM_NPCAttributeMisc viewModel, string forceModeStr)
@@ -842,6 +851,7 @@ public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
         model.NPCGender = viewModel.NPCGender;
         model.Weighting = viewModel.ParentShell.ForceIfWeight;
         model.ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr];
+        model.Not = viewModel.ParentShell.Not;
         return model;
     }
 }
@@ -886,6 +896,7 @@ public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
         newAtt.ModKeys = new(model.ModKeys);
         newAtt.ModActionType = model.ModActionType;
         parentShell.ForceIfWeight = model.Weighting;
+        parentShell.Not = model.Not;
         return newAtt;
     }
 
@@ -896,6 +907,7 @@ public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
         model.ModActionType = viewModel.ModActionType;
         model.Weighting = viewModel.ParentShell.ForceIfWeight;
         model.ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr];
+        model.Not = viewModel.ParentShell.Not;
         return model;
     }
 }
@@ -931,11 +943,12 @@ public class VM_NPCAttributeNPC : VM, ISubAttributeViewModel
         var newAtt = factory(parentVM, parentShell);
         newAtt.NPCFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
         parentShell.ForceIfWeight = model.Weighting;
+        parentShell.Not = model.Not;
         return newAtt;
     }
     public static NPCAttributeNPC DumpViewModelToModel(VM_NPCAttributeNPC viewModel, string forceModeStr)
     {
-        return new NPCAttributeNPC() { Type = NPCAttributeType.NPC, FormKeys = viewModel.NPCFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
+        return new NPCAttributeNPC() { Type = NPCAttributeType.NPC, FormKeys = viewModel.NPCFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
@@ -1013,11 +1026,13 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
 
         parentShell.ForceIfWeight = model.Weighting;
 
+        parentShell.Not = model.Not;
+
         return newAtt;
     }
     public static NPCAttributeGroup DumpViewModelToModel(VM_NPCAttributeGroup viewModel, string forceModeStr)
     {
-        return new NPCAttributeGroup() { Type = NPCAttributeType.Group, SelectedLabels = viewModel.SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label).ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight };
+        return new NPCAttributeGroup() { Type = NPCAttributeType.Group, SelectedLabels = viewModel.SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label).ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 

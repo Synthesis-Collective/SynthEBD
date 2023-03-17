@@ -214,11 +214,12 @@ public class NPCAttributeClass : ITypedNPCAttribute
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Class;
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
+    public bool Not { get; set; } = false;
 
     public bool Equals(ITypedNPCAttribute other)
     {
         var otherTyped = (NPCAttributeClass)other;
-        if (this.Type == other.Type && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
+        if (this.Type == other.Type && this.Not == other.Not && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
         return false;
     }
 
@@ -227,7 +228,8 @@ public class NPCAttributeClass : ITypedNPCAttribute
         return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^
             Type.GetHashCode() ^ 
             ForceMode.GetHashCode() ^ 
-            Weighting.GetHashCode();
+            Weighting.GetHashCode() ^ 
+            Not.GetHashCode();
     }
 
     public bool IsBlank()
@@ -268,6 +270,7 @@ public class NPCAttributeCustom : ITypedNPCAttribute
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Custom;
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
+    public bool Not { get; set; } = false;
     public FormKey ReferenceNPCFK { get; set; } // this is not used by the patcher but saving it avoids making the user reselect it in the UI
     public Type SelectedFormKeyType { get; set; } // this is not used by the patcher but saving it avoids making the user reselect it in the UI
 
@@ -284,6 +287,7 @@ public class NPCAttributeCustom : ITypedNPCAttribute
         {
             return false;
         }
+        if (this.Not != otherTyped.Not) { return false; }
         return true;
     }
 
@@ -296,7 +300,8 @@ public class NPCAttributeCustom : ITypedNPCAttribute
             Comparator.GetHashCode() ^
             Type.GetHashCode() ^
             ForceMode.GetHashCode() ^
-            Weighting.GetHashCode();
+            Weighting.GetHashCode() ^ 
+            Not.GetHashCode();
     }
 
     public bool IsBlank()
@@ -358,11 +363,12 @@ public class NPCAttributeFactions : ITypedNPCAttribute
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Faction;
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
+    public bool Not { get; set; } = false;
 
     public bool Equals(ITypedNPCAttribute other)
     {
         var otherTyped = (NPCAttributeFactions)other;
-        if (this.Type == other.Type && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys) && this.RankMin == otherTyped.RankMin && this.RankMax == otherTyped.RankMax) { return true; }
+        if (this.Type == other.Type && this.Not == other.Not && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys) && this.RankMin == otherTyped.RankMin && this.RankMax == otherTyped.RankMax) { return true; }
 
         return false;
     }
@@ -374,7 +380,8 @@ public class NPCAttributeFactions : ITypedNPCAttribute
             RankMax.GetHashCode() ^
             Type.GetHashCode() ^ 
             ForceMode.GetHashCode() ^ 
-            Weighting.GetHashCode();
+            Weighting.GetHashCode() ^ 
+            Not.GetHashCode();
     }
 
     public bool IsBlank()
@@ -413,11 +420,12 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
     public NPCAttributeType Type { get; set; } = NPCAttributeType.FaceTexture;
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
+    public bool Not { get; set; } = false;
 
     public bool Equals(ITypedNPCAttribute other)
     {
         var otherTyped = (NPCAttributeFaceTexture)other;
-        if (this.Type == other.Type && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
+        if (this.Type == other.Type && this.Not == other.Not && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
         return false;
     }
 
@@ -426,7 +434,8 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
         return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^ 
             Type.GetHashCode() ^ 
             ForceMode.GetHashCode() ^ 
-            Weighting.GetHashCode();
+            Weighting.GetHashCode() ^ 
+            Not.GetHashCode();
     }
 
     public bool IsBlank()
@@ -463,11 +472,12 @@ public class NPCAttributeRace : ITypedNPCAttribute
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Race;
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
+    public bool Not { get; set; } = false;
 
     public bool Equals(ITypedNPCAttribute other)
     {
         var otherTyped = (NPCAttributeRace)other;
-        if (this.Type == other.Type && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
+        if (this.Type == other.Type && this.Not == other.Not && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
         return false;
     }
 
@@ -476,7 +486,8 @@ public class NPCAttributeRace : ITypedNPCAttribute
         return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^ 
             Type.GetHashCode() ^ 
             ForceMode.GetHashCode() ^ 
-            Weighting.GetHashCode();
+            Weighting.GetHashCode() ^ 
+            Not.GetHashCode();
     }
 
     public bool IsBlank()
@@ -525,6 +536,7 @@ public class NPCAttributeMisc : ITypedNPCAttribute
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Misc;
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
+    public bool Not { get; set; } = false;
 
     public bool IsBlank()
     {
@@ -554,6 +566,7 @@ public class NPCAttributeMisc : ITypedNPCAttribute
         if (this.Invulnerable != otherTyped.Invulnerable) { return false; }
         if (EvalMood && this.Mood != otherTyped.Mood) { return false; }
         if (EvalAggression && this.Aggression != otherTyped.Aggression) { return false; }
+        if (this.Not != otherTyped.Not) { return false; }
         return true;
     }
 
@@ -574,7 +587,8 @@ public class NPCAttributeMisc : ITypedNPCAttribute
             NPCGender.GetHashCode() ^
             Type.GetHashCode() ^
             ForceMode.GetHashCode() ^
-            Weighting.GetHashCode();
+            Weighting.GetHashCode() ^ 
+            Not.GetHashCode();
 }
 
     public static NPCAttributeMisc CloneAsNew(NPCAttributeMisc input)
@@ -618,11 +632,12 @@ public class NPCAttributeMod : ITypedNPCAttribute
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Mod;
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
+    public bool Not { get; set; } = false;
 
     public bool Equals(ITypedNPCAttribute other)
     {
         var otherTyped = (NPCAttributeMod)other;
-        if (this.Type == other.Type && ModKeyHashSetComparer.Equals(this.ModKeys, otherTyped.ModKeys)) { return true; }
+        if (this.Type == other.Type && this.Not == other.Not && ModKeyHashSetComparer.Equals(this.ModKeys, otherTyped.ModKeys)) { return true; }
         return false;
     }
 
@@ -632,7 +647,8 @@ public class NPCAttributeMod : ITypedNPCAttribute
             ModActionType.GetHashCode() ^ 
             Type.GetHashCode() ^ 
             ForceMode.GetHashCode() ^ 
-            Weighting.GetHashCode();
+            Weighting.GetHashCode() ^ 
+            Not.GetHashCode();
     }
 
     public bool IsBlank()
@@ -661,11 +677,12 @@ public class NPCAttributeMod : ITypedNPCAttribute
     public NPCAttributeType Type { get; set; } = NPCAttributeType.NPC;
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
+    public bool Not { get; set; } = false;
 
     public bool Equals(ITypedNPCAttribute other)
     {
         var otherTyped = (NPCAttributeNPC)other;
-        if (this.Type == other.Type && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
+        if (this.Type == other.Type && this.Not == other.Not && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
         return false;
     }
 
@@ -674,7 +691,8 @@ public class NPCAttributeMod : ITypedNPCAttribute
         return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^ 
             Type.GetHashCode() ^ 
             ForceMode.GetHashCode() ^ 
-            Weighting.GetHashCode();
+            Weighting.GetHashCode() ^ 
+            Not.GetHashCode();
     }
 
     public bool IsBlank()
@@ -709,11 +727,12 @@ public class NPCAttributeVoiceType : ITypedNPCAttribute
     public NPCAttributeType Type { get; set; } = NPCAttributeType.VoiceType;
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
+    public bool Not { get; set; } = false;
 
     public bool Equals(ITypedNPCAttribute other)
     {
         var otherTyped = (NPCAttributeVoiceType)other;
-        if (this.Type == other.Type && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
+        if (this.Type == other.Type && this.Not == other.Not && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
         return false;
     }
 
@@ -722,7 +741,8 @@ public class NPCAttributeVoiceType : ITypedNPCAttribute
         return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^ 
             Type.GetHashCode() ^ 
             ForceMode.GetHashCode() ^ 
-            Weighting.GetHashCode();
+            Weighting.GetHashCode() ^ 
+            Not.GetHashCode();
     }
 
     public bool IsBlank()
@@ -758,10 +778,11 @@ public class NPCAttributeGroup : ITypedNPCAttribute
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Group;
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
+    public bool Not { get; set; } = false;
 
     public bool Equals(ITypedNPCAttribute other)
     {
-        if (this.Type == other.Type)
+        if (this.Type == other.Type && this.Not == other.Not)
         {
             var otherGroup = other as NPCAttributeGroup;
             return otherGroup != null && SelectedLabels.SetEquals(otherGroup.SelectedLabels);
@@ -775,7 +796,8 @@ public class NPCAttributeGroup : ITypedNPCAttribute
         return ComparableSetHashCode(SelectedLabels) ^ 
             Type.GetHashCode() ^ 
             ForceMode.GetHashCode() ^ 
-            Weighting.GetHashCode();
+            Weighting.GetHashCode() ^ 
+            Not.GetHashCode();
     }
 
     public static int ComparableSetHashCode(IEnumerable<string> e)
@@ -825,6 +847,7 @@ public interface ITypedNPCAttribute
     bool IsBlank();
     public AttributeForcing ForceMode { get; set; }
     public int Weighting { get; set; }
+    public bool Not { get; set; }
     public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache);
 }
 
