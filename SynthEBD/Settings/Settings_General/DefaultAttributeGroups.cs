@@ -408,6 +408,14 @@ public class DefaultAttributeGroups
                         {
                             Skyrim.Class.Bard.FormKey
                         }
+                    },
+                    new NPCAttributeNPC()
+                    {
+                        FormKeys = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+                        {
+                            Skyrim.Npc.TalsgarTheWanderer.FormKey
+                        },
+                        Not = true
                     }
                 }
             },
