@@ -30,7 +30,7 @@ public class JSONhandler<T>
         catch (Exception ex)
         {
             success = false;
-            exception = ex.Message;
+            exception = ExceptionLogger.GetExceptionStack(ex);
             return default(T);
         }
     }
