@@ -35,6 +35,25 @@ class FormKeyHashSetComparer
         }
         return false;
     }
+
+    public static int ComparableSetHashCode(IEnumerable<FormKey> e)
+    {
+        bool first = true;
+        int hashCode = 0;
+        foreach (var item in e.OrderBy(x => x.ToString()).ToArray())
+        {
+            if (first)
+            {
+                first = false;
+                hashCode = item.GetHashCode();
+            }
+            else
+            {
+                hashCode ^= item.GetHashCode();
+            }
+        }
+        return hashCode;
+    }
 }
 
 class ModKeyHashSetComparer
@@ -69,5 +88,24 @@ class ModKeyHashSetComparer
             }
         }
         return false;
+    }
+
+    public static int ComparableSetHashCode(IEnumerable<ModKey> e)
+    {
+        bool first = true;
+        int hashCode = 0;
+        foreach (var item in e.OrderBy(x => x.ToString()).ToArray())
+        {
+            if (first)
+            {
+                first = false;
+                hashCode = item.GetHashCode();
+            }
+            else
+            {
+                hashCode ^= item.GetHashCode();
+            }
+        }
+        return hashCode;
     }
 }

@@ -58,7 +58,7 @@ public class VM_NPCAttribute : VM
 
     public VM_NPCAttribute Clone(ObservableCollection<VM_NPCAttribute> parentCollection)
     {
-        var model = DumpViewModelToModel(this);
+        var model = DumpViewModelToModel();
         var clone = _creator.GetViewModelFromModel(model, parentCollection, _subscribedAttributeGroups, DisplayForceIfOption, DisplayForceIfWeight);
         return clone;
     }
@@ -132,7 +132,10 @@ public class VM_NPCAttribute : VM
 
         public void CopyInFromModels(HashSet<NPCAttribute> models, ObservableCollection<VM_NPCAttribute> viewModelCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, bool displayForceIfOption, bool? displayForceIfWeight)
         {
-            foreach (var m in models)
+            var alreadyLoadedModels = viewModelCollection.Select(x => x.DumpViewModelToModel()).ToHashSet();
+            var toCopyIn = models.Where(x => !alreadyLoadedModels.Contains(x)).ToHashSet();
+
+            foreach (var m in toCopyIn)
             {
                 viewModelCollection.Add(GetViewModelFromModel(m, viewModelCollection, attributeGroups, displayForceIfOption, displayForceIfWeight));
             }
@@ -185,15 +188,15 @@ public class VM_NPCAttribute : VM
         HashSet<NPCAttribute> hs = new HashSet<NPCAttribute>();
         foreach (var v in viewModels)
         {
-            hs.Add(DumpViewModelToModel(v));
+            hs.Add(v.DumpViewModelToModel());
         }
         return hs;
     }
 
-    public static NPCAttribute DumpViewModelToModel(VM_NPCAttribute viewModel)
+    public NPCAttribute DumpViewModelToModel()
     {
         var model = new NPCAttribute();
-        foreach (var subAttVM in viewModel.GroupedSubAttributes)
+        foreach (var subAttVM in GroupedSubAttributes)
         {
             switch(subAttVM.Type)
             {

@@ -178,7 +178,7 @@ namespace SynthEBD
                     if (referencedDescriptorStrings.Contains(value.Signature))
                     {
                         // add missing attributes
-                        foreach (var attribute in value.AssociatedRules.AllowedAttributes.And(value.AssociatedRules.DisallowedAttributes).Select(x => VM_NPCAttribute.DumpViewModelToModel(x)))
+                        foreach (var attribute in value.AssociatedRules.AllowedAttributes.And(value.AssociatedRules.DisallowedAttributes).Select(x => x.DumpViewModelToModel()))
                         {
                             foreach (var subAttribute in attribute.SubAttributes.Where(x => x.Type == NPCAttributeType.Group).ToArray())
                             {

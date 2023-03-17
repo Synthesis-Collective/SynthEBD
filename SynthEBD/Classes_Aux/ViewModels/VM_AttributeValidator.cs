@@ -26,7 +26,7 @@ namespace SynthEBD
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-            TrialAttribute = VM_NPCAttribute.DumpViewModelToModel(trialAttribute);
+            TrialAttribute = trialAttribute.DumpViewModelToModel();
             AttributeGroups = attGroupVMs.Select(x => VM_AttributeGroup.DumpViewModelToModel(x)).ToHashSet();
 
             if (trialAttribute is not null && trialAttribute.GroupedSubAttributes.Any())

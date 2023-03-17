@@ -16,6 +16,12 @@ public class NPCAttribute
 {
     public HashSet<ITypedNPCAttribute> SubAttributes { get; set; } = new(); // AND Logic
 
+    public override bool Equals(object? obj)
+    {
+        NPCAttribute otherAttribute = obj as NPCAttribute;
+        return otherAttribute != null && this.Equals(otherAttribute);
+    }
+
     public bool Equals(NPCAttribute other)
     {
         var thisArray = this.SubAttributes.ToArray();
@@ -30,6 +36,25 @@ public class NPCAttribute
             }
         }
         return true;
+    }
+
+    public override int GetHashCode()
+    {
+        bool first = true;
+        int hashCode = 0;
+        foreach (var item in SubAttributes.OrderBy(x => x.ToString()).ToArray())
+        {
+            if (first)
+            {
+                first = false;
+                hashCode = item.GetHashCode();
+            }
+            else
+            {
+                hashCode ^= item.GetHashCode();
+            }
+        }
+        return hashCode;
     }
 
     public static AttributeGroup GetAttributeGroupByLabel(string label, HashSet<AttributeGroup> groupDefinitions, PatcherState patcherState, Logger logger)
@@ -197,6 +222,14 @@ public class NPCAttributeClass : ITypedNPCAttribute
         return false;
     }
 
+    public override int GetHashCode()
+    {
+        return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^
+            Type.GetHashCode() ^ 
+            ForceMode.GetHashCode() ^ 
+            Weighting.GetHashCode();
+    }
+
     public bool IsBlank()
     {
         return !FormKeys.Any();
@@ -252,6 +285,18 @@ public class NPCAttributeCustom : ITypedNPCAttribute
             return false;
         }
         return true;
+    }
+
+    public override int GetHashCode()
+    {
+        return Path.GetHashCode() ^
+            ValueStr.GetHashCode() ^
+            FormKeyHashSetComparer.ComparableSetHashCode(ValueFKs) ^
+            CustomType.GetHashCode() ^
+            Comparator.GetHashCode() ^
+            Type.GetHashCode() ^
+            ForceMode.GetHashCode() ^
+            Weighting.GetHashCode();
     }
 
     public bool IsBlank()
@@ -322,6 +367,16 @@ public class NPCAttributeFactions : ITypedNPCAttribute
         return false;
     }
 
+    public override int GetHashCode()
+    {
+        return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^ 
+            RankMin.GetHashCode() ^
+            RankMax.GetHashCode() ^
+            Type.GetHashCode() ^ 
+            ForceMode.GetHashCode() ^ 
+            Weighting.GetHashCode();
+    }
+
     public bool IsBlank()
     {
         return !FormKeys.Any();
@@ -366,6 +421,14 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
         return false;
     }
 
+    public override int GetHashCode()
+    {
+        return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^ 
+            Type.GetHashCode() ^ 
+            ForceMode.GetHashCode() ^ 
+            Weighting.GetHashCode();
+    }
+
     public bool IsBlank()
     {
         return !FormKeys.Any();
@@ -406,6 +469,14 @@ public class NPCAttributeRace : ITypedNPCAttribute
         var otherTyped = (NPCAttributeRace)other;
         if (this.Type == other.Type && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
         return false;
+    }
+
+    public override int GetHashCode()
+    {
+        return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^ 
+            Type.GetHashCode() ^ 
+            ForceMode.GetHashCode() ^ 
+            Weighting.GetHashCode();
     }
 
     public bool IsBlank()
@@ -486,6 +557,26 @@ public class NPCAttributeMisc : ITypedNPCAttribute
         return true;
     }
 
+    public override int GetHashCode()
+    {
+        return
+            Unique.GetHashCode() ^
+            Essential.GetHashCode() ^
+            Protected.GetHashCode() ^
+            Summonable.GetHashCode() ^
+            Ghost.GetHashCode() ^
+            Invulnerable.GetHashCode() ^
+            EvalMood.GetHashCode() ^
+            Mood.GetHashCode() ^
+            EvalAggression.GetHashCode() ^
+            Aggression.GetHashCode() ^
+            EvalGender.GetHashCode() ^
+            NPCGender.GetHashCode() ^
+            Type.GetHashCode() ^
+            ForceMode.GetHashCode() ^
+            Weighting.GetHashCode();
+}
+
     public static NPCAttributeMisc CloneAsNew(NPCAttributeMisc input)
     {
         var output = new NPCAttributeMisc();
@@ -535,6 +626,15 @@ public class NPCAttributeMod : ITypedNPCAttribute
         return false;
     }
 
+    public override int GetHashCode()
+    {
+        return ModKeyHashSetComparer.ComparableSetHashCode(ModKeys) ^ 
+            ModActionType.GetHashCode() ^ 
+            Type.GetHashCode() ^ 
+            ForceMode.GetHashCode() ^ 
+            Weighting.GetHashCode();
+    }
+
     public bool IsBlank()
     {
         return !ModKeys.Any();
@@ -567,6 +667,14 @@ public class NPCAttributeMod : ITypedNPCAttribute
         var otherTyped = (NPCAttributeNPC)other;
         if (this.Type == other.Type && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
         return false;
+    }
+
+    public override int GetHashCode()
+    {
+        return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^ 
+            Type.GetHashCode() ^ 
+            ForceMode.GetHashCode() ^ 
+            Weighting.GetHashCode();
     }
 
     public bool IsBlank()
@@ -609,6 +717,14 @@ public class NPCAttributeVoiceType : ITypedNPCAttribute
         return false;
     }
 
+    public override int GetHashCode()
+    {
+        return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^ 
+            Type.GetHashCode() ^ 
+            ForceMode.GetHashCode() ^ 
+            Weighting.GetHashCode();
+    }
+
     public bool IsBlank()
     {
         return !FormKeys.Any();
@@ -647,22 +763,38 @@ public class NPCAttributeGroup : ITypedNPCAttribute
     {
         if (this.Type == other.Type)
         {
-            var otherTyped = (NPCAttributeGroup)other;
-            int counter = 0;
-            foreach (var s in otherTyped.SelectedLabels)
-            {
-                if (this.SelectedLabels.Contains(s))
-                {
-                    counter++;
-                }
-            }
-            if (counter == this.SelectedLabels.Count)
-            {
-                return true;
-            }
+            var otherGroup = other as NPCAttributeGroup;
+            return otherGroup != null && SelectedLabels.SetEquals(otherGroup.SelectedLabels);
         }
             
         return false;
+    }
+
+    public override int GetHashCode()
+    {
+        return ComparableSetHashCode(SelectedLabels) ^ 
+            Type.GetHashCode() ^ 
+            ForceMode.GetHashCode() ^ 
+            Weighting.GetHashCode();
+    }
+
+    public static int ComparableSetHashCode(IEnumerable<string> e)
+    {
+        bool first = true;
+        int hashCode = 0;
+        foreach (var item in e)
+        {
+            if (first)
+            {
+                first = false;
+                hashCode = item.GetHashCode();
+            }
+            else
+            {
+                hashCode ^= item.GetHashCode();
+            }
+        }
+        return hashCode;
     }
 
     public bool IsBlank()
@@ -689,6 +821,7 @@ public interface ITypedNPCAttribute
 {
     NPCAttributeType Type { get; set; }
     bool Equals(ITypedNPCAttribute other);
+    int GetHashCode();
     bool IsBlank();
     public AttributeForcing ForceMode { get; set; }
     public int Weighting { get; set; }
