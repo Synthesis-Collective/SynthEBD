@@ -45,6 +45,7 @@ public class VM_BlockedNPC : VM
     public bool Height { get; set; } = false;
     public bool BodyShape { get; set; } = false;
     public bool HeadParts { get; set; } = false;
+    public bool VanillaBodyPath { get; set; } = false;
     public ObservableCollection<VM_HeadPartBlock> HeadPartTypes { get; set; } = new()
     {
         new(HeadPart.TypeEnum.Eyebrows, false),
@@ -70,6 +71,7 @@ public class VM_BlockedNPC : VM
         viewModel.BodyShape = placeHolder.AssociatedModel.BodyShape;
         viewModel.HeadParts = placeHolder.AssociatedModel.HeadParts;
         foreach (var type in placeHolder.AssociatedModel.HeadPartTypes.Keys) { viewModel.HeadPartTypes.Where(x => x.Type == type).First().Block = placeHolder.AssociatedModel.HeadPartTypes[type]; }
+        viewModel.VanillaBodyPath = placeHolder.AssociatedModel.VanillaBodyPath;
         return viewModel;
     }
 
@@ -82,6 +84,7 @@ public class VM_BlockedNPC : VM
         model.BodyShape = BodyShape;
         model.HeadParts = HeadParts;
         foreach (var type in model.HeadPartTypes.Keys) { model.HeadPartTypes[type] = HeadPartTypes.Where(x => x.Type == type).First().Block; }
+        model.VanillaBodyPath = VanillaBodyPath;
         return model;
     }
 }

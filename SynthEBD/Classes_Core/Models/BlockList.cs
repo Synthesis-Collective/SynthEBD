@@ -13,6 +13,7 @@ public class BlockedNPC
 {
     public FormKey FormKey { get; set; } = new();
     public bool Assets { get; set; } = true;
+    public bool VanillaBodyPath { get; set; } = false;
     public bool Height { get; set; } = false;
     public bool BodyShape { get; set; } = false;
     public bool HeadParts { get; set; } = false;
@@ -33,6 +34,7 @@ public class BlockedPlugin
 {
     public ModKey ModKey { get; set; } = new();
     public bool Assets { get; set; } = true;
+    public bool VanillaBodyPath { get; set; } = false;
     public bool Height { get; set; } = false;
     public bool BodyShape { get; set; } = false;
     public bool HeadParts { get; set; } = false;

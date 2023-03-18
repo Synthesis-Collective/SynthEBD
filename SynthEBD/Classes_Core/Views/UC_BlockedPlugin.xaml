@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SynthEBD.UC_BlockedPlugin"
+<UserControl x:Class="SynthEBD.UC_BlockedPlugin"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -37,14 +37,16 @@
         <plugins:ModKeyPicker ModKey="{Binding ModKey}" Grid.Row="0" Grid.Column="1"  SearchableMods="{Binding LoadOrder}" />
         <TextBlock Grid.Row="1" Grid.Column="0"  HorizontalAlignment="Center" ToolTip="Block NPCs modified by this plugin from receiving asset assignments" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Block Assets (Textures and Meshes)</TextBlock>
         <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding Path=Assets, Mode=TwoWay}"></CheckBox>
-        <TextBlock Grid.Row="2" Grid.Column="0"  HorizontalAlignment="Center" ToolTip="Block NPCs modified by this plugin from receiving a height assignment" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Block Height</TextBlock>
-        <CheckBox Grid.Row="2" Grid.Column="1"  IsChecked="{Binding Path=Height, Mode=TwoWay}"></CheckBox>
-        <TextBlock Grid.Row="3" Grid.Column="0"  HorizontalAlignment="Center">Block Body Shape</TextBlock>
-        <CheckBox Grid.Row="3" Grid.Column="1"  IsChecked="{Binding Path=BodyShape, Mode=TwoWay}"></CheckBox>
-        <TextBlock Grid.Row="4" Grid.Column="0" HorizontalAlignment="Center">Block Head Parts</TextBlock>
-        <CheckBox Grid.Row="4" Grid.Column="1"  IsChecked="{Binding Path=HeadParts, Mode=TwoWay}"></CheckBox>
+        <TextBlock Grid.Row="2" Grid.Column="0"  HorizontalAlignment="Center" ToolTip="Block the selected NPC getting vanilla body mesh paths" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Block Vanilla Body Mesh Path Forcing</TextBlock>
+        <CheckBox Grid.Row="2" Grid.Column="1" IsChecked="{Binding Path=VanillaBodyPath, Mode=TwoWay}"></CheckBox>
+        <TextBlock Grid.Row="3" Grid.Column="0"  HorizontalAlignment="Center" ToolTip="Block NPCs modified by this plugin from receiving a height assignment" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Block Height</TextBlock>
+        <CheckBox Grid.Row="3" Grid.Column="1"  IsChecked="{Binding Path=Height, Mode=TwoWay}"></CheckBox>
+        <TextBlock Grid.Row="4" Grid.Column="0"  HorizontalAlignment="Center">Block Body Shape</TextBlock>
+        <CheckBox Grid.Row="4" Grid.Column="1"  IsChecked="{Binding Path=BodyShape, Mode=TwoWay}"></CheckBox>
+        <TextBlock Grid.Row="5" Grid.Column="0" HorizontalAlignment="Center">Block Head Parts</TextBlock>
+        <CheckBox Grid.Row="5" Grid.Column="1"  IsChecked="{Binding Path=HeadParts, Mode=TwoWay}"></CheckBox>
 
-        <ItemsControl Grid.Row="5" Grid.Column="1" ItemsSource="{Binding HeadPartTypes}" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}">
+        <ItemsControl Grid.Row="6" Grid.Column="1" ItemsSource="{Binding HeadPartTypes}" Visibility="{Binding HeadParts, Converter={StaticResource BoolToVis}}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                     <StackPanel/>

@@ -1153,51 +1153,6 @@ public class AssetSelector
 
     public static string[] BaseGamePlugins = new string[] { "Skyrim.esm", "Update.esm", "Dawnguard.esm", "HearthFires.esm", "Dragonborn.esm" };
 
-    public void SetVanillaBodyPath(NPCInfo npcInfo, ISkyrimMod outputMod, ILinkCache linkCache)
-    {
-        if (linkCache.TryResolve<INpcGetter>(npcInfo.NPC.FormKey, out var npcWinningRecord) && npcWinningRecord.WornArmor != null && !npcWinningRecord.WornArmor.IsNull && linkCache.TryResolve<IArmorGetter>(npcWinningRecord.WornArmor.FormKey, out var skin))
-        {
-            foreach (var armaLinkGetter in skin.Armature)
-            {
-                if (linkCache.TryResolve<IArmorAddonGetter>(armaLinkGetter.FormKey, out var armaGetter) && armaGetter.BodyTemplate != null && armaGetter.WorldModel != null && (_raceResolver.PatchableRaces.Contains(armaGetter.Race) || npcWinningRecord.Race.Equals(armaGetter.Race) || armaGetter.AdditionalRaces.Contains(npcWinningRecord.Race.FormKey)) && DefaultBodyMeshPaths.ContainsKey(npcInfo.Gender) && DefaultBodyMeshPaths[npcInfo.Gender] != null)
-                {
-                    var matchedEntry = DefaultBodyMeshPaths[npcInfo.Gender].Where(x => armaGetter.BodyTemplate.FirstPersonFlags.HasFlag(x.Key)).FirstOrDefault();
-                    if (matchedEntry.Value != null)
-                    {
-                        var armature = outputMod.ArmorAddons.GetOrAddAsOverride(armaGetter);
-                        switch(npcInfo.Gender)
-                        {
-                            case Gender.Female: armature.WorldModel.Female.File = matchedEntry.Value; break;
-                            case Gender.Male: armature.WorldModel.Male.File = matchedEntry.Value; break;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    public static Dictionary<Gender, Dictionary<BipedObjectFlag, string>> DefaultBodyMeshPaths = new()
-    {
-        {
-            Gender.Male,
-            new Dictionary<BipedObjectFlag, string>()
-            {
-                { BipedObjectFlag.Body, "Actors\\Character\\Character Assets\\MaleBody_1.nif" },
-                { BipedObjectFlag.Hands, "Actors\\Character\\Character Assets\\MaleHands_1.nif" },
-                { BipedObjectFlag.Feet, "Actors\\Character\\Character Assets\\MaleFeet_1.nif" },
-            }
-        },
-        {
-            Gender.Female,
-            new Dictionary<BipedObjectFlag, string>()
-            {
-                { BipedObjectFlag.Body, "Actors\\Character\\Character Assets\\FemaleBody_1.nif" },
-                { BipedObjectFlag.Hands, "Actors\\Character\\Character Assets\\FemaleHands_1.nif" },
-                { BipedObjectFlag.Feet, "Actors\\Character\\Character Assets\\FemaleFeet_1.nif" },
-            }
-        }
-    };
-
     public void GenerateDescriptorLog(SubgroupCombination generatedCombination, NPCInfo npcInfo)
     {
         if (_patcherState.GeneralSettings.BodySelectionMode != BodyShapeSelectionMode.None)

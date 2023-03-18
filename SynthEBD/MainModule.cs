@@ -98,6 +98,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<OBodySelector>().AsSelf().SingleInstance();
         builder.RegisterType<HeadPartSelector>().AsSelf().SingleInstance();
         builder.RegisterType<HeightPatcher>().AsSelf().SingleInstance();
+        builder.RegisterType<VanillaBodyPathSetter>().AsSelf().SingleInstance();
 
         //Asset copiers
         builder.RegisterType<EBDScripts>().AsSelf().SingleInstance();

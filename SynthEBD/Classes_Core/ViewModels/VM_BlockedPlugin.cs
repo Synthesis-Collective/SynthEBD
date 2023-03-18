@@ -49,6 +49,7 @@ public class VM_BlockedPlugin : VM
     public bool Height { get; set; } = false;
     public bool BodyShape { get; set; } = false;
     public bool HeadParts { get; set; } = false;
+    public bool VanillaBodyPath { get; set; } = false;
     public ObservableCollection<VM_HeadPartBlock> HeadPartTypes { get; set; } = new()
     {
         new(HeadPart.TypeEnum.Eyebrows, false),
@@ -78,6 +79,7 @@ public class VM_BlockedPlugin : VM
         { 
             viewModel.HeadPartTypes.Where(x => x.Type == type).First().Block = placeHolder.AssociatedModel.HeadPartTypes[type]; 
         }
+        viewModel.VanillaBodyPath = placeHolder.AssociatedModel.VanillaBodyPath;
         return viewModel;
     }
 
@@ -93,6 +95,7 @@ public class VM_BlockedPlugin : VM
         { 
             model.HeadPartTypes[type] = HeadPartTypes.Where(x => x.Type == type).First().Block; 
         }
+        model.VanillaBodyPath = VanillaBodyPath;
         return model;
     }
 }

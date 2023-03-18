@@ -42,11 +42,12 @@ public class Patcher
     private readonly MiscValidation _miscValidation;
     private readonly PatcherIO _patcherIO;
     private readonly NPCInfo.Factory _npcInfoFactory;
+    private readonly VanillaBodyPathSetter _vanillaBodyPathSetter;
 
     private AssetStatsTracker _assetsStatsTracker { get; set; }
     private int _patchedNpcCount { get; set; }
 
-    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory)
+    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -79,7 +80,8 @@ public class Patcher
         _updateHandler = updateHandler;
         _miscValidation = miscValidation;    
         _patcherIO = patcherIO;
-        _npcInfoFactory = npcInfoFactory;   
+        _npcInfoFactory = npcInfoFactory;  
+        _vanillaBodyPathSetter = vanillaBodyPathSetter;
     }
 
     //Synchronous version for debugging only
@@ -160,9 +162,8 @@ public class Patcher
 
             RecordGenerator.Reinitialize();
             _combinationLog.Reinitialize();
-
-            HasAssetDerivedHeadParts = false;
         }
+        HasAssetDerivedHeadParts = false;
         FacePartCompliance facePartComplianceMaintainer = new(_environmentProvider, _patcherState);
 
         // BodyGen Pre-patching tasks:
@@ -290,6 +291,7 @@ public class Patcher
         // Run main patching operations
         HashSet<Npc> headPartNPCs = new HashSet<Npc>();
         HeadPartTracker = new Dictionary<FormKey, HeadPartSelection>(); // needs re-initialization even if headpart distribution is disabled because TexMesh settings can also produce headparts.
+        _vanillaBodyPathSetter.Reinitialize();
 
         _patchedNpcCount = 0;
         _statusBar.ProgressBarMax = allNPCs.Count();
@@ -299,6 +301,11 @@ public class Patcher
         MainLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs, synthEBDFaceKW, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
         // Finish assigning non-primary linked NPCs
         MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs, synthEBDFaceKW, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
+        // Now that potential body modifications are complete, set vanilla mesh paths if necessary
+        if (_patcherState.TexMeshSettings.bForceVanillaBodyMeshPath)
+        {
+            _vanillaBodyPathSetter.SetVanillaBodyMeshPaths(outputMod, allNPCs);
+        }
 
         _logger.StopTimer();
         _logger.LogMessage("Finished patching in " + _logger.GetEllapsedTime());
@@ -402,6 +409,7 @@ public class Patcher
         bool blockBodyShape;
         bool blockHeight;
         bool blockHeadParts;
+        bool blockVanillaBodyMeshPaths;
         bool assetsAssigned = false;
         bool bodyShapeAssigned = false;
 
@@ -624,9 +632,9 @@ public class Patcher
             }
             #endregion
 
-            if (_patcherState.TexMeshSettings.bForceVanillaBodyMeshPath)
+            if (_patcherState.TexMeshSettings.bForceVanillaBodyMeshPath && _vanillaBodyPathSetter.IsBlockedForVanillaBodyPaths(currentNPCInfo))
             {
-                _assetSelector.SetVanillaBodyPath(currentNPCInfo, outputMod, _environmentProvider.LinkCache);
+                _vanillaBodyPathSetter.RegisterBlockedFromVanillaBodyPaths(currentNPCInfo);
             }
 
             #region Body Shape assignment (if assets not assigned with Assets)
