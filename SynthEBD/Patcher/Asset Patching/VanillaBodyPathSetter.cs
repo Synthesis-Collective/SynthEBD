@@ -1,8 +1,10 @@
 using Mutagen.Bethesda;
+using Mutagen.Bethesda.FormKeys.SkyrimSE;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Synthesis;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -16,12 +18,14 @@ namespace SynthEBD;
 public class VanillaBodyPathSetter
 {
     private readonly IEnvironmentStateProvider _environmentStateProvider;
+    private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly VM_StatusBar _statusBar;
     private readonly PatchableRaceResolver _raceResolver;
-    public VanillaBodyPathSetter(IEnvironmentStateProvider environmentStateProvider, Logger logger, VM_StatusBar statusBar, PatchableRaceResolver raceResolver)
+    public VanillaBodyPathSetter(IEnvironmentStateProvider environmentStateProvider, PatcherState patcherState, Logger logger, VM_StatusBar statusBar, PatchableRaceResolver raceResolver)
     {
         _environmentStateProvider = environmentStateProvider;
+        _patcherState = patcherState;
         _logger = logger;
         _statusBar = statusBar;
         _raceResolver = raceResolver;
@@ -38,6 +42,16 @@ public class VanillaBodyPathSetter
             var npc = npcArray[i];
 
             if (!_raceResolver.PatchableRaces.Contains(npc.Race))
+            {
+                continue;
+            }
+
+            if (_patcherState.GeneralSettings.ExcludePlayerCharacter && npc.FormKey.ToString() == Skyrim.Npc.Player.FormKey.ToString())
+            {
+                continue;
+            }
+
+            if (_patcherState.GeneralSettings.ExcludePresets && npc.EditorID != null && npc.EditorID.Contains("Preset"))
             {
                 continue;
             }
