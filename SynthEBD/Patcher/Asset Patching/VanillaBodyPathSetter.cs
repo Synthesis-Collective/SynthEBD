@@ -220,8 +220,8 @@ public class VanillaBodyPathSetter
     {
         switch (currentGender)
         {
-            case Gender.Female: return armaGetter.WorldModel.Female.File.ToString().Equals(vanillaPath, StringComparison.OrdinalIgnoreCase);
-            case Gender.Male: return armaGetter.WorldModel.Male.File.ToString().Equals(vanillaPath, StringComparison.OrdinalIgnoreCase);
+            case Gender.Female: return armaGetter.WorldModel.Female.File.RawPath.ToString().Equals(vanillaPath, StringComparison.OrdinalIgnoreCase);
+            case Gender.Male: return armaGetter.WorldModel.Male.File.RawPath.ToString().Equals(vanillaPath, StringComparison.OrdinalIgnoreCase);
         }
         return true;
     }
