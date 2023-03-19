@@ -50,7 +50,7 @@ public class DefaultAttributeGroups
 
     public static AttributeGroup MustBeFit = new()
     {
-        Label = "Must be Fit (Muscularity 1)",
+        Label = "Must be Fit",
         Attributes = new()
         {
             new NPCAttribute()
@@ -100,7 +100,7 @@ public class DefaultAttributeGroups
 
     public static AttributeGroup MustBeAthletic = new()
     {
-        Label = "Must be Athletic (Muscularity 2)",
+        Label = "Must be Athletic",
         Attributes = new()
         {
             new NPCAttribute()
@@ -159,7 +159,7 @@ public class DefaultAttributeGroups
 
     public static AttributeGroup MustBeMuscular = new()
     {
-        Label = "Must be Muscular (Muscularity 3)",
+        Label = "Must be Muscular",
         Attributes = new()
         {
             new NPCAttribute()
