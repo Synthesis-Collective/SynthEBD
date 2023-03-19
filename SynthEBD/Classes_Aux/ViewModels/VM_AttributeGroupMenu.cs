@@ -1,3 +1,4 @@
+using DynamicData;
 using System.Collections.ObjectModel;
 using static SynthEBD.VM_NPCAttribute;
 
@@ -32,6 +33,13 @@ public class VM_AttributeGroupMenu : VM
                     if (!alreadyContainedGroups.Contains(attGroup.Label))
                     {
                         Groups.Add(attGroup.Copy(this));
+                    }
+                    else
+                    { // overwrite existing definitions
+                        var existingGroup = Groups.Where(x => x.Label == attGroup.Label).First();
+                        existingGroup.Attributes.Clear();
+                        var tempGroup = attGroup.Copy(this);
+                        existingGroup.Attributes.AddRange(tempGroup.Attributes);
                     }
                 }
             }
