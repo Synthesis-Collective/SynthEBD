@@ -207,7 +207,6 @@ public class Settings_General
     public HashSet<AttributeGroup> AttributeGroups { get; set; } = new()
     {
         DefaultAttributeGroups.CannotHaveDefinition,
-        DefaultAttributeGroups.MustHaveDefinition,
         DefaultAttributeGroups.MustBeFit,
         DefaultAttributeGroups.MustBeAthletic,
         DefaultAttributeGroups.MustBeMuscular,
@@ -216,6 +215,8 @@ public class Settings_General
         DefaultAttributeGroups.MustBeDirty,
         DefaultAttributeGroups.CanGetChubbyMorph,
         DefaultAttributeGroups.MustGetYoungFace,
+        DefaultAttributeGroups.MatureFace,
+        DefaultAttributeGroups.HaggardFace,
         DefaultAttributeGroups.Age40,
         DefaultAttributeGroups.Age40Rough,
         DefaultAttributeGroups.Age50,
