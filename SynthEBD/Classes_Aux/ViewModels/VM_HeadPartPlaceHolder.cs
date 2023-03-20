@@ -1,3 +1,4 @@
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
@@ -24,6 +25,10 @@ namespace SynthEBD
             ParentCollection = parentCollection;
 
             Label = associatedModel.EditorID;
+            if (Label.IsNullOrWhitespace())
+            {
+                Label = EditorIDHandler.GetEditorIDSafely<IHeadPartGetter>(associatedModel.HeadPartFormKey, _environmentProvider.LinkCache);
+            }
 
             if (_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(AssociatedModel.HeadPartFormKey, out var testHeadPartGetter))
             {
