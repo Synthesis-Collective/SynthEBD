@@ -4,7 +4,10 @@
 
 SynthEBD is a standalone patcher that acts as a central hub for controlled randomization of certain aspects of NPC appearance: <u>Assets</u>, <u>Body Shape</u>, and <u>Height</u>. It is the Mutagen-based successor to the zEBD zEdit patcher. Assets are any files that are referenced within an NPC record or subrecord in a .esp file - most commonly <u>Textures</u> and sometimes <u>Meshes</u>. Body shape refers body mesh variations - e.g. <u>BodySlides</u> or <u>BodyGen morph</u>s. Height refers to the overall <u>size</u> scale of an NPC. SynthEBD enables you to both randomize and specifically control these parameters for any NPC in the game.
 
-Read this readme and still need help? Join the Mutagen Discord channel at https://discord.gg/53KMEsW and post in the #spawn-support channel (ping @Piranha91 if I don't see you).
+Read this readme and still need help? Join the Mutagen Discord channel at https://discord.gg/53KMEsW and post in the **#spawn-support channel** (ping @Piranha91 if I don't see you). Please don't ask for SynthEBD help in the other channels; they're for discussing Synthesis / Mutagen / coding /etc.
+
+Video Preview:
+https://www.youtube.com/watch?v=wLC0ll1MBGc
 
 ### Key Features
 
@@ -131,7 +134,10 @@ The different SynthEBD modules have their own requirements, in addition to the c
 11. If you are distributing body shapes via OBody/AutoBody, go to the *O/AutoBody Settings* and make sure all of your custom BodySlides are annotated with the appropriate descriptors.
   
 12. Click the green *Run* button.
-  
+
+Video Installation and Usage Guides:
+https://youtube.com/playlist?list=PLHhr33KhNepwImaBBWIIIOTKG66zHVeco
+- Note: these are WIP; more videos will be added to the playlist through the end of March.
 
 ### Important Differences from zEBD (For Previous Users)
 
