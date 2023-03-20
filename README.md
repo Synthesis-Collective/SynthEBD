@@ -6,13 +6,12 @@ SynthEBD is a standalone patcher that acts as a central hub for controlled rando
 
 Read this readme and still need help? Join the Mutagen Discord channel at https://discord.gg/53KMEsW and post in the **#spawn-support channel** (ping @Piranha91 if I don't see you). Please don't ask for SynthEBD help in the other channels; they're for discussing Synthesis / Mutagen / coding /etc.
 
-Video Preview:
-https://www.youtube.com/watch?v=wLC0ll1MBGc
+[![Video Preview](https://user-images.githubusercontent.com/63175798/226269913-6d3b5524-df24-45d4-a431-44dff3ead5a6.png)](https://www.youtube.com/watch?v=wLC0ll1MBGc)
 
 ### Key Features
 
 - ##### Texture Assignment
-  
+
   SynthEBD allows you to install plugins that distribute NPC textures from some of the popular mods on the Nexus - Bijin Skins, Tempered Skins, etc. Unlike installation through your mod manager, which forces you to select one variant from the many created by the author, SynthEBD enables you to distribute any and all texture variants to NPCs throughout the game with both randomization and control.
   
 - ##### Body Shape Randomization
@@ -111,6 +110,12 @@ The different SynthEBD modules have their own requirements, in addition to the c
 
 ### Getting Started (For New Users)
 
+Video Installation and Usage Guides:
+
+[![Video Installation and Usage Guides](https://user-images.githubusercontent.com/63175798/226270286-2baeeefc-523b-4b94-aa4d-b43f3c26cd78.PNG)](https://youtube.com/playlist?list=PLHhr33KhNepwImaBBWIIIOTKG66zHVeco)
+
+Note: these are WIP; more videos will be added to the playlist through the end of March.
+
 1. Download SynthEBD from the Nexus or GitHub Releases page
   
 2. Extract the SynthEBD folder to wherever you keep your mod utilities
@@ -134,10 +139,6 @@ The different SynthEBD modules have their own requirements, in addition to the c
 11. If you are distributing body shapes via OBody/AutoBody, go to the *O/AutoBody Settings* and make sure all of your custom BodySlides are annotated with the appropriate descriptors.
   
 12. Click the green *Run* button.
-
-Video Installation and Usage Guides:
-https://youtube.com/playlist?list=PLHhr33KhNepwImaBBWIIIOTKG66zHVeco
-- Note: these are WIP; more videos will be added to the playlist through the end of March.
 
 ### Important Differences from zEBD (For Previous Users)
 
