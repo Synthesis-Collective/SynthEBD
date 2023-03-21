@@ -41,6 +41,10 @@ class BlockListHandler
                 {
                     output.Assets = true;
                 }
+                if (blockedPlugin.VanillaBodyPath)
+                {
+                    output.VanillaBodyPath = true;
+                }
                 if (blockedPlugin.BodyShape)
                 {
                     output.BodyShape = true;
