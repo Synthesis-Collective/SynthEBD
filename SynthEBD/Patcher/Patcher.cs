@@ -1004,12 +1004,12 @@ public class Patcher
     {
         if (npcInfo.BlockedNPCEntry.HeadParts)
         {
-            _logger.LogReport("Current NPC is blocked from height assignment via the NPC block list", false, npcInfo);
+            _logger.LogReport("Current NPC is blocked from head part assignment via the NPC block list", false, npcInfo);
             return true;
         }
         else if (npcInfo.BlockedPluginEntry.HeadParts)
         {
-            _logger.LogReport("Current NPC is blocked from height assignment via the Plugin block list", false, npcInfo);
+            _logger.LogReport("Current NPC is blocked from head part assignment via the Plugin block list", false, npcInfo);
             return true;
         }
         if (_headPartSelector.BlockNPCWithCustomFaceGen(npcInfo))
