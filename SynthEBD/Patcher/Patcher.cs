@@ -307,10 +307,6 @@ public class Patcher
             _vanillaBodyPathSetter.SetVanillaBodyMeshPaths(outputMod, allNPCs);
         }
 
-        _logger.StopTimer();
-        _logger.LogMessage("Finished patching in " + _logger.GetEllapsedTime());
-        _logger.UpdateStatus("Finished Patching in " + _logger.GetEllapsedTime(), false);
-
         if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)
         {
             _combinationLog.WriteToFile();
@@ -371,6 +367,11 @@ public class Patcher
             string patchOutputPath = System.IO.Path.Combine(_paths.OutputDataFolder, _environmentProvider.OutputMod.ModKey.ToString());
             PatcherIO.WritePatch(patchOutputPath, outputMod, _logger, _environmentProvider);
         }
+
+        _logger.StopTimer();
+        _logger.LogMessage("Finished patching in " + _logger.GetEllapsedTime());
+        _logger.UpdateStatus("Finished Patching in " + _logger.GetEllapsedTime(), false);
+
         _statusBar.IsPatching = false;
     }
 
