@@ -1,6 +1,7 @@
 using Mutagen.Bethesda.Plugins;
 using Newtonsoft.Json;
 using System.Xml.Linq;
+using Z.Expressions.Compiler;
 
 namespace SynthEBD;
 
@@ -32,6 +33,7 @@ public class Settings_OBody
     public HashSet<string> FemaleSliderGroups { get; set; } = new();
     public bool bUseVerboseScripts { get; set; } = false;
     public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
+    public int HIMBOAnnotationVersion { get; set; } = 0; // increment as necessary to update HIMBO versions
 
     [JsonIgnore]
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new();
@@ -121,7 +123,76 @@ public class Settings_OBody
             }
         }
         logger.LogStartupEventEnd("Detecting currently installed BodySlides");
+
+        if (HIMBOAnnotationVersion == 0)
+        {
+            InitialHIMBOSetup();
+        }
     }
+
+    public void InitialHIMBOSetup() // Some default HIMBO presets are of the "different descriptors at different weights" variety. Clone presets here to reflect this.
+    {
+        for (int i = 0; i < BodySlidesMale.Count; i++)
+        {
+            var currentBodySlide = BodySlidesMale[i];
+            // skip processing if the user has pre-existing multiple entries for this bodyslide; they've probably already handled this manually
+            if (HIMBOPresets_0.Contains(currentBodySlide.ReferencedBodySlide) && BodySlidesMale.Where(x => x.ReferencedBodySlide == currentBodySlide.ReferencedBodySlide).Count() == 1)  
+            {
+                currentBodySlide.BodyShapeDescriptors.Clear();
+                var copiedBodySlide = currentBodySlide.DeepCopyByExpressionTree();
+                
+                copiedBodySlide.WeightRange.Upper = 50;
+                currentBodySlide.WeightRange.Lower = 51;
+
+                if (copiedBodySlide.ReferencedBodySlide == "HIMBO Daddy")
+                {
+                    copiedBodySlide.BodyShapeDescriptors.Add(new BodyShapeDescriptor.LabelSignature() { Category = "Build", Value = "Medium" });
+                    currentBodySlide.BodyShapeDescriptors.Add(new BodyShapeDescriptor.LabelSignature() { Category = "Build", Value = "Chubby" });
+                    copiedBodySlide.Label += " (Low Weight)";
+                    currentBodySlide.Label += " (High Weight)";
+                }
+                else if (copiedBodySlide.ReferencedBodySlide == "HIMBO Jack")
+                {
+                    copiedBodySlide.BodyShapeDescriptors.Add(new BodyShapeDescriptor.LabelSignature() { Category = "Build", Value = "Slight" });
+                    currentBodySlide.BodyShapeDescriptors.Add(new BodyShapeDescriptor.LabelSignature() { Category = "Build", Value = "Chubby" });
+                    copiedBodySlide.Label += " (Low Weight)";
+                    currentBodySlide.Label += " (High Weight)";
+                }
+                else if (copiedBodySlide.ReferencedBodySlide == "HIMBO Simple")
+                {
+                    currentBodySlide.WeightRange.Lower = 34;
+                    currentBodySlide.WeightRange.Upper = 66;
+
+                    copiedBodySlide.BodyShapeDescriptors.Add(new BodyShapeDescriptor.LabelSignature() { Category = "Build", Value = "Slight" });
+                    copiedBodySlide.WeightRange.Upper = 33;
+
+                    currentBodySlide.BodyShapeDescriptors.Add(new BodyShapeDescriptor.LabelSignature() { Category = "Build", Value = "Medium" });
+
+                    var copiedBodySlide2 = BodySlidesMale[i].DeepCopyByExpressionTree();
+                    copiedBodySlide2.BodyShapeDescriptors.Clear();
+                    copiedBodySlide2.BodyShapeDescriptors.Add(new BodyShapeDescriptor.LabelSignature() { Category = "Build", Value = "Powerful" });
+                    copiedBodySlide2.WeightRange.Lower = 67;
+                    copiedBodySlide2.WeightRange.Upper = 100;
+                    BodySlidesMale.Insert(i + 1, copiedBodySlide2);
+
+                    copiedBodySlide.Label += " (Low Weight)";
+                    currentBodySlide.Label += " (Medium Weight)";
+                    copiedBodySlide2.Label += " (High Weight)";
+                }
+
+                BodySlidesMale.Insert(i, copiedBodySlide);
+                i++;
+            }
+        }
+        HIMBOAnnotationVersion = 1;
+    }
+
+    public static HashSet<string> HIMBOPresets_0 = new()
+    {
+        "HIMBO Daddy",
+        "HIMBO Jack",
+        "HIMBO Simple"
+    };
 }
 
 public class BodySlideSetting : IProbabilityWeighted
