@@ -75,6 +75,7 @@ public class VanillaBodyPathSetter
         BlockedArmatures.Clear();
         BlockedNPCs.Clear();
         ArmatureDuplicatedWithVanillaPath.Clear();
+        ArmorDuplicatedwithVanillaPaths.Clear();
     }
 
     private Dictionary<FormKey, BipedObjectFlag> BlockedArmatures = new();
@@ -132,76 +133,101 @@ public class VanillaBodyPathSetter
 
             bool hasBlockedArmature = BlockedArmatures.Keys.Intersect(armorGetter.Armature.Select(x => x.FormKey).ToArray()).Any();
 
-            Armor wornArmor = null;
             if (hasBlockedArmature)
             {
-                wornArmor = outputMod.Armors.AddNew();
-                wornArmor.DeepCopyIn(armorGetter);
-                if (wornArmor.EditorID == null)
-                {
-                    wornArmor.EditorID = "_VanillaBodyPath";
-                }
-                else
-                {
-                    wornArmor.EditorID += "_VanillaBodyPath";
-                }
-
-                var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
-                npc.WornArmor.SetTo(wornArmor);
-                ArmorDuplicatedwithVanillaPaths.Add(armorGetter.FormKey, wornArmor);
+                SetViaNewArmor(outputMod, armorGetter, npcGetter, currentGender);
             }
             else
             {
-                wornArmor = outputMod.Armors.GetOrAddAsOverride(armorGetter);
-            }
+                SetInExistingArmor(outputMod, armorGetter, npcGetter, currentGender);
+            }   
+        }
+    }
 
-            for (int i = 0; i < wornArmor.Armature.Count; i++)
+    private void SetViaNewArmor(ISkyrimMod outputMod, IArmorGetter templateArmorGetter, INpcGetter currentNpcGetter, Gender currentGender)
+    {
+        var wornArmor = outputMod.Armors.AddNew();
+        wornArmor.DeepCopyIn(templateArmorGetter);
+        if (wornArmor.EditorID == null)
+        {
+            wornArmor.EditorID = "_VanillaBodyPath";
+        }
+        else
+        {
+            wornArmor.EditorID += "_VanillaBodyPath";
+        }
+
+        var npc = outputMod.Npcs.GetOrAddAsOverride(currentNpcGetter);
+        npc.WornArmor.SetTo(wornArmor);
+        ArmorDuplicatedwithVanillaPaths.Add(templateArmorGetter.FormKey, wornArmor);
+
+        for (int i = 0; i < wornArmor.Armature.Count; i++)
+        {
+            var armaLinkGetter = wornArmor.Armature[i];
+            if (!_environmentStateProvider.LinkCache.TryResolve<IArmorAddonGetter>(armaLinkGetter.FormKey, out var armaGetter))
             {
-                var armaLinkGetter = wornArmor.Armature[i];
-                if (!_environmentStateProvider.LinkCache.TryResolve<IArmorAddonGetter>(armaLinkGetter.FormKey, out var armaGetter))
+                _logger.LogMessage("Warning: Could not evaluate armature " + armaLinkGetter.FormKey.ToString() + " for vanilla body mesh path - armature could not be resolved.");
+            }
+            else if (ArmatureDuplicatedWithVanillaPath.ContainsKey(armaLinkGetter.FormKey)) // set the previously duplicated armature from cache
+            {
+                var newSetter = armaLinkGetter.AsSetter();
+                newSetter.SetTo(ArmatureDuplicatedWithVanillaPath[armaLinkGetter.FormKey]);
+                wornArmor.Armature[i] = newSetter;
+            }
+            else if (BlockedArmatures.ContainsKey(armaLinkGetter.FormKey))
+            {
+                BipedObjectFlag primaryBodyPart = BlockedArmatures[armaLinkGetter.FormKey];
+                ArmorAddon clonedArmature = outputMod.ArmorAddons.AddNew();
+                clonedArmature.DeepCopyIn(armaGetter);
+                if (clonedArmature.EditorID == null)
                 {
-                    _logger.LogMessage("Warning: Could not evaluate armature " + armaLinkGetter.FormKey.ToString() + " for vanilla body mesh path - armature could not be resolved.");
-                    continue;
-                }
-                if (ArmatureDuplicatedWithVanillaPath.ContainsKey(armaLinkGetter.FormKey)) // set the previously duplicated armature from cache
-                {
-                    var newSetter = armaLinkGetter.AsSetter();
-                    newSetter.SetTo(ArmatureDuplicatedWithVanillaPath[armaLinkGetter.FormKey]);
-                    wornArmor.Armature[i] = newSetter;
-                    continue;
-                }
-                else if (BlockedArmatures.ContainsKey(armaLinkGetter.FormKey))
-                {
-                    BipedObjectFlag primaryBodyPart = BlockedArmatures[armaLinkGetter.FormKey];
-                    ArmorAddon clone = outputMod.ArmorAddons.AddNew();
-                    clone.DeepCopyIn(armaGetter);
-                    if (clone.EditorID == null)
-                    {
-                        clone.EditorID = "_VanillaBodyPath";
-                    }
-                    else
-                    {
-                        clone.EditorID += "_VanillaBodyPath";
-                    }
-                    var newSetter = armaLinkGetter.AsSetter();
-                    newSetter.SetTo(clone);
-                    wornArmor.Armature[i] = newSetter;
-                    SetArmatureVanillaPath(clone, currentGender, DefaultBodyMeshPaths[currentGender][primaryBodyPart]);
+                    clonedArmature.EditorID = "_VanillaBodyPath";
                 }
                 else
                 {
-                    if (IsBodyArmature(armaGetter, npcGetter, currentGender, out BipedObjectFlag primaryBodyPart))
-                    {
-                        if (!DefaultBodyMeshPaths[currentGender].ContainsKey(primaryBodyPart))
-                        {
-                            _logger.LogMessage("Error setting vanilla mesh path: No registered path for body flag " + primaryBodyPart.ToString());
-                        }
-                        else if (!ArmatureHasVanillaPath(armaGetter, currentGender, DefaultBodyMeshPaths[currentGender][primaryBodyPart]))
-                        {
-                            var armature = outputMod.ArmorAddons.GetOrAddAsOverride(armaGetter);
-                            SetArmatureVanillaPath(armature, currentGender, DefaultBodyMeshPaths[currentGender][primaryBodyPart]);
-                        }
-                    }
+                    clonedArmature.EditorID += "_VanillaBodyPath";
+                }
+                var newSetter = armaLinkGetter.AsSetter();
+                newSetter.SetTo(clonedArmature);
+                wornArmor.Armature[i] = newSetter;
+                SetArmatureVanillaPath(clonedArmature, currentGender, DefaultBodyMeshPaths[currentGender][primaryBodyPart]);
+                ArmatureDuplicatedWithVanillaPath.Add(armaGetter.FormKey, clonedArmature);
+            }
+            else if (IsBodyArmature(armaGetter, currentNpcGetter, currentGender, out BipedObjectFlag primaryBodyPart))
+            {
+                if (!DefaultBodyMeshPaths[currentGender].ContainsKey(primaryBodyPart))
+                {
+                    _logger.LogMessage("Error setting vanilla mesh path: No registered path for body flag " + primaryBodyPart.ToString());
+                }
+                else if (!ArmatureHasVanillaPath(armaGetter, currentGender, DefaultBodyMeshPaths[currentGender][primaryBodyPart]))
+                {
+                    var armature = outputMod.ArmorAddons.GetOrAddAsOverride(armaGetter);
+                    SetArmatureVanillaPath(armature, currentGender, DefaultBodyMeshPaths[currentGender][primaryBodyPart]);
+                }
+            }
+        }
+    }
+
+    private void SetInExistingArmor(ISkyrimMod outputMod, IArmorGetter currentArmorGetter, INpcGetter currentNpcGetter, Gender currentGender)
+    {
+        for (int i = 0; i < currentArmorGetter.Armature.Count; i++)
+        {
+            var armaLinkGetter = currentArmorGetter.Armature[i];
+            if (!_environmentStateProvider.LinkCache.TryResolve<IArmorAddonGetter>(armaLinkGetter.FormKey, out var armaGetter))
+            {
+                _logger.LogMessage("Warning: Could not evaluate armature " + armaLinkGetter.FormKey.ToString() + " for vanilla body mesh path - armature could not be resolved.");
+                continue;
+            }
+            else if (IsBodyArmature(armaGetter, currentNpcGetter, currentGender, out BipedObjectFlag primaryBodyPart))
+            {
+                if (!DefaultBodyMeshPaths[currentGender].ContainsKey(primaryBodyPart))
+                {
+                    _logger.LogMessage("Error setting vanilla mesh path: No registered path for body flag " + primaryBodyPart.ToString());
+                }
+                else if (!ArmatureHasVanillaPath(armaGetter, currentGender, DefaultBodyMeshPaths[currentGender][primaryBodyPart]))
+                {
+                    var armature = outputMod.ArmorAddons.GetOrAddAsOverride(armaGetter);
+                    SetArmatureVanillaPath(armature, currentGender, DefaultBodyMeshPaths[currentGender][primaryBodyPart]);
                 }
             }
         }
