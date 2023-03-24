@@ -17,6 +17,7 @@ public class Patcher
     private readonly SynthEBDPaths _paths;
     private readonly Logger _logger;
     public readonly PatchableRaceResolver _raceResolver;
+    private readonly VerboseLoggingNPCSelector _verboseModeNPCSelector;
     private readonly AssetAndBodyShapeSelector _assetAndBodyShapeSelector;
     private readonly AssetSelector _assetSelector;
     private readonly AssetReplacerSelector _assetReplacerSelector;
@@ -47,7 +48,7 @@ public class Patcher
     private AssetStatsTracker _assetsStatsTracker { get; set; }
     private int _patchedNpcCount { get; set; }
 
-    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter)
+    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -56,6 +57,7 @@ public class Patcher
         _paths = paths;
         _logger = logger;
         _raceResolver = raceResolver;
+        _verboseModeNPCSelector = verboseModeNPCSelector;
         _assetAndBodyShapeSelector = assetAndBodyShapeSelector;
         _assetSelector = assetSelector;
         _assetReplacerSelector = assetReplacerSelector;
@@ -431,10 +433,18 @@ public class Patcher
             {
                 _logger.TriggerNPCReporting(currentNPCInfo);
             }
+            
             if (_patcherState.GeneralSettings.VerboseModeNPClist.Contains(npc.FormKey) || _patcherState.GeneralSettings.bVerboseModeAssetsAll) // if logging is done via non-compliant assets, the downstream callers will trigger save if the NPC is found to be non-compliant so don't short-circuit that logic here.
             {
                 _logger.TriggerNPCReportingSave(currentNPCInfo);
             }
+
+            if (!currentNPCInfo.Report.SaveCurrentNPCLog && _verboseModeNPCSelector.VerboseLoggingForCurrentNPC(currentNPCInfo)) // don't re-evaluate logging rules if the NPC already needs to be logged.
+            {
+                _logger.TriggerNPCReporting(currentNPCInfo);
+                _logger.TriggerNPCReportingSave(currentNPCInfo);
+            }
+
             _logger.InitializeNewReport(currentNPCInfo);
             #endregion
 

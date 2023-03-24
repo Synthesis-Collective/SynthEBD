@@ -100,6 +100,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<HeadPartSelector>().AsSelf().SingleInstance();
         builder.RegisterType<HeightPatcher>().AsSelf().SingleInstance();
         builder.RegisterType<VanillaBodyPathSetter>().AsSelf().SingleInstance();
+        builder.RegisterType<VerboseLoggingNPCSelector>().AsSelf().SingleInstance();
 
         //Asset copiers
         builder.RegisterType<EBDScripts>().AsSelf().SingleInstance();
