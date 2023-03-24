@@ -170,13 +170,13 @@ public class AssetAndBodyShapeSelector
                 }
                 else // no other filters can be relaxed
                 {
-                    _logger.LogReport("No more asset packs remain to select assets from. Terminating combination selection.", true, npcInfo);
+                    _logger.LogReport("No more asset packs remain to select assets from. Terminating combination selection.", mode == AssetSelector.AssetPackAssignmentMode.Primary, npcInfo);
                     break;
                 }
             }
 
             // get an asset combination
-            output.Assets = _assetSelector.GenerateCombination(npcInfo, iterationInfo);
+            output.Assets = _assetSelector.GenerateCombination(npcInfo, iterationInfo, mode);
 
             if (output.Assets == null)
             {

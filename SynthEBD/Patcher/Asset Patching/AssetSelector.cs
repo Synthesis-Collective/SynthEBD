@@ -121,19 +121,19 @@ public class AssetSelector
                 {
                     if (wasFilteredByConsistency) // if no valid groups when filtering for consistency, try again without filtering for it
                     {
-                        _logger.LogReport("Attempting to select a valid non-consistency Combination.", true, npcInfo);
+                        _logger.LogReport("Attempting to select a valid non-consistency Combination.", mode == AssetPackAssignmentMode.Primary, npcInfo);
                         filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, true, out wasFilteredByConsistency, mode, assignedBodyGen, assignedBodySlide);
                         iterationInfo.AvailableSeeds = GetAllSubgroups(filteredAssetPacks);
                     }
                     else // no other filters can be relaxed
                     {
-                        _logger.LogReport("No more asset packs remain to select assets from. Terminating combination selection.", true, npcInfo);
+                        _logger.LogReport("No more asset packs remain to select assets from. Terminating combination selection.", mode == AssetPackAssignmentMode.Primary && availableAssetPacks.Any(), npcInfo);
                         break;
                     }
                 }
 
                 // get an asset combination
-                chosenCombination = GenerateCombination(npcInfo, iterationInfo);
+                chosenCombination = GenerateCombination(npcInfo, iterationInfo, mode);
 
                 if (chosenCombination == null)
                 {
@@ -218,7 +218,7 @@ public class AssetSelector
         return linkedCombination;
     }
 
-    public SubgroupCombination GenerateCombination(NPCInfo npcInfo, AssignmentIteration iterationInfo)
+    public SubgroupCombination GenerateCombination(NPCInfo npcInfo, AssignmentIteration iterationInfo, AssetPackAssignmentMode mode)
     {
         SubgroupCombination generatedCombination = new SubgroupCombination();
         string generatedSignature = "";
@@ -234,7 +234,7 @@ public class AssetSelector
         {
             if (!iterationInfo.AvailableSeeds.Any())
             {
-                _logger.LogReport("No seed subgroups remain. A valid combination cannot be assigned with the given filters.", true, npcInfo);
+                _logger.LogReport("No seed subgroups remain. A valid combination cannot be assigned with the given filters.", mode == AssetPackAssignmentMode.Primary, npcInfo);
                 _logger.CloseReportSubsectionsToParentOf("CombinationGeneration", npcInfo);
                 return null;
             }
@@ -793,7 +793,7 @@ public class AssetSelector
                                 else
                                 {
                                     consistencyAssetPack.Subgroups[i] = new List<FlattenedSubgroup>() { consistencySubgroup };
-                                    _logger.LogReport("Using consistency subgroup " + consistencySubgroupIDs[i] + ".", true, npcInfo);
+                                    _logger.LogReport("Using consistency subgroup " + consistencySubgroupIDs[i] + ".", false, npcInfo);
                                 }
                             }
                         }
