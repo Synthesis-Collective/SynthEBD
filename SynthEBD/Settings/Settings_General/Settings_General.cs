@@ -228,6 +228,9 @@ public class Settings_General
     public bool OverwritePluginAttGroups { get; set; } = true;
 
     public bool bDisableValidation { get; set; } = false;
+
+    public bool bUseDetailedReportSelection { get; set; } = false;
+    public DetailedReportNPCSelector DetailedReportSelector { get; set; } = new();
 }
 
 public enum BodyShapeSelectionMode

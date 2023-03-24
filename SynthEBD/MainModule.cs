@@ -51,8 +51,9 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_SpecificNPCAssignmentsUI>().AsSelf().SingleInstance();        
         builder.RegisterType<VM_LogDisplay>().AsSelf().SingleInstance();
         builder.RegisterType<VM_AssetDistributionSimulator>().AsSelf().SingleInstance();
-        
+
         // UI components (sub-menus)
+        builder.RegisterType<VM_DetailedReportNPCSelector>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodyGenMiscMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_OBodyMiscSettings>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodySlidesMenu>().AsSelf().SingleInstance();

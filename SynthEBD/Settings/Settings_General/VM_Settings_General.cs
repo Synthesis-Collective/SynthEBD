@@ -31,6 +31,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         VM_RaceGroupingEditor.Factory raceGroupingEditorFactory,
         VM_RaceGrouping.Factory groupingFactory,
         VM_LinkedNPCGroup.Factory linkedNPCFactory,
+        VM_DetailedReportNPCSelector.Factory detailedReportNPCSelectorFactory,
         SettingsIO_General generalIO,
         PatcherState patcherState,
         IEnvironmentStateProvider environmentProvider,
@@ -56,6 +57,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
 
         AttributeGroupMenu = attributeGroupFactory(null, false);
         RaceGroupingEditor = _raceGroupingEditorFactory(this, false);
+        DetailedReportSelector = detailedReportNPCSelectorFactory(AttributeGroupMenu, RaceGroupingEditor);
 
         this.WhenAnyValue(x => x.bShowToolTips)
             .Subscribe(x => TooltipController.Instance.DisplayToolTips = x).DisposeWith(this);
@@ -184,31 +186,33 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
 
     public VM_Settings_Environment EnvironmentSettingsVM { get; set; }
     public string OutputDataFolder { get; set; } = "";
-    public bool bShowToolTips { get;  set;} = true;
-    public bool bChangeMeshesOrTextures { get; set;  } = true;
-    public BodyShapeSelectionMode BodySelectionMode { get; set;  } = BodyShapeSelectionMode.None;
+    public bool bShowToolTips { get; set; } = true;
+    public bool bChangeMeshesOrTextures { get; set; } = true;
+    public BodyShapeSelectionMode BodySelectionMode { get; set; } = BodyShapeSelectionMode.None;
     public BodySlideSelectionMode BSSelectionMode { get; set; } = BodySlideSelectionMode.OBody;
     public bool ExcludePlayerCharacter { get; set; } = true;
     public bool ExcludePresets { get; set; } = true;
-    public bool bChangeHeight { get; set;  } = true;
+    public bool bChangeHeight { get; set; } = true;
     public bool bChangeHeadParts { get; set; } = true;
     public bool bHeadPartsExcludeCustomHeads { get; set; } = true;
-    public bool bEnableConsistency { get; set;  } = true;
-    public bool bLinkNPCsWithSameName { get; set;  } = true;
+    public bool bEnableConsistency { get; set; } = true;
+    public bool bLinkNPCsWithSameName { get; set; } = true;
     public ObservableCollection<VM_CollectionMemberString> LinkedNameExclusions { get; set; } = new();
     public ObservableCollection<VM_LinkedNPCGroup> LinkedNPCGroups { get; set; } = new();
-    public bool bVerboseModeAssetsNoncompliant { get; set;  } = false;
-    public bool bVerboseModeAssetsAll { get; set;  } = false;
+    public bool bVerboseModeAssetsNoncompliant { get; set; } = false;
+    public bool bVerboseModeAssetsAll { get; set; } = false;
     public ObservableCollection<FormKey> verboseModeNPClist { get; set; } = new();
     public bool VerboseModeDetailedAttributes { get; set; } = false;
     public ObservableCollection<FormKey> patchableRaces { get; set; } = new();
     public VM_RaceGroupingEditor RaceGroupingEditor { get; set; }
     public bool OverwritePluginRaceGroups { get; set; } = true;
-    public ObservableCollection<VM_RaceAlias> raceAliases { get; set;  } = new();
+    public ObservableCollection<VM_RaceAlias> raceAliases { get; set; } = new();
     public RelayCommand AddRaceAlias { get; }
     public VM_AttributeGroupMenu AttributeGroupMenu { get; }
     public bool OverwritePluginAttGroups { get; set; } = true;
     public bool DisableValidation { get; set; } = false;
+    public bool bUseDetailedReportSelection { get; set; } = false;
+    public VM_DetailedReportNPCSelector DetailedReportSelector {get; set;}
     public bool IsCurrentlyLoading { get; set; } = false;
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> RacePickerFormKeys { get; } = typeof(IRaceGetter).AsEnumerable();
@@ -257,6 +261,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         OverwritePluginAttGroups = model.OverwritePluginAttGroups;
         DisableValidation = model.bDisableValidation;
         _bFirstRun = model.bFirstRun;
+        bUseDetailedReportSelection = model.bUseDetailedReportSelection;
+        DetailedReportSelector.CopyInFromModel(model.DetailedReportSelector);
         IsCurrentlyLoading = false;
         _logger.LogStartupEventEnd("Loading General Settings UI");
     }
@@ -299,6 +305,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.OverwritePluginAttGroups = OverwritePluginAttGroups;
         model.bDisableValidation = DisableValidation;
         model.bFirstRun = false;
+        model.bUseDetailedReportSelection = bUseDetailedReportSelection;
+        model.DetailedReportSelector = DetailedReportSelector.DumpToModel();
         return model;
     }
 }
