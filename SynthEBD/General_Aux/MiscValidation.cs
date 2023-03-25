@@ -532,7 +532,7 @@ public class MiscValidation
         else if (!morphEnabled)
         {
             valid = false;
-            _logger.LogMessage("bEnableBodyGen must be enabled in " + iniFileName + " for BodyGen to work. Please fix this from the BodyGen menu.");
+            _logger.LogMessage("bEnableBodyMorph must be enabled in " + iniFileName + " for BodyGen to work. Please fix this from the BodyGen menu.");
         }
 
         bool bodygenEnabled = _raceMenuHandler.GetBodyGenEnabled(iniContents, out bool bodyGenParsed, out string genLine);
@@ -598,7 +598,7 @@ public class MiscValidation
         else if (!morphEnabled)
         {
             valid = false;
-            _logger.LogMessage("bEnableBodyGen must be enabled in " + iniFileName + " for " + _patcherState.GeneralSettings.BSSelectionMode + " to work. Please fix this from the OBody Settings menu.");
+            _logger.LogMessage("bEnableBodyMorph must be enabled in " + iniFileName + " for " + _patcherState.GeneralSettings.BSSelectionMode + " to work. Please fix this from the OBody Settings menu.");
         }
 
         bool bodygenEnabled = _raceMenuHandler.GetBodyGenEnabled(iniContents, out bool bodyGenParsed, out string genLine);
