@@ -1125,12 +1125,12 @@ public class AssetSelector
 
     public bool BlockAssetDistributionByExistingAssets(NPCInfo npcInfo)
     {
-        if (!_patcherState.TexMeshSettings.bApplyToNPCsWithCustomFaces && npcInfo.NPC.HeadTexture != null && !npcInfo.NPC.HeadTexture.IsNull && !BaseGamePlugins.Contains(npcInfo.NPC.HeadTexture.FormKey.ModKey.FileName.String))
+        if (!_patcherState.TexMeshSettings.bApplyToNPCsWithCustomFaces && npcInfo.NPC.HeadTexture != null && !npcInfo.NPC.HeadTexture.IsNull && !BaseGamePlugins.Plugins.Contains(npcInfo.NPC.HeadTexture.FormKey.ModKey.FileName.String))
         {
             _logger.LogReport("Asset assignment is disabled for this NPC because the Texture/Mesh settings disallow patching of NPCs with custom face textures", false, npcInfo);
             return true;
         }
-        if (!_patcherState.TexMeshSettings.bApplyToNPCsWithCustomSkins && npcInfo.NPC.WornArmor != null && !npcInfo.NPC.WornArmor.IsNull && !BaseGamePlugins.Contains(npcInfo.NPC.WornArmor.FormKey.ModKey.FileName.String))
+        if (!_patcherState.TexMeshSettings.bApplyToNPCsWithCustomSkins && npcInfo.NPC.WornArmor != null && !npcInfo.NPC.WornArmor.IsNull && !BaseGamePlugins.Plugins.Contains(npcInfo.NPC.WornArmor.FormKey.ModKey.FileName.String))
         {
             _logger.LogReport("Asset assignment is disabled for this NPC because the Texture/Mesh settings disallow patching of NPCs with custom skins", false, npcInfo);
             return true;
@@ -1150,8 +1150,6 @@ public class AssetSelector
             return false;
         }
     }
-
-    public static string[] BaseGamePlugins = new string[] { "Skyrim.esm", "Update.esm", "Dawnguard.esm", "HearthFires.esm", "Dragonborn.esm" };
 
     public void GenerateDescriptorLog(SubgroupCombination generatedCombination, NPCInfo npcInfo)
     {

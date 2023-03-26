@@ -101,6 +101,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<HeightPatcher>().AsSelf().SingleInstance();
         builder.RegisterType<VanillaBodyPathSetter>().AsSelf().SingleInstance();
         builder.RegisterType<VerboseLoggingNPCSelector>().AsSelf().SingleInstance();
+        builder.RegisterType<ArmorPatcher>().AsSelf().SingleInstance();
 
         //Asset copiers
         builder.RegisterType<EBDScripts>().AsSelf().SingleInstance();
