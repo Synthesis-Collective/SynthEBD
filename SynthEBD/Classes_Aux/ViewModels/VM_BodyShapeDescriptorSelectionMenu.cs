@@ -141,8 +141,10 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
                     }
                     if (keepLooking == false) { break; }
                 }
-                // if the code got here, the given descriptor isn't present in the UI
-                BackupStash.Add(descriptor);
+                if (keepLooking)
+                {
+                    BackupStash.Add(descriptor); // descriptor is no longer present in the UI
+                }
             }
         }
     }
