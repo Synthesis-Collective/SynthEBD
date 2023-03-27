@@ -646,7 +646,14 @@ public class Patcher
                         headPartNPCs.Add(npcRecord);
                     }
 
-                    _armorPatcher.PatchArmorTextures(currentNPCInfo, replacedRecords, outputMod);
+                    if (_patcherState.TexMeshSettings.bPatchArmors)
+                    {
+                        _armorPatcher.PatchArmorTextures(currentNPCInfo, replacedRecords, outputMod);
+                    }
+                    if (_patcherState.TexMeshSettings.bPatchSkinAltTextures)
+                    {
+                        _skinPatcher.PatchAltTextures(currentNPCInfo, replacedRecords, outputMod);
+                    }
                 }
                 #endregion
             }
