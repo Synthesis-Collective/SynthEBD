@@ -384,6 +384,7 @@ public class VM_SettingsTexMesh : VM
         Window_AssetDistributionSimulator simWindow = new();
         VM_AssetDistributionSimulator distributionSimulator = _simulatorFactory();
         simWindow.DataContext = distributionSimulator;
+        distributionSimulator.Reinitialize();
         simWindow.ShowDialog();
     }
 

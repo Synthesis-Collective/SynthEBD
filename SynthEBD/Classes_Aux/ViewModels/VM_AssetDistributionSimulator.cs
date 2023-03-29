@@ -55,7 +55,6 @@ namespace SynthEBD
                 if (lk.TryResolve<INpcGetter>(NPCformKey, out var npcGetter))
                 {
                     NPCgetter = npcGetter;
-                    NPCinfo = npcInfoFactory(npcGetter, new(), new());
                 }
             }).DisposeWith(this); ;
 
@@ -83,10 +82,24 @@ namespace SynthEBD
         public ObservableCollection<AssetReport> AssetReports { get; set; } = new();
         public RelayCommand SimulatePrimary { get; set; }
 
+        public void Reinitialize()
+        {
+            NPCformKey = new();
+            Clear();
+        }
+
+        private void Clear()
+        {
+            AssetReports.Clear();
+            TextReport = string.Empty;
+        }
         public void SimulatePrimaryDistribution()
         {
+            Clear();
             if (PrimaryAPs is null || !PrimaryAPs.Any()) { return; }
             if (NPCformKey.IsNull) { return; }
+
+            NPCinfo = _npcInfoFactory(NPCgetter, new(), new());
 
             var flattenedAssetPacks = PrimaryAPs.Where(x => x.Gender == NPCinfo.Gender).Select(x => FlattenedAssetPack.FlattenAssetPack(x, _dictionaryMapper, _patcherState)).ToHashSet();
 
@@ -98,6 +111,9 @@ namespace SynthEBD
             HashSet<SubgroupCombination> combinations = new();
 
             var currentDetailedVerboseSetting = _patcherState.GeneralSettings.VerboseModeDetailedAttributes;
+
+            bool backupConsistency = _patcherState.GeneralSettings.bEnableConsistency;
+            _patcherState.GeneralSettings.bEnableConsistency = false;
 
             for (int i = 0; i < Repetitions; i++)
             {
@@ -129,6 +145,8 @@ namespace SynthEBD
                     _patcherState.GeneralSettings.VerboseModeDetailedAttributes = currentDetailedVerboseSetting;
                 }
             }
+
+            _patcherState.GeneralSettings.bEnableConsistency = backupConsistency;
 
             GenerateReport(combinations, flattenedAssetPacks, NPCinfo);
         }
