@@ -34,7 +34,7 @@ public class VM_BodySlidesMenu : VM
                 {
                     for (int i = 0; i < CurrentlyDisplayedBodySlides.Count; i++)
                     {
-                        if (!CurrentlyDisplayedBodySlides[i].IsHidden && CurrentlyDisplayedBodySlides[i].BorderColor == VM_BodySlideSetting.BorderColorMissing)
+                        if (CurrentlyDisplayedBodySlides[i].BorderColor == VM_BodySlideSetting.BorderColorMissing)
                         {
                             CurrentlyDisplayedBodySlides.RemoveAt(i);
                             i--;
@@ -51,7 +51,7 @@ public class VM_BodySlidesMenu : VM
                 {
                     for (int i = 0; i < CurrentlyDisplayedBodySlides.Count; i++)
                     {
-                        if (!CurrentlyDisplayedBodySlides[i].IsHidden && !CurrentlyDisplayedBodySlides[i].AssociatedModel.BodyShapeDescriptors.Any())
+                        if (!CurrentlyDisplayedBodySlides[i].AssociatedModel.BodyShapeDescriptors.Any())
                         {
                             CurrentlyDisplayedBodySlides.RemoveAt(i);
                             i--;
