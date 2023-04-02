@@ -1,8 +1,8 @@
 {
   "Nickname": "SynthEBD",
-  "Visibility": "Exclude",
+  "Visibility": "Visible",
   "OneLineDescription": "Randomizes NPC Textures, Body Shapes, Heights, and Headparts",
-  "LongDescription": "",
+  "LongDescription": "This is a complex patcher with multiple functionalities. Please see the ReadMe on the GitHub page for details, or watch the YouTube playlist for highlights (https://www.youtube.com/playlist?list=PLHhr33KhNepwImaBBWIIIOTKG66zHVeco).",
   "PreferredAutoVersioning": "Default",
   "RequiredMods": [],
   "TargetedReleases": [
