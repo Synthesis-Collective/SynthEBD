@@ -11,6 +11,7 @@ GlobalVariable Property FaceTextureScriptActive Auto
 GlobalVariable Property VerboseMode Auto
 Actor property PlayerREF Auto
 string[] property TriggerEventNames auto
+Spell property SynthEBDFaceTextureSpell Auto
 
 State Busy
 
@@ -37,6 +38,8 @@ Event OnSynthEBDSubscribedEvent(string eventName, string strArg, float numArg, F
 EndEvent
 
 function SetTextures(Actor akActor, string eventName)
+	ClearActorEffect(akActor, GetBaseObject(), SynthEBDFaceTextureSpell) ; Needed to re-apply face textures after game reload?
+	
 	if (akActor && isSKSEinstalled() && FaceTextureScriptActive.getValue() == 1)
 		If (akActor == PlayerREF)
 			FixDeadActors()		

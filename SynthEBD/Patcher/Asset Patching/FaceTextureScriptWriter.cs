@@ -101,6 +101,10 @@ public class FaceTextureScriptWriter
         }
         scriptApplyFaceTexture.Properties.Add(customTriggerEventsProperty);
 
+        ScriptObjectProperty faceTextureSpellProperty = new() { Name = "SynthEBDFaceTextureSpell", Flags = ScriptProperty.Flag.Edited };
+        faceTextureSpellProperty.Object.SetTo(SPELFixFaceTexture);
+        scriptApplyFaceTexture.Properties.Add(faceTextureSpellProperty);
+
         MGEFFixFaceTexture.VirtualMachineAdapter.Scripts.Add(scriptApplyFaceTexture);
 
         // Edit Spell
