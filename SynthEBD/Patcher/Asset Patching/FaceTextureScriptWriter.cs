@@ -33,7 +33,7 @@ public class FaceTextureScriptWriter
         synthEBDFaceKW.EditorID = "SynthEBDProcessFace";
         var gEnableFaceTextureScript = outputMod.Globals.AddNewShort();
         gEnableFaceTextureScript.EditorID = "SynthEBD_FaceTextureScriptActive";
-        gEnableFaceTextureScript.Data = 0; // default to 0; patcher will activate if necessary
+        gEnableFaceTextureScript.Data = Convert.ToInt16(!_patcherState.TexMeshSettings.bLegacyEBDMode);
         var gFaceTextureVerboseMode = outputMod.Globals.AddNewShort();
         gFaceTextureVerboseMode.EditorID = "SynthEBD_FaceTextureVerboseMode";
         gFaceTextureVerboseMode.Data = Convert.ToInt16(_patcherState.TexMeshSettings.bNewEBDModeVerbose);

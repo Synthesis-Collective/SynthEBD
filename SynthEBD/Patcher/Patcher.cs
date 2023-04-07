@@ -141,7 +141,7 @@ public class Patcher
         Keyword EBDScriptKW = null;
 
         // write resources for EBD face texture script even if it will be superceded by the updated version
-        EBDCoreRecords.CreateCoreRecords(outputMod, out EBDFaceKW, out EBDScriptKW, out Spell EBDHelperSpell);
+        EBDCoreRecords.CreateCoreRecords(outputMod, out EBDFaceKW, out EBDScriptKW, out Spell EBDHelperSpell, _patcherState.TexMeshSettings.bLegacyEBDMode);
 
         // write resources for new face texture script even if it will be deactivated
         (var synthEBDFaceKW, var gEnableFaceTextureScript, var gFaceTextureVerboseMode) = _faceTextureScriptWriter.InitializeToggleRecords(outputMod);
@@ -162,7 +162,6 @@ public class Patcher
             }
             else
             {
-                gEnableFaceTextureScript.Data = 1;
                 ApplyRacialSpell.ApplySpell(outputMod, synthEBDHelperSpell, _environmentProvider.LinkCache, _patcherState);
             }
 

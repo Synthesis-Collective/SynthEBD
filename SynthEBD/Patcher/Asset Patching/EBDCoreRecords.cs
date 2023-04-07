@@ -1,12 +1,13 @@
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Synthesis;
 
 namespace SynthEBD;
 
 public class EBDCoreRecords
 {
-    public static void CreateCoreRecords(ISkyrimMod outputMod, out Keyword EBDFaceKW, out Keyword EBDScriptKW, out Spell EBDHelperSpell)
+    public static void CreateCoreRecords(ISkyrimMod outputMod, out Keyword EBDFaceKW, out Keyword EBDScriptKW, out Spell EBDHelperSpell, bool enabled)
     {
         EBDFaceKW = outputMod.Keywords.AddNew();
         EBDFaceKW.EditorID = "EBDProcessFace";
@@ -26,7 +27,7 @@ public class EBDCoreRecords
 
         var EBDFaceFixEnabled = outputMod.Globals.AddNewShort();
         EBDFaceFixEnabled.EditorID = "EBDFaceFixEnabled";
-        EBDFaceFixEnabled.RawFloat = 1;
+        EBDFaceFixEnabled.RawFloat = Convert.ToInt16(enabled);
         var EBDHeadEnabled = outputMod.Globals.AddNewShort();
         EBDHeadEnabled.EditorID = "EBDHeadEnabled";
         EBDHeadEnabled.RawFloat = 0;
@@ -38,7 +39,7 @@ public class EBDCoreRecords
         EBDHeadSpellsEnabled.RawFloat = 0;
         var EBDHelperScriptEnabled = outputMod.Globals.AddNewShort();
         EBDHelperScriptEnabled.EditorID = "EBDHelperScriptEnabled";
-        EBDHelperScriptEnabled.RawFloat = 1;
+        EBDHelperScriptEnabled.RawFloat = Convert.ToInt16(enabled);
 
         var MGEF = outputMod.MagicEffects.AddNew();
         MGEF.Archetype = new MagicEffectArchetype()
