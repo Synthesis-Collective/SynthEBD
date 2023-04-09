@@ -125,7 +125,7 @@ public class BodyGenSelector
         #endregion
 
         #region Consistency
-        if (!assignmentsSpecified && _patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null)
+        if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null)
         {
             availableCombinations = GetConsistencyCombinations(availableCombinations, npcInfo, statusFlags, out statusFlags);
         }
