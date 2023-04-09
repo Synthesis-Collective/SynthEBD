@@ -14,220 +14,229 @@
         <local:BodyGenVisibilityConverter x:Key="BGVisibilityConverter" />
         <local:BodySlideVisibilityConverter x:Key="BSVisibilityConverter" />
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <local:MaxHeightConverter x:Key="MaxHeightConverter"/>
     </UserControl.Resources>
-    <ScrollViewer>
     <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="auto"/>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="25"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="25"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+            </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" ToolTip="Select the subject of this Specific NPC Assignment" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">NPC</TextBlock>
-        <plugins:FormKeyPicker Grid.Row="0" Grid.Column="1" FormKey="{Binding NPCFormKey}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
+            <TextBlock Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" ToolTip="Select the subject of this Specific NPC Assignment" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">NPC</TextBlock>
+            <plugins:FormKeyPicker Grid.Row="0" Grid.Column="1" FormKey="{Binding NPCFormKey}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Asset config file that must be assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Asset Pack</TextBlock>
-        <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Path=AvailableAssetPacks}" DisplayMemberPath="GroupName" SelectedValue="{Binding ForcedAssetPack, Mode=TwoWay}" />
-        <Button Grid.Row="1" Grid.Column="2" Width="75" Height="20" Margin="5 0 0 0" VerticalAlignment="Center" HorizontalAlignment="Left" HorizontalContentAlignment="Left"  Command="{Binding DeleteForcedAssetPack}" Foreground="Firebrick">X</Button>
+            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Asset config file that must be assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Asset Pack</TextBlock>
+            <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Path=AvailableAssetPacks}" DisplayMemberPath="GroupName" SelectedValue="{Binding ForcedAssetPack, Mode=TwoWay}" />
+            <Button Grid.Row="1" Grid.Column="2" Width="75" Height="20" Margin="5 0 0 0" VerticalAlignment="Center" HorizontalAlignment="Left" HorizontalContentAlignment="Left"  Command="{Binding DeleteForcedAssetPack}" Foreground="Firebrick">X</Button>
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Subgroups that must be assigned to this NPC (Drag and Drop)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Forced Subgroups</TextBlock>
+            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Subgroups that must be assigned to this NPC (Drag and Drop)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Forced Subgroups</TextBlock>
 
-        <TextBlock Grid.Row="2" Grid.Column="1" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Available</TextBlock>
-        <TreeView Grid.Row="3" Grid.Column="1" Name="TVsubgroups"  ItemsSource ="{Binding AvailableSubgroups}" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
-            <TreeView.Resources>
-                <HierarchicalDataTemplate DataType="{x:Type local:VM_SubgroupPlaceHolder}" ItemsSource="{Binding Subgroups}" >
-                    <TextBlock Text="{Binding Path=Name}" />
-                </HierarchicalDataTemplate>
-            </TreeView.Resources>
-        </TreeView>
+            <TextBlock Grid.Row="2" Grid.Column="1" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Available</TextBlock>
+            <TreeView Grid.Row="3" Grid.Column="1" Name="TVsubgroups"  ItemsSource ="{Binding AvailableSubgroups}" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}" MaxHeight="{Binding ActualHeight, 
+                        RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, 
+                        Converter={StaticResource MaxHeightConverter},
+                        ConverterParameter=.67}">
+                <TreeView.Resources>
+                    <HierarchicalDataTemplate DataType="{x:Type local:VM_SubgroupPlaceHolder}" ItemsSource="{Binding Subgroups}" >
+                        <TextBlock Text="{Binding Path=Name}" />
+                    </HierarchicalDataTemplate>
+                </TreeView.Resources>
+            </TreeView>
 
-        <TextBlock Grid.Row="2" Grid.Column="3" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Selected</TextBlock>
-        <ListBox Grid.Row="3" Grid.Column="3" ItemsSource="{Binding ForcedSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock>
-                            <TextBlock.Text>
-                                <MultiBinding StringFormat="{}{0}:{1}">
-                                    <Binding Path="ID" />
-                                    <Binding Path="Name" />
-                                </MultiBinding>
-                            </TextBlock.Text>
-                        </TextBlock>
-                        <Button Width="75" Height="20" Margin="15 0 0 0" VerticalAlignment="Center" HorizontalAlignment="Left" HorizontalContentAlignment="Left"  Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.DeleteForcedSubgroup}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
-                    </StackPanel>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+            <TextBlock Grid.Row="2" Grid.Column="3" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Selected</TextBlock>
+            <ListBox Grid.Row="3" Grid.Column="3" ItemsSource="{Binding ForcedSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock>
+                                <TextBlock.Text>
+                                    <MultiBinding StringFormat="{}{0}:{1}">
+                                        <Binding Path="ID" />
+                                        <Binding Path="Name" />
+                                    </MultiBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
+                            <Button Width="75" Height="20" Margin="15 0 0 0" VerticalAlignment="Center" HorizontalAlignment="Left" HorizontalContentAlignment="Left"  Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.DeleteForcedSubgroup}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
 
-        <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Horizontal" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
-            <TextBlock ToolTip="Asset replacers from the primary Config File that must be assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Asset Replacers</TextBlock>
-            <Button VerticalAlignment="Center" Command="{Binding AddForcedReplacer}" Foreground="LightGreen">Add</Button>
-        </StackPanel>
-        <ListBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding ForcedAssetReplacements}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <local:UC_AssetReplacerAssignment_SpecificAssignment/>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+            <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Horizontal" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
+                <TextBlock ToolTip="Asset replacers from the primary Config File that must be assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Asset Replacers</TextBlock>
+                <Button VerticalAlignment="Center" Command="{Binding AddForcedReplacer}" Foreground="LightGreen">Add</Button>
+            </StackPanel>
+            <ListBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding ForcedAssetReplacements}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <local:UC_AssetReplacerAssignment_SpecificAssignment/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
 
-        <StackPanel Grid.Row="5" Grid.Column="0" Orientation="Horizontal">
-            <TextBlock ToolTip="Mix-In Asset Config Files that must be applied to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced MixIns</TextBlock>
-            <Button HorizontalAlignment="Right" HorizontalContentAlignment="Right" VerticalAlignment="Top" Margin="47 0 0 0" Command="{Binding AddForcedMixIn}" Foreground="LightGreen">Add</Button>
-        </StackPanel>
-        <ItemsControl Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="4" Margin="0 10 0 0" ItemsSource="{Binding ForcedMixIns}">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <StackPanel/>
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
+            <StackPanel Grid.Row="5" Grid.Column="0" Orientation="Horizontal">
+                <TextBlock ToolTip="Mix-In Asset Config Files that must be applied to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced MixIns</TextBlock>
+                <Button HorizontalAlignment="Right" HorizontalContentAlignment="Right" VerticalAlignment="Top" Margin="47 0 0 0" Command="{Binding AddForcedMixIn}" Foreground="LightGreen">Add</Button>
+            </StackPanel>
+            <ItemsControl Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="4" Margin="0 10 0 0" ItemsSource="{Binding ForcedMixIns}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
 
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <Border BorderBrush="MediumPurple" BorderThickness="1">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border BorderBrush="MediumPurple" BorderThickness="1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="25"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="auto"/>
+                                    <RowDefinition Height="auto"/>
+                                    <RowDefinition Height="auto"/>
+                                    <RowDefinition Height="auto"/>
+                                    <RowDefinition Height="auto"/>
+                                    <RowDefinition Height="auto"/>
+                                </Grid.RowDefinitions>
+
+                                <ComboBox Grid.Row="0" Grid.Column="0"  ItemsSource="{Binding Path=AvailableMixInAssetPacks}" DisplayMemberPath="GroupName" SelectedValue="{Binding ForcedAssetPack, Mode=TwoWay}" />
+                                <Button Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}" Foreground="Firebrick">X</Button>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Decline Assignment of this Mix-In "/>
+                                <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding Decline}"/>
+
+                                <!--Subgroup List -->
+                                <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" ToolTip="Select subgroups from the selected Mix-In config file that must be assigned to this NPC (Drag and Drop)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Available</TextBlock>
+                                <TreeView Grid.Row="3" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding AvailableSubgroups}" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
+                                    <TreeView.Resources>
+                                        <HierarchicalDataTemplate DataType="{x:Type local:VM_SubgroupPlaceHolder}" ItemsSource="{Binding Subgroups}" >
+                                            <TextBlock Text="{Binding Path=Name}" />
+                                        </HierarchicalDataTemplate>
+                                    </TreeView.Resources>
+                                </TreeView>
+
+                                <TextBlock Grid.Row="2" Grid.Column="2" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Selected</TextBlock>
+                                <ListBox Grid.Row="3" Grid.Column="2" ItemsSource="{Binding ForcedSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock>
+                                                    <TextBlock.Text>
+                                                        <MultiBinding StringFormat="{}{0}:{1}">
+                                                            <Binding Path="ID" />
+                                                            <Binding Path="Name" />
+                                                        </MultiBinding>
+                                                    </TextBlock.Text>
+                                                </TextBlock>
+                                                <Button Width="75" Height="20" Margin="15 0 0 0" VerticalAlignment="Center" HorizontalAlignment="Left" HorizontalContentAlignment="Left"  Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.DeleteForcedMixInSubgroup}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <!-- End Subgroup List-->
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" ToolTip="Select asset replacers from this Mix-In config file that must be assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">MixIn Asset Replacers</TextBlock>
+                                <Button Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Command="{Binding AddForcedReplacer}" Foreground="LightGreen" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Add</Button>
+
+                                <ListBox Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" ItemsSource="{Binding ForcedAssetReplacements}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <local:UC_AssetReplacerAssignment_SpecificAssignment/>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <TextBlock Grid.Row="6" Grid.Column="0" VerticalAlignment="Center" ToolTip="The order in which asset config files and body shapes are to be assigned (Drag and drop to rearrange)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribution Order</TextBlock>
+            <Expander Grid.Row="6" Grid.Column="1" >
+                <local:UC_AssetOrderingMenu DataContext="{Binding AssetOrderingMenu}"/>
+            </Expander>
+            <StackPanel Grid.Row="6" Grid.Column="2" Grid.ColumnSpan="2" Orientation="Horizontal">
+                <TextBlock Text="Sync " VerticalAlignment="Top"/>
+                <Button Command="{Binding SyncThisAssetOrder}" VerticalAlignment="Top" Content="this"  Foreground="MediumPurple" Margin="0 1 0 0" ToolTip="Make the Asset Ordering for this Specific NPC Assignment match the one in the main Textures and Meshes Menu" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                <TextBlock Text=" | " VerticalAlignment="Top"/>
+                <Button Command="{Binding SyncAllAssetOrders}" Content="all" Foreground="MediumPurple" VerticalAlignment="Top" Margin="0 1 0 0" ToolTip="Make the Asset Ordering for all Specific NPC Assignments match the one in the main Textures and Meshes Menu" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                <TextBlock Text=" ordering to main" VerticalAlignment="Top"/>
+            </StackPanel>
+
+            <TextBlock Grid.Row="7" Grid.Column="0" ToolTip="Specify the height of the selected NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Height</TextBlock>
+            <TextBox Grid.Row="7" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ForcedHeight}"/>
+
+            <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}" ToolTip="BodySlide that must be applied to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Bodyslide</TextBlock>
+            <ComboBox Grid.Row="8" Grid.Column="1" ItemsSource="{Binding Path=AvailableBodySlides}" DisplayMemberPath="Label" SelectedValuePath="Label" SelectedValue="{Binding ForcedBodySlide, Mode=TwoWay}" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}" />
+
+            <TextBlock Grid.Row="8" Grid.Column="0" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}" ToolTip="BodyGen Morphs that must be applied to this NPC (Drag and Drop)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Morphs</TextBlock>
+
+            <TextBlock Grid.Row="8" Grid.Column="1" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Available</TextBlock>
+
+        <ListBox Grid.Row="9" Grid.Column="1" ItemsSource="{Binding AvailableMorphs}" DisplayMemberPath="Label" IsSynchronizedWithCurrentItem="True"  dd:DragDrop.IsDragSource="True" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}" MaxHeight="{Binding ActualHeight, 
+                        RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, 
+                        Converter={StaticResource MaxHeightConverter},
+                        ConverterParameter=.25}"/>
+
+            <TextBlock Grid.Row="8" Grid.Column="3" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Selected</TextBlock>
+        <ListBox Grid.Row="9" Grid.Column="3" ItemsSource="{Binding ForcedBodyGenMorphs}"  dd:DragDrop.IsDropTarget="True" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}" MaxHeight="{Binding ActualHeight, 
+                        RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, 
+                        Converter={StaticResource MaxHeightConverter},
+                        ConverterParameter=.25}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="25"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="auto" MinWidth="75"/>
+                                <ColumnDefinition Width="auto"/>
                             </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="auto"/>
-                                <RowDefinition Height="auto"/>
-                                <RowDefinition Height="auto"/>
-                                <RowDefinition Height="auto"/>
-                                <RowDefinition Height="auto"/>
-                                <RowDefinition Height="auto"/>
-                            </Grid.RowDefinitions>
 
-                            <ComboBox Grid.Row="0" Grid.Column="0"  ItemsSource="{Binding Path=AvailableMixInAssetPacks}" DisplayMemberPath="GroupName" SelectedValue="{Binding ForcedAssetPack, Mode=TwoWay}" />
-                            <Button Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding DeleteCommand}" Foreground="Firebrick">X</Button>
-
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Decline Assignment of this Mix-In "/>
-                            <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding Decline}"/>
-
-                            <!--Subgroup List -->
-                            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" ToolTip="Select subgroups from the selected Mix-In config file that must be assigned to this NPC (Drag and Drop)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Available</TextBlock>
-                            <TreeView Grid.Row="3" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding AvailableSubgroups}" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
-                                <TreeView.Resources>
-                                    <HierarchicalDataTemplate DataType="{x:Type local:VM_SubgroupPlaceHolder}" ItemsSource="{Binding Subgroups}" >
-                                        <TextBlock Text="{Binding Path=Name}" />
-                                    </HierarchicalDataTemplate>
-                                </TreeView.Resources>
-                            </TreeView>
-
-                            <TextBlock Grid.Row="2" Grid.Column="2" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Selected</TextBlock>
-                            <ListBox Grid.Row="3" Grid.Column="2" ItemsSource="{Binding ForcedSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock>
-                                                <TextBlock.Text>
-                                                    <MultiBinding StringFormat="{}{0}:{1}">
-                                                        <Binding Path="ID" />
-                                                        <Binding Path="Name" />
-                                                    </MultiBinding>
-                                                </TextBlock.Text>
-                                            </TextBlock>
-                                            <Button Width="75" Height="20" Margin="15 0 0 0" VerticalAlignment="Center" HorizontalAlignment="Left" HorizontalContentAlignment="Left"  Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.DeleteForcedMixInSubgroup}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                            <!-- End Subgroup List-->
-
-                            <TextBlock Grid.Row="4" Grid.Column="0" ToolTip="Select asset replacers from this Mix-In config file that must be assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">MixIn Asset Replacers</TextBlock>
-                            <Button Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Command="{Binding AddForcedReplacer}" Foreground="LightGreen" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Add</Button>
-
-                            <ListBox Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" ItemsSource="{Binding ForcedAssetReplacements}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <local:UC_AssetReplacerAssignment_SpecificAssignment/>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
+                            <TextBlock Text="{Binding Label}" />
+                            <Button Grid.Column="1" VerticalAlignment="Center" HorizontalContentAlignment="Left"  Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.DeleteForcedMorph}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
                         </Grid>
-                    </Border>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
 
-        <TextBlock Grid.Row="6" Grid.Column="0" VerticalAlignment="Center" ToolTip="The order in which asset config files and body shapes are to be assigned (Drag and drop to rearrange)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribution Order</TextBlock>
-        <Expander Grid.Row="6" Grid.Column="1" >
-            <local:UC_AssetOrderingMenu DataContext="{Binding AssetOrderingMenu}"/>
-        </Expander>
-        <StackPanel Grid.Row="6" Grid.Column="2" Grid.ColumnSpan="2" Orientation="Horizontal">
-            <TextBlock Text="Sync " VerticalAlignment="Top"/>
-            <Button Command="{Binding SyncThisAssetOrder}" VerticalAlignment="Top" Content="this"  Foreground="MediumPurple" Margin="0 1 0 0" ToolTip="Make the Asset Ordering for this Specific NPC Assignment match the one in the main Textures and Meshes Menu" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-            <TextBlock Text=" | " VerticalAlignment="Top"/>
-            <Button Command="{Binding SyncAllAssetOrders}" Content="all" Foreground="MediumPurple" VerticalAlignment="Top" Margin="0 1 0 0" ToolTip="Make the Asset Ordering for all Specific NPC Assignments match the one in the main Textures and Meshes Menu" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-            <TextBlock Text=" ordering to main" VerticalAlignment="Top"/>
-        </StackPanel>
-
-        <TextBlock Grid.Row="7" Grid.Column="0" ToolTip="Specify the height of the selected NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Height</TextBlock>
-        <TextBox Grid.Row="7" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ForcedHeight}"/>
-
-        <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}" ToolTip="BodySlide that must be applied to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Bodyslide</TextBlock>
-        <ComboBox Grid.Row="8" Grid.Column="1" ItemsSource="{Binding Path=AvailableBodySlides}" DisplayMemberPath="Label" SelectedValuePath="Label" SelectedValue="{Binding ForcedBodySlide, Mode=TwoWay}" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}" />
-
-        <TextBlock Grid.Row="8" Grid.Column="0" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}" ToolTip="BodyGen Morphs that must be applied to this NPC (Drag and Drop)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Morphs</TextBlock>
-
-        <TextBlock Grid.Row="8" Grid.Column="1" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Available</TextBlock>
-
-        <ListBox Grid.Row="9" Grid.Column="1" ItemsSource="{Binding AvailableMorphs}" DisplayMemberPath="Label" IsSynchronizedWithCurrentItem="True"  dd:DragDrop.IsDragSource="True" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">
-        </ListBox>
-
-        <TextBlock Grid.Row="8" Grid.Column="3" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Selected</TextBlock>
-        <ListBox Grid.Row="9" Grid.Column="3" ItemsSource="{Binding ForcedBodyGenMorphs}"  dd:DragDrop.IsDropTarget="True" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="auto" MinWidth="75"/>
-                            <ColumnDefinition Width="auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <TextBlock Text="{Binding Label}" />
-                        <Button Grid.Column="1" VerticalAlignment="Center" HorizontalContentAlignment="Left"  Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.DeleteForcedMorph}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
-                    </Grid>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
-
-        <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0">Head Parts</TextBlock>
-        <ItemsControl Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="3" ItemsSource="{Binding HeadParts}">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <StackPanel/>
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <StackPanel Margin="10" Orientation="Horizontal">
-                        <TextBlock VerticalAlignment="Center" Text="{Binding Key}" MinWidth="75"/>
-                        <StackPanel Orientation="Horizontal">
-                            <ComboBox SelectedValue="{Binding Value.EditorID}" ItemsSource="{Binding Path=Value.AvailableHeadParts}" DisplayMemberPath="Label" SelectedValuePath="Label" BorderThickness="1" BorderBrush="{Binding Value.BorderColor}" Margin="5 0 5 0"/>
-                            <Button VerticalAlignment="Center"  Command="{Binding Value.ClearSelection}" Foreground="Firebrick">X</Button>
+            <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0">Head Parts</TextBlock>
+        <ScrollViewer Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="3">
+            <ItemsControl ItemsSource="{Binding HeadParts}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="10" Orientation="Horizontal">
+                            <TextBlock VerticalAlignment="Center" Text="{Binding Key}" MinWidth="75"/>
+                            <StackPanel Orientation="Horizontal">
+                                <ComboBox SelectedValue="{Binding Value.EditorID}" ItemsSource="{Binding Path=Value.AvailableHeadParts}" DisplayMemberPath="Label" SelectedValuePath="Label" BorderThickness="1" BorderBrush="{Binding Value.BorderColor}" Margin="5 0 5 0"/>
+                                <Button VerticalAlignment="Center"  Command="{Binding Value.ClearSelection}" Foreground="Firebrick">X</Button>
+                            </StackPanel>
                         </StackPanel>
-                    </StackPanel>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
     </Grid>
-    </ScrollViewer>
 </UserControl>
