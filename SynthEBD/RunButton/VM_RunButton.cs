@@ -74,7 +74,7 @@ public class VM_RunButton : VM
                 }
 
                 await Task.Run(() => getPatcher().RunPatcher());
-                //VM_ConsistencyUI.GetViewModelsFromModels(state.Consistency, consistencyUi.Assignments, texMeshSettingsVM.AssetPacks, headParts, _logger); // refresh consistency after running patcher. Otherwise the pre-patching consistency will get reapplied from the view model upon patcher exit
+                consistencyUi.ReloadActiveViewModel(); // if a consistency entry is open, refresh it with the latest values from this patcher run
                 HasBeenRun = true;
             });
     }
