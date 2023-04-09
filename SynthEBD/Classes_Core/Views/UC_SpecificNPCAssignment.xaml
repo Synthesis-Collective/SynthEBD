@@ -16,6 +16,7 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <local:MaxHeightConverter x:Key="MaxHeightConverter"/>
     </UserControl.Resources>
+    <ScrollViewer>
     <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="auto"/>
@@ -195,13 +196,13 @@
         <ListBox Grid.Row="9" Grid.Column="1" ItemsSource="{Binding AvailableMorphs}" DisplayMemberPath="Label" IsSynchronizedWithCurrentItem="True"  dd:DragDrop.IsDragSource="True" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}" MaxHeight="{Binding ActualHeight, 
                         RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, 
                         Converter={StaticResource MaxHeightConverter},
-                        ConverterParameter=.25}"/>
+                        ConverterParameter=.3}"/>
 
             <TextBlock Grid.Row="8" Grid.Column="3" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Selected</TextBlock>
         <ListBox Grid.Row="9" Grid.Column="3" ItemsSource="{Binding ForcedBodyGenMorphs}"  dd:DragDrop.IsDropTarget="True" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}" MaxHeight="{Binding ActualHeight, 
                         RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, 
                         Converter={StaticResource MaxHeightConverter},
-                        ConverterParameter=.25}">
+                        ConverterParameter=.3}">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <Grid>
@@ -239,4 +240,5 @@
             </ItemsControl>
         </ScrollViewer>
     </Grid>
+    </ScrollViewer>
 </UserControl>
