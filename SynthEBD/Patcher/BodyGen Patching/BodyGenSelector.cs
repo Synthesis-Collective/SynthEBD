@@ -107,7 +107,7 @@ public class BodyGenSelector
         #endregion
 
         #region Unique NPC replicates
-        else if (UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName))
+        else if (!assignmentsSpecified && UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName))
         {
             var uniqueBodyGenAssignment = (List<BodyGenConfig.BodyGenTemplate>)UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodyGen);
             if (uniqueBodyGenAssignment != null && uniqueBodyGenAssignment.Any())
@@ -125,7 +125,7 @@ public class BodyGenSelector
         #endregion
 
         #region Consistency
-        if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null)
+        if (!assignmentsSpecified && _patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null)
         {
             availableCombinations = GetConsistencyCombinations(availableCombinations, npcInfo, statusFlags, out statusFlags);
         }
