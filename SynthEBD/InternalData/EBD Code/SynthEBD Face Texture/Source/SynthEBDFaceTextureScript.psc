@@ -1,7 +1,7 @@
 scriptName SynthEBDFaceTextureScript extends ActiveMagicEffect
 {applies the face texture which is set up in the npc record, changes headparts for NPCs}
 
-import EBDHelperScript; still needed for FixCellActors
+import EBDHelperScript; still needed for FixDeadActors
 import EBDGlobalFuncs ;direct access to the global funcs
 import EBDHeadPartFuncs ;direct access to the headpart funcs
 import SynthEBDCommonFuncs
@@ -20,6 +20,7 @@ EndState
 EVENT OnEffectStart(Actor akTarget, Actor akActor)
 	RegisterForNiNodeUpdate() ; Registers for the NiNodeUpdate event
 	RegisterForCustomEvents() ; Registers for additional events via the SynthEBD UI
+	RegisterForModEvent("SynthEBD_ReloadFaces", "OnGameHasLoaded")
 	SetTextures(akActor, "OnEffectStart") ; Calling function for fixing face texture
 EndEvent
 
@@ -37,16 +38,25 @@ Event OnSynthEBDSubscribedEvent(string eventName, string strArg, float numArg, F
 	SetTextures(akActor, eventName)
 EndEvent
 
+Event OnGameHasLoaded()
+	actor akActor = GetTargetActor()
+	SetTextures(akActor, "Game Reload")
+EndEvent
+
 Event OnPlayerLoadGame() ; Fix actors in current cell when player reloads game.
-	FixCellActors()
+	int handle = ModEvent.Create("SynthEBD_ReloadFaces")
+	if (handle)
+		VerboseLogger("SynthEBD: Sending SynthEBD_ReloadFaces", VerboseMode, false)
+		ModEvent.Send(handle)
+	endif
 EndEvent
 
 function SetTextures(Actor akActor, string eventName)
-	;ClearActorEffect(akActor, GetBaseObject(), SynthEBDFaceTextureSpell) ; EBD SSE used spell dispelling to fix texture application on game load, but dispelling prevents this script from detecting events after OnEffectStart. This functionality has been replaced by repurposing FixDeadActors() as FixCellActors(). 
+	;ClearActorEffect(akActor, GetBaseObject(), SynthEBDFaceTextureSpell) ; EBD SSE used spell dispelling to fix texture application on game load, but dispelling prevents this script from detecting events after OnEffectStart. This functionality has been replaced by repurposing FixDeadActors() as FixDeadActors(). 
 	
 	if (akActor && isSKSEinstalled() && FaceTextureScriptActive.getValue() == 1)
 		If (akActor == PlayerREF)
-			FixCellActors()	; Still necessary here, as well as OnPlayerLoadGame, to fix dead actor faces when the player changes cells
+			FixDeadActors()	; Still necessary here, as well as OnPlayerLoadGame, to fix dead actor faces when the player changes cells
 		EndIf
 		ActorBase akActorBase = getProperActorBase(akActor)
 		if (akActorBase && akActorBase.hasKeyword(SynthEBDFaceTextureKeyword))
@@ -78,7 +88,7 @@ function SetTextures(Actor akActor, string eventName)
 	EndIf
 EndFunction
 
-Function FixCellActors(); applies the magic effect to currently loaded actors; not too accurate, especially outdoors some actors are missed
+Function FixDeadActors(); applies the magic effect to currently loaded actors; not too accurate, especially outdoors some actors are missed
 	if (isPapyrusUtilinstalled()) ;faster than SKSE function
 		ObjectReference[] aActors = MiscUtil.ScanCellObjects(43, PlayerREF, 0.0) ; Actors = 0x3E; kNPC = 43; character = 62
 		Int iIndex = aActors.Length 
@@ -86,8 +96,8 @@ Function FixCellActors(); applies the magic effect to currently loaded actors; n
 			iIndex -= 1
 			Actor akActor = aActors[iIndex] as Actor
 			String actorName = getProperActorBase(akActor).getName()
-			if (akActor.hasKeyword(SynthEBDFaceTextureKeyword))
-				SetTextures(akActor, "FixCellActors via actor " + actorName)	
+			if (akActor.hasKeyword(SynthEBDFaceTextureKeyword) && akActor.IsDead())
+				SetTextures(akActor, "Fix Dead " + actorName)	
 			Endif	
 		EndWhile			
 	Else	
@@ -98,8 +108,8 @@ Function FixCellActors(); applies the magic effect to currently loaded actors; n
 				iIndex -= 1
 				Actor akActor = kCell.GetNthRef(iIndex, 43) as Actor
 				String actorName = getProperActorBase(akActor).getName()
-				if (akActor.hasKeyword(SynthEBDFaceTextureKeyword))
-					SetTextures(akActor, "FixCellActors via cell actor " + actorName)
+				if (akActor.hasKeyword(SynthEBDFaceTextureKeyword) && akActor.IsDead())
+					SetTextures(akActor, "Fix Dead " + actorName)
 				EndIf	
 			EndWhile
 		EndIf	
