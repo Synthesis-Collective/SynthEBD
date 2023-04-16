@@ -72,10 +72,13 @@ public class VanillaBodyPathSetter
 
     public void Reinitialize()
     {
+        PathsByRaceGender.Clear();
         BlockedArmatures.Clear();
         BlockedNPCs.Clear();
         ArmatureDuplicatedWithVanillaPath.Clear();
         ArmorDuplicatedwithVanillaPaths.Clear();
+
+        InitializeDefaultMeshPaths();
     }
 
     private Dictionary<FormKey, BipedObjectFlag> BlockedArmatures = new();
@@ -91,7 +94,10 @@ public class VanillaBodyPathSetter
         {
             foreach (var armaLink in armorGetter.Armature)
             {
-                if (!BlockedArmatures.ContainsKey(armaLink.FormKey) && armaLink.TryResolve(_environmentStateProvider.LinkCache, out var armaGetter) && IsBodyArmature(armaGetter, npcWinningRecord, currentNPCinfo.Gender, out BipedObjectFlag primaryBodyPart) && !ArmatureHasVanillaPath(armaGetter, currentNPCinfo.Gender, DefaultBodyMeshPaths[currentNPCinfo.Gender][primaryBodyPart]))
+                if (!BlockedArmatures.ContainsKey(armaLink.FormKey) && 
+                    armaLink.TryResolve(_environmentStateProvider.LinkCache, out var armaGetter) && 
+                    IsValidBodyArmature(armaGetter, armorGetter, npcWinningRecord, out BipedObjectFlag primaryBodyPart) && 
+                    !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentNPCinfo.Gender, npcWinningRecord, out _))
                 {
                     BlockedArmatures.Add(armaGetter.FormKey, primaryBodyPart);
                 }
@@ -118,8 +124,8 @@ public class VanillaBodyPathSetter
             foreach (var armaLink in armorGetter.Armature)
             {
                 if (armaLink.TryResolve(_environmentStateProvider.LinkCache, out var armaGetter) && 
-                    IsBodyArmature(armaGetter, npcGetter, currentGender, out BipedObjectFlag primaryBodyPart) && 
-                    !ArmatureHasVanillaPath(armaGetter, currentGender, DefaultBodyMeshPaths[currentGender][primaryBodyPart]))
+                    IsValidBodyArmature(armaGetter, armorGetter, npcGetter, out BipedObjectFlag primaryBodyPart) && 
+                    !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, npcGetter, out _))
                 {
                     hasNonVanillaBodyPaths = true;
                     break;
@@ -174,9 +180,8 @@ public class VanillaBodyPathSetter
                 newSetter.SetTo(ArmatureDuplicatedWithVanillaPath[armaLinkGetter.FormKey]);
                 wornArmor.Armature[i] = newSetter;
             }
-            else if (BlockedArmatures.ContainsKey(armaLinkGetter.FormKey))
+            else if (BlockedArmatures.ContainsKey(armaLinkGetter.FormKey) && GetArmatureVanillaPath(BlockedArmatures[armaLinkGetter.FormKey], currentGender, currentNpcGetter, out string vanillaPath))
             {
-                BipedObjectFlag primaryBodyPart = BlockedArmatures[armaLinkGetter.FormKey];
                 ArmorAddon clonedArmature = outputMod.ArmorAddons.AddNew();
                 clonedArmature.DeepCopyIn(armaGetter);
                 if (clonedArmature.EditorID == null)
@@ -190,20 +195,13 @@ public class VanillaBodyPathSetter
                 var newSetter = armaLinkGetter.AsSetter();
                 newSetter.SetTo(clonedArmature);
                 wornArmor.Armature[i] = newSetter;
-                SetArmatureVanillaPath(clonedArmature, currentGender, DefaultBodyMeshPaths[currentGender][primaryBodyPart]);
+                SetArmatureVanillaPath(clonedArmature, currentGender, vanillaPath);
                 ArmatureDuplicatedWithVanillaPath.Add(armaGetter.FormKey, clonedArmature);
             }
-            else if (IsBodyArmature(armaGetter, currentNpcGetter, currentGender, out BipedObjectFlag primaryBodyPart))
+            else if (IsValidBodyArmature(armaGetter, wornArmor, currentNpcGetter, out BipedObjectFlag primaryBodyPart) && !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, currentNpcGetter, out string vanillaPathB))
             {
-                if (!DefaultBodyMeshPaths[currentGender].ContainsKey(primaryBodyPart))
-                {
-                    _logger.LogMessage("Error setting vanilla mesh path: No registered path for body flag " + primaryBodyPart.ToString());
-                }
-                else if (!ArmatureHasVanillaPath(armaGetter, currentGender, DefaultBodyMeshPaths[currentGender][primaryBodyPart]))
-                {
-                    var armature = outputMod.ArmorAddons.GetOrAddAsOverride(armaGetter);
-                    SetArmatureVanillaPath(armature, currentGender, DefaultBodyMeshPaths[currentGender][primaryBodyPart]);
-                }
+                var armature = outputMod.ArmorAddons.GetOrAddAsOverride(armaGetter);
+                SetArmatureVanillaPath(armature, currentGender, vanillaPathB);
             }
         }
     }
@@ -218,16 +216,12 @@ public class VanillaBodyPathSetter
                 _logger.LogMessage("Warning: Could not evaluate armature " + armaLinkGetter.FormKey.ToString() + " for vanilla body mesh path - armature could not be resolved.");
                 continue;
             }
-            else if (IsBodyArmature(armaGetter, currentNpcGetter, currentGender, out BipedObjectFlag primaryBodyPart))
+            else if (IsValidBodyArmature(armaGetter, currentArmorGetter, currentNpcGetter, out BipedObjectFlag primaryBodyPart))
             {
-                if (!DefaultBodyMeshPaths[currentGender].ContainsKey(primaryBodyPart))
-                {
-                    _logger.LogMessage("Error setting vanilla mesh path: No registered path for body flag " + primaryBodyPart.ToString());
-                }
-                else if (!ArmatureHasVanillaPath(armaGetter, currentGender, DefaultBodyMeshPaths[currentGender][primaryBodyPart]))
+                if (!ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, currentNpcGetter, out string vanillaPath))
                 {
                     var armature = outputMod.ArmorAddons.GetOrAddAsOverride(armaGetter);
-                    SetArmatureVanillaPath(armature, currentGender, DefaultBodyMeshPaths[currentGender][primaryBodyPart]);
+                    SetArmatureVanillaPath(armature, currentGender, vanillaPath);
                 }
             }
         }
@@ -242,23 +236,59 @@ public class VanillaBodyPathSetter
         }
     }
 
-    private bool ArmatureHasVanillaPath(IArmorAddonGetter armaGetter, Gender currentGender, string vanillaPath)
+    private bool GetArmatureVanillaPath(BipedObjectFlag currentBodyPart, Gender currentGender, INpcGetter npcGetter, out string vanillaPath)
     {
+        vanillaPath = "";
+        if (npcGetter.Race == null || npcGetter.Race.IsNull)
+        {
+            _logger.LogError("Vanilla path setter: NPC " + EditorIDHandler.GetEditorIDSafely(npcGetter) + " has no Race record.");
+            return false;
+        }
+        else if (!PathsByRaceGender.ContainsKey(npcGetter.Race.FormKey))
+        {
+            _logger.LogError("Vanilla path setter cannot find a race (" + EditorIDHandler.GetEditorIDSafely<IRaceGetter>(npcGetter.Race.FormKey, _environmentStateProvider.LinkCache) + ") for NPC " + EditorIDHandler.GetEditorIDSafely(npcGetter));
+            return false;
+        }
+        else if (!PathsByRaceGender[npcGetter.Race.FormKey].ContainsKey(currentGender))
+        {
+            _logger.LogError("Vanilla path setter cannot find data for " + currentGender + " NPCs of race " + EditorIDHandler.GetEditorIDSafely<IRaceGetter>(npcGetter.Race.FormKey, _environmentStateProvider.LinkCache) + " (NPC is " + EditorIDHandler.GetEditorIDSafely(npcGetter) + ")");
+            return false;
+        }
+        else if (!PathsByRaceGender[npcGetter.Race.FormKey][currentGender].ContainsKey(currentBodyPart))
+        {
+            _logger.LogError("Vanilla path setter cannot find " + currentBodyPart + " data for " + currentGender + " NPCs of race " + EditorIDHandler.GetEditorIDSafely<IRaceGetter>(npcGetter.Race.FormKey, _environmentStateProvider.LinkCache) + " (NPC is " + EditorIDHandler.GetEditorIDSafely(npcGetter) + ")");
+            return false;
+        }
+        else
+        {
+            vanillaPath = PathsByRaceGender[npcGetter.Race.FormKey][currentGender][currentBodyPart];
+            return true;
+        }
+    }
+    private bool ArmatureHasVanillaPath(IArmorAddonGetter armaGetter, BipedObjectFlag currentBodyPart, Gender currentGender, INpcGetter npcGetter, out string vanillaPath) // function assumes that IsBodyArmature() has been called so potential null refs have been checked.
+    {
+        if (!GetArmatureVanillaPath(currentBodyPart, currentGender, npcGetter, out vanillaPath))
+        {
+            return true; // can't evaluate, so can't operate on this armature - assume it already has its vanilla path
+        }
+
         switch (currentGender)
         {
             case Gender.Female: return armaGetter.WorldModel.Female.File.RawPath.ToString().Equals(vanillaPath, StringComparison.OrdinalIgnoreCase);
             case Gender.Male: return armaGetter.WorldModel.Male.File.RawPath.ToString().Equals(vanillaPath, StringComparison.OrdinalIgnoreCase);
+            default: return true;
         }
-        return true;
     }
 
-    private bool IsBodyArmature(IArmorAddonGetter armaGetter, INpcGetter currentNPCgetter, Gender currentGender, out BipedObjectFlag primaryBodyPart)
+    private bool IsValidBodyArmature(IArmorAddonGetter armaGetter, IArmorGetter armorGetter, INpcGetter currentNPC, out BipedObjectFlag primaryBodyPart)
     {
         return IsBodyPart(armaGetter, out primaryBodyPart) &&
+            (armorGetter.Keywords == null || !armorGetter.Keywords.Contains(Skyrim.Keyword.ArmorClothing)) &&
             armaGetter.WorldModel != null &&
-            (_raceResolver.PatchableRaces.Contains(armaGetter.Race) || _raceResolver.PatchableRaces.Intersect(armaGetter.AdditionalRaces).Any()) &&
-            DefaultBodyMeshPaths.ContainsKey(currentGender) &&
-            DefaultBodyMeshPaths[currentGender] != null;
+            (
+                (armaGetter.Race != null && armaGetter.Race.Equals(currentNPC.Race)) ||
+                (armaGetter.AdditionalRaces != null && armaGetter.AdditionalRaces.Contains(currentNPC.Race))
+                );
     }
     
     private bool IsBodyPart(IArmorAddonGetter armaGetter, out BipedObjectFlag primaryBodyPart)
@@ -292,33 +322,49 @@ public class VanillaBodyPathSetter
         }
         return false;
     }
-
-    public static Dictionary<Gender, Dictionary<BipedObjectFlag, string>> DefaultBodyMeshPaths = new()
+    private void InitializeDefaultMeshPaths()
     {
+        foreach (var race in _raceResolver.PatchableRaces)
         {
-            Gender.Male,
-            new Dictionary<BipedObjectFlag, string>()
+            PathsByRaceGender.Add(race.FormKey, new Dictionary<Gender, Dictionary<BipedObjectFlag, string>>());
+            PathsByRaceGender[race.FormKey].Add(Gender.Male, new Dictionary<BipedObjectFlag, string>());
+            PathsByRaceGender[race.FormKey].Add(Gender.Female, new Dictionary<BipedObjectFlag, string>());
+            
+            if (_environmentStateProvider.LinkCache.TryResolve<IRaceGetter>(race.FormKey, out var raceGetter) && raceGetter.Skin != null && !raceGetter.Skin.IsNull && _environmentStateProvider.LinkCache.TryResolve<IArmorGetter>(raceGetter.Skin.FormKey, out var skinGetter) && skinGetter.Armature != null)
             {
-                { BipedObjectFlag.Body, "Actors\\Character\\Character Assets\\MaleBody_1.nif" },
-                { BipedObjectFlag.Hands, "Actors\\Character\\Character Assets\\MaleHands_1.nif" },
-                { BipedObjectFlag.Feet, "Actors\\Character\\Character Assets\\MaleFeet_1.nif" },
-            }
-        },
-        {
-            Gender.Female,
-            new Dictionary<BipedObjectFlag, string>()
-            {
-                { BipedObjectFlag.Body, "Actors\\Character\\Character Assets\\FemaleBody_1.nif" },
-                { BipedObjectFlag.Hands, "Actors\\Character\\Character Assets\\FemaleHands_1.nif" },
-                { BipedObjectFlag.Feet, "Actors\\Character\\Character Assets\\FemaleFeet_1.nif" },
+                foreach (var armaLink in skinGetter.Armature)
+                {
+                    if (armaLink.TryResolve(_environmentStateProvider.LinkCache, out var armaGetter) 
+                        && armaGetter.BodyTemplate != null 
+                        && (armaGetter.Race != null && armaGetter.Race.Equals(race) || armaGetter.AdditionalRaces != null && armaGetter.AdditionalRaces.Contains(raceGetter)))
+                    {
+                        foreach (var bodyFlag in BodyFlags)
+                        {
+                            if (armaGetter.BodyTemplate.FirstPersonFlags.HasFlag(bodyFlag))
+                            {
+                                if (!PathsByRaceGender[race.FormKey][Gender.Male].ContainsKey(bodyFlag) && armaGetter.WorldModel != null && armaGetter.WorldModel.Male != null && armaGetter.WorldModel.Male.File != null)
+                                {
+                                    PathsByRaceGender[race.FormKey][Gender.Male].Add(bodyFlag, armaGetter.WorldModel.Male.File);
+                                }
+                                if (!PathsByRaceGender[race.FormKey][Gender.Female].ContainsKey(bodyFlag) && armaGetter.WorldModel != null && armaGetter.WorldModel.Female != null && armaGetter.WorldModel.Female.File != null)
+                                {
+                                    PathsByRaceGender[race.FormKey][Gender.Female].Add(bodyFlag, armaGetter.WorldModel.Female.File);
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
-    };
+    }
+
+    private Dictionary<FormKey, Dictionary<Gender, Dictionary<BipedObjectFlag, string>>> PathsByRaceGender = new();
 
     public static HashSet<BipedObjectFlag> BodyFlags = new()
     {
         BipedObjectFlag.Body,
         BipedObjectFlag.Hands,
-        BipedObjectFlag.Feet
+        BipedObjectFlag.Feet,
+        BipedObjectFlag.Tail
     };
 }
