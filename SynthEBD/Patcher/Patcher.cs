@@ -427,9 +427,14 @@ public class Patcher
         List<SubgroupCombination> assignedCombinations = new List<SubgroupCombination>();
         HashSet<LinkedNPCGroup> linkedGroupsHashSet = _patcherState.GeneralSettings.LinkedNPCGroups.ToHashSet();
 
-        foreach (var npc in npcCollection)
+        int npcCount = npcCollection.Count();
+        var npcArray = npcCollection.ToArray();
+
+        for (int i = 0; i < npcCount; i++)
         {
+            var npc = npcArray[i];
             _statusBar.ProgressBarCurrent++;
+
             var currentNPCInfo = _npcInfoFactory(npc, linkedGroupsHashSet, generatedLinkGroups);
             _logger.CurrentNPCInfo = currentNPCInfo;
 
@@ -620,6 +625,11 @@ public class Patcher
                 #region Generate Records
                 if (assignedCombinations.Any())
                 {
+                    if (_patcherState.TexMeshSettings.bEasyNPCCompatibilityMode)
+                    {
+                        npc = RecordGenerator.EasyNPCHandler.StripEasyNpcArmor(npc, _environmentProvider.LinkCache, outputMod);
+                        currentNPCInfo.NPC = npc;
+                    }
                     var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
                     var npcObjectMap = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", npcRecord } };
                     var objectCaches = new Dictionary<FormKey, Dictionary<string, dynamic>>();

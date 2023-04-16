@@ -663,7 +663,7 @@ public class RecordGenerator
         }
     }
 
-    private class EasyNPCHandler
+    public class EasyNPCHandler
     {
         public static bool Permits(INpcGetter npcGetter, string currentSubPath, bool bEasyNPCCompatibilityMode)
         {
@@ -675,6 +675,24 @@ public class RecordGenerator
             {
                 return true;
             }
+        }
+        
+        public static INpcGetter StripEasyNpcArmor(INpcGetter npcGetter, ILinkCache linkCache, ISkyrimMod outputMod)
+        {
+            if (npcGetter.WornArmor != null && 
+                !npcGetter.WornArmor.IsNull && 
+                npcGetter.WornArmor.TryResolve(linkCache, out var armorGetter))
+            {
+                string editorID = EditorIDHandler.GetEditorIDSafely(armorGetter);
+
+                if (editorID == "SkinNakedBeastPatched" || editorID == "SkinNakedPatched") // patched WNAM records assigned by EasyNPC
+                {
+                    var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
+                    npc.WornArmor.Clear();
+                    return npc;
+                }
+            }
+            return npcGetter;
         }
     }
 }
