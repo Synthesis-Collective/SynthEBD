@@ -102,6 +102,9 @@ public class NPCAttribute
             case NPCAttributeType.FaceTexture: return NPCAttributeFaceTexture.CloneAsNew((NPCAttributeFaceTexture)inputInterface);
             case NPCAttributeType.Faction: return NPCAttributeFactions.CloneAsNew((NPCAttributeFactions)inputInterface);
             case NPCAttributeType.Group: return NPCAttributeGroup.CloneAsNew((NPCAttributeGroup)inputInterface);
+            case NPCAttributeType.Keyword: return NPCAttributeKeyword.CloneAsNew((NPCAttributeKeyword)inputInterface);
+            case NPCAttributeType.Misc: return NPCAttributeMisc.CloneAsNew((NPCAttributeMisc)inputInterface);
+            case NPCAttributeType.Mod: return NPCAttributeMod.CloneAsNew((NPCAttributeMod)inputInterface);
             case NPCAttributeType.NPC: return NPCAttributeNPC.CloneAsNew((NPCAttributeNPC)inputInterface);
             case NPCAttributeType.Race: return NPCAttributeRace.CloneAsNew((NPCAttributeRace)inputInterface);
             case NPCAttributeType.VoiceType: return NPCAttributeVoiceType.CloneAsNew((NPCAttributeVoiceType)inputInterface);
@@ -183,9 +186,10 @@ public enum NPCAttributeType
 {
     Class,
     Custom,
-    Faction,
     FaceTexture,
+    Faction,
     Group,
+    Keyword,
     Misc,
     Mod,
     NPC,
@@ -486,6 +490,64 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
         else
         {
             return logStr + "Face Texture: [" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "]";
+        }
+    }
+}
+
+public class NPCAttributeKeyword : ITypedNPCAttribute
+{
+    public HashSet<FormKey> FormKeys { get; set; } = new();
+    public NPCAttributeType Type { get; set; } = NPCAttributeType.Keyword;
+    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
+    public int Weighting { get; set; } = 1;
+    public bool Not { get; set; } = false;
+
+    public bool Equals(ITypedNPCAttribute other)
+    {
+        var otherTyped = (NPCAttributeKeyword)other;
+        if (this.Type == other.Type && this.Not == other.Not && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
+        return false;
+    }
+
+    public override int GetHashCode()
+    {
+        return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^
+            Type.GetHashCode() ^
+            ForceMode.GetHashCode() ^
+            Weighting.GetHashCode() ^
+            Not.GetHashCode();
+    }
+
+    public bool IsBlank()
+    {
+        return !FormKeys.Any();
+    }
+
+    public static NPCAttributeKeyword CloneAsNew(NPCAttributeKeyword input)
+    {
+        var output = new NPCAttributeKeyword();
+        output.ForceMode = input.ForceMode;
+        output.Type = input.Type;
+        output.FormKeys = input.FormKeys;
+        output.Weighting = input.Weighting;
+        return output;
+    }
+
+    public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
+    {
+        string logStr = "";
+        if (Not)
+        {
+            logStr += "NOT ";
+        }
+
+        if (bDetailedAttributes)
+        {
+            return logStr + "Keyword: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<IKeywordGetter>(x, linkCache))) + "]";
+        }
+        else
+        {
+            return logStr + "Keyword: [" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "]";
         }
     }
 }

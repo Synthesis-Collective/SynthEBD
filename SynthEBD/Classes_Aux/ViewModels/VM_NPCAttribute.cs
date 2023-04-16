@@ -71,6 +71,7 @@ public class VM_NPCAttribute : VM
         private readonly VM_NPCAttributeCustom.Factory _customFactory;
         private readonly VM_NPCAttributeFaceTexture.Factory _faceTextureFactory;
         private readonly VM_NPCAttributeFactions.Factory _factionsFactory;
+        private readonly VM_NPCAttributeKeyword.Factory _keywordFactory;
         private readonly VM_NPCAttributeMisc.Factory _miscFactory;
         private readonly VM_NPCAttributeMod.Factory _modFactory;
         private readonly VM_NPCAttributeNPC.Factory _npcFactory;
@@ -85,6 +86,7 @@ public class VM_NPCAttribute : VM
             VM_NPCAttributeCustom.Factory customFactory,
             VM_NPCAttributeFaceTexture.Factory faceTextureFactory,
             VM_NPCAttributeFactions.Factory factionsFactory,
+            VM_NPCAttributeKeyword.Factory keywordFactory,
             VM_NPCAttributeMisc.Factory miscFactory,
             VM_NPCAttributeMod.Factory modFactory,
             VM_NPCAttributeNPC.Factory npcFactory,
@@ -100,6 +102,7 @@ public class VM_NPCAttribute : VM
             _customFactory = customFactory;
             _faceTextureFactory = faceTextureFactory;
             _factionsFactory = factionsFactory;
+            _keywordFactory = keywordFactory;
             _miscFactory = miscFactory;
             _modFactory = modFactory;
             _npcFactory = npcFactory;
@@ -156,6 +159,7 @@ public class VM_NPCAttribute : VM
                     case NPCAttributeType.Custom: shellVM.Attribute = VM_NPCAttributeCustom.GetViewModelFromModel((NPCAttributeCustom)attributeShellModel, viewModel, shellVM, _customFactory); break;
                     case NPCAttributeType.Faction: shellVM.Attribute = VM_NPCAttributeFactions.GetViewModelFromModel((NPCAttributeFactions)attributeShellModel, viewModel, shellVM, _factionsFactory); break;
                     case NPCAttributeType.FaceTexture: shellVM.Attribute = VM_NPCAttributeFaceTexture.GetViewModelFromModel((NPCAttributeFaceTexture)attributeShellModel, viewModel, shellVM, _faceTextureFactory); break;
+                    case NPCAttributeType.Keyword: shellVM.Attribute = VM_NPCAttributeKeyword.GetViewModelFromModel((NPCAttributeKeyword)attributeShellModel, viewModel, shellVM, _keywordFactory); break;
                     case NPCAttributeType.Misc: shellVM.Attribute = VM_NPCAttributeMisc.GetViewModelFromModel((NPCAttributeMisc)attributeShellModel, viewModel, shellVM, _miscFactory); break;
                     case NPCAttributeType.Mod: shellVM.Attribute = VM_NPCAttributeMod.GetViewModelFromModel((NPCAttributeMod)attributeShellModel, viewModel, shellVM, _modFactory); break;
                     case NPCAttributeType.NPC: shellVM.Attribute = VM_NPCAttributeNPC.GetViewModelFromModel((NPCAttributeNPC)attributeShellModel, viewModel, shellVM, _npcFactory); break;
@@ -205,6 +209,7 @@ public class VM_NPCAttribute : VM
                 case NPCAttributeType.Faction: model.SubAttributes.Add(VM_NPCAttributeFactions.DumpViewModelToModel((VM_NPCAttributeFactions)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
                 case NPCAttributeType.FaceTexture: model.SubAttributes.Add(VM_NPCAttributeFaceTexture.DumpViewModelToModel((VM_NPCAttributeFaceTexture)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
                 case NPCAttributeType.Group: model.SubAttributes.Add(VM_NPCAttributeGroup.DumpViewModelToModel((VM_NPCAttributeGroup)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
+                case NPCAttributeType.Keyword: model.SubAttributes.Add(VM_NPCAttributeKeyword.DumpViewModelToModel((VM_NPCAttributeKeyword)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
                 case NPCAttributeType.Misc: model.SubAttributes.Add(VM_NPCAttributeMisc.DumpViewModelToModel((VM_NPCAttributeMisc)subAttVM.Attribute,subAttVM.ForceModeStr)); break;
                 case NPCAttributeType.Mod: model.SubAttributes.Add(VM_NPCAttributeMod.DumpViewModelToModel((VM_NPCAttributeMod)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
                 case NPCAttributeType.NPC: model.SubAttributes.Add(VM_NPCAttributeNPC.DumpViewModelToModel((VM_NPCAttributeNPC)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
@@ -224,6 +229,7 @@ public class VM_NPCAttributeShell : VM
     private readonly VM_NPCAttributeCustom.Factory _customFactory;
     private readonly VM_NPCAttributeFaceTexture.Factory _faceTextureFactory;
     private readonly VM_NPCAttributeFactions.Factory _factionsFactory;
+    private readonly VM_NPCAttributeKeyword.Factory _keywordFactory;
     private readonly VM_NPCAttributeMisc.Factory _miscFactory;
     private readonly VM_NPCAttributeMod.Factory _modFactory;
     private readonly VM_NPCAttributeNPC.Factory _npcFactory;
@@ -237,6 +243,7 @@ public class VM_NPCAttributeShell : VM
         VM_NPCAttributeCustom.Factory customFactory,
         VM_NPCAttributeFaceTexture.Factory faceTextureFactory,
         VM_NPCAttributeFactions.Factory factionsFactory,
+        VM_NPCAttributeKeyword.Factory keywordFactory,
         VM_NPCAttributeMisc.Factory miscFactory,
         VM_NPCAttributeMod.Factory modFactory,
         VM_NPCAttributeNPC.Factory npcFactory,
@@ -250,6 +257,7 @@ public class VM_NPCAttributeShell : VM
         _customFactory = customFactory;
         _faceTextureFactory = faceTextureFactory;
         _factionsFactory = factionsFactory;
+        _keywordFactory = keywordFactory;
         _miscFactory = miscFactory;
         _modFactory = modFactory;
         _npcFactory = npcFactory;
@@ -323,6 +331,7 @@ public class VM_NPCAttributeShell : VM
         { NPCAttributeType.FaceTexture, null },
         { NPCAttributeType.Faction, null },
         { NPCAttributeType.Group, null },
+        { NPCAttributeType.Keyword, null },
         { NPCAttributeType.Misc, null },
         { NPCAttributeType.Mod, null },
         { NPCAttributeType.NPC, null },
@@ -345,6 +354,7 @@ public class VM_NPCAttributeShell : VM
                 case NPCAttributeType.FaceTexture: Attribute = _faceTextureFactory(parentVM, this); break;
                 case NPCAttributeType.Faction: Attribute = _factionsFactory(parentVM, this); break;
                 case NPCAttributeType.Group: Attribute = new VM_NPCAttributeGroup(parentVM, this, attributeGroups); break;
+                case NPCAttributeType.Keyword: Attribute = _keywordFactory(parentVM, this); break;
                 case NPCAttributeType.Misc: Attribute = _miscFactory(parentVM, this); break;
                 case NPCAttributeType.Mod: Attribute = _modFactory(parentVM, this); break;
                 case NPCAttributeType.NPC: Attribute = _npcFactory(parentVM, this); break;
@@ -738,6 +748,45 @@ public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
     }
 }
 
+public class VM_NPCAttributeKeyword : VM, ISubAttributeViewModel
+{
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly Factory _selfFactory;
+    public delegate VM_NPCAttributeKeyword Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
+    public VM_NPCAttributeKeyword(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
+    {
+        _environmentProvider = environmentProvider;
+        _selfFactory = selfFactory;
+        ParentVM = parentVM;
+        ParentShell = parentShell;
+
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
+            .Subscribe(x => lk = x)
+            .DisposeWith(this);
+        DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
+    }
+    public ObservableCollection<FormKey> KeywordFormKeys { get; set; } = new();
+    public VM_NPCAttribute ParentVM { get; set; }
+    public VM_NPCAttributeShell ParentShell { get; set; }
+    public RelayCommand DeleteCommand { get; }
+
+    public ILinkCache lk { get; private set; }
+    public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IKeywordGetter).AsEnumerable();
+    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+
+    public static VM_NPCAttributeKeyword GetViewModelFromModel(NPCAttributeKeyword model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeKeyword.Factory factory)
+    {
+        var newAtt = factory(parentVM, parentShell);
+        newAtt.KeywordFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
+        parentShell.ForceIfWeight = model.Weighting;
+        parentShell.Not = model.Not;
+        return newAtt;
+    }
+    public static NPCAttributeKeyword DumpViewModelToModel(VM_NPCAttributeKeyword viewModel, string forceModeStr)
+    {
+        return new NPCAttributeKeyword() { Type = NPCAttributeType.Keyword, FormKeys = viewModel.KeywordFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
+    }
+}
 public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
 {
     private IEnvironmentStateProvider _environmentProvider;

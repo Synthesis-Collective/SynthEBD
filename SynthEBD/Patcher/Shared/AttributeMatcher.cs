@@ -124,6 +124,30 @@ public class AttributeMatcher
                             subAttributeMatched = false;
                         }
                         break;
+
+                    case NPCAttributeType.Keyword:
+                        var keywordAttribute = (NPCAttributeKeyword)subAttribute;
+                        bool KeywordMatched = false;
+                        if (npc.Keywords != null)
+                        {
+                            foreach (var keywordFK in keywordAttribute.FormKeys)
+                            {
+                                foreach (var npcKeyword in npc.Keywords)
+                                {
+                                    if (npcKeyword.FormKey.Equals(keywordFK))
+                                    {
+                                        KeywordMatched = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (!KeywordMatched)
+                        {
+                            subAttributeMatched = false;
+                        }
+                        break;
+
                     case NPCAttributeType.Misc:
                         var miscAttribute = (NPCAttributeMisc)subAttribute;
                         if (miscAttribute.EvalAggression && npc.AIData.Aggression != miscAttribute.Aggression) { subAttributeMatched = false; }

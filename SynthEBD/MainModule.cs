@@ -156,6 +156,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_NPCAttributeFaceTexture>().AsSelf();
         builder.RegisterType<VM_NPCAttributeFactions>().AsSelf();
         builder.RegisterType<VM_NPCAttributeGroup>().AsSelf();
+        builder.RegisterType<VM_NPCAttributeKeyword>().AsSelf();
         builder.RegisterType<VM_NPCAttributeMisc>().AsSelf();
         builder.RegisterType<VM_NPCAttributeMod>().AsSelf();
         builder.RegisterType<VM_NPCAttributeNPC>().AsSelf();
