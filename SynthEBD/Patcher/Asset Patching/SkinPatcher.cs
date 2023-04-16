@@ -1,4 +1,7 @@
+using AssemblyVersionGenerator;
+using Mutagen.Bethesda;
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
 using System;
 using System.Collections.Generic;
@@ -40,6 +43,41 @@ namespace SynthEBD
                     }
                 }
             }
+        }
+
+        public void ValidateArmorFlags(INpcGetter npcGetter, HashSet<IMajorRecord> recordsFromTemplate, ISkyrimMod outputMod) // in rare cases, SynthEBD can add new armature to an existing armor record. That record's armor needs to patched with the new armature's body flags
+        {
+            var formKeysFromTemplate = recordsFromTemplate.Select(x => x.FormKey).ToArray();
+            
+            if (npcGetter.WornArmor != null && npcGetter.WornArmor.TryResolve(_environmentStateProvider.LinkCache, out var armorGetter) && armorGetter.BodyTemplate != null && armorGetter.Armature != null)
+            {
+                foreach (var armaLink in armorGetter.Armature)
+                {
+                    var matchedTemplateRecord = recordsFromTemplate.Where(x => x.FormKey == armaLink.FormKey).FirstOrDefault();
+                    if (matchedTemplateRecord != null)
+                    {
+                        var matchedArmatureRecord = matchedTemplateRecord as ArmorAddon;
+                        if (matchedArmatureRecord != null && matchedArmatureRecord.BodyTemplate != null)
+                        {
+                            if (!CheckMatchingBipedObjectFlags(armorGetter.BodyTemplate.FirstPersonFlags, matchedArmatureRecord.BodyTemplate.FirstPersonFlags))
+                            {
+                                var armor = outputMod.Armors.GetOrAddAsOverride(armorGetter);
+                                armor.BodyTemplate.FirstPersonFlags = EnableMatchingBipedObjectFlags(armor.BodyTemplate.FirstPersonFlags, matchedArmatureRecord.BodyTemplate.FirstPersonFlags);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        public static bool CheckMatchingBipedObjectFlags(BipedObjectFlag toEnable, BipedObjectFlag enableThese)
+        {
+            return (toEnable & enableThese) == enableThese;
+        }
+
+        private static BipedObjectFlag EnableMatchingBipedObjectFlags(BipedObjectFlag toEnable, BipedObjectFlag enableThese)
+        {
+            return toEnable | enableThese;
         }
     }
 }

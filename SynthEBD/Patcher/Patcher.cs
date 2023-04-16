@@ -624,8 +624,9 @@ public class Patcher
                     var npcObjectMap = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", npcRecord } };
                     var objectCaches = new Dictionary<FormKey, Dictionary<string, dynamic>>();
                     var replacedRecords = new Dictionary<FormKey, FormKey>();
+                    var recordsFromTemplates = new HashSet<IMajorRecord>(); // needed for downstream quality check
                     var assignedPaths = new List<FilePathReplacementParsed>(); // for logging only
-                    _recordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, _patcherState.RecordTemplateLinkCache, npcObjectMap, objectCaches, replacedRecords, outputMod, assignedPaths, generatedHeadParts);
+                    _recordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, _patcherState.RecordTemplateLinkCache, npcObjectMap, objectCaches, replacedRecords, recordsFromTemplates, outputMod, assignedPaths, generatedHeadParts);
                     _combinationLog.LogAssignment(currentNPCInfo, assignedCombinations, assignedPaths);
                     if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
 
@@ -653,6 +654,7 @@ public class Patcher
                     {
                         _skinPatcher.PatchAltTextures(currentNPCInfo, replacedRecords, outputMod);
                     }
+                    _skinPatcher.ValidateArmorFlags(npcRecord, recordsFromTemplates, outputMod);
                 }
                 #endregion
             }
