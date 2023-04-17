@@ -709,7 +709,7 @@ public class AssetSelector
         _logger.CloseReportSubsectionsTo("ConfigFiltering", npcInfo);
 
         #region handle consistency 
-        if (!ignoreConsistency && npcInfo.ConsistencyNPCAssignment != null && filteredPacks.Any()) // (must be last to ensure subordinance to ForceIf attribute count which is determined by evaluating all available subgroups)
+        if (_patcherState.GeneralSettings.bEnableConsistency && !ignoreConsistency && npcInfo.ConsistencyNPCAssignment != null && filteredPacks.Any()) // (must be last to ensure subordinance to ForceIf attribute count which is determined by evaluating all available subgroups)
         {
             _logger.OpenReportSubsection("Consistency", npcInfo);
             string consistencyAssetPackName = "";
