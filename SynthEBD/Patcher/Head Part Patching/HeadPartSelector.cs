@@ -26,7 +26,12 @@ namespace SynthEBD
             _attributeMatcher = attributeMatcher;
         }
 
-        public HeadPartSelection AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings, BodySlideSetting? assignedBodySlide, List<BodyGenConfig.BodyGenTemplate>? assignedBodyGenMorphs)
+        public void Reinitialize()
+        {
+            headPartFormLists = new();
+        }
+
+        public HeadPartSelection AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings, BodySlideSetting? assignedBodySlide, List<BodyGenConfig.BodyGenTemplate>? assignedBodyGenMorphs, ISkyrimMod outputMod)
         {
             _logger.OpenReportSubsection("HeadParts", npcInfo);
             _logger.LogReport("Selecting Head Parts for Current NPC", false, npcInfo);
@@ -56,7 +61,11 @@ namespace SynthEBD
                 }
 
                 HeadPartConsistency currentConsistency = null;
-                if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null)
+                if (_patcherState.GeneralSettings.bEnableConsistency && 
+                    npcInfo.ConsistencyNPCAssignment != null &&
+                    npcInfo.ConsistencyNPCAssignment.HeadParts != null && 
+                    npcInfo.ConsistencyNPCAssignment.HeadParts.ContainsKey(headPartType)
+                    )
                 {
                     currentConsistency = npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType];
                 }
@@ -80,6 +89,19 @@ namespace SynthEBD
                 // record new consistency
                 if (_patcherState.GeneralSettings.bEnableConsistency)
                 {
+                    if (npcInfo.ConsistencyNPCAssignment == null)
+                    {
+                        npcInfo.ConsistencyNPCAssignment = new();
+                    }
+                    if (npcInfo.ConsistencyNPCAssignment.HeadParts == null)
+                    {
+                        npcInfo.ConsistencyNPCAssignment.HeadParts = new();
+                    }
+                    if (!npcInfo.ConsistencyNPCAssignment.HeadParts.ContainsKey(headPartType))
+                    {
+                        npcInfo.ConsistencyNPCAssignment.HeadParts.Add(headPartType, new());
+                    }
+
                     if (selection != null)
                     {
                         npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType].EditorID = EditorIDHandler.GetEditorIDSafely(selection);
@@ -111,6 +133,9 @@ namespace SynthEBD
                 {
                     tempUniqueNPCDataRecorder[headPartType] = selection;
                 }
+
+                // add NPC's race to headpart races if necessary
+                MakeRaceCompatible(selection, npcInfo.NPC.Race.FormKey, outputMod);
             }
 
             if (consistencyReportTriggers.Any())
@@ -706,6 +731,47 @@ namespace SynthEBD
             }
             return false;
         }
+
+        private void MakeRaceCompatible(IHeadPartGetter selectedHeadPartGetter, FormKey currentNpcRaceFK, ISkyrimMod outputMod)
+        {
+            if (selectedHeadPartGetter == null) { return; }
+
+            HeadPart currentHeadPart;
+            FormList raceFormList = null;
+            if (selectedHeadPartGetter.ValidRaces == null || !selectedHeadPartGetter.ValidRaces.TryResolve(_environmentProvider.LinkCache, out var raceListGetter) || raceListGetter.Items == null)
+            {
+                raceFormList = GetRaceFormList(selectedHeadPartGetter, outputMod);
+            }
+            else if (!raceListGetter.Items.Contains(currentNpcRaceFK))
+            {
+                raceFormList = GetRaceFormList(selectedHeadPartGetter, outputMod); // seems like Mutagen new()s this automatically
+                raceFormList.Items.AddRange(raceListGetter.Items);
+            }
+            
+            if (raceFormList != null)
+            {
+                raceFormList.Items.Add(currentNpcRaceFK);
+                currentHeadPart = outputMod.HeadParts.GetOrAddAsOverride(selectedHeadPartGetter);
+                currentHeadPart.ValidRaces.SetTo(raceFormList);
+            }
+        }
+
+        private FormList GetRaceFormList(IHeadPartGetter selectedHeadPartGetter, ISkyrimMod outputMod)
+        {
+            if (headPartFormLists.ContainsKey(selectedHeadPartGetter))
+            {
+                return headPartFormLists[selectedHeadPartGetter];
+            }
+            else
+            {
+                var raceFormList = outputMod.FormLists.AddNew();
+                raceFormList.EditorID = "FL_HeadPartRaces_" + EditorIDHandler.GetEditorIDSafely(selectedHeadPartGetter);
+                headPartFormLists.Add(selectedHeadPartGetter, raceFormList);
+                return raceFormList;
+            }
+        }
+
+        private Dictionary<IHeadPartGetter, FormList> headPartFormLists = new();
     }
 
     public class HeadPartSelection // intentionally formatted this way rather than using HeadPart.TypeEnum to match EBD Papyrus formatting

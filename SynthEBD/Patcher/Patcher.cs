@@ -246,6 +246,7 @@ public class Patcher
         }
 
         // HeadPart Pre-patching tasks:
+        _headPartSelector.Reinitialize();
         _headPartWriter.CleanPreviousOutputs();
         var gEnableHeadParts = outputMod.Globals.AddNewShort();
         gEnableHeadParts.EditorID = "SynthEBD_HeadPartScriptActive";
@@ -728,7 +729,7 @@ public class Patcher
             HeadPartSelection assignedHeadParts = new();
             if (_patcherState.GeneralSettings.bChangeHeadParts && !blockHeadParts && _raceResolver.PatchableRaceFormKeys.Contains(currentNPCInfo.HeadPartsRace))
             {
-                assignedHeadParts = _headPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, assignedBodySlide, assignedMorphs);
+                assignedHeadParts = _headPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, assignedBodySlide, assignedMorphs, outputMod);
             }
 
             if (_patcherState.GeneralSettings.bChangeMeshesOrTextures) // needs to be done regardless of _patcherState.GeneralSettings.bChangeHeadParts status
@@ -1052,8 +1053,15 @@ public class Patcher
         }
         if (_headPartSelector.BlockNPCWithCustomFaceGen(npcInfo))
         {
-            _logger.LogReport("Head part assignment is blocked for current NPC because it might have custom FaceGen", false, npcInfo);
-            return true;
+            if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.HeadParts != null && npcInfo.SpecificNPCAssignment.HeadParts.Where(x => x.Value != null && x.Value.FormKey != null && !x.Value.FormKey.IsNull).Any())
+            {
+                _logger.LogReport("Head part assignment is NOT blocked for current NPC despite potentially having a custom face sculpt because you have a head part set in this NPC's Specific NPC Assignment", false, npcInfo);
+            }
+            else
+            {
+                _logger.LogReport("Head part assignment is blocked for current NPC because it might have custom FaceGen", false, npcInfo);
+                return true;
+            }  
         }
         return false;
     }

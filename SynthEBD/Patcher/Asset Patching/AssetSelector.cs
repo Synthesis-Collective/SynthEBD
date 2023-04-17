@@ -748,7 +748,6 @@ public class AssetSelector
                     else
                     {
                         _logger.LogReport("Selecting consistency Asset Pack (" + consistencyAssetPackName + ").", false, npcInfo);
-                        //consistencyAssetPack = consistencyAssetPack.ShallowCopy(); // otherwise subsequent NPCs will get pruned packs as the consistency pack is modified in the current round of patching
 
                         // check each subgroup against specific npc assignment
                         List<string> consistencySubgroupIDs = null;

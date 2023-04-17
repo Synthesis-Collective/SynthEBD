@@ -16,6 +16,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <!--
@@ -74,6 +75,8 @@
                 </ListBox>
             </StackPanel>
         </ScrollViewer>
+
+        <Button Grid.Row="3" Grid.Column="0" Command="{Binding DeleteAll}" Foreground="Firebrick">Delete All</Button>
 
         <ContentPresenter Grid.Row="2" Grid.Column="1" Grid.RowSpan="4" Content="{Binding DisplayedHeadPart}">
             <ContentPresenter.Resources>

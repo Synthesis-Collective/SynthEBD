@@ -167,6 +167,10 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
 
         foreach (var headPartType in HeadParts.Keys)
         {
+            if (!AssociatedModel.HeadParts.ContainsKey(headPartType))
+            {
+                AssociatedModel.HeadParts.Add(headPartType, new());
+            }
             AssociatedModel.HeadParts[headPartType] = HeadParts[headPartType].DumpToModel();
         }
 

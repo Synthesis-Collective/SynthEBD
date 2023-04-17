@@ -69,7 +69,24 @@ namespace SynthEBD
              }).DisposeWith(this);
 
             this.WhenAnyValue(x => x.GenderToggle).Subscribe(x => UpdateList()).DisposeWith(this);
-            HeadPartList.ToObservableChangeSet().Subscribe(_ => UpdateList()).DisposeWith(this);
+            HeadPartList.ToObservableChangeSet().Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler).Subscribe(_ => UpdateList()).DisposeWith(this);
+
+            DeleteAll = new RelayCommand(
+                canExecute: _ => true,
+                execute: _ => { 
+                    if (CustomMessageBox.DisplayNotificationYesNo("Batch Deletion", "Are you sure you want to delete all headparts in this list?"))
+                    {
+                        foreach (var hp in DisplayedList.ToArray())
+                        {
+                            if (HeadPartList.Contains(hp))
+                            {
+                                HeadPartList.Remove(hp);
+                            }
+                        }
+                        DisplayedHeadPart = null;
+                    }
+                }
+            );
         }
 
         public ObservableCollection<VM_HeadPartPlaceHolder> HeadPartList { get; set; } = new();
@@ -79,6 +96,7 @@ namespace SynthEBD
         public VM_HeadPartCategoryRules TypeRuleSet { get; set; }
         public DisplayGender GenderToggle { get; set; } = DisplayGender.Both; 
         public VM_Alphabetizer<VM_HeadPartPlaceHolder, string> Alphabetizer { get; set; }
+        public RelayCommand DeleteAll { get; }
 
         public void UpdateList()
         {
