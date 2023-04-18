@@ -868,7 +868,7 @@ public class AssetSelector
 
         // Allowed and Forced Attributes
         subgroup.ForceIfMatchCount = 0;
-        _attributeMatcher.MatchNPCtoAttributeList(subgroup.AllowedAttributes, npcInfo.NPC, subgroup.ParentAssetPack.Source.AttributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
+        _attributeMatcher.MatchNPCtoAttributeList(subgroup.AllowedAttributes, npcInfo.NPC, npcInfo.AssetsRace, subgroup.ParentAssetPack.Source.AttributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
         if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
             _logger.LogReport(reportString + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedLog, false, npcInfo);
@@ -885,7 +885,7 @@ public class AssetSelector
         }
 
         // Disallowed Attributes
-        _attributeMatcher.MatchNPCtoAttributeList(subgroup.DisallowedAttributes, npcInfo.NPC, subgroup.ParentAssetPack.Source.AttributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _, null);
+        _attributeMatcher.MatchNPCtoAttributeList(subgroup.DisallowedAttributes, npcInfo.NPC, npcInfo.AssetsRace, subgroup.ParentAssetPack.Source.AttributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _, null);
         if (hasAttributeRestrictions && matchesAttributeRestrictions)
         {
             _logger.LogReport(reportString + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog, false, npcInfo);

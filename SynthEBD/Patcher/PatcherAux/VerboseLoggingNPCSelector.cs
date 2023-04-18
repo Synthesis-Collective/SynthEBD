@@ -56,14 +56,14 @@ namespace SynthEBD
             }
 
             // Allowed Attributes
-            _attributeMatcher.MatchNPCtoAttributeList(loggingRules.AllowedAttributes, npcInfo.NPC, _patcherState.GeneralSettings.AttributeGroups, false, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int _, out string _, out string _, out string _, null);
+            _attributeMatcher.MatchNPCtoAttributeList(loggingRules.AllowedAttributes, npcInfo.NPC, null, _patcherState.GeneralSettings.AttributeGroups, false, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int _, out string _, out string _, out string _, null);
             if (hasAttributeRestrictions && !matchesAttributeRestrictions)
             {
                 return false;
             }
 
             // Disallowed Attributes
-            _attributeMatcher.MatchNPCtoAttributeList(loggingRules.DisallowedAttributes, npcInfo.NPC, _patcherState.OBodySettings.AttributeGroups, false, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int _, out string _, out string _, out string _, null);
+            _attributeMatcher.MatchNPCtoAttributeList(loggingRules.DisallowedAttributes, npcInfo.NPC, null, _patcherState.OBodySettings.AttributeGroups, false, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int _, out string _, out string _, out string _, null);
             if (hasAttributeRestrictions && matchesAttributeRestrictions)
             {
                 return false;

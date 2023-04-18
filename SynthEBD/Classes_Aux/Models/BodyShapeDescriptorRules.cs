@@ -60,7 +60,7 @@ public class BodyShapeDescriptorRules
 
         // Allowed and Forced Attributes
         descriptor.AssociatedRules.MatchedForceIfCount = 0;
-        attMatcher.MatchNPCtoAttributeList(descriptor.AssociatedRules.AllowedAttributes, npcInfo.NPC, attributeGroups, bDetailedAttributeLogging, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
+        attMatcher.MatchNPCtoAttributeList(descriptor.AssociatedRules.AllowedAttributes, npcInfo.NPC, npcInfo.BodyShapeRace, attributeGroups, bDetailedAttributeLogging, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
         if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
             reportStr = descriptor.ID + " have the following allowed attributes of which none are matched to the NPC: " + unmatchedLog;
@@ -77,7 +77,7 @@ public class BodyShapeDescriptorRules
         }
 
         // Disallowed Attributes
-        attMatcher.MatchNPCtoAttributeList(descriptor.AssociatedRules.DisallowedAttributes, npcInfo.NPC, attributeGroups, bDetailedAttributeLogging, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _, null);
+        attMatcher.MatchNPCtoAttributeList(descriptor.AssociatedRules.DisallowedAttributes, npcInfo.NPC, npcInfo.BodyShapeRace, attributeGroups, bDetailedAttributeLogging, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _, null);
         if (hasAttributeRestrictions && matchesAttributeRestrictions)
         {
             reportStr = descriptor.ID + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog;

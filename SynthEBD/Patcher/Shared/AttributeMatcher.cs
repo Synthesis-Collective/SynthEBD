@@ -23,6 +23,7 @@ public class AttributeMatcher
     /// </summary>
     /// <param name="attributeList">List to attributes against which the NPC is to be compared</param>
     /// <param name="npc">NPC to be compared</param>
+    /// <param name="npcRaceOverride">Race that this NPC is to be treated as</param>
     /// <param name="attributeGroups">Collection of group-type attribute definitions that will be recursively evaluated if a Group-type attribute is supplied</param>
     /// <param name="hasAttributeRestrictions">Output: Does the attribute list contain attributes of type "Restrict" or "ForceIfAndRestrict" </param>
     /// <param name="matchesAttributeRestrictions">Output: Does the NPC match any attributes of type "Restrict" or "ForceIfAndRestrict"</param>
@@ -31,7 +32,7 @@ public class AttributeMatcher
     /// <param name="unmatchedLog">"Output: Log of unmatched Attributes</param>
     /// <param name="unmatchedLog">"Output: Log of matched ForceIf Attributes and their respective weights</param>
     /// <param name="overrideForceIf">"overrideForceIf: if not null, overrides the AttributeForcing on all sub-attributes (allows Group type attributes to forward its own forcing to recursive calls)</param>
-    public void MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, HashSet<AttributeGroup> attributeGroups, bool bDetailedAttributeLogging, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog, AttributeForcing? overrideForceIf)
+    public void MatchNPCtoAttributeList(HashSet<NPCAttribute> attributeList, INpcGetter npc, FormKey? npcRaceOverride, HashSet<AttributeGroup> attributeGroups, bool bDetailedAttributeLogging, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog, AttributeForcing? overrideForceIf)
     {
         hasAttributeRestrictions = false;
         matchesAttributeRestrictions = false;
@@ -111,7 +112,7 @@ public class AttributeMatcher
                             else
                             {
                                 var recursiveForceMode = overrideForceIf ?? subAttribute.ForceMode;
-                                MatchNPCtoAttributeList(attributeGroup.Attributes, npc, attributeGroups, bDetailedAttributeLogging, out _, out bool groupMatched, out int groupForceIfCount, out _, out _, out _, recursiveForceMode);
+                                MatchNPCtoAttributeList(attributeGroup.Attributes, npc, npcRaceOverride, attributeGroups, bDetailedAttributeLogging, out _, out bool groupMatched, out int groupForceIfCount, out _, out _, out _, recursiveForceMode);
                                 if (groupMatched)
                                 {
                                     groupWeightingMultiplier = groupForceIfCount;
@@ -215,7 +216,8 @@ public class AttributeMatcher
                         break;
                     case NPCAttributeType.Race:
                         var npcAttributeRace = (NPCAttributeRace)subAttribute;
-                        if (!npcAttributeRace.FormKeys.Contains(npc.Race.FormKey))
+                        var raceToMatch = npcRaceOverride ?? npc.Race.FormKey; // npcRaceOverride can be set by a Race Alias. Calling function must provide.
+                        if (!npcAttributeRace.FormKeys.Contains(raceToMatch))
                         {
                             subAttributeMatched = false;
                         }

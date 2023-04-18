@@ -24,7 +24,7 @@ public class VM_NPCAttribute : VM
     public delegate VM_NPCAttribute Factory(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups);
     private VM_NPCAttributeCreator _creator;
     private ObservableCollection<VM_AttributeGroup> _subscribedAttributeGroups;
-    public VM_NPCAttribute(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, VM_NPCAttributeCreator creator, AttributeMatcher attributeMatcher, IEnvironmentStateProvider environmentProvider, VM_NPCAttribute.Factory selfFactory)
+    public VM_NPCAttribute(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, VM_NPCAttributeCreator creator, AttributeMatcher attributeMatcher, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_NPCAttribute.Factory selfFactory)
     {
         _creator = creator;
         _subscribedAttributeGroups = attributeGroups;
@@ -34,7 +34,7 @@ public class VM_NPCAttribute : VM
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
         AddToParent = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Add(_creator.CreateNewFromUI(ParentCollection, DisplayForceIfOption, DisplayForceIfWeight, _subscribedAttributeGroups)));
         Validate = new RelayCommand(canExecute: _ => true, execute: _ => {
-            var validator = new VM_AttributeValidator(this, _subscribedAttributeGroups, environmentProvider, attributeMatcher);
+            var validator = new VM_AttributeValidator(this, _subscribedAttributeGroups, patcherState, environmentProvider, attributeMatcher);
             Window_AttributeValidator window = new Window_AttributeValidator();
             window.DataContext = validator;
             window.ShowDialog();

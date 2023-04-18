@@ -15,10 +15,12 @@ namespace SynthEBD
 {
     public class VM_AttributeValidator : VM
     {
+        private readonly PatcherState _patcherState;
         private readonly IEnvironmentStateProvider _environmentProvider;
         private readonly AttributeMatcher _attributeMatcher;
-        public VM_AttributeValidator(VM_NPCAttribute trialAttribute, ObservableCollection<VM_AttributeGroup> attGroupVMs, IEnvironmentStateProvider environmentProvider, AttributeMatcher attributeMatcher)
+        public VM_AttributeValidator(VM_NPCAttribute trialAttribute, ObservableCollection<VM_AttributeGroup> attGroupVMs, PatcherState patcherState, IEnvironmentStateProvider environmentProvider, AttributeMatcher attributeMatcher)
         {
+            _patcherState = patcherState;
             _environmentProvider = environmentProvider;
             _attributeMatcher = attributeMatcher;
 
@@ -58,7 +60,13 @@ namespace SynthEBD
 
             if (lk.TryResolve<INpcGetter>(NPCformkey, out var npc))
             {
-                _attributeMatcher.MatchNPCtoAttributeList(attList, npc, AttributeGroups, true, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog, null);
+                var npcRaceFormKey = npc.Race.FormKey;
+                var raceAlias = _patcherState.GeneralSettings.RaceAliases.Where(x => x.Race == npcRaceFormKey).FirstOrDefault();
+                if (raceAlias != null)
+                {
+                    npcRaceFormKey = raceAlias.AliasRace;
+                }
+                _attributeMatcher.MatchNPCtoAttributeList(attList, npc, npcRaceFormKey, AttributeGroups, true, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfAttributeWeightedCount, out string matchLog, out string unmatchedLog, out string forceIfLog, null);
                 HasRestrictions = hasAttributeRestrictions;
                 MatchesRestrictions = matchesAttributeRestrictions;
                 MatchedLog = matchLog;

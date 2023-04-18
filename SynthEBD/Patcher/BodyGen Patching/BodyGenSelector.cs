@@ -425,7 +425,7 @@ public class BodyGenSelector
 
         // Allowed and Forced Attributes
         candidateMorph.MatchedForceIfCount = 0;
-        _attributeMatcher.MatchNPCtoAttributeList(candidateMorph.AllowedAttributes, npcInfo.NPC, bodyGenConfig.AttributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
+        _attributeMatcher.MatchNPCtoAttributeList(candidateMorph.AllowedAttributes, npcInfo.NPC, npcInfo.BodyShapeRace, bodyGenConfig.AttributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
         if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
             _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedLog, false, npcInfo);
@@ -442,7 +442,7 @@ public class BodyGenSelector
         }
 
         // Disallowed Attributes
-        _attributeMatcher.MatchNPCtoAttributeList(candidateMorph.DisallowedAttributes, npcInfo.NPC, bodyGenConfig.AttributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _, null);
+        _attributeMatcher.MatchNPCtoAttributeList(candidateMorph.DisallowedAttributes, npcInfo.NPC, npcInfo.BodyShapeRace, bodyGenConfig.AttributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _, null);
         if (hasAttributeRestrictions && matchesAttributeRestrictions)
         {
             _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog, false, npcInfo);
