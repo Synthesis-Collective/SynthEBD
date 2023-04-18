@@ -18,6 +18,7 @@ public class AssetSelector
     private readonly RecordPathParser _recordPathParser;
     private readonly DictionaryMapper _dictionaryMapper;
     private readonly PatchableRaceResolver _raceResolver;
+
     public AssetSelector(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, AttributeMatcher attributeMatcher, RecordPathParser recordPathParser, DictionaryMapper dictionaryMapper, PatchableRaceResolver raceResolver)
     {
         _environmentProvider = environmentProvider;
@@ -761,43 +762,54 @@ public class AssetSelector
                             case AssetPackAssignmentMode.ReplacerVirtual: consistencySubgroupIDs = consistencyReplacer.SubgroupIDs; break;
                         }
 
-                        for (int i = 0; i < consistencySubgroupIDs.Count; i++)
+                        if (forcedAssignments != null && consistencySubgroupIDs != null && forcedAssignments.Any() && forcedAssignments.Count != consistencySubgroupIDs.Count)
                         {
-                            // make sure consistency subgroup doesn't conflict with user-forced subgroup if one exists
-                            if (forcedAssignments != null && forcedAssignments[i].Any())
-                            {
-                                if (forcedAssignments[i].Select(x => x.Id).Contains(consistencySubgroupIDs[i]))
-                                {
-                                    consistencyAssetPack.Subgroups[i] = new List<FlattenedSubgroup>() { forcedAssignments[i].First(x => x.Id == consistencySubgroupIDs[i]) }; // guaranteed to have at least one subgroup or else the upstream if would fail, so use First instead of Where
-                                    _logger.LogReport("Consistency subgroup " + consistencySubgroupIDs[i] + " is compatible with the Specific NPC Assignment.", false, npcInfo);
-                                }
-                                else
-                                {
-                                    _logger.LogReport("Consistency subgroup " + consistencySubgroupIDs[i] + " is incompatible with the Specific NPC Assignment at position " + i + ".", true, npcInfo);
-                                }
-                            }
-                            // if no user-forced subgroup exists, simply make sure that the consistency subgroup exists
-                            else
-                            {
-                                FlattenedSubgroup consistencySubgroup = consistencyAssetPack.Subgroups[i].FirstOrDefault(x => x.Id == consistencySubgroupIDs[i]);
-                                if (consistencySubgroup == null)
-                                {
-                                    _logger.LogReport("The consistency subgroup " + consistencySubgroupIDs[i] + " was either filtered out or no longer exists within the config file. Choosing a different subgroup at this position.", true, npcInfo);
-                                }
-                                else if (!SubgroupValidForCurrentNPC(consistencySubgroup, npcInfo, mode, assignedBodyGen, assignedBodySlide))
-                                {
-                                    _logger.LogReport("Consistency subgroup " + consistencySubgroup.Id + " (" + consistencySubgroup.Name + ") is no longer valid for this NPC. Choosing a different subgroup at this position", true, npcInfo);
-                                    consistencyAssetPack.Subgroups[i].Remove(consistencySubgroup);
-                                }
-                                else
-                                {
-                                    consistencyAssetPack.Subgroups[i] = new List<FlattenedSubgroup>() { consistencySubgroup };
-                                    _logger.LogReport("Using consistency subgroup " + consistencySubgroupIDs[i] + ".", false, npcInfo);
-                                }
-                            }
+                            _logger.LogReport("Cannot assign consistency subgroups because the number of consistency subgroups does not equal the number of auto-generated forced assignments. Please report this problem.", true, npcInfo);
                         }
-                        filteredPacks = new List<FlattenedAssetPack>() { consistencyAssetPack };
-                        wasFilteredByConsistency = true;
+                        else if (consistencySubgroupIDs != null && consistencySubgroupIDs.Count != consistencyAssetPack.Subgroups.Count)
+                        {
+                            _logger.LogReport("Cannot assign consistency subgroups because the number of subgroups recorded in the consistency doesn't match the number of top-level subgroups in the consistency asset pack. This may be because the config file was edited after last running the patcher.", true, npcInfo);
+                        }
+                        else
+                        {
+                            for (int i = 0; i < consistencySubgroupIDs.Count; i++)
+                            {
+                                // make sure consistency subgroup doesn't conflict with user-forced subgroup if one exists
+                                if (forcedAssignments != null && forcedAssignments[i].Any())
+                                {
+                                    if (forcedAssignments[i].Select(x => x.Id).Contains(consistencySubgroupIDs[i]))
+                                    {
+                                        consistencyAssetPack.Subgroups[i] = new List<FlattenedSubgroup>() { forcedAssignments[i].First(x => x.Id == consistencySubgroupIDs[i]) }; // guaranteed to have at least one subgroup or else the upstream if would fail, so use First instead of Where
+                                        _logger.LogReport("Consistency subgroup " + consistencySubgroupIDs[i] + " is compatible with the Specific NPC Assignment.", false, npcInfo);
+                                    }
+                                    else
+                                    {
+                                        _logger.LogReport("Consistency subgroup " + consistencySubgroupIDs[i] + " is incompatible with the Specific NPC Assignment at position " + i + ".", true, npcInfo);
+                                    }
+                                }
+                                // if no user-forced subgroup exists, simply make sure that the consistency subgroup exists
+                                else
+                                {
+                                    FlattenedSubgroup consistencySubgroup = consistencyAssetPack.Subgroups[i].FirstOrDefault(x => x.Id == consistencySubgroupIDs[i]);
+                                    if (consistencySubgroup == null)
+                                    {
+                                        _logger.LogReport("The consistency subgroup " + consistencySubgroupIDs[i] + " was either filtered out or no longer exists within the config file. Choosing a different subgroup at this position.", true, npcInfo);
+                                    }
+                                    else if (!SubgroupValidForCurrentNPC(consistencySubgroup, npcInfo, mode, assignedBodyGen, assignedBodySlide))
+                                    {
+                                        _logger.LogReport("Consistency subgroup " + consistencySubgroup.Id + " (" + consistencySubgroup.Name + ") is no longer valid for this NPC. Choosing a different subgroup at this position", true, npcInfo);
+                                        consistencyAssetPack.Subgroups[i].Remove(consistencySubgroup);
+                                    }
+                                    else
+                                    {
+                                        consistencyAssetPack.Subgroups[i] = new List<FlattenedSubgroup>() { consistencySubgroup };
+                                        _logger.LogReport("Using consistency subgroup " + consistencySubgroupIDs[i] + ".", false, npcInfo);
+                                    }
+                                }
+                            }
+                            filteredPacks = new List<FlattenedAssetPack>() { consistencyAssetPack };
+                            wasFilteredByConsistency = true;
+                        }
                     }
                 }
             }
