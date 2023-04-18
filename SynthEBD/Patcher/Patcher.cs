@@ -167,7 +167,7 @@ public class Patcher
 
             if (_patcherState.TexMeshSettings.bApplyFixedScripts) { _EBDScripts.ApplyFixedScripts(); }
 
-            RecordGenerator.Reinitialize();
+            _recordGenerator.Reinitialize();
             _combinationLog.Reinitialize();
         }
         HasAssetDerivedHeadParts = false;
@@ -626,9 +626,9 @@ public class Patcher
                 #region Generate Records
                 if (assignedCombinations.Any())
                 {
-                    if (_patcherState.TexMeshSettings.bEasyNPCCompatibilityMode)
+                    if (_patcherState.TexMeshSettings.StrippedSkinWNAMs.Any())
                     {
-                        npc = RecordGenerator.EasyNPCHandler.StripEasyNpcArmor(npc, _environmentProvider.LinkCache, outputMod);
+                        npc = _recordGenerator.StripSpecifiedSkinArmor(npc, _environmentProvider.LinkCache, outputMod);
                         currentNPCInfo.NPC = npc;
                     }
                     var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);

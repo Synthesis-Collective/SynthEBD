@@ -17,6 +17,11 @@ public class Settings_TexMesh
     public int MaxPreviewImageSize { get; set; } = 1024;
     public HashSet<string> SelectedAssetPacks { get; set; } = new();
     public string LastViewedAssetPack { get; set; }
+    public HashSet<string> StrippedSkinWNAMs { get; set; } = new()
+    {
+        "SkinNaked",
+        "SkinNakedBeast"
+    };
     public bool bEasyNPCCompatibilityMode { get; set; } = true;
     public bool bApplyFixedScripts { get; set; } = true;
     public bool bFixedScriptsOldSKSEversion { get; set; } = false;

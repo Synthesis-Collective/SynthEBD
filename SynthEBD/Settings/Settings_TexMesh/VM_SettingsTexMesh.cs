@@ -5,6 +5,7 @@ using System.Reactive.Linq;
 using System.Windows.Forms;
 using DynamicData.Binding;
 using DynamicData;
+using Mutagen.Bethesda.Plugins;
 
 namespace SynthEBD;
 
@@ -47,6 +48,9 @@ public class VM_SettingsTexMesh : VM
 
         AssetOrderingMenu = new(this);
 
+        _environmentProvider.WhenAnyValue(x => x.LoadOrder)
+            .Subscribe(x => LoadOrder = x.Where(y => y.Value != null && y.Value.Enabled).Select(x => x.Value.ModKey)).DisposeWith(this);
+
         Observable.CombineLatest(
                 this.WhenAnyValue(x => x.bApplyFixedScripts),
                 _environmentProvider.WhenAnyValue(x => x.SkyrimVersion),
@@ -63,6 +67,59 @@ public class VM_SettingsTexMesh : VM
             .DisposeWith(this);
 
         AssetPacks.ToObservableChangeSet().Subscribe(_ => RefreshDisplayedAssetPackString()).DisposeWith(this);
+
+        AddStrippedWNAM = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => StrippedSkinWNAMs.Add(new VM_CollectionMemberString("", StrippedSkinWNAMs))
+        );
+
+        ImportStrippedWNAMsFromMod = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => {
+                var mod = _environmentProvider.LoadOrder.PriorityOrder.Where(x => x.ModKey == SelectedStrippedWNAMmodKey).FirstOrDefault()?.Mod ?? null;
+                List<string> noEditorIDs = new();
+                StrippedSkinWNAMsHistory.Add(new(StrippedSkinWNAMs)); // shallow copy
+                bool added = false;
+                if (mod != null)
+                {
+                    foreach (var armorGetter in mod.Armors)
+                    {
+                        if (armorGetter.BodyTemplate != null && armorGetter.BodyTemplate.FirstPersonFlags.HasFlag(Mutagen.Bethesda.Skyrim.BipedObjectFlag.Body))
+                        {
+                            var edid = EditorIDHandler.GetEditorIDSafely(armorGetter);
+                            if (edid.Contains("(No EditorID)"))
+                            {
+                                noEditorIDs.Add(armorGetter.FormKey.ToString());
+                            }
+                            else
+                            {
+                                StrippedSkinWNAMs.Add(new(edid, StrippedSkinWNAMs));
+                                added = true;
+                            }
+                        }
+                    }
+                }
+
+                if (!added)
+                {
+                    StrippedSkinWNAMsHistory.RemoveAt(StrippedSkinWNAMsHistory.Count - 1);
+                }
+            });
+
+        UndoImportStrippedWNAMsFromMod = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => { 
+                var lastHistory = StrippedSkinWNAMsHistory.LastOrDefault();
+                if (lastHistory != null)
+                {
+                    StrippedSkinWNAMs.Clear();
+                    foreach (var item in lastHistory)
+                    {
+                        StrippedSkinWNAMs.Add(item);
+                    }
+                    StrippedSkinWNAMsHistory.RemoveAt(StrippedSkinWNAMsHistory.Count - 1);
+                }
+            });
 
         AddTriggerEvent = new RelayCommand(
             canExecute: _ => true,
@@ -229,6 +286,7 @@ public class VM_SettingsTexMesh : VM
     public bool bEnableAssetReplacers { get; set; } = true;
     public bool bDisplayPopupAlerts { get; set; } = true;
     public bool bGenerateAssignmentLog { get; set; } = true;
+    public ObservableCollection<VM_CollectionMemberString> StrippedSkinWNAMs { get; set; } = new();
     public bool bEasyNPCCompatibilityMode { get; set; } = true;
     public bool bApplyFixedScripts { get; set; } = true;
     public bool bCacheRecords { get; set; } = true;
@@ -251,6 +309,7 @@ public class VM_SettingsTexMesh : VM
 
     public ObservableCollection<VM_CollectionMemberString> TriggerEvents { get; set; } = new();
 
+    public IEnumerable<ModKey> LoadOrder { get; private set; }
     public RelayCommand AddTrimPath { get; }
     public RelayCommand RemoveTrimPath { get; }
     public RelayCommand ValidateAll { get; }
@@ -261,6 +320,10 @@ public class VM_SettingsTexMesh : VM
     public RelayCommand SplitScreenToggle { get; }
     public RelayCommand MenuButtonsToggle { get; }
     public RelayCommand AddTriggerEvent { get; }
+    public RelayCommand AddStrippedWNAM { get; }
+    public RelayCommand ImportStrippedWNAMsFromMod { get; }
+    public RelayCommand UndoImportStrippedWNAMsFromMod { get; }
+    public ModKey SelectedStrippedWNAMmodKey { get; set; }
     public string LastViewedAssetPackName { get; set; }
     public bool bShowSecondaryAssetPack { get; set; } = false;
     public VM_AssetPresenter AssetPresenterPrimary { get; set; }
@@ -271,6 +334,8 @@ public class VM_SettingsTexMesh : VM
     public RelayCommand SimulateDistribution { get; }
 
     public VM_AssetOrderingMenu AssetOrderingMenu { get; set; }
+
+    private List<ObservableCollection<VM_CollectionMemberString>> StrippedSkinWNAMsHistory = new();
 
     public bool ValidateAllConfigs(BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, out List<string> errors)
     {
@@ -308,6 +373,7 @@ public class VM_SettingsTexMesh : VM
         MaxPreviewImageSize = model.MaxPreviewImageSize;
         TrimPaths = new ObservableCollection<TrimPath>(model.TrimPaths);
         LastViewedAssetPackName = model.LastViewedAssetPack;
+        StrippedSkinWNAMs = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(model.StrippedSkinWNAMs);
         bEasyNPCCompatibilityMode = model.bEasyNPCCompatibilityMode;
         bApplyFixedScripts = model.bApplyFixedScripts;
         bLegacyEBDMode = model.bLegacyEBDMode;
@@ -349,6 +415,7 @@ public class VM_SettingsTexMesh : VM
         {
             model.LastViewedAssetPack = AssetPresenterPrimary.AssetPack.GroupName;
         }
+        model.StrippedSkinWNAMs = StrippedSkinWNAMs.Select(x => x.Content).ToHashSet();
         model.bEasyNPCCompatibilityMode = bEasyNPCCompatibilityMode;
         model.bApplyFixedScripts = bApplyFixedScripts;
         model.bFixedScriptsOldSKSEversion = SKSEversionSSE == oldSKSEversion;

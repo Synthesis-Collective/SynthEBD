@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
              xmlns:local="clr-namespace:SynthEBD" d:DataContext="{d:DesignInstance Type=local:VM_SettingsTexMesh}"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
@@ -104,8 +105,35 @@
             <TextBlock Grid.Row="7" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Force patched NPCs to use vanilla body meshes so that they don't require their own bodyslides" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Force vanilla body mesh paths</TextBlock>
             <CheckBox Grid.Row="7" Grid.Column="1" IsChecked="{Binding Path=bForceVanillaBodyMeshPath, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="8" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Remove SkinNaked WNAM records assigned to NPCs by EasyNPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">EasyNPC Compatibility Mode</TextBlock>
-            <CheckBox Grid.Row="8" Grid.Column="1" IsChecked="{Binding Path=bEasyNPCCompatibilityMode, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Row="8" Grid.Column="0"  VerticalAlignment="Center" Text="Replace Skins" ToolTip="If an NPC has one of these armor EditorIDs assigned as its skin, completely replace it rather than trying to patch" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <WrapPanel Orientation="Horizontal" Grid.Row="8" Grid.Column="1">
+                <Expander>
+                    <WrapPanel Orientation="Horizontal">
+                        <StackPanel>
+                            <ScrollViewer MaxHeight="500">
+                                <ListBox ItemsSource="{Binding StrippedSkinWNAMs}" BorderThickness="1" BorderBrush="LightBlue">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Margin="2 0 2 0">
+                                                <TextBox Text="{Binding Content}"/>
+                                                <Button Content="x" Foreground="Firebrick" Command="{Binding DeleteCommand}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </ScrollViewer>
+                            <Button Content="Add New" Foreground="LightGreen" Command="{Binding AddStrippedWNAM}"/>
+                        </StackPanel>
+                        <StackPanel Margin="10 0 0 0">
+                            <Button VerticalAlignment="Top" Content="Add all armors from mod: " Foreground="MediumPurple" Command="{Binding ImportStrippedWNAMsFromMod}" ToolTip="Do not import your EasyNPC plugin here. Instead, check the EasyNPC Compatibility Mode box." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                            <plugins:ModKeyPicker ModKey="{Binding SelectedStrippedWNAMmodKey}" SearchableMods="{Binding LoadOrder}" />
+                            <Button VerticalAlignment="Top" Content="Undo" Foreground="Firebrick" Command="{Binding UndoImportStrippedWNAMsFromMod}"/>
+                        </StackPanel>
+                    </WrapPanel>
+                </Expander>
+                <TextBlock VerticalAlignment="Center" Margin="5 0 0 0" ToolTip="Remove SkinNaked WNAM records assigned to NPCs by EasyNPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">EasyNPC Compatibility Mode</TextBlock>
+                <CheckBox IsChecked="{Binding Path=bEasyNPCCompatibilityMode, Mode=TwoWay}"></CheckBox>
+            </WrapPanel>
 
             <TextBlock Grid.Row="9" Grid.Column="0"  VerticalAlignment="Center" Text="EBD Options"/>
             <WrapPanel Orientation="Horizontal" Grid.Row="9" Grid.Column="1">
