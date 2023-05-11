@@ -294,9 +294,9 @@ public class VM_Subgroup : VM, IDropTarget
         model.Paths = VM_FilePathReplacementMenu.DumpViewModelToModels(PathsMenu);
         model.WeightRange = WeightRange;
 
-        model.AllowedBodyGenDescriptors = AllowedBodyGenDescriptors?.DumpToHashSet() ?? null;
+        model.AllowedBodyGenDescriptors = AllowedBodyGenDescriptors?.DumpToHashSet() ?? new();
         model.AllowedBodyGenMatchMode = AllowedBodyGenDescriptors?.MatchMode ?? DescriptorMatchMode.All;
-        model.DisallowedBodyGenDescriptors = DisallowedBodyGenDescriptors?.DumpToHashSet() ?? null;
+        model.DisallowedBodyGenDescriptors = DisallowedBodyGenDescriptors?.DumpToHashSet() ?? new();
         model.DisallowedBodyGenMatchMode = DisallowedBodyGenDescriptors?.MatchMode ?? DescriptorMatchMode.Any;
         model.AllowedBodySlideDescriptors = AllowedBodySlideDescriptors.DumpToHashSet();
         model.AllowedBodySlideMatchMode = AllowedBodySlideDescriptors.MatchMode;
