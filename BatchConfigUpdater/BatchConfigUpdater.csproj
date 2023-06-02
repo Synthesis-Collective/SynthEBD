@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Noggog.Autofac" Version="2.57.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\SynthEBD\SynthEBD.csproj" />
   </ItemGroup>
 
