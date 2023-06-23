@@ -13,7 +13,6 @@ public class Patcher
     private readonly IOutputEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
     private readonly VM_StatusBar _statusBar;
-    private readonly PrePatcher _prePatcher;
     private readonly CombinationLog _combinationLog;
     private readonly SynthEBDPaths _paths;
     private readonly Logger _logger;
@@ -51,12 +50,11 @@ public class Patcher
     private AssetStatsTracker _assetsStatsTracker { get; set; }
     private int _patchedNpcCount { get; set; }
 
-    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, PrePatcher prePatcher, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, ArmorPatcher armorPatcher, SkinPatcher skinPatcher)
+    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, ArmorPatcher armorPatcher, SkinPatcher skinPatcher)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _statusBar = statusBar;
-        _prePatcher = prePatcher;
         _combinationLog = combinationLog;
         _paths = paths;
         _logger = logger;
@@ -110,8 +108,6 @@ public class Patcher
                 _paths.OutputDataFolder = _patcherState.GeneralSettings.OutputDataFolder;
             }
         }
-
-        _prePatcher.BlockByArmature();
 
         var outputMod = _environmentProvider.OutputMod;
         var allNPCs = _environmentProvider.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
@@ -518,6 +514,13 @@ public class Patcher
             if (_patcherState.GeneralSettings.ExcludePresets && npc.EditorID != null && npc.EditorID.Contains("Preset"))
             {
                 _logger.LogReport("NPC skipped because Preset patching is disabled", false, currentNPCInfo);
+                _logger.SaveReport(currentNPCInfo);
+                continue;
+            }
+
+            if (_patcherState.GeneralSettings.bFilterNPCsByArmature && !AppearsHumanoidByArmature(npc))
+            {
+                _logger.LogReport("NPC skipped because its WornArmor skin does not have a torso, hands, and feet", false, currentNPCInfo);
                 _logger.SaveReport(currentNPCInfo);
                 continue;
             }
@@ -1071,4 +1074,44 @@ public class Patcher
     }
 
     private bool HasAssetDerivedHeadParts { get; set; } = false;
+
+    private bool AppearsHumanoidByArmature(INpcGetter npc) // tries to identify creatures that are wrongly assigned a humanoid race via their armature
+    {
+        if (npc.WornArmor == null || npc.WornArmor.IsNull)
+        {
+            return true;
+        }
+
+        var armor = npc.WornArmor.TryResolve(_environmentProvider.LinkCache);
+        if (armor == null || armor.Armature == null || armor.Armature.Count == 0) { return true; }
+
+        if (armor.Armature.Count >= 3)
+        {
+            var arma = armor.Armature.Select(x => x.TryResolve(_environmentProvider.LinkCache)).Where(x => x != null && x.BodyTemplate != null).ToList();
+            var toMatch = new List<BipedObjectFlag>() { BipedObjectFlag.Body, BipedObjectFlag.Hands, BipedObjectFlag.Feet };
+
+            for (int i = 0; i < arma.Count; i++)
+            {
+                var armature = arma[i];
+
+                for (int j = 0; j < toMatch.Count; j++)
+                {
+                    var bodypart = toMatch[j];
+                    if (armature.BodyTemplate.FirstPersonFlags.HasFlag(bodypart))
+                    {
+                        toMatch.Remove(bodypart);
+                        arma.Remove(armature);
+                        i--;
+                        break;
+                    }
+                }
+            }
+
+            if (toMatch.Count == 0) // npc has skin with torso, hands, and feet components
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 }

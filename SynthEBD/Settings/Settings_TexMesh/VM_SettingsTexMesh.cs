@@ -304,7 +304,6 @@ public class VM_SettingsTexMesh : VM
     public string MenuButtonToggleStr { get; set; } = "Full Height Config Editor";
     public bool bPatchArmors { get; set; } = true;
     public bool bPatchSkinAltTextures { get; set; } = true;
-    public bool bFilterNPCsByArmature { get; set; } = true;
     public ObservableCollection<TrimPath> TrimPaths { get; set; } = new();
     public ObservableCollection<VM_AssetPack> AssetPacks { get; set; } = new();
 
@@ -393,7 +392,6 @@ public class VM_SettingsTexMesh : VM
         bCacheRecords = model.bCacheRecords;
         bPatchArmors = model.bPatchArmors;
         bPatchSkinAltTextures = model.bPatchSkinAltTextures;
-        bFilterNPCsByArmature = model.bFilterNPCsByArmature;
         _logger.LogStartupEventEnd("Loading TexMesh Settings UI");
     }
 
@@ -428,7 +426,6 @@ public class VM_SettingsTexMesh : VM
         model.TriggerEvents = TriggerEvents.Select(x => x.Content).ToList();
         model.bPatchArmors = bPatchArmors;
         model.bPatchSkinAltTextures = bPatchSkinAltTextures;
-        model.bFilterNPCsByArmature = bFilterNPCsByArmature;
         return model;
     }
 

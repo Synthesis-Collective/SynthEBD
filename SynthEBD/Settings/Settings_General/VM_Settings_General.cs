@@ -225,6 +225,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public RelayCommand SelectPortableSettingsFolder { get; }
     public RelayCommand ClearPortableSettingsFolder { get; }
     public bool IsStandalone { get; set; }
+    public bool bFilterNPCsByArmature { get; set; } = true;
 
     public void CopyInFromModel(Settings_General model, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, ILinkCache linkCache)
     {
@@ -263,6 +264,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         _bFirstRun = model.bFirstRun;
         bUseDetailedReportSelection = model.bUseDetailedReportSelection;
         DetailedReportSelector.CopyInFromModel(model.DetailedReportSelector);
+        bFilterNPCsByArmature = model.bFilterNPCsByArmature;
         IsCurrentlyLoading = false;
         _logger.LogStartupEventEnd("Loading General Settings UI");
     }
@@ -307,6 +309,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.bFirstRun = false;
         model.bUseDetailedReportSelection = bUseDetailedReportSelection;
         model.DetailedReportSelector = DetailedReportSelector.DumpToModel();
+        model.bFilterNPCsByArmature = bFilterNPCsByArmature;
         return model;
     }
 }

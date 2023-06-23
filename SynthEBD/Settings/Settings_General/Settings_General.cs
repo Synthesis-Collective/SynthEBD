@@ -231,8 +231,7 @@ public class Settings_General
 
     public bool bUseDetailedReportSelection { get; set; } = false;
     public DetailedReportNPCSelector DetailedReportSelector { get; set; } = new();
-
-    public HashSet<ModKey> PrepatchedMods { get; set; } = new();
+    public bool bFilterNPCsByArmature { get; set; } = true;
 }
 
 public enum BodyShapeSelectionMode

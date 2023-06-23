@@ -27,7 +27,7 @@ public class AssetSelector
         _paths = paths;
         _attributeMatcher = attributeMatcher;
         _recordPathParser = recordPathParser;
-        _dictionaryMapper = dictionaryMapper;   
+        _dictionaryMapper = dictionaryMapper;
         _raceResolver = raceResolver;
     }
 
@@ -113,7 +113,7 @@ public class AssetSelector
             var filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, false, out bool wasFilteredByConsistency, mode, assignedBodyGen, assignedBodySlide);
             // initialize seeds
             iterationInfo.AvailableSeeds = GetAllSubgroups(filteredAssetPacks).OrderByDescending(x => x.ForceIfMatchCount).ToList();
-            
+
             bool combinationIsValid = false;
 
             while (true)
@@ -187,7 +187,7 @@ public class AssetSelector
     public SubgroupCombination GetCombinationFromSameNameNPC(NPCInfo npcInfo, AssetPackAssignmentMode mode, HashSet<FlattenedAssetPack> availableAssetPacks)
     {
         SubgroupCombination linkedCombination = null;
-        switch(mode)
+        switch (mode)
         {
             case AssetPackAssignmentMode.Primary: linkedCombination = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.PrimaryAssets); break;
             case AssetPackAssignmentMode.MixIn:
@@ -440,7 +440,7 @@ public class AssetSelector
                 {
                     _logger.LogReport("\tSubgroup " + targetSubgroup.Id + " cannot be added because it excludes (" + String.Join(',', excludedSubgroupsAtIndex.Value) + ") which is incompatible with the currently assigned subgroup at position " + excludedSubgroupsAtIndex.Key + Environment.NewLine, false, npcInfo);
                     return false;
-                }               
+                }
             }
             // check candidate subgroups to be assigned
             trialSubgroups[excludedSubgroupsAtIndex.Key] = chosenAssetPack.Subgroups[excludedSubgroupsAtIndex.Key].Where(x => !excludedSubgroupsAtIndex.Value.Intersect(x.ContainedSubgroupIDs).Any()).ToList();
@@ -525,8 +525,8 @@ public class AssetSelector
             switch (mode)
             {
                 case AssetPackAssignmentMode.Primary:
-                    if (npcInfo.SpecificNPCAssignment.AssetPackName.IsNullOrWhitespace()) 
-                    { 
+                    if (npcInfo.SpecificNPCAssignment.AssetPackName.IsNullOrWhitespace())
+                    {
                         break;
                     }
                     forcedAssetPack = assetPacksToBeFiltered.Where(x => x.GroupName == npcInfo.SpecificNPCAssignment.AssetPackName).FirstOrDefault();
@@ -860,7 +860,7 @@ public class AssetSelector
         // Allowed Races
         if (!subgroup.AllowedRacesIsEmpty && !subgroup.AllowedRaces.Contains(npcInfo.AssetsRace))
         {
-            _logger.LogReport(reportString + "is invalid because its allowed races (" + Logger.GetRaceListLogStrings(subgroup.AllowedRaces, _environmentProvider.LinkCache, _patcherState) +") do not include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, _environmentProvider.LinkCache, _patcherState) + ")", false, npcInfo);
+            _logger.LogReport(reportString + "is invalid because its allowed races (" + Logger.GetRaceListLogStrings(subgroup.AllowedRaces, _environmentProvider.LinkCache, _patcherState) + ") do not include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, _environmentProvider.LinkCache, _patcherState) + ")", false, npcInfo);
             return false;
         }
 
