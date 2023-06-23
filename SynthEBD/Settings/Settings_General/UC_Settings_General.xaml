@@ -50,8 +50,8 @@
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
-                <RowDefinition Height="{Binding bUseDetailedReportSelection, Converter={StaticResource GridHeightToggler}}"/>
                 <RowDefinition Height="auto"/>
+                <RowDefinition Height="{Binding bUseDetailedReportSelection, Converter={StaticResource GridHeightToggler}}"/>
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
