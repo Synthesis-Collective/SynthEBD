@@ -236,7 +236,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         trimmed = "";
         foreach (var trim in _patcherState.TexMeshSettings.TrimPaths)
         {
-            if (s.Contains(trim.PathToTrim) && s.EndsWith(trim.Extension))
+            if (s.Contains(trim.PathToTrim, StringComparison.OrdinalIgnoreCase) && s.EndsWith(trim.Extension, StringComparison.OrdinalIgnoreCase))
             {
                 trimmed = s.Remove(0, s.IndexOf(trim.PathToTrim, StringComparison.OrdinalIgnoreCase)).TrimStart(Path.DirectorySeparatorChar);
                 return true;
