@@ -8,6 +8,11 @@
         d:DataContext="{d:DesignInstance Type=local:VM_AssetDistributionSimulator}"
         mc:Ignorable="d"
         Title="Window_AssetDistributionSimulator" Height="450" Width="800">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -27,8 +32,9 @@
         <TextBlock Grid.Row="1" Grid.Column="0" Text="Simulation Rounds" Foreground="GhostWhite"/>
         <TextBox Grid.Row="1" Grid.Column="1" MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=Repetitions}"/>
 
-        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">
+        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
             <Button VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding SimulatePrimary}" Foreground="MediumPurple">Simulate Primary Distribution</Button>
+            <Button VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding ShowFullReport}" Foreground="White" Visibility="{Binding ShowFullReportVisible, Converter={StaticResource BoolToVis}}">Show Full Detail Report</Button>
         </StackPanel>
 
         <TextBlock Grid.Row="3" Grid.Column="0" Text="Report: " Foreground="GhostWhite"/>

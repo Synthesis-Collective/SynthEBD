@@ -55,6 +55,7 @@ namespace SynthEBD
                 if (lk.TryResolve<INpcGetter>(NPCformKey, out var npcGetter))
                 {
                     NPCgetter = npcGetter;
+                    ShowFullReportVisible = false;
                 }
             }).DisposeWith(this); ;
 
@@ -63,6 +64,14 @@ namespace SynthEBD
             execute: _ =>
             {
                 SimulatePrimaryDistribution();
+                ShowFullReportVisible = true;
+            });
+
+            ShowFullReport = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                DislpayFullReportPopup(NPCinfo);
             }
         );
         }
@@ -81,6 +90,8 @@ namespace SynthEBD
         public string TextReport { get; set; } = string.Empty;
         public ObservableCollection<AssetReport> AssetReports { get; set; } = new();
         public RelayCommand SimulatePrimary { get; set; }
+        public RelayCommand ShowFullReport { get; set; }
+        public bool ShowFullReportVisible { get; set; } = false;
 
         public void Reinitialize()
         {
@@ -202,7 +213,24 @@ namespace SynthEBD
                 AssetReports.Add(assetReport);
             }
         }
-        
+
+        public void DislpayFullReportPopup(NPCInfo npcInfo)
+        {
+            var fullReport = npcInfo.Report;
+
+            if (fullReport == null)
+            {
+                return;
+            }
+
+            System.Xml.Linq.XDocument output = new();
+            output.Add(npcInfo.Report.RootElement);
+
+            var outputStr = output.ToString();
+            CustomMessageBox.DisplayNotificationOK("Copy this to a text editor: Notepad++ is recommended", outputStr);
+        }
+
+
         public class AssetReport
         {
             public string TitleString { get; set; } = "";
