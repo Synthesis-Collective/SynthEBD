@@ -313,7 +313,7 @@ public sealed class Logger : VM
         return ("", "");
     }
 
-    private static string FormatLogStringIndents(string s)
+    public static string FormatLogStringIndents(string s)
     {
         int indent = 0;
 

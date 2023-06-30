@@ -34,7 +34,7 @@
 
         <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
             <Button VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding SimulatePrimary}" Foreground="MediumPurple">Simulate Primary Distribution</Button>
-            <Button VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding ShowFullReport}" Foreground="White" Visibility="{Binding ShowFullReportVisible, Converter={StaticResource BoolToVis}}">Show Full Detail Report</Button>
+            <Button VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding ShowFullReport}" Foreground="White" Margin="10 0 0 0"  Visibility="{Binding ShowFullReportVisible, Converter={StaticResource BoolToVis}}">Show Full Detail Report</Button>
         </StackPanel>
 
         <TextBlock Grid.Row="3" Grid.Column="0" Text="Report: " Foreground="GhostWhite"/>

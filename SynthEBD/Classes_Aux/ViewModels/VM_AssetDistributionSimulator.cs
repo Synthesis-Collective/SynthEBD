@@ -57,6 +57,8 @@ namespace SynthEBD
                     NPCgetter = npcGetter;
                     ShowFullReportVisible = false;
                 }
+                TextReport = String.Empty;
+                AssetReports.Clear();
             }).DisposeWith(this); ;
 
             SimulatePrimary = new RelayCommand(
@@ -226,7 +228,7 @@ namespace SynthEBD
             System.Xml.Linq.XDocument output = new();
             output.Add(npcInfo.Report.RootElement);
 
-            var outputStr = output.ToString();
+            var outputStr = Logger.FormatLogStringIndents(output.ToString());
             CustomMessageBox.DisplayNotificationOK("Copy this to a text editor: Notepad++ is recommended", outputStr);
         }
 
