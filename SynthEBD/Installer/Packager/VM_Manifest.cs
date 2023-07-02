@@ -33,6 +33,11 @@ namespace SynthEBD
                         if (success)
                         {
                             GetViewModelFromModel(model);
+                            var dirPath = System.IO.Path.GetDirectoryName(path);
+                            if (System.IO.Directory.Exists(dirPath) && string.IsNullOrEmpty(RootDirectory))
+                            {
+                                RootDirectory = dirPath;
+                            }
                         }
                         else
                         {
