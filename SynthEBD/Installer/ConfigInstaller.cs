@@ -718,7 +718,7 @@ public class ConfigInstaller
         }
         else
         {
-            foreach (var additionalPrefix in manifest.DownloadInfo.Select(x => x.ExtractionSubPath))
+            foreach (var additionalPrefix in manifest.DownloadInfo.Select(x => x.ExtractionSubPath).Where(x => !x.IsNullOrWhitespace()))
             {
                 if (path.Contains(additionalPrefix))
                 {
