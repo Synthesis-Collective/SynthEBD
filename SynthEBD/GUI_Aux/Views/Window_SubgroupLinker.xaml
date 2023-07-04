@@ -59,10 +59,10 @@
         </Border>
         
         <StackPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="4" Orientation="Horizontal">
-            <Button Command="{Binding LinkThisTo}" Foreground="MediumPurple">Link To These</Button>
-            <Button Command="{Binding LinkToThis}" Foreground="MediumPurple" Margin="10 0 0 0">Link These To</Button>
-            <Button Command="{Binding LinkWholeGroup}" Foreground="MediumPurple" Margin="10 0 0 0">Link Group Reciprocally</Button>
-            <Button Command="{Binding Close}" Foreground="Firebrick" Margin="10 0 0 0">Close</Button>
+            <Button Command="{Binding LinkThisTo}" Foreground="MediumPurple" ToolTip="Add the selected Subgroups to this Subgroup's Required list" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Link To These</Button>
+            <Button Command="{Binding LinkToThis}" Foreground="MediumPurple" Margin="10 0 0 0" ToolTip="Add this Subgroup the the selected Subgroups' Required lists" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Link These To</Button>
+            <Button Command="{Binding LinkWholeGroup}" Foreground="MediumPurple" Margin="10 0 0 0" ToolTip="Add all selected Subgroups + this Subgroup to each other's Required lists" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Link Group Reciprocally</Button>
+            <Button Command="{Binding Close}" Foreground="Firebrick" Margin="10 0 0 0" ToolTip="Return without making changes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Close</Button>
         </StackPanel>
     </Grid>
 </Window>
