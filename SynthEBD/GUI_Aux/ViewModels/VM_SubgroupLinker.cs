@@ -14,7 +14,7 @@ namespace SynthEBD
 {
     public class VM_SubgroupLinker : VM
     {
-        public VM_SubgroupLinker(AssetPack assetPack, AssetPack.Subgroup subgroup, Window_SubgroupLinker window)
+        public VM_SubgroupLinker(VM_AssetPack assetPack, VM_Subgroup subgroup, Window_SubgroupLinker window)
         {
             _targetAssetPack = assetPack;
             _targetSubgroup = subgroup;
@@ -39,9 +39,9 @@ namespace SynthEBD
                 execute: x => { 
                     foreach (var sg in CollectedSubgroups)
                     {
-                        if (!_targetSubgroup.RequiredSubgroups.Contains(sg.ID))
+                        if (!_targetSubgroup.RequiredSubgroups.Select(x => x.AssociatedModel.ID).Contains(sg.ID) && assetPack.TryGetSubgroupByID(sg.ID, out var placeHolder))
                         {
-                            _targetSubgroup.RequiredSubgroups.Add(sg.ID);
+                            _targetSubgroup.RequiredSubgroups.Add(placeHolder);
                         }
                     }
                     window.Close();
@@ -65,15 +65,28 @@ namespace SynthEBD
             LinkWholeGroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
-                    var wholeSet = CollectedSubgroups.And(_targetSubgroup);
+                    var wholeSet = new List<AssetPack.Subgroup>();
+                    wholeSet.Add(_targetSubgroup.AssociatedPlaceHolder.AssociatedModel);
+                    wholeSet.AddRange(CollectedSubgroups);
 
                     foreach (var sg in wholeSet)
                     {
                         foreach (var sg2 in wholeSet)
                         {
-                            if (sg2.ID != sg.ID && !sg.RequiredSubgroups.Contains(sg2.ID))
+                            //if sg is the current view model, operate in the view model space
+                            if (sg.ID == _targetSubgroup.ID)
                             {
-                                sg.RequiredSubgroups.Add(sg2.ID);
+                                if (sg2.ID != sg.ID && !_targetSubgroup.RequiredSubgroups.Select(x => x.AssociatedModel.ID).Contains(sg2.ID) && assetPack.TryGetSubgroupByID(sg2.ID, out var placeHolder))
+                                {
+                                    _targetSubgroup.RequiredSubgroups.Add(placeHolder);
+                                }
+                            }
+                            else // otherwise operate in the model space
+                            {
+                                if (sg2.ID != sg.ID && !sg.RequiredSubgroups.Contains(sg2.ID))
+                                {
+                                    sg.RequiredSubgroups.Add(sg2.ID);
+                                }
                             }
                         }
                     }
@@ -89,8 +102,8 @@ namespace SynthEBD
             );
         }
 
-        private AssetPack _targetAssetPack;
-        private AssetPack.Subgroup _targetSubgroup;
+        private VM_AssetPack _targetAssetPack;
+        private VM_Subgroup _targetSubgroup;
         private int _topLevelIndex = -1;
         public string IdToMatch { get; set; } = string.Empty;
         public string NameToMatch { get; set; } = string.Empty;
@@ -124,11 +137,11 @@ namespace SynthEBD
             }
         }
 
-        private void CollectMatchingSubgroups(AssetPack.Subgroup subgroup)
+        private void CollectMatchingSubgroups(VM_SubgroupPlaceHolder subgroup)
         {
-            if (bSubgroupMatches(subgroup))
+            if (bSubgroupMatches(subgroup.AssociatedModel))
             {
-                CollectedSubgroups.Add(subgroup);
+                CollectedSubgroups.Add(subgroup.AssociatedModel);
                 return;
             }
             foreach (var sg in subgroup.Subgroups)
@@ -186,7 +199,7 @@ namespace SynthEBD
             for (int i = 0; i < _targetAssetPack.Subgroups.Count; i++)
             {
                 var subgroup = _targetAssetPack.Subgroups[i];
-                if (subgroup == _targetSubgroup || IndexContainsThisSubgroup(subgroup.Subgroups))
+                if (subgroup.ID == _targetSubgroup.ID || IndexContainsThisSubgroup(subgroup.Subgroups))
                 {
                     _topLevelIndex = i;
                     return true;
@@ -194,9 +207,9 @@ namespace SynthEBD
             }
             return false;
         }
-        private bool IndexContainsThisSubgroup(List<AssetPack.Subgroup> subgroups)
+        private bool IndexContainsThisSubgroup(IEnumerable<VM_SubgroupPlaceHolder> subgroups)
         {
-            if (subgroups.Contains(_targetSubgroup))
+            if (subgroups.Select(x => x.ID).Contains(_targetSubgroup.ID))
             {
                 return true;
             }

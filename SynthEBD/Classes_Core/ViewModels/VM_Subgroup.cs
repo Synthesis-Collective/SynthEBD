@@ -142,13 +142,10 @@ public class VM_Subgroup : VM, IDropTarget
         LinkRequiredSubgroups = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: x => {
-                DumpViewModelToModel(); // VM_SubgroupLinker can make changes to the underlying model, so save current state and refresh when finished
-                ClearLists();
                 Window_SubgroupLinker window = new();
-                VM_SubgroupLinker windowVM = new(ParentAssetPack.AssociatedModel, AssociatedPlaceHolder.AssociatedModel, window);
+                VM_SubgroupLinker windowVM = new(ParentAssetPack, this, window);
                 window.DataContext = windowVM;
                 window.ShowDialog();
-                CopyInViewModelFromModel();
             }
         );
     }
@@ -200,24 +197,6 @@ public class VM_Subgroup : VM, IDropTarget
     public VM_SubgroupPlaceHolder ParentSubgroup { get; set; }
     public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
 
-
-    private void ClearLists() // for refreshing view model
-    {
-        AllowedRaces.Clear();
-        AllowedRaceGroupings.RaceGroupingSelections.Clear();
-        DisallowedRaces.Clear();
-        DisallowedRaceGroupings.RaceGroupingSelections.Clear();
-        AllowedAttributes.Clear();
-        DisallowedAttributes.Clear();
-        RequiredSubgroups.Clear();
-        ExcludedSubgroups.Clear();
-        AddKeywords.Clear();
-        PathsMenu.Paths.Clear();
-        AllowedBodyGenDescriptors.DeselectAll();
-        DisallowedBodyGenDescriptors.DeselectAll();
-        AllowedBodySlideDescriptors.DeselectAll();
-        DisallowedBodySlideDescriptors.DeselectAll();
-    }
     public void CopyInViewModelFromModel()
     {
         var model = AssociatedPlaceHolder.AssociatedModel;
