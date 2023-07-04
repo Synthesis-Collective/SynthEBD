@@ -192,6 +192,17 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         }
         Header = header;
     }
+
+    public void DeselectAll()
+    {
+        foreach (var shell in DescriptorShells)
+        {
+            foreach (var entry in shell.DescriptorSelectors)
+            {
+                entry.IsSelected = false;
+            }
+        }
+    }
 }
 
 public class VM_BodyShapeDescriptorShellSelector : VM

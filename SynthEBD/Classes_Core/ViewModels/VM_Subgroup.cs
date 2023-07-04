@@ -143,6 +143,7 @@ public class VM_Subgroup : VM, IDropTarget
             canExecute: _ => true,
             execute: x => {
                 DumpViewModelToModel(); // VM_SubgroupLinker can make changes to the underlying model, so save current state and refresh when finished
+                ClearLists();
                 Window_SubgroupLinker window = new();
                 VM_SubgroupLinker windowVM = new(ParentAssetPack.AssociatedModel, AssociatedPlaceHolder.AssociatedModel, window);
                 window.DataContext = windowVM;
@@ -193,14 +194,30 @@ public class VM_Subgroup : VM, IDropTarget
     public RelayCommand DeleteExcludedSubgroup { get; }
     public RelayCommand LinkRequiredSubgroups { get; }
     public bool SetExplicitReferenceNPC { get; set; }
-    public HashSet<string> RequiredSubgroupIDs { get; set; } = new(); // temporary placeholder for RequiredSubgroups until all subgroups are loaded in
-    public HashSet<string> ExcludedSubgroupIDs { get; set; } = new(); // temporary placeholder for ExcludedSubgroups until all subgroups are loaded in
     public string RequiredSubgroupsLabel { get; set; } = "Drag subgroups here from the tree view";
     public string ExcludedSubgroupsLabel { get; set; } = "Drag subgroups here from the tree view";
     public VM_AssetPack ParentAssetPack { get; set; }
     public VM_SubgroupPlaceHolder ParentSubgroup { get; set; }
     public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
 
+
+    private void ClearLists() // for refreshing view model
+    {
+        AllowedRaces.Clear();
+        AllowedRaceGroupings.RaceGroupingSelections.Clear();
+        DisallowedRaces.Clear();
+        DisallowedRaceGroupings.RaceGroupingSelections.Clear();
+        AllowedAttributes.Clear();
+        DisallowedAttributes.Clear();
+        RequiredSubgroups.Clear();
+        ExcludedSubgroups.Clear();
+        AddKeywords.Clear();
+        PathsMenu.Paths.Clear();
+        AllowedBodyGenDescriptors.DeselectAll();
+        DisallowedBodyGenDescriptors.DeselectAll();
+        AllowedBodySlideDescriptors.DeselectAll();
+        DisallowedBodySlideDescriptors.DeselectAll();
+    }
     public void CopyInViewModelFromModel()
     {
         var model = AssociatedPlaceHolder.AssociatedModel;
@@ -208,6 +225,7 @@ public class VM_Subgroup : VM, IDropTarget
         {
             return;
         }
+
         ID = model.ID;
         Name = model.Name;
         Enabled = model.Enabled;
@@ -219,7 +237,6 @@ public class VM_Subgroup : VM, IDropTarget
         AllowUnique = model.AllowUnique;
         AllowNonUnique = model.AllowNonUnique;
         
-        RequiredSubgroupIDs = model.RequiredSubgroups;
         foreach (var reqID in model.RequiredSubgroups)
         {
             if (ParentAssetPack.TryGetSubgroupByID(reqID, out var reqSubgroup))
@@ -228,7 +245,6 @@ public class VM_Subgroup : VM, IDropTarget
             }
         }
 
-        ExcludedSubgroupIDs = model.ExcludedSubgroups;
         foreach (var exID in model.ExcludedSubgroups)
         {
             if (ParentAssetPack.TryGetSubgroupByID(exID, out var exSubgroup))
@@ -341,13 +357,11 @@ public class VM_Subgroup : VM, IDropTarget
                 if (listBox.Name == "lbRequiredSubgroups")
                 {
                     parentContextSubgroup.RequiredSubgroups.Add(draggedSubgroup);
-                    parentContextSubgroup.RequiredSubgroupIDs.Add(draggedSubgroup.ID);
                     RefreshListBoxLabel(parentContextSubgroup.RequiredSubgroups, SubgroupListBox.Required);
                 }
                 else if (listBox.Name == "lbExcludedSubgroups")
                 {
                     parentContextSubgroup.ExcludedSubgroups.Add(draggedSubgroup);
-                    parentContextSubgroup.ExcludedSubgroupIDs.Add(draggedSubgroup.ID);
                     RefreshListBoxLabel(parentContextSubgroup.ExcludedSubgroups, SubgroupListBox.Excluded);
                 }
             }

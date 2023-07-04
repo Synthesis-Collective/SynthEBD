@@ -22,12 +22,16 @@
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="auto"/>
             <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
         </Grid.ColumnDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" Text="ID To Match" Foreground="White" VerticalAlignment="Center"/>
         <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding IdToMatch, UpdateSourceTrigger=PropertyChanged}"/>
         <TextBlock Grid.Row="0" Grid.Column="2" Text="Case-Sensitive" Foreground="White" VerticalAlignment="Center"/>
         <CheckBox Grid.Row="0" Grid.Column="3" IsChecked="{Binding IDcaseSensitive}" Margin="5 0 0 0"/>
+        <TextBlock Grid.Row="0" Grid.Column="4" Text="Match Partial" Foreground="White" VerticalAlignment="Center"/>
+        <CheckBox Grid.Row="0" Grid.Column="5" IsChecked="{Binding IDallowPartial}" Margin="5 0 0 0"/>
 
         <ComboBox Grid.Row="1" Grid.Column="0" SelectedValue="{Binding AndOrSelection}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AndOr}}}" IsSynchronizedWithCurrentItem="True"/>
 
@@ -35,6 +39,8 @@
         <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding NameToMatch, UpdateSourceTrigger=PropertyChanged}"/>
         <TextBlock Grid.Row="2" Grid.Column="2" Text="Case-Sensitive" Foreground="White" VerticalAlignment="Center"/>
         <CheckBox Grid.Row="2" Grid.Column="3" IsChecked="{Binding NameCaseSensitive}" Margin="5 0 0 0"/>
+        <TextBlock Grid.Row="2" Grid.Column="4" Text="Match Partial" Foreground="White" VerticalAlignment="Center"/>
+        <CheckBox Grid.Row="2" Grid.Column="5" IsChecked="{Binding NameAllowPartial}" Margin="5 0 0 0"/>
 
         <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="4" Text="Subgroups to Link" Foreground="White"/>
 

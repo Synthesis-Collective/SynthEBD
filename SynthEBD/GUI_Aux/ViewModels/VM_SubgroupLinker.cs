@@ -29,7 +29,9 @@ namespace SynthEBD
                 this.WhenAnyValue(x => x.NameToMatch),
                 this.WhenAnyValue(x => x.IDcaseSensitive),
                 this.WhenAnyValue(x => x.NameCaseSensitive),
-                (_, _, _, _) => { return 0; })
+                this.WhenAnyValue(x => x.IDallowPartial),
+                this.WhenAnyValue(x => x.NameAllowPartial),
+                (_, _, _, _, _, _) => { return 0; })
             .Subscribe(_ => CollectMatchingSubgroups()).DisposeWith(this);
 
             LinkThisTo = new SynthEBD.RelayCommand(
@@ -69,7 +71,7 @@ namespace SynthEBD
                     {
                         foreach (var sg2 in wholeSet)
                         {
-                            if (sg2 != sg && !sg.RequiredSubgroups.Contains(sg2.ID))
+                            if (sg2.ID != sg.ID && !sg.RequiredSubgroups.Contains(sg2.ID))
                             {
                                 sg.RequiredSubgroups.Add(sg2.ID);
                             }
@@ -95,6 +97,8 @@ namespace SynthEBD
         public AndOr AndOrSelection { get; set; } = AndOr.Or;
         public bool IDcaseSensitive { get; set; } = false;
         public bool NameCaseSensitive { get; set; } = false;
+        public bool IDallowPartial { get; set; } = false;
+        public bool NameAllowPartial { get; set; } = false;
 
         public ObservableCollection<AssetPack.Subgroup> CollectedSubgroups { get; set; } = new(); // does not include _targetSubgroup
 
@@ -143,12 +147,28 @@ namespace SynthEBD
 
             if (matchID)
             {
-                IdMatches = (IDcaseSensitive && IdToMatch == subgroup.ID) || (!IDcaseSensitive && IdToMatch.Equals(subgroup.ID, StringComparison.OrdinalIgnoreCase));
+                switch(IDallowPartial)
+                {
+                    case false:
+                        IdMatches = (IDcaseSensitive && IdToMatch == subgroup.ID) || (!IDcaseSensitive && IdToMatch.Equals(subgroup.ID, StringComparison.OrdinalIgnoreCase));
+                        break;
+                    case true:
+                        IdMatches = (IDcaseSensitive && IdToMatch.Contains(subgroup.ID)) || (!IDcaseSensitive && subgroup.ID.Contains(IdToMatch, StringComparison.OrdinalIgnoreCase));
+                        break;
+                }
             }
 
             if (matchName)
             {
-                nameMatches = (NameCaseSensitive && NameToMatch == subgroup.Name) || (!NameCaseSensitive && NameToMatch.Equals(subgroup.Name, StringComparison.OrdinalIgnoreCase));
+                switch(NameAllowPartial)
+                {
+                    case false:
+                        nameMatches = (NameCaseSensitive && NameToMatch == subgroup.Name) || (!NameCaseSensitive && NameToMatch.Equals(subgroup.Name, StringComparison.OrdinalIgnoreCase));
+                        break;
+                    case true:
+                        nameMatches = (NameCaseSensitive && NameToMatch.Contains(subgroup.Name)) || (!NameCaseSensitive && subgroup.Name.Contains(NameToMatch, StringComparison.OrdinalIgnoreCase));
+                        break;
+                }
             }
 
             switch(AndOrSelection)
