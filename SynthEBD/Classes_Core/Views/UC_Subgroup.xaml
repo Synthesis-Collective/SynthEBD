@@ -154,6 +154,7 @@
             </ListBox.ItemTemplate>
         </ListBox>
         <TextBlock Grid.Row="15" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Text="{Binding RequiredSubgroupsLabel, UpdateSourceTrigger=PropertyChanged}"/>
+        <Button Grid.Row="15" Grid.Column="1" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding LinkRequiredSubgroups}" Foreground="Lightgreen">Group Linker</Button>
 
         <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0" ToolTip="Other subgroups from this config file that may not be assigned if this subgroup is assigned (Drag and Drop)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Excluded Subgroups</TextBlock>
         <ListBox Grid.Row="16" Grid.Column="1" ItemsSource="{Binding ExcludedSubgroups}" Name="lbExcludedSubgroups" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.DropHandler="{Binding}" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4">

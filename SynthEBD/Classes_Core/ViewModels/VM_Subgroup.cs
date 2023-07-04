@@ -138,6 +138,18 @@ public class VM_Subgroup : VM, IDropTarget
             canExecute: _ => true,
             execute: x => { ExcludedSubgroups.Remove((VM_SubgroupPlaceHolder)x); RefreshListBoxLabel(ExcludedSubgroups, SubgroupListBox.Excluded); }
         );
+
+        LinkRequiredSubgroups = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: x => {
+                DumpViewModelToModel(); // VM_SubgroupLinker can make changes to the underlying model, so save current state and refresh when finished
+                Window_SubgroupLinker window = new();
+                VM_SubgroupLinker windowVM = new(ParentAssetPack.AssociatedModel, AssociatedPlaceHolder.AssociatedModel, window);
+                window.DataContext = windowVM;
+                window.ShowDialog();
+                CopyInViewModelFromModel();
+            }
+        );
     }
 
     public VM_SubgroupPlaceHolder AssociatedPlaceHolder { get; set; }
@@ -179,6 +191,7 @@ public class VM_Subgroup : VM, IDropTarget
     public RelayCommand AddPath { get; }
     public RelayCommand DeleteRequiredSubgroup { get; }
     public RelayCommand DeleteExcludedSubgroup { get; }
+    public RelayCommand LinkRequiredSubgroups { get; }
     public bool SetExplicitReferenceNPC { get; set; }
     public HashSet<string> RequiredSubgroupIDs { get; set; } = new(); // temporary placeholder for RequiredSubgroups until all subgroups are loaded in
     public HashSet<string> ExcludedSubgroupIDs { get; set; } = new(); // temporary placeholder for ExcludedSubgroups until all subgroups are loaded in
