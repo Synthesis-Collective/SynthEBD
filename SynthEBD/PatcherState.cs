@@ -6,7 +6,7 @@ namespace SynthEBD;
 public class PatcherState
 {
     // Version
-    public static string Version = "1.0.0.9";
+    public static string Version = "1.0.1.0";
 
     // Settings
     public Settings_General GeneralSettings { get; set; }
@@ -176,7 +176,7 @@ public class PatcherState
         }
         else if (OBodySettings != null)
         {
-            sb.AppendLine("Male BodySlides: " + OBodySettings.BodySlidesMale.Count + " (" + OBodySettings.BodySlidesMale.Where(x => x.BodyShapeDescriptors.Any()).Count() + ") annotated");
+            sb.AppendLine("Male BodySlides: " + OBodySettings.BodySlidesMale.Count + " (" + OBodySettings.BodySlidesMale.Where(x => x.BodyShapeDescriptors.Any()).Count() + " annotated)");
         }
 
         if (OBodySettings != null && OBodySettings.BodySlidesFemale == null)
@@ -185,7 +185,7 @@ public class PatcherState
         }
         else if (OBodySettings != null)
         {
-            sb.AppendLine("Female BodySlides: " + OBodySettings.BodySlidesFemale.Count + " (" + OBodySettings.BodySlidesFemale.Where(x => x.BodyShapeDescriptors.Any()).Count() + ") annotated");
+            sb.AppendLine("Female BodySlides: " + OBodySettings.BodySlidesFemale.Count + " (" + OBodySettings.BodySlidesFemale.Where(x => x.BodyShapeDescriptors.Any()).Count() + " annotated)");
         }
 
         if (HeightConfigs == null)

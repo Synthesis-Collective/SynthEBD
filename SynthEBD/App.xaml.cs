@@ -192,6 +192,15 @@ public partial class App : Application
             sb.AppendLine("Environment State: Null");
         }
         sb.AppendLine();
+        try
+        {
+            sb.AppendLine("Installation Location: " + Assembly.GetEntryAssembly()?.Location ?? "Failed to locate.");
+        }
+        catch
+        {
+            sb.AppendLine("Installation Location: GetEntryAssembly() failed.");
+        }
+        sb.AppendLine();
         sb.AppendLine("Patcher Settings Creation Log:");
         sb.AppendLine(PatcherSettingsSourceProvider.SettingsLog.ToString());
         sb.AppendLine();
