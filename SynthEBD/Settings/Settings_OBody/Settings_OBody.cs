@@ -54,71 +54,78 @@ public class Settings_OBody
             var xmlFilePaths = System.IO.Directory.GetFiles(loadFolder, "*.xml");
             foreach (var xmlFilePath in xmlFilePaths)
             {
-                XDocument presetFile = XDocument.Load(xmlFilePath);
-                var presets = presetFile.Element("SliderPresets");
-                if (presets == null) { continue; }
-
-                var presetName = "";
-                foreach (var preset in presets.Elements())
+                try
                 {
-                    var groups = preset.Elements("Group");
-                    if (groups == null) { continue; }
+                    XDocument presetFile = XDocument.Load(xmlFilePath);
+                    var presets = presetFile.Element("SliderPresets");
+                    if (presets == null) { continue; }
 
-                    bool genderFound = false;
-                    foreach (var group in groups)
+                    var presetName = "";
+                    foreach (var preset in presets.Elements())
                     {
-                        var groupName = group.Attribute("name").Value.ToString();
-                        presetName = preset.Attribute("name").Value.ToString();
+                        var groups = preset.Elements("Group");
+                        if (groups == null) { continue; }
 
-                        CurrentlyExistingBodySlides.Add(presetName);
-
-                        if (MaleSliderGroups.Contains(groupName))
+                        bool genderFound = false;
+                        foreach (var group in groups)
                         {
-                            currentBodySlides = BodySlidesMale;
-                            genderFound = true;
-                            break;
-                        }
-                        else if (FemaleSliderGroups.Contains(groupName))
-                        {
-                            currentBodySlides = BodySlidesFemale;
-                            genderFound=true;
-                            break;
-                        }
-                    }
-                    if (!genderFound) { continue; }
+                            var groupName = group.Attribute("name").Value.ToString();
+                            presetName = preset.Attribute("name").Value.ToString();
 
-                    if (currentBodySlides.Where(x => x.ReferencedBodySlide == presetName).Any()) // skip already loaded presets
-                    {
-                        continue;
-                    }
+                            CurrentlyExistingBodySlides.Add(presetName);
 
-                    BodySlideSetting newPreset = new BodySlideSetting();
-                    newPreset.Label = presetName;
-                    newPreset.ReferencedBodySlide = presetName;
-
-                    if (newPreset.Label.Contains("Zero for OBody", StringComparison.OrdinalIgnoreCase) ||
-                        newPreset.Label.Contains("Zeroed Sliders", StringComparison.OrdinalIgnoreCase) ||
-                        newPreset.Label.Contains("Clothes", StringComparison.OrdinalIgnoreCase) ||
-                        newPreset.Label.Contains("Outfit", StringComparison.OrdinalIgnoreCase) ||
-                        newPreset.Label.Contains("Refit ", StringComparison.OrdinalIgnoreCase))
-                    {
-                        newPreset.AllowRandom = false;
-                        newPreset.HideInMenu = true;
-                    }                    
-
-                    if (defaultAnnotationDict.ContainsKey(presetName))
-                    {
-                        foreach (var annotation in defaultAnnotationDict[presetName])
-                        {
-                            var descriptor = templateDescriptors.Where(x => x.ID.ToString().Equals(annotation, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
-                            if (descriptor != null)
+                            if (MaleSliderGroups.Contains(groupName))
                             {
-                                newPreset.BodyShapeDescriptors.Add(descriptor.ID);
+                                currentBodySlides = BodySlidesMale;
+                                genderFound = true;
+                                break;
+                            }
+                            else if (FemaleSliderGroups.Contains(groupName))
+                            {
+                                currentBodySlides = BodySlidesFemale;
+                                genderFound = true;
+                                break;
                             }
                         }
-                    }
+                        if (!genderFound) { continue; }
 
-                    currentBodySlides.Add(newPreset);
+                        if (currentBodySlides.Where(x => x.ReferencedBodySlide == presetName).Any()) // skip already loaded presets
+                        {
+                            continue;
+                        }
+
+                        BodySlideSetting newPreset = new BodySlideSetting();
+                        newPreset.Label = presetName;
+                        newPreset.ReferencedBodySlide = presetName;
+
+                        if (newPreset.Label.Contains("Zero for OBody", StringComparison.OrdinalIgnoreCase) ||
+                            newPreset.Label.Contains("Zeroed Sliders", StringComparison.OrdinalIgnoreCase) ||
+                            newPreset.Label.Contains("Clothes", StringComparison.OrdinalIgnoreCase) ||
+                            newPreset.Label.Contains("Outfit", StringComparison.OrdinalIgnoreCase) ||
+                            newPreset.Label.Contains("Refit ", StringComparison.OrdinalIgnoreCase))
+                        {
+                            newPreset.AllowRandom = false;
+                            newPreset.HideInMenu = true;
+                        }
+
+                        if (defaultAnnotationDict.ContainsKey(presetName))
+                        {
+                            foreach (var annotation in defaultAnnotationDict[presetName])
+                            {
+                                var descriptor = templateDescriptors.Where(x => x.ID.ToString().Equals(annotation, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+                                if (descriptor != null)
+                                {
+                                    newPreset.BodyShapeDescriptors.Add(descriptor.ID);
+                                }
+                            }
+                        }
+
+                        currentBodySlides.Add(newPreset);
+                    }
+                }
+                catch
+                {
+                    logger.LogError("Warning: failed to read BodySlide XML file: " + xmlFilePath + ". This file may be corrupted or incorrectly formatted.");
                 }
             }
         }
