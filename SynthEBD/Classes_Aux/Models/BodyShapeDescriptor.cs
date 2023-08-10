@@ -3,7 +3,7 @@ using Synthesis.Bethesda.Execution.DotNet;
 
 namespace SynthEBD;
 
-public class BodyShapeDescriptor
+public class BodyShapeDescriptor : IHasLabel
 {
     public BodyShapeDescriptor()
     {
@@ -26,6 +26,7 @@ public class BodyShapeDescriptor
 
     public LabelSignature ID { get; set; } = new();
     public BodyShapeDescriptorRules AssociatedRules { get; set; } = new();
+    public string Label { get; set; } // for duplicate removal - populated by removal code
 
     public bool MapsTo(Object obj)
     {

@@ -141,6 +141,7 @@ namespace SynthEBD
         {
             System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;
             _saveLoader.LoadAllSettings();
+            OnLoadValidator.ValidateSettings(_patcherState);
             LoadInitialSettingsViewModels();
             LoadPluginViewModels();
             LoadFinalSettingsViewModels();

@@ -36,6 +36,8 @@ public class SettingsIO_General
             loadSuccess = true;
         }
         _logger.LogStartupEventEnd("Loading general settings from disk");
+
+        _patcherState.GeneralSettings.RaceGroupings = MiscValidation.CheckRaceGroupingDuplicates(_patcherState.GeneralSettings.RaceGroupings, "General Settings").ToList();
     }
 
     public void DumpVMandSave(VM_Settings_General generalSettingsVM)

@@ -1,8 +1,8 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 
 namespace SynthEBD;
 
-public class RaceGrouping
+public class RaceGrouping : IHasLabel
 {
     public string Label { get; set; } = "";
     public HashSet<FormKey> Races { get; set; } = new();

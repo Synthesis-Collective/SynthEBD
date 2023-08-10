@@ -620,4 +620,58 @@ public class MiscValidation
 
         return valid;
     }
+
+    public static IEnumerable<RaceGrouping> CheckRaceGroupingDuplicates(IEnumerable<RaceGrouping> raceGroupings, string parentDispName)
+    {
+        var filteredRaceGroupings = raceGroupings.ToList();
+
+        List<string> names = new();
+        List<string> duplicates = new();
+
+        foreach (var g in raceGroupings)
+        {
+            if (names.Contains(g.Label))
+            {
+                duplicates.Add(g.Label);
+            }
+            names.Add(g.Label);
+        }
+
+        if (duplicates.Any())
+        {
+            string message = "Duplicate Race Groupings detected in " + parentDispName + ". Remove duplicates? [Only the first occurrence will be kept; make sure this is the one you want to save.]" + Environment.NewLine;
+
+            foreach (var g in duplicates.Distinct())
+            {
+                message += g + " (" + (duplicates.Where(x => x == g).Count() + 1) + ")" + Environment.NewLine;
+            }
+
+            if (CustomMessageBox.DisplayNotificationYesNo("Duplicate Race Groupings", message))
+            {
+                foreach (var name in duplicates)
+                {
+                    bool triggered = false;
+                    int duplicateCount = duplicates.Where(x => x == name).ToArray().Count();
+                    for (int i = 0; i < filteredRaceGroupings.Count; i++)
+                    {
+                        if (filteredRaceGroupings[i].Label == name)
+                        {
+                            if (triggered)
+                            {
+                                filteredRaceGroupings.RemoveAt(i);
+                                i--;
+                            }
+                            else
+                            {
+                                triggered = true;
+                            }
+                        }
+                    }
+                }
+
+                return filteredRaceGroupings;
+            }
+        }
+        return raceGroupings;
+    }
 }

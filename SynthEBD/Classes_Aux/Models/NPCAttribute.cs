@@ -972,7 +972,7 @@ public interface ITypedNPCAttribute
     public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache);
 }
 
-public class AttributeGroup
+public class AttributeGroup : IHasLabel
 {
     public string Label { get; set; } = "";
     public HashSet<NPCAttribute> Attributes { get; set; } = new();

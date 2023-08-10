@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows;
+using Mutagen.Bethesda.Synthesis;
 using ReactiveUI;
 
 namespace SynthEBD;
@@ -7,6 +8,7 @@ namespace SynthEBD;
 public class MainWindow_ViewModel : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
     private readonly ViewModelLoader _viewModelLoader;
     private readonly VM_Settings_General _settingsGeneral;
     private readonly VM_NavPanel _navPanel;
@@ -20,6 +22,7 @@ public class MainWindow_ViewModel : VM
     public static bool EvalMessageTriggered {get; set;} = false;
     public MainWindow_ViewModel(
         IEnvironmentStateProvider environmentProvider,
+        PatcherState patcherState,
         ViewModelLoader viewModelLoader,
         VM_Settings_General settingsGeneral,
         DisplayedItemVm display,
@@ -30,6 +33,7 @@ public class MainWindow_ViewModel : VM
         CustomMessageBox customMessageBox)
     {
         _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
         _viewModelLoader = viewModelLoader;
         _settingsGeneral = settingsGeneral;
         _navPanel = navPanel;
@@ -50,7 +54,6 @@ public class MainWindow_ViewModel : VM
     public void Init()
     {
         Application.Current.Exit += MainWindow_Closing;
-
         ValidateEval();
     }
 
