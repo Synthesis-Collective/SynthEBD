@@ -13,9 +13,11 @@ using DynamicData.Binding;
 using System.Text.RegularExpressions;
 using static SynthEBD.VM_NPCAttribute;
 using System.Reactive.Linq;
+using System.Diagnostics;
 
 namespace SynthEBD;
 
+[DebuggerDisplay("Name = {ID}: {Name}")]
 public class VM_Subgroup : VM, IDropTarget
 {
     private readonly IEnvironmentStateProvider _environmentProvider;

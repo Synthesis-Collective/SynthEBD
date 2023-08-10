@@ -26,6 +26,7 @@ namespace SynthEBD
         private readonly SettingsIO_OBody _oBodyIO;
         private readonly OBodyPreprocessing _obodyPreProcessing;
         private readonly NPCInfo.Factory _npcInfoFactory;
+        private readonly VM_SettingsTexMesh _texMesh;
         public delegate VM_AssetDistributionSimulator Factory();
         public VM_AssetDistributionSimulator(VM_SettingsTexMesh texMesh, VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, DictionaryMapper dictionaryMapper, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, OBodyPreprocessing oBodyPreprocessing, SettingsIO_OBody oBodyIO, NPCInfo.Factory npcInfoFactory)
         {
@@ -39,9 +40,8 @@ namespace SynthEBD
             _obodyPreProcessing = oBodyPreprocessing;
             _oBodyIO = oBodyIO;
             _npcInfoFactory = npcInfoFactory;
+            _texMesh = texMesh;
 
-            PrimaryAPs = texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.Primary && x.IsSelected).Select(x => x.DumpViewModelToModel()).ToHashSet();
-            MixInAPs = texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.MixIn && x.IsSelected).Select(x => x.DumpViewModelToModel()).ToHashSet();
             OBodySettings = oBody.DumpViewModelToModel();
             BlockList = blockListUI.DumpViewModelToModel();
             BodyGenConfigs = bodyGen.DumpBodyGenConfigsToModels();
@@ -97,6 +97,8 @@ namespace SynthEBD
 
         public void Reinitialize()
         {
+            PrimaryAPs = _texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.Primary && x.IsSelected).Select(x => x.DumpViewModelToModel()).ToHashSet();
+            MixInAPs = _texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.MixIn && x.IsSelected).Select(x => x.DumpViewModelToModel()).ToHashSet();
             NPCformKey = new();
             Clear();
         }

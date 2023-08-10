@@ -7,9 +7,11 @@ using System.Windows.Media;
 using ReactiveUI;
 using static SynthEBD.VM_NPCAttribute;
 using ControlzEx.Standard;
+using System.Diagnostics;
 
 namespace SynthEBD;
 
+[DebuggerDisplay("Name = {Label}")]
 public class VM_BodySlideSetting : VM
 {
     private IEnvironmentStateProvider _environmentProvider;

@@ -134,6 +134,10 @@ public class DictionaryMapper
         foreach (string s in sgList)
         {
             int position = (GetSubgroupTopLevelIndex(s, subgroupHierarchy));
+            if (position == -1)
+            {
+                continue;
+            }
             if (position >= 0)
             {
                 if(!dict.ContainsKey(position))

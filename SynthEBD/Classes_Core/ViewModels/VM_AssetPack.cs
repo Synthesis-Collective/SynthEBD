@@ -15,6 +15,7 @@ using static SynthEBD.AssetPack;
 using Noggog.WPF;
 using DynamicData;
 using System.Reactive.Linq;
+using System.Diagnostics;
 
 namespace SynthEBD;
 
@@ -29,6 +30,7 @@ public enum AssetPackMenuVisibility
     Misc
 }
 
+[DebuggerDisplay("Name = {ShortName}: {GroupName}")]
 public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgroupViewModels, IHasRaceGroupingEditor
 {
     private readonly IEnvironmentStateProvider _environmentProvider;

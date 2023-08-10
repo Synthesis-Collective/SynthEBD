@@ -1,8 +1,10 @@
 using Mutagen.Bethesda.Plugins;
+using System.Diagnostics;
 using static SynthEBD.AssetPack;
 
 namespace SynthEBD;
 
+[DebuggerDisplay("Name = {Id}: {Name}")]
 public class FlattenedSubgroup : IProbabilityWeighted
 {
     private readonly DictionaryMapper _dictionaryMapper;

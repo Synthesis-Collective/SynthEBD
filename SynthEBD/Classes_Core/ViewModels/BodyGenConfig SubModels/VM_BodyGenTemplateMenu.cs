@@ -10,6 +10,7 @@ using System.Windows.Media;
 using DynamicData.Binding;
 using static SynthEBD.VM_NPCAttribute;
 using System.Reactive.Linq;
+using System.Diagnostics;
 
 namespace SynthEBD;
 
@@ -94,6 +95,7 @@ public class VM_BodyGenTemplateMenu : VM
     public RelayCommand ImportBodyGen { get; }
 }
 
+[DebuggerDisplay("Name = {Label}")]
 public class VM_BodyGenTemplatePlaceHolder : VM
 {
     public VM_BodyGenTemplatePlaceHolder(BodyGenConfig.BodyGenTemplate model, ObservableCollection<VM_BodyGenTemplatePlaceHolder> parentCollection)
@@ -126,6 +128,7 @@ public class VM_BodyGenTemplatePlaceHolder : VM
 
 }
 
+[DebuggerDisplay("Name = {Label}")]
 public class VM_BodyGenTemplate : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;

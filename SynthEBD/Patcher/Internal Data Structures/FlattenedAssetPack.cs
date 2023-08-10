@@ -1,7 +1,9 @@
 using Mutagen.Bethesda.Plugins;
+using System.Diagnostics;
 
 namespace SynthEBD;
 
+[DebuggerDisplay("Name = {GroupName}")]
 public class FlattenedAssetPack
 {
     public readonly DictionaryMapper _dictionaryMapper;

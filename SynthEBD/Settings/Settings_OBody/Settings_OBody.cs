@@ -1,5 +1,6 @@
 using Mutagen.Bethesda.Plugins;
 using Newtonsoft.Json;
+using System.Diagnostics;
 using System.Xml.Linq;
 using Z.Expressions.Compiler;
 
@@ -254,6 +255,7 @@ public class Settings_OBody
     };
 }
 
+[DebuggerDisplay("Name = {Label}")]
 public class BodySlideSetting : IProbabilityWeighted
 {
     public string Label { get; set; } = "";

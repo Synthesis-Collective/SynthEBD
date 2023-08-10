@@ -1,5 +1,6 @@
 using Mutagen.Bethesda.Plugins;
 using Newtonsoft.Json;
+using System.Diagnostics;
 
 namespace SynthEBD;
 
@@ -9,6 +10,7 @@ public class BodyGenConfigs
     public HashSet<BodyGenConfig> Female { get; set; } = new();
 }
 
+[DebuggerDisplay("Name = {Label}")]
 public class BodyGenConfig
 {
     public string Label { get; set; } = "";
@@ -39,6 +41,7 @@ public class BodyGenConfig
         }
     }
 
+    [DebuggerDisplay("Name = {Label}")]
     public class BodyGenTemplate : IProbabilityWeighted
     {
         public string Label { get; set; } = "";
