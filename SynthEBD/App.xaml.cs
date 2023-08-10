@@ -38,6 +38,8 @@ public partial class App : Application
 
     public int StandaloneOpen()
     {
+        var window = new MainWindow();
+
         var assembly = Assembly.GetEntryAssembly() ?? throw new ArgumentNullException();
         var rootPath = Path.GetDirectoryName(assembly.Location);
 
@@ -57,7 +59,6 @@ public partial class App : Application
 
         var mainVM = container.Resolve<MainWindow_ViewModel>();
         mainVM.Init();
-        var window = new MainWindow();
         window.DataContext = mainVM;
         window.Show();
 
@@ -68,6 +69,8 @@ public partial class App : Application
         customMessages.AllowMessageDisplay();
 
         //special case - MaterialMessageBox causes main window to close if it's called before window.Show(), so have to call these functions now
+        //update 2023 08 09 - it looks like MaterialMessageBox is fine as long as it's called after the window is declared, not when window.Show() is called. Not changing the function calls below because they work fine, but
+        // for future reference it's fine to call MaterialMessageBox any time after the window is declared -- currently used by mainVM.Init()
         var updateHandler = container.Resolve<UpdateHandler>();
         var texMeshVM = container.Resolve<VM_SettingsTexMesh>();
         updateHandler.PostWindowShowFunctions(texMeshVM);
@@ -77,6 +80,8 @@ public partial class App : Application
 
     public int OpenForSettings(IOpenForSettingsState state)
     {
+        var window = new MainWindow();
+
         var builder = new ContainerBuilder();
         builder.RegisterModule<MainModule>();
         builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();
@@ -90,7 +95,6 @@ public partial class App : Application
         _patcherState = container.Resolve<PatcherState>();
         _logger = container.Resolve<Logger>();
 
-        var window = new MainWindow();
         var mainVM = container.Resolve<MainWindow_ViewModel>();
         window.DataContext = mainVM;
         mainVM.Init();
