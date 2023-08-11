@@ -95,7 +95,7 @@ public class VM_BodyGenTemplateMenu : VM
     public RelayCommand ImportBodyGen { get; }
 }
 
-[DebuggerDisplay("Name = {Label}")]
+[DebuggerDisplay("{Label}")]
 public class VM_BodyGenTemplatePlaceHolder : VM
 {
     public VM_BodyGenTemplatePlaceHolder(BodyGenConfig.BodyGenTemplate model, ObservableCollection<VM_BodyGenTemplatePlaceHolder> parentCollection)
@@ -128,7 +128,7 @@ public class VM_BodyGenTemplatePlaceHolder : VM
 
 }
 
-[DebuggerDisplay("Name = {Label}")]
+[DebuggerDisplay("{Label}")]
 public class VM_BodyGenTemplate : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;

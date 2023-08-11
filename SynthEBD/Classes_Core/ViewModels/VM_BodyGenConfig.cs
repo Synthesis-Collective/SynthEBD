@@ -1,11 +1,13 @@
 using Noggog.WPF;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Printing;
 using System.Windows.Input;
 using static SynthEBD.VM_BodyShapeDescriptor;
 
 namespace SynthEBD;
 
+[DebuggerDisplay("{Label}")]
 public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEditor
 {
     public delegate VM_BodyGenConfig Factory(ObservableCollection<VM_BodyGenConfig> parentCollection);

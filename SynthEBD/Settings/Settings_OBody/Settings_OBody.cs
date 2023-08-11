@@ -255,7 +255,7 @@ public class Settings_OBody
     };
 }
 
-[DebuggerDisplay("Name = {Label}")]
+[DebuggerDisplay("{Label}")]
 public class BodySlideSetting : IProbabilityWeighted
 {
     public string Label { get; set; } = "";

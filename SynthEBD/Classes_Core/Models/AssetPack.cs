@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 
 namespace SynthEBD;
 
-[DebuggerDisplay("Name = {ShortName}: {GroupName}")]
+[DebuggerDisplay("{ShortName}: {GroupName}")]
 public class AssetPack : IModelHasSubgroups
 {
     public string GroupName { get; set; } = "";
@@ -81,7 +81,7 @@ public class AssetPack : IModelHasSubgroups
         }
     }
 
-    [DebuggerDisplay("Name = {ID}: {Name}")]
+    [DebuggerDisplay("{ID}: {Name}")]
     public class Subgroup : IProbabilityWeighted, IModelHasSubgroups
     {
         public string ID { get; set; } = "";

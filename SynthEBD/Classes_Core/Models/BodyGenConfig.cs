@@ -10,7 +10,7 @@ public class BodyGenConfigs
     public HashSet<BodyGenConfig> Female { get; set; } = new();
 }
 
-[DebuggerDisplay("Name = {Label}")]
+[DebuggerDisplay("{Label}")]
 public class BodyGenConfig
 {
     public string Label { get; set; } = "";
@@ -41,7 +41,7 @@ public class BodyGenConfig
         }
     }
 
-    [DebuggerDisplay("Name = {Label}")]
+    [DebuggerDisplay("{Label}")]
     public class BodyGenTemplate : IProbabilityWeighted
     {
         public string Label { get; set; } = "";

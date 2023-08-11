@@ -1,8 +1,10 @@
 using Newtonsoft.Json;
 using Synthesis.Bethesda.Execution.DotNet;
+using System.Diagnostics;
 
 namespace SynthEBD;
 
+[DebuggerDisplay("{ID.ToString()}")]
 public class BodyShapeDescriptor : IHasLabel
 {
     public BodyShapeDescriptor()

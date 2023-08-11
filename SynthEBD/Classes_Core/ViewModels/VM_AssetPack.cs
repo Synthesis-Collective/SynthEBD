@@ -30,7 +30,7 @@ public enum AssetPackMenuVisibility
     Misc
 }
 
-[DebuggerDisplay("Name = {ShortName}: {GroupName}")]
+[DebuggerDisplay("{ShortName}: {GroupName}")]
 public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgroupViewModels, IHasRaceGroupingEditor
 {
     private readonly IEnvironmentStateProvider _environmentProvider;

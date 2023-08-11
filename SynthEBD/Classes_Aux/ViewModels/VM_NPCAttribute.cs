@@ -10,6 +10,7 @@ using Noggog.WPF;
 using ReactiveUI;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Printing;
 using System.Reactive;
 using System.Reactive.Linq;
@@ -19,6 +20,7 @@ using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD;
 
+[DebuggerDisplay("Attribute with {GroupedSubAttributes.Count} Sub-Attributes")]
 public class VM_NPCAttribute : VM
 {
     public delegate VM_NPCAttribute Factory(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups);
@@ -221,6 +223,7 @@ public class VM_NPCAttribute : VM
     }
 }
 
+[DebuggerDisplay("{Attribute.DebuggerString}")]
 public class VM_NPCAttributeShell : VM
 {
     public delegate VM_NPCAttributeShell Factory(VM_NPCAttribute parentVM, bool displayForceIfOption, bool? displayForceIfWeight, ObservableCollection<VM_AttributeGroup> attributeGroups);
@@ -371,8 +374,10 @@ public interface ISubAttributeViewModel
 {
     VM_NPCAttribute ParentVM { get; set; }
     IObservable<System.Reactive.Unit> NeedsRefresh { get; }
+    public string DebuggerString { get; }
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -407,8 +412,21 @@ public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
     
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IVoiceTypeGetter).AsEnumerable();
-
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+    public string DebuggerString
+    {
+        get
+        {
+            if (VoiceTypeFormKeys.Any())
+            {
+                return "Voice Types: " + String.Join(", ", VoiceTypeFormKeys.Select(x => x.ToString()));
+            }
+            else
+            {
+                return "Voice Types: None";
+            }
+        }
+    }
 
     public static VM_NPCAttributeVoiceType GetViewModelFromModel(NPCAttributeVoiceType model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeVoiceType.Factory factory)
     {
@@ -424,6 +442,7 @@ public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
     }
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeClass : VM, ISubAttributeViewModel
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -449,6 +468,21 @@ public class VM_NPCAttributeClass : VM, ISubAttributeViewModel
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IClassGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
 
+    public string DebuggerString
+    {
+        get
+        {
+            if (ClassFormKeys.Any())
+            {
+                return "Classes: " + String.Join(", ", ClassFormKeys.Select(x => x.ToString()));
+            }
+            else
+            {
+                return "Classes: None";
+            }
+        }
+    }
+
     public static VM_NPCAttributeClass GetViewModelFromModel(NPCAttributeClass model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeClass.Factory factory)
     {
         var newAtt = factory(parentVM, parentShell);
@@ -464,6 +498,7 @@ public class VM_NPCAttributeClass : VM, ISubAttributeViewModel
     }
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsRecordIntellisense
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -530,6 +565,14 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
     public RelayCommand DeleteCommand { get; }
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
     public SolidColorBrush StatusFontColor { get; set; } = new(Colors.White);
+
+    public string DebuggerString
+    {
+        get
+        {
+            return CustomType.ToString();
+        }
+    }
 
     public static VM_NPCAttributeCustom GetViewModelFromModel(NPCAttributeCustom model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeCustom.Factory factory)
     {
@@ -663,6 +706,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
     }
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -690,6 +734,20 @@ public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IFactionGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+    public string DebuggerString
+    {
+        get
+        {
+            if (FactionFormKeys.Any())
+            {
+                return "Factions: " + String.Join(", ", FactionFormKeys.Select(x => x.ToString()));
+            }
+            else
+            {
+                return "Factions: None";
+            }
+        }
+    }
 
     public static VM_NPCAttributeFactions GetViewModelFromModel(NPCAttributeFactions model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeFactions.Factory factory)
     {
@@ -707,6 +765,7 @@ public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
     }
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -732,6 +791,20 @@ public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(ITextureSetGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+    public string DebuggerString
+    {
+        get
+        {
+            if (FaceTextureFormKeys.Any())
+            {
+                return "Face Textures: " + String.Join(", ", FaceTextureFormKeys.Select(x => x.ToString()));
+            }
+            else
+            {
+                return "Face Textures: None";
+            }
+        }
+    }
 
     public static VM_NPCAttributeFaceTexture GetViewModelFromModel(NPCAttributeFaceTexture model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeFaceTexture.Factory factory)
     {
@@ -748,6 +821,7 @@ public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
     }
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeKeyword : VM, ISubAttributeViewModel
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -773,6 +847,20 @@ public class VM_NPCAttributeKeyword : VM, ISubAttributeViewModel
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IKeywordGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+    public string DebuggerString
+    {
+        get
+        {
+            if (KeywordFormKeys.Any())
+            {
+                return "Keywords: " + String.Join(", ", KeywordFormKeys.Select(x => x.ToString()));
+            }
+            else
+            {
+                return "Keywords: None";
+            }
+        }
+    }
 
     public static VM_NPCAttributeKeyword GetViewModelFromModel(NPCAttributeKeyword model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeKeyword.Factory factory)
     {
@@ -787,6 +875,8 @@ public class VM_NPCAttributeKeyword : VM, ISubAttributeViewModel
         return new NPCAttributeKeyword() { Type = NPCAttributeType.Keyword, FormKeys = viewModel.KeywordFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
+
+[DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
 {
     private IEnvironmentStateProvider _environmentProvider;
@@ -812,6 +902,20 @@ public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IRaceGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+    public string DebuggerString
+    {
+        get
+        {
+            if (RaceFormKeys.Any())
+            {
+                return "Races: " + String.Join(", ", RaceFormKeys.Select(x => x.ToString()));
+            }
+            else
+            {
+                return "Races: None";
+            }
+        }
+    }
 
     public static VM_NPCAttributeRace GetViewModelFromModel(NPCAttributeRace model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeRace.Factory factory)
     {
@@ -828,6 +932,7 @@ public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
     }
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
 {
     private IEnvironmentStateProvider _environmentProvider;
@@ -863,6 +968,13 @@ public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+    public string DebuggerString
+    {
+        get
+        {
+            return "Miscellaneous Attributes";
+        }
+    }
 
     public static VM_NPCAttributeMisc GetViewModelFromModel(NPCAttributeMisc model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeMisc.Factory factory)
     {
@@ -905,6 +1017,7 @@ public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
     }
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
 {
     private IEnvironmentStateProvider _environmentProvider;
@@ -938,6 +1051,20 @@ public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
 
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+    public string DebuggerString
+    {
+        get
+        {
+            if (ModKeys.Any())
+            {
+                return "ModKeys: " + String.Join(", ", ModKeys.Select(x => x.ToString()));
+            }
+            else
+            {
+                return "ModKeys: None";
+            }
+        }
+    }
 
     public static VM_NPCAttributeMod GetViewModelFromModel(NPCAttributeMod model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeMod.Factory factory)
     {
@@ -961,6 +1088,7 @@ public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
     }
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeNPC : VM, ISubAttributeViewModel
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -986,6 +1114,20 @@ public class VM_NPCAttributeNPC : VM, ISubAttributeViewModel
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+    public string DebuggerString
+    {
+        get
+        {
+            if (NPCFormKeys.Any())
+            {
+                return "NPCs: " + String.Join(", ", NPCFormKeys.Select(x => x.ToString()));
+            }
+            else
+            {
+                return "NPCs: None";
+            }
+        }
+    }
 
     public static VM_NPCAttributeNPC GetViewModelFromModel(NPCAttributeNPC model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeNPC.Factory factory)
     {
@@ -1001,6 +1143,7 @@ public class VM_NPCAttributeNPC : VM, ISubAttributeViewModel
     }
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
 {
     public VM_NPCAttributeGroup(VM_NPCAttribute parentAttributeVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> sourceAttributeGroups)
@@ -1033,6 +1176,21 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
     public ObservableCollection<VM_AttributeGroup> SubscribedAttributeGroups { get; set; }
     public ObservableCollection<AttributeGroupSelection> SelectableAttributeGroups { get; set; } = new();
     public AttributeGroupSelection MostRecentlyEditedSelection { get; set; }
+
+    public string DebuggerString
+    {
+        get {
+            var selected = SelectableAttributeGroups.Where(x => x.IsSelected).ToArray();
+            if (selected.Any())
+            {
+                return "Selected Groups: " + String.Join(", ", selected.Select(x => x.SubscribedAttributeGroup.Label));
+            }
+            else
+            {
+                return "Selected Groups: None";
+            }
+        }
+    }
 
     void RefreshCheckList()
     {

@@ -1,8 +1,10 @@
 using ReactiveUI;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 
 namespace SynthEBD;
 
+[DebuggerDisplay("{Value}")]
 public class VM_BodyShapeDescriptor : VM
 {
     private VM_BodyShapeDescriptorRules.Factory _rulesFactory;

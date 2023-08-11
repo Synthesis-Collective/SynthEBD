@@ -17,7 +17,7 @@ using System.Diagnostics;
 
 namespace SynthEBD;
 
-[DebuggerDisplay("Name = {ID}: {Name}")]
+[DebuggerDisplay("{ID}: {Name}")]
 public class VM_Subgroup : VM, IDropTarget
 {
     private readonly IEnvironmentStateProvider _environmentProvider;

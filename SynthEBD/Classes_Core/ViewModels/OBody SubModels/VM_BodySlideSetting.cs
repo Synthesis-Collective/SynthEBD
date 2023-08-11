@@ -11,7 +11,7 @@ using System.Diagnostics;
 
 namespace SynthEBD;
 
-[DebuggerDisplay("Name = {Label}")]
+[DebuggerDisplay("{Label}")]
 public class VM_BodySlideSetting : VM
 {
     private IEnvironmentStateProvider _environmentProvider;

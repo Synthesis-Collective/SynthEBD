@@ -4,6 +4,7 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
+using System.Diagnostics;
 
 /*
  * When adding a new type of ITypedNPCAttribute, don't forget to also include it in JSONhandler.AttributeConverter.ReadJson() so that it can be correctly deserialized
@@ -972,6 +973,7 @@ public interface ITypedNPCAttribute
     public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache);
 }
 
+[DebuggerDisplay("{Label}")]
 public class AttributeGroup : IHasLabel
 {
     public string Label { get; set; } = "";

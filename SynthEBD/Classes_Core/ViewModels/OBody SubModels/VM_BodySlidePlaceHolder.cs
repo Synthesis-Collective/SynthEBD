@@ -11,7 +11,7 @@ using System.Windows.Media;
 
 namespace SynthEBD
 {
-    [DebuggerDisplay("Name = {Label}")]
+    [DebuggerDisplay("{Label}")]
     public class VM_BodySlidePlaceHolder : VM
     {
         private PatcherState _patcherState;

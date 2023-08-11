@@ -4,7 +4,7 @@ using static SynthEBD.AssetPack;
 
 namespace SynthEBD;
 
-[DebuggerDisplay("Name = {Id}: {Name}")]
+[DebuggerDisplay("{Id}: {Name}")]
 public class FlattenedSubgroup : IProbabilityWeighted
 {
     private readonly DictionaryMapper _dictionaryMapper;

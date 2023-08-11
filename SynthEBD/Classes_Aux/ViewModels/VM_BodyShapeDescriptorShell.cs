@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using static SynthEBD.VM_BodyShapeDescriptor;
 
 namespace SynthEBD;
 
+[DebuggerDisplay("{Category}: {Descriptors.Count} Values")]
 public class VM_BodyShapeDescriptorShell : VM
 {
     private VM_BodyShapeDescriptorCreator _creator;
@@ -23,5 +25,4 @@ public class VM_BodyShapeDescriptorShell : VM
     public ObservableCollection<VM_BodyShapeDescriptor> Descriptors { get; set; } = new();
     public ObservableCollection<VM_BodyShapeDescriptorShell> ParentCollection { get; set; }
     public RelayCommand AddTemplateDescriptorValue { get; }
-
 }

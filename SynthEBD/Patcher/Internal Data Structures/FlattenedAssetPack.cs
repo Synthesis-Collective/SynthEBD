@@ -3,7 +3,7 @@ using System.Diagnostics;
 
 namespace SynthEBD;
 
-[DebuggerDisplay("Name = {GroupName}")]
+[DebuggerDisplay("{GroupName}")]
 public class FlattenedAssetPack
 {
     public readonly DictionaryMapper _dictionaryMapper;
