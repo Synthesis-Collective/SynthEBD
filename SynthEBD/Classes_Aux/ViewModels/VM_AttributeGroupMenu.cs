@@ -1,5 +1,6 @@
 using DynamicData;
 using System.Collections.ObjectModel;
+using System.Linq;
 using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD;
@@ -58,14 +59,26 @@ public class VM_AttributeGroupMenu : VM
 
     public void CopyInViewModelFromModels(HashSet<AttributeGroup> models)
     {
-        Groups.Clear();
-        // first add each group to the menu
-        foreach (var model in models)
+        // first remove groups in view model that no longer exist in the dto, 
+        var dtoGroups = models.Select(x => x.Label).ToArray();
+        for (int i = 0; i < Groups.Count; i++)
+        {
+            if (!dtoGroups.Contains(Groups[i].Label))
+            {
+                Groups.RemoveAt(i);
+                i--;
+            }
+        }
+
+        var viewModelGroups = Groups.Select(x => x.Label).ToArray();
+        // Then add any groups from the dto that are missing in the view model
+        foreach (var model in models.Where(x => !viewModelGroups.Contains(x.Label)).ToArray())
         {
             var attrGroup = new VM_AttributeGroup(this, _attributeCreator, _logger);
             attrGroup.CopyInViewModelFromModel(model);
             Groups.Add(attrGroup);
         }
+
         // then set IsSelected once all the groups are populated (VM_AttributeGroup.GetViewModelFromModel can't do this because if model[i] references model[i+1], the correposndoing viewModel[i] can't have that selection checked because viewModel[i+1] hasn't been built yet.
         foreach (var model in models)
         {
@@ -83,10 +96,10 @@ public class VM_AttributeGroupMenu : VM
                             foreach (var groupAtt in groupAttributes)
                             {
                                 var castGroupAtt = (VM_NPCAttributeGroup)groupAtt.Attribute;
-                                var checkListEntries = castGroupAtt.SelectableAttributeGroups.Where(x => subAttModel.SelectedLabels.Contains(x.SubscribedAttributeGroup.Label)).ToHashSet();
-                                foreach (var toSelect in checkListEntries)
+
+                                foreach (var selectable in castGroupAtt.SelectableAttributeGroups)
                                 {
-                                    toSelect.IsSelected = true;
+                                    selectable.IsSelected = subAttModel.SelectedLabels.Contains(selectable.SubscribedAttributeGroup.Label);
                                 }
                             }
                         }
