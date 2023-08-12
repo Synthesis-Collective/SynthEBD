@@ -20,7 +20,7 @@ using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD;
 
-[DebuggerDisplay("Attribute with {GroupedSubAttributes.Count} Sub-Attributes")]
+[DebuggerDisplay("Attribute VM with {GroupedSubAttributes.Count} Sub-Attributes (AND logic)")]
 public class VM_NPCAttribute : VM
 {
     public delegate VM_NPCAttribute Factory(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups);

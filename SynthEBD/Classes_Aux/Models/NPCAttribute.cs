@@ -3,6 +3,7 @@ using Mutagen.Bethesda.Plugins.Aspects;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
+using Newtonsoft.Json;
 using Noggog;
 using System.Diagnostics;
 
@@ -13,6 +14,7 @@ using System.Diagnostics;
 namespace SynthEBD;
 
 // Each NPCAttribute within a HashSet<NPC> Attribute is treated with OR logic; i.e. if an NPC matches ANY of the NPCAttributes, the NPCAttribute's parent object can be assigned to the NPC
+[DebuggerDisplay("Attribute with {SubAttributes.Count} Sub-Attributes (AND logic)")]
 public class NPCAttribute
 {
     public HashSet<ITypedNPCAttribute> SubAttributes { get; set; } = new(); // AND Logic
@@ -213,6 +215,7 @@ public enum AttributeForcing
     ForceIfAndRestrict
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeClass : ITypedNPCAttribute
 {
     public HashSet<FormKey> FormKeys { get; set; } = new();
@@ -220,6 +223,21 @@ public class NPCAttributeClass : ITypedNPCAttribute
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
     public bool Not { get; set; } = false;
+    [JsonIgnore]
+    public string DebuggerString
+    {
+        get
+        {
+            if (FormKeys.Any())
+            {
+                return "Classes: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
+            }
+            else
+            {
+                return "Classes: None";
+            }
+        }
+    }
 
     public bool Equals(ITypedNPCAttribute other)
     {
@@ -271,6 +289,7 @@ public class NPCAttributeClass : ITypedNPCAttribute
     }
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeCustom : ITypedNPCAttribute
 {
     public string Path { get; set; } = "";
@@ -284,6 +303,15 @@ public class NPCAttributeCustom : ITypedNPCAttribute
     public bool Not { get; set; } = false;
     public FormKey ReferenceNPCFK { get; set; } // this is not used by the patcher but saving it avoids making the user reselect it in the UI
     public Type SelectedFormKeyType { get; set; } // this is not used by the patcher but saving it avoids making the user reselect it in the UI
+    
+    [JsonIgnore]
+    public string DebuggerString
+    {
+        get
+        {
+            return CustomType.ToString();
+        }
+    }
 
     public bool Equals(ITypedNPCAttribute other)
     {
@@ -372,6 +400,7 @@ public class NPCAttributeCustom : ITypedNPCAttribute
     }
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeFactions : ITypedNPCAttribute
 {
     public HashSet<FormKey> FormKeys { get; set; } = new();
@@ -381,6 +410,21 @@ public class NPCAttributeFactions : ITypedNPCAttribute
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
     public bool Not { get; set; } = false;
+    [JsonIgnore]
+    public string DebuggerString
+    {
+        get
+        {
+            if (FormKeys.Any())
+            {
+                return "Factions: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
+            }
+            else
+            {
+                return "Factions: None";
+            }
+        }
+    }
 
     public bool Equals(ITypedNPCAttribute other)
     {
@@ -437,6 +481,7 @@ public class NPCAttributeFactions : ITypedNPCAttribute
     }
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeFaceTexture : ITypedNPCAttribute
 {
     public HashSet<FormKey> FormKeys { get; set; } = new();
@@ -444,6 +489,21 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
     public bool Not { get; set; } = false;
+    [JsonIgnore]
+    public string DebuggerString
+    {
+        get
+        {
+            if (FormKeys.Any())
+            {
+                return "Face Textures: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
+            }
+            else
+            {
+                return "Face Textures: None";
+            }
+        }
+    }
 
     public bool Equals(ITypedNPCAttribute other)
     {
@@ -495,6 +555,7 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
     }
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeKeyword : ITypedNPCAttribute
 {
     public HashSet<FormKey> FormKeys { get; set; } = new();
@@ -502,6 +563,21 @@ public class NPCAttributeKeyword : ITypedNPCAttribute
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
     public bool Not { get; set; } = false;
+    [JsonIgnore]
+    public string DebuggerString
+    {
+        get
+        {
+            if (FormKeys.Any())
+            {
+                return "Keywords: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
+            }
+            else
+            {
+                return "Keywords: None";
+            }
+        }
+    }
 
     public bool Equals(ITypedNPCAttribute other)
     {
@@ -553,6 +629,7 @@ public class NPCAttributeKeyword : ITypedNPCAttribute
     }
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeRace : ITypedNPCAttribute
 {
     public HashSet<FormKey> FormKeys { get; set; } = new();
@@ -560,6 +637,21 @@ public class NPCAttributeRace : ITypedNPCAttribute
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
     public bool Not { get; set; } = false;
+    [JsonIgnore]
+    public string DebuggerString
+    {
+        get
+        {
+            if (FormKeys.Any())
+            {
+                return "Races: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
+            }
+            else
+            {
+                return "Races: None";
+            }
+        }
+    }
 
     public bool Equals(ITypedNPCAttribute other)
     {
@@ -610,6 +702,7 @@ public class NPCAttributeRace : ITypedNPCAttribute
     }
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeMisc : ITypedNPCAttribute
 {
     public ThreeWayState Unique { get; set; } = ThreeWayState.Ignore;
@@ -630,6 +723,15 @@ public class NPCAttributeMisc : ITypedNPCAttribute
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
     public bool Not { get; set; } = false;
+
+    [JsonIgnore]
+    public string DebuggerString
+    {
+        get
+        {
+            return "Miscellaneous Attributes";
+        }
+    }
 
     public bool IsBlank()
     {
@@ -723,6 +825,7 @@ public class NPCAttributeMisc : ITypedNPCAttribute
     }
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeMod : ITypedNPCAttribute
 {
     public HashSet<ModKey> ModKeys { get; set; } = new();
@@ -731,6 +834,21 @@ public class NPCAttributeMod : ITypedNPCAttribute
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
     public bool Not { get; set; } = false;
+    [JsonIgnore]
+    public string DebuggerString
+    {
+        get
+        {
+            if (ModKeys.Any())
+            {
+                return "ModKeys: " + String.Join(", ", ModKeys.Select(x => x.ToString()));
+            }
+            else
+            {
+                return "ModKeys: None";
+            }
+        }
+    }
 
     public bool Equals(ITypedNPCAttribute other)
     {
@@ -775,13 +893,29 @@ public class NPCAttributeMod : ITypedNPCAttribute
     }
 }
 
-    public class NPCAttributeNPC : ITypedNPCAttribute
-    {
+[DebuggerDisplay("{DebuggerString}")]
+public class NPCAttributeNPC : ITypedNPCAttribute
+{
     public HashSet<FormKey> FormKeys { get; set; } = new();
     public NPCAttributeType Type { get; set; } = NPCAttributeType.NPC;
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
     public bool Not { get; set; } = false;
+    [JsonIgnore]
+    public string DebuggerString
+    {
+        get
+        {
+            if (FormKeys.Any())
+            {
+                return "NPCs: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
+            }
+            else
+            {
+                return "NPCs: None";
+            }
+        }
+    }
 
     public bool Equals(ITypedNPCAttribute other)
     {
@@ -831,6 +965,8 @@ public class NPCAttributeMod : ITypedNPCAttribute
         }
     }
 }
+
+[DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeVoiceType : ITypedNPCAttribute
 {
     public HashSet<FormKey> FormKeys { get; set; } = new();
@@ -838,6 +974,21 @@ public class NPCAttributeVoiceType : ITypedNPCAttribute
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
     public bool Not { get; set; } = false;
+    [JsonIgnore]
+    public string DebuggerString
+    {
+        get
+        {
+            if (FormKeys.Any())
+            {
+                return "Voice Types: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
+            }
+            else
+            {
+                return "Voice Types: None";
+            }
+        }
+    }
 
     public bool Equals(ITypedNPCAttribute other)
     {
@@ -888,6 +1039,7 @@ public class NPCAttributeVoiceType : ITypedNPCAttribute
     }
 }
 
+[DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeGroup : ITypedNPCAttribute
 {
     public HashSet<string> SelectedLabels { get; set; } = new();
@@ -895,6 +1047,22 @@ public class NPCAttributeGroup : ITypedNPCAttribute
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
     public bool Not { get; set; } = false;
+
+    [JsonIgnore]
+    public string DebuggerString
+    {
+        get
+        {
+            if (SelectedLabels.Any())
+            {
+                return "Selected Groups: " + String.Join(", ", SelectedLabels);
+            }
+            else
+            {
+                return "Selected Groups: None";
+            }
+        }
+    }
 
     public bool Equals(ITypedNPCAttribute other)
     {
@@ -971,6 +1139,7 @@ public interface ITypedNPCAttribute
     public int Weighting { get; set; }
     public bool Not { get; set; }
     public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache);
+    public string DebuggerString { get; }
 }
 
 [DebuggerDisplay("{Label}")]

@@ -4,9 +4,11 @@ using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System.Collections.ObjectModel;
 using ReactiveUI;
+using System.Diagnostics;
 
 namespace SynthEBD;
 
+[DebuggerDisplay("{Label} ({Races.Count})")]
 public class VM_RaceGrouping : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;

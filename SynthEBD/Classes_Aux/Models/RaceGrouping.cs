@@ -1,7 +1,9 @@
 using Mutagen.Bethesda.Plugins;
+using System.Diagnostics;
 
 namespace SynthEBD;
 
+[DebuggerDisplay("{Label} ({Races.Count})")]
 public class RaceGrouping : IHasLabel
 {
     public string Label { get; set; } = "";
