@@ -12,6 +12,7 @@ namespace SynthEBD;
 public class VM_LogDisplay : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly DisplayedItemVm _displayedItemVm;
@@ -24,11 +25,13 @@ public class VM_LogDisplay : VM
 
     public VM_LogDisplay(
         IEnvironmentStateProvider environmentProvider,
+        PatcherState patcherState,
         Logger logger,
         SynthEBDPaths paths,
         DisplayedItemVm displayedItemVm)
     {
         _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
         _logger = logger;
         _paths = paths;
         _displayedItemVm = displayedItemVm;
@@ -100,6 +103,7 @@ public class VM_LogDisplay : VM
 
     public void PrintState()
     {
+        _logger.LogMessage(_patcherState.GetStateLogStr());
         _logger.LogMessage("Data Folder: " + _environmentProvider.DataFolderPath);
         _logger.LogMessage("Load Order Source: " + _environmentProvider.LoadOrderFilePath);
         _logger.LogMessage("Creation Club Listings: " + _environmentProvider.CreationClubListingsFilePath);
