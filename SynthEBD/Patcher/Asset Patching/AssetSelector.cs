@@ -1152,7 +1152,8 @@ public class AssetSelector
         if (!_patcherState.TexMeshSettings.bApplyToNPCsWithCustomSkins && 
             npcInfo.NPC.WornArmor != null && 
             !npcInfo.NPC.WornArmor.IsNull && 
-            (!BaseGamePlugins.Plugins.Contains(npcInfo.NPC.WornArmor.FormKey.ModKey.FileName.String) || !IsEasyNPCVanillaSkin(npcInfo.NPC.WornArmor)))
+            !BaseGamePlugins.Plugins.Contains(npcInfo.NPC.WornArmor.FormKey.ModKey.FileName.String) && 
+            !IsEasyNPCVanillaSkin(npcInfo.NPC.WornArmor))
         {
             _logger.LogReport("Asset assignment is disabled for this NPC because the Texture/Mesh settings disallow patching of NPCs with custom skins", false, npcInfo);
             return true;
