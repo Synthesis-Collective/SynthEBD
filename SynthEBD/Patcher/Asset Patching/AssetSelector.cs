@@ -38,6 +38,11 @@ public class AssetSelector
         ReplacerVirtual
     }
 
+    public void Reinitialize()
+    {
+        _vanillaSkinsEasyNPC = _vanillaSkins.Select(x => x + "Patched").ToHashSet(); // EasyNPC transformation
+    }
+
     public SubgroupCombination AssignAssets(NPCInfo npcInfo, AssetPackAssignmentMode mode, HashSet<FlattenedAssetPack> availableAssetPacks, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, BodySlideSetting assignedBodySlide, out bool mixInDeclined)
     {
         string subSectionLabel = string.Empty;
@@ -1136,14 +1141,37 @@ public class AssetSelector
 
     public bool BlockAssetDistributionByExistingAssets(NPCInfo npcInfo)
     {
-        if (!_patcherState.TexMeshSettings.bApplyToNPCsWithCustomFaces && npcInfo.NPC.HeadTexture != null && !npcInfo.NPC.HeadTexture.IsNull && !BaseGamePlugins.Plugins.Contains(npcInfo.NPC.HeadTexture.FormKey.ModKey.FileName.String))
+        if (!_patcherState.TexMeshSettings.bApplyToNPCsWithCustomFaces && 
+            npcInfo.NPC.HeadTexture != null && 
+            !npcInfo.NPC.HeadTexture.IsNull && 
+            !BaseGamePlugins.Plugins.Contains(npcInfo.NPC.HeadTexture.FormKey.ModKey.FileName.String))
         {
             _logger.LogReport("Asset assignment is disabled for this NPC because the Texture/Mesh settings disallow patching of NPCs with custom face textures", false, npcInfo);
             return true;
         }
-        if (!_patcherState.TexMeshSettings.bApplyToNPCsWithCustomSkins && npcInfo.NPC.WornArmor != null && !npcInfo.NPC.WornArmor.IsNull && !BaseGamePlugins.Plugins.Contains(npcInfo.NPC.WornArmor.FormKey.ModKey.FileName.String))
+        if (!_patcherState.TexMeshSettings.bApplyToNPCsWithCustomSkins && 
+            npcInfo.NPC.WornArmor != null && 
+            !npcInfo.NPC.WornArmor.IsNull && 
+            (!BaseGamePlugins.Plugins.Contains(npcInfo.NPC.WornArmor.FormKey.ModKey.FileName.String) || !IsEasyNPCVanillaSkin(npcInfo.NPC.WornArmor)))
         {
             _logger.LogReport("Asset assignment is disabled for this NPC because the Texture/Mesh settings disallow patching of NPCs with custom skins", false, npcInfo);
+            return true;
+        }
+        return false;
+    }
+
+    public bool IsEasyNPCVanillaSkin(IFormLinkNullableGetter<IArmorGetter> wnam)
+    {
+        if (!_patcherState.TexMeshSettings.bEasyNPCCompatibilityMode)
+        {
+            return false; // only consider EasyNPC skins to be vanilla when in EasyNPC Compatibility Mode
+        }
+
+        if (wnam != null && 
+            wnam.TryResolve(_environmentProvider.LinkCache, out var wnamGetter) &&
+            wnamGetter.EditorID != null &&
+            _vanillaSkinsEasyNPC.Contains(wnamGetter.EditorID))
+        {
             return true;
         }
         return false;
@@ -1215,4 +1243,12 @@ public class AssetSelector
             }
         }
     }
+
+    private HashSet<string> _vanillaSkins = new() // may want to consider adding a UI element or Json file for this
+    {
+        "SkinNaked",
+        "SkinNakedBeast"
+    };
+
+    private HashSet<string> _vanillaSkinsEasyNPC = new();
 }

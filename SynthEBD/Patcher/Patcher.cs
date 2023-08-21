@@ -167,6 +167,7 @@ public class Patcher
 
             if (_patcherState.TexMeshSettings.bApplyFixedScripts) { _EBDScripts.ApplyFixedScripts(); }
 
+            _assetSelector.Reinitialize();
             _recordGenerator.Reinitialize();
             _combinationLog.Reinitialize();
         }
