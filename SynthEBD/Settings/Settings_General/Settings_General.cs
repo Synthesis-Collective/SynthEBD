@@ -36,7 +36,17 @@ public class Settings_General
         "karita",
         "East Empire Dockworker",
         "Savos Aren",
-        "Skooma addict"
+        "Skooma addict",
+        "Courier",
+        "The Guardian",
+        "Imperial Champion",
+        "Stormcloak Champion",
+        "Redoran Guard",
+        "Reclamation Priest",
+        "Imperial Soldier",
+        "Enthralled Wizard",
+        "Nord",
+        "Torture Victim"
     };
     public List<LinkedNPCGroup> LinkedNPCGroups { get; set; } = new()
     {

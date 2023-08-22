@@ -6,48 +6,92 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SynthEBD
+namespace SynthEBD;
+
+public class UpdateHandler // handles backward compatibility for previous SynthEBD versions
 {
-    public class UpdateHandler // handles backward compatibility for previous SynthEBD versions
+    private readonly SynthEBDPaths _paths;
+    private readonly PatcherState _patcherState;
+    private readonly PatcherIO _patcherIO;
+    private readonly Logger _logger;
+    private readonly VM_Settings_General _generalVM;
+    private readonly VM_SettingsTexMesh _texMeshVM;
+
+    public UpdateHandler(SynthEBDPaths paths, PatcherState patcherState, PatcherIO patcherIO, Logger logger, VM_Settings_General generalVM, VM_SettingsTexMesh texMeshVM)
     {
-        private readonly SynthEBDPaths _paths;
-        private readonly PatcherIO _patcherIO;
-        private readonly Logger _logger;
-        public UpdateHandler(SynthEBDPaths paths, PatcherIO patcherIO, Logger logger)
-        {
-            _paths = paths;
-            _patcherIO = patcherIO; 
-            _logger = logger;
-        }
-
-        public void PostWindowShowFunctions(VM_SettingsTexMesh texMeshVM)
-        {
-            UpdateAssetPacks(texMeshVM);
-        }
-        private void UpdateAssetPacks(VM_SettingsTexMesh texMeshVM)
-        {
-            texMeshVM.ConfigUpdateAll(new());
-        }    
-        public void CleanSPIDiniHeadParts()
-        {
-            _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBDHeadPartDistributor_DISTR.ini"), _logger);
-        }
-        public void CleanSPIDiniOBody()
-        {
-            _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini"), _logger);
-        }
-        public void CleanOldBodySlideDict()
-        {
-            _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBD", "BodySlideDict.json"), _logger);
-        }
-
-        public Dictionary<string, string> V09PathReplacements { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "Diffuse", "Diffuse.RawPath" },
-            { "NormalOrGloss", "NormalOrGloss.RawPath" },
-            { "GlowOrDetailMap", "GlowOrDetailMap.RawPath" },
-            { "BacklightMaskOrSpecular", "BacklightMaskOrSpecular.RawPath" },
-            { "Height", "Height.RawPath" }
-        };
+        _paths = paths;
+        _patcherState = patcherState;
+        _patcherIO = patcherIO; 
+        _logger = logger;
+        _generalVM = generalVM;
+        _texMeshVM = texMeshVM;
     }
+
+    public void CheckBackwardCompatibility()
+    {
+        UpdateAssetPacks(_texMeshVM);
+        UpdateV1012(_generalVM);
+    }
+    private void UpdateAssetPacks(VM_SettingsTexMesh texMeshVM)
+    {
+        texMeshVM.ConfigUpdateAll(new());
+    }    
+    public void CleanSPIDiniHeadParts()
+    {
+        _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBDHeadPartDistributor_DISTR.ini"), _logger);
+    }
+    public void CleanSPIDiniOBody()
+    {
+        _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini"), _logger);
+    }
+    public void CleanOldBodySlideDict()
+    {
+        _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBD", "BodySlideDict.json"), _logger);
+    }
+
+    private void UpdateV1012(VM_Settings_General generalVM)
+    {
+        if (!_patcherState.UpdateLog.Performed1_0_1_2Update)
+        {
+            var missingNames = v1012UniqueNameExclusions.Where(x => !generalVM.LinkedNameExclusions.Select(y => y.Content).Contains(x)).ToHashSet();
+            var dispText = "v1.0.1.2 Update: It is suggested to add the following names to your Linked Unique NPC Name Exclusions. Would you like to do this automatically?" + Environment.NewLine + String.Join(Environment.NewLine, missingNames);
+            if (missingNames.Any() && CustomMessageBox.DisplayNotificationYesNo("Update Unique Name Exclusions?", dispText))
+            {
+                foreach (var name in missingNames)
+                {
+                    generalVM.LinkedNameExclusions.Add(new(name, generalVM.LinkedNameExclusions));
+                }
+            }
+
+            _patcherState.UpdateLog.Performed1_0_1_2Update = true;
+        }
+    }
+
+    public Dictionary<string, string> V09PathReplacements { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        { "Diffuse", "Diffuse.RawPath" },
+        { "NormalOrGloss", "NormalOrGloss.RawPath" },
+        { "GlowOrDetailMap", "GlowOrDetailMap.RawPath" },
+        { "BacklightMaskOrSpecular", "BacklightMaskOrSpecular.RawPath" },
+        { "Height", "Height.RawPath" }
+    };
+
+    public HashSet<string> v1012UniqueNameExclusions { get; set; } = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Courier",
+        "The Guardian",
+        "Imperial Champion",
+        "Stormcloak Champion",
+        "Redoran Guard",
+        "Reclamation Priest",
+        "Imperial Soldier",
+        "Enthralled Wizard",
+        "Nord",
+        "Torture Victim"
+    };
+}
+
+public class UpdateLog
+{
+    public bool Performed1_0_1_2Update { get; set; } = false;
 }

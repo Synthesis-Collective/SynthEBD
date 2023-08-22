@@ -8,6 +8,7 @@ namespace SynthEBD
 {
     public enum Version
     {
-        v090
+        v090,
+        v1012
     }
 }

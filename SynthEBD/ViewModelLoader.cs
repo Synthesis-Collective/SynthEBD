@@ -49,6 +49,7 @@ namespace SynthEBD
         private readonly VM_BlockedPlugin.Factory _blockedPluginFactory;
         private readonly VM_SpecificNPCAssignmentsUI _npcAssignmentsUi;
         private readonly VM_NPCAttributeCreator _attributeCreator;
+        private readonly UpdateHandler _updateHandler;
 
         public ViewModelLoader(
             IEnvironmentStateProvider environmentProvider, 
@@ -83,7 +84,8 @@ namespace SynthEBD
             VM_BlockedNPC.Factory blockedNPCFactory, 
             VM_BlockedPlugin.Factory blockedPluginFactory, 
             VM_SpecificNPCAssignmentsUI npcAssignmentsUi,
-            VM_NPCAttributeCreator attributeCreator)
+            VM_NPCAttributeCreator attributeCreator,
+            UpdateHandler updateHandler)
         {
             _environmentProvider = environmentProvider;
             _patcherSettingsSourceProvider = patcherSettingsSourceProvider;
@@ -118,6 +120,7 @@ namespace SynthEBD
             _blockedPluginFactory = blockedPluginFactory;
             _npcAssignmentsUi = npcAssignmentsUi;
             _attributeCreator = attributeCreator;
+            _updateHandler = updateHandler;
 
             Observable.CombineLatest(
                 _patcherSettingsSourceProvider.WhenAnyValue(x => x.UsePortableSettings),
@@ -145,6 +148,7 @@ namespace SynthEBD
             LoadInitialSettingsViewModels();
             LoadPluginViewModels();
             LoadFinalSettingsViewModels();
+            _updateHandler.CheckBackwardCompatibility();
             _logger.WriteStartupLog();
             System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.Default;
         }

@@ -71,9 +71,7 @@ public partial class App : Application
         //special case - MaterialMessageBox causes main window to close if it's called before window.Show(), so have to call these functions now
         //update 2023 08 09 - it looks like MaterialMessageBox is fine as long as it's called after the window is declared, not when window.Show() is called. Not changing the function calls below because they work fine, but
         // for future reference it's fine to call MaterialMessageBox any time after the window is declared -- currently used by mainVM.Init()
-        var updateHandler = container.Resolve<UpdateHandler>();
-        var texMeshVM = container.Resolve<VM_SettingsTexMesh>();
-        updateHandler.PostWindowShowFunctions(texMeshVM);
+        //update 2023 08 21 - Moved these functions to ViewModelLoader now that they're ok to call before window.Show()
 
         return 0;
     }
@@ -102,11 +100,6 @@ public partial class App : Application
 
         var customMessages = container.Resolve<CustomMessageBox>();
         customMessages.AllowMessageDisplay();
-
-        //special case - MaterialMessageBox causes main window to close if it's called before window.Show(), so have to call these functions now
-        var updateHandler = container.Resolve<UpdateHandler>();
-        var texMeshVM = container.Resolve<VM_SettingsTexMesh>();
-        updateHandler.PostWindowShowFunctions(texMeshVM);
 
         return 0;
     }

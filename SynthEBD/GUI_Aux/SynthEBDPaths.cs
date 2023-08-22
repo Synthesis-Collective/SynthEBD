@@ -98,6 +98,7 @@ public class SynthEBDPaths : VM
     public string RecordReplacerSpecifiersPath => Path.Combine(_rootPath, settingsDirRelPath, "RecordReplacerSpecifiers.json");
     public string RecordTemplatesDirPath => Path.Combine(_rootPath, recordTemplatesDirRelPath);
     public string ModManagerSettingsPath => Path.Combine(_rootPath, settingsDirRelPath, "ModManagerSettings.json");
+    public string UpdateLogPath => Path.Combine(_rootPath, settingsDirRelPath, "UpdateLog.json");
     public string OutputDataFolder { get; set; }
     public string SettingsSourcePath => Path.Combine(_rootPath, StandaloneSourceDirName, SettingsSourceFileName);
     public string EnvironmentSourcePath => Path.Combine(_rootPath, StandaloneSourceDirName, EnvironmentSourceDirName);

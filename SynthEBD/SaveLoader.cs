@@ -86,6 +86,7 @@ public class SaveLoader
         _patcherState.HeightSettings = _heightIO.LoadHeightSettings(out loadSuccess); // load heights
         _patcherState.BlockList = _blockListIO.LoadBlockList(out loadSuccess); // load BlockList
         _patcherState.ModManagerSettings = _modManagerIO.LoadModManagerSettings(out loadSuccess); // load Mod Manager Integration
+        _patcherState.UpdateLog = _miscIO.LoadUpdateLog(out loadSuccess); // load Update Log
     }
 
     public void LoadPlugins()
@@ -186,6 +187,13 @@ public class SaveLoader
         if (!saveSuccess) 
         {
             captionStr = "Error saving Consistency";
+            _logger.LogError(captionStr); allExceptions += captionStr + Environment.NewLine; showFinalExceptions = true;
+        }
+
+        _miscIO.SaveUpdateLog(_patcherState.UpdateLog, out saveSuccess);
+        if (!saveSuccess)
+        {
+            captionStr = "Error saving Update Log";
             _logger.LogError(captionStr); allExceptions += captionStr + Environment.NewLine; showFinalExceptions = true;
         }
 

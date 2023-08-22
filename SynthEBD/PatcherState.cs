@@ -17,6 +17,9 @@ public class PatcherState
     public Settings_Headparts HeadPartSettings { get; set; }
     public Settings_ModManager ModManagerSettings { get; set; }
 
+    //Misc
+    public UpdateLog UpdateLog { get; set; }
+
     // Plugins
 
     public List<AssetPack> AssetPacks { get; set; }
