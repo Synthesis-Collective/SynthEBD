@@ -7,7 +7,7 @@
         xmlns:local="clr-namespace:SynthEBD"
         d:DataContext="{d:DesignInstance Type=local:VM_AssetDistributionSimulator}"
         mc:Ignorable="d"
-        Title="Window_AssetDistributionSimulator" Height="450" Width="800">
+        Title="Asset Distribution Simulator" Height="450" Width="800">
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
