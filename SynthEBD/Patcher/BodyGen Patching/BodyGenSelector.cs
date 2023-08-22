@@ -109,7 +109,7 @@ public class BodyGenSelector
         #region Unique NPC replicates
         else if (!assignmentsSpecified && UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName))
         {
-            var uniqueBodyGenAssignment = (List<BodyGenConfig.BodyGenTemplate>)UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodyGen);
+            var uniqueBodyGenAssignment = (List<BodyGenConfig.BodyGenTemplate>)UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodyGen, out var uniqueFounderNPC);
             if (uniqueBodyGenAssignment != null && uniqueBodyGenAssignment.Any())
             {
                 availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All, null, currentBodyGenConfig);
@@ -118,7 +118,7 @@ public class BodyGenSelector
                 if (linkedCombinations != null)
                 {
                     availableCombinations = linkedCombinations;
-                    _logger.LogReport("Another unique NPC with the same name was assigned a morph. Using that morph for current NPC.", false, npcInfo);
+                    _logger.LogReport("Another unique NPC with the same name (" + uniqueFounderNPC + ") was assigned a morph. Using that morph for current NPC.", false, npcInfo);
                 }
             }
         }
@@ -696,9 +696,9 @@ public class BodyGenSelector
             npcInfo.AssociatedLinkGroup.AssignedMorphs = assignedMorphs;
         }
         // assign to unique NPC list if necessary
-        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && !Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedMorphs.Any())
+        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && !UniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.BodyShapeRace][npcInfo.Gender].AssignedMorphs.Any())
         {
-            Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedMorphs = assignedMorphs;
+            UniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.BodyShapeRace][npcInfo.Gender].AssignedMorphs = assignedMorphs;
         }
     }
 

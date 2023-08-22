@@ -112,7 +112,7 @@ public class Patcher
         var outputMod = _environmentProvider.OutputMod;
         var allNPCs = _environmentProvider.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>();
         _raceResolver.ResolvePatchableRaces();
-        UniqueAssignmentsByName.Clear();
+        UniqueNPCData.UniqueAssignmentsByName.Clear();
         UniqueNPCData.UniqueNameExclusions = _patcherState.GeneralSettings.LinkedNPCNameExclusions.ToHashSet();
         HashSet<LinkedNPCGroupInfo> generatedLinkGroups = new HashSet<LinkedNPCGroupInfo>();
         HashSet<INpcGetter> skippedLinkedNPCs = new HashSet<INpcGetter>();
@@ -383,9 +383,6 @@ public class Patcher
 
         _statusBar.IsPatching = false;
     }
-
-
-    public static Dictionary<string, Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>> UniqueAssignmentsByName = new Dictionary<string, Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>>();
 
     private void timer_Tick(object sender, EventArgs e)
     {

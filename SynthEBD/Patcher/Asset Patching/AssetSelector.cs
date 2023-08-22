@@ -192,18 +192,19 @@ public class AssetSelector
     public SubgroupCombination GetCombinationFromSameNameNPC(NPCInfo npcInfo, AssetPackAssignmentMode mode, HashSet<FlattenedAssetPack> availableAssetPacks)
     {
         SubgroupCombination linkedCombination = null;
+        var uniqueFounderNPC = ""; // placeholder
         switch (mode)
         {
-            case AssetPackAssignmentMode.Primary: linkedCombination = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.PrimaryAssets); break;
+            case AssetPackAssignmentMode.Primary: linkedCombination = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.PrimaryAssets, out uniqueFounderNPC); break;
             case AssetPackAssignmentMode.MixIn:
-                Dictionary<string, SubgroupCombination> linkedCombinationDict = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.MixInAssets);
+                Dictionary<string, SubgroupCombination> linkedCombinationDict = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.MixInAssets, out uniqueFounderNPC);
                 if (linkedCombinationDict.ContainsKey(availableAssetPacks.First().GroupName)) // availableAssetPacks only contains the current Mix-in
                 {
                     linkedCombination = linkedCombinationDict[availableAssetPacks.First().GroupName];
                 }
                 break;
             case AssetPackAssignmentMode.ReplacerVirtual:
-                List<UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment> linkedReplacerCombinations = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.ReplacerAssets);
+                List<UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment> linkedReplacerCombinations = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.ReplacerAssets, out uniqueFounderNPC);
                 if (linkedReplacerCombinations != null)
                 {
                     var linkedAssignmentGroup = linkedReplacerCombinations.Where(x => x.ReplacerName == availableAssetPacks.First().GroupName).FirstOrDefault(); // availableAssetPacks only contains the current replacer
@@ -214,8 +215,7 @@ public class AssetSelector
 
         if (linkedCombination != null && CombinationAllowedBySpecificNPCAssignment(npcInfo.SpecificNPCAssignment, linkedCombination, mode))
         {
-            //chosenCombination = Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedCombination;
-            _logger.LogReport("Another unique NPC with the same name was assigned a combination. Using that combination for current NPC.", false, npcInfo);
+            _logger.LogReport("Another unique NPC with the same name (" + uniqueFounderNPC + ")  was assigned a combination. Using that combination for current NPC.", false, npcInfo);
         }
         else if (linkedCombination != null)
         {
@@ -1061,9 +1061,9 @@ public class AssetSelector
             npcInfo.AssociatedLinkGroup.AssignedCombination = assignedCombination;
         }
 
-        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.PrimaryAssets) == null)
+        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.PrimaryAssets, out _) == null)
         {
-            Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedCombination = assignedCombination;
+            UniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.AssetsRace][npcInfo.Gender].AssignedCombination = assignedCombination;
         }
     }
 
@@ -1102,15 +1102,15 @@ public class AssetSelector
             }
         }
 
-        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && assignedCombination != null && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.MixInAssets) == null)
+        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && assignedCombination != null && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.MixInAssets, out var founder) == null)
         {
-            if (Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].MixInAssignments.ContainsKey(mixInName))
+            if (UniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.AssetsRace][npcInfo.Gender].MixInAssignments.ContainsKey(mixInName))
             {
-                Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].MixInAssignments[mixInName] = assignedCombination;
+                UniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.AssetsRace][npcInfo.Gender].MixInAssignments[mixInName] = assignedCombination;
             }
             else
             {
-                Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].MixInAssignments.Add(mixInName, assignedCombination);
+                UniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.AssetsRace][npcInfo.Gender].MixInAssignments.Add(mixInName, assignedCombination);
             }
         }
     }
@@ -1132,7 +1132,7 @@ public class AssetSelector
 
         if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique)
         {
-            List<UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment> linkedAssetReplacerAssignments = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.ReplacerAssets);
+            List<UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment> linkedAssetReplacerAssignments = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.ReplacerAssets, out _);
             var existingAssignment = linkedAssetReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.Name).FirstOrDefault();
             if (existingAssignment != null) { existingAssignment.AssignedReplacerCombination = assignedCombination; }
             else { linkedAssetReplacerAssignments.Add(new UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment() { GroupName = replacerGroup.Source.GroupName, ReplacerName = replacerGroup.Name, AssignedReplacerCombination = assignedCombination }); }

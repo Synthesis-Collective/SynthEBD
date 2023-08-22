@@ -81,14 +81,15 @@ public class AssetAndBodyShapeSelector
             {
                 selectedFromLinkedNPC = true;
                 assignment.Assets = linkedCombination;
+                string uniqueFounderNPC = "";
                 switch (_patcherState.GeneralSettings.BodySelectionMode)
                 {
                     case BodyShapeSelectionMode.BodyGen:
-                        assignment.BodyGenMorphs = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodyGen);
+                        assignment.BodyGenMorphs = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodyGen, out uniqueFounderNPC);
                         bodyShapeAssigned = assignment.BodyGenMorphs.Any();
                         break;
                     case BodyShapeSelectionMode.BodySlide:
-                        assignment.BodySlidePreset = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodySlide);
+                        assignment.BodySlidePreset = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodySlide, out uniqueFounderNPC);
                         bodyShapeAssigned = assignment.BodySlidePreset != null;
                         break;
                     default: break;
@@ -96,7 +97,7 @@ public class AssetAndBodyShapeSelector
 
                 if (bodyShapeAssigned)
                 {
-                    _logger.LogReport("Another unique NPC with the same name was assigned a body shape. Using that body shape for current NPC.", false, npcInfo);
+                    _logger.LogReport("Another unique NPC with the same name (" + uniqueFounderNPC + ") was assigned a body shape. Using that body shape for current NPC.", false, npcInfo);
                 }
             }
         }

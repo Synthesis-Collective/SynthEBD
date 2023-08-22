@@ -42,7 +42,7 @@ namespace SynthEBD
 
             bool recordDataForLinkedUniqueNPCs = false;
             var tempUniqueNPCDataRecorder = UniqueNPCData.CreateHeadPartTracker(); // keeps the actual tracker null until all head parts are assigned.
-            if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts) == null)
+            if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts, out _) == null)
             {
                 recordDataForLinkedUniqueNPCs = true;
             }
@@ -145,7 +145,7 @@ namespace SynthEBD
 
             if (recordDataForLinkedUniqueNPCs)
             {
-                Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].HeadPartAssignments = tempUniqueNPCDataRecorder;
+                UniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.HeadPartsRace][npcInfo.Gender].HeadPartAssignments = tempUniqueNPCDataRecorder;
             }
 
             _logger.CloseReportSubsectionsToParentOf("HeadParts", npcInfo);
@@ -214,18 +214,18 @@ namespace SynthEBD
                 _logger.LogReport("Assigning " + type + ": NONE via the NPC's Link Group.", false, npcInfo);
                 return null;
             }
-            else if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts) != null)
+            else if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts, out _) != null)
             {
-                Dictionary<HeadPart.TypeEnum, IHeadPartGetter> uniqueAssignments = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts);
+                Dictionary<HeadPart.TypeEnum, IHeadPartGetter> uniqueAssignments = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts, out var uniqueFounderNPC);
                 var assignedHeadPart = uniqueAssignments[type];
                 if (assignedHeadPart != null)
                 {
-                    _logger.LogReport("Another unique NPC with the same name was assigned a " + type + ": " + (assignedHeadPart.EditorID ?? assignedHeadPart.FormKey.ToString()) + ". Using that " + type + " for current NPC.", false, npcInfo);
+                    _logger.LogReport("Another unique NPC with the same name (" + uniqueFounderNPC + ") was assigned a " + type + ": " + (assignedHeadPart.EditorID ?? assignedHeadPart.FormKey.ToString()) + ". Using that " + type + " for current NPC.", false, npcInfo);
                     return assignedHeadPart;
                 }
                 else
                 {
-                    _logger.LogReport("Another unique NPC with the same name was not assigned a " + type + ", so current NPC will also not be assigned a " + type, false, npcInfo);
+                    _logger.LogReport("Another unique NPC with the same name (" + uniqueFounderNPC + ") was not assigned a " + type + ", so current NPC will also not be assigned a " + type, false, npcInfo);
                     return null;
                 }
             }

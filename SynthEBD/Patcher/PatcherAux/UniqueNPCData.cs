@@ -1,12 +1,22 @@
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
+using Noggog;
 
 namespace SynthEBD;
 
 public class UniqueNPCData
 {
     public static HashSet<string> UniqueNameExclusions { get; set; } = new();
+    public static Dictionary<string, 
+        Dictionary<FormKey, // race for the given type
+        Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>>> UniqueAssignmentsByName = new();
     public class UniqueNPCTracker
     {
+        public UniqueNPCTracker(INpcGetter founder)
+        {
+            Founder = Logger.GetNPCLogReportingString(founder);
+        }
+        public string Founder { get; set; }
         public SubgroupCombination AssignedCombination { get; set; } = null;
         public List<BodyGenConfig.BodyGenTemplate> AssignedMorphs { get; set; } = new();
         public BodySlideSetting AssignedBodySlidePreset { get; set; } = null;
@@ -57,19 +67,26 @@ public class UniqueNPCData
         }
     }
 
-    public static dynamic GetUniqueNPCTrackerData(NPCInfo npcInfo, AssignmentType property)
+    public static dynamic GetUniqueNPCTrackerData(NPCInfo npcInfo, AssignmentType property, out string founder)
     {
-        if (npcInfo.IsValidLinkedUnique && Patcher.UniqueAssignmentsByName.ContainsKey(npcInfo.Name) && Patcher.UniqueAssignmentsByName[npcInfo.Name].ContainsKey(npcInfo.Gender))
+        founder = "";
+        var comparisonRace = GetComparisonRace(npcInfo, property);
+
+        if (npcInfo.IsValidLinkedUnique && 
+            UniqueAssignmentsByName.ContainsKey(npcInfo.Name) && 
+            UniqueAssignmentsByName[npcInfo.Name].ContainsKey(comparisonRace) &&
+            UniqueAssignmentsByName[npcInfo.Name][comparisonRace].ContainsKey(npcInfo.Gender))
         {
+            founder = UniqueAssignmentsByName[npcInfo.Name][comparisonRace][npcInfo.Gender].Founder;
             switch (property)
             {
-                case AssignmentType.PrimaryAssets: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedCombination;
-                case AssignmentType.MixInAssets: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].MixInAssignments;
-                case AssignmentType.ReplacerAssets: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].ReplacerAssignments;
-                case AssignmentType.BodyGen: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedMorphs;
-                case AssignmentType.BodySlide: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedBodySlidePreset;
-                case AssignmentType.Height: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].AssignedHeight;
-                case AssignmentType.HeadParts: return Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].HeadPartAssignments;
+                case AssignmentType.PrimaryAssets: return UniqueAssignmentsByName[npcInfo.Name][comparisonRace][npcInfo.Gender].AssignedCombination;
+                case AssignmentType.MixInAssets: return UniqueAssignmentsByName[npcInfo.Name][comparisonRace][npcInfo.Gender].MixInAssignments;
+                case AssignmentType.ReplacerAssets: return UniqueAssignmentsByName[npcInfo.Name][comparisonRace][npcInfo.Gender].ReplacerAssignments;
+                case AssignmentType.BodyGen: return UniqueAssignmentsByName[npcInfo.Name][comparisonRace][npcInfo.Gender].AssignedMorphs;
+                case AssignmentType.BodySlide: return UniqueAssignmentsByName[npcInfo.Name][comparisonRace][npcInfo.Gender].AssignedBodySlidePreset;
+                case AssignmentType.Height: return UniqueAssignmentsByName[npcInfo.Name][comparisonRace][npcInfo.Gender].AssignedHeight;
+                case AssignmentType.HeadParts: return UniqueAssignmentsByName[npcInfo.Name][comparisonRace][npcInfo.Gender].HeadPartAssignments;
                 default: return null;
             }
         }
@@ -79,25 +96,51 @@ public class UniqueNPCData
         }
     }
 
+    public static FormKey GetComparisonRace(NPCInfo npcInfo, AssignmentType property)
+    {
+        switch (property)
+        {
+            case AssignmentType.PrimaryAssets: return npcInfo.AssetsRace;
+            case AssignmentType.MixInAssets: return npcInfo.AssetsRace;
+            case AssignmentType.ReplacerAssets: return npcInfo.AssetsRace;
+            case AssignmentType.BodyGen: return npcInfo.BodyShapeRace;
+            case AssignmentType.BodySlide: return npcInfo.BodyShapeRace;
+            case AssignmentType.Height: return npcInfo.HeightRace;
+            case AssignmentType.HeadParts: return npcInfo.HeadPartsRace;
+        }
+        return Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DefaultRace.FormKey;
+    }
+
     public static void InitializeUniqueNPC(NPCInfo npcInfo)
     {
-        if (Patcher.UniqueAssignmentsByName.ContainsKey(npcInfo.Name))
+        if (!UniqueAssignmentsByName.ContainsKey(npcInfo.Name))
         {
-            if (!Patcher.UniqueAssignmentsByName[npcInfo.Name].ContainsKey(npcInfo.Gender))
+            UniqueAssignmentsByName.Add(npcInfo.Name, new());
+        }
+
+        foreach (var type in Enum.GetValues(typeof(AssignmentType)))
+        {
+            var comparisonRace = GetComparisonRace(npcInfo, (AssignmentType)type);
+
+            if (!UniqueAssignmentsByName[npcInfo.Name].ContainsKey(comparisonRace))
             {
-                Patcher.UniqueAssignmentsByName[npcInfo.Name].Add(npcInfo.Gender, new UniqueNPCTracker());
+                UniqueAssignmentsByName[npcInfo.Name].Add(comparisonRace, new());
             }
-        }
-        else
-        {
-            Patcher.UniqueAssignmentsByName.Add(npcInfo.Name, new Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>() { { npcInfo.Gender, new UniqueNPCData.UniqueNPCTracker() } });
-        }
+
+            if (!UniqueAssignmentsByName[npcInfo.Name][comparisonRace].ContainsKey(npcInfo.Gender))
+            {
+                UniqueAssignmentsByName[npcInfo.Name][comparisonRace].Add(npcInfo.Gender, new(npcInfo.NPC));
+            }
+        }   
     }
     public static void InitializeHeadPartTracker(NPCInfo npcInfo)
     {
-        if (npcInfo.IsValidLinkedUnique && Patcher.UniqueAssignmentsByName.ContainsKey(npcInfo.Name) && Patcher.UniqueAssignmentsByName[npcInfo.Name].ContainsKey(npcInfo.Gender))
+        if (npcInfo.IsValidLinkedUnique && 
+            UniqueAssignmentsByName.ContainsKey(npcInfo.Name) && 
+            UniqueAssignmentsByName[npcInfo.Name].ContainsKey(npcInfo.HeadPartsRace) &&
+            UniqueAssignmentsByName[npcInfo.Name][npcInfo.HeadPartsRace].ContainsKey(npcInfo.Gender))
         {
-            Patcher.UniqueAssignmentsByName[npcInfo.Name][npcInfo.Gender].HeadPartAssignments = CreateHeadPartTracker();
+            UniqueAssignmentsByName[npcInfo.Name][npcInfo.HeadPartsRace][npcInfo.Gender].HeadPartAssignments = CreateHeadPartTracker();
         }
     }
 
