@@ -18,12 +18,14 @@ namespace SynthEBD
         private readonly PatcherState _patcherState;
         private readonly Logger _logger;
         private readonly AttributeMatcher _attributeMatcher;
-        public HeadPartSelector(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, AttributeMatcher attributeMatcher)
+        private readonly UniqueNPCData _uniqueNPCData;
+        public HeadPartSelector(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, AttributeMatcher attributeMatcher, UniqueNPCData uniqueNPCData)
         {
             _environmentProvider = environmentProvider;
             _patcherState = patcherState;
             _logger = logger;
             _attributeMatcher = attributeMatcher;
+            _uniqueNPCData = uniqueNPCData;
         }
 
         public void Reinitialize()
@@ -42,7 +44,7 @@ namespace SynthEBD
 
             bool recordDataForLinkedUniqueNPCs = false;
             var tempUniqueNPCDataRecorder = UniqueNPCData.CreateHeadPartTracker(); // keeps the actual tracker null until all head parts are assigned.
-            if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts, out _) == null)
+            if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts, out _) == null)
             {
                 recordDataForLinkedUniqueNPCs = true;
             }
@@ -145,7 +147,7 @@ namespace SynthEBD
 
             if (recordDataForLinkedUniqueNPCs)
             {
-                UniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.HeadPartsRace][npcInfo.Gender].HeadPartAssignments = tempUniqueNPCDataRecorder;
+                _uniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.HeadPartsRace][npcInfo.Gender].HeadPartAssignments = tempUniqueNPCDataRecorder;
             }
 
             _logger.CloseReportSubsectionsToParentOf("HeadParts", npcInfo);
@@ -214,9 +216,9 @@ namespace SynthEBD
                 _logger.LogReport("Assigning " + type + ": NONE via the NPC's Link Group.", false, npcInfo);
                 return null;
             }
-            else if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts, out _) != null)
+            else if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts, out _) != null)
             {
-                Dictionary<HeadPart.TypeEnum, IHeadPartGetter> uniqueAssignments = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts, out var uniqueFounderNPC);
+                Dictionary<HeadPart.TypeEnum, IHeadPartGetter> uniqueAssignments = _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts, out var uniqueFounderNPC);
                 var assignedHeadPart = uniqueAssignments[type];
                 if (assignedHeadPart != null)
                 {

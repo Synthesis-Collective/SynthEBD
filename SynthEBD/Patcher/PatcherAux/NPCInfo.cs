@@ -9,15 +9,17 @@ public class NPCInfo
     private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly AliasHandler _aliasHandler;
+    private readonly UniqueNPCData _uniqueNPCData;
 
     public delegate NPCInfo Factory(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos);
     
-    public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, AliasHandler aliasHandler)
+    public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, AliasHandler aliasHandler, UniqueNPCData uniqueNPCData)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _logger = logger;
         _aliasHandler = aliasHandler;
+        _uniqueNPCData = uniqueNPCData;
 
         NPC = npc;
         LogIDstring = _logger.GetNPCLogNameString(npc);
@@ -55,7 +57,7 @@ public class NPCInfo
             }
         }
 
-        IsValidLinkedUnique = UniqueNPCData.IsValidUnique(npc, out var npcName);
+        IsValidLinkedUnique = _uniqueNPCData.IsValidUnique(npc, out var npcName);
         Name = npcName;
 
         SpecificNPCAssignment = _patcherState.SpecificNPCAssignments.Where(x => x.NPCFormKey == npc.FormKey).FirstOrDefault();

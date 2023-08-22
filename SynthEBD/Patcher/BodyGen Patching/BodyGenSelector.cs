@@ -6,14 +6,14 @@ public class BodyGenSelector
 {
     private readonly PatcherState _patcherState;
     private readonly Logger _logger;
-    private readonly SynthEBDPaths _paths;
     private readonly AttributeMatcher _attributeMatcher;
-    public BodyGenSelector(PatcherState patcherState, Logger logger, SynthEBDPaths paths, AttributeMatcher attributeMatcher)
+    private readonly UniqueNPCData _uniqueNPCData;
+    public BodyGenSelector(PatcherState patcherState, Logger logger, AttributeMatcher attributeMatcher, UniqueNPCData uniqueNPCData)
     {
         _patcherState = patcherState;
         _logger = logger;
-        _paths = paths;
         _attributeMatcher = attributeMatcher;  
+        _uniqueNPCData = uniqueNPCData;
     }
 
     public List<BodyGenConfig.BodyGenTemplate> SelectMorphs(NPCInfo npcInfo, out bool selectionMade, BodyGenConfigs bodyGenConfigs, SubgroupCombination assignedPrimaryCombination, IEnumerable<SubgroupCombination> assignedAssetCombinations, out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
@@ -107,9 +107,9 @@ public class BodyGenSelector
         #endregion
 
         #region Unique NPC replicates
-        else if (!assignmentsSpecified && UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName))
+        else if (!assignmentsSpecified && _uniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName))
         {
-            var uniqueBodyGenAssignment = (List<BodyGenConfig.BodyGenTemplate>)UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodyGen, out var uniqueFounderNPC);
+            var uniqueBodyGenAssignment = (List<BodyGenConfig.BodyGenTemplate>)_uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodyGen, out var uniqueFounderNPC);
             if (uniqueBodyGenAssignment != null && uniqueBodyGenAssignment.Any())
             {
                 availableTemplatesAll = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.All, null, currentBodyGenConfig);
@@ -696,9 +696,9 @@ public class BodyGenSelector
             npcInfo.AssociatedLinkGroup.AssignedMorphs = assignedMorphs;
         }
         // assign to unique NPC list if necessary
-        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && !UniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.BodyShapeRace][npcInfo.Gender].AssignedMorphs.Any())
+        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && !_uniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.BodyShapeRace][npcInfo.Gender].AssignedMorphs.Any())
         {
-            UniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.BodyShapeRace][npcInfo.Gender].AssignedMorphs = assignedMorphs;
+            _uniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.BodyShapeRace][npcInfo.Gender].AssignedMorphs = assignedMorphs;
         }
     }
 

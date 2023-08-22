@@ -7,14 +7,14 @@ public class OBodySelector
 {
     private readonly PatcherState _patcherState;
     private readonly Logger _logger;
-    private readonly SynthEBDPaths _paths;
     private readonly AttributeMatcher _attributeMatcher;
-    public OBodySelector(PatcherState patcherState, Logger logger, SynthEBDPaths paths, AttributeMatcher attributeMatcher)
+    private readonly UniqueNPCData _uniqueNPCData;
+    public OBodySelector(PatcherState patcherState, Logger logger,AttributeMatcher attributeMatcher, UniqueNPCData uniqueNPCData)
     {
         _patcherState = patcherState;
         _logger = logger;
-        _paths = paths;
         _attributeMatcher = attributeMatcher;   
+        _uniqueNPCData = uniqueNPCData;
     }
     public BodySlideSetting SelectBodySlidePreset(NPCInfo npcInfo, out bool selectionMade, Settings_OBody oBodySettings, IEnumerable<SubgroupCombination> assignedAssetCombinations,  out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
     {
@@ -73,9 +73,9 @@ public class OBodySelector
         #endregion
 
         #region Unique NPC replicates
-        else if (selectedPreset == null && UniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName)) // check for selectedPreset == null to avoid overwriting Specific Assignment
+        else if (selectedPreset == null && _uniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName)) // check for selectedPreset == null to avoid overwriting Specific Assignment
         {
-            selectedPreset = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodySlide, out var uniqueFounderNPC);
+            selectedPreset = _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodySlide, out var uniqueFounderNPC);
             if (selectedPreset != null)
             {
                 _logger.LogReport("Another unique NPC with the same name (" + uniqueFounderNPC + ") was assigned a BodySlide preset " + selectedPreset + ". Using that BodySlide for current NPC.", false, npcInfo);
@@ -371,9 +371,9 @@ public class OBodySelector
             npcInfo.AssociatedLinkGroup.AssignedBodySlide = assignedBodySlide;
         }
         // assign to unique NPC list if necessary
-        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && UniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.BodyShapeRace][npcInfo.Gender].AssignedBodySlidePreset == null)
+        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && _uniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.BodyShapeRace][npcInfo.Gender].AssignedBodySlidePreset == null)
         {
-            UniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.BodyShapeRace][npcInfo.Gender].AssignedBodySlidePreset = assignedBodySlide;
+            _uniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.BodyShapeRace][npcInfo.Gender].AssignedBodySlidePreset = assignedBodySlide;
         }
     }
 

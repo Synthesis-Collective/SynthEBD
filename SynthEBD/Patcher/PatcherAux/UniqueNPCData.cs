@@ -1,15 +1,29 @@
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Synthesis;
 using Noggog;
 
 namespace SynthEBD;
 
 public class UniqueNPCData
 {
-    public static HashSet<string> UniqueNameExclusions { get; set; } = new();
-    public static Dictionary<string, 
+    private readonly PatcherState _patcherState;
+    public UniqueNPCData(PatcherState patcherState)
+    {
+        _patcherState = patcherState;
+    }
+
+    public HashSet<string> UniqueNameExclusions { get; set; } = new();
+    public Dictionary<string, 
         Dictionary<FormKey, // race for the given type
-        Dictionary<Gender, UniqueNPCData.UniqueNPCTracker>>> UniqueAssignmentsByName = new();
+        Dictionary<Gender, UniqueNPCTracker>>> UniqueAssignmentsByName = new();
+
+    public void Reinitialize()
+    {
+        UniqueAssignmentsByName.Clear();
+        UniqueNameExclusions = _patcherState.GeneralSettings.LinkedNPCNameExclusions.ToHashSet();
+    }
+
     public class UniqueNPCTracker
     {
         public UniqueNPCTracker(INpcGetter founder)
@@ -40,7 +54,7 @@ public class UniqueNPCData
     /// <param name="npc"></param>
     /// <param name="npcName"></param>
     /// <returns></returns>
-    public static bool IsValidUnique(INpcGetter npc, out string npcName)
+    public bool IsValidUnique(INpcGetter npc, out string npcName)
     {
         if (npc.Name == null)
         {
@@ -67,7 +81,7 @@ public class UniqueNPCData
         }
     }
 
-    public static dynamic GetUniqueNPCTrackerData(NPCInfo npcInfo, AssignmentType property, out string founder)
+    public dynamic GetUniqueNPCTrackerData(NPCInfo npcInfo, AssignmentType property, out string founder)
     {
         founder = "";
         var comparisonRace = GetComparisonRace(npcInfo, property);
@@ -111,7 +125,7 @@ public class UniqueNPCData
         return Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DefaultRace.FormKey;
     }
 
-    public static void InitializeUniqueNPC(NPCInfo npcInfo)
+    public void InitializeUniqueNPC(NPCInfo npcInfo)
     {
         if (!UniqueAssignmentsByName.ContainsKey(npcInfo.Name))
         {
@@ -133,7 +147,7 @@ public class UniqueNPCData
             }
         }   
     }
-    public static void InitializeHeadPartTracker(NPCInfo npcInfo)
+    public void InitializeHeadPartTracker(NPCInfo npcInfo)
     {
         if (npcInfo.IsValidLinkedUnique && 
             UniqueAssignmentsByName.ContainsKey(npcInfo.Name) && 

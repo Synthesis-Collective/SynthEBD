@@ -9,14 +9,16 @@ public class AssetAndBodyShapeSelector
     private readonly AssetSelector _assetSelector;
     private readonly BodyGenSelector _bodyGenSelector;
     private readonly OBodySelector _oBodySelector;
+    private readonly UniqueNPCData _uniqueNPCData;
 
-    public AssetAndBodyShapeSelector(PatcherState patcherState, Logger logger, AssetSelector assetSelector, BodyGenSelector bodyGenSelector, OBodySelector oBodySelector)
+    public AssetAndBodyShapeSelector(PatcherState patcherState, Logger logger, AssetSelector assetSelector, BodyGenSelector bodyGenSelector, OBodySelector oBodySelector, UniqueNPCData uniqueNPCData)
     {
         _patcherState = patcherState;
         _logger = logger;
         _assetSelector = assetSelector;
         _bodyGenSelector = bodyGenSelector;
         _oBodySelector = oBodySelector;
+        _uniqueNPCData = uniqueNPCData;
     }
 
     public class AssetAndBodyShapeAssignment
@@ -85,11 +87,11 @@ public class AssetAndBodyShapeSelector
                 switch (_patcherState.GeneralSettings.BodySelectionMode)
                 {
                     case BodyShapeSelectionMode.BodyGen:
-                        assignment.BodyGenMorphs = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodyGen, out uniqueFounderNPC);
+                        assignment.BodyGenMorphs = _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodyGen, out uniqueFounderNPC);
                         bodyShapeAssigned = assignment.BodyGenMorphs.Any();
                         break;
                     case BodyShapeSelectionMode.BodySlide:
-                        assignment.BodySlidePreset = UniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodySlide, out uniqueFounderNPC);
+                        assignment.BodySlidePreset = _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodySlide, out uniqueFounderNPC);
                         bodyShapeAssigned = assignment.BodySlidePreset != null;
                         break;
                     default: break;
