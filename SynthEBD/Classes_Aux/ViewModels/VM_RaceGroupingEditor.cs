@@ -48,7 +48,7 @@ namespace SynthEBD
         public void CopyInFromModel(List<RaceGrouping> raceGroupings, ObservableCollection<VM_RaceGrouping> generalSettingsGroups)
         {
             _logger.LogStartupEventStart("Generating Race Grouping Editor UI");
-            RaceGroupings.AddRange(VM_RaceGrouping.GetViewModelsFromModels(raceGroupings, this, _raceGroupingFactory));
+            RaceGroupings.AddRange(VM_RaceGrouping.GetViewModelsFromModels(raceGroupings.Where(x => !RaceGroupings.Select(y => y.Label).Contains(x.Label)).ToList(), this, _raceGroupingFactory));
             if (generalSettingsGroups != null)
             {
                 var originals = RaceGroupings.Select(x => x.Label).ToArray();
