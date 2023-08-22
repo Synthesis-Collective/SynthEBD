@@ -26,10 +26,10 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" Text="NPC" Foreground="GhostWhite"/>
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="NPC" Foreground="GhostWhite" VerticalAlignment="Center"/>
         <plugins:FormKeyPicker Grid.Row="0" Grid.Column="1" FormKey="{Binding NPCformKey}" ScopedTypes="{Binding NPCFormKeyTypes}" LinkCache="{Binding lk}"/>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="Simulation Rounds" Foreground="GhostWhite"/>
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Simulation Rounds" Foreground="GhostWhite" VerticalAlignment="Center"/>
         <TextBox Grid.Row="1" Grid.Column="1" MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=Repetitions}"/>
 
         <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
