@@ -1,5 +1,4 @@
 using Mutagen.Bethesda.Plugins;
-using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 
@@ -62,6 +61,11 @@ public class AssetPackValidator
             }
         }
 
+        if (HasDuplicateSubgroupIDs(assetPack, errors))
+        {
+            isValidated = false;
+        }
+
         if (!ValidateSubgroups(assetPack.Subgroups, errors, assetPack, referencedBodyGenConfig, oBodySettings, false, assetPack.AssociatedBsaModKeys))
         {
             isValidated = false;
@@ -109,11 +113,6 @@ public class AssetPackValidator
         if (!ValidateID(subgroup.ID))
         {
             subErrors.Add("ID must be alphanumeric or .");
-            isValid = false;
-        }
-
-        if (HasDuplicateSubgroupIDs(subgroup, subErrors))
-        {
             isValid = false;
         }
             
@@ -260,7 +259,8 @@ public class AssetPackValidator
 
         if (!isValid)
         {
-            subErrors.Insert(0, "Subgroup " + subgroup.ID + ":" + subgroup.Name + " within branch " + (topLevelIndex + 1).ToString());
+            var parentTopLevel = parent.Subgroups[topLevelIndex].ID + ": " + parent.Subgroups[topLevelIndex].Name;
+            subErrors.Insert(0, "Subgroup " + subgroup.ID + ":" + subgroup.Name + " within Top Level Subgroup " + parentTopLevel + " (#" + (topLevelIndex + 1).ToString() + ")");
             errors.AddRange(subErrors);
         }
 
