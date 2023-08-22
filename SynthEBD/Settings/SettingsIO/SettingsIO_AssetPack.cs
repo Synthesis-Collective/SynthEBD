@@ -1,6 +1,5 @@
 using System.IO;
 using Mutagen.Bethesda.Skyrim;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
 
 namespace SynthEBD;
 

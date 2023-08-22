@@ -1,5 +1,4 @@
 using System.IO;
-using AssemblyVersionGenerator;
 using Noggog;
 
 namespace SynthEBD;

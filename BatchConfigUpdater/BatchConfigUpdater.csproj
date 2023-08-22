@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -8,10 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Mutagen.Bethesda.Json" Version="0.41.0" />
-    <PackageReference Include="Mutagen.Bethesda.Skyrim" Version="0.41.0" />
-    <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.41.0" />
-    <PackageReference Include="Noggog.Autofac" Version="2.56.0" />
+    <PackageReference Include="Mutagen.Bethesda.Json" Version="0.42.0" />
+    <PackageReference Include="Mutagen.Bethesda.Skyrim" Version="0.42.0" />
+    <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.42.0" />
+    <PackageReference Include="Noggog.Autofac" Version="2.60.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -715,7 +715,7 @@ public class NPCAttributeMisc : ITypedNPCAttribute
     public bool EvalMood { get; set; } = false;
     public Mood Mood { get; set; } = Mood.Neutral;
     public bool EvalAggression { get; set; } = false;
-    public Aggression Aggression { get; set; } = Aggression.Unagressive;
+    public Aggression Aggression { get; set; } = Aggression.Unaggressive;
     public bool EvalGender { get; set; } = false;
     public Gender NPCGender { get; set; } = Gender.Female;
 
