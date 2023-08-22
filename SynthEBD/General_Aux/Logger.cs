@@ -628,17 +628,19 @@ public static string GetNPCLogReportingString(INpcGetter npc)
 
         if (lk.TryResolve<IRaceGetter>(fk, out var raceGetter))
         {
+            var edid = EditorIDHandler.GetEditorIDSafely(raceGetter);
             if (raceGetter.Name != null && !raceGetter.Name.ToString().IsNullOrWhitespace())
             {
-                return raceGetter.Name.ToString();
-            }
-            else if (raceGetter.EditorID != null && !raceGetter.EditorID.ToString().IsNullOrWhitespace())
-            {
-                return raceGetter.EditorID.ToString();
+                var name = raceGetter.Name.ToString();
+                if (edid.Contains("Vampire", StringComparison.OrdinalIgnoreCase))
+                {
+                    name += " Vampire";
+                }
+                return name;
             }
             else
             {
-                return "(No Name or EditorID: " + fk.ToString() + ")";
+                return edid;
             }
         }
         else

@@ -379,14 +379,14 @@ namespace SynthEBD
             // Allowed Races
             if (currentSettings.AllowedRaces.Any() && !currentSettings.AllowedRaces.Contains(npcInfo.HeadPartsRace))
             {
-                _logger.LogReport(type + " is invalid because its allowed races do not include the current NPC's race", false, npcInfo);
+                _logger.LogReport(type + " is invalid because its allowed races (" + Logger.GetRaceListLogStrings(currentSettings.AllowedRaces, _environmentProvider.LinkCache, _patcherState) + ") do not include the current NPC's race", false, npcInfo);
                 return false;
             }
 
             // Disallowed Races
             if (currentSettings.DisallowedRaces.Contains(npcInfo.HeadPartsRace))
             {
-                _logger.LogReport(type + " is invalid because its disallowed races include the current NPC's race", false, npcInfo);
+                _logger.LogReport(type + " is invalid because its disallowed races (" + Logger.GetRaceListLogStrings(currentSettings.DisallowedRaces, _environmentProvider.LinkCache, _patcherState) + ") include the current NPC's race", false, npcInfo);
                 return false;
             }
 
@@ -518,14 +518,14 @@ namespace SynthEBD
             // Allowed Races
             if (candidateHeadPart.AllowedRaces.Any() && !candidateHeadPart.AllowedRaces.Contains(npcInfo.HeadPartsRace))
             {
-                _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its allowed races do not include the current NPC's race", false, npcInfo);
+                _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its allowed races (" + Logger.GetRaceListLogStrings(candidateHeadPart.AllowedRaces, _environmentProvider.LinkCache, _patcherState) + ") do not include the current NPC's race", false, npcInfo);
                 return false;
             }
 
             // Disallowed Races
             if (candidateHeadPart.DisallowedRaces.Contains(npcInfo.HeadPartsRace))
             {
-                _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its disallowed races include the current NPC's race", false, npcInfo);
+                _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its disallowed races (" + Logger.GetRaceListLogStrings(candidateHeadPart.DisallowedRaces, _environmentProvider.LinkCache, _patcherState) + ") include the current NPC's race", false, npcInfo);
                 return false;
             }
 

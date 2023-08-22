@@ -4,12 +4,14 @@ namespace SynthEBD;
 
 public class BodyGenSelector
 {
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly AttributeMatcher _attributeMatcher;
     private readonly UniqueNPCData _uniqueNPCData;
-    public BodyGenSelector(PatcherState patcherState, Logger logger, AttributeMatcher attributeMatcher, UniqueNPCData uniqueNPCData)
+    public BodyGenSelector(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, AttributeMatcher attributeMatcher, UniqueNPCData uniqueNPCData)
     {
+        _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _logger = logger;
         _attributeMatcher = attributeMatcher;  
@@ -405,14 +407,14 @@ public class BodyGenSelector
             // Allowed Races
             if (candidateMorph.AllowedRaces.Any() && !candidateMorph.AllowedRaces.Contains(npcInfo.BodyShapeRace))
             {
-                _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its allowed races do not include the current NPC's race", false, npcInfo);
+                _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its allowed races (" + Logger.GetRaceListLogStrings(candidateMorph.AllowedRaces, _environmentProvider.LinkCache, _patcherState) + ") do not include the current NPC's race", false, npcInfo);
                 return false;
             }
 
             // Disallowed Races
             if (candidateMorph.DisallowedRaces.Contains(npcInfo.BodyShapeRace))
             {
-                _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its disallowed races include the current NPC's race", false, npcInfo);
+                _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its disallowed races (" + Logger.GetRaceListLogStrings(candidateMorph.DisallowedRaces, _environmentProvider.LinkCache, _patcherState) + ") include the current NPC's race", false, npcInfo);
                 return false;
             }
         }
