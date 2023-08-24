@@ -38,6 +38,7 @@ namespace SynthEBD
                     }
 
                     CreateSubgroupsFromPaths(matchedFiles, rootFolderPath, topLevelPlaceHolder, config);
+                    CleanRedundantSubgroups(topLevelPlaceHolder);
                 }
             }
 
@@ -93,7 +94,7 @@ namespace SynthEBD
                     else if (ShouldCreateNewSubgroup(pathGroup, currentPathStage))
                     {
                         var lastFolder = pathGroup.Key.Split(Path.DirectorySeparatorChar).Last();
-                        var subgroupName = CapitalizeWords(lastFolder);
+                        var subgroupName = CapitalizeWordsPreserveCapitalized(lastFolder);
                         VM_SubgroupPlaceHolder newPlaceHolder = _subgroupPlaceHolderFactory(CreateSubgroupModel("", subgroupName), parentPlaceHolder, config, parentPlaceHolder.Subgroups);
                         newPlaceHolder.AssociatedModel.ID = newPlaceHolder.ID;
                         parentPlaceHolder.Subgroups.Add(newPlaceHolder);
@@ -114,6 +115,43 @@ namespace SynthEBD
 
         private Dictionary<string, VM_SubgroupPlaceHolder> LastParentPlaceHolders { get; set; } = new();
         private Dictionary<string, IGrouping<string, string>> LastParentGroupings { get; set; } = new();
+
+        private static bool CleanRedundantSubgroups(VM_SubgroupPlaceHolder currentSubgroup)
+        {
+            for (int i = 0; i < currentSubgroup.Subgroups.Count; i++)
+            {
+                if(CleanRedundantSubgroups(currentSubgroup.Subgroups[i]))
+                {
+                    currentSubgroup.Subgroups.RemoveAt(i);
+                }
+            }
+
+            var parentSubgroup = currentSubgroup.ParentSubgroup;
+            if (parentSubgroup != null && parentSubgroup.Subgroups.Count == 1)
+            {
+                if (currentSubgroup.Subgroups.Any()) // if this is a "bridging" subgroup that contains other subgroups, bring its subgroups up to the parent
+                {
+                    for (int i = 0; i < currentSubgroup.Subgroups.Count; i++)
+                    {
+                        var toMove = currentSubgroup.Subgroups[i];
+                        toMove.ParentSubgroup = parentSubgroup;
+                        toMove.ParentCollection = parentSubgroup.Subgroups;
+                        parentSubgroup.Subgroups.Add(toMove);
+                        currentSubgroup.Subgroups.RemoveAt(i);
+                        i--;
+                    }
+                }
+                else // if this is a lowest-level subgroup, bring its textures up to the parent
+                {
+                    foreach (var path in currentSubgroup.AssociatedModel.Paths)
+                    {
+                        parentSubgroup.AssociatedModel.Paths.Add(path);
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
 
         private int GetLongestDirectoryStructure(List<string> paths)
         {
@@ -212,10 +250,24 @@ namespace SynthEBD
             return matchingFilePaths;
         }
 
-        private static string CapitalizeWords(string input)
+        private static string CapitalizeWordsPreserveCapitalized(string input)
         {
             TextInfo textInfo = new CultureInfo("en-US", false).TextInfo;
-            return textInfo.ToTitleCase(input);
+
+            string[] words = input.Split(' ');
+
+            for (int i = 0; i < words.Length; i++)
+            {
+                string currentWord = words[i];
+
+                if (!string.IsNullOrEmpty(currentWord))
+                {
+                    currentWord = words[i][0].ToString().ToUpper() + currentWord.Remove(0, 1);
+                    words[i] = currentWord;
+                }
+            }
+
+            return string.Join(" ", words);
         }
     }
 
