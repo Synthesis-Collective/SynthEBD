@@ -62,6 +62,7 @@ public class MainModule : Autofac.Module
         // UI Infrastructure
         builder.RegisterType<VM_NPCAttributeCreator>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodyShapeDescriptorCreator>().AsSelf().SingleInstance();
+        builder.RegisterType<ConfigDrafter>().AsSelf().SingleInstance();
 
         // Back End Infrastructure
         builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();

@@ -8,168 +8,225 @@ namespace SynthEBD
 {
     internal static class FilePathDestinationMap
     {
+        /// <summary>
+        /// Destination Paths
+        /// </summary>
+        // head
+        public static string Dest_HeadDiffuse = "HeadTexture.Diffuse.RawPath";
+        public static string Dest_HeadNormal = "HeadTexture.NormalOrGloss.RawPath";
+        public static string Dest_HeadSubsurface = "HeadTexture.GlowOrDetailMap.RawPath";
+        public static string Dest_HeadSpecular = "HeadTexture.BacklightMaskOrSpecular.RawPath";
+        public static string Dest_HeadDetail = "HeadTexture.Height.RawPath";
+
+        // male torso
+        public static string Dest_TorsoMaleDiffuse = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath";
+        public static string Dest_TorsoMaleNormal = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.RawPath";
+        public static string Dest_TorsoMaleSubsurface = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.RawPath";
+        public static string Dest_TorsoMaleSpecular = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.RawPath";
+
+        // female torso
+        public static string Dest_TorsoFemaleDiffuse = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath";
+        public static string Dest_TorsoFemaleNormal = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.RawPath";
+        public static string Dest_TorsoFemaleSubsurface = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.RawPath";
+        public static string Dest_TorsoFemaleSpecular = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.RawPath";
+
+        // male hands
+        public static string Dest_HandsMaleDiffuse = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath";
+        public static string Dest_HandsMaleNormal = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.RawPath";
+        public static string Dest_HandsMaleSubsurface = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.RawPath";
+        public static string Dest_HandsMaleSpecular = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.RawPath";
+
+        // female hands
+        public static string Dest_HandsFemaleDiffuse = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath";
+        public static string Dest_HandsFemaleNormal = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.RawPath";
+        public static string Dest_HandsFemaleSubsurface = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.RawPath";
+        public static string Dest_HandsFemaleSpecular = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.RawPath";
+
+        // male feet
+        public static string Dest_FeetMaleDiffuse = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath";
+        public static string Dest_FeetMaleNormal = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.RawPath";
+        public static string Dest_FeetMaleSubsurface = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.RawPath";
+        public static string Dest_FeetMaleSpecular = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.RawPath";
+
+        // female feet
+        public static string Dest_FeetFemaleDiffuse = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath";
+        public static string Dest_FeetFemaleNormal = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.RawPath";
+        public static string Dest_FeetFemaleSubsurface = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.RawPath";
+        public static string Dest_FeetFemaleSpecular = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.RawPath";
+
         public static readonly Dictionary<string, string> FileNameToDestMap = new(StringComparer.OrdinalIgnoreCase)
         {
-            { "blankdetailmap.dds", "HeadTexture.Height.RawPath" }, // common to male and female
+            { "blankdetailmap.dds", Dest_HeadDetail }, // common to male and female
 
             //male head
-            { "malehead.dds", "HeadTexture.Diffuse.RawPath" },
-            { "malehead_msn.dds", "HeadTexture.NormalOrGloss.RawPath" },
-            { "malehead_sk.dds", "HeadTexture.GlowOrDetailMap.RawPath" },
-            { "malehead_s.dds", "HeadTexture.BacklightMaskOrSpecular.RawPath" },
-            { "maleheaddetail_age40.dds", "HeadTexture.Height.RawPath" },
-            { "maleheaddetail_age40rough.dds", "HeadTexture.Height.RawPath" },
-            { "maleheaddetail_age50.dds", "HeadTexture.Height.RawPath" },
-            { "maleheaddetail_rough01.dds", "HeadTexture.Height.RawPath" },
-            { "maleheaddetail_rough02.dds", "HeadTexture.Height.RawPath" },
+            { "malehead.dds",  Dest_HeadDiffuse},
+            { "malehead_msn.dds", Dest_HeadNormal },
+            { "malehead_sk.dds",  Dest_HeadSubsurface},
+            { "malehead_s.dds", Dest_HeadSpecular },
+            { "maleheaddetail_age40.dds",  Dest_HeadDetail},
+            { "maleheaddetail_age40rough.dds", Dest_HeadDetail },
+            { "maleheaddetail_age50.dds", Dest_HeadDetail },
+            { "maleheaddetail_rough01.dds", Dest_HeadDetail },
+            { "maleheaddetail_rough02.dds", Dest_HeadDetail },
 
             //male torso
-            { "malebody_1.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath" },
-            { "maleBody_1_msn.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.RawPath" },
-            { "malebody_1_sk.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.RawPath" },
-            { "malebody_1_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.RawPath" },
+            { "malebody_1.dds", Dest_TorsoMaleDiffuse },
+            { "maleBody_1_msn.dds", Dest_TorsoMaleNormal },
+            { "malebody_1_sk.dds", Dest_TorsoMaleSubsurface },
+            { "malebody_1_s.dds", Dest_TorsoMaleSpecular },
 
             //male hands
-            { "malehands_1.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath" },
-            { "malehands_1_msn.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.RawPath" },
-            { "malehands_1_sk.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.RawPath" },
-            { "malehands_1_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.RawPath" },
+            { "malehands_1.dds", Dest_HandsMaleDiffuse },
+            { "malehands_1_msn.dds", Dest_HandsMaleNormal },
+            { "malehands_1_sk.dds", Dest_HandsMaleSubsurface },
+            { "malehands_1_s.dds", Dest_HandsMaleSpecular },
 
             //male feet
-            { "malebody_1_feet.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath" },
-            { "malebody_1_msn_feet.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.RawPath" },
-            { "malebody_1_feet_sk.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.RawPath" },
-            { "malebody_1_feet_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.RawPath" },
+            { "malebody_1_feet.dds", Dest_FeetMaleDiffuse },
+            { "malebody_1_msn_feet.dds", Dest_FeetMaleNormal },
+            { "malebody_1_feet_sk.dds", Dest_FeetMaleSubsurface },
+            { "malebody_1_feet_s.dds", Dest_FeetMaleSpecular },
 
             //male vampire
-            { "maleheadvampire.dds", "HeadTexture.Diffuse.RawPath" },
-            { "maleheadvampire_msn.dds", "HeadTexture.NormalOrGloss.RawPath" },
-            { "maleheadorc_msn.dds", "HeadTexture.NormalOrGloss.RawPath" },
+            { "maleheadvampire.dds", Dest_HeadDiffuse },
+            { "maleheadvampire_msn.dds", Dest_HeadNormal },
+            { "maleheadorc_msn.dds", Dest_HeadNormal },
 
             //male afflicted
-            { "maleheadafflicted.dds", "HeadTexture.Diffuse.RawPath" },
-            { "malebodyafflicted.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath" },
-            { "malehandsafflicted.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath" },
+            { "maleheadafflicted.dds", Dest_HeadDiffuse },
+            { "malebodyafflicted.dds", Dest_TorsoMaleDiffuse },
+            { "malehandsafflicted.dds", Dest_HandsMaleDiffuse },
 
             //male snow elf
-            { "maleheadsnowelf.dds", "HeadTexture.Diffuse.RawPath" },
-            { "malebodysnowelf.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath" },
-            { "malehandssnowelf.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath" },
+            { "maleheadsnowelf.dds", Dest_HeadDiffuse },
+            { "malebodysnowelf.dds", Dest_TorsoMaleDiffuse },
+            { "malehandssnowelf.dds", Dest_HandsMaleDiffuse },
 
             //male khajiit
-            { "KhajiitMaleHead.dds", "HeadTexture.Diffuse.RawPath" },
-            { "KhajiitMaleHead_msn.dds", "HeadTexture.NormalOrGloss.RawPath" },
-            { "khajiitmalehead_s.dds", "HeadTexture.BacklightMaskOrSpecular.RawPath" },
-            { "KhajiitOld.dds", "HeadTexture.Height.RawPath" }, //note: used by khajiit female as well
-            { "bodymale.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath" },
-            { "bodymale_msn.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.RawPath" },
-            { "bodymale_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.RawPath" },
-            { "HandsMale.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath" },
-            { "HandsMale_msn.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.RawPath" },
-            { "handsmale_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.RawPath" },
+            { "KhajiitMaleHead.dds", Dest_HeadDiffuse },
+            { "KhajiitMaleHead_msn.dds", Dest_HeadNormal },
+            { "khajiitmalehead_s.dds", Dest_HeadSpecular },
+            { "KhajiitOld.dds", Dest_HeadDetail }, //note: used by khajiit female as well
+            { "bodymale.dds", Dest_TorsoMaleDiffuse },
+            { "bodymale_msn.dds", Dest_TorsoMaleNormal },
+            { "bodymale_s.dds", Dest_TorsoMaleSpecular },
+            { "HandsMale.dds", Dest_HandsMaleDiffuse },
+            { "HandsMale_msn.dds", Dest_HandsMaleNormal },
+            { "handsmale_s.dds", Dest_HandsMaleSpecular },
 
             //male argonian
-            { "ArgonianMaleHead.dds", "HeadTexture.Diffuse.RawPath" },
-            { "ArgonianMaleHead_msn.dds", "HeadTexture.NormalOrGloss.RawPath" },
-            { "ArgonianMaleHead_s.dds", "HeadTexture.BacklightMaskOrSpecular.RawPath" },
-            { "ArgonianMaleHeadOld.dds", "HeadTexture.Height.RawPath" },
-            { "argonianmalebody.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath" },
-            { "argonianmalebody_msn.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.RawPath" },
-            { "argonianmalebody_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.RawPath" },
-            { "ArgonianMaleHands.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath" },
-            { "ArgonianMaleHands_msn.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.RawPath" },
-            { "ArgonianMaleHands_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.RawPath" },
+            { "ArgonianMaleHead.dds", Dest_HeadDiffuse },
+            { "ArgonianMaleHead_msn.dds", Dest_HeadNormal },
+            { "ArgonianMaleHead_s.dds", Dest_HeadSpecular },
+            { "ArgonianMaleHeadOld.dds", Dest_HeadDetail },
+            { "argonianmalebody.dds", Dest_TorsoMaleDiffuse },
+            { "argonianmalebody_msn.dds", Dest_TorsoMaleNormal },
+            { "argonianmalebody_s.dds", Dest_TorsoMaleSpecular },
+            { "ArgonianMaleHands.dds", Dest_HandsMaleDiffuse },
+            { "ArgonianMaleHands_msn.dds", Dest_HandsMaleNormal },
+            { "ArgonianMaleHands_s.dds", Dest_HandsMaleSpecular },
 
             //female head
-            { "femalehead.dds", "HeadTexture.Diffuse.RawPath" }, // note: used by khajiit female as well
-            { "femalehead_msn.dds", "HeadTexture.NormalOrGloss.RawPath" }, // note: used by khajiit female as well
-            { "femalehead_sk.dds", "HeadTexture.GlowOrDetailMap.RawPath" }, // note: used by khajiit female as well
-            { "femalehead_s.dds", "HeadTexture.BacklightMaskOrSpecular.RawPath" }, // note: used by khajiit female as well
-            { "femaleheaddetail_age40.dds", "HeadTexture.Height.RawPath" },
-            { "femaleheaddetail_age50.dds", "HeadTexture.Height.RawPath" },
-            { "femaleheaddetail_rough.dds", "HeadTexture.Height.RawPath" },
-            { "femaleheaddetail_age40rough.dds", "HeadTexture.Height.RawPath" },
-            { "femaleheaddetail_frekles.dds", "HeadTexture.Height.RawPath" },
+            { "femalehead.dds", Dest_HeadDiffuse }, // note: used by khajiit female as well
+            { "femalehead_msn.dds", Dest_HeadNormal }, // note: used by khajiit female as well
+            { "femalehead_sk.dds", Dest_HeadSubsurface }, // note: used by khajiit female as well
+            { "femalehead_s.dds", Dest_HeadSpecular }, // note: used by khajiit female as well
+            { "femaleheaddetail_age40.dds", Dest_HeadDetail },
+            { "femaleheaddetail_age50.dds", Dest_HeadDetail },
+            { "femaleheaddetail_rough.dds", Dest_HeadDetail },
+            { "femaleheaddetail_age40rough.dds", Dest_HeadDetail },
+            { "femaleheaddetail_frekles.dds", Dest_HeadDetail },
 
             //female body
-            { "femalebody_1.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath" },
-            { "femaleBody_1_msn.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.RawPath" },
-            { "femalebody_1_sk.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.RawPath" },
-            { "femalebody_1_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.RawPath" },
+            { "femalebody_1.dds", Dest_TorsoFemaleDiffuse },
+            { "femaleBody_1_msn.dds", Dest_TorsoFemaleNormal },
+            { "femalebody_1_sk.dds", Dest_TorsoFemaleSubsurface },
+            { "femalebody_1_s.dds", Dest_TorsoFemaleSpecular },
 
             //female hands
-            { "femalehands_1.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath" },
-            { "femalehands_1_msn.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.RawPath" },
-            { "femalehands_1_sk.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.RawPath" },
-            { "femalehands_1_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.RawPath" },
+            { "femalehands_1.dds", Dest_HandsFemaleDiffuse },
+            { "femalehands_1_msn.dds", Dest_HandsFemaleNormal },
+            { "femalehands_1_sk.dds", Dest_HandsFemaleSubsurface },
+            { "femalehands_1_s.dds", Dest_HandsFemaleSpecular },
 
             //female feet
-            { "femalebody_1_feet.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath" },
-            { "femalebody_1_msn_feet.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.RawPath" },
-            { "femalebody_1_feet_sk.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.RawPath" },
-            { "femalebody_1_feet_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.RawPath" },
+            { "femalebody_1_feet.dds", Dest_FeetFemaleDiffuse },
+            { "femalebody_1_msn_feet.dds", Dest_FeetFemaleNormal },
+            { "femalebody_1_feet_sk.dds", Dest_FeetFemaleSubsurface },
+            { "femalebody_1_feet_s.dds", Dest_FeetFemaleSpecular },
 
             //female vampire
-            { "femaleheadvampire.dds", "HeadTexture.Diffuse.RawPath" },
-            { "femaleheadvampire_msn.dds", "HeadTexture.NormalOrGloss.RawPath" },
-            { "femaleheadorc_msn.dds", "HeadTexture.NormalOrGloss.RawPath" },
-            { "femaleheadvampire_s.dds", "HeadTexture.BacklightMaskOrSpecular.RawPath" },
-            { "femaleheadvampire_sk.dds", "HeadTexture.GlowOrDetailMap.RawPath" },
+            { "femaleheadvampire.dds", Dest_HeadDiffuse },
+            { "femaleheadvampire_msn.dds", Dest_HeadNormal },
+            { "femaleheadorc_msn.dds", Dest_HeadNormal },
+            { "femaleheadvampire_sk.dds", Dest_TorsoFemaleSubsurface },
+            { "femaleheadvampire_s.dds", Dest_TorsoFemaleSpecular },
 
             //female afflicted
-            { "femaleheadafflicted.dds", "HeadTexture.Diffuse.RawPath" },
-            { "femalebodyafflicted.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath" },
-            { "femalehandsafflicted.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath" },
+            { "femaleheadafflicted.dds", Dest_HeadDiffuse },
+            { "femalebodyafflicted.dds", Dest_TorsoFemaleDiffuse },
+            { "femalehandsafflicted.dds", Dest_HandsFemaleDiffuse },
 
             //female khajiit
-            { "femalebody.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath" },
-            { "femalebody_msn.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.RawPath" },
-            { "femalebody_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.RawPath" },
-            { "femalehands.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath" },
-            { "femalehands_msn.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.RawPath" },
-            { "femalehands_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.RawPath" },
+            { "femalebody.dds", Dest_TorsoFemaleDiffuse },
+            { "femalebody_msn.dds", Dest_TorsoFemaleNormal },
+            { "femalebody_s.dds", Dest_TorsoFemaleSpecular },
+            { "femalehands.dds", Dest_HandsFemaleDiffuse },
+            { "femalehands_msn.dds", Dest_HandsFemaleNormal },
+            { "femalehands_s.dds", Dest_HandsFemaleSpecular },
 
             //female argonian
-            { "argonianfemalehead.dds", "HeadTexture.Diffuse.RawPath" },
-            { "argonianfemalehead_msn.dds", "HeadTexture.NormalOrGloss.RawPath" },
-            { "argonianfemalehead_s.dds", "HeadTexture.BacklightMaskOrSpecular.RawPath" },
-            { "ArgonianFemaleHeadOld.dds", "HeadTexture.Height.RawPath" },
-            { "argonianfemalebody.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath" },
-            { "argonianfemalebody_msn.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.RawPath" },
-            { "argonianfemalebody_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.RawPath" },
-            { "argonianfemalehands.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath" },
-            { "argonianfemalehands_msn.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.RawPath" },
-            { "argonianfemalehands_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.RawPath" },
+            { "argonianfemalehead.dds", Dest_HeadDiffuse },
+            { "argonianfemalehead_msn.dds", Dest_HeadNormal },
+            { "argonianfemalehead_s.dds", Dest_TorsoFemaleSpecular },
+            { "ArgonianFemaleHeadOld.dds", Dest_HeadDetail },
+            { "argonianfemalebody.dds", Dest_TorsoFemaleDiffuse },
+            { "argonianfemalebody_msn.dds", Dest_TorsoFemaleNormal },
+            { "argonianfemalebody_s.dds", Dest_TorsoFemaleSpecular },
+            { "argonianfemalehands.dds", Dest_HandsFemaleDiffuse },
+            { "argonianfemalehands_msn.dds", Dest_HandsFemaleNormal },
+            { "argonianfemalehands_s.dds", Dest_HandsFemaleSpecular },
+
+            // Astrid
+            {"AstridHead.dds", Dest_HeadDiffuse },
+            {"AstridHead_msn.dds", Dest_HeadNormal },
+            {"AstridHead_s.dds", Dest_HeadSpecular },
+            {"AstridBody.dds", Dest_TorsoFemaleDiffuse },
+            {"AstridBody_msn.dds", Dest_TorsoFemaleNormal },
+            {"AstridBody_s.dds", Dest_TorsoFemaleSpecular },
+            {"AstridHands.dds", Dest_HandsFemaleDiffuse },
+            {"AstridHands_msn.dds", Dest_HandsFemaleNormal },
+            {"AstridHands_s.dds", Dest_HandsFemaleSpecular }
         };
 
         public static readonly Dictionary<string, string> MaleTorsoPaths = new(StringComparer.OrdinalIgnoreCase)
         {
-            { "malebody_1.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath" },
-            { "maleBody_1_msn.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.RawPath" },
-            { "malebody_1_sk.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.RawPath" },
-            { "malebody_1_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.RawPath" },
-            { "malebodyafflicted.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath" },
-            { "bodymale.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath" },
-            { "bodymale_msn.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.RawPath" },
-            { "bodymale_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.RawPath" },
-            { "argonianmalebody.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath" },
-            { "argonianmalebody_msn.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.RawPath" },
-            { "argonianmalebody_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.RawPath" },
+            { "malebody_1.dds", Dest_TorsoMaleDiffuse },
+            { "maleBody_1_msn.dds", Dest_TorsoMaleNormal },
+            { "malebody_1_sk.dds", Dest_TorsoMaleSubsurface },
+            { "malebody_1_s.dds", Dest_TorsoMaleSpecular },
+            { "malebodyafflicted.dds", Dest_TorsoMaleDiffuse },
+            { "bodymale.dds", Dest_TorsoMaleDiffuse },
+            { "bodymale_msn.dds", Dest_TorsoMaleNormal },
+            { "bodymale_s.dds", Dest_TorsoMaleSpecular },
+            { "argonianmalebody.dds", Dest_TorsoMaleDiffuse },
+            { "argonianmalebody_msn.dds", Dest_TorsoMaleNormal },
+            { "argonianmalebody_s.dds", Dest_TorsoMaleSpecular },
         };
 
         public static readonly Dictionary<string, string> FemaleTorsoPaths = new(StringComparer.OrdinalIgnoreCase)
         {
-            { "femalebody_1.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath" },
-            { "femaleBody_1_msn.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.RawPath" },
-            { "femalebody_1_sk.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.RawPath" },
-            { "femalebody_1_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.RawPath" },
-            { "femalebodyafflicted.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath" },
-            { "femalebody.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath" },
-            { "femalebody_msn.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.RawPath" },
-            { "femalebody_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.RawPath" },
-            { "argonianfemalebody.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath" },
-            { "argonianfemalebody_msn.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.RawPath" },
-            { "argonianfemalebody_s.dds", "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.RawPath" },
+            { "femalebody_1.dds",Dest_TorsoFemaleDiffuse },
+            { "femaleBody_1_msn.dds", Dest_TorsoFemaleNormal },
+            { "femalebody_1_sk.dds", Dest_TorsoFemaleSubsurface },
+            { "femalebody_1_s.dds", Dest_TorsoFemaleSpecular },
+            { "femalebodyafflicted.dds", Dest_TorsoFemaleDiffuse },
+            { "femalebody.dds", Dest_TorsoFemaleDiffuse },
+            { "femalebody_msn.dds", Dest_TorsoFemaleNormal },
+            { "femalebody_s.dds", Dest_TorsoFemaleSpecular },
+            { "argonianfemalebody.dds", Dest_TorsoFemaleDiffuse },
+            { "argonianfemalebody_msn.dds", Dest_TorsoFemaleNormal },
+            { "argonianfemalebody_s.dds", Dest_TorsoFemaleSpecular },
         };
     }
 }

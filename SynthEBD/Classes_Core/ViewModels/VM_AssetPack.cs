@@ -51,6 +51,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     private readonly SynthEBDPaths _paths;
     private readonly IO_Aux _auxIO;
     private readonly FileDialogs _fileDialogs;
+    private readonly ConfigDrafter _configDrafter;
     private readonly Factory _selfFactory;
     private readonly SettingsIO_AssetPack _assetPackIO;
     private readonly VM_AttributeGroupMenu.Factory _attributeGroupMenuFactory;
@@ -80,6 +81,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         SynthEBDPaths paths,
         IO_Aux auxIO,
         FileDialogs fileDialogs,
+        ConfigDrafter configDrafter,
         SettingsIO_AssetPack assetPackIO,
         VM_AttributeGroupMenu.Factory attributeGroupMenuFactory,
         VM_RaceGroupingEditor.Factory raceGroupingEditorFactory,
@@ -104,6 +106,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         _paths = paths;
         _auxIO = auxIO;
         _fileDialogs = fileDialogs;
+        _configDrafter = configDrafter;
         _selfFactory = selfFactory;
         _assetPackIO = assetPackIO;
         _attributeGroupMenuFactory = attributeGroupMenuFactory;
@@ -251,6 +254,16 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
         );
 
+        ListCustomRulesButton = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => {
+                if (IO_Aux.SelectFolder("", out string path))
+                {
+                    _configDrafter.DraftConfigFromTextures(this, path);
+                }
+            }
+        );
+
         DiscardButton = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
@@ -367,6 +380,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public RelayCommand ListDisabledSubgroupsButton { get; }
     public RelayCommand ListCustomRulesButton { get; }
     public RelayCommand SaveButton { get; }
+    public RelayCommand ImportTexturesButton { get; }
     public RelayCommand DiscardButton { get; }
     public RelayCommand CopyButton { get; }
     public RelayCommand SetDefaultTargetDestPaths { get; }
