@@ -1,3 +1,4 @@
+using Noggog;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -47,6 +48,45 @@ namespace SynthEBD
                 return false;
             }
             return true;
+        }
+
+        public List<string> GetArchiveContents(string archivePath)
+        {
+            ProcessStartInfo pro = new ProcessStartInfo();
+            pro.WindowStyle = ProcessWindowStyle.Hidden;
+            pro.FileName = _sevenZipPath;
+            pro.Arguments = string.Format("l -slt \"{0}\"", archivePath);
+            pro.RedirectStandardOutput = true;
+            pro.UseShellExecute = false;
+            Process x = Process.Start(pro);
+            x.WaitForExit();
+            var output = x.StandardOutput.ReadToEnd().Split(Environment.NewLine).ToList();
+
+            // remove the path of the archive itself
+            for (int i = 0; i < output.Count; i++)
+            {
+                if (i > 0 && output[i].StartsWith("Type = ") && output[i - 1].StartsWith("Path = "))
+                {
+                    output.RemoveAt(i - 1);
+                }
+            }
+
+            var processedOutput = new List<string>(output.Where(x => x.StartsWith("Path = ")).Select(x => x.Replace("Path = ", "")).Where(x => IsFilePathFragment(x)));
+            return processedOutput;
+        }
+
+        private bool IsFilePathFragment(string input)
+        {
+            var last = input.Split(Path.DirectorySeparatorChar).Last();
+            if (!last.IsNullOrWhitespace())
+            {
+                var split = last.Split('.');
+                if (split.Length > 1)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

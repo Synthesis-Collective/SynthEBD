@@ -120,9 +120,27 @@ public class VM_ConfigDrafter : VM
             CustomMessageBox.DisplayNotificationOK("Drafter Error", "No file archives were selected");
             return false;
         }
+
+        if (GeneratedModName.IsNullOrWhitespace())
+        {
+            CustomMessageBox.DisplayNotificationOK("Drafter Error", "You must enter a name for the mod to which the files will be extracted. Recommend something like \"SynthEBD - This Texture Mod\"");
+            return false;
+        }
+
+        List<string> fileNames = new();
+        List<List<string>> archiveContents = new();
+
         for (int i = 0; i < SelectedFileArchives.Count; i++)
         {
             var container = SelectedFileArchives[i];
+
+            if (fileNames.Contains(container.FilePath))
+            {
+                CustomMessageBox.DisplayNotificationOK("Drafter Error", "Cannot select the same file multiple times: " + Environment.NewLine + container.FilePath);
+                return false;
+            }
+            fileNames.Add(container.FilePath);
+
             if (!File.Exists(container.FilePath))
             {
                 CustomMessageBox.DisplayNotificationOK("Drafter Error", "The following file from Archive #" + (i + 1).ToString() + " does not exist: " + Environment.NewLine + container.FilePath);
@@ -133,6 +151,25 @@ public class VM_ConfigDrafter : VM
                 CustomMessageBox.DisplayNotificationOK("Drafter Error", "You need to assign a prefix to Archive #" + (i + 1).ToString());
                 return false;
             }
+
+            var currentArchiveContents = _7ZipInterface.GetArchiveContents(container.FilePath);
+            if (!currentArchiveContents.Any())
+            {
+                CustomMessageBox.DisplayNotificationOK("Drafter Error", "The following file has no contents upon extraction: " + Environment.NewLine + container.FilePath);
+                return false;
+            }
+            foreach (var path in currentArchiveContents)
+            {
+                for (int j = 0; j < archiveContents.Count; j++)
+                {
+                    if (archiveContents[j].Contains(path) && container.Prefix == SelectedFileArchives[j].Prefix)
+                    {
+                        CustomMessageBox.DisplayNotificationOK("Drafter Error", "The following file in Archive #" + (i + 1).ToString() + " was also found in Archive # " + (j + 1).ToString() + ":" + Environment.NewLine + path + Environment.NewLine + "You must assign a different Prefix to one of these archives");
+                        return false;
+                    }
+                }
+            }
+            archiveContents.Add(currentArchiveContents);
         }
 
         return true;
