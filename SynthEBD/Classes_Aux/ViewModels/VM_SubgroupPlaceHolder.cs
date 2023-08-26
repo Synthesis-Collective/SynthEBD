@@ -208,6 +208,7 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
                 subgroup.AutoGenerateID(recursive, skipLayers);
             }
         }
+        AssociatedModel.ID = ID;
     }
 
     public static string TrimTrailingNonAlphaNumeric(string s)
@@ -250,15 +251,15 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
                     }
                     break;
                 }
-                else if (CanSplitByLettersAndNumbers(newID, out string renamed1))
+                else if (lastID.Any() && CanSplitByLettersAndNumbers(newID, out string renamed1))
                 {
                     newID = newID.Replace(lastID, renamed1);
                 }
-                else if (CanExtendWordSplit(lastID, Name, previousSplitNames, ParentAssetPack, out string renamed2))
+                else if (lastID.Any() && CanExtendWordSplit(lastID, Name, previousSplitNames, ParentAssetPack, out string renamed2))
                 {
                     newID = newID.Replace(lastID, renamed2);
                 }
-                else if (lastID.Length < Name.Length)
+                else if (lastID.Any() && lastID.Length < Name.Length)
                 {
                     newID = newID.Replace(lastID, Name.Substring(0, lastID.Length + 1));
                 }
