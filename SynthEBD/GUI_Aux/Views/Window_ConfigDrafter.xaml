@@ -76,7 +76,7 @@
 
         <Button Content="Draft Config!" Foreground="Aquamarine" Command="{Binding DraftConfigButton}" HorizontalAlignment="Left" Grid.Row="3" Grid.Column="0" />
 
-        <Expander Header="Unmatched Files" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding HasUnmatchedTextures, Converter={StaticResource BoolToVis}}">
+        <Expander Header="SynthEBD could not determine what to do with these texture files" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding HasUnmatchedTextures, Converter={StaticResource BoolToVis}}">
             <TextBox Text="{Binding UnmatchedTextures, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" MaxHeight="250" Foreground="White"/>
         </Expander>
 
