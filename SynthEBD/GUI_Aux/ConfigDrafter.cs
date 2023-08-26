@@ -15,7 +15,6 @@ namespace SynthEBD
 
         public ConfigDrafter(VM_SubgroupPlaceHolder.Factory subgroupPlaceHolderFactory)
         {
-
             _subgroupPlaceHolderFactory = subgroupPlaceHolderFactory;
         }
 

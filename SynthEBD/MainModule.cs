@@ -83,7 +83,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<OBodyPreprocessing>().AsSelf().SingleInstance();
         builder.RegisterType<HeadPartPreprocessing>().AsSelf().SingleInstance();
         builder.RegisterType<UniqueNPCData>().AsSelf().SingleInstance();
-        
+
+        builder.RegisterType<_7ZipInterface>().AsSelf().SingleInstance();
         builder.RegisterType<ConfigInstaller>().AsSelf().SingleInstance();
         builder.RegisterType<MiscValidation>().AsSelf().SingleInstance();
         builder.RegisterType<RecordGenerator>().AsSelf().SingleInstance();

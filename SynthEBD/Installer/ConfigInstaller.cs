@@ -22,7 +22,8 @@ public class ConfigInstaller
     private readonly SettingsIO_BodyGen _bodyGenIO;
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
-    public ConfigInstaller(Logger logger, SynthEBDPaths synthEBDPaths, SettingsIO_AssetPack assetPackIO, SettingsIO_BodyGen bodyGenIO, IEnvironmentStateProvider environmentProvider, PatcherState patcherState)
+    private readonly _7ZipInterface _7ZipInterface;
+    public ConfigInstaller(Logger logger, SynthEBDPaths synthEBDPaths, SettingsIO_AssetPack assetPackIO, SettingsIO_BodyGen bodyGenIO, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, _7ZipInterface sevenZipInterface)
     {
         _logger = logger;
         _paths = synthEBDPaths;
@@ -30,6 +31,7 @@ public class ConfigInstaller
         _bodyGenIO = bodyGenIO;
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
+        _7ZipInterface = sevenZipInterface;
     }
     public List<string> InstallConfigFile(out bool triggerGeneralVMRefresh)
     {
@@ -60,7 +62,7 @@ public class ConfigInstaller
 
         try
         {
-            if (!ExtractArchiveNew(path, tempFolderPath, true))
+            if (!_7ZipInterface.ExtractArchiveNew(path, tempFolderPath, true))
             {
                 return installedConfigs;
             }
@@ -241,7 +243,7 @@ public class ConfigInstaller
             {
                 subPath = dependencyArchive.ExtractionSubPath;
             }
-            ExtractArchiveNew(dependencyArchive.Path, Path.Combine(tempFolderPath, subPath), false);
+            _7ZipInterface.ExtractArchiveNew(dependencyArchive.Path, Path.Combine(tempFolderPath, subPath), false);
         }
 
         bool triggerExtractionPathWarning = false;
@@ -467,36 +469,7 @@ public class ConfigInstaller
         return true;
     }
 
-    private bool ExtractArchiveNew(string archivePath, string destinationPath, bool hideWindow)
-    {
-        try
-        {
-            var sevenZipPath = Path.Combine(_environmentProvider.InternalDataPath, "7Zip",
-                        Environment.Is64BitProcess ? "x64" : "x86", "7z.exe");
-
-            ProcessStartInfo pro = new ProcessStartInfo();
-            pro.WindowStyle = ProcessWindowStyle.Hidden;
-            pro.FileName = sevenZipPath;
-            pro.Arguments = string.Format("x \"{0}\" -y -o\"{1}\"", archivePath, destinationPath);
-            pro.RedirectStandardOutput = true;
-            pro.UseShellExecute = false;
-            Process x = Process.Start(pro);
-            x.WaitForExit();
-            string output = x.StandardOutput.ReadToEnd();
-            if (output.Contains("Can't open as archive"))
-            {
-                CustomMessageBox.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " appears to have failed with message: " + Environment.NewLine + output.Replace("\r\n", Environment.NewLine));
-                return false;
-            }
-        }
-
-        catch (Exception e)
-        {
-            CustomMessageBox.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " failed with message: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(e));
-            return false;
-        }
-        return true;   
-    }
+   
 
     private bool ExtractArchive(string archivePath, string destinationPath)
     {

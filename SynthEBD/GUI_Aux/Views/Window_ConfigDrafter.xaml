@@ -31,10 +31,13 @@
         </Grid.ColumnDefinitions>
 
         <TextBlock Text="Load textures from " Foreground="White" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" />
-        <ComboBox  Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding SelectedSource}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DrafterTextureSource}}}" IsSynchronizedWithCurrentItem="True"  Grid.Row="0" Grid.Column="1"/>
+        <ComboBox  Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding SelectedSource}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DrafterTextureSource}}}" IsSynchronizedWithCurrentItem="True"  Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2"/>
 
-        <TextBlock Text="Archives to install" Foreground="White" Grid.Row="1" Grid.Column="0" Visibility="{ Binding SelectedSource, Converter={StaticResource ArchiveVisibilityConverter}}"/>
-        <ScrollViewer Grid.Row="1" Grid.Column="1" Visibility="{ Binding SelectedSource, Converter={StaticResource ArchiveVisibilityConverter}}">
+        <TextBlock Text="Destination Mod Name" Foreground="White" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Visibility="{ Binding SelectedSource, Converter={StaticResource ArchiveVisibilityConverter}}" ToolTip="{Binding ModNameToolTip}" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+        <TextBox Text="{Binding GeneratedModName}" Grid.Row="1" Grid.Column="2" IsReadOnly="{Binding LockGeneratedModName}" Visibility="{ Binding SelectedSource, Converter={StaticResource ArchiveVisibilityConverter}}"/>
+
+        <TextBlock Text="Archives to install" Foreground="White" Grid.Row="2" Grid.Column="0" Visibility="{ Binding SelectedSource, Converter={StaticResource ArchiveVisibilityConverter}}"/>
+        <ScrollViewer Grid.Row="2" Grid.Column="2" Visibility="{ Binding SelectedSource, Converter={StaticResource ArchiveVisibilityConverter}}">
             <StackPanel>
                 <ItemsControl ItemsSource="{Binding SelectedFileArchives}">
                     <ItemsControl.ItemTemplate>
@@ -58,7 +61,7 @@
                                     <TextBlock Text="{Binding FilePath}" Grid.Row="0" Grid.Column="2" Foreground="White" MinWidth="50"/>
 
                                     <TextBlock Text="Prefix: " Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Foreground="White"/>
-                                    <TextBox Text="{Binding Prefix}" Grid.Row="1" Grid.Column="2" Foreground="White" MinWidth="50"/>
+                                    <TextBox Text="{Binding Prefix}" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Foreground="White" MinWidth="50"/>
 
                                     <Button Content="Remove" Foreground="Firebrick" Command="{Binding DeleteMe}" Grid.Row="2" Grid.Column="1"/>
                                 </Grid>
@@ -70,9 +73,9 @@
             </StackPanel>
         </ScrollViewer>
 
-        <TextBlock Text="Directory to Scan" Foreground="White" Grid.Row="1" Grid.Column="0" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}" VerticalAlignment="Center" />
-        <Button Content="Select" Foreground="MediumPurple" Command="{Binding SelectDirectoryButton}" Grid.Row="1" Grid.Column="1" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}" VerticalAlignment="Center"/>
-        <TextBox Text="{Binding SelectedTextureFolder}" Grid.Row="1" Grid.Column="2" Foreground="White" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}"/>
+        <TextBlock Text="Directory to Scan" Foreground="White" Grid.Row="2" Grid.Column="0" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}" VerticalAlignment="Center" />
+        <Button Content="Select" Foreground="MediumPurple" Command="{Binding SelectDirectoryButton}" Grid.Row="2" Grid.Column="1" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}" VerticalAlignment="Center"/>
+        <TextBox Text="{Binding SelectedTextureFolder}" Grid.Row="2" Grid.Column="2" Foreground="White" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}"/>
 
         <Button Content="Draft Config!" Foreground="Aquamarine" Command="{Binding DraftConfigButton}" HorizontalAlignment="Left" Grid.Row="3" Grid.Column="0" />
 
