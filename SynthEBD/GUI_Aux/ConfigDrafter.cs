@@ -73,7 +73,7 @@ namespace SynthEBD
                 foreach(var pathGroup in pathGroups)
                 {
                     var parentPlaceHolder = LastParentPlaceHolders[pathGroup.First()];
-                    var texturesInGroup = paths.Where(x => x.StartsWith(pathGroup.Key)).ToArray();
+                    var texturesInGroup = paths.Where(x => x.StartsWith(pathGroup.Key + Path.DirectorySeparatorChar)).ToArray(); // match directory separator as well to avoid erroneously adding textures from "\textures\example" into the group from "textures\exam"
 
                     if (paths.Contains(pathGroup.Key))// this is the file itself
                     {
@@ -146,6 +146,13 @@ namespace SynthEBD
                         parentSubgroup.Subgroups.Add(toMove);
                         currentSubgroup.Subgroups.RemoveAt(i);
                         i--;
+
+                        if(toMove.AssociatedModel.Paths.Any() && toMove.AssociatedModel.Paths.First().Source.EndsWith(toMove.AssociatedModel.Name))
+                        {
+                            toMove.AssociatedModel.Name = currentSubgroup.AssociatedModel.Name;
+                            toMove.Name = toMove.AssociatedModel.Name;
+                            toMove.AutoGenerateID(false, 0);
+                        }
                     }
                 }
                 else // if this is a lowest-level subgroup, bring its textures up to the parent
@@ -176,11 +183,13 @@ namespace SynthEBD
 
         private bool ShouldCreateNewSubgroup(IGrouping<string, string> pathGroup, int currentPathStage)
         {
-            if (!LastParentGroupings.ContainsKey(pathGroup.First()))
+            var firstPath = pathGroup.First();
+            if (!LastParentGroupings.ContainsKey(firstPath))
             {
                 return false;
             }
-            return pathGroup.Count() != LastParentGroupings[pathGroup.First()].Count();
+
+            return pathGroup.Count() != LastParentGroupings[firstPath].Count();
         }
 
         private AssetPack.Subgroup CreateSubgroupModel(string id, string name)
