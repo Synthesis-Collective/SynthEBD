@@ -1,0 +1,84 @@
+<Window x:Class="SynthEBD.Window_ConfigDrafter"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SynthEBD"
+        d:DataContext="{d:DesignInstance Type=local:VM_ConfigDrafter}"
+        mc:Ignorable="d"
+        Title="SynthEBD Config Drafter" Height="450" Width="800">
+
+    <Window.Resources>
+        <local:ConfigDrafterVisibilityConverterArchive x:Key="ArchiveVisibilityConverter" />
+        <local:ConfigDrafterVisibilityConverterDirectory x:Key="DirectoryVisibilityConverter" />
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Text="Load textures from " Foreground="White" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" />
+        <ComboBox  Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding SelectedSource}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DrafterTextureSource}}}" IsSynchronizedWithCurrentItem="True"  Grid.Row="0" Grid.Column="1"/>
+
+        <TextBlock Text="Archives to install" Foreground="White" Grid.Row="1" Grid.Column="0" Visibility="{ Binding SelectedSource, Converter={StaticResource ArchiveVisibilityConverter}}"/>
+        <ScrollViewer Grid.Row="1" Grid.Column="1" Visibility="{ Binding SelectedSource, Converter={StaticResource ArchiveVisibilityConverter}}">
+            <StackPanel>
+                <ItemsControl ItemsSource="{Binding SelectedFileArchives}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border BorderBrush="AliceBlue" BorderThickness="1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="auto"/>
+                                        <ColumnDefinition Width="auto"/>
+                                        <ColumnDefinition Width="auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="auto"/>
+                                        <RowDefinition Height="auto"/>
+                                        <RowDefinition Height="auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Text="File Name: " Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Foreground="White"/>
+                                    <Button Content="Select" Foreground="MediumPurple" Command="{Binding SelectArchive}" Grid.Row="0" Grid.Column="1" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding FilePath}" Grid.Row="0" Grid.Column="2" Foreground="White" MinWidth="50"/>
+
+                                    <TextBlock Text="Prefix: " Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Foreground="White"/>
+                                    <TextBox Text="{Binding Prefix}" Grid.Row="1" Grid.Column="2" Foreground="White" MinWidth="50"/>
+
+                                    <Button Content="Remove" Foreground="Firebrick" Command="{Binding DeleteMe}" Grid.Row="2" Grid.Column="1"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button Content="Add Another Archive" Foreground="MediumPurple" Command="{Binding AddFileArchiveButton}" HorizontalAlignment="Left"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <TextBlock Text="Directory to Scan" Foreground="White" Grid.Row="1" Grid.Column="0" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}" VerticalAlignment="Center" />
+        <Button Content="Select" Foreground="MediumPurple" Command="{Binding SelectDirectoryButton}" Grid.Row="1" Grid.Column="1" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}" VerticalAlignment="Center"/>
+        <TextBox Text="{Binding SelectedTextureFolder}" Grid.Row="1" Grid.Column="2" Foreground="White" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}"/>
+
+        <Button Content="Draft Config!" Foreground="Aquamarine" Command="{Binding DraftConfigButton}" HorizontalAlignment="Left" Grid.Row="3" Grid.Column="0" />
+
+        <Expander Header="Unmatched Files" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding HasUnmatchedTextures, Converter={StaticResource BoolToVis}}">
+            <TextBox Text="{Binding UnmatchedTextures, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" MaxHeight="250" Foreground="White"/>
+        </Expander>
+
+    </Grid>
+</Window>

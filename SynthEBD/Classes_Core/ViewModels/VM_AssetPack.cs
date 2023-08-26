@@ -16,6 +16,7 @@ using Noggog.WPF;
 using DynamicData;
 using System.Reactive.Linq;
 using System.Diagnostics;
+using SynthEBD;
 
 namespace SynthEBD;
 
@@ -51,7 +52,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     private readonly SynthEBDPaths _paths;
     private readonly IO_Aux _auxIO;
     private readonly FileDialogs _fileDialogs;
-    private readonly ConfigDrafter _configDrafter;
+    private readonly VM_ConfigDrafter _configDrafter;
     private readonly Factory _selfFactory;
     private readonly SettingsIO_AssetPack _assetPackIO;
     private readonly VM_AttributeGroupMenu.Factory _attributeGroupMenuFactory;
@@ -81,7 +82,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         SynthEBDPaths paths,
         IO_Aux auxIO,
         FileDialogs fileDialogs,
-        ConfigDrafter configDrafter,
+        VM_ConfigDrafter configDrafter,
         SettingsIO_AssetPack assetPackIO,
         VM_AttributeGroupMenu.Factory attributeGroupMenuFactory,
         VM_RaceGroupingEditor.Factory raceGroupingEditorFactory,
@@ -254,13 +255,13 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
         );
 
-        ListCustomRulesButton = new RelayCommand(
+        ImportTexturesButton = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
-                if (IO_Aux.SelectFolder("", out string path))
-                {
-                    _configDrafter.DraftConfigFromTextures(this, path);
-                }
+                _configDrafter.InitializeTo(this);
+                var drafterWindow = new Window_ConfigDrafter();
+                drafterWindow.DataContext = _configDrafter;
+                drafterWindow.ShowDialog();
             }
         );
 

@@ -39,6 +39,42 @@ public class BodyGenVisibilityConverter : System.Windows.Data.IValueConverter
     }
 }
 
+public class ConfigDrafterVisibilityConverterArchive : System.Windows.Data.IValueConverter
+{
+    public object Convert(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        bool visibility = false;
+        if (value is DrafterTextureSource)
+        {
+            visibility = (DrafterTextureSource)value == DrafterTextureSource.Archives;
+        }
+        return visibility ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+    }
+    public object ConvertBack(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        System.Windows.Visibility visibility = (System.Windows.Visibility)value;
+        return (visibility == System.Windows.Visibility.Visible);
+    }
+}
+
+public class ConfigDrafterVisibilityConverterDirectory : System.Windows.Data.IValueConverter
+{
+    public object Convert(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        bool visibility = false;
+        if (value is DrafterTextureSource)
+        {
+            visibility = (DrafterTextureSource)value == DrafterTextureSource.Directory;
+        }
+        return visibility ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+    }
+    public object ConvertBack(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        System.Windows.Visibility visibility = (System.Windows.Visibility)value;
+        return (visibility == System.Windows.Visibility.Visible);
+    }
+}
+
 public class BSImportVisibilityConverter : System.Windows.Data.IValueConverter
 {
     public object Convert(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)

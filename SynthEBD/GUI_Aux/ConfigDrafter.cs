@@ -20,16 +20,21 @@ namespace SynthEBD
         }
 
 
-        public void DraftConfigFromTextures(VM_AssetPack config, string rootFolderPath)
+        public void DraftConfigFromTextures(VM_AssetPack config, string rootFolderPath, out HashSet<string> unmatchedFiles)
         {
+            var allFiles = Directory.GetFiles(rootFolderPath, "*", SearchOption.AllDirectories);
+            unmatchedFiles = new(allFiles.Where(x => x.EndsWith(".dds", StringComparison.OrdinalIgnoreCase))); // remove files from this list as they're matched
+
             foreach (var type in Enum.GetValues(typeof(TextureType)))
             {
                 var textureType = (TextureType)type;
                 var searchNames = TypeToFileNames[textureType];
-                var matchedFiles = GetMatchingFiles(rootFolderPath, searchNames);
+                var matchedFiles = GetMatchingFiles(allFiles, searchNames);
 
                 if (matchedFiles.Any())
                 {
+                    unmatchedFiles.RemoveWhere(x => matchedFiles.Contains(x));
+
                     var subGroupLabels = TypeToSubgroupLabels[textureType];
                     var topLevelPlaceHolder = config.Subgroups.Where(x => x.ID == subGroupLabels.Item1).FirstOrDefault();
                     if (topLevelPlaceHolder == null)
@@ -44,7 +49,6 @@ namespace SynthEBD
                     ReplaceTextureNamesRecursive(topLevelPlaceHolder, textureType, config);
                 }
             }
-
         }
 
         public void CreateSubgroupsFromPaths(List<string> paths, string rootFolderPath, VM_SubgroupPlaceHolder topLevelPlaceHolder, VM_AssetPack config, TextureType type)
@@ -467,17 +471,9 @@ namespace SynthEBD
             { "Freckles", new(StringComparer.OrdinalIgnoreCase) { "femaleheaddetail_frekles.dds" } }
         };
 
-        private static List<string> GetMatchingFiles(string directoryPath, HashSet<string> fileNames)
+        private static List<string> GetMatchingFiles(string[] files, HashSet<string> fileNames)
         {
             List<string> matchingFilePaths = new List<string>();
-
-            if (!Directory.Exists(directoryPath))
-            {
-                Console.WriteLine("Directory not found.");
-                return matchingFilePaths;
-            }
-
-            string[] files = Directory.GetFiles(directoryPath, "*", SearchOption.AllDirectories);
 
             foreach (string filePath in files)
             {
