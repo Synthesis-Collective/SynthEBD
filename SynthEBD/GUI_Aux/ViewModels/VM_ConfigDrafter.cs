@@ -1,4 +1,5 @@
 using DynamicData;
+using Microsoft.Build.Tasks.Deployment.ManifestUtilities;
 using Noggog;
 using System;
 using System.Collections.Generic;
@@ -14,13 +15,15 @@ namespace SynthEBD;
 public class VM_ConfigDrafter : VM
 {
     private readonly ConfigDrafter _configDrafter;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
     private readonly VM_DrafterArchiveContainer.Factory _archiveContainerFactory;
     private readonly _7ZipInterface _7ZipInterface;
 
-    public VM_ConfigDrafter(ConfigDrafter configDrafter, PatcherState patcherState, VM_DrafterArchiveContainer.Factory archiveContainerFactory, _7ZipInterface sevenZipInterface)
+    public VM_ConfigDrafter(ConfigDrafter configDrafter, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_DrafterArchiveContainer.Factory archiveContainerFactory, _7ZipInterface sevenZipInterface)
     {
         _configDrafter = configDrafter;
+        _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _archiveContainerFactory = archiveContainerFactory;
         _7ZipInterface = sevenZipInterface;
@@ -29,28 +32,27 @@ public class VM_ConfigDrafter : VM
         canExecute: _ => true,
         execute: _ =>
         {
+            HashSet<string> unmatchedTextures = new();
             switch (SelectedSource)
             {
                 case DrafterTextureSource.Archives: 
                     if (ValidateContainers())
                     {
-
+                        var destinationDirs = ExtractArchives();
+                        _configDrafter.DraftConfigFromTextures(CurrentConfig, destinationDirs, true, out unmatchedTextures);
                     }
                     break;
                 case DrafterTextureSource.Directory:
-                    if (Directory.Exists(SelectedTextureFolder))
+                    if (ValidateExistingDirectory())
                     {
-                        _configDrafter.DraftConfigFromTextures(CurrentConfig, SelectedTextureFolder, out var unmatchedTextures);
-                        UnmatchedTextures = string.Join(Environment.NewLine, unmatchedTextures);
-                        HasUnmatchedTextures = unmatchedTextures.Any();
-                    }
-                    else
-                    {
-                        CustomMessageBox.DisplayNotificationOK("Drafter error", "The selected folder does not exist: " + SelectedTextureFolder);
+                        _configDrafter.DraftConfigFromTextures(CurrentConfig, new List<string>() { SelectedTextureFolder }, false, out unmatchedTextures);
                     }
                     break;
                 default: throw new NotImplementedException();
             }
+
+            UnmatchedTextures = string.Join(Environment.NewLine, unmatchedTextures);
+            HasUnmatchedTextures = unmatchedTextures.Any();
         });
 
         AddFileArchiveButton = new RelayCommand(
@@ -113,6 +115,28 @@ public class VM_ConfigDrafter : VM
         HasUnmatchedTextures = false;
     }
 
+    public bool ValidateExistingDirectory()
+    {
+        if (!Directory.Exists(SelectedTextureFolder))
+        {
+            CustomMessageBox.DisplayNotificationOK("Drafter Error", "The selected mod directory does not exist");
+            return false;
+        }
+
+        var texturesDir = Path.Combine(SelectedTextureFolder, "Textures");
+        if (!Directory.Exists(texturesDir))
+        {
+            CustomMessageBox.DisplayNotificationOK("Drafter Error", "The selected mod directory must contain a Textures folder");
+            return false;
+        }
+        if (Directory.GetDirectories(texturesDir).Length < 1)
+        {
+            CustomMessageBox.DisplayNotificationOK("Drafter Error", "The selected mod directory must contain a Textures\\* folder");
+            return false;
+        }
+        return true;
+    }
+
     public bool ValidateContainers()
     {
         if (!SelectedFileArchives.Any())
@@ -173,6 +197,27 @@ public class VM_ConfigDrafter : VM
         }
 
         return true;
+    }
+
+    public List<string> ExtractArchives()
+    {
+        List<string> destinationDirs = new();
+        var destinationDir = "";
+        foreach (var archiveFile in SelectedFileArchives)
+        {
+            if (_patcherState.ModManagerSettings.ModManagerType == ModManager.None)
+            {
+                destinationDir = Path.Combine(_environmentProvider.DataFolderPath, "Textures", archiveFile.Prefix);
+            }
+            else
+            {
+                destinationDir = Path.Combine(_patcherState.ModManagerSettings.CurrentInstallationFolder, GeneratedModName, "Textures", archiveFile.Prefix);
+            }
+
+            destinationDirs.Add(destinationDir);
+            _7ZipInterface.ExtractArchiveNew(archiveFile.FilePath, Path.Combine(destinationDir), false, false);
+        }
+        return destinationDirs;
     }
 }
 

@@ -1,3 +1,4 @@
+using Mutagen.Bethesda.Fallout4;
 using Noggog;
 using System;
 using System.Collections.Generic;
@@ -19,9 +20,13 @@ namespace SynthEBD
         }
 
 
-        public void DraftConfigFromTextures(VM_AssetPack config, string rootFolderPath, out HashSet<string> unmatchedFiles)
+        public void DraftConfigFromTextures(VM_AssetPack config, List<string> rootFolderPaths, bool rootPathsHavePrefix, out HashSet<string> unmatchedFiles)
         {
-            var allFiles = Directory.GetFiles(rootFolderPath, "*", SearchOption.AllDirectories);
+            var allFiles = new List<string>();
+            foreach (var path in rootFolderPaths)
+            {
+                allFiles.AddRange(Directory.GetFiles(path, "*", SearchOption.AllDirectories));
+            }
             unmatchedFiles = new(allFiles.Where(x => x.EndsWith(".dds", StringComparison.OrdinalIgnoreCase))); // remove files from this list as they're matched
 
             foreach (var type in Enum.GetValues(typeof(TextureType)))
@@ -42,7 +47,7 @@ namespace SynthEBD
                         config.Subgroups.Add(topLevelPlaceHolder);
                     }
 
-                    CreateSubgroupsFromPaths(matchedFiles, rootFolderPath, topLevelPlaceHolder, config, textureType);
+                    CreateSubgroupsFromPaths(matchedFiles, rootFolderPaths, rootPathsHavePrefix, topLevelPlaceHolder, config);
                     CleanRedundantSubgroups(topLevelPlaceHolder);
                     // custom naming and rules based on texture identity
                     ReplaceTextureNamesRecursive(topLevelPlaceHolder, textureType, config);
@@ -50,7 +55,7 @@ namespace SynthEBD
             }
         }
 
-        public void CreateSubgroupsFromPaths(List<string> paths, string rootFolderPath, VM_SubgroupPlaceHolder topLevelPlaceHolder, VM_AssetPack config, TextureType type)
+        public void CreateSubgroupsFromPaths(List<string> paths, List<string> rootFolderPaths, bool rootPathsHavePrefix, VM_SubgroupPlaceHolder topLevelPlaceHolder, VM_AssetPack config)
         {
             var longestPath = GetLongestDirectoryStructure(paths);
             LastParentPlaceHolders.Clear();
@@ -74,7 +79,7 @@ namespace SynthEBD
                     var parentPlaceHolder = LastParentPlaceHolders[pathGroup.First()];
                     var texturesInGroup = paths.Where(x => x.StartsWith(pathGroup.Key + Path.DirectorySeparatorChar)).ToArray(); // match directory separator as well to avoid erroneously adding textures from "\textures\example" into the group from "textures\exam"
 
-                    if (paths.Contains(pathGroup.Key))// this is the file itself
+                    if (paths.Contains(pathGroup.Key) && GetMatchingRootFolder(rootFolderPaths, pathGroup.Key, rootPathsHavePrefix, out var rootFolderPath))// this is the file itself
                     {
                         var fileName = Path.GetFileName(pathGroup.Key);
 
@@ -121,6 +126,28 @@ namespace SynthEBD
 
         private Dictionary<string, VM_SubgroupPlaceHolder> LastParentPlaceHolders { get; set; } = new();
         private Dictionary<string, IGrouping<string, string>> LastParentGroupings { get; set; } = new();
+
+        private bool GetMatchingRootFolder(List<string> rootFolders, string path, bool trimPrefix, out string match)
+        {
+            foreach (var candidate in rootFolders)
+            {
+                if (path.StartsWith(candidate))
+                {
+                    if (trimPrefix)
+                    {
+                        var splitPath = candidate.Split(Path.DirectorySeparatorChar).ToList();
+                        match = String.Join(Path.DirectorySeparatorChar, splitPath.GetRange(0, splitPath.Count - 2)); // remove "textures\\Prefix" from the root folder
+                    }
+                    else
+                    {
+                        match = candidate;
+                    }
+                    return true;
+                }
+            }
+            match = string.Empty;
+            return false;
+        }
 
         private static bool CleanRedundantSubgroups(VM_SubgroupPlaceHolder currentSubgroup)
         {
@@ -461,7 +488,7 @@ namespace SynthEBD
 
         private static readonly Dictionary<string, HashSet<string>> TextureToSubgroupName = new(StringComparer.OrdinalIgnoreCase)
         {
-            { "Vampire", new(StringComparer.OrdinalIgnoreCase) { "maleheadvampire.dds", "femaleheadvampire.dds", "maleheadvampire_msn.dds", "femaleheadvampire_sk.dds" } },
+            { "Vampire", new(StringComparer.OrdinalIgnoreCase) { "maleheadvampire.dds", "femaleheadvampire.dds", "maleheadvampire_msn.dds", "femaleheadvampire_sk.dds", "femaleheadvampire_s.dds" } },
             { "Afflicted", new(StringComparer.OrdinalIgnoreCase) { "maleheadafflicted.dds", "femaleheadafflicted.dds", "malebodyafflicted.dds", "femalebodyafflicted.dds", "malehandsafflicted.dds", "femalehandsafflicted.dds" } },
             { "Snow Elf", new(StringComparer.OrdinalIgnoreCase) { "maleheadsnowelf.dds", "malebodysnowelf.dds", "malehandssnowelf.dds" } },
             { "Khajiit", new(StringComparer.OrdinalIgnoreCase) { "KhajiitMaleHead.dds", "bodymale.dds", "femalebody.dds", "HandsMale.dds", "femalehands.dds", "HandsMale_msn.dds", "femalehands_msn.dds", "handsmale_s.dds", "femalehands_s.dds" } },
@@ -479,7 +506,7 @@ namespace SynthEBD
             { "Freckles", new(StringComparer.OrdinalIgnoreCase) { "femaleheaddetail_frekles.dds" } }
         };
 
-        private static List<string> GetMatchingFiles(string[] files, HashSet<string> fileNames)
+        private static List<string> GetMatchingFiles(IEnumerable<string> files, HashSet<string> fileNames)
         {
             List<string> matchingFilePaths = new List<string>();
 
