@@ -159,8 +159,8 @@ namespace SynthEBD
             { "femaleheadvampire.dds", Dest_HeadDiffuse },
             { "femaleheadvampire_msn.dds", Dest_HeadNormal },
             { "femaleheadorc_msn.dds", Dest_HeadNormal },
-            { "femaleheadvampire_sk.dds", Dest_TorsoFemaleSubsurface },
-            { "femaleheadvampire_s.dds", Dest_TorsoFemaleSpecular },
+            { "femaleheadvampire_sk.dds", Dest_HeadSubsurface },
+            { "femaleheadvampire_s.dds", Dest_HeadSpecular },
 
             //female afflicted
             { "femaleheadafflicted.dds", Dest_HeadDiffuse },
