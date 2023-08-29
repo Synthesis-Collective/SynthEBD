@@ -1,4 +1,3 @@
-using Mutagen.Bethesda.Fallout4;
 using Noggog;
 using System;
 using System.Collections.Generic;
@@ -20,7 +19,7 @@ namespace SynthEBD
         }
 
 
-        public void DraftConfigFromTextures(VM_AssetPack config, List<string> rootFolderPaths, bool rootPathsHavePrefix, out HashSet<string> unmatchedFiles)
+        public void DraftConfigFromTextures(VM_AssetPack config, List<string> rootFolderPaths, bool rootPathsHavePrefix, HashSet<string> unmatchedFiles)
         {
             var allFiles = new List<string>();
             foreach (var path in rootFolderPaths)
@@ -48,9 +47,10 @@ namespace SynthEBD
                     }
 
                     CreateSubgroupsFromPaths(matchedFiles, rootFolderPaths, rootPathsHavePrefix, topLevelPlaceHolder, config);
+
                     CleanRedundantSubgroups(topLevelPlaceHolder);
-                    // custom naming and rules based on texture identity
-                    ReplaceTextureNamesRecursive(topLevelPlaceHolder, textureType, config);
+
+                    ReplaceTextureNamesRecursive(topLevelPlaceHolder, textureType, config); // custom naming and rules based on texture identity
                 }
             }
         }
@@ -74,7 +74,7 @@ namespace SynthEBD
                     continue;
                 }
 
-                foreach(var pathGroup in pathGroups)
+                foreach (var pathGroup in pathGroups)
                 {
                     var parentPlaceHolder = LastParentPlaceHolders[pathGroup.First()];
                     var texturesInGroup = paths.Where(x => x.StartsWith(pathGroup.Key + Path.DirectorySeparatorChar)).ToArray(); // match directory separator as well to avoid erroneously adding textures from "\textures\example" into the group from "textures\exam"
@@ -115,8 +115,8 @@ namespace SynthEBD
                             LastParentPlaceHolders[path] = newPlaceHolder;
                         }
                     }
-                    
-                    foreach(var path in texturesInGroup)
+
+                    foreach (var path in texturesInGroup)
                     {
                         LastParentGroupings[path] = pathGroup;
                     }
@@ -153,7 +153,7 @@ namespace SynthEBD
         {
             for (int i = 0; i < currentSubgroup.Subgroups.Count; i++)
             {
-                if(CleanRedundantSubgroups(currentSubgroup.Subgroups[i]))
+                if (CleanRedundantSubgroups(currentSubgroup.Subgroups[i]))
                 {
                     currentSubgroup.Subgroups.RemoveAt(i);
                 }
@@ -173,7 +173,7 @@ namespace SynthEBD
                         currentSubgroup.Subgroups.RemoveAt(i);
                         i--;
 
-                        if(toMove.AssociatedModel.Paths.Any() && toMove.AssociatedModel.Paths.First().Source.EndsWith(toMove.AssociatedModel.Name))
+                        if (toMove.AssociatedModel.Paths.Any() && toMove.AssociatedModel.Paths.First().Source.EndsWith(toMove.AssociatedModel.Name, StringComparison.OrdinalIgnoreCase))
                         {
                             toMove.AssociatedModel.Name = currentSubgroup.AssociatedModel.Name;
                             toMove.Name = toMove.AssociatedModel.Name;
@@ -196,7 +196,7 @@ namespace SynthEBD
         private int GetLongestDirectoryStructure(List<string> paths)
         {
             int longestPath = 0;
-            foreach(string path in paths)
+            foreach (string path in paths)
             {
                 var split = path.Split(Path.DirectorySeparatorChar);
                 if (split.Length > longestPath)
@@ -242,7 +242,7 @@ namespace SynthEBD
                     ReplaceSubgroupNameByFile(fileName, subgroup, config);
                 }
             }
-            
+
             foreach (var sg in subgroup.Subgroups)
             {
                 ReplaceTextureNamesRecursive(sg, type, config);
@@ -367,7 +367,7 @@ namespace SynthEBD
         {
             foreach (var entry in TextureToSubgroupName)
             {
-                if (subgroup.AssociatedModel.Name == fileName && entry.Value.Contains(fileName, StringComparer.OrdinalIgnoreCase)) // don't rename if subgroup has already been renamed
+                if (subgroup.AssociatedModel.Name.Equals(fileName, StringComparison.OrdinalIgnoreCase) && entry.Value.Contains(fileName, StringComparer.OrdinalIgnoreCase)) // don't rename if subgroup has already been renamed
                 {
                     subgroup.AssociatedModel.Name = entry.Key;
                     subgroup.Name = subgroup.AssociatedModel.Name;
@@ -444,7 +444,7 @@ namespace SynthEBD
             subgroup.AssociatedModel.AllowedAttributes.Add(attribute);
         }
 
-        private static readonly Dictionary<TextureType, (string,string)> TypeToSubgroupLabels = new()
+        private static readonly Dictionary<TextureType, (string, string)> TypeToSubgroupLabels = new()
         {
             { TextureType.HeadDiffuse, ("HD", "Head Diffuse")},
             { TextureType.HeadNormal, ("HN", "Head Normals") },
@@ -471,7 +471,7 @@ namespace SynthEBD
             { TextureType.HeadNormal, new(StringComparer.OrdinalIgnoreCase) { "malehead_msn.dds", "maleheadvampire_msn.dds", "maleheadorc_msn.dds", "KhajiitMaleHead_msn.dds", "ArgonianMaleHead_msn.dds", "femalehead_msn.dds", "femaleheadvampire_msn.dds", "femaleheadorc_msn.dds", "AstridHead_msn.dds", "argonianfemalehead_msn.dds" } },
             { TextureType.HeadSubsurface, new(StringComparer.OrdinalIgnoreCase) { "malehead_sk.dds", "femalehead_sk.dds", "femaleheadvampire_sk.dds" } },
             { TextureType.HeadSpecular, new(StringComparer.OrdinalIgnoreCase) { "malehead_s.dds", "khajiitmalehead_s.dds", "ArgonianMaleHead_s.dds", "femalehead_s.dds", "femaleheadvampire_s.dds", "AstridHead_s.dds", "argonianfemalehead_s.dds" } },
-            { TextureType.HeadDetail, new(StringComparer.OrdinalIgnoreCase) { "blankdetailmap.dds", "maleheaddetail_age40.dds", "maleheaddetail_age40rough.dds", "maleheaddetail_age50.dds", "maleheaddetail_rough01.dds", "maleheaddetail_rough02.dds", "KhajiitOld.dds", "ArgonianMaleHeadOld.dds", "femaleheaddetail_age40.dds", "femaleheaddetail_age50.dds", "femaleheaddetail_rough.dds", "femaleheaddetail_age40rough.dds", "femaleheaddetail_frekles.dds", "ArgonianFemaleHeadOld.dds" } },           
+            { TextureType.HeadDetail, new(StringComparer.OrdinalIgnoreCase) { "blankdetailmap.dds", "maleheaddetail_age40.dds", "maleheaddetail_age40rough.dds", "maleheaddetail_age50.dds", "maleheaddetail_rough01.dds", "maleheaddetail_rough02.dds", "KhajiitOld.dds", "ArgonianMaleHeadOld.dds", "femaleheaddetail_age40.dds", "femaleheaddetail_age50.dds", "femaleheaddetail_rough.dds", "femaleheaddetail_age40rough.dds", "femaleheaddetail_frekles.dds", "ArgonianFemaleHeadOld.dds" } },
             { TextureType.BodyDiffuse, new(StringComparer.OrdinalIgnoreCase) { "malebody_1.dds", "malebodyafflicted.dds", "malebodysnowelf.dds", "bodymale.dds", "argonianmalebody.dds", "femalebody_1.dds", "femalebodyafflicted.dds", "AstridBody.dds", "femalebody.dds", "argonianfemalebody.dds" } },
             { TextureType.BodyNormal, new(StringComparer.OrdinalIgnoreCase) { "maleBody_1_msn.dds", "bodymale_msn.dds", "argonianmalebody_msn.dds", "femaleBody_1_msn.dds", "AstridBody_msn.dds", "femalebody_msn.dds", "argonianfemalebody_msn.dds" } },
             { TextureType.BodySubsurface, new(StringComparer.OrdinalIgnoreCase) { "malebody_1_sk.dds", "femalebody_1_sk.dds" } },
@@ -488,6 +488,7 @@ namespace SynthEBD
 
         private static readonly Dictionary<string, HashSet<string>> TextureToSubgroupName = new(StringComparer.OrdinalIgnoreCase)
         {
+            { "Default", new(StringComparer.OrdinalIgnoreCase) { "malehead.dds", "femalehead.dds", "malehead_sk.dds", "femalehead_sk.dds", "malehead_s.dds", "femalehead_s.dds", "blankdetailmap.dds", "malebody_1.dds", "femalebody_1.dds", "maleBody_1_msn.dds", "femalebody_msn.dds", "malebody_1_s.dds", "femalebody_1_s.dds", "malehands_1.dds" , "femalehands_1.dds", "malehands_1_msn.dds", "femalehands_1_msn.dds", "malehands_1_sk.dds", "femalehands_1_sk.dds", "malehands_1_s.dds", "femalehands_1_s.dds", "malebody_1_feet.dds", "femalebody_1_feet.dds", "malebody_1_msn_feet.dds", "femalebody_1_msn_feet.dds", "malebody_1_feet_sk.dds", "femalebody_1_feet_sk.dds", "malebody_1_feet_s.dds", "femalebody_1_feet_s.dds" } },
             { "Vampire", new(StringComparer.OrdinalIgnoreCase) { "maleheadvampire.dds", "femaleheadvampire.dds", "maleheadvampire_msn.dds", "femaleheadvampire_sk.dds", "femaleheadvampire_s.dds" } },
             { "Afflicted", new(StringComparer.OrdinalIgnoreCase) { "maleheadafflicted.dds", "femaleheadafflicted.dds", "malebodyafflicted.dds", "femalebodyafflicted.dds", "malehandsafflicted.dds", "femalehandsafflicted.dds" } },
             { "Snow Elf", new(StringComparer.OrdinalIgnoreCase) { "maleheadsnowelf.dds", "malebodysnowelf.dds", "malehandssnowelf.dds" } },
@@ -496,7 +497,6 @@ namespace SynthEBD
             { "Argonian", new(StringComparer.OrdinalIgnoreCase) { "ArgonianMaleHead.dds", "argonianfemalehead.dds", "ArgonianMaleHead_s.dds" , "argonianfemalehead_s.dds", "argonianmalebody.dds", "argonianfemalebody.dds", "argonianmalebody_msn.dds", "argonianfemalebody_msn.dds", "argonianmalebody_s.dds", "femalebody_s.dds", "ArgonianMaleHands.dds", "argonianfemalehands.dds", "ArgonianMaleHands_msn.dds", "argonianfemalehands_msn.dds", "ArgonianMaleHands_s.dds", "argonianfemalehands_s.dds" } },
             { "Argonian Old", new(StringComparer.OrdinalIgnoreCase) { "ArgonianMaleHeadOld.dds", "ArgonianFemaleHeadOld.dds" } },
             { "Astrid", new(StringComparer.OrdinalIgnoreCase) { "AstridHead.dds", "AstridHead_msn.dds", "AstridHead_s.dds", "AstridBody.dds", "AstridBody_msn.dds", "AstridBody_s.dds", "AstridHands.dds" } },
-            { "Default", new(StringComparer.OrdinalIgnoreCase) { "blankdetailmap.dds" } },
             { "Age 40", new(StringComparer.OrdinalIgnoreCase) { "maleheaddetail_age40.dds", "femaleheaddetail_age40.dds" } },
             { "Age 40 Rough", new(StringComparer.OrdinalIgnoreCase) { "maleheaddetail_age40rough.dds", "femaleheaddetail_age40rough.dds" } },
             { "Age 50", new(StringComparer.OrdinalIgnoreCase) { "maleheaddetail_age50.dds", "femaleheaddetail_age50.dds" } },

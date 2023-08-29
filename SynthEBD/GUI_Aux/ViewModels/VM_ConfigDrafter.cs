@@ -39,13 +39,13 @@ public class VM_ConfigDrafter : VM
                     if (ValidateContainers())
                     {
                         var destinationDirs = ExtractArchives();
-                        _configDrafter.DraftConfigFromTextures(CurrentConfig, destinationDirs, true, out unmatchedTextures);
+                        _configDrafter.DraftConfigFromTextures(CurrentConfig, destinationDirs, true, unmatchedTextures);
                     }
                     break;
                 case DrafterTextureSource.Directory:
                     if (ValidateExistingDirectory())
                     {
-                        _configDrafter.DraftConfigFromTextures(CurrentConfig, new List<string>() { SelectedTextureFolder }, false, out unmatchedTextures);
+                        _configDrafter.DraftConfigFromTextures(CurrentConfig, new List<string>() { SelectedTextureFolder }, false, unmatchedTextures);
                     }
                     break;
                 default: throw new NotImplementedException();
