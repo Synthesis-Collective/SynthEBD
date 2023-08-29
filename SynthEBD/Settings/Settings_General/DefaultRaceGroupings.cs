@@ -60,6 +60,22 @@ public class DefaultRaceGroupings
         }
     };
 
+    public static RaceGrouping HumanoidPlayableNonVampire = new RaceGrouping()
+    {
+        Label = "Humanoid Playable Non-Vampire",
+        Races = new HashSet<Mutagen.Bethesda.Plugins.FormKey>()
+        {
+            Skyrim.Race.NordRace.FormKey,
+            Skyrim.Race.BretonRace.FormKey,
+            Skyrim.Race.DarkElfRace.FormKey,
+            Skyrim.Race.HighElfRace.FormKey,
+            Skyrim.Race.ImperialRace.FormKey,
+            Skyrim.Race.OrcRace.FormKey,
+            Skyrim.Race.RedguardRace.FormKey,
+            Skyrim.Race.WoodElfRace.FormKey
+        }
+    };
+
     public static RaceGrouping HumanoidNonVampire = new RaceGrouping()
     {
         Label = "Humanoid Non-Vampire",
