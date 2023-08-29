@@ -1,3 +1,5 @@
+using ControlzEx.Standard;
+using Mutagen.Bethesda.Plugins;
 using Noggog;
 using System;
 using System.Collections.Generic;
@@ -5,7 +7,9 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using static SynthEBD.AssetPack;
 
 namespace SynthEBD
 {
@@ -51,6 +55,11 @@ namespace SynthEBD
                     CleanRedundantSubgroups(topLevelPlaceHolder);
 
                     ReplaceTextureNamesRecursive(topLevelPlaceHolder, textureType, config); // custom naming and rules based on texture identity
+
+                    if (textureType != TextureType.HeadNormal)
+                    {
+                        AddRulesBySubgroupNameRecursive(topLevelPlaceHolder);
+                    }
                 }
             }
         }
@@ -226,6 +235,14 @@ namespace SynthEBD
             return subgroup;
         }
 
+        private void UpdateSubgroupName(VM_SubgroupPlaceHolder subgroup, string name)
+        {
+            subgroup.AssociatedModel.Name = name;
+            subgroup.Name = name;
+            subgroup.AutoGenerateID(false, 0);
+            subgroup.AssociatedModel.ID = subgroup.ID;
+        }
+
         private void ReplaceTextureNamesRecursive(VM_SubgroupPlaceHolder subgroup, TextureType type, VM_AssetPack config)
         {
             if (subgroup.AssociatedModel.Paths.Count == 1)
@@ -243,6 +260,29 @@ namespace SynthEBD
                 }
             }
 
+            // minor sculpting
+            if (subgroup.AssociatedModel.Name.Contains("female", StringComparison.OrdinalIgnoreCase))
+            {
+                var candidateName = Regex.Replace(subgroup.AssociatedModel.Name, "female", "", RegexOptions.IgnoreCase);
+                if (candidateName.Length > 0)
+                {
+                    UpdateSubgroupName(subgroup, candidateName);
+                }
+            }
+            else if (subgroup.AssociatedModel.Name.Contains("male", StringComparison.OrdinalIgnoreCase))
+            {
+                var candidateName = Regex.Replace(subgroup.AssociatedModel.Name, "male", "", RegexOptions.IgnoreCase);
+                if (candidateName.Length > 0)
+                {
+                    UpdateSubgroupName(subgroup, candidateName);
+                }
+            }
+
+            if (subgroup.AssociatedModel.Name.Equals("Male", StringComparison.OrdinalIgnoreCase) || subgroup.AssociatedModel.Name.Equals("Female", StringComparison.OrdinalIgnoreCase)) // these are almost always going to be pointing to the default Nord textures
+            {
+                UpdateSubgroupName(subgroup, "Nord");
+            }
+
             foreach (var sg in subgroup.Subgroups)
             {
                 ReplaceTextureNamesRecursive(sg, type, config);
@@ -255,45 +295,46 @@ namespace SynthEBD
             {
                 folder = folder.ToLower().Split(Path.DirectorySeparatorChar).Last();
 
-                if (fileName != null && subgroup.AssociatedModel.Name == fileName) // don't rename if subgroup has already been renamed
+                if (fileName != null && (subgroup.AssociatedModel.Name.Equals(fileName, StringComparison.OrdinalIgnoreCase) || folder.Contains(subgroup.AssociatedModel.Name, StringComparison.OrdinalIgnoreCase))) // don't rename if subgroup has already been renamed, unless it was moved to a higher level subgroup in the CleanRedundantSubgroups() function
                 {
                     switch (folder)
                     {
                         case "maleold":
-                            subgroup.AssociatedModel.Name = "Elder";
+                            UpdateSubgroupName(subgroup, "Elder");
                             subgroup.AssociatedModel.AllowedRaceGroupings.Add("Elder");
                             break;
                         case "femaleold":
-                            subgroup.AssociatedModel.Name = "Elder";
+                            UpdateSubgroupName(subgroup, "Elder");
                             subgroup.AssociatedModel.AllowedRaceGroupings.Add("Elder");
                             break;
                         case "bretonmale":
-                            subgroup.AssociatedModel.Name = "Breton";
-                            subgroup.AssociatedModel.AllowedRaceGroupings.Add("Breton");
+                            UpdateSubgroupName(subgroup, "Breton");
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.BretonRace.FormKey);
                             subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DA13AfflictedRace.FormKey); // Bretons get Afflicted normals
                             break;
                         case "bretonfemale":
-                            subgroup.AssociatedModel.Name = "Breton";
-                            subgroup.AssociatedModel.AllowedRaceGroupings.Add("Breton");
+                            UpdateSubgroupName(subgroup, "Breton");
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.BretonRace.FormKey);
                             subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DA13AfflictedRace.FormKey); // Bretons get Afflicted normals
                             break;
                         case "darkelfmale":
-                            subgroup.AssociatedModel.Name = "Dark Elf";
-                            subgroup.AssociatedModel.AllowedRaceGroupings.Add("Dark Elf");
+                            UpdateSubgroupName(subgroup, "Dark Elf");
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DarkElfRace.FormKey);
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DarkElfRaceVampire.FormKey); // From Dawnguard's SkinHeadFemaleOrcVampire
                             break;
                         case "darkelffemale":
-                            subgroup.AssociatedModel.Name = "Dark Elf";
-                            subgroup.AssociatedModel.AllowedRaceGroupings.Add("Dark Elf");
+                            UpdateSubgroupName(subgroup, "Dark Elf");
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DarkElfRace.FormKey);
                             break;
                         case "male":
                             switch (fileName)
                             {
                                 case "malehead_msn.dds":
-                                    subgroup.AssociatedModel.Name = "Nord";
-                                    subgroup.AssociatedModel.AllowedRaceGroupings.Add("Nord");
+                                    UpdateSubgroupName(subgroup, "Nord");
+                                    subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey);
                                     break;
                                 case "maleheadvampire_msn.dds":
-                                    subgroup.AssociatedModel.Name = "Vampire";
+                                    UpdateSubgroupName(subgroup, "Vampire");
                                     subgroup.AssociatedModel.AllowedRaceGroupings.Add("Humanoid Young Vampire");
                                     break;
                             }
@@ -302,64 +343,65 @@ namespace SynthEBD
                             switch (fileName)
                             {
                                 case "femalehead_msn.dds":
-                                    subgroup.AssociatedModel.Name = "Nord";
-                                    subgroup.AssociatedModel.AllowedRaceGroupings.Add("Nord");
+                                    UpdateSubgroupName(subgroup, "Nord");
+                                    subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey);
                                     break;
                                 case "femaleheadvampire_msn.dds":
-                                    subgroup.AssociatedModel.Name = "Vampire";
+                                    UpdateSubgroupName(subgroup, "Vampire");
                                     subgroup.AssociatedModel.AllowedRaceGroupings.Add("Humanoid Young Vampire");
                                     break;
                                 case "astridhead_msn.dds":
-                                    subgroup.AssociatedModel.Name = "Astrid";
+                                    UpdateSubgroupName(subgroup, "Astrid");
                                     subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRaceAstrid.FormKey);
                                     break;
                             }
                             break;
                         case "highelfmale":
-                            subgroup.AssociatedModel.Name = "High Elf";
-                            subgroup.AssociatedModel.AllowedRaceGroupings.Add("High Elf");
+                            UpdateSubgroupName(subgroup, "High Elf");
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.HighElfRace.FormKey);
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Dawnguard.Race.SnowElfRace.FormKey); // Snow Elves get High Elf normals
                             break;
                         case "highelffemale":
-                            subgroup.AssociatedModel.Name = "High Elf";
-                            subgroup.AssociatedModel.AllowedRaceGroupings.Add("High Elf");
+                            UpdateSubgroupName(subgroup, "High Elf");
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.HighElfRace.FormKey);
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Dawnguard.Race.SnowElfRace.FormKey); // Snow Elves get High Elf normals
                             break;
                         case "orcmale":
-                            subgroup.AssociatedModel.Name = "Orc";
-                            subgroup.AssociatedModel.AllowedRaceGroupings.Add("Orc");
+                            UpdateSubgroupName(subgroup, "Orc");
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.OrcRace.FormKey);
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.OrcRaceVampire.FormKey); // From Dawnguard's SkinHeadFemaleOrcVampire
                             break;
                         case "femaleorc":
-                            subgroup.AssociatedModel.Name = "Orc";
-                            subgroup.AssociatedModel.AllowedRaceGroupings.Add("Orc");
+                            UpdateSubgroupName(subgroup, "Orc");
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.OrcRace.FormKey);
                             break;
                         case "imperialmale":
-                            subgroup.AssociatedModel.Name = "Imperial";
-                            subgroup.AssociatedModel.AllowedRaceGroupings.Add("Imperial");
+                            UpdateSubgroupName(subgroup, "Imperial");
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ImperialRace.FormKey);
                             break;
                         case "imperialfemale":
-                            subgroup.AssociatedModel.Name = "Imperial";
-                            subgroup.AssociatedModel.AllowedRaceGroupings.Add("Imperial");
+                            UpdateSubgroupName(subgroup, "Imperial");
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ImperialRace.FormKey);
                             break;
                         case "redguardmale":
-                            subgroup.AssociatedModel.Name = "Redguard";
-                            subgroup.AssociatedModel.AllowedRaceGroupings.Add("Redguard");
+                            UpdateSubgroupName(subgroup, "Redguard");
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.RedguardRace.FormKey);
                             break;
                         case "redguardfemale":
-                            subgroup.AssociatedModel.Name = "Redguard";
-                            subgroup.AssociatedModel.AllowedRaceGroupings.Add("Redguard");
+                            UpdateSubgroupName(subgroup, "Redguard");
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.RedguardRace.FormKey);
                             break;
                         case "woodelfmale":
-                            subgroup.AssociatedModel.Name = "Wood Elf";
-                            subgroup.AssociatedModel.AllowedRaceGroupings.Add("Wood Elf");
+                            UpdateSubgroupName(subgroup, "Wood Elf");
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.WolfRace.FormKey);
                             break;
                         case "woodelffemale":
-                            subgroup.AssociatedModel.Name = "Wood Elf";
-                            subgroup.AssociatedModel.AllowedRaceGroupings.Add("Wood Elf");
+                            UpdateSubgroupName(subgroup, "Wood Elf");
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.WoodElfRace.FormKey);
                             break; // this is a weird one. Texture Set SkinHeadFemaleWoodElf (03D2AC:Skyrim.esm) points to HighElfFemale\FemaleHead_msn.dds. After completion, subgroup should be checked. If no wood elf normal exists, the allowed races on High Elf should be modified to include wood elves.
                         default: break;
                     }
                 }
-                subgroup.Name = subgroup.AssociatedModel.Name;
-                subgroup.AutoGenerateID(false, 0);
             }
         }
 
@@ -369,9 +411,7 @@ namespace SynthEBD
             {
                 if (subgroup.AssociatedModel.Name.Equals(fileName, StringComparison.OrdinalIgnoreCase) && entry.Value.Contains(fileName, StringComparer.OrdinalIgnoreCase)) // don't rename if subgroup has already been renamed
                 {
-                    subgroup.AssociatedModel.Name = entry.Key;
-                    subgroup.Name = subgroup.AssociatedModel.Name;
-                    subgroup.AutoGenerateID(false, 0);
+                    UpdateSubgroupName(subgroup, entry.Key);
                 }
             }
 
@@ -431,6 +471,101 @@ namespace SynthEBD
                     AddAttributeGroup(subgroup, group);
                 }
             }
+        }
+
+        private void AddRulesBySubgroupNameRecursive(VM_SubgroupPlaceHolder subgroup)
+        {
+            AddRulesBySubgroupName(subgroup);
+            foreach (var sg in subgroup.Subgroups)
+            {
+                AddRulesBySubgroupNameRecursive(sg);
+            }
+        }
+
+        private void AddRulesBySubgroupName(VM_SubgroupPlaceHolder subgroup)
+        {
+            var raceFormKey = GetRaceFormKeyFromName(subgroup.AssociatedModel.Name);
+            if (raceFormKey != null)
+            {
+                subgroup.AssociatedModel.AllowedRaces.Add(raceFormKey.Value);
+            }
+            
+            if (subgroup.AssociatedModel.Name.Contains("Vampire", StringComparison.OrdinalIgnoreCase)) // complex handling
+            {
+                var parentSubgroups = new List<VM_SubgroupPlaceHolder>();
+                GetParentSubgroups(subgroup, parentSubgroups);
+                bool parentRaceSpecified = false;
+                foreach (var parent in parentSubgroups)
+                {
+                    var parentRaceFormKey = GetRaceFormKeyFromName(parent.AssociatedModel.Name); // do any of the parent subgroup names imply a specific race for this branch of the subgroup tree?
+                    if (parentRaceFormKey != null && CorrespondingVampireRaces.ContainsKey(parentRaceFormKey.Value))
+                    {
+                        parentRaceSpecified = true;
+                        var vampireCounterpart = CorrespondingVampireRaces[parentRaceFormKey.Value]; // if yes, get the vampire analogue of that race and add it to both this subgroup and the root node
+                        subgroup.AssociatedModel.AllowedRaces.Add(vampireCounterpart);
+                        if (!parent.AssociatedModel.AllowedRaces.Contains(vampireCounterpart))
+                        {
+                            parent.AssociatedModel.AllowedRaces.Add(vampireCounterpart);
+                        }
+                        
+                        var otherSubgroups = new List<VM_SubgroupPlaceHolder>();
+                        GetOtherBottomSubgroups(parent, subgroup, otherSubgroups);
+                        foreach (var sg in otherSubgroups) // within this branch of the subgroup tree, prevent other non-vampire subgroups from inheriting the root allowed vampire race by adding it to the exclusion race
+                        {
+                            if (!sg.AssociatedModel.Name.Contains("Vampire", StringComparison.OrdinalIgnoreCase) && !sg.AssociatedModel.DisallowedRaces.Contains(vampireCounterpart))
+                            {
+                                sg.AssociatedModel.DisallowedRaces.Add(vampireCounterpart);
+                            }
+                        }
+                    }
+                }
+                if (!parentRaceSpecified) // if none of the subgroups above the current subgroup imply a specific race, let this Vampire subgroup go to any humanoid vampires. 
+                {
+                    subgroup.AssociatedModel.AllowedRaceGroupings.Add("Humanoid Vampire");
+                }
+            }
+
+            if (subgroup.AssociatedModel.Name == "Default")
+            {
+                subgroup.AssociatedModel.AllowedRaceGroupings.Add("Humanoid Playable Non-Vampire");
+            }
+        }
+
+        private void GetParentSubgroups(VM_SubgroupPlaceHolder subgroup, List<VM_SubgroupPlaceHolder> parents)
+        {
+            if (subgroup.ParentSubgroup is not null)
+            {
+                parents.Add(subgroup.ParentSubgroup);
+                GetParentSubgroups(subgroup.ParentSubgroup, parents);
+            }
+        }
+
+        private void GetOtherBottomSubgroups(VM_SubgroupPlaceHolder root, VM_SubgroupPlaceHolder subgroupToExclude, List<VM_SubgroupPlaceHolder> otherBottomLevelSubgroups)
+        {
+            foreach (var subgroup in root.Subgroups)
+            {
+                GetOtherBottomSubgroups(subgroup, subgroupToExclude, otherBottomLevelSubgroups);
+            }
+
+            if (root.AssociatedModel.Paths.Any() && root != subgroupToExclude)
+            {
+                otherBottomLevelSubgroups.Add(root);
+            }
+        }
+
+        private FormKey? GetRaceFormKeyFromName(string subgroupName)
+        {
+            foreach (var entry in RaceFormKeyToRaceString)
+            {
+                foreach (var name in entry.Value)
+                {
+                    if (subgroupName.Contains(name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return entry.Key;
+                    }
+                }
+            }
+            return null;
         }
 
         private void AddAttributeGroup(VM_SubgroupPlaceHolder subgroup, VM_AttributeGroup group)
@@ -504,6 +639,37 @@ namespace SynthEBD
             { "Rough1", new(StringComparer.OrdinalIgnoreCase) { "maleheaddetail_rough01.dds" } },
             { "Rough2", new(StringComparer.OrdinalIgnoreCase) { "maleheaddetail_rough02.dds" } },
             { "Freckles", new(StringComparer.OrdinalIgnoreCase) { "femaleheaddetail_frekles.dds" } }
+        };
+
+        private static readonly Dictionary<FormKey, HashSet<string>> RaceFormKeyToRaceString = new()
+        {
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Argonian" } },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.BretonRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Breton" } },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DarkElfRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Dark Elf", "DarkElf", "Dunmer" } },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.HighElfRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "High Elf", "HighElf", "Altmer" } },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ImperialRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Imperial" } },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Khajiit" } },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Nord", "Male", "Female" } }, // most "Male" or "Female" subgroups will have inherited their name from the parent folder which points to the default textures which are supposed to be for nords (e.g. malehead_msn.dds)
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.OrcRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Orc", "Orsimer" } },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.RedguardRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Redguard" } },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.WoodElfRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Wood Elf", "WoodElf", "Bosmer" } },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DA13AfflictedRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Afflicted" } },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Dawnguard.Race.SnowElfRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Snow Elf", "SnowElf" } },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRaceAstrid.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Astrid" } }
+        };
+
+        private static readonly Dictionary<FormKey, FormKey> CorrespondingVampireRaces = new()
+        {
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRaceVampire.FormKey },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.BretonRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.BretonRaceVampire.FormKey },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DarkElfRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DarkElfRaceVampire.FormKey },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.HighElfRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.HighElfRaceVampire.FormKey },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ImperialRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ImperialRaceVampire.FormKey },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRaceVampire.FormKey },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRaceVampire.FormKey },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.OrcRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.OrcRaceVampire.FormKey },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.RedguardRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.RedguardRaceVampire.FormKey },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.WoodElfRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.WoodElfRaceVampire.FormKey }
         };
 
         private static List<string> GetMatchingFiles(IEnumerable<string> files, HashSet<string> fileNames)
