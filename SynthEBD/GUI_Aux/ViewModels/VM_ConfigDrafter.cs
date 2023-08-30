@@ -1,6 +1,7 @@
 using DynamicData;
 using Microsoft.Build.Tasks.Deployment.ManifestUtilities;
 using Noggog;
+using ReactiveUI;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -28,32 +29,31 @@ public class VM_ConfigDrafter : VM
         _archiveContainerFactory = archiveContainerFactory;
         _7ZipInterfaceVM = sevenZipInterfaceVM;
 
-        DraftConfigButton = new RelayCommand(
-        canExecute: _ => true,
-        execute: _ =>
-        {
-            HashSet<string> unmatchedTextures = new();
-            switch (SelectedSource)
+        DraftConfigButton = ReactiveCommand.CreateFromTask(
+            execute: async _ =>
             {
-                case DrafterTextureSource.Archives: 
-                    if (ValidateContainers())
-                    {
-                        var destinationDirs = ExtractArchives();
-                        _configDrafter.DraftConfigFromTextures(CurrentConfig, destinationDirs, true, unmatchedTextures);
-                    }
-                    break;
-                case DrafterTextureSource.Directory:
-                    if (ValidateExistingDirectory())
-                    {
-                        _configDrafter.DraftConfigFromTextures(CurrentConfig, new List<string>() { SelectedTextureFolder }, false, unmatchedTextures);
-                    }
-                    break;
-                default: throw new NotImplementedException();
-            }
+                HashSet<string> unmatchedTextures = new();
+                switch (SelectedSource)
+                {
+                    case DrafterTextureSource.Archives: 
+                        if (await ValidateContainers())
+                        {
+                            var destinationDirs = await ExtractArchives();
+                            _configDrafter.DraftConfigFromTextures(CurrentConfig, destinationDirs, true, unmatchedTextures);
+                        }
+                        break;
+                    case DrafterTextureSource.Directory:
+                        if (ValidateExistingDirectory())
+                        {
+                            _configDrafter.DraftConfigFromTextures(CurrentConfig, new List<string>() { SelectedTextureFolder }, false, unmatchedTextures);
+                        }
+                        break;
+                    default: throw new NotImplementedException();
+                }
 
-            UnmatchedTextures = string.Join(Environment.NewLine, unmatchedTextures);
-            HasUnmatchedTextures = unmatchedTextures.Any();
-        });
+                UnmatchedTextures = string.Join(Environment.NewLine, unmatchedTextures);
+                HasUnmatchedTextures = unmatchedTextures.Any();
+            });
 
         AddFileArchiveButton = new RelayCommand(
             canExecute: _ => true,
@@ -86,7 +86,7 @@ public class VM_ConfigDrafter : VM
     public string UnmatchedTextures { get; set; }
     public bool HasUnmatchedTextures { get; set; } = false;
 
-    public RelayCommand DraftConfigButton { get; }
+    public IReactiveCommand DraftConfigButton { get; }
     public RelayCommand AddFileArchiveButton { get; }
     public RelayCommand SelectDirectoryButton { get; }
 
@@ -137,7 +137,7 @@ public class VM_ConfigDrafter : VM
         return true;
     }
 
-    public bool ValidateContainers()
+    public async Task<bool> ValidateContainers()
     {
         if (!SelectedFileArchives.Any())
         {
@@ -176,7 +176,7 @@ public class VM_ConfigDrafter : VM
                 return false;
             }
 
-            var currentArchiveContents = _7ZipInterfaceVM.GetArchiveContents(container.FilePath);
+            var currentArchiveContents = await _7ZipInterfaceVM.GetArchiveContents(container.FilePath, true, true, 500);
             if (!currentArchiveContents.Any())
             {
                 CustomMessageBox.DisplayNotificationOK("Drafter Error", "The following file has no contents upon extraction: " + Environment.NewLine + container.FilePath);
@@ -199,7 +199,7 @@ public class VM_ConfigDrafter : VM
         return true;
     }
 
-    public List<string> ExtractArchives()
+    public async Task<List<string>> ExtractArchives()
     {
         List<string> destinationDirs = new();
         var destinationDir = "";
@@ -215,8 +215,7 @@ public class VM_ConfigDrafter : VM
             }
 
             destinationDirs.Add(destinationDir);
-            _7ZipInterfaceVM.ExtractArchive(archiveFile.FilePath, destinationDir, true, false);
-            //_7ZipInterface.ExtractArchiveNew(archiveFile.FilePath, Path.Combine(destinationDir), false, false);
+            var succes = await _7ZipInterfaceVM.ExtractArchive(archiveFile.FilePath, destinationDir, true, true, 1000);
         }
         return destinationDirs;
     }

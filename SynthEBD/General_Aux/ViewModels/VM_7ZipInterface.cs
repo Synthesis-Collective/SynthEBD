@@ -45,26 +45,44 @@ namespace SynthEBD
             _window.Show();
         }
 
-        public bool ExtractArchive(string sourcePath, string destinationPath, bool showWindow, bool closeWindowWhenDone)
+        public async Task<bool> ExtractArchive(string archivePath, string destinationPath, bool showWindow, bool closeWindowWhenDone, int pauseMilliseconds)
         {
+            PutThisOnScreen = "";
+
             if (showWindow)
             {
                 DisplayWindow();
             }
 
-            var result = Task.Run(() => _7z.ExtractArchiveNew(sourcePath, destinationPath, false, AddToScreen)).Result;
-            
+            var result = await Task.Run(() => _7z.ExtractArchiveNew(archivePath, destinationPath, true, AddToScreen));
+
             if (closeWindowWhenDone && _window != null)
             {
-                _window.Close();
+                Thread.Sleep(pauseMilliseconds);
+                _window.Hide();
             }
 
             return result;
         }
 
-        public List<string> GetArchiveContents(string archivePath)
+        public async Task<List<string>> GetArchiveContents(string archivePath, bool showWindow, bool closeWindowWhenDone, int pauseMilliseconds)
         {
-            return _7z.GetArchiveContents(archivePath);
+            PutThisOnScreen = "";
+
+            if (showWindow)
+            {
+                DisplayWindow();
+            }
+
+            var result = await Task.Run(() => _7z.GetArchiveContents(archivePath, true, AddToScreen));
+
+            if (closeWindowWhenDone && _window != null)
+            {
+                Thread.Sleep(pauseMilliseconds);
+                _window.Hide();
+            }
+
+            return result;
         }
     }
 }
