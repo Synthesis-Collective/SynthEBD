@@ -52,7 +52,8 @@ namespace SynthEBD
                 DisplayWindow();
             }
 
-            var result = _7z.ExtractArchiveNew(sourcePath, destinationPath, false, AddToScreen);
+            var result = Task.Run(() => _7z.ExtractArchiveNew(sourcePath, destinationPath, false, AddToScreen)).Result;
+            
             if (closeWindowWhenDone && _window != null)
             {
                 _window.Close();
