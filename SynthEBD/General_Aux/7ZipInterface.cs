@@ -23,7 +23,7 @@ namespace SynthEBD
             _environmentStateProvider = environmentStateProvider;
         }
 
-        public bool ExtractArchiveNew(string archivePath, string destinationPath, bool hideWindow, bool redirectForValidation)
+        public bool ExtractArchiveNew(string archivePath, string destinationPath, bool hideWindow, Action<string> updateStr)
         {
             try
             {
@@ -36,26 +36,43 @@ namespace SynthEBD
                 }
                 pro.FileName = _sevenZipPath;
                 pro.Arguments = string.Format("x \"{0}\" -y -o\"{1}\"", archivePath, destinationPath);
-                if (redirectForValidation)
+                if (updateStr != null)
                 {
                     pro.WindowStyle = ProcessWindowStyle.Hidden;
                     pro.RedirectStandardOutput = true;
                     pro.RedirectStandardError = true;
                     pro.UseShellExecute = false;
                 }
-                Process x = Process.Start(pro);
-                x.WaitForExit();
-
-                if (redirectForValidation)
+                using (Process process = new Process { StartInfo = pro, EnableRaisingEvents = true })
                 {
-                    string output = x.StandardOutput.ReadToEnd();
-                    if (output.Contains("Can't open as archive"))
+                    process.Start();
+
+                    // Capture the standard output
+                    StringBuilder standardOutputCapture = new StringBuilder();
+
+                    // Asynchronously read the standard output
+                    process.OutputDataReceived += (sender, e) =>
                     {
-                        CustomMessageBox.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " appears to have failed with message: " + Environment.NewLine + output.Replace("\r\n", Environment.NewLine));
+                        if (e.Data != null)
+                        {
+                            updateStr(e.Data);
+                            standardOutputCapture.AppendLine(e.Data); // Capture in buffer
+                        }
+                    };
+
+                    process.BeginOutputReadLine();
+
+                    // Wait for the process to exit
+                    process.WaitForExit();
+
+                    // Do something with the captured standard output
+                    var redirectedOutput = standardOutputCapture.ToString();
+                    if (redirectedOutput.Contains("Can't open as archive"))
+                    {
+                        CustomMessageBox.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " appears to have failed with message: " + Environment.NewLine + redirectedOutput.Replace("\r\n", Environment.NewLine));
                         return false;
                     }
                 }
-                return true;
             }
 
             catch (Exception e)

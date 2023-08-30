@@ -62,7 +62,7 @@ public class ConfigInstaller
 
         try
         {
-            if (!_7ZipInterface.ExtractArchiveNew(path, tempFolderPath, true, true))
+            if (!_7ZipInterface.ExtractArchiveNew(path, tempFolderPath, true, null))
             {
                 return installedConfigs;
             }
@@ -243,7 +243,7 @@ public class ConfigInstaller
             {
                 subPath = dependencyArchive.ExtractionSubPath;
             }
-            _7ZipInterface.ExtractArchiveNew(dependencyArchive.Path, Path.Combine(tempFolderPath, subPath), false, false);
+            _7ZipInterface.ExtractArchiveNew(dependencyArchive.Path, Path.Combine(tempFolderPath, subPath), false, null);
         }
 
         bool triggerExtractionPathWarning = false;

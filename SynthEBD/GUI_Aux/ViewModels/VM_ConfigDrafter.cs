@@ -18,15 +18,15 @@ public class VM_ConfigDrafter : VM
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
     private readonly VM_DrafterArchiveContainer.Factory _archiveContainerFactory;
-    private readonly _7ZipInterface _7ZipInterface;
+    private readonly VM_7ZipInterface _7ZipInterfaceVM;
 
-    public VM_ConfigDrafter(ConfigDrafter configDrafter, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_DrafterArchiveContainer.Factory archiveContainerFactory, _7ZipInterface sevenZipInterface)
+    public VM_ConfigDrafter(ConfigDrafter configDrafter, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_DrafterArchiveContainer.Factory archiveContainerFactory, VM_7ZipInterface sevenZipInterfaceVM)
     {
         _configDrafter = configDrafter;
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _archiveContainerFactory = archiveContainerFactory;
-        _7ZipInterface = sevenZipInterface;
+        _7ZipInterfaceVM = sevenZipInterfaceVM;
 
         DraftConfigButton = new RelayCommand(
         canExecute: _ => true,
@@ -176,7 +176,7 @@ public class VM_ConfigDrafter : VM
                 return false;
             }
 
-            var currentArchiveContents = _7ZipInterface.GetArchiveContents(container.FilePath);
+            var currentArchiveContents = _7ZipInterfaceVM.GetArchiveContents(container.FilePath);
             if (!currentArchiveContents.Any())
             {
                 CustomMessageBox.DisplayNotificationOK("Drafter Error", "The following file has no contents upon extraction: " + Environment.NewLine + container.FilePath);
@@ -215,7 +215,8 @@ public class VM_ConfigDrafter : VM
             }
 
             destinationDirs.Add(destinationDir);
-            _7ZipInterface.ExtractArchiveNew(archiveFile.FilePath, Path.Combine(destinationDir), false, false);
+            _7ZipInterfaceVM.ExtractArchive(archiveFile.FilePath, destinationDir, true, false);
+            //_7ZipInterface.ExtractArchiveNew(archiveFile.FilePath, Path.Combine(destinationDir), false, false);
         }
         return destinationDirs;
     }

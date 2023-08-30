@@ -64,6 +64,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_BodyShapeDescriptorCreator>().AsSelf().SingleInstance();
         builder.RegisterType<ConfigDrafter>().AsSelf().SingleInstance();
         builder.RegisterType<VM_ConfigDrafter>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_7ZipInterface>().AsSelf().SingleInstance();
 
         // Back End Infrastructure
         builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();
