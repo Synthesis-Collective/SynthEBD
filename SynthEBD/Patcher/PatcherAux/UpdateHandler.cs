@@ -16,8 +16,9 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
     private readonly Logger _logger;
     private readonly VM_Settings_General _generalVM;
     private readonly VM_SettingsTexMesh _texMeshVM;
+    private readonly VM_RaceGrouping.Factory _raceGroupingFactory;
 
-    public UpdateHandler(SynthEBDPaths paths, PatcherState patcherState, PatcherIO patcherIO, Logger logger, VM_Settings_General generalVM, VM_SettingsTexMesh texMeshVM)
+    public UpdateHandler(SynthEBDPaths paths, PatcherState patcherState, PatcherIO patcherIO, Logger logger, VM_Settings_General generalVM, VM_SettingsTexMesh texMeshVM, VM_RaceGrouping.Factory raceGroupingFactory)
     {
         _paths = paths;
         _patcherState = patcherState;
@@ -25,12 +26,14 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         _logger = logger;
         _generalVM = generalVM;
         _texMeshVM = texMeshVM;
+        _raceGroupingFactory = raceGroupingFactory;
     }
 
     public void CheckBackwardCompatibility()
     {
         UpdateAssetPacks(_texMeshVM);
         UpdateV1012(_generalVM);
+        UpdateV1013(_generalVM);
     }
     private void UpdateAssetPacks(VM_SettingsTexMesh texMeshVM)
     {
@@ -67,6 +70,19 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         }
     }
 
+    private void UpdateV1013(VM_Settings_General generalVM)
+    {
+        if (!_patcherState.UpdateLog.Performed1_0_1_3Update)
+        {
+            if (!generalVM.RaceGroupingEditor.RaceGroupings.Where(x => x.Label == DefaultRaceGroupings.HumanoidPlayableNonVampire.Label).Any())
+            {
+                var newGrouping = _raceGroupingFactory(DefaultRaceGroupings.HumanoidPlayableNonVampire, generalVM.RaceGroupingEditor);
+                generalVM.RaceGroupingEditor.RaceGroupings.Add(newGrouping);
+            }
+            _patcherState.UpdateLog.Performed1_0_1_3Update = true;
+        }
+    }
+
     public Dictionary<string, string> V09PathReplacements { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         { "Diffuse", "Diffuse.RawPath" },
@@ -94,4 +110,5 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
 public class UpdateLog
 {
     public bool Performed1_0_1_2Update { get; set; } = false;
+    public bool Performed1_0_1_3Update { get; set; } = false;
 }
