@@ -64,7 +64,6 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_BodyShapeDescriptorCreator>().AsSelf().SingleInstance();
         builder.RegisterType<ConfigDrafter>().AsSelf().SingleInstance();
         builder.RegisterType<VM_ConfigDrafter>().AsSelf().SingleInstance();
-        builder.RegisterType<VM_7ZipInterface>().AsSelf().SingleInstance();
 
         // Back End Infrastructure
         builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();
@@ -181,6 +180,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_SpecificNPCAssignment>().AsSelf();
         builder.RegisterType<VM_SpecificNPCAssignment.VM_MixInSpecificAssignment>().AsSelf();
         builder.RegisterType<VM_DrafterArchiveContainer>().AsSelf();
+        builder.RegisterType<VM_7ZipInterface>().AsSelf();
 
         // DTOs with factories
         builder.RegisterType<CombinationLog>().AsSelf();

@@ -19,15 +19,17 @@ public class VM_ConfigDrafter : VM
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
     private readonly VM_DrafterArchiveContainer.Factory _archiveContainerFactory;
-    private readonly VM_7ZipInterface _7ZipInterfaceVM;
+    private readonly VM_7ZipInterface.Factory _7ZipInterfaceVM;
+    private readonly _7ZipInterface temp7z;
 
-    public VM_ConfigDrafter(ConfigDrafter configDrafter, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_DrafterArchiveContainer.Factory archiveContainerFactory, VM_7ZipInterface sevenZipInterfaceVM)
+    public VM_ConfigDrafter(ConfigDrafter configDrafter, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_DrafterArchiveContainer.Factory archiveContainerFactory, VM_7ZipInterface.Factory sevenZipInterfaceVM, _7ZipInterface tmp)
     {
         _configDrafter = configDrafter;
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _archiveContainerFactory = archiveContainerFactory;
         _7ZipInterfaceVM = sevenZipInterfaceVM;
+        temp7z = tmp;
 
         DraftConfigButton = ReactiveCommand.CreateFromTask(
             execute: async _ =>
@@ -176,7 +178,7 @@ public class VM_ConfigDrafter : VM
                 return false;
             }
 
-            var currentArchiveContents = await _7ZipInterfaceVM.GetArchiveContents(container.FilePath, true, true, 500);
+            var currentArchiveContents = await temp7z.GetArchiveContents(container.FilePath, true);
             if (!currentArchiveContents.Any())
             {
                 CustomMessageBox.DisplayNotificationOK("Drafter Error", "The following file has no contents upon extraction: " + Environment.NewLine + container.FilePath);
@@ -215,7 +217,7 @@ public class VM_ConfigDrafter : VM
             }
 
             destinationDirs.Add(destinationDir);
-            var succes = await _7ZipInterfaceVM.ExtractArchive(archiveFile.FilePath, destinationDir, true, true, 1000);
+            var succes = await _7ZipInterfaceVM().ExtractArchive(archiveFile.FilePath, destinationDir, true, true, 1000);
         }
         return destinationDirs;
     }

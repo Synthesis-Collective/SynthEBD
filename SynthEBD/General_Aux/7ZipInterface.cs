@@ -18,6 +18,7 @@ namespace SynthEBD
         private readonly IEnvironmentStateProvider _environmentStateProvider;
         private string _sevenZipPath => Path.Combine(_environmentStateProvider.InternalDataPath, "7Zip",
                             Environment.Is64BitProcess ? "x64" : "x86", "7z.exe");
+
         public _7ZipInterface(IEnvironmentStateProvider environmentStateProvider)
         {
             _environmentStateProvider = environmentStateProvider;
@@ -80,6 +81,11 @@ namespace SynthEBD
                 return false;
             }
             return true;
+        }
+
+        public async Task<List<string>> GetArchiveContents(string archivePath, bool hideWindow)
+        {
+            return await GetArchiveContents(archivePath, hideWindow, (_) => { });
         }
 
         public async Task<List<string>> GetArchiveContents(string archivePath, bool hideWindow, Action<string> mirrorUIstr)

@@ -13,6 +13,7 @@ namespace SynthEBD
 {
     public class VM_7ZipInterface : VM
     {
+        public delegate VM_7ZipInterface Factory();
         private readonly _7ZipInterface _7z;
         public VM_7ZipInterface(_7ZipInterface sevenZ)
         {
@@ -58,8 +59,8 @@ namespace SynthEBD
 
             if (closeWindowWhenDone && _window != null)
             {
-                Thread.Sleep(pauseMilliseconds);
-                _window.Hide();
+                //Thread.Sleep(pauseMilliseconds);
+                //_window.Close();
             }
 
             return result;
@@ -78,8 +79,8 @@ namespace SynthEBD
 
             if (closeWindowWhenDone && _window != null)
             {
-                Thread.Sleep(pauseMilliseconds);
-                _window.Hide();
+                //Thread.Sleep(pauseMilliseconds);
+                _window.Close();
             }
 
             return result;
