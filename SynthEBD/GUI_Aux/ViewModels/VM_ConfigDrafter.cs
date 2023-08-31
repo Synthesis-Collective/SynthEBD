@@ -178,7 +178,8 @@ public class VM_ConfigDrafter : VM
                 return false;
             }
 
-            var currentArchiveContents = await temp7z.GetArchiveContents(container.FilePath, true);
+            //var currentArchiveContents = await temp7z.GetArchiveContents(container.FilePath, true);
+            var currentArchiveContents = await _7ZipInterfaceVM().GetArchiveContents(container.FilePath, true, true, 0);
             if (!currentArchiveContents.Any())
             {
                 CustomMessageBox.DisplayNotificationOK("Drafter Error", "The following file has no contents upon extraction: " + Environment.NewLine + container.FilePath);

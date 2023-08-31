@@ -80,7 +80,7 @@ namespace SynthEBD
             if (closeWindowWhenDone && _window != null)
             {
                 //Thread.Sleep(pauseMilliseconds);
-                _window.Close();
+                //_window.Close();
             }
 
             return result;
