@@ -18,12 +18,13 @@ namespace SynthEBD
         private readonly IEnvironmentStateProvider _environmentStateProvider;
         private string _sevenZipPath => Path.Combine(_environmentStateProvider.InternalDataPath, "7Zip",
                             Environment.Is64BitProcess ? "x64" : "x86", "7z.exe");
+
         public _7ZipInterface(IEnvironmentStateProvider environmentStateProvider)
         {
             _environmentStateProvider = environmentStateProvider;
         }
 
-        public bool ExtractArchiveNew(string archivePath, string destinationPath, bool hideWindow, bool redirectForValidation)
+        public async Task<bool> ExtractArchive(string archivePath, string destinationPath, bool hideWindow, Action<string> mirrorUIstr)
         {
             try
             {
@@ -36,26 +37,42 @@ namespace SynthEBD
                 }
                 pro.FileName = _sevenZipPath;
                 pro.Arguments = string.Format("x \"{0}\" -y -o\"{1}\"", archivePath, destinationPath);
-                if (redirectForValidation)
+                if (mirrorUIstr != null)
                 {
-                    pro.WindowStyle = ProcessWindowStyle.Hidden;
                     pro.RedirectStandardOutput = true;
                     pro.RedirectStandardError = true;
                     pro.UseShellExecute = false;
                 }
-                Process x = Process.Start(pro);
-                x.WaitForExit();
-
-                if (redirectForValidation)
+                using (Process process = new Process { StartInfo = pro, EnableRaisingEvents = true })
                 {
-                    string output = x.StandardOutput.ReadToEnd();
-                    if (output.Contains("Can't open as archive"))
+                    process.Start();
+
+                    // Capture the standard output
+                    StringBuilder standardOutputCapture = new StringBuilder();
+
+                    // Asynchronously read the standard output
+                    process.OutputDataReceived += (sender, e) =>
                     {
-                        CustomMessageBox.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " appears to have failed with message: " + Environment.NewLine + output.Replace("\r\n", Environment.NewLine));
+                        if (e.Data != null)
+                        {
+                            mirrorUIstr(e.Data);
+                            standardOutputCapture.AppendLine(e.Data); // Capture in buffer
+                        }
+                    };
+
+                    process.BeginOutputReadLine();
+
+                    // Wait for the process to exit
+                    await process.WaitForExitAsync();
+
+                    // Do something with the captured standard output
+                    var redirectedOutput = standardOutputCapture.ToString();
+                    if (redirectedOutput.Contains("Can't open as archive"))
+                    {
+                        CustomMessageBox.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " appears to have failed with message: " + Environment.NewLine + redirectedOutput.Replace("\r\n", Environment.NewLine));
                         return false;
                     }
                 }
-                return true;
             }
 
             catch (Exception e)
@@ -66,98 +83,71 @@ namespace SynthEBD
             return true;
         }
 
-        public List<string> GetArchiveContents(string archivePath)
+        public async Task<List<string>> GetArchiveContents(string archivePath, bool hideWindow)
         {
-            ProcessStartInfo pro = new ProcessStartInfo();
-            pro.WindowStyle = ProcessWindowStyle.Hidden;
-            pro.FileName = _sevenZipPath;
-            pro.Arguments = string.Format("l -slt \"{0}\"", archivePath);
-            pro.RedirectStandardOutput = true;
-            pro.UseShellExecute = false;
-
-            string redirectedOutput = "";
-            using (Process process = new Process { StartInfo = pro })
-            {
-                ConsoleAllocator.ShowConsoleWindow();
-                process.Start();
-
-                // Capture the standard output
-                StringBuilder standardOutputCapture = new StringBuilder();
-
-                // Asynchronously read the standard output
-                process.OutputDataReceived += (sender, e) =>
-                {
-                    if (e.Data != null)
-                    {
-                        Console.WriteLine(e.Data); // Print to console
-                        standardOutputCapture.AppendLine(e.Data); // Capture in buffer
-                    }
-                };
-
-                process.BeginOutputReadLine();
-
-                // Wait for the process to exit
-                process.WaitForExit();
-
-                // Do something with the captured standard output
-                redirectedOutput = standardOutputCapture.ToString();
-            }
-            var output = redirectedOutput.Split(Environment.NewLine).ToList();
-
-            //Process x = Process.Start(pro);
-            //x.WaitForExit();
-            //var output = x.StandardOutput.ReadToEnd().Split(Environment.NewLine).ToList();
-
-            // remove the path of the archive itself
-            for (int i = 0; i < output.Count; i++)
-            {
-                if (i > 0 && output[i].StartsWith("Type = ") && output[i - 1].StartsWith("Path = "))
-                {
-                    output.RemoveAt(i - 1);
-                }
-            }
-
-            var processedOutput = new List<string>(output.Where(x => x.StartsWith("Path = ")).Select(x => x.Replace("Path = ", "")).Where(x => IsFilePathFragment(x)));
-            return processedOutput;
+            return await GetArchiveContents(archivePath, hideWindow, (_) => { });
         }
 
-        // https://stackoverflow.com/a/31978833
-        // temporarily here, will move to its own cs file once confirmed working
-        internal static class ConsoleAllocator
+        public async Task<List<string>> GetArchiveContents(string archivePath, bool hideWindow, Action<string> mirrorUIstr)
         {
-            [DllImport(@"kernel32.dll", SetLastError = true)]
-            static extern bool AllocConsole();
-
-            [DllImport(@"kernel32.dll")]
-            static extern IntPtr GetConsoleWindow();
-
-            [DllImport(@"user32.dll")]
-            static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-            const int SwHide = 0;
-            const int SwShow = 5;
-
-
-            public static void ShowConsoleWindow()
+            List<string> outputLines = new();
+            try
             {
-                var handle = GetConsoleWindow();
-
-                if (handle == IntPtr.Zero)
+                ProcessStartInfo pro = new ProcessStartInfo();
+                if (hideWindow)
                 {
-                    AllocConsole();
+                    pro.UseShellExecute = false;
+                    pro.CreateNoWindow = true;
+                    pro.WindowStyle = ProcessWindowStyle.Hidden;
                 }
-                else
+                pro.FileName = _sevenZipPath;
+                pro.Arguments = string.Format("l -slt \"{0}\"", archivePath);
+                if (mirrorUIstr != null)
                 {
-                    ShowWindow(handle, SwShow);
+                    pro.RedirectStandardOutput = true;
+                    pro.RedirectStandardError = true;
+                    pro.UseShellExecute = false;
+                }
+                using (Process process = new Process { StartInfo = pro, EnableRaisingEvents = true })
+                {
+                    process.Start();
+
+                    // Capture the standard output
+                    StringBuilder standardOutputCapture = new StringBuilder();
+
+                    // Asynchronously read the standard output
+                    process.OutputDataReceived += (sender, e) =>
+                    {
+                        if (e.Data != null)
+                        {
+                            mirrorUIstr(e.Data);
+                            outputLines.Add(e.Data);
+                        }
+                    };
+
+                    process.BeginOutputReadLine();
+
+                    // Wait for the process to exit
+                    await process.WaitForExitAsync();
+
+                    // Do something with the captured standard output
+                    var  outputStr = standardOutputCapture.ToString();
+                    if (outputStr.Contains("Can't open as archive"))
+                    {
+                        CustomMessageBox.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " appears to have failed with message: " + Environment.NewLine + outputStr.Replace("\r\n", Environment.NewLine));
+                        return new();
+                    }
                 }
             }
 
-            public static void HideConsoleWindow()
+            catch (Exception e)
             {
-                var handle = GetConsoleWindow();
-
-                ShowWindow(handle, SwHide);
+                CustomMessageBox.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " failed with message: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(e));
+                return new();
             }
+ 
+            var processedOutput = new List<string>(outputLines.Where(x => x.StartsWith("Path = ")).Select(x => x.Replace("Path = ", "")).Where(x => IsFilePathFragment(x)));
+            return processedOutput;
         }
 
         private bool IsFilePathFragment(string input)

@@ -53,6 +53,7 @@
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="{Binding bUseDetailedReportSelection, Converter={StaticResource GridHeightToggler}}"/>
                 <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
             <local:UC_Settings_Environment Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="3" DataContext="{Binding EnvironmentSettingsVM}" Visibility="{Binding IsStandalone, Converter={StaticResource BoolToVis}}"/>
@@ -233,6 +234,9 @@
 
             <TextBlock Grid.Column="0" Grid.Row="26" ToolTip="Disable error checks before running patcher" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disable Pre-Run Validation</TextBlock>
             <CheckBox Grid.Column="2" Grid.Row="26" IsChecked="{Binding Path=DisableValidation, Mode=TwoWay}"></CheckBox>
+
+            <TextBlock Grid.Column="0" Grid.Row="27" ToolTip="Uncheck this if you are having problems with SynthEBD's archive extraction and want the window to stay open to see what the issue is." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Close Archive Extractor When Done</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="27" IsChecked="{Binding Path=Close7ZipWhenFinished, Mode=TwoWay}"></CheckBox>
         </Grid>
     </ScrollViewer>
 </UserControl>

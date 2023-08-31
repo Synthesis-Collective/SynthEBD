@@ -180,6 +180,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_SpecificNPCAssignment>().AsSelf();
         builder.RegisterType<VM_SpecificNPCAssignment.VM_MixInSpecificAssignment>().AsSelf();
         builder.RegisterType<VM_DrafterArchiveContainer>().AsSelf();
+        builder.RegisterType<VM_7ZipInterface>().AsSelf();
 
         // DTOs with factories
         builder.RegisterType<CombinationLog>().AsSelf();

@@ -185,24 +185,22 @@ public class VM_SettingsTexMesh : VM
             }
         );
 
-        InstallFromArchive = new RelayCommand(
-            canExecute: _ => true,
-            execute: _ =>
-            {
-                _patcherState.GeneralSettings = general.DumpViewModelToModel(); // make sure general settings are synced w/ latest settings
-                modManager.UpdatePatcherSettings(); // make sure mod manager integration is synced w/ latest settings
-                var installedConfigs = _configInstaller.InstallConfigFile(out bool triggerGeneralVMRefresh);
-                if (installedConfigs.Any())
-                {
-                    ConfigUpdateAll(installedConfigs);
-                    RefreshInstalledConfigs(installedConfigs);
-                }
-                if (triggerGeneralVMRefresh)
-                {
-                    general.Refresh();
-                }
-            }
-        );
+        InstallFromArchive = ReactiveCommand.CreateFromTask(
+           execute: async _ =>
+           {
+               _patcherState.GeneralSettings = general.DumpViewModelToModel(); // make sure general settings are synced w/ latest settings
+               modManager.UpdatePatcherSettings(); // make sure mod manager integration is synced w/ latest settings
+               (var installedConfigs, var triggerGeneralVMRefresh) = await _configInstaller.InstallConfigFile();
+               if (installedConfigs.Any())
+               {
+                   ConfigUpdateAll(installedConfigs);
+                   RefreshInstalledConfigs(installedConfigs);
+               }
+               if (triggerGeneralVMRefresh)
+               {
+                   general.Refresh();
+               }
+           });
 
         InstallFromJson = new RelayCommand(
             canExecute: _ => true,
@@ -314,7 +312,7 @@ public class VM_SettingsTexMesh : VM
     public RelayCommand RemoveTrimPath { get; }
     public RelayCommand ValidateAll { get; }
     public RelayCommand AddNewAssetPackConfigFile { get; }
-    public RelayCommand InstallFromArchive { get; }
+    public IReactiveCommand InstallFromArchive { get; }
     public RelayCommand InstallFromJson { get; }
     public RelayCommand CreateConfigArchive { get; }
     public RelayCommand SplitScreenToggle { get; }

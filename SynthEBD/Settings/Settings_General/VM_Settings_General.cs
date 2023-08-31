@@ -62,6 +62,14 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         this.WhenAnyValue(x => x.bShowToolTips)
             .Subscribe(x => TooltipController.Instance.DisplayToolTips = x).DisposeWith(this);
 
+        this.WhenAnyValue(x => x.Close7ZipWhenFinished)
+            .Subscribe(x => {
+                if (_patcherState.GeneralSettings != null)
+                {
+                    _patcherState.GeneralSettings.Close7ZipWhenFinished = x;
+                }
+            }).DisposeWith(this);
+
         environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
@@ -203,6 +211,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public bool bVerboseModeAssetsAll { get; set; } = false;
     public ObservableCollection<FormKey> verboseModeNPClist { get; set; } = new();
     public bool VerboseModeDetailedAttributes { get; set; } = false;
+    public bool Close7ZipWhenFinished { get; set; } = true;
     public ObservableCollection<FormKey> patchableRaces { get; set; } = new();
     public VM_RaceGroupingEditor RaceGroupingEditor { get; set; }
     public bool OverwritePluginRaceGroups { get; set; } = true;
@@ -265,6 +274,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         bUseDetailedReportSelection = model.bUseDetailedReportSelection;
         DetailedReportSelector.CopyInFromModel(model.DetailedReportSelector);
         bFilterNPCsByArmature = model.bFilterNPCsByArmature;
+        Close7ZipWhenFinished = model.Close7ZipWhenFinished;
         IsCurrentlyLoading = false;
         _logger.LogStartupEventEnd("Loading General Settings UI");
     }
@@ -310,6 +320,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.bUseDetailedReportSelection = bUseDetailedReportSelection;
         model.DetailedReportSelector = DetailedReportSelector.DumpToModel();
         model.bFilterNPCsByArmature = bFilterNPCsByArmature;
+        model.Close7ZipWhenFinished = Close7ZipWhenFinished;
         return model;
     }
 }

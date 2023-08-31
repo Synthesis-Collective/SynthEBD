@@ -17,6 +17,8 @@ public class Settings_General
     public bool ExcludePlayerCharacter { get; set; } = true;
     public bool ExcludePresets { get; set; } = true;
     public bool bLinkNPCsWithSameName { get; set; } = true;
+
+    public bool Close7ZipWhenFinished { get; set; } = true;
     public bool bFirstRun { get; set; } = true;
     public List<string> LinkedNPCNameExclusions { get; set; } = new()
     {
