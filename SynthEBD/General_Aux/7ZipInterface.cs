@@ -63,7 +63,7 @@ namespace SynthEBD
                     process.BeginOutputReadLine();
 
                     // Wait for the process to exit
-                    process.WaitForExit();
+                    await process.WaitForExitAsync();
 
                     // Do something with the captured standard output
                     var redirectedOutput = standardOutputCapture.ToString();
@@ -128,7 +128,7 @@ namespace SynthEBD
                     process.BeginOutputReadLine();
 
                     // Wait for the process to exit
-                    process.WaitForExit();
+                    await process.WaitForExitAsync();
 
                     // Do something with the captured standard output
                     var  outputStr = standardOutputCapture.ToString();
