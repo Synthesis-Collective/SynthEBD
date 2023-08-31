@@ -179,7 +179,7 @@ public class VM_ConfigDrafter : VM
             }
 
             //var currentArchiveContents = await temp7z.GetArchiveContents(container.FilePath, true);
-            var currentArchiveContents = await _7ZipInterfaceVM().GetArchiveContents(container.FilePath, true, true, 0);
+            var currentArchiveContents = await _7ZipInterfaceVM().GetArchiveContents(container.FilePath, true, _patcherState.GeneralSettings.Close7ZipWhenFinished, 1000);
             if (!currentArchiveContents.Any())
             {
                 CustomMessageBox.DisplayNotificationOK("Drafter Error", "The following file has no contents upon extraction: " + Environment.NewLine + container.FilePath);
@@ -218,7 +218,7 @@ public class VM_ConfigDrafter : VM
             }
 
             destinationDirs.Add(destinationDir);
-            var succes = await _7ZipInterfaceVM().ExtractArchive(archiveFile.FilePath, destinationDir, true, true, 1000);
+            var succes = await _7ZipInterfaceVM().ExtractArchive(archiveFile.FilePath, destinationDir, true, _patcherState.GeneralSettings.Close7ZipWhenFinished, 1000);
         }
         return destinationDirs;
     }

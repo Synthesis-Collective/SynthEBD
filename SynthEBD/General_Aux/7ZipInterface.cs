@@ -24,7 +24,7 @@ namespace SynthEBD
             _environmentStateProvider = environmentStateProvider;
         }
 
-        public async Task<bool> ExtractArchiveNew(string archivePath, string destinationPath, bool hideWindow, Action<string> mirrorUIstr)
+        public async Task<bool> ExtractArchive(string archivePath, string destinationPath, bool hideWindow, Action<string> mirrorUIstr)
         {
             try
             {

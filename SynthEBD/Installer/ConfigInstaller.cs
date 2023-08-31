@@ -22,8 +22,8 @@ public class ConfigInstaller
     private readonly SettingsIO_BodyGen _bodyGenIO;
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
-    private readonly _7ZipInterface _7ZipInterface;
-    public ConfigInstaller(Logger logger, SynthEBDPaths synthEBDPaths, SettingsIO_AssetPack assetPackIO, SettingsIO_BodyGen bodyGenIO, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, _7ZipInterface sevenZipInterface)
+    private readonly VM_7ZipInterface _7ZipInterfaceVM;
+    public ConfigInstaller(Logger logger, SynthEBDPaths synthEBDPaths, SettingsIO_AssetPack assetPackIO, SettingsIO_BodyGen bodyGenIO, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_7ZipInterface sevenZipInterfaceVM)
     {
         _logger = logger;
         _paths = synthEBDPaths;
@@ -31,21 +31,21 @@ public class ConfigInstaller
         _bodyGenIO = bodyGenIO;
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
-        _7ZipInterface = sevenZipInterface;
+        _7ZipInterfaceVM = sevenZipInterfaceVM;
     }
-    public List<string> InstallConfigFile(out bool triggerGeneralVMRefresh)
+    public async Task<(List<string>, bool)> InstallConfigFile()
     {
         var installedConfigs = new List<string>();
-        triggerGeneralVMRefresh = false;
+        bool triggerGeneralVMRefresh = false;
         if (_patcherState.ModManagerSettings.ModManagerType != ModManager.None && string.IsNullOrWhiteSpace(_patcherState.ModManagerSettings.CurrentInstallationFolder))
         {
             CustomMessageBox.DisplayNotificationOK("Installation failed", "You must set the location of your mod manager's Mods folder before installing a config file archive.");
-            return installedConfigs;
+            return (installedConfigs, triggerGeneralVMRefresh);
         }
 
         if (!IO_Aux.SelectFile(_paths.AssetPackDirPath, "Archive Files (*.7z;*.zip;*.rar)|*.7z;*.zip;*.rar|" + "All files (*.*)|*.*", "Select config archive", out string path))
         {
-            return installedConfigs;
+            return (installedConfigs, triggerGeneralVMRefresh);
         }
 
         string tempFolderPath = Path.Combine(_patcherState.ModManagerSettings.TempExtractionFolder, DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture));
@@ -57,14 +57,14 @@ public class ConfigInstaller
         catch (Exception ex)
         {
             _logger.LogError("Could not create or access the temp folder at " + tempFolderPath + ". Details: " + ex.Message);
-            return installedConfigs;
+            return (installedConfigs, triggerGeneralVMRefresh);
         }
 
         try
         {
-            if (!_7ZipInterface.ExtractArchiveNew(path, tempFolderPath, true, null).Result)
+            if (!await _7ZipInterfaceVM.ExtractArchive(path, tempFolderPath, true, _patcherState.GeneralSettings.Close7ZipWhenFinished, 500))
             {
-                return installedConfigs;
+                return (installedConfigs, triggerGeneralVMRefresh);
             }
         }
         catch (Exception ex)
@@ -76,7 +76,7 @@ public class ConfigInstaller
         if (!File.Exists(manifestPath))
         {
             CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not find Manifest.json in " + tempFolderPath + ". Installation aborted.");
-            return installedConfigs;
+            return (installedConfigs, triggerGeneralVMRefresh);
         }
 
         Manifest manifest = JSONhandler<Manifest>.LoadJSONFile(manifestPath, out bool parsed, out string exceptionStr);
@@ -84,11 +84,11 @@ public class ConfigInstaller
         {
             CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse Manifest.json in " + tempFolderPath + ". Installation aborted.");
             _logger.LogError(exceptionStr);
-            return installedConfigs;
+            return (installedConfigs, triggerGeneralVMRefresh);
         }
         else if (!ValidateManifest(manifest))
         {
-            return installedConfigs;
+            return (installedConfigs, triggerGeneralVMRefresh);
         }
 
         var installerWindow = new Window_ConfigInstaller();
@@ -98,7 +98,7 @@ public class ConfigInstaller
 
         if (installerVM.Cancelled || !installerVM.Completed)
         {
-            return installedConfigs;
+            return (installedConfigs, triggerGeneralVMRefresh);
         }
 
         if (_patcherState.ModManagerSettings.ModManagerType != ModManager.None && (manifest.DestinationModFolder == null || string.IsNullOrWhiteSpace(manifest.DestinationModFolder)))
@@ -118,7 +118,7 @@ public class ConfigInstaller
         if (!loadSuccess)
         {
             CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse all Record Template Plugins at " + string.Join(", ", recordTemplatePaths) + ". Installation aborted.");
-            return new List<string>();
+            return (new List<string>(), triggerGeneralVMRefresh);
         }
 
         // BodyGen config
@@ -131,7 +131,7 @@ public class ConfigInstaller
         if (!loadSuccess)
         {
             CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse all BodyGen configs at " + string.Join(", ", bodyGenConfigPaths) + ". Installation aborted.");
-            return new List<string>();
+            return (new List<string>(), triggerGeneralVMRefresh);
         }
 
         #endregion
@@ -243,7 +243,7 @@ public class ConfigInstaller
             {
                 subPath = dependencyArchive.ExtractionSubPath;
             }
-            _ = _7ZipInterface.ExtractArchiveNew(dependencyArchive.Path, Path.Combine(tempFolderPath, subPath), false, null);
+            await _7ZipInterfaceVM.ExtractArchive(dependencyArchive.Path, Path.Combine(tempFolderPath, subPath), true, _patcherState.GeneralSettings.Close7ZipWhenFinished, 500);
         }
 
         bool triggerExtractionPathWarning = false;
@@ -456,7 +456,7 @@ public class ConfigInstaller
             CustomMessageBox.DisplayNotificationOK("Installation success", "Installation complete. You will need to restart your mod manager to rebuild the VFS in order for SynthEBD to see the newly installed asset files.");
         }
 
-        return installedConfigs;
+        return (installedConfigs, triggerGeneralVMRefresh);
     }
 
     public bool ValidateManifest(Manifest manifest)

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Text;
 using System.Threading.Tasks;
@@ -21,9 +22,12 @@ namespace SynthEBD
 
             consoleUpdates
                .ObserveOnGui()
+               .Buffer(TimeSpan.FromMilliseconds(100), 100)
+               .Where(list => list.Count > 0)
                .Subscribe(i =>
                {
-                   PutThisOnScreen += (i);
+                   //PutThisOnScreen += (i);
+                   PutThisOnScreen += string.Join(Environment.NewLine, i);
                })
                .DisposeWith(this);
 
@@ -55,12 +59,12 @@ namespace SynthEBD
                 DisplayWindow();
             }
 
-            var result = await Task.Run(() => _7z.ExtractArchiveNew(archivePath, destinationPath, true, AddToScreen));
+            var result = await Task.Run(() => _7z.ExtractArchive(archivePath, destinationPath, true, AddToScreen));
 
             if (closeWindowWhenDone && _window != null)
             {
-                //Thread.Sleep(pauseMilliseconds);
-                //_window.Close();
+                await Task.Delay(pauseMilliseconds);
+                _window.Close();
             }
 
             return result;
@@ -79,8 +83,8 @@ namespace SynthEBD
 
             if (closeWindowWhenDone && _window != null)
             {
-                //Thread.Sleep(pauseMilliseconds);
-                //_window.Close();
+                await Task.Delay(pauseMilliseconds);
+                _window.Close();
             }
 
             return result;
