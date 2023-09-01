@@ -83,6 +83,8 @@ namespace SynthEBD
                     }
                 }
             }
+
+            LinkSubgroupsByName(config);
         }
 
         public void CreateSubgroupsFromPaths(List<string> paths, List<string> rootFolderPaths, bool rootPathsHavePrefix, VM_SubgroupPlaceHolder topLevelPlaceHolder, VM_AssetPack config)
@@ -746,6 +748,49 @@ namespace SynthEBD
                     config.ShortName = pathSplit[1];
                     return true;
                 }
+            }
+            return false;
+        }
+
+        private void LinkSubgroupsByName(VM_AssetPack config) // must be called after all IDs have been finalized.
+        {
+            foreach (var topLevelSubgroup in config.Subgroups)
+            {
+                var currentSubgroups = new List<VM_SubgroupPlaceHolder>();
+                topLevelSubgroup.GetChildren(currentSubgroups);
+
+                var otherSubgroups = new List<VM_SubgroupPlaceHolder>();
+                foreach (var otherTopLevel in config.Subgroups.Where(x => x != topLevelSubgroup))
+                {
+                    otherTopLevel.GetChildren(otherSubgroups);
+                }
+
+                foreach (var subgroup in currentSubgroups)
+                {
+                    foreach (var candidate in otherSubgroups)
+                    {
+                        if (subgroup.Name.Equals(candidate.Name, StringComparison.OrdinalIgnoreCase) && !IgnoreForSubgroupLinkage(candidate.Name))
+                        {
+                            subgroup.AssociatedModel.RequiredSubgroups.Add(candidate.ID);
+                        }
+                    }
+                }
+            }
+        }
+
+        private bool IgnoreForSubgroupLinkage(string name)
+        {
+            foreach (var racialSubgroupIDs in RaceFormKeyToRaceString.Values) // these should already be restricted via Allowed Races, and trying to add required subgroups can inadvertently lead to promiscuous linkage with other nested subgroups of the same name.
+            {
+                if (racialSubgroupIDs.Contains(name, StringComparer.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            if (name.Equals("Default") || name.Equals("Vampire", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
             }
             return false;
         }

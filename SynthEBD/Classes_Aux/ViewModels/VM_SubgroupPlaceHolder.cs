@@ -398,6 +398,15 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         }
     }
 
+    public void GetChildren(List<VM_SubgroupPlaceHolder> children)
+    {
+        foreach (var subgroup in Subgroups)
+        {
+            children.Add(subgroup);
+            subgroup.GetChildren(children);
+        }
+    }
+
     public void ClearID(bool recursive)
     {
         ID = String.Empty;
