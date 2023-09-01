@@ -32,6 +32,17 @@ namespace SynthEBD
             }
             unmatchedFiles = new(allFiles.Where(x => x.EndsWith(".dds", StringComparison.OrdinalIgnoreCase))); // remove files from this list as they're matched
 
+            // detect gender
+            var fileNames = allFiles.Select(x => x.Split(Path.DirectorySeparatorChar).Last()).ToList();
+            if (fileNames.Intersect(ExpectedFilesByGender[Gender.Female], StringComparer.OrdinalIgnoreCase).Any())
+            {
+                config.Gender = Gender.Female;
+            }
+            else if (fileNames.Intersect(ExpectedFilesByGender[Gender.Male], StringComparer.OrdinalIgnoreCase).Any())
+            {
+                config.Gender = Gender.Male;
+            }
+
             foreach (var type in Enum.GetValues(typeof(TextureType)))
             {
                 var textureType = (TextureType)type;
@@ -670,6 +681,12 @@ namespace SynthEBD
             { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.OrcRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.OrcRaceVampire.FormKey },
             { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.RedguardRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.RedguardRaceVampire.FormKey },
             { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.WoodElfRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.WoodElfRaceVampire.FormKey }
+        };
+
+        private static readonly Dictionary<Gender, HashSet<string>> ExpectedFilesByGender = new()
+        { 
+            {Gender.Male, new(StringComparer.OrdinalIgnoreCase) { "malehead.dds", "malehead_sk.dds", "malehead_s.dds", "malebody_1.dds", "maleBody_1_msn.dds", "malebody_1_s.dds", "malehands_1.dds", "malehands_1_msn.dds", "malehands_1_sk.dds", "malehands_1_s.dds", "malebody_1_feet.dds", "malebody_1_msn_feet.dds", "malebody_1_feet_sk.dds", "malebody_1_feet_s.dds" } },
+            {Gender.Female, new(StringComparer.OrdinalIgnoreCase) { "femalehead.dds", "femalehead_sk.dds", "femalehead_s.dds", "femalebody_1.dds", "femalebody_msn.dds", "femalebody_1_s.dds", "femalehands_1.dds", "femalehands_1_msn.dds", "femalehands_1_sk.dds", "femalehands_1_s.dds", "femalebody_1_feet.dds", "femalebody_1_msn_feet.dds", "femalebody_1_feet_sk.dds", "femalebody_1_feet_s.dds" } }
         };
 
         private static List<string> GetMatchingFiles(IEnumerable<string> files, HashSet<string> fileNames)
