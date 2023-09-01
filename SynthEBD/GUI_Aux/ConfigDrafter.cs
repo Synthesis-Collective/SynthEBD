@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using static Mutagen.Bethesda.Plugins.Binary.Processing.BinaryFileProcessor;
 using static SynthEBD.AssetPack;
 
 namespace SynthEBD
@@ -26,10 +27,19 @@ namespace SynthEBD
         public void DraftConfigFromTextures(VM_AssetPack config, List<string> rootFolderPaths, bool rootPathsHavePrefix, HashSet<string> unmatchedFiles)
         {
             var allFiles = new List<string>();
+
+            bool prefixFound = false;
             foreach (var path in rootFolderPaths)
             {
-                allFiles.AddRange(Directory.GetFiles(path, "*", SearchOption.AllDirectories));
+                var filesInDir = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
+                allFiles.AddRange(filesInDir);
+
+                if (!prefixFound && filesInDir.Any())
+                {
+                    prefixFound = GetPrefix(config, filesInDir, path);
+                }
             }
+
             unmatchedFiles = new(allFiles.Where(x => x.EndsWith(".dds", StringComparison.OrdinalIgnoreCase))); // remove files from this list as they're matched
 
             // detect gender
@@ -723,6 +733,21 @@ namespace SynthEBD
             }
 
             return string.Join(" ", words);
+        }
+
+        private bool GetPrefix(VM_AssetPack config, string[] filesInDir, string rootPath)
+        {
+            var firstSubPath = filesInDir.Select(x => x.Replace(rootPath, "").TrimStart(Path.DirectorySeparatorChar)).Where(x => x.StartsWith("textures", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+            if (firstSubPath != null)
+            {
+                var pathSplit = firstSubPath.Split(Path.DirectorySeparatorChar);
+                if (pathSplit.Length >= 2 && pathSplit[0].Equals("textures", StringComparison.OrdinalIgnoreCase))
+                {
+                    config.ShortName = pathSplit[1];
+                    return true;
+                }
+            }
+            return false;
         }
     }
 

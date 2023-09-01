@@ -53,6 +53,8 @@ public class VM_ConfigDrafter : VM
                     default: throw new NotImplementedException();
                 }
 
+                CurrentConfig.GroupName = GeneratedModName.IsNullOrWhitespace() ? "New Asset Pack" : GeneratedModName;
+
                 UnmatchedTextures = string.Join(Environment.NewLine, unmatchedTextures);
                 HasUnmatchedTextures = unmatchedTextures.Any();
             });
@@ -221,6 +223,11 @@ public class VM_ConfigDrafter : VM
             var succes = await _7ZipInterfaceVM().ExtractArchive(archiveFile.FilePath, destinationDir, true, _patcherState.GeneralSettings.Close7ZipWhenFinished, 1000);
         }
         return destinationDirs;
+    }
+
+    private void GetPrefixName()
+    {
+
     }
 }
 
