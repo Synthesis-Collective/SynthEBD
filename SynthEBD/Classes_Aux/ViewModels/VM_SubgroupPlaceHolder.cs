@@ -398,6 +398,13 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         }
     }
 
+    public List<VM_SubgroupPlaceHolder> GetChildren()
+    {
+        List<VM_SubgroupPlaceHolder> children = new();
+        GetChildren(children);
+        return children;
+    }
+
     public void GetChildren(List<VM_SubgroupPlaceHolder> children)
     {
         foreach (var subgroup in Subgroups)

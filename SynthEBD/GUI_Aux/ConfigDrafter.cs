@@ -1,4 +1,5 @@
 using ControlzEx.Standard;
+using Microsoft.Build.Logging.StructuredLogger;
 using Mutagen.Bethesda.Plugins;
 using Noggog;
 using System;
@@ -80,6 +81,11 @@ namespace SynthEBD
                     if (textureType != TextureType.HeadNormal)
                     {
                         AddRulesBySubgroupNameRecursive(topLevelPlaceHolder);
+                    }
+
+                    if (textureType == TextureType.HeadNormal && config.Gender == Gender.Female)
+                    {
+                        AddNecessaryWoodElfNormals(topLevelPlaceHolder);
                     }
                 }
             }
@@ -421,9 +427,28 @@ namespace SynthEBD
                         case "woodelffemale":
                             UpdateSubgroupName(subgroup, "Wood Elf");
                             subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.WoodElfRace.FormKey);
-                            break; // this is a weird one. Texture Set SkinHeadFemaleWoodElf (03D2AC:Skyrim.esm) points to HighElfFemale\FemaleHead_msn.dds. After completion, subgroup should be checked. If no wood elf normal exists, the allowed races on High Elf should be modified to include wood elves.
+                            break; 
                         default: break;
                     }
+                }
+            }
+        }
+
+        private void AddNecessaryWoodElfNormals(VM_SubgroupPlaceHolder topLevelHeadNormals) // this is a weird one. Texture Set SkinHeadFemaleWoodElf (03D2AC:Skyrim.esm) points to HighElfFemale\FemaleHead_msn.dds. If no wood elf normal is provided by the texture mod, the allowed races on High Elf should be modified to include wood elves.
+        {
+            var allNormals = topLevelHeadNormals.GetChildren();
+
+            var highElfSubgroupNames = RaceFormKeyToRaceString[Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.HighElfRace.FormKey];
+            var highElfNormals = allNormals.Where(subgroup => highElfSubgroupNames.Any(x => subgroup.AssociatedModel.Name.Contains(x, StringComparison.OrdinalIgnoreCase))).ToArray();
+
+            var woodElfSubgroupNames = RaceFormKeyToRaceString[Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.WoodElfRace.FormKey];
+            var woodElfNormals = allNormals.Where(subgroup => woodElfSubgroupNames.Any(x => subgroup.AssociatedModel.Name.Contains(x, StringComparison.OrdinalIgnoreCase))).ToArray();
+
+            if (highElfNormals.Any() && !woodElfNormals.Any())
+            {
+                foreach (var subgroup in highElfNormals)
+                {
+                    subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.WoodElfRace.FormKey);
                 }
             }
         }
@@ -756,8 +781,7 @@ namespace SynthEBD
         {
             foreach (var topLevelSubgroup in config.Subgroups)
             {
-                var currentSubgroups = new List<VM_SubgroupPlaceHolder>();
-                topLevelSubgroup.GetChildren(currentSubgroups);
+                var currentSubgroups = topLevelSubgroup.GetChildren();
 
                 var otherSubgroups = new List<VM_SubgroupPlaceHolder>();
                 foreach (var otherTopLevel in config.Subgroups.Where(x => x != topLevelSubgroup))
