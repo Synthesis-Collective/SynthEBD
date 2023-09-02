@@ -295,7 +295,7 @@ namespace SynthEBD
                 var candidateName = Regex.Replace(subgroup.AssociatedModel.Name, "female", "", RegexOptions.IgnoreCase);
                 if (candidateName.Length > 0)
                 {
-                    UpdateSubgroupName(subgroup, candidateName);
+                    UpdateSubgroupName(subgroup, CapitalizeWordsPreserveCapitalized(candidateName));
                 }
             }
             else if (subgroup.AssociatedModel.Name.Contains("male", StringComparison.OrdinalIgnoreCase))
@@ -303,7 +303,7 @@ namespace SynthEBD
                 var candidateName = Regex.Replace(subgroup.AssociatedModel.Name, "male", "", RegexOptions.IgnoreCase);
                 if (candidateName.Length > 0)
                 {
-                    UpdateSubgroupName(subgroup, candidateName);
+                    UpdateSubgroupName(subgroup, CapitalizeWordsPreserveCapitalized(candidateName));
                 }
             }
 
