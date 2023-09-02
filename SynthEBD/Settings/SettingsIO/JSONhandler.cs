@@ -39,7 +39,27 @@ public class JSONhandler<T>
 
     public static T LoadJSONFile(string loadLoc, out bool success, out string exception)
     {
-        return Deserialize(File.ReadAllText(loadLoc), out success, out exception);
+        if (!File.Exists(loadLoc))
+        {
+            success = false;
+            exception = "File " + loadLoc + " does not exist.";
+            return default(T);
+        }
+
+        string contents = String.Empty;
+
+        try
+        {
+            contents = File.ReadAllText(loadLoc);
+        }
+        catch (Exception ex)
+        {
+            success = false;
+            exception = ExceptionLogger.GetExceptionStack(ex);
+            return default(T);
+        }
+
+        return Deserialize(contents, out success, out exception);
     }
 
     public static string Serialize(T input, out bool success, out string exception)
