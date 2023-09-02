@@ -250,7 +250,7 @@ namespace SynthEBD
             var firstPath = pathGroup.First();
             if (!LastParentGroupings.ContainsKey(firstPath))
             {
-                return false;
+                return true;
             }
 
             return pathGroup.Count() != LastParentGroupings[firstPath].Count();
