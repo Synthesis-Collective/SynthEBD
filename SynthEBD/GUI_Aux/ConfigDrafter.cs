@@ -671,7 +671,7 @@ namespace SynthEBD
 
         private static readonly Dictionary<string, HashSet<string>> TextureToSubgroupName = new(StringComparer.OrdinalIgnoreCase)
         {
-            { "Default", new(StringComparer.OrdinalIgnoreCase) { "malehead.dds", "femalehead.dds", "malehead_sk.dds", "femalehead_sk.dds", "malehead_s.dds", "femalehead_s.dds", "blankdetailmap.dds", "malebody_1.dds", "femalebody_1.dds", "maleBody_1_msn.dds", "femalebody_msn.dds", "malebody_1_s.dds", "femalebody_1_s.dds", "malehands_1.dds" , "femalehands_1.dds", "malehands_1_msn.dds", "femalehands_1_msn.dds", "malehands_1_sk.dds", "femalehands_1_sk.dds", "malehands_1_s.dds", "femalehands_1_s.dds", "malebody_1_feet.dds", "femalebody_1_feet.dds", "malebody_1_msn_feet.dds", "femalebody_1_msn_feet.dds", "malebody_1_feet_sk.dds", "femalebody_1_feet_sk.dds", "malebody_1_feet_s.dds", "femalebody_1_feet_s.dds" } },
+            { "Main", new(StringComparer.OrdinalIgnoreCase) { "malehead.dds", "femalehead.dds", "malehead_sk.dds", "femalehead_sk.dds", "malehead_s.dds", "femalehead_s.dds", "blankdetailmap.dds", "malebody_1.dds", "femalebody_1.dds", "maleBody_1_msn.dds", "femalebody_msn.dds", "malebody_1_s.dds", "femalebody_1_s.dds", "malehands_1.dds" , "femalehands_1.dds", "malehands_1_msn.dds", "femalehands_1_msn.dds", "malehands_1_sk.dds", "femalehands_1_sk.dds", "malehands_1_s.dds", "femalehands_1_s.dds", "malebody_1_feet.dds", "femalebody_1_feet.dds", "malebody_1_msn_feet.dds", "femalebody_1_msn_feet.dds", "malebody_1_feet_sk.dds", "femalebody_1_feet_sk.dds", "malebody_1_feet_s.dds", "femalebody_1_feet_s.dds" } },
             { "Vampire", new(StringComparer.OrdinalIgnoreCase) { "maleheadvampire.dds", "femaleheadvampire.dds", "maleheadvampire_msn.dds", "femaleheadvampire_sk.dds", "femaleheadvampire_s.dds" } },
             { "Afflicted", new(StringComparer.OrdinalIgnoreCase) { "maleheadafflicted.dds", "femaleheadafflicted.dds", "malebodyafflicted.dds", "femalebodyafflicted.dds", "malehandsafflicted.dds", "femalehandsafflicted.dds" } },
             { "Snow Elf", new(StringComparer.OrdinalIgnoreCase) { "maleheadsnowelf.dds", "malebodysnowelf.dds", "malehandssnowelf.dds" } },
@@ -812,7 +812,7 @@ namespace SynthEBD
                 }
             }
 
-            if (name.Equals("Default") || name.Equals("Vampire", StringComparison.OrdinalIgnoreCase))
+            if (name.Equals("Main") || name.Equals("Vampire", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
