@@ -26,7 +26,7 @@ namespace SynthEBD
             this.WhenAnyValue(
                 x => x.AssetPack.SelectedPlaceHolder,
                 x => x.ParentUI.bShowPreviewImages,
-                x => x.AssetPack.SelectedPlaceHolder.ImageRefreshTrigger,
+                x => x.AssetPack.SelectedPlaceHolder.ImagePreviewRefreshTrigger,
                 // Just pass along the signal, don't care about the triggering values
                 (_, _, _) => Unit.Default)
             .Throttle(TimeSpan.FromMilliseconds(50), RxApp.MainThreadScheduler)

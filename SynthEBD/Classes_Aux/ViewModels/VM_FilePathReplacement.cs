@@ -79,7 +79,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
                     if (SourceBorderColor == BorderColorValid)
                     {
                         ParentMenu.ParentSubgroup.AssociatedPlaceHolder.GetDDSPaths();
-                        ParentMenu.ParentSubgroup.AssociatedPlaceHolder.ImageRefreshTrigger++;
+                        ParentMenu.ParentSubgroup.AssociatedPlaceHolder.ImagePreviewRefreshTrigger++;
                     }
 
                     if (string.IsNullOrWhiteSpace(IntellisensedPath) && FilePathDestinationMap.FileNameToDestMap.ContainsKey(Path.GetFileName(Source)))
