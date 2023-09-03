@@ -78,10 +78,7 @@ namespace SynthEBD
 
                     ReplaceTextureNamesRecursive(topLevelPlaceHolder, textureType, config); // custom naming and rules based on texture identity
 
-                    if (textureType != TextureType.HeadNormal)
-                    {
-                        AddRulesBySubgroupNameRecursive(topLevelPlaceHolder);
-                    }
+                    AddRulesBySubgroupNameRecursive(topLevelPlaceHolder);
 
                     if (textureType == TextureType.HeadNormal && config.Gender == Gender.Female)
                     {
@@ -533,7 +530,7 @@ namespace SynthEBD
         private void AddRulesBySubgroupName(VM_SubgroupPlaceHolder subgroup)
         {
             var raceFormKey = GetRaceFormKeyFromName(subgroup.AssociatedModel.Name);
-            if (raceFormKey != null)
+            if (raceFormKey != null && !subgroup.AssociatedModel.AllowedRaces.Contains(raceFormKey.Value))
             {
                 subgroup.AssociatedModel.AllowedRaces.Add(raceFormKey.Value);
             }
@@ -576,6 +573,19 @@ namespace SynthEBD
             if (subgroup.AssociatedModel.Name == "Default")
             {
                 subgroup.AssociatedModel.AllowedRaceGroupings.Add("Humanoid Playable Non-Vampire");
+            }
+
+            // special handling for Elder NPCs (technically not applying rules by name, but not worth adding a whole separate function just for this)
+            if (subgroup.AssociatedModel.Paths.Where(x => x.Source.Contains("maleold", StringComparison.OrdinalIgnoreCase)).Any()) // search term covers femaleold as well
+            {
+                if (!subgroup.AssociatedModel.AllowedRaces.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey))
+                {
+                    subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey);
+                }
+                if (!subgroup.AssociatedModel.AllowedRaces.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRaceVampire.FormKey))
+                {
+                    subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRaceVampire.FormKey);
+                }
             }
         }
 
@@ -703,7 +713,8 @@ namespace SynthEBD
             { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.WoodElfRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Wood Elf", "WoodElf", "Bosmer" } },
             { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DA13AfflictedRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Afflicted" } },
             { Mutagen.Bethesda.FormKeys.SkyrimSE.Dawnguard.Race.SnowElfRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Snow Elf", "SnowElf" } },
-            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRaceAstrid.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Astrid" } }
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRaceAstrid.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Astrid" } },
+            { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Old" } }
         };
 
         private static readonly Dictionary<FormKey, FormKey> CorrespondingVampireRaces = new()
