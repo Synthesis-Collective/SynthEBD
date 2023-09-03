@@ -84,6 +84,11 @@ namespace SynthEBD
                     {
                         AddNecessaryWoodElfNormals(topLevelPlaceHolder);
                     }
+
+                    if (textureType == TextureType.BodyDiffuse || textureType == TextureType.BodyNormal || textureType == TextureType.BodySpecular || textureType == TextureType.BodySubsurface)
+                    {
+                        ReplicateBodyToFeetAndTail(topLevelPlaceHolder);
+                    }
                 }
             }
 
@@ -828,6 +833,71 @@ namespace SynthEBD
                 return true;
             }
             return false;
+        }
+
+        private void ReplicateBodyToFeetAndTail(VM_SubgroupPlaceHolder subgroup)
+        {
+            foreach (var sg in subgroup.Subgroups)
+            {
+                ReplicateBodyToFeetAndTail(sg);
+            }
+
+            if (subgroup.AssociatedModel.Paths.Count == 1)
+            {
+                var firstPath = subgroup.AssociatedModel.Paths.First();
+
+                bool isBeastTexture = firstPath.Source.Contains("Argonian", StringComparison.OrdinalIgnoreCase) ||
+                    firstPath.Source.Contains("Khajiit", StringComparison.OrdinalIgnoreCase) ||
+                    TextureToSubgroupName["Argonian"].Contains(Path.GetFileName(firstPath.Source), StringComparer.OrdinalIgnoreCase) ||
+                    TextureToSubgroupName["Argonian Old"].Contains(Path.GetFileName(firstPath.Source), StringComparer.OrdinalIgnoreCase) ||
+                    TextureToSubgroupName["Khajiit"].Contains(Path.GetFileName(firstPath.Source), StringComparer.OrdinalIgnoreCase) ||
+                    TextureToSubgroupName["Khajiit Old"].Contains(Path.GetFileName(firstPath.Source), StringComparer.OrdinalIgnoreCase);
+
+                var feetPath = new FilePathReplacement() { Source = firstPath.Source };
+                bool feetMatched = true;
+
+                switch(firstPath.Destination)
+                {
+                    case FilePathDestinationMap.Dest_TorsoFemaleDiffuse: feetPath.Destination = FilePathDestinationMap.Dest_FeetFemaleDiffuse; break;
+                    case FilePathDestinationMap.Dest_TorsoFemaleNormal: feetPath.Destination = FilePathDestinationMap.Dest_FeetFemaleNormal; break;
+                    case FilePathDestinationMap.Dest_TorsoFemaleSubsurface: feetPath.Destination = FilePathDestinationMap.Dest_FeetFemaleSubsurface; break;
+                    case FilePathDestinationMap.Dest_TorsoFemaleSpecular: feetPath.Destination = FilePathDestinationMap.Dest_FeetFemaleSpecular; break;
+                    case FilePathDestinationMap.Dest_TorsoMaleDiffuse: feetPath.Destination = FilePathDestinationMap.Dest_FeetMaleDiffuse; break;
+                    case FilePathDestinationMap.Dest_TorsoMaleNormal: feetPath.Destination = FilePathDestinationMap.Dest_FeetMaleNormal; break;
+                    case FilePathDestinationMap.Dest_TorsoMaleSubsurface: feetPath.Destination = FilePathDestinationMap.Dest_FeetMaleSubsurface; break;
+                    case FilePathDestinationMap.Dest_TorsoMaleSpecular: feetPath.Destination = FilePathDestinationMap.Dest_FeetMaleSpecular; break;
+                    default: feetMatched = false; break;
+                }
+
+                if (feetMatched)
+                {
+                    subgroup.AssociatedModel.Paths.Add(feetPath);
+                }
+
+                if (isBeastTexture)
+                {
+                    var tailPath = new FilePathReplacement() { Source = firstPath.Source };
+                    bool tailMatched = true;
+
+                    switch (firstPath.Destination)
+                    {
+                        case FilePathDestinationMap.Dest_TorsoFemaleDiffuse: tailPath.Destination = FilePathDestinationMap.Dest_TailFemaleDiffuse; break;
+                        case FilePathDestinationMap.Dest_TorsoFemaleNormal: tailPath.Destination = FilePathDestinationMap.Dest_TailFemaleNormal; break;
+                        case FilePathDestinationMap.Dest_TorsoFemaleSubsurface: tailPath.Destination = FilePathDestinationMap.Dest_TailFemaleSubsurface; break;
+                        case FilePathDestinationMap.Dest_TorsoFemaleSpecular: tailPath.Destination = FilePathDestinationMap.Dest_TailFemaleSpecular; break;
+                        case FilePathDestinationMap.Dest_TorsoMaleDiffuse: tailPath.Destination = FilePathDestinationMap.Dest_TailMaleDiffuse; break;
+                        case FilePathDestinationMap.Dest_TorsoMaleNormal: tailPath.Destination = FilePathDestinationMap.Dest_TailMaleNormal; break;
+                        case FilePathDestinationMap.Dest_TorsoMaleSubsurface: tailPath.Destination = FilePathDestinationMap.Dest_TailMaleSubsurface; break;
+                        case FilePathDestinationMap.Dest_TorsoMaleSpecular: tailPath.Destination = FilePathDestinationMap.Dest_TailMaleSpecular; break;
+                        default: tailMatched = false; break;
+                    }
+
+                    if (tailMatched)
+                    {
+                        subgroup.AssociatedModel.Paths.Add(tailPath);
+                    }
+                }
+            }
         }
     }
 
