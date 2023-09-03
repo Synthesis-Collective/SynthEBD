@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using static Mutagen.Bethesda.Plugins.Binary.Processing.BinaryFileProcessor;
@@ -31,6 +32,25 @@ public class VM_ConfigDrafter : VM
         _7ZipInterfaceVM = sevenZipInterfaceVM;
         temp7z = tmp;
 
+        /*
+        consoleUpdates
+               .ObserveOnGui()
+               .Buffer(TimeSpan.FromMilliseconds(100), 100)
+               .Where(list => list.Count > 0)
+               .Subscribe(i =>
+               {
+                   //PutThisOnScreen += (i);
+                   PutThisOnScreen += string.Join(Environment.NewLine, i);
+               })
+               .DisposeWith(this);*/
+
+        /*
+        UpdateCurrentlyHashing = (string s) =>
+        {
+            CurrentlyHashingFile = s;
+            //consoleUpdates.OnNext(Environment.NewLine + s);
+        };*/
+
         DraftConfigButton = ReactiveCommand.CreateFromTask(
             execute: async _ =>
             {
@@ -41,13 +61,13 @@ public class VM_ConfigDrafter : VM
                         if (await ValidateContainers())
                         {
                             var destinationDirs = await ExtractArchives();
-                            _configDrafter.DraftConfigFromTextures(CurrentConfig, destinationDirs, true, unmatchedTextures);
+                            _detectedTextures = _configDrafter.DraftConfigFromTextures(CurrentConfig, destinationDirs, true, unmatchedTextures);
                         }
                         break;
                     case DrafterTextureSource.Directory:
                         if (ValidateExistingDirectory())
                         {
-                            _configDrafter.DraftConfigFromTextures(CurrentConfig, new List<string>() { SelectedTextureFolder }, false, unmatchedTextures);
+                            _detectedTextures = _configDrafter.DraftConfigFromTextures(CurrentConfig, new List<string>() { SelectedTextureFolder }, false, unmatchedTextures);
                         }
                         break;
                     default: throw new NotImplementedException();
@@ -57,6 +77,9 @@ public class VM_ConfigDrafter : VM
 
                 UnmatchedTextures = string.Join(Environment.NewLine, unmatchedTextures);
                 HasUnmatchedTextures = unmatchedTextures.Any();
+
+                //await Task.Run(async () => ComputeFileDuplicates(UpdateCurrentlyHashing));
+                await Task.Run(async () => ComputeFileDuplicates());
             });
 
         AddFileArchiveButton = new RelayCommand(
@@ -89,6 +112,11 @@ public class VM_ConfigDrafter : VM
 
     public string UnmatchedTextures { get; set; }
     public bool HasUnmatchedTextures { get; set; } = false;
+
+    private List<string> _detectedTextures = new();
+    public ObservableCollection<VM_FileDuplicateContainer> MultipletTextureGroups { get; set; } = new();
+    public string CurrentlyHashingFile { get; set; } = String.Empty;
+    public Action<string> UpdateCurrentlyHashing { get; }
 
     public IReactiveCommand DraftConfigButton { get; }
     public RelayCommand AddFileArchiveButton { get; }
@@ -225,10 +253,58 @@ public class VM_ConfigDrafter : VM
         return destinationDirs;
     }
 
-    private void GetPrefixName()
+    //private async Task ComputeFileDuplicates(Action<string> updateUIstr)
+    private async Task ComputeFileDuplicates()
     {
+        var checkedTexture = new HashSet<string>();
+        var texturesByFileName = _detectedTextures.GroupBy(x => x.Split(Path.DirectorySeparatorChar).Last());
 
+        foreach (var fileGrouping in texturesByFileName)
+        {
+            var multiplet = new VM_FileDuplicateContainer();
+            multiplet.FileName = fileGrouping.Key;
+
+            //CurrentlyHashingFile = "Computing hashes for " + multiplet.FileName;
+            //updateUIstr("Computing hashes for " + multiplet.FileName);
+
+            var checksumGrouping = fileGrouping.GroupBy(x => CalculateMD5(x));
+            foreach (var entry in checksumGrouping)
+            {
+                if (entry.Count() > 1)
+                {
+                    foreach (var filePath in entry)
+                    {
+                        multiplet.FilePaths.Add(filePath);
+                    }
+                }
+            }
+
+            if (multiplet.FilePaths.Any())
+            {
+                MultipletTextureGroups.Add(multiplet);
+            }
+        }
+        CurrentlyHashingFile = String.Empty;
     }
+
+    //https://stackoverflow.com/a/10520086
+    private static string CalculateMD5(string filename)
+    {
+        using (var md5 = MD5.Create())
+        {
+            using (var stream = File.OpenRead(filename))
+            {
+                var hash = md5.ComputeHash(stream);
+                return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+            }
+        }
+    }
+}
+
+public class VM_FileDuplicateContainer : VM
+{
+    public string FileName { get; set; }
+    public List<string> FilePaths { get; set; } = new();
 }
 
 public class VM_DrafterArchiveContainer : VM

@@ -24,8 +24,8 @@ namespace SynthEBD
             _subgroupPlaceHolderFactory = subgroupPlaceHolderFactory;
         }
 
-
-        public void DraftConfigFromTextures(VM_AssetPack config, List<string> rootFolderPaths, bool rootPathsHavePrefix, HashSet<string> unmatchedFiles)
+        // returns all .dds file paths within rootFolderPaths
+        public List<string> DraftConfigFromTextures(VM_AssetPack config, List<string> rootFolderPaths, bool rootPathsHavePrefix, HashSet<string> unmatchedFiles)
         {
             var allFiles = new List<string>();
 
@@ -33,7 +33,7 @@ namespace SynthEBD
             foreach (var path in rootFolderPaths)
             {
                 var filesInDir = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
-                allFiles.AddRange(filesInDir);
+                allFiles.AddRange(filesInDir.Where(x => x.EndsWith(".dds", StringComparison.OrdinalIgnoreCase)));
 
                 if (!prefixFound && filesInDir.Any())
                 {
@@ -41,7 +41,7 @@ namespace SynthEBD
                 }
             }
 
-            unmatchedFiles = new(allFiles.Where(x => x.EndsWith(".dds", StringComparison.OrdinalIgnoreCase))); // remove files from this list as they're matched
+            unmatchedFiles = new(allFiles); // remove files from this list as they're matched
 
             // detect gender
             var fileNames = allFiles.Select(x => x.Split(Path.DirectorySeparatorChar).Last()).ToList();
@@ -94,6 +94,8 @@ namespace SynthEBD
 
             LinkSubgroupsByName(config);
             ClearEmptyTopLevels(config);
+
+            return allFiles;
         }
 
         public void CreateSubgroupsFromPaths(List<string> paths, List<string> rootFolderPaths, bool rootPathsHavePrefix, VM_SubgroupPlaceHolder topLevelPlaceHolder, VM_AssetPack config)
