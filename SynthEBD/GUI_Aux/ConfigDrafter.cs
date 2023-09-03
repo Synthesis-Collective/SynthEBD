@@ -93,6 +93,7 @@ namespace SynthEBD
             }
 
             LinkSubgroupsByName(config);
+            ClearEmptyTopLevels(config);
         }
 
         public void CreateSubgroupsFromPaths(List<string> paths, List<string> rootFolderPaths, bool rootPathsHavePrefix, VM_SubgroupPlaceHolder topLevelPlaceHolder, VM_AssetPack config)
@@ -896,6 +897,20 @@ namespace SynthEBD
                     {
                         subgroup.AssociatedModel.Paths.Add(tailPath);
                     }
+                }
+            }
+        }
+
+        private void ClearEmptyTopLevels(VM_AssetPack config)
+        {
+            for (int i = 0; i < config.Subgroups.Count; i++)
+            {
+                var currentTopLevel = config.Subgroups[i];
+                var allSubgroups = currentTopLevel.GetChildren().And(currentTopLevel);
+                if (!allSubgroups.Where(x => x.AssociatedModel.Paths.Any()).Any())
+                {
+                    config.Subgroups.RemoveAt(i);
+                    i--;
                 }
             }
         }
