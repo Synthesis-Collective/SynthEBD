@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Z.Expressions.Compiler;
 
 namespace SynthEBD
 {
@@ -65,6 +66,16 @@ namespace SynthEBD
         public const string Dest_TailFemaleNormal = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.RawPath";
         public const string Dest_TailFemaleSubsurface = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.RawPath";
         public const string Dest_TailFemaleSpecular = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.RawPath";
+
+        // female etc
+        public const string Dest_EtcFemaleDiffusePrimary = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].WorldModel.Female.AlternateTextures[Index == 1].NewTexture.Diffuse.RawPath";
+        public const string Dest_EtcFemaleDiffuseSecondary = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].WorldModel.Female.AlternateTextures[Index == 2].NewTexture.Diffuse.RawPath";
+        public const string Dest_EtcFemaleNormalPrimary = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].WorldModel.Female.AlternateTextures[Index == 1].NewTexture.NormalOrGloss.RawPath";
+        public const string Dest_EtcFemaleNormalSecondary = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].WorldModel.Female.AlternateTextures[Index == 2].NewTexture.NormalOrGloss.RawPath";
+        public const string Dest_EtcFemaleSubsurfacePrimary = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].WorldModel.Female.AlternateTextures[Index == 1].NewTexture.GlowOrDetailMap.RawPath";
+        public const string Dest_EtcFemaleSubsurfaceSecondary = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].WorldModel.Female.AlternateTextures[Index == 2].NewTexture.GlowOrDetailMap.RawPath";
+        public const string Dest_EtcFemaleSpecularPrimary = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].WorldModel.Female.AlternateTextures[Index == 1].NewTexture.BacklightMaskOrSpecular.RawPath";
+        public const string Dest_EtcFemaleSpecularSecondary = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].WorldModel.Female.AlternateTextures[Index == 2].NewTexture.BacklightMaskOrSpecular.RawPath";
 
         public static readonly Dictionary<string, string> FileNameToDestMap = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -208,7 +219,13 @@ namespace SynthEBD
             {"AstridBody_s.dds", Dest_TorsoFemaleSpecular },
             {"AstridHands.dds", Dest_HandsFemaleDiffuse },
             {"AstridHands_msn.dds", Dest_HandsFemaleNormal },
-            {"AstridHands_s.dds", Dest_HandsFemaleSpecular }
+            {"AstridHands_s.dds", Dest_HandsFemaleSpecular },
+
+            // Female Etc
+            { "femalebody_etc_v2_1.dds", Dest_EtcFemaleDiffusePrimary },
+            { "femalebody_etc_v2_1_msn.dds", Dest_EtcFemaleNormalPrimary },
+            { "femalebody_etc_v2_1_sk.dds", Dest_EtcFemaleSubsurfacePrimary },
+            { "femalebody_etc_v2_1_s.dds", Dest_EtcFemaleSpecularPrimary },
         };
 
         public static readonly Dictionary<string, string> MaleTorsoPaths = new(StringComparer.OrdinalIgnoreCase)

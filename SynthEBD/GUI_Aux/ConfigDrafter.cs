@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.DirectoryServices.ActiveDirectory;
 using System.Globalization;
 using System.IO;
+using System.IO.Abstractions;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -105,6 +106,11 @@ namespace SynthEBD
                     if (textureType == TextureType.BodyDiffuse || textureType == TextureType.BodyNormal || textureType == TextureType.BodySpecular || textureType == TextureType.BodySubsurface)
                     {
                         ReplicateBodyToFeetAndTail(topLevelPlaceHolder);
+                    }
+
+                    if (textureType == TextureType.EtcDiffuse || textureType == TextureType.EtcNormal || textureType == TextureType.EtcSubsurface || textureType == TextureType.EtcSpecular)
+                    {
+                        AddSecondaryEtcTexture(topLevelPlaceHolder, textureType);
                     }
                 }
             }
@@ -457,7 +463,7 @@ namespace SynthEBD
                         case "woodelffemale":
                             UpdateSubgroupName(subgroup, "Wood Elf");
                             subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.WoodElfRace.FormKey);
-                            break; 
+                            break;
                         default: break;
                     }
                 }
@@ -567,7 +573,7 @@ namespace SynthEBD
             {
                 subgroup.AssociatedModel.AllowedRaces.Add(raceFormKey.Value);
             }
-            
+
             if (subgroup.AssociatedModel.Name.Contains("Vampire", StringComparison.OrdinalIgnoreCase)) // complex handling
             {
                 var parentSubgroups = new List<VM_SubgroupPlaceHolder>();
@@ -585,7 +591,7 @@ namespace SynthEBD
                         {
                             parent.AssociatedModel.AllowedRaces.Add(vampireCounterpart);
                         }
-                        
+
                         var otherSubgroups = new List<VM_SubgroupPlaceHolder>();
                         GetOtherBottomSubgroups(parent, subgroup, otherSubgroups);
                         foreach (var sg in otherSubgroups) // within this branch of the subgroup tree, prevent other non-vampire subgroups from inheriting the root allowed vampire race by adding it to the exclusion race
@@ -688,7 +694,11 @@ namespace SynthEBD
             { TextureType.FeetDiffuse, ("FD", "Feet Diffuse") },
             { TextureType.FeetNormal, ("FN", "Feet Normals") },
             { TextureType.FeetSubsurface, ("FS", "Feet Subsurface") },
-            { TextureType.FeetSpecular, ("FSp", "Feet Specular") }
+            { TextureType.FeetSpecular, ("FSp", "Feet Specular") },
+            { TextureType.EtcDiffuse, ("ED", "Etc Diffuse") },
+            { TextureType.EtcNormal, ("EN", "Etc Normals") },
+            { TextureType.EtcSubsurface, ("ES", "Etc Subsurface") },
+            { TextureType.EtcSpecular, ("ESp", "Etc Specular") },
         };
 
         private static readonly Dictionary<TextureType, HashSet<string>> TypeToFileNames = new()
@@ -709,7 +719,11 @@ namespace SynthEBD
             { TextureType.FeetDiffuse, new(StringComparer.OrdinalIgnoreCase) { "malebody_1_feet.dds", "femalebody_1_feet.dds" } },
             { TextureType.FeetNormal, new(StringComparer.OrdinalIgnoreCase) { "malebody_1_msn_feet.dds", "femalebody_1_msn_feet.dds" } },
             { TextureType.FeetSubsurface, new(StringComparer.OrdinalIgnoreCase) { "malebody_1_feet_sk.dds", "femalebody_1_feet_sk.dds" } },
-            { TextureType.FeetSpecular, new(StringComparer.OrdinalIgnoreCase) { "malebody_1_feet_s.dds", "femalebody_1_feet_s.dds" } }
+            { TextureType.FeetSpecular, new(StringComparer.OrdinalIgnoreCase) { "malebody_1_feet_s.dds", "femalebody_1_feet_s.dds" } },
+            { TextureType.EtcDiffuse, new(StringComparer.OrdinalIgnoreCase) { "femalebody_etc_v2_1.dds" } },
+            { TextureType.EtcNormal, new(StringComparer.OrdinalIgnoreCase) { "femalebody_etc_v2_1_msn.dds" } },
+            { TextureType.EtcSubsurface, new(StringComparer.OrdinalIgnoreCase) { "femalebody_etc_v2_1_sk.dds" } },
+            { TextureType.EtcSpecular, new(StringComparer.OrdinalIgnoreCase) { "femalebody_etc_v2_1_s.dds" } },
         };
 
         private static readonly Dictionary<string, HashSet<string>> TextureToSubgroupName = new(StringComparer.OrdinalIgnoreCase)
@@ -765,9 +779,9 @@ namespace SynthEBD
         };
 
         private static readonly Dictionary<Gender, HashSet<string>> ExpectedFilesByGender = new()
-        { 
+        {
             {Gender.Male, new(StringComparer.OrdinalIgnoreCase) { "malehead.dds", "malehead_sk.dds", "malehead_s.dds", "malebody_1.dds", "maleBody_1_msn.dds", "malebody_1_s.dds", "malehands_1.dds", "malehands_1_msn.dds", "malehands_1_sk.dds", "malehands_1_s.dds", "malebody_1_feet.dds", "malebody_1_msn_feet.dds", "malebody_1_feet_sk.dds", "malebody_1_feet_s.dds" } },
-            {Gender.Female, new(StringComparer.OrdinalIgnoreCase) { "femalehead.dds", "femalehead_sk.dds", "femalehead_s.dds", "femalebody_1.dds", "femalebody_msn.dds", "femalebody_1_s.dds", "femalehands_1.dds", "femalehands_1_msn.dds", "femalehands_1_sk.dds", "femalehands_1_s.dds", "femalebody_1_feet.dds", "femalebody_1_msn_feet.dds", "femalebody_1_feet_sk.dds", "femalebody_1_feet_s.dds" } }
+            {Gender.Female, new(StringComparer.OrdinalIgnoreCase) { "femalehead.dds", "femalehead_sk.dds", "femalehead_s.dds", "femalebody_1.dds", "femalebody_msn.dds", "femalebody_1_s.dds", "femalehands_1.dds", "femalehands_1_msn.dds", "femalehands_1_sk.dds", "femalehands_1_s.dds", "femalebody_1_feet.dds", "femalebody_1_msn_feet.dds", "femalebody_1_feet_sk.dds", "femalebody_1_feet_s.dds", "femalebody_etc_v2_1.dds", "femalebody_etc_v2_1_msn.dds", "femalebody_etc_v2_1_s.dds", "femalebody_etc_v2_1_sk.dds" } }
         };
 
         private static List<string> GetMatchingFiles(IEnumerable<string> files, HashSet<string> fileNames)
@@ -884,7 +898,7 @@ namespace SynthEBD
                 var feetPath = new FilePathReplacement() { Source = firstPath.Source };
                 bool feetMatched = true;
 
-                switch(firstPath.Destination)
+                switch (firstPath.Destination)
                 {
                     case FilePathDestinationMap.Dest_TorsoFemaleDiffuse: feetPath.Destination = FilePathDestinationMap.Dest_FeetFemaleDiffuse; break;
                     case FilePathDestinationMap.Dest_TorsoFemaleNormal: feetPath.Destination = FilePathDestinationMap.Dest_FeetFemaleNormal; break;
@@ -961,6 +975,24 @@ namespace SynthEBD
             errorStr = string.Empty;
             return true;
         }
+
+        public void AddSecondaryEtcTexture(VM_SubgroupPlaceHolder topLevel, TextureType type)
+        {
+            var withFiles = topLevel.GetChildren().And(topLevel).Where(x => x.AssociatedModel.Paths.Any()).ToList();
+            foreach (var subgroup in withFiles)
+            {
+                var firstPath = subgroup.AssociatedModel.Paths.First();
+                var secondPath = new FilePathReplacement() { Source = firstPath.Source };
+                switch(type)
+                {
+                    case TextureType.EtcDiffuse: secondPath.Destination = FilePathDestinationMap.Dest_EtcFemaleDiffuseSecondary; break;
+                    case TextureType.EtcNormal: secondPath.Destination = FilePathDestinationMap.Dest_EtcFemaleNormalSecondary; break;
+                    case TextureType.EtcSubsurface: secondPath.Destination = FilePathDestinationMap.Dest_EtcFemaleSubsurfaceSecondary; break;
+                    case TextureType.EtcSpecular: secondPath.Destination = FilePathDestinationMap.Dest_EtcFemaleSpecularSecondary; break;
+                }
+                subgroup.AssociatedModel.Paths.Add(secondPath);
+            }
+        }
     }
 
     public enum TextureType
@@ -981,6 +1013,10 @@ namespace SynthEBD
         FeetDiffuse,
         FeetNormal,
         FeetSubsurface,
-        FeetSpecular
+        FeetSpecular,
+        EtcDiffuse,
+        EtcNormal,
+        EtcSubsurface,
+        EtcSpecular
     }
 }
