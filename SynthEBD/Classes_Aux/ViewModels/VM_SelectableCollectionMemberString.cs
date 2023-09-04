@@ -115,4 +115,18 @@ public class VM_CollectionMemberStringCheckboxList : VM, ICollectionParent
             }    
         }
     }
+
+    public class VM_SimpleSelectableCollectionMemberString : VM
+    {
+        public VM_SimpleSelectableCollectionMemberString(string content, ObservableCollection<VM_SimpleSelectableCollectionMemberString> parentCollection)
+        {
+            DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
+
+            Content = content;
+        }
+        public string Content { get; set; }
+        public ObservableCollection<VM_SimpleSelectableCollectionMemberString> parentCollection { get; }
+        public bool IsSelected { get; set; } = false;
+        public RelayCommand DeleteCommand { get; }
+    }
 }

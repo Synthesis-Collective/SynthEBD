@@ -20,7 +20,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
@@ -73,15 +73,97 @@
             </StackPanel>
         </ScrollViewer>
 
-        <TextBlock Text="Directory to Scan" Foreground="White" Grid.Row="2" Grid.Column="0" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}" VerticalAlignment="Center" />
-        <Button Content="Select" Foreground="MediumPurple" Command="{Binding SelectDirectoryButton}" Grid.Row="2" Grid.Column="1" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}" VerticalAlignment="Center"/>
-        <TextBox Text="{Binding SelectedTextureFolder}" Grid.Row="2" Grid.Column="2" Foreground="White" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}"/>
+        <TextBlock Text="Directories to scan" Foreground="White" Grid.Row="2" Grid.Column="0" Margin="0 5 0 0" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}"/>
+        <ScrollViewer Grid.Row="2" Grid.Column="2" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}">
+            <StackPanel>
+                <ItemsControl ItemsSource="{Binding SelectedTextureFolders}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border BorderBrush="AliceBlue" BorderThickness="1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <Button Content="Select" Foreground="MediumPurple" Command="{Binding SelectPath}" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"/>
+                                    <TextBox Text="{Binding DirPath}" Grid.Row="0" Grid.Column="1" Foreground="White" MinWidth="50"/>
+                                    <Button Content="Remove" Foreground="Firebrick" Command="{Binding DeleteMe}" Grid.Row="0" Grid.Column="2"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button Content="Add Another Directory" Foreground="MediumPurple" Command="{Binding AddDirectoryButton}" HorizontalAlignment="Left"/>
+            </StackPanel>
+        </ScrollViewer>
 
         <Button Content="Draft Config!" Foreground="Aquamarine" Command="{Binding DraftConfigButton}" HorizontalAlignment="Left" Grid.Row="3" Grid.Column="0" />
 
-        <Expander Header="SynthEBD could not determine what to do with these texture files" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding HasUnmatchedTextures, Converter={StaticResource BoolToVis}}">
-            <TextBox Text="{Binding UnmatchedTextures, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" MaxHeight="250" Foreground="White"/>
+        <Grid Grid.Row="3" Grid.Column="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Content="Check for Duplicate Textures" Foreground="MediumPurple" Command="{Binding CheckDuplicatesButton}" Grid.Column="0"/>
+            <ProgressBar Value="{Binding HashingProgressCurrent}" Maximum="{Binding HashingProgressMax}" Foreground="White" Background="Transparent" BorderThickness="0" Grid.Column="1" />
+            <TextBlock Text="{Binding CurrentlyHashingFile}" Grid.Column="1" Foreground="White" HorizontalAlignment="Center"/>
+        </Grid>
+
+        <Expander Header="Duplicate textures detected" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding HasMultiplets, Converter={StaticResource BoolToVis}}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="auto"/>
+                </Grid.RowDefinitions>
+                
+                <TextBlock Grid.Row="0" Text="SynthEBD has detected the following duplicate textures in this mod. Deleting them may simplify the layout of your config file." MaxHeight="250" Foreground="White"/>
+                <ScrollViewer Grid.Row="1">
+                    <ItemsControl ItemsSource="{Binding MultipletTextureGroups}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="MediumPurple" BorderThickness="1" Margin="0 10 0 0">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock Grid.Row="0" Text="{Binding FileName}" Foreground="White" />
+                                        <ItemsControl Grid.Row="1" ItemsSource="{Binding FilePaths}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        
+                                                        <TextBox Grid.Column="0" Text="{Binding Content}" HorizontalScrollBarVisibility="Visible" IsReadOnly="True"/>
+                                                        <CheckBox Grid.Column="1" IsChecked="{Binding IsSelected}" Margin="5 0 0 0"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+                <Button Grid.Row="2" Content="Remove Duplicate Textures" Foreground="Firebrick" Command="{Binding RemoveDuplicatesButton}" HorizontalAlignment="Left" />
+            </Grid>
         </Expander>
 
+        <Expander Header="SynthEBD could not determine what to do with these texture files" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding HasUnmatchedTextures, Converter={StaticResource BoolToVis}}">
+            <TextBox Text="{Binding UnmatchedTextures, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" MaxHeight="250" Foreground="White"/>
+        </Expander>
     </Grid>
 </Window>

@@ -1,4 +1,5 @@
 using DynamicData;
+using DynamicData.Binding;
 using Microsoft.Build.Tasks.Deployment.ManifestUtilities;
 using Noggog;
 using ReactiveUI;
@@ -11,6 +12,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using static Mutagen.Bethesda.Plugins.Binary.Processing.BinaryFileProcessor;
+using static SynthEBD.VM_CollectionMemberStringCheckboxList;
 
 namespace SynthEBD;
 
@@ -32,54 +34,63 @@ public class VM_ConfigDrafter : VM
         _7ZipInterfaceVM = sevenZipInterfaceVM;
         temp7z = tmp;
 
-        /*
-        consoleUpdates
-               .ObserveOnGui()
-               .Buffer(TimeSpan.FromMilliseconds(100), 100)
-               .Where(list => list.Count > 0)
-               .Subscribe(i =>
-               {
-                   //PutThisOnScreen += (i);
-                   PutThisOnScreen += string.Join(Environment.NewLine, i);
-               })
-               .DisposeWith(this);*/
-
-        /*
-        UpdateCurrentlyHashing = (string s) =>
+        duplicateCheckProgress = new(report =>
         {
-            CurrentlyHashingFile = s;
-            //consoleUpdates.OnNext(Environment.NewLine + s);
-        };*/
+            HashingProgressCurrent = report.Item1;
+            HashingProgressMax = report.Item2;
+            CurrentlyHashingFile = report.Item3;
+        });
+
+        CheckDuplicatesButton = ReactiveCommand.CreateFromTask(
+            execute: async _ =>
+            {
+                if (ValidateExistingDirectories())
+                {
+                    MultipletTextureGroups.Clear();
+                    var searchDirs = SelectedTextureFolders.Select(x => x.DirPath).ToList();
+                    var texturePaths = _configDrafter.GetDDSFiles(searchDirs);
+                    var multiples =  await Task.Run(async () => ComputeFileDuplicates(texturePaths, duplicateCheckProgress));
+                    Noggog.ListExt.AddRange(MultipletTextureGroups, multiples.Result);
+                    HasMultiplets = multiples.Result.Any();
+                    HashingProgressCurrent = 0;
+                    CurrentlyHashingFile = string.Empty;
+                }
+            });
+
+        RemoveDuplicatesButton = new RelayCommand(
+           canExecute: _ => true,
+           execute: _ =>
+           {
+               foreach (var multiplet in MultipletTextureGroups)
+               {
+                   for (int i = 0; i < multiplet.FilePaths.Count; i++)
+                   {
+                       if (multiplet.FilePaths[i].IsSelected)
+                       {
+                           IgnoredDuplicatePaths.Add(multiplet.FilePaths[i].Content);
+                           multiplet.FilePaths.RemoveAt(i);
+                           i--;
+                       }
+                   }
+               }
+           });
+
 
         DraftConfigButton = ReactiveCommand.CreateFromTask(
             execute: async _ =>
             {
                 HashSet<string> unmatchedTextures = new();
-                switch (SelectedSource)
-                {
-                    case DrafterTextureSource.Archives: 
-                        if (await ValidateContainers())
-                        {
-                            var destinationDirs = await ExtractArchives();
-                            _detectedTextures = _configDrafter.DraftConfigFromTextures(CurrentConfig, destinationDirs, true, unmatchedTextures);
-                        }
-                        break;
-                    case DrafterTextureSource.Directory:
-                        if (ValidateExistingDirectory())
-                        {
-                            _detectedTextures = _configDrafter.DraftConfigFromTextures(CurrentConfig, new List<string>() { SelectedTextureFolder }, false, unmatchedTextures);
-                        }
-                        break;
-                    default: throw new NotImplementedException();
-                }
 
+                if (ValidateExistingDirectories())
+                {
+                    var searchDirs = SelectedTextureFolders.Select(x => x.DirPath).ToList();
+                    var texturePaths = _configDrafter.GetDDSFiles(searchDirs);
+                    _configDrafter.DraftConfigFromTextures(CurrentConfig, texturePaths, IgnoredDuplicatePaths, SelectedTextureFolders.Select(x => x.DirPath).ToList(), false, unmatchedTextures);
+                }
                 CurrentConfig.GroupName = GeneratedModName.IsNullOrWhitespace() ? "New Asset Pack" : GeneratedModName;
 
                 UnmatchedTextures = string.Join(Environment.NewLine, unmatchedTextures);
                 HasUnmatchedTextures = unmatchedTextures.Any();
-
-                //await Task.Run(async () => ComputeFileDuplicates(UpdateCurrentlyHashing));
-                await Task.Run(async () => ComputeFileDuplicates());
             });
 
         AddFileArchiveButton = new RelayCommand(
@@ -89,14 +100,11 @@ public class VM_ConfigDrafter : VM
                 SelectedFileArchives.Add(_archiveContainerFactory());
             });
 
-        SelectDirectoryButton = new RelayCommand(
+        AddDirectoryButton = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
-                if (IO_Aux.SelectFolder("", out string path))
-                {
-                    SelectedTextureFolder = path;
-                }
+                SelectedTextureFolders.Add(new(SelectedTextureFolders));
             });
     }
 
@@ -108,19 +116,27 @@ public class VM_ConfigDrafter : VM
 
     public DrafterTextureSource SelectedSource { get; set; } = DrafterTextureSource.Archives;
     public ObservableCollection<VM_DrafterArchiveContainer> SelectedFileArchives { get; set; } = new();
-    public string SelectedTextureFolder { get; set; }
+    public ObservableCollection<VM_SelectableDirectoryWrapper> SelectedTextureFolders { get; set; } = new();
 
     public string UnmatchedTextures { get; set; }
     public bool HasUnmatchedTextures { get; set; } = false;
 
-    private List<string> _detectedTextures = new();
+    public IReactiveCommand CheckDuplicatesButton { get; }
     public ObservableCollection<VM_FileDuplicateContainer> MultipletTextureGroups { get; set; } = new();
+    public bool HasMultiplets { get; set; } = false;
+
+    private List<string> IgnoredDuplicatePaths { get; set; } = new();
+    public RelayCommand RemoveDuplicatesButton { get; }
+
     public string CurrentlyHashingFile { get; set; } = String.Empty;
-    public Action<string> UpdateCurrentlyHashing { get; }
+    public int HashingProgressCurrent { get; set; } = 0;
+    public int HashingProgressMax { get; set; } = 1;
+    private Progress<(int, int, string)> duplicateCheckProgress { get; }
 
     public IReactiveCommand DraftConfigButton { get; }
+
+    public RelayCommand AddDirectoryButton { get; }
     public RelayCommand AddFileArchiveButton { get; }
-    public RelayCommand SelectDirectoryButton { get; }
 
     public void InitializeTo(VM_AssetPack config)
     {
@@ -143,27 +159,44 @@ public class VM_ConfigDrafter : VM
         {
             SelectedFileArchives.Add(_archiveContainerFactory());
         }
+
+        if (!SelectedTextureFolders.Any())
+        {
+            SelectedTextureFolders.Add(new(SelectedTextureFolders));
+        }
+
         UnmatchedTextures = "";
         HasUnmatchedTextures = false;
     }
 
-    public bool ValidateExistingDirectory()
+    private bool ValidateExistingDirectories()
     {
-        if (!Directory.Exists(SelectedTextureFolder))
+        foreach (var selection in SelectedTextureFolders)
         {
-            CustomMessageBox.DisplayNotificationOK("Drafter Error", "The selected mod directory does not exist");
+            if (!ValidateExistingDirectory(selection.DirPath))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+    public bool ValidateExistingDirectory(string directory)
+    {
+        if (!Directory.Exists(directory))
+        {
+            CustomMessageBox.DisplayNotificationOK("Drafter Error", "The selected mod directory does not exist: " + directory);
             return false;
         }
 
-        var texturesDir = Path.Combine(SelectedTextureFolder, "Textures");
+        var texturesDir = Path.Combine(directory, "Textures");
         if (!Directory.Exists(texturesDir))
         {
-            CustomMessageBox.DisplayNotificationOK("Drafter Error", "The selected mod directory must contain a Textures folder");
+            CustomMessageBox.DisplayNotificationOK("Drafter Error", "The selected mod directory must contain a Textures folder: " + directory);
             return false;
         }
         if (Directory.GetDirectories(texturesDir).Length < 1)
         {
-            CustomMessageBox.DisplayNotificationOK("Drafter Error", "The selected mod directory must contain a Textures\\* folder");
+            CustomMessageBox.DisplayNotificationOK("Drafter Error", "The selected mod directory must contain a Textures\\* folder: " + directory);
             return false;
         }
         return true;
@@ -208,7 +241,6 @@ public class VM_ConfigDrafter : VM
                 return false;
             }
 
-            //var currentArchiveContents = await temp7z.GetArchiveContents(container.FilePath, true);
             var currentArchiveContents = await _7ZipInterfaceVM().GetArchiveContents(container.FilePath, true, _patcherState.GeneralSettings.Close7ZipWhenFinished, 1000);
             if (!currentArchiveContents.Any())
             {
@@ -253,19 +285,21 @@ public class VM_ConfigDrafter : VM
         return destinationDirs;
     }
 
-    //private async Task ComputeFileDuplicates(Action<string> updateUIstr)
-    private async Task ComputeFileDuplicates()
+    private async Task<ObservableCollection<VM_FileDuplicateContainer>> ComputeFileDuplicates(List<string> texturePaths, IProgress<(int, int,string)> progress)
     {
-        var checkedTexture = new HashSet<string>();
-        var texturesByFileName = _detectedTextures.GroupBy(x => x.Split(Path.DirectorySeparatorChar).Last());
+        ObservableCollection<VM_FileDuplicateContainer> multipletTextureGroups = new();
+
+        var texturesByFileName = texturePaths.GroupBy(x => x.Split(Path.DirectorySeparatorChar).Last());
+
+        int currentGroupingIndex = 0;
+        int maxGroupings = texturesByFileName.Count();
 
         foreach (var fileGrouping in texturesByFileName)
         {
             var multiplet = new VM_FileDuplicateContainer();
             multiplet.FileName = fileGrouping.Key;
 
-            //CurrentlyHashingFile = "Computing hashes for " + multiplet.FileName;
-            //updateUIstr("Computing hashes for " + multiplet.FileName);
+            progress.Report((currentGroupingIndex, maxGroupings, fileGrouping.Key));
 
             var checksumGrouping = fileGrouping.GroupBy(x => CalculateMD5(x));
             foreach (var entry in checksumGrouping)
@@ -274,17 +308,25 @@ public class VM_ConfigDrafter : VM
                 {
                     foreach (var filePath in entry)
                     {
-                        multiplet.FilePaths.Add(filePath);
+                        multiplet.FilePaths.Add(new(filePath, multiplet.FilePaths));
+                    }
+
+                    foreach (var nonFirstPath in multiplet.FilePaths.Where(x => x != multiplet.FilePaths.First()))
+                    {
+                        nonFirstPath.IsSelected = true;
                     }
                 }
             }
 
             if (multiplet.FilePaths.Any())
             {
-                MultipletTextureGroups.Add(multiplet);
+                multiplet.RemoveRootPath(SelectedTextureFolders.Select(x => x.DirPath).ToList());
+                multipletTextureGroups.Add(multiplet);
             }
+            currentGroupingIndex++;
         }
-        CurrentlyHashingFile = String.Empty;
+
+        return multipletTextureGroups;
     }
 
     //https://stackoverflow.com/a/10520086
@@ -304,7 +346,21 @@ public class VM_ConfigDrafter : VM
 public class VM_FileDuplicateContainer : VM
 {
     public string FileName { get; set; }
-    public List<string> FilePaths { get; set; } = new();
+    public ObservableCollection<VM_SimpleSelectableCollectionMemberString> FilePaths { get; set; } = new();
+
+    public void RemoveRootPath(List<string> rootPaths)
+    {
+        foreach (var path in FilePaths)
+        {
+            foreach (var root in rootPaths)
+            {
+                if (path.Content.Contains(root))
+                {
+                    path.Content = path.Content.Replace(root, "").TrimStart(Path.DirectorySeparatorChar);
+                }
+            }
+        }
+    }
 }
 
 public class VM_DrafterArchiveContainer : VM
@@ -336,6 +392,36 @@ public class VM_DrafterArchiveContainer : VM
     public string Prefix { get; set; }
     public RelayCommand SelectArchive { get; }
     public RelayCommand DeleteMe { get; }
+}
+
+public class VM_SelectableDirectoryWrapper : VM
+{
+    public VM_SelectableDirectoryWrapper(ObservableCollection<VM_SelectableDirectoryWrapper> parentCollection)
+    {
+        _parentCollection = parentCollection;
+
+        SelectPath = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                if (IO_Aux.SelectFolder("", out string path))
+                {
+                    DirPath = path;
+                }
+            });
+
+        DeleteMe = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                _parentCollection.Remove(this);
+            });
+    }
+
+    public string DirPath { get; set; }
+    public RelayCommand SelectPath { get; }
+    public RelayCommand DeleteMe { get; }
+    private ObservableCollection<VM_SelectableDirectoryWrapper> _parentCollection { get; }
 }
 
 public enum DrafterTextureSource

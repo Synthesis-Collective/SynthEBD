@@ -25,26 +25,24 @@ namespace SynthEBD
         }
 
         // returns all .dds file paths within rootFolderPaths
-        public List<string> DraftConfigFromTextures(VM_AssetPack config, List<string> rootFolderPaths, bool rootPathsHavePrefix, HashSet<string> unmatchedFiles)
+        public List<string> GetDDSFiles(List<string> rootFolderPaths)
         {
             var allFiles = new List<string>();
-
-            bool prefixFound = false;
             foreach (var path in rootFolderPaths)
             {
                 var filesInDir = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
                 allFiles.AddRange(filesInDir.Where(x => x.EndsWith(".dds", StringComparison.OrdinalIgnoreCase)));
-
-                if (!prefixFound && filesInDir.Any())
-                {
-                    prefixFound = GetPrefix(config, filesInDir, path);
-                }
             }
+            return allFiles;
+        }
 
-            unmatchedFiles = new(allFiles); // remove files from this list as they're matched
+        public void DraftConfigFromTextures(VM_AssetPack config, List<string> allTexturePaths, List<string> ignoredTexturePaths, List<string> rootFolderPaths, bool rootPathsHavePrefix, HashSet<string> unmatchedFiles)
+        {
+            var validTexturePaths = allTexturePaths.Where(x => !ignoredTexturePaths.Contains(x)).ToList();
+            unmatchedFiles = new(validTexturePaths); // remove files from this list as they're matched
 
             // detect gender
-            var fileNames = allFiles.Select(x => x.Split(Path.DirectorySeparatorChar).Last()).ToList();
+            var fileNames = validTexturePaths.Select(x => x.Split(Path.DirectorySeparatorChar).Last()).ToList();
             if (fileNames.Intersect(ExpectedFilesByGender[Gender.Female], StringComparer.OrdinalIgnoreCase).Any())
             {
                 config.Gender = Gender.Female;
@@ -58,7 +56,7 @@ namespace SynthEBD
             {
                 var textureType = (TextureType)type;
                 var searchNames = TypeToFileNames[textureType];
-                var matchedFiles = GetMatchingFiles(allFiles, searchNames);
+                var matchedFiles = GetMatchingFiles(validTexturePaths, searchNames);
 
                 if (matchedFiles.Any())
                 {
@@ -94,8 +92,6 @@ namespace SynthEBD
 
             LinkSubgroupsByName(config);
             ClearEmptyTopLevels(config);
-
-            return allFiles;
         }
 
         public void CreateSubgroupsFromPaths(List<string> paths, List<string> rootFolderPaths, bool rootPathsHavePrefix, VM_SubgroupPlaceHolder topLevelPlaceHolder, VM_AssetPack config)
