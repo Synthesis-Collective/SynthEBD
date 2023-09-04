@@ -117,6 +117,14 @@ namespace SynthEBD
 
         public void CreateSubgroupsFromPaths(List<string> paths, List<string> rootFolderPaths, bool rootPathsHavePrefix, VM_SubgroupPlaceHolder topLevelPlaceHolder, VM_AssetPack config)
         {
+            // special handling if there's only one matching texture
+            if (paths.Count == 1 && GetMatchingRootFolder(rootFolderPaths, paths.First(), rootPathsHavePrefix, out var rootFolderPath) && FilePathDestinationMap.FileNameToDestMap.ContainsKey(Path.GetFileName(paths.First())))
+            {
+                topLevelPlaceHolder.AssociatedModel.Paths.Add(new() { Source = paths.First(), Destination = FilePathDestinationMap.FileNameToDestMap[Path.GetFileName(paths.First())] });
+                paths.Remove(paths.First());
+                return;
+            }
+
             var longestPath = GetLongestDirectoryStructure(paths);
             LastParentPlaceHolders.Clear();
             LastParentGroupings.Clear();
@@ -139,7 +147,7 @@ namespace SynthEBD
                     var parentPlaceHolder = LastParentPlaceHolders[pathGroup.First()];
                     var texturesInGroup = paths.Where(x => x.StartsWith(pathGroup.Key + Path.DirectorySeparatorChar)).ToArray(); // match directory separator as well to avoid erroneously adding textures from "\textures\example" into the group from "textures\exam"
 
-                    if (paths.Contains(pathGroup.Key) && GetMatchingRootFolder(rootFolderPaths, pathGroup.Key, rootPathsHavePrefix, out var rootFolderPath))// this is the file itself
+                    if (paths.Contains(pathGroup.Key) && GetMatchingRootFolder(rootFolderPaths, pathGroup.Key, rootPathsHavePrefix, out rootFolderPath))// this is the file itself
                     {
                         var fileName = Path.GetFileName(pathGroup.Key);
 
