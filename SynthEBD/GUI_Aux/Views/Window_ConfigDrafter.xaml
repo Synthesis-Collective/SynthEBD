@@ -103,9 +103,10 @@
             </StackPanel>
         </ScrollViewer>
 
-        <Button Content="Draft Config!" Foreground="Aquamarine" Command="{Binding DraftConfigButton}" HorizontalAlignment="Left" Grid.Row="3" Grid.Column="0" />
+        <Button Content="Draft Config!" Foreground="Aquamarine" Command="{Binding DraftConfigButton}" HorizontalAlignment="Left" Grid.Row="3" Grid.Column="0" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}" />
+        <Button Content="Extract Archives" Foreground="LimeGreen" Command="{Binding ExtractArchivesButton}" HorizontalAlignment="Left" Grid.Row="3" Grid.Column="0" Visibility="{ Binding SelectedSource, Converter={StaticResource ArchiveVisibilityConverter}}" />
 
-        <Grid Grid.Row="3" Grid.Column="2">
+        <Grid Grid.Row="3" Grid.Column="2" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="auto"/>
                 <ColumnDefinition Width="*"/>

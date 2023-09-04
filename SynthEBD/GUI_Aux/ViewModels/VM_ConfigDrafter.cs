@@ -85,19 +85,61 @@ public class VM_ConfigDrafter : VM
                 {
                     var searchDirs = SelectedTextureFolders.Select(x => x.DirPath).ToList();
                     var texturePaths = _configDrafter.GetDDSFiles(searchDirs);
-                    _configDrafter.DraftConfigFromTextures(CurrentConfig, texturePaths, IgnoredDuplicatePaths, SelectedTextureFolders.Select(x => x.DirPath).ToList(), false, unmatchedTextures);
-                }
-                CurrentConfig.GroupName = GeneratedModName.IsNullOrWhitespace() ? "New Asset Pack" : GeneratedModName;
+                    var status = _configDrafter.DraftConfigFromTextures(CurrentConfig, texturePaths, IgnoredDuplicatePaths, SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, unmatchedTextures);
 
-                UnmatchedTextures = string.Join(Environment.NewLine, unmatchedTextures);
-                HasUnmatchedTextures = unmatchedTextures.Any();
+                    if (status == _configDrafter.SuccessString)
+                    {
+                        CurrentConfig.GroupName = GeneratedModName.IsNullOrWhitespace() ? "New Asset Pack" : GeneratedModName;
+                        UnmatchedTextures = string.Join(Environment.NewLine, unmatchedTextures);
+                        HasUnmatchedTextures = unmatchedTextures.Any();
+                    }
+                    else
+                    {
+                        CustomMessageBox.DisplayNotificationOK("Error drafting config file", status);
+                    }
+                }
+            });
+
+        ExtractArchivesButton = ReactiveCommand.CreateFromTask(
+            execute: async _ =>
+            {
+                HashSet<string> unmatchedTextures = new();
+
+                if (await ValidateContainers())
+                {
+                    var destinationDirs = await ExtractArchives();
+                    if (destinationDirs.Any())
+                    {
+                        SelectedTextureFolders.Clear();
+
+                        if (IsUsingModManager)
+                        {
+                            SelectedTextureFolders.Add(new(SelectedTextureFolders) { DirPath = Path.Combine(_patcherState.ModManagerSettings.CurrentInstallationFolder, GeneratedModName) });
+                        }
+                        else
+                        {
+                            foreach (var dir in destinationDirs)
+                            {
+                                SelectedTextureFolders.Add(new(SelectedTextureFolders) { DirPath = dir });
+                            }
+                        }
+
+                        SelectedFileArchives.Clear();
+                        SelectedSource = DrafterTextureSource.Directories;
+                    }
+                }
             });
 
         AddFileArchiveButton = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
-                SelectedFileArchives.Add(_archiveContainerFactory());
+                var newArchive = _archiveContainerFactory();
+                if (SelectedFileArchives.Any() && !SelectedFileArchives.First().Prefix.IsNullOrWhitespace())
+                {
+                    newArchive.Prefix = SelectedFileArchives.First().Prefix;
+                }
+                SelectedFileArchives.Add(newArchive);
             });
 
         AddDirectoryButton = new RelayCommand(
@@ -111,7 +153,8 @@ public class VM_ConfigDrafter : VM
     public VM_AssetPack CurrentConfig { get; set; }
 
     public string GeneratedModName { get; set; }
-    public bool LockGeneratedModName { get; set; }
+    public bool IsUsingModManager { get; set; }
+    public bool LockGeneratedModName { get; set; } // referenced by View for locking textbox
     public string ModNameToolTip { get; set; }
 
     public DrafterTextureSource SelectedSource { get; set; } = DrafterTextureSource.Archives;
@@ -134,6 +177,7 @@ public class VM_ConfigDrafter : VM
     private Progress<(int, int, string)> duplicateCheckProgress { get; }
 
     public IReactiveCommand DraftConfigButton { get; }
+    public IReactiveCommand ExtractArchivesButton { get; }
 
     public RelayCommand AddDirectoryButton { get; }
     public RelayCommand AddFileArchiveButton { get; }
@@ -142,8 +186,11 @@ public class VM_ConfigDrafter : VM
     {
         CurrentConfig = config;
 
-        LockGeneratedModName = !(_patcherState.ModManagerSettings.ModManagerType == ModManager.ModOrganizer2 && !_patcherState.ModManagerSettings.MO2Settings.ModFolderPath.IsNullOrWhitespace() && Directory.Exists(_patcherState.ModManagerSettings.MO2Settings.ModFolderPath)) &&
-            !(_patcherState.ModManagerSettings.ModManagerType == ModManager.Vortex && !_patcherState.ModManagerSettings.VortexSettings.StagingFolderPath.IsNullOrWhitespace() && Directory.Exists(_patcherState.ModManagerSettings.VortexSettings.StagingFolderPath));
+        IsUsingModManager = (_patcherState.ModManagerSettings.ModManagerType == ModManager.ModOrganizer2 && !_patcherState.ModManagerSettings.MO2Settings.ModFolderPath.IsNullOrWhitespace() && Directory.Exists(_patcherState.ModManagerSettings.MO2Settings.ModFolderPath)) ||
+            (_patcherState.ModManagerSettings.ModManagerType == ModManager.Vortex && !_patcherState.ModManagerSettings.VortexSettings.StagingFolderPath.IsNullOrWhitespace() && Directory.Exists(_patcherState.ModManagerSettings.VortexSettings.StagingFolderPath));
+
+        LockGeneratedModName = !IsUsingModManager;
+
         if (LockGeneratedModName)
         {
             GeneratedModName = "You can only select a mod name if you have filled out your mods folder in the Mod Manager Integration Settings";
@@ -188,16 +235,19 @@ public class VM_ConfigDrafter : VM
             return false;
         }
 
-        var texturesDir = Path.Combine(directory, "Textures");
-        if (!Directory.Exists(texturesDir))
+        if (IsUsingModManager)
         {
-            CustomMessageBox.DisplayNotificationOK("Drafter Error", "The selected mod directory must contain a Textures folder: " + directory);
-            return false;
-        }
-        if (Directory.GetDirectories(texturesDir).Length < 1)
-        {
-            CustomMessageBox.DisplayNotificationOK("Drafter Error", "The selected mod directory must contain a Textures\\* folder: " + directory);
-            return false;
+            var texturesDir = Path.Combine(directory, "Textures");
+            if (!Directory.Exists(texturesDir))
+            {
+                CustomMessageBox.DisplayNotificationOK("Drafter Error", "The selected mod directory must contain a Textures folder: " + directory);
+                return false;
+            }
+            if (Directory.GetDirectories(texturesDir).Length < 1)
+            {
+                CustomMessageBox.DisplayNotificationOK("Drafter Error", "The selected mod directory must contain a Textures\\* folder: " + directory);
+                return false;
+            }
         }
         return true;
     }
@@ -279,7 +329,10 @@ public class VM_ConfigDrafter : VM
                 destinationDir = Path.Combine(_patcherState.ModManagerSettings.CurrentInstallationFolder, GeneratedModName, "Textures", archiveFile.Prefix);
             }
 
-            destinationDirs.Add(destinationDir);
+            if (!destinationDirs.Contains(destinationDir))
+            {
+                destinationDirs.Add(destinationDir);
+            }
             var succes = await _7ZipInterfaceVM().ExtractArchive(archiveFile.FilePath, destinationDir, true, _patcherState.GeneralSettings.Close7ZipWhenFinished, 1000);
         }
         return destinationDirs;
@@ -427,5 +480,5 @@ public class VM_SelectableDirectoryWrapper : VM
 public enum DrafterTextureSource
 {
     Archives,
-    Directory
+    Directories
 }

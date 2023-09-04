@@ -1,9 +1,11 @@
 using ControlzEx.Standard;
 using Microsoft.Build.Logging.StructuredLogger;
+using Mutagen.Bethesda.Fallout4;
 using Mutagen.Bethesda.Plugins;
 using Noggog;
 using System;
 using System.Collections.Generic;
+using System.DirectoryServices.ActiveDirectory;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -17,12 +19,16 @@ namespace SynthEBD
 {
     public class ConfigDrafter
     {
+        private readonly IEnvironmentStateProvider _environmentStateProvider;
         private readonly VM_SubgroupPlaceHolder.Factory _subgroupPlaceHolderFactory;
 
-        public ConfigDrafter(VM_SubgroupPlaceHolder.Factory subgroupPlaceHolderFactory)
+        public ConfigDrafter(IEnvironmentStateProvider environmentStateProvider, VM_SubgroupPlaceHolder.Factory subgroupPlaceHolderFactory)
         {
+            _environmentStateProvider = environmentStateProvider;
             _subgroupPlaceHolderFactory = subgroupPlaceHolderFactory;
         }
+
+        public string SuccessString = "Success";
 
         // returns all .dds file paths within rootFolderPaths
         public List<string> GetDDSFiles(List<string> rootFolderPaths)
@@ -36,10 +42,23 @@ namespace SynthEBD
             return allFiles;
         }
 
-        public void DraftConfigFromTextures(VM_AssetPack config, List<string> allTexturePaths, List<string> ignoredTexturePaths, List<string> rootFolderPaths, bool rootPathsHavePrefix, HashSet<string> unmatchedFiles)
+        public string DraftConfigFromTextures(VM_AssetPack config, List<string> allTexturePaths, List<string> ignoredTexturePaths, List<string> rootFolderPaths, bool rootPathsHavePrefix, HashSet<string> unmatchedFiles)
         {
             var validTexturePaths = allTexturePaths.Where(x => !ignoredTexturePaths.Contains(x)).ToList();
-            unmatchedFiles = new(validTexturePaths); // remove files from this list as they're matched
+            unmatchedFiles.Clear(); // remove files from this list as they're matched
+            foreach (var path in validTexturePaths) { unmatchedFiles.Add(path); }
+
+            // check file path validity if not using mod manager
+            if (rootPathsHavePrefix)
+            {
+                foreach (var texturePath in validTexturePaths)
+                {
+                    if (!CheckRootPathPrefix(texturePath, out string errorStr))
+                    {
+                        return errorStr;
+                    }
+                }
+            }
 
             // detect gender
             var fileNames = validTexturePaths.Select(x => x.Split(Path.DirectorySeparatorChar).Last()).ToList();
@@ -92,6 +111,8 @@ namespace SynthEBD
 
             LinkSubgroupsByName(config);
             ClearEmptyTopLevels(config);
+
+            return SuccessString;
         }
 
         public void CreateSubgroupsFromPaths(List<string> paths, List<string> rootFolderPaths, bool rootPathsHavePrefix, VM_SubgroupPlaceHolder topLevelPlaceHolder, VM_AssetPack config)
@@ -911,6 +932,26 @@ namespace SynthEBD
                     i--;
                 }
             }
+        }
+
+        public bool CheckRootPathPrefix(string path, out string errorStr)
+        {
+            var texturesDir = Path.Combine(_environmentStateProvider.DataFolderPath, "Textures");
+            if (!path.Contains(texturesDir, StringComparison.OrdinalIgnoreCase))
+            {
+                errorStr = "Expected the following texture path to start with the Game Data Folder\\Textures Path: " + path;
+                return false;
+            }
+
+            var fileName = Path.GetFileName(path);
+            if (path.Replace(texturesDir, string.Empty, StringComparison.OrdinalIgnoreCase).Replace(fileName, String.Empty, StringComparison.OrdinalIgnoreCase).Trim(Path.DirectorySeparatorChar).Length == 0)
+            {
+                errorStr = "Expected the following texture path to exist in a subfolder of the Game Data Folder\\Textures Path: " + path;
+                return false;
+            }
+
+            errorStr = string.Empty;
+            return true;
         }
     }
 

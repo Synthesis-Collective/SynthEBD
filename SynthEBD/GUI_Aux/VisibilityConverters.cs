@@ -64,7 +64,7 @@ public class ConfigDrafterVisibilityConverterDirectory : System.Windows.Data.IVa
         bool visibility = false;
         if (value is DrafterTextureSource)
         {
-            visibility = (DrafterTextureSource)value == DrafterTextureSource.Directory;
+            visibility = (DrafterTextureSource)value == DrafterTextureSource.Directories;
         }
         return visibility ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
     }
