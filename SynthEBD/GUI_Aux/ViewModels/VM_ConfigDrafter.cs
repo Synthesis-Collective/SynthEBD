@@ -23,16 +23,14 @@ public class VM_ConfigDrafter : VM
     private readonly PatcherState _patcherState;
     private readonly VM_DrafterArchiveContainer.Factory _archiveContainerFactory;
     private readonly VM_7ZipInterface.Factory _7ZipInterfaceVM;
-    private readonly _7ZipInterface temp7z;
 
-    public VM_ConfigDrafter(ConfigDrafter configDrafter, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_DrafterArchiveContainer.Factory archiveContainerFactory, VM_7ZipInterface.Factory sevenZipInterfaceVM, _7ZipInterface tmp)
+    public VM_ConfigDrafter(ConfigDrafter configDrafter, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_DrafterArchiveContainer.Factory archiveContainerFactory, VM_7ZipInterface.Factory sevenZipInterfaceVM)
     {
         _configDrafter = configDrafter;
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _archiveContainerFactory = archiveContainerFactory;
         _7ZipInterfaceVM = sevenZipInterfaceVM;
-        temp7z = tmp;
 
         duplicateCheckProgress = new(report =>
         {
@@ -92,6 +90,7 @@ public class VM_ConfigDrafter : VM
                         CurrentConfig.GroupName = GeneratedModName.IsNullOrWhitespace() ? "New Asset Pack" : GeneratedModName;
                         UnmatchedTextures = string.Join(Environment.NewLine, unmatchedTextures);
                         HasUnmatchedTextures = unmatchedTextures.Any();
+                        HasEtcTextures = texturePaths.Where(x => x.Contains("femalebody_etc_v2_1", StringComparison.OrdinalIgnoreCase)).Any();
                     }
                     else
                     {
@@ -164,6 +163,9 @@ public class VM_ConfigDrafter : VM
     public string UnmatchedTextures { get; set; }
     public bool HasUnmatchedTextures { get; set; } = false;
 
+    public bool HasEtcTextures { get; set; } = false;
+    public DrafterBodyType SelectedBodyType { get; set; }
+
     public IReactiveCommand CheckDuplicatesButton { get; }
     public ObservableCollection<VM_FileDuplicateContainer> MultipletTextureGroups { get; set; } = new();
     public bool HasMultiplets { get; set; } = false;
@@ -214,6 +216,10 @@ public class VM_ConfigDrafter : VM
 
         UnmatchedTextures = "";
         HasUnmatchedTextures = false;
+        HasEtcTextures = false;
+        HasMultiplets = false;
+        HashingProgressCurrent = 0;
+        CurrentlyHashingFile = String.Empty;
     }
 
     private bool ValidateExistingDirectories()
@@ -481,4 +487,10 @@ public enum DrafterTextureSource
 {
     Archives,
     Directories
+}
+
+public enum DrafterBodyType
+{
+    CBBE_3BA,
+    BHUNP
 }

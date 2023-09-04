@@ -10,6 +10,7 @@ namespace SynthEBD;
 
 public class UpdateHandler // handles backward compatibility for previous SynthEBD versions
 {
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly SynthEBDPaths _paths;
     private readonly PatcherState _patcherState;
     private readonly PatcherIO _patcherIO;
@@ -18,8 +19,9 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
     private readonly VM_SettingsTexMesh _texMeshVM;
     private readonly VM_RaceGrouping.Factory _raceGroupingFactory;
 
-    public UpdateHandler(SynthEBDPaths paths, PatcherState patcherState, PatcherIO patcherIO, Logger logger, VM_Settings_General generalVM, VM_SettingsTexMesh texMeshVM, VM_RaceGrouping.Factory raceGroupingFactory)
+    public UpdateHandler(IEnvironmentStateProvider environmentProvider, SynthEBDPaths paths, PatcherState patcherState, PatcherIO patcherIO, Logger logger, VM_Settings_General generalVM, VM_SettingsTexMesh texMeshVM, VM_RaceGrouping.Factory raceGroupingFactory)
     {
+        _environmentProvider = environmentProvider;
         _paths = paths;
         _patcherState = patcherState;
         _patcherIO = patcherIO; 
@@ -34,6 +36,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         UpdateAssetPacks(_texMeshVM);
         UpdateV1012(_generalVM);
         UpdateV1013(_generalVM);
+        UpdateV1013RecordTemplates();
     }
     private void UpdateAssetPacks(VM_SettingsTexMesh texMeshVM)
     {
@@ -83,6 +86,35 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         }
     }
 
+    private void UpdateV1013RecordTemplates()
+    {
+        if (_patcherState.UpdateLog.Performed1_0_1_3RTUpdate)
+        {
+            return;
+        }
+        string defaultRecordTemplatesStartPath = Path.Combine(_environmentProvider.InternalDataPath, "FirstLaunchResources");
+
+        var newTemplateNames = new string[] { "Record Templates - 3BA - pamonha.esp", "Record Templates - BHUNP - pamonha.esp" };
+
+        foreach (var newPlugin in newTemplateNames)
+        {
+            var source = Path.Combine(defaultRecordTemplatesStartPath, newPlugin);
+            var dest = Path.Combine(_paths.RecordTemplatesDirPath, newPlugin);
+
+            if (File.Exists(source) && !File.Exists(dest))
+            {
+                try
+                {
+                    File.Copy(source, dest);
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError("Failed to copy new record template during update." + Environment.NewLine + "Source: " + source + Environment.NewLine + "Destination: " + dest + Environment.NewLine + ExceptionLogger.GetExceptionStack(e));
+                }
+            }
+        }
+    }
+
     public Dictionary<string, string> V09PathReplacements { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         { "Diffuse", "Diffuse.RawPath" },
@@ -111,4 +143,5 @@ public class UpdateLog
 {
     public bool Performed1_0_1_2Update { get; set; } = false;
     public bool Performed1_0_1_3Update { get; set; } = false;
+    public bool Performed1_0_1_3RTUpdate { get; set; } = false;
 }

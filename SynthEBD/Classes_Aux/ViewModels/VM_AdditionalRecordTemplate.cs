@@ -10,14 +10,16 @@ namespace SynthEBD;
 public class VM_AdditionalRecordTemplate : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
+    public delegate VM_AdditionalRecordTemplate Factory(ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache,
+        ObservableCollection<VM_AdditionalRecordTemplate> parentCollection);
     public VM_AdditionalRecordTemplate(IEnvironmentStateProvider environmentProvider,
-        ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, 
+        ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache,
         ObservableCollection<VM_AdditionalRecordTemplate> parentCollection)
     {
         _environmentProvider = environmentProvider;
         RecordTemplateLinkCache = recordTemplateLinkCache;
         ParentCollection = parentCollection;
-        
+
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
@@ -53,4 +55,16 @@ public class VM_AdditionalRecordTemplate : VM
     public ObservableCollection<VM_AdditionalRecordTemplate> ParentCollection { get; set; }
     public RelayCommand AddAdditionalRacesPath { get; }
     public RelayCommand DeleteCommand { get; set; }
+
+    public static List<string> AdditionalRacesPathsDefault = new()
+    {
+        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].AdditionalRaces",
+        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].AdditionalRaces",
+        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].AdditionalRaces"
+    };
+
+    public static List<string> AdditionalRacesPathsBeast = new()
+    {
+        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].AdditionalRaces"
+    };
 }

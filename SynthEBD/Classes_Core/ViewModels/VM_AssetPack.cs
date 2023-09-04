@@ -57,6 +57,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     private readonly SettingsIO_AssetPack _assetPackIO;
     private readonly VM_AttributeGroupMenu.Factory _attributeGroupMenuFactory;
     private readonly VM_RaceGroupingEditor.Factory _raceGroupingEditorFactory;
+    private readonly VM_AdditionalRecordTemplate.Factory _additionalRecordTemplateFactory;
 
     public delegate VM_AssetPack Factory(AssetPack model);
 
@@ -86,6 +87,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         SettingsIO_AssetPack assetPackIO,
         VM_AttributeGroupMenu.Factory attributeGroupMenuFactory,
         VM_RaceGroupingEditor.Factory raceGroupingEditorFactory,
+        VM_AdditionalRecordTemplate.Factory additionalRecordTemplateFactory,
         Factory selfFactory)
     {
         AssociatedModel = model;
@@ -112,6 +114,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         _assetPackIO = assetPackIO;
         _attributeGroupMenuFactory = attributeGroupMenuFactory;
         _raceGroupingEditorFactory = raceGroupingEditorFactory;
+        _additionalRecordTemplateFactory = additionalRecordTemplateFactory;
 
         ParentCollection = texMesh.AssetPacks;
 
@@ -257,11 +260,24 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         ImportTexturesButton = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => {
+            execute: _ =>
+            {
                 _configDrafter.InitializeTo(this);
                 var drafterWindow = new Window_ConfigDrafter();
                 drafterWindow.DataContext = _configDrafter;
                 drafterWindow.ShowDialog();
+                if (_configDrafter.HasEtcTextures)
+                {
+                    switch (_configDrafter.SelectedBodyType)
+                    {
+                        case DrafterBodyType.CBBE_3BA:
+                            AddEtcRecordTemplate("000801:Record Templates - 3BA - pamonha.esp", "000803:Record Templates - 3BA - pamonha.esp", "000805:Record Templates - 3BA - pamonha.esp");
+                            break;
+                        case DrafterBodyType.BHUNP:
+                            AddEtcRecordTemplate("000801:Record Templates - BHUNP - pamonha.esp", "000803:Record Templates - BHUNP - pamonha.esp", "000805:Record Templates - BHUNP - pamonha.esp");
+                            break;
+                    }
+                }
             }
         );
 
@@ -710,13 +726,79 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 {
                     DefaultTemplateFK = defaultMaleRec.FormKey;
                 }
+                if(RecordTemplateLinkCache.TryResolve<INpcGetter>("KhajiitMale", out var khajiitMaleRec))
+                {
+                    if (!AdditionalRecordTemplateAssignments.Where(x => x.TemplateNPC.Equals(khajiitMaleRec.FormKey)).Any())
+                    {
+                        var additionalKhajiit = _additionalRecordTemplateFactory(RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
+                        additionalKhajiit.RaceFormKeys.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace.FormKey);
+                        additionalKhajiit.RaceFormKeys.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRaceVampire.FormKey);
+                        foreach (var additionalRacesPath in VM_AdditionalRecordTemplate.AdditionalRacesPathsDefault.And(VM_AdditionalRecordTemplate.AdditionalRacesPathsBeast))
+                        {
+                            additionalKhajiit.AdditionalRacesPaths.Add(new(additionalRacesPath, additionalKhajiit.AdditionalRacesPaths));
+                        }
+                        AdditionalRecordTemplateAssignments.Add(additionalKhajiit);
+                    }
+                }
+
+                if (RecordTemplateLinkCache.TryResolve<INpcGetter>("ArgonianMale", out var ArgonianMaleRec))
+                {
+                    if (!AdditionalRecordTemplateAssignments.Where(x => x.TemplateNPC.Equals(ArgonianMaleRec.FormKey)).Any())
+                    {
+                        var additionalArgonian = _additionalRecordTemplateFactory(RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
+                        additionalArgonian.RaceFormKeys.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey);
+                        additionalArgonian.RaceFormKeys.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRaceVampire.FormKey);
+                        foreach (var additionalRacesPath in VM_AdditionalRecordTemplate.AdditionalRacesPathsDefault.And(VM_AdditionalRecordTemplate.AdditionalRacesPathsBeast))
+                        {
+                            additionalArgonian.AdditionalRacesPaths.Add(new(additionalRacesPath, additionalArgonian.AdditionalRacesPaths));
+                        }
+                        AdditionalRecordTemplateAssignments.Add(additionalArgonian);
+                    }
+                }
                 break;
             case Gender.Female:
                 if (RecordTemplateLinkCache.TryResolve<INpcGetter>("DefaultFemale", out var defaultFemaleRec))
                 {
                     DefaultTemplateFK = defaultFemaleRec.FormKey;
                 }
+                if (RecordTemplateLinkCache.TryResolve<INpcGetter>("KhajiitFemale", out var khajiitFemaleRec))
+                {
+                    if (!AdditionalRecordTemplateAssignments.Where(x => x.TemplateNPC.Equals(khajiitFemaleRec.FormKey)).Any())
+                    {
+                        var additionalKhajiit = _additionalRecordTemplateFactory(RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
+                        additionalKhajiit.RaceFormKeys.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace.FormKey);
+                        additionalKhajiit.RaceFormKeys.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRaceVampire.FormKey);
+                        foreach (var additionalRacesPath in VM_AdditionalRecordTemplate.AdditionalRacesPathsDefault.And(VM_AdditionalRecordTemplate.AdditionalRacesPathsBeast))
+                        {
+                            additionalKhajiit.AdditionalRacesPaths.Add(new(additionalRacesPath, additionalKhajiit.AdditionalRacesPaths));
+                        }
+                        AdditionalRecordTemplateAssignments.Add(additionalKhajiit);
+                    }
+                }
+
+                if (RecordTemplateLinkCache.TryResolve<INpcGetter>("ArgonianFemale", out var ArgonianFemaleRec))
+                {
+                    if (!AdditionalRecordTemplateAssignments.Where(x => x.TemplateNPC.Equals(ArgonianFemaleRec.FormKey)).Any())
+                    {
+                        var additionalArgonian = _additionalRecordTemplateFactory(RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
+                        additionalArgonian.RaceFormKeys.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey);
+                        additionalArgonian.RaceFormKeys.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRaceVampire.FormKey);
+                        foreach (var additionalRacesPath in VM_AdditionalRecordTemplate.AdditionalRacesPathsDefault.And(VM_AdditionalRecordTemplate.AdditionalRacesPathsBeast))
+                        {
+                            additionalArgonian.AdditionalRacesPaths.Add(new(additionalRacesPath, additionalArgonian.AdditionalRacesPaths));
+                        }
+                        AdditionalRecordTemplateAssignments.Add(additionalArgonian);
+                    }
+                }
                 break;
+        }
+
+        foreach (var additionalRacesPath in VM_AdditionalRecordTemplate.AdditionalRacesPathsDefault)
+        {
+            if (!DefaultRecordTemplateAdditionalRacesPaths.Select(x => x.Content).Contains(additionalRacesPath))
+            {
+                DefaultRecordTemplateAdditionalRacesPaths.Add(new(additionalRacesPath, DefaultRecordTemplateAdditionalRacesPaths));
+            }
         }
     }
 
@@ -1317,6 +1399,58 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         {
             DeletedMissingDescriptors(sg, oBodySettings, bodyGenConfig);
         }
+    }
+
+    private void AddEtcRecordTemplate(string newDefaultTemplateFormKeyStr, string newKhajiitFormKeyStr, string newArgonianFormKeyStr)
+    {
+        if (RecordTemplateLinkCache.TryResolve<INpcGetter>(newDefaultTemplateFormKeyStr, out var default3BA))
+        {
+            DefaultTemplateFK = default3BA.FormKey;
+        }
+        else if (FormKey.TryFactory(newDefaultTemplateFormKeyStr, out var default3BAfk))
+        {
+            DefaultTemplateFK = default3BAfk;
+        }
+        foreach (var additionalArmaStr in VM_AdditionalRecordTemplate.AdditionalRacesPathsDefault)
+        {
+            if (!DefaultRecordTemplateAdditionalRacesPaths.Select(x => x.Content).Contains(additionalArmaStr))
+            {
+                DefaultRecordTemplateAdditionalRacesPaths.Add(new(additionalArmaStr, DefaultRecordTemplateAdditionalRacesPaths));
+            }
+        }
+  
+        AddBeastTemplate("000803:Record Templates.esp", newKhajiitFormKeyStr, new List<FormKey>() { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRaceVampire.FormKey }); //khajiit template
+        AddBeastTemplate("000805:Record Templates.esp", newArgonianFormKeyStr, new List<FormKey>() { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRaceVampire.FormKey }); //khajiit template
+    }
+
+    private void AddBeastTemplate(string origBeastFormKeyStr, string newBeastFormKeyStr, List<FormKey> additionalRacesFormKeys)
+    {
+        var defaultBeastTemplate = AdditionalRecordTemplateAssignments.Where(x => x.TemplateNPC.ToString() == origBeastFormKeyStr).FirstOrDefault();
+        FormKey BeastTemplate3BAnpcFormKey = new();
+        RecordTemplateLinkCache.TryResolve<INpcGetter>(newBeastFormKeyStr, out var BeastTemplate3BAnpc);
+        if (BeastTemplate3BAnpc == null)
+        {
+            FormKey.TryFactory(newBeastFormKeyStr, out BeastTemplate3BAnpcFormKey);
+        }
+        else
+        {
+            BeastTemplate3BAnpcFormKey = BeastTemplate3BAnpc.FormKey;
+        }
+
+        if (defaultBeastTemplate == null)
+        {
+            defaultBeastTemplate = _additionalRecordTemplateFactory(RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
+        }
+        defaultBeastTemplate.TemplateNPC = BeastTemplate3BAnpcFormKey;
+        Noggog.ListExt.AddRange(defaultBeastTemplate.RaceFormKeys, additionalRacesFormKeys);
+        foreach (var additionalArmaStr in VM_AdditionalRecordTemplate.AdditionalRacesPathsDefault.And(VM_AdditionalRecordTemplate.AdditionalRacesPathsBeast))
+        {
+            if (!defaultBeastTemplate.AdditionalRacesPaths.Select(x => x.Content).Contains(additionalArmaStr))
+            {
+                defaultBeastTemplate.AdditionalRacesPaths.Add(new(additionalArmaStr, DefaultRecordTemplateAdditionalRacesPaths));
+            }
+        }
+        AdditionalRecordTemplateAssignments.Add(defaultBeastTemplate);
     }
 }
 
