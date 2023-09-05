@@ -355,7 +355,7 @@ public class VM_ConfigDrafter : VM
     {
         ObservableCollection<VM_FileDuplicateContainer> multipletTextureGroups = new();
 
-        var texturesByFileName = texturePaths.GroupBy(x => x.Split(Path.DirectorySeparatorChar).Last());
+        var texturesByFileName = texturePaths.GroupBy(x => x.Split(Path.DirectorySeparatorChar).Last().ToLower());
 
         int currentGroupingIndex = 0;
         int maxGroupings = texturesByFileName.Count();

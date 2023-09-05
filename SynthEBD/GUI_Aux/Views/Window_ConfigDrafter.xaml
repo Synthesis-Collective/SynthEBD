@@ -164,12 +164,14 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="auto"/>
                 </Grid.RowDefinitions>
                 
-                <TextBlock Grid.Row="0" Text="SynthEBD has detected the following duplicate textures in this mod. Deleting them may simplify the layout of your config file." MaxHeight="250" Foreground="White"/>
-                <ScrollViewer Grid.Row="1">
+                <TextBlock Grid.Row="0" Text="SynthEBD has detected the following duplicate textures in this mod. Deleting them may simplify the layout of your config file." Foreground="White"/>
+                <TextBlock Grid.Row="1" Text="Try to preserve the files with the most generic paths to prevent creating erroneously restrictive distribution rules." Foreground="White" Visibility="{Binding AutoApplyRules, Converter={StaticResource BoolToVis}}"/>
+                <ScrollViewer Grid.Row="2">
                     <ItemsControl ItemsSource="{Binding MultipletTextureGroups}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
@@ -202,7 +204,7 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </ScrollViewer>
-                <Button Grid.Row="2" Content="Remove Duplicate Textures" Foreground="Firebrick" Command="{Binding RemoveDuplicatesButton}" HorizontalAlignment="Left" Visibility="{Binding NotYetDrafted, Converter={StaticResource BoolToVis}}" ToolTip="Blocks the selected textures from being imported" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" />
+                <Button Grid.Row="3" Content="Remove Duplicate Textures" Foreground="Firebrick" Command="{Binding RemoveDuplicatesButton}" HorizontalAlignment="Left" Visibility="{Binding NotYetDrafted, Converter={StaticResource BoolToVis}}" ToolTip="Blocks the selected textures from being imported" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" />
             </Grid>
         </Expander>
 
