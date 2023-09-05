@@ -145,7 +145,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         ParentMenuVM = texMesh;
 
-        this.WhenAnyValue(x => x.Gender).Subscribe(x => SetDefaultRecordTemplate()).DisposeWith(this);
+        this.WhenAnyValue(x => x.Gender).Skip(1).Subscribe(x => SetDefaultRecordTemplate()).DisposeWith(this); // Don't refresh until a model is loaded in or user changes gender in a new VM
 
         this.WhenAnyValue(vm => vm.SelectedPlaceHolder)
          .Buffer(2, 1)
@@ -455,7 +455,6 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         GroupName = model.GroupName;
         ShortName = model.ShortName;
         ConfigType = model.ConfigType;
-        Gender = model.Gender;
         DisplayAlerts = model.DisplayAlerts;
         UserAlert = model.UserAlert;
 
@@ -507,6 +506,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         DistributionRules.CopyInViewModelFromModel(model.DistributionRules, RaceGroupingEditor.RaceGroupings, this);
 
         SourcePath = model.FilePath;
+
+        Gender = model.Gender; // setting Gender triggers a refresh of the VM's record templates, so only do this after the model's record templates are loaded to avoid adding duplicates to the list (avoids having to do another duplicate check here).
     }
 
     public static void DumpViewModelsToModels(ObservableCollection<VM_AssetPack> viewModels, List<AssetPack> models)
@@ -722,74 +723,16 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         switch(Gender)
         {
             case Gender.Male:
-                if (RecordTemplateLinkCache.TryResolve<INpcGetter>("DefaultMale", out var defaultMaleRec))
-                {
-                    DefaultTemplateFK = defaultMaleRec.FormKey;
-                }
-                if(RecordTemplateLinkCache.TryResolve<INpcGetter>("KhajiitMale", out var khajiitMaleRec))
-                {
-                    if (!AdditionalRecordTemplateAssignments.Where(x => x.TemplateNPC.Equals(khajiitMaleRec.FormKey)).Any())
-                    {
-                        var additionalKhajiit = _additionalRecordTemplateFactory(RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
-                        additionalKhajiit.RaceFormKeys.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace.FormKey);
-                        additionalKhajiit.RaceFormKeys.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRaceVampire.FormKey);
-                        foreach (var additionalRacesPath in VM_AdditionalRecordTemplate.AdditionalRacesPathsDefault.And(VM_AdditionalRecordTemplate.AdditionalRacesPathsBeast))
-                        {
-                            additionalKhajiit.AdditionalRacesPaths.Add(new(additionalRacesPath, additionalKhajiit.AdditionalRacesPaths));
-                        }
-                        AdditionalRecordTemplateAssignments.Add(additionalKhajiit);
-                    }
-                }
-
-                if (RecordTemplateLinkCache.TryResolve<INpcGetter>("ArgonianMale", out var ArgonianMaleRec))
-                {
-                    if (!AdditionalRecordTemplateAssignments.Where(x => x.TemplateNPC.Equals(ArgonianMaleRec.FormKey)).Any())
-                    {
-                        var additionalArgonian = _additionalRecordTemplateFactory(RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
-                        additionalArgonian.RaceFormKeys.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey);
-                        additionalArgonian.RaceFormKeys.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRaceVampire.FormKey);
-                        foreach (var additionalRacesPath in VM_AdditionalRecordTemplate.AdditionalRacesPathsDefault.And(VM_AdditionalRecordTemplate.AdditionalRacesPathsBeast))
-                        {
-                            additionalArgonian.AdditionalRacesPaths.Add(new(additionalRacesPath, additionalArgonian.AdditionalRacesPaths));
-                        }
-                        AdditionalRecordTemplateAssignments.Add(additionalArgonian);
-                    }
-                }
+                UpdateDefaultRecordTemplate("DefaultMale", Gender.Male);
+                UpdateDefaultRecordTemplateBeast("KhajiitMale", Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace.FormKey, new List<FormKey>() { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRaceVampire.FormKey }, Gender.Male);
+                UpdateDefaultRecordTemplateBeast("ArgonianMale", Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey, new List<FormKey>() { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRaceVampire.FormKey }, Gender.Male);
+                RemovePreviousGenderRecordTemplates(Gender.Female);
                 break;
             case Gender.Female:
-                if (RecordTemplateLinkCache.TryResolve<INpcGetter>("DefaultFemale", out var defaultFemaleRec))
-                {
-                    DefaultTemplateFK = defaultFemaleRec.FormKey;
-                }
-                if (RecordTemplateLinkCache.TryResolve<INpcGetter>("KhajiitFemale", out var khajiitFemaleRec))
-                {
-                    if (!AdditionalRecordTemplateAssignments.Where(x => x.TemplateNPC.Equals(khajiitFemaleRec.FormKey)).Any())
-                    {
-                        var additionalKhajiit = _additionalRecordTemplateFactory(RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
-                        additionalKhajiit.RaceFormKeys.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace.FormKey);
-                        additionalKhajiit.RaceFormKeys.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRaceVampire.FormKey);
-                        foreach (var additionalRacesPath in VM_AdditionalRecordTemplate.AdditionalRacesPathsDefault.And(VM_AdditionalRecordTemplate.AdditionalRacesPathsBeast))
-                        {
-                            additionalKhajiit.AdditionalRacesPaths.Add(new(additionalRacesPath, additionalKhajiit.AdditionalRacesPaths));
-                        }
-                        AdditionalRecordTemplateAssignments.Add(additionalKhajiit);
-                    }
-                }
-
-                if (RecordTemplateLinkCache.TryResolve<INpcGetter>("ArgonianFemale", out var ArgonianFemaleRec))
-                {
-                    if (!AdditionalRecordTemplateAssignments.Where(x => x.TemplateNPC.Equals(ArgonianFemaleRec.FormKey)).Any())
-                    {
-                        var additionalArgonian = _additionalRecordTemplateFactory(RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
-                        additionalArgonian.RaceFormKeys.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey);
-                        additionalArgonian.RaceFormKeys.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRaceVampire.FormKey);
-                        foreach (var additionalRacesPath in VM_AdditionalRecordTemplate.AdditionalRacesPathsDefault.And(VM_AdditionalRecordTemplate.AdditionalRacesPathsBeast))
-                        {
-                            additionalArgonian.AdditionalRacesPaths.Add(new(additionalRacesPath, additionalArgonian.AdditionalRacesPaths));
-                        }
-                        AdditionalRecordTemplateAssignments.Add(additionalArgonian);
-                    }
-                }
+                UpdateDefaultRecordTemplate("DefaultFemale", Gender.Female);
+                UpdateDefaultRecordTemplateBeast("KhajiitFemale", Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace.FormKey, new List<FormKey>() { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRaceVampire.FormKey }, Gender.Female);
+                UpdateDefaultRecordTemplateBeast("ArgonianFemale", Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey, new List<FormKey>() { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRaceVampire.FormKey }, Gender.Female);
+                RemovePreviousGenderRecordTemplates(Gender.Male);
                 break;
         }
 
@@ -799,6 +742,50 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             {
                 DefaultRecordTemplateAdditionalRacesPaths.Add(new(additionalRacesPath, DefaultRecordTemplateAdditionalRacesPaths));
             }
+        }
+    }
+
+    public void UpdateDefaultRecordTemplate(string defaultTemplateEditorID, Gender gender)
+    {
+        if (RecordTemplateLinkCache.TryResolve<INpcGetter>(defaultTemplateEditorID, out var defaultMaleRec))
+        {
+            if (DefaultTemplateFK == null || DefaultTemplateFK.IsNull || (RecordTemplateLinkCache.TryResolve<INpcGetter>(DefaultTemplateFK, out var defaultTemplate) && NPCInfo.GetGender(defaultTemplate) != gender))
+            {
+                DefaultTemplateFK = defaultMaleRec.FormKey;
+            }
+        }
+    }
+
+    public void UpdateDefaultRecordTemplateBeast(string defaultTemplateEditorID, FormKey defaultTemplateRaceFormKey, List<FormKey> raceFormKeys, Gender gender)
+    {
+        if (RecordTemplateLinkCache.TryResolve<INpcGetter>(defaultTemplateEditorID, out var defaultBeastRecordTemplate))
+        {
+            if (!AdditionalRecordTemplateAssignments.Where(x =>
+                RecordTemplateLinkCache.TryResolve<INpcGetter>(x.TemplateNPC, out var templateNPCGetter) &&
+                NPCInfo.GetGender(templateNPCGetter) == gender &&
+                templateNPCGetter.Race.FormKey.Equals(defaultTemplateRaceFormKey)).Any())
+            {
+                var additionalBeast = _additionalRecordTemplateFactory(RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
+                additionalBeast.TemplateNPC = defaultBeastRecordTemplate.FormKey;
+                Noggog.ListExt.AddRange(additionalBeast.RaceFormKeys, raceFormKeys);
+                foreach (var additionalRacesPath in VM_AdditionalRecordTemplate.AdditionalRacesPathsDefault.And(VM_AdditionalRecordTemplate.AdditionalRacesPathsBeast))
+                {
+                    additionalBeast.AdditionalRacesPaths.Add(new(additionalRacesPath, additionalBeast.AdditionalRacesPaths));
+                }
+                AdditionalRecordTemplateAssignments.Add(additionalBeast);
+            }
+        }        
+    }
+
+    public void RemovePreviousGenderRecordTemplates(Gender previousGender)
+    {
+        var wrongGenderTemplates = AdditionalRecordTemplateAssignments.Where(x =>
+                RecordTemplateLinkCache.TryResolve<INpcGetter>(x.TemplateNPC, out var templateNPCGetter) &&
+                NPCInfo.GetGender(templateNPCGetter) == previousGender).ToArray();
+
+        foreach (var template in wrongGenderTemplates)
+        {
+            AdditionalRecordTemplateAssignments.Remove(template);
         }
     }
 
@@ -1419,38 +1406,42 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
         }
   
-        AddBeastTemplate("000803:Record Templates.esp", newKhajiitFormKeyStr, new List<FormKey>() { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRaceVampire.FormKey }); //khajiit template
-        AddBeastTemplate("000805:Record Templates.esp", newArgonianFormKeyStr, new List<FormKey>() { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRaceVampire.FormKey }); //khajiit template
+        AddBeastTemplate(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace.FormKey, Gender.Female, newKhajiitFormKeyStr, new List<FormKey>() { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRaceVampire.FormKey }); //khajiit template
+        AddBeastTemplate(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey, Gender.Female, newArgonianFormKeyStr, new List<FormKey>() { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRaceVampire.FormKey }); //khajiit template
     }
 
-    private void AddBeastTemplate(string origBeastFormKeyStr, string newBeastFormKeyStr, List<FormKey> additionalRacesFormKeys)
+    private void AddBeastTemplate(FormKey defaultTemplateRaceFormKey, Gender gender, string newBeastFormKeyStr, List<FormKey> additionalRacesFormKeys)
     {
-        var defaultBeastTemplate = AdditionalRecordTemplateAssignments.Where(x => x.TemplateNPC.ToString() == origBeastFormKeyStr).FirstOrDefault();
-        FormKey BeastTemplate3BAnpcFormKey = new();
-        RecordTemplateLinkCache.TryResolve<INpcGetter>(newBeastFormKeyStr, out var BeastTemplate3BAnpc);
-        if (BeastTemplate3BAnpc == null)
+        var currentBeastTemplate = AdditionalRecordTemplateAssignments.Where(x =>
+                RecordTemplateLinkCache.TryResolve<INpcGetter>(x.TemplateNPC, out var templateNPCGetter) &&
+                NPCInfo.GetGender(templateNPCGetter) == gender &&
+                templateNPCGetter.Race.FormKey.Equals(defaultTemplateRaceFormKey)).FirstOrDefault();
+
+        if (currentBeastTemplate == null)
         {
-            FormKey.TryFactory(newBeastFormKeyStr, out BeastTemplate3BAnpcFormKey);
+            currentBeastTemplate = _additionalRecordTemplateFactory(RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
+        }
+
+        RecordTemplateLinkCache.TryResolve<INpcGetter>(newBeastFormKeyStr, out var newBeastTemplateNPC);
+        if (newBeastTemplateNPC == null)
+        {
+            FormKey.TryFactory(newBeastFormKeyStr, out var newBeastTemplateNPCFormKey);
+            currentBeastTemplate.TemplateNPC = newBeastTemplateNPCFormKey;
         }
         else
         {
-            BeastTemplate3BAnpcFormKey = BeastTemplate3BAnpc.FormKey;
+            currentBeastTemplate.TemplateNPC = newBeastTemplateNPC.FormKey;
         }
 
-        if (defaultBeastTemplate == null)
-        {
-            defaultBeastTemplate = _additionalRecordTemplateFactory(RecordTemplateLinkCache, AdditionalRecordTemplateAssignments);
-        }
-        defaultBeastTemplate.TemplateNPC = BeastTemplate3BAnpcFormKey;
-        Noggog.ListExt.AddRange(defaultBeastTemplate.RaceFormKeys, additionalRacesFormKeys);
+        Noggog.ListExt.AddRange(currentBeastTemplate.RaceFormKeys, additionalRacesFormKeys);
         foreach (var additionalArmaStr in VM_AdditionalRecordTemplate.AdditionalRacesPathsDefault.And(VM_AdditionalRecordTemplate.AdditionalRacesPathsBeast))
         {
-            if (!defaultBeastTemplate.AdditionalRacesPaths.Select(x => x.Content).Contains(additionalArmaStr))
+            if (!currentBeastTemplate.AdditionalRacesPaths.Select(x => x.Content).Contains(additionalArmaStr))
             {
-                defaultBeastTemplate.AdditionalRacesPaths.Add(new(additionalArmaStr, DefaultRecordTemplateAdditionalRacesPaths));
+                currentBeastTemplate.AdditionalRacesPaths.Add(new(additionalArmaStr, DefaultRecordTemplateAdditionalRacesPaths));
             }
         }
-        AdditionalRecordTemplateAssignments.Add(defaultBeastTemplate);
+        AdditionalRecordTemplateAssignments.Add(currentBeastTemplate);
     }
 }
 
