@@ -20,8 +20,32 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="*"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition>
+                <RowDefinition.Style>
+                    <Style TargetType="{x:Type RowDefinition}">
+                        <Setter Property="Height" Value="*"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsExpanded, ElementName=DuplicateTexturesExpander}" Value="False">
+                                <Setter Property="Height" Value="Auto"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </RowDefinition.Style>
+            </RowDefinition>
+            <RowDefinition>
+                <RowDefinition.Style>
+                    <Style TargetType="{x:Type RowDefinition}">
+                        <Setter Property="Height" Value="*"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsExpanded, ElementName=UnusedTexturesExpander}" Value="False">
+                                <Setter Property="Height" Value="Auto"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </RowDefinition.Style>
+            </RowDefinition>
         </Grid.RowDefinitions>
 
         <Grid.ColumnDefinitions>
@@ -112,12 +136,20 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Button Content="Check for Duplicate Textures" Foreground="MediumPurple" Command="{Binding CheckDuplicatesButton}" Grid.Column="0"/>
+            <Button Content="Check for Duplicate Textures" Foreground="MediumPurple" Command="{Binding CheckDuplicatesButton}" Grid.Column="0" Visibility="{Binding NotYetDrafted, Converter={StaticResource BoolToVis}}"/>
             <ProgressBar Value="{Binding HashingProgressCurrent}" Maximum="{Binding HashingProgressMax}" Foreground="White" Background="Transparent" BorderThickness="0" Grid.Column="1" />
             <TextBlock Text="{Binding CurrentlyHashingFile}" Grid.Column="1" Foreground="White" HorizontalAlignment="Center"/>
         </Grid>
 
-        <Expander Header="Duplicate textures detected" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding HasMultiplets, Converter={StaticResource BoolToVis}}">
+        <Separator Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3"/>
+
+        <StackPanel Grid.Row="5" Grid.Column="2" Orientation="Horizontal" Visibility="{Binding HasEtcTextures, Converter={StaticResource BoolToVis}}">
+            <TextBlock Text="Textures are for" Margin="0 0 5 0" Foreground="White" VerticalAlignment="Center"/>
+            <ComboBox  Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding SelectedBodyType}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DrafterBodyType}}}" IsSynchronizedWithCurrentItem="True"/>
+            <TextBlock Text="Body" Margin="5 0 0 0" Foreground="White" VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <Expander Header="Duplicate textures detected" Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding HasMultiplets, Converter={StaticResource BoolToVis}}" Name="DuplicateTexturesExpander">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="auto"/>
@@ -159,11 +191,11 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </ScrollViewer>
-                <Button Grid.Row="2" Content="Remove Duplicate Textures" Foreground="Firebrick" Command="{Binding RemoveDuplicatesButton}" HorizontalAlignment="Left" />
+                <Button Grid.Row="2" Content="Remove Duplicate Textures" Foreground="Firebrick" Command="{Binding RemoveDuplicatesButton}" HorizontalAlignment="Left" Visibility="{Binding NotYetDrafted, Converter={StaticResource BoolToVis}}" />
             </Grid>
         </Expander>
 
-        <Expander Header="SynthEBD could not determine what to do with these texture files" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding HasUnmatchedTextures, Converter={StaticResource BoolToVis}}">
+        <Expander Header="SynthEBD could not determine what to do with these texture files" Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding HasUnmatchedTextures, Converter={StaticResource BoolToVis}}" Name="UnusedTexturesExpander">
             <TextBox Text="{Binding UnmatchedTextures, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" MaxHeight="250" Foreground="White"/>
         </Expander>
     </Grid>

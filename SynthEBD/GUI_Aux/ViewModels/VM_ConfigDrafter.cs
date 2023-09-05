@@ -91,6 +91,7 @@ public class VM_ConfigDrafter : VM
                         UnmatchedTextures = string.Join(Environment.NewLine, unmatchedTextures);
                         HasUnmatchedTextures = unmatchedTextures.Any();
                         HasEtcTextures = texturePaths.Where(x => x.Contains("femalebody_etc_v2_1", StringComparison.OrdinalIgnoreCase)).Any();
+                        NotYetDrafted = false;
                     }
                     else
                     {
@@ -156,6 +157,8 @@ public class VM_ConfigDrafter : VM
     public bool LockGeneratedModName { get; set; } // referenced by View for locking textbox
     public string ModNameToolTip { get; set; }
 
+    public bool NotYetDrafted { get; set; } = true;
+
     public DrafterTextureSource SelectedSource { get; set; } = DrafterTextureSource.Archives;
     public ObservableCollection<VM_DrafterArchiveContainer> SelectedFileArchives { get; set; } = new();
     public ObservableCollection<VM_SelectableDirectoryWrapper> SelectedTextureFolders { get; set; } = new();
@@ -220,6 +223,7 @@ public class VM_ConfigDrafter : VM
         HasMultiplets = false;
         HashingProgressCurrent = 0;
         CurrentlyHashingFile = String.Empty;
+        NotYetDrafted = true;
     }
 
     private bool ValidateExistingDirectories()
