@@ -83,7 +83,7 @@ public class VM_ConfigDrafter : VM
                 {
                     var searchDirs = SelectedTextureFolders.Select(x => x.DirPath).ToList();
                     var texturePaths = _configDrafter.GetDDSFiles(searchDirs);
-                    var status = _configDrafter.DraftConfigFromTextures(CurrentConfig, texturePaths, IgnoredDuplicatePaths, SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, unmatchedTextures);
+                    var status = _configDrafter.DraftConfigFromTextures(CurrentConfig, texturePaths, IgnoredDuplicatePaths, SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, unmatchedTextures, AutoApplyNames, AutoApplyRules, AutoApplyLinkage);
 
                     if (status == _configDrafter.SuccessString)
                     {
@@ -156,6 +156,9 @@ public class VM_ConfigDrafter : VM
     public bool IsUsingModManager { get; set; }
     public bool LockGeneratedModName { get; set; } // referenced by View for locking textbox
     public string ModNameToolTip { get; set; }
+    public bool AutoApplyNames { get; set; } = true;
+    public bool AutoApplyRules { get; set; } = true;
+    public bool AutoApplyLinkage { get; set; } = true;
 
     public bool NotYetDrafted { get; set; } = true;
 

@@ -43,7 +43,7 @@ namespace SynthEBD
             return allFiles;
         }
 
-        public string DraftConfigFromTextures(VM_AssetPack config, List<string> allTexturePaths, List<string> ignoredTexturePaths, List<string> rootFolderPaths, bool rootPathsHavePrefix, HashSet<string> unmatchedFiles)
+        public string DraftConfigFromTextures(VM_AssetPack config, List<string> allTexturePaths, List<string> ignoredTexturePaths, List<string> rootFolderPaths, bool rootPathsHavePrefix, HashSet<string> unmatchedFiles, bool autoApplyNames, bool autoApplyRules, bool autoApplyLinkage)
         {
             var validTexturePaths = allTexturePaths.Where(x => !ignoredTexturePaths.Contains(x)).ToList();
             unmatchedFiles.Clear(); // remove files from this list as they're matched
@@ -94,9 +94,15 @@ namespace SynthEBD
 
                     CleanRedundantSubgroups(topLevelPlaceHolder);
 
-                    ReplaceTextureNamesRecursive(topLevelPlaceHolder, textureType, config); // custom naming and rules based on texture identity
+                    if (autoApplyNames)
+                    {
+                        ReplaceTextureNamesRecursive(topLevelPlaceHolder, textureType, config); // custom naming and rules based on texture identity
+                    }
 
-                    AddRulesBySubgroupNameRecursive(topLevelPlaceHolder);
+                    if (autoApplyRules)
+                    {
+                        AddRulesBySubgroupNameRecursive(topLevelPlaceHolder);
+                    }
 
                     if (textureType == TextureType.HeadNormal && config.Gender == Gender.Female)
                     {
@@ -115,7 +121,10 @@ namespace SynthEBD
                 }
             }
 
-            LinkSubgroupsByName(config);
+            if (autoApplyLinkage)
+            {
+                LinkSubgroupsByName(config);
+            }
             ClearEmptyTopLevels(config);
 
             return SuccessString;
