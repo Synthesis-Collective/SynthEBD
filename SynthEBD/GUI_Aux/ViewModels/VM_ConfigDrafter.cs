@@ -32,6 +32,8 @@ public class VM_ConfigDrafter : VM
         _archiveContainerFactory = archiveContainerFactory;
         _7ZipInterfaceVM = sevenZipInterfaceVM;
 
+        canExecuteDrafting = this.WhenAnyValue(x => x.NotYetDrafted);
+
         duplicateCheckProgress = new(report =>
         {
             HashingProgressCurrent = report.Item1;
@@ -98,7 +100,7 @@ public class VM_ConfigDrafter : VM
                         CustomMessageBox.DisplayNotificationOK("Error drafting config file", status);
                     }
                 }
-            });
+            }, canExecuteDrafting);
 
         ExtractArchivesButton = ReactiveCommand.CreateFromTask(
             execute: async _ =>
@@ -161,6 +163,7 @@ public class VM_ConfigDrafter : VM
     public bool AutoApplyLinkage { get; set; } = true;
 
     public bool NotYetDrafted { get; set; } = true;
+    IObservable<bool> canExecuteDrafting { get; }
 
     public DrafterTextureSource SelectedSource { get; set; } = DrafterTextureSource.Archives;
     public ObservableCollection<VM_DrafterArchiveContainer> SelectedFileArchives { get; set; } = new();
