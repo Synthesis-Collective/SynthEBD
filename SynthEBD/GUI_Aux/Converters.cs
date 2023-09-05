@@ -357,7 +357,16 @@ public class Converters
         }
     }
 
-    public bool FormKeyStringToFormIDString(string formKeyString, out string formIDstr)
+    public string FormKeyStringToFormIDString(string formKeyString)
+    {
+        if (TryFormKeyStringToFormIDString(formKeyString, out string formIDstr))
+        {
+            return formIDstr;
+        }
+        return String.Empty;
+    }
+
+    public bool TryFormKeyStringToFormIDString(string formKeyString, out string formIDstr)
     {
         formIDstr = string.Empty;
         var split = formKeyString.Split(':');

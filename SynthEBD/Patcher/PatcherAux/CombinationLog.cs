@@ -84,7 +84,7 @@ public class CombinationLog
 
                 foreach (var record in combination.AssignedRecords)
                 {
-                    if (_converters.FormKeyStringToFormIDString(record.FormKey, out string formID))
+                    if (_converters.TryFormKeyStringToFormIDString(record.FormKey, out string formID))
                     {
                         fileContents.Add("\t\t\t" + (record.EditorID) + " (" + formID + ")"); // not a Mutagen record; EditorID will never be null
                     }
