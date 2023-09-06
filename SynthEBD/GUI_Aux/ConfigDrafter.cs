@@ -775,11 +775,13 @@ namespace SynthEBD
 
         public void ChooseLeastSpecificPath(IEnumerable<VM_SimpleSelectableCollectionMemberString> candidates) // try to select the most generic directory path
         {
+            var acceptablePaths = new List<VM_SimpleSelectableCollectionMemberString>();
             foreach (var candidate in candidates)
             {
                 bool unMatched = true;
                 var splitPath = candidate.Content.Split(Path.DirectorySeparatorChar).ToList();
                 var canidateDir = string.Join(Path.DirectorySeparatorChar, splitPath.GetRange(0, splitPath.Count - 1)); // ignore file names
+              
                 foreach (var entry in RaceFormKeyToRaceString)
                 {
                     var matchStrings = new HashSet<string>(entry.Value);
@@ -792,7 +794,7 @@ namespace SynthEBD
                         continue;
                     }
 
-                    if(matchStrings.Where(x => canidateDir.Contains(x, StringComparison.OrdinalIgnoreCase)).Any())
+                    if(!matchStrings.Where(x => canidateDir.Contains(x, StringComparison.OrdinalIgnoreCase)).Any())
                     {
                         unMatched = false;
                         break;
@@ -801,15 +803,17 @@ namespace SynthEBD
 
                 if (unMatched)
                 {
-                    candidate.IsSelected = false;
-                    return;
+                    acceptablePaths.Add(candidate);
                 }
             }
 
-            // if this code is executed, none of the paths were sufficiently generic so just deselect the first one
-            if (candidates.Any())
+            if (acceptablePaths.Any())
             {
-                candidates.First().IsSelected = false;
+                acceptablePaths.OrderBy(x => x.Content.Length).First().IsSelected = false;
+            }
+            else if (candidates.Any())
+            {
+                candidates.OrderBy(x => x.Content.Length).First().IsSelected = false;
             }
         }
 
