@@ -247,3 +247,11 @@ Function ClearActorEffect(Actor akAktor, MagicEffect effectToClear, Spell parent
 		akAktor.DispelSpell(parentSpell)
 	EndIf
 EndFunction
+
+string function GetActorBaseName(ActorBase akBase) global
+	string actorName = akBase.GetName()
+	if actorName == ""
+		actorName = "Unnamed"
+	endif
+	return actorName
+endFunction
