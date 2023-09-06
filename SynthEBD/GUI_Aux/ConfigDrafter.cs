@@ -118,6 +118,8 @@ namespace SynthEBD
                     {
                         AddSecondaryEtcTexture(topLevelPlaceHolder, textureType);
                     }
+
+                    SortSubgroupsRecursive(topLevelPlaceHolder);
                 }
             }
 
@@ -1044,6 +1046,15 @@ namespace SynthEBD
                     case TextureType.EtcSpecular: secondPath.Destination = FilePathDestinationMap.Dest_EtcFemaleSpecularSecondary; break;
                 }
                 subgroup.AssociatedModel.Paths.Add(secondPath);
+            }
+        }
+
+        public void SortSubgroupsRecursive(VM_SubgroupPlaceHolder subgroup)
+        {
+            subgroup.Subgroups.Sort(x => x.AssociatedModel.Name, false);
+            foreach (var sg in subgroup.Subgroups)
+            {
+                SortSubgroupsRecursive(sg);
             }
         }
     }
