@@ -30,6 +30,7 @@ namespace SynthEBD
         }
 
         public string SuccessString = "Success";
+        private const string DefaultSubgroupName = "Main";
 
         // returns all .dds file paths within rootFolderPaths
         public List<string> GetDDSFiles(List<string> rootFolderPaths)
@@ -118,6 +119,8 @@ namespace SynthEBD
                     {
                         AddSecondaryEtcTexture(topLevelPlaceHolder, textureType);
                     }
+
+                    CheckNordNamesRecursive(topLevelPlaceHolder);
 
                     SortSubgroupsRecursive(topLevelPlaceHolder);
                 }
@@ -739,7 +742,7 @@ namespace SynthEBD
 
         private static readonly Dictionary<string, HashSet<string>> TextureToSubgroupName = new(StringComparer.OrdinalIgnoreCase)
         {
-            { "Main", new(StringComparer.OrdinalIgnoreCase) { "malehead.dds", "femalehead.dds", "malehead_sk.dds", "femalehead_sk.dds", "malehead_s.dds", "femalehead_s.dds", "blankdetailmap.dds", "malebody_1.dds", "femalebody_1.dds", "maleBody_1_msn.dds", "femalebody_msn.dds", "malebody_1_s.dds", "femalebody_1_s.dds", "malehands_1.dds" , "femalehands_1.dds", "malehands_1_msn.dds", "femalehands_1_msn.dds", "malehands_1_sk.dds", "femalehands_1_sk.dds", "malehands_1_s.dds", "femalehands_1_s.dds", "malebody_1_feet.dds", "femalebody_1_feet.dds", "malebody_1_msn_feet.dds", "femalebody_1_msn_feet.dds", "malebody_1_feet_sk.dds", "femalebody_1_feet_sk.dds", "malebody_1_feet_s.dds", "femalebody_1_feet_s.dds" } },
+            { DefaultSubgroupName, new(StringComparer.OrdinalIgnoreCase) { "malehead.dds", "femalehead.dds", "malehead_sk.dds", "femalehead_sk.dds", "malehead_s.dds", "femalehead_s.dds", "blankdetailmap.dds", "malebody_1.dds", "femalebody_1.dds", "maleBody_1_msn.dds", "femalebody_msn.dds", "malebody_1_s.dds", "femalebody_1_s.dds", "malehands_1.dds" , "femalehands_1.dds", "malehands_1_msn.dds", "femalehands_1_msn.dds", "malehands_1_sk.dds", "femalehands_1_sk.dds", "malehands_1_s.dds", "femalehands_1_s.dds", "malebody_1_feet.dds", "femalebody_1_feet.dds", "malebody_1_msn_feet.dds", "femalebody_1_msn_feet.dds", "malebody_1_feet_sk.dds", "femalebody_1_feet_sk.dds", "malebody_1_feet_s.dds", "femalebody_1_feet_s.dds" } },
             { "Vampire", new(StringComparer.OrdinalIgnoreCase) { "maleheadvampire.dds", "femaleheadvampire.dds", "maleheadvampire_msn.dds", "femaleheadvampire_sk.dds", "femaleheadvampire_s.dds" } },
             { "Afflicted", new(StringComparer.OrdinalIgnoreCase) { "maleheadafflicted.dds", "femaleheadafflicted.dds", "malebodyafflicted.dds", "femalebodyafflicted.dds", "malehandsafflicted.dds", "femalehandsafflicted.dds" } },
             { "Snow Elf", new(StringComparer.OrdinalIgnoreCase) { "maleheadsnowelf.dds", "malebodysnowelf.dds", "malehandssnowelf.dds" } },
@@ -925,7 +928,7 @@ namespace SynthEBD
                 }
             }
 
-            if (name.Equals("Main") || name.Equals("Vampire", StringComparison.OrdinalIgnoreCase))
+            if (name.Equals(DefaultSubgroupName) || name.Equals("Vampire", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -1055,6 +1058,44 @@ namespace SynthEBD
             foreach (var sg in subgroup.Subgroups)
             {
                 SortSubgroupsRecursive(sg);
+            }
+        }
+
+        public void CheckNordNamesRecursive(VM_SubgroupPlaceHolder subgroup) // "male" and "female" is a confusing path because in some cases it's supposed to apply specifically to Nords, while in other cases it's for all humanoid races. Thanks Bethesda. This function checks if a subgroup has neighbors with other races, and if not reverts the name back to DefaultSubgroupName
+        {
+            if(subgroup.AssociatedModel.Name == "Nord" && subgroup.ParentSubgroup != null)
+            {
+                bool hasOtherRacialSubgroups = false;
+                foreach (var sg in subgroup.ParentSubgroup.Subgroups.Where(x => !x.Equals(subgroup)).ToArray())
+                {
+                    // does subgroup have a racial name? Ignore "Elder" and "Vampire" in this consideration
+                    foreach (var entry in RaceFormKeyToRaceString)
+                    {
+                        if (entry.Key.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey) || entry.Key.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey))
+                        {
+                            continue;
+                        }
+                        if (entry.Value.Where(x => sg.AssociatedModel.Name.Contains(x, StringComparison.OrdinalIgnoreCase)).Any())
+                        {
+                            hasOtherRacialSubgroups = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!hasOtherRacialSubgroups)
+                {
+                    UpdateSubgroupName(subgroup, subgroup.AssociatedModel.Name.Replace("Nord", DefaultSubgroupName, StringComparison.OrdinalIgnoreCase));
+                    if (subgroup.AssociatedModel.AllowedRaces.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey))
+                    {
+                        subgroup.AssociatedModel.AllowedRaces.RemoveWhere(x => x.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey));
+                    }
+                }
+            }
+
+            foreach (var sg in subgroup.Subgroups)
+            {
+                CheckNordNamesRecursive(sg);
             }
         }
     }
