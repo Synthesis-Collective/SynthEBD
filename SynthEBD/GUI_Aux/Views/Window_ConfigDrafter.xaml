@@ -14,10 +14,10 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <local:BoolToSolidColorBrushConverter x:Key="BoolToBrushConverter">
             <local:BoolToSolidColorBrushConverter.TrueColor>
-                <SolidColorBrush Color="Green"/>
+                <SolidColorBrush Color="White"/>
             </local:BoolToSolidColorBrushConverter.TrueColor>
             <local:BoolToSolidColorBrushConverter.FalseColor>
-                <SolidColorBrush Color="Red"/>
+                <SolidColorBrush Color="DarkOrange"/>
             </local:BoolToSolidColorBrushConverter.FalseColor>
         </local:BoolToSolidColorBrushConverter>
     </Window.Resources>
