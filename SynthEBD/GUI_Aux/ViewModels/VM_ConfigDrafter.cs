@@ -377,12 +377,7 @@ public class VM_ConfigDrafter : VM
                 {
                     foreach (var filePath in entry)
                     {
-                        multiplet.FilePaths.Add(new(filePath, multiplet.FilePaths));
-                    }
-
-                    foreach (var nonFirstPath in multiplet.FilePaths.Where(x => x != multiplet.FilePaths.First()))
-                    {
-                        nonFirstPath.IsSelected = true;
+                        multiplet.FilePaths.Add(new(filePath, multiplet.FilePaths) { IsSelected = true });
                     }
                 }
             }
@@ -390,6 +385,7 @@ public class VM_ConfigDrafter : VM
             if (multiplet.FilePaths.Any())
             {
                 multiplet.RemoveRootPath(SelectedTextureFolders.Select(x => x.DirPath).ToList());
+                _configDrafter.ChooseLeastSpecificPath(multiplet.FilePaths); // uncheck the best candidate
                 multipletTextureGroups.Add(multiplet);
             }
             currentGroupingIndex++;
