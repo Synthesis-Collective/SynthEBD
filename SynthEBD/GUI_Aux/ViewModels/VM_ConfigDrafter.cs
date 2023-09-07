@@ -49,7 +49,7 @@ public class VM_ConfigDrafter : VM
                 if (_uncategorizedTexturePaths.Any())
                 {
                     HasUnmatchedTextures = true;
-                    foreach (var path in _uncategorizedTexturePaths)
+                    foreach (var path in _uncategorizedTexturePaths.Where(x => !IgnoredPaths.Contains(x))) // ignore paths that were already ignored due to being multiplets
                     {
                         UnmatchedTextures.Add(new(_configDrafter.RemoveRootFolder(path, searchDirs, !IsUsingModManager), UnmatchedTextures));
                     }
