@@ -38,6 +38,21 @@ public class VM_ConfigDrafter : VM
 
         canExecuteDrafting = this.WhenAnyValue(x => x.NotYetDrafted);
 
+        _categorizePaths = () =>
+        {
+            if (ValidateExistingDirectories())
+            {
+                var searchDirs = SelectedTextureFolders.Select(x => x.DirPath).ToList();
+                var texturePaths = _configDrafter.GetDDSFiles(searchDirs);
+                (_categorizedTexturePaths, _uncategorizedTexturePaths) = _configDrafter.CategorizeFiles(texturePaths);
+                if (_uncategorizedTexturePaths.Any())
+                {
+                    HasUnmatchedTextures = true;
+                    UnmatchedTextures = string.Join(Environment.NewLine, _uncategorizedTexturePaths);
+                }
+            }
+        };
+
         duplicateCheckProgress = new(report =>
         {
             HashingProgressCurrent = report.Item1;
@@ -89,13 +104,11 @@ public class VM_ConfigDrafter : VM
                 {
                     var searchDirs = SelectedTextureFolders.Select(x => x.DirPath).ToList();
                     var texturePaths = _configDrafter.GetDDSFiles(searchDirs);
-                    var status = _configDrafter.DraftConfigFromTextures(CurrentConfig, texturePaths, IgnoredDuplicatePaths, SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, unmatchedTextures, AutoApplyNames, AutoApplyRules, AutoApplyLinkage);
+                    var status = _configDrafter.DraftConfigFromTextures(CurrentConfig, _categorizedTexturePaths, _uncategorizedTexturePaths, IgnoredDuplicatePaths, SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, AutoApplyNames, AutoApplyRules, AutoApplyLinkage);
 
                     if (status == _configDrafter.SuccessString)
                     {
                         CurrentConfig.GroupName = GeneratedModName.IsNullOrWhitespace() ? "New Asset Pack" : GeneratedModName;
-                        UnmatchedTextures = string.Join(Environment.NewLine, unmatchedTextures);
-                        HasUnmatchedTextures = unmatchedTextures.Any();
                         HasEtcTextures = texturePaths.Where(x => x.Contains("femalebody_etc_v2_1", StringComparison.OrdinalIgnoreCase)).Any();
                         NotYetDrafted = false;
                     }
@@ -120,13 +133,13 @@ public class VM_ConfigDrafter : VM
 
                         if (IsUsingModManager)
                         {
-                            SelectedTextureFolders.Add(new(SelectedTextureFolders) { DirPath = Path.Combine(_patcherState.ModManagerSettings.CurrentInstallationFolder, GeneratedModName) });
+                            SelectedTextureFolders.Add(new(SelectedTextureFolders, _categorizePaths) { DirPath = Path.Combine(_patcherState.ModManagerSettings.CurrentInstallationFolder, GeneratedModName) });
                         }
                         else
                         {
                             foreach (var dir in destinationDirs)
                             {
-                                SelectedTextureFolders.Add(new(SelectedTextureFolders) { DirPath = dir });
+                                SelectedTextureFolders.Add(new(SelectedTextureFolders, _categorizePaths) { DirPath = dir });
                             }
                         }
 
@@ -152,7 +165,7 @@ public class VM_ConfigDrafter : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                SelectedTextureFolders.Add(new(SelectedTextureFolders));
+                SelectedTextureFolders.Add(new(SelectedTextureFolders, _categorizePaths));
             });
     }
 
@@ -175,6 +188,9 @@ public class VM_ConfigDrafter : VM
 
     public string UnmatchedTextures { get; set; }
     public bool HasUnmatchedTextures { get; set; } = false;
+    private List<string> _categorizedTexturePaths;
+    private List<string> _uncategorizedTexturePaths;
+    private Action _categorizePaths { get; }
 
     public bool HasEtcTextures { get; set; } = false;
     public DrafterBodyType SelectedBodyType { get; set; }
@@ -224,7 +240,7 @@ public class VM_ConfigDrafter : VM
 
         if (!SelectedTextureFolders.Any())
         {
-            SelectedTextureFolders.Add(new(SelectedTextureFolders));
+            SelectedTextureFolders.Add(new(SelectedTextureFolders, _categorizePaths));
         }
 
         UnmatchedTextures = "";
@@ -465,7 +481,7 @@ public class VM_DrafterArchiveContainer : VM
 
 public class VM_SelectableDirectoryWrapper : VM
 {
-    public VM_SelectableDirectoryWrapper(ObservableCollection<VM_SelectableDirectoryWrapper> parentCollection)
+    public VM_SelectableDirectoryWrapper(ObservableCollection<VM_SelectableDirectoryWrapper> parentCollection, Action categorizePaths)
     {
         _parentCollection = parentCollection;
 
@@ -476,6 +492,7 @@ public class VM_SelectableDirectoryWrapper : VM
                 if (IO_Aux.SelectFolder("", out string path))
                 {
                     DirPath = path;
+                    categorizePaths();
                 }
             });
 

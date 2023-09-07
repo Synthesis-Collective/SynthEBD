@@ -44,16 +44,30 @@ namespace SynthEBD
             return allFiles;
         }
 
-        public string DraftConfigFromTextures(VM_AssetPack config, List<string> allTexturePaths, List<string> ignoredTexturePaths, List<string> rootFolderPaths, bool rootPathsHavePrefix, HashSet<string> unmatchedFiles, bool autoApplyNames, bool autoApplyRules, bool autoApplyLinkage)
+        public (List<string>, List<string>) CategorizeFiles(List<string> allTexturePaths)
         {
-            var validTexturePaths = allTexturePaths.Where(x => !ignoredTexturePaths.Contains(x)).ToList();
-            unmatchedFiles.Clear(); // remove files from this list as they're matched
-            foreach (var path in validTexturePaths) { unmatchedFiles.Add(path); }
+            List<string> categorizedFiles = new();
+            foreach (var type in Enum.GetValues(typeof(TextureType)))
+            {
+                var textureType = (TextureType)type;
+                var searchNames = TypeToFileNames[textureType];
+                var matchedFiles = GetMatchingFiles(allTexturePaths, searchNames);
+                categorizedFiles.AddRange(matchedFiles);
+            }
+            List<string> unCategorizedFiles = allTexturePaths.Where(x => !categorizedFiles.Contains(x)).ToList();
+
+            return (categorizedFiles, unCategorizedFiles);
+        }
+
+        public string DraftConfigFromTextures(VM_AssetPack config, List<string> categorizedTexturePaths, List<string> uncategorizedTexturePaths, List<string> ignoredTexturePaths, List<string> rootFolderPaths, bool rootPathsHavePrefix, bool autoApplyNames, bool autoApplyRules, bool autoApplyLinkage)
+        {
+            var validCategorizedTexturePaths = categorizedTexturePaths.Where(x => !ignoredTexturePaths.Contains(x)).ToList();
+            var validUncategorizedTexturePaths = GetMatchingUnknownFiles(uncategorizedTexturePaths.Where(x => !ignoredTexturePaths.Contains(x)));
 
             // check file path validity if not using mod manager
             if (rootPathsHavePrefix)
             {
-                foreach (var texturePath in validTexturePaths)
+                foreach (var texturePath in validCategorizedTexturePaths)
                 {
                     if (!CheckRootPathPrefix(texturePath, out string errorStr))
                     {
@@ -63,7 +77,7 @@ namespace SynthEBD
             }
 
             // detect gender
-            var fileNames = validTexturePaths.Select(x => x.Split(Path.DirectorySeparatorChar).Last()).ToList();
+            var fileNames = validCategorizedTexturePaths.Select(x => x.Split(Path.DirectorySeparatorChar).Last()).ToList();
             if (fileNames.Intersect(ExpectedFilesByGender[Gender.Female], StringComparer.OrdinalIgnoreCase).Any())
             {
                 config.Gender = Gender.Female;
@@ -75,54 +89,20 @@ namespace SynthEBD
 
             foreach (var type in Enum.GetValues(typeof(TextureType)))
             {
+                List<string> texturePaths = new();
                 var textureType = (TextureType)type;
-                var searchNames = TypeToFileNames[textureType];
-                var matchedFiles = GetMatchingFiles(validTexturePaths, searchNames);
-
-                if (matchedFiles.Any())
+                switch (textureType)
                 {
-                    unmatchedFiles.RemoveWhere(x => matchedFiles.Contains(x));
-
-                    var subGroupLabels = TypeToSubgroupLabels[textureType];
-                    var topLevelPlaceHolder = config.Subgroups.Where(x => x.ID == subGroupLabels.Item1).FirstOrDefault();
-                    if (topLevelPlaceHolder == null)
-                    {
-                        topLevelPlaceHolder = _subgroupPlaceHolderFactory(CreateSubgroupModel(subGroupLabels.Item1, subGroupLabels.Item2), null, config, config.Subgroups);
-                        config.Subgroups.Add(topLevelPlaceHolder);
-                    }
-
-                    CreateSubgroupsFromPaths(matchedFiles, rootFolderPaths, rootPathsHavePrefix, topLevelPlaceHolder, config);
-
-                    CleanRedundantSubgroups(topLevelPlaceHolder);
-
-                    if (autoApplyNames)
-                    {
-                        ReplaceTextureNamesRecursive(topLevelPlaceHolder, textureType, config); // custom naming and rules based on texture identity
-                    }
-
-                    if (autoApplyRules)
-                    {
-                        AddRulesBySubgroupNameRecursive(topLevelPlaceHolder);
-                    }
-
-                    if (textureType == TextureType.HeadNormal && config.Gender == Gender.Female)
-                    {
-                        AddNecessaryWoodElfNormals(topLevelPlaceHolder);
-                    }
-
-                    if (textureType == TextureType.BodyDiffuse || textureType == TextureType.BodyNormal || textureType == TextureType.BodySpecular || textureType == TextureType.BodySubsurface)
-                    {
-                        ReplicateBodyToFeetAndTail(topLevelPlaceHolder);
-                    }
-
-                    if (textureType == TextureType.EtcDiffuse || textureType == TextureType.EtcNormal || textureType == TextureType.EtcSubsurface || textureType == TextureType.EtcSpecular)
-                    {
-                        AddSecondaryEtcTexture(topLevelPlaceHolder, textureType);
-                    }
-
-                    CheckNordNamesRecursive(topLevelPlaceHolder);
-
-                    SortSubgroupsRecursive(topLevelPlaceHolder);
+                    case TextureType.UnknownDiffuse: texturePaths = validUncategorizedTexturePaths[TextureType.UnknownDiffuse]; break;
+                    case TextureType.UnknownNormal: texturePaths = validUncategorizedTexturePaths[TextureType.UnknownNormal]; break;
+                    case TextureType.UnknownSubsurface: texturePaths = validUncategorizedTexturePaths[TextureType.UnknownSubsurface]; break;
+                    case TextureType.UnknownSpecular: texturePaths = validUncategorizedTexturePaths[TextureType.UnknownSpecular]; break;
+                    case TextureType.UnknownDetail: texturePaths = validUncategorizedTexturePaths[TextureType.UnknownDetail]; break;
+                    default: texturePaths = GetMatchingFiles(validCategorizedTexturePaths, TypeToFileNames[textureType]); break;
+                }
+                if (texturePaths.Any())
+                {
+                    CreateSubgroupsByType(config, textureType, texturePaths, rootFolderPaths, rootPathsHavePrefix, autoApplyNames, autoApplyRules);
                 }
             }
 
@@ -135,12 +115,61 @@ namespace SynthEBD
             return SuccessString;
         }
 
+        public void CreateSubgroupsByType(VM_AssetPack config, TextureType textureType, List<string> texturePaths, List<string> rootFolderPaths, bool rootPathsHavePrefix, bool autoApplyNames, bool autoApplyRules)
+        {
+            var subGroupLabels = TypeToSubgroupLabels[textureType];
+            var topLevelPlaceHolder = config.Subgroups.Where(x => x.ID == subGroupLabels.Item1).FirstOrDefault();
+            if (topLevelPlaceHolder == null)
+            {
+                topLevelPlaceHolder = _subgroupPlaceHolderFactory(CreateSubgroupModel(subGroupLabels.Item1, subGroupLabels.Item2), null, config, config.Subgroups);
+                config.Subgroups.Add(topLevelPlaceHolder);
+            }
+
+            CreateSubgroupsFromPaths(texturePaths, rootFolderPaths, rootPathsHavePrefix, topLevelPlaceHolder, config);
+
+            CleanRedundantSubgroups(topLevelPlaceHolder);
+
+            if (autoApplyNames)
+            {
+                ReplaceTextureNamesRecursive(topLevelPlaceHolder, textureType, config); // custom naming and rules based on texture identity
+            }
+
+            if (autoApplyRules)
+            {
+                AddRulesBySubgroupNameRecursive(topLevelPlaceHolder);
+            }
+
+            if (textureType == TextureType.HeadNormal && config.Gender == Gender.Female)
+            {
+                AddNecessaryWoodElfNormals(topLevelPlaceHolder);
+            }
+
+            if (textureType == TextureType.BodyDiffuse || textureType == TextureType.BodyNormal || textureType == TextureType.BodySpecular || textureType == TextureType.BodySubsurface)
+            {
+                ReplicateBodyToFeetAndTail(topLevelPlaceHolder);
+            }
+
+            if (textureType == TextureType.EtcDiffuse || textureType == TextureType.EtcNormal || textureType == TextureType.EtcSubsurface || textureType == TextureType.EtcSpecular)
+            {
+                AddSecondaryEtcTexture(topLevelPlaceHolder, textureType);
+            }
+
+            CheckNordNamesRecursive(topLevelPlaceHolder);
+
+            SortSubgroupsRecursive(topLevelPlaceHolder);
+        }
+
         public void CreateSubgroupsFromPaths(List<string> paths, List<string> rootFolderPaths, bool rootPathsHavePrefix, VM_SubgroupPlaceHolder topLevelPlaceHolder, VM_AssetPack config)
         {
             // special handling if there's only one matching texture
-            if (paths.Count == 1 && GetMatchingRootFolder(rootFolderPaths, paths.First(), rootPathsHavePrefix, out var rootFolderPath) && FilePathDestinationMap.FileNameToDestMap.ContainsKey(Path.GetFileName(paths.First())))
+            if (paths.Count == 1 && GetMatchingRootFolder(rootFolderPaths, paths.First(), rootPathsHavePrefix, out var rootFolderPath))
             {
-                topLevelPlaceHolder.AssociatedModel.Paths.Add(new() { Source = paths.First(), Destination = FilePathDestinationMap.FileNameToDestMap[Path.GetFileName(paths.First())] });
+                var newPath = new FilePathReplacement() { Source = paths.First().Replace(rootFolderPath, string.Empty).TrimStart(Path.DirectorySeparatorChar) };
+                if (FilePathDestinationMap.FileNameToDestMap.ContainsKey(Path.GetFileName(paths.First())))
+                {
+                    newPath.Destination = FilePathDestinationMap.FileNameToDestMap[Path.GetFileName(paths.First())];
+                }
+                topLevelPlaceHolder.AssociatedModel.Paths.Add(newPath);
                 paths.Remove(paths.First());
                 return;
             }
@@ -713,6 +742,11 @@ namespace SynthEBD
             { TextureType.EtcNormal, ("EN", "Etc Normals") },
             { TextureType.EtcSubsurface, ("ES", "Etc Subsurface") },
             { TextureType.EtcSpecular, ("ESp", "Etc Specular") },
+            { TextureType.UnknownDiffuse, ("UD", "Unknown Diffuse") },
+            { TextureType.UnknownNormal, ("UN", "Unknown Normals") },
+            { TextureType.UnknownSubsurface, ("US", "Unknown Subsurface") },
+            { TextureType.UnknownSpecular, ("USp", "Unknown Specular") },
+            { TextureType.UnknownDetail, ("UDe", "Unknown Head Detail") }
         };
 
         private static readonly Dictionary<TextureType, HashSet<string>> TypeToFileNames = new()
@@ -738,6 +772,11 @@ namespace SynthEBD
             { TextureType.EtcNormal, new(StringComparer.OrdinalIgnoreCase) { "femalebody_etc_v2_1_msn.dds" } },
             { TextureType.EtcSubsurface, new(StringComparer.OrdinalIgnoreCase) { "femalebody_etc_v2_1_sk.dds" } },
             { TextureType.EtcSpecular, new(StringComparer.OrdinalIgnoreCase) { "femalebody_etc_v2_1_s.dds" } },
+            { TextureType.UnknownDiffuse, new() },
+            { TextureType.UnknownNormal, new() },
+            { TextureType.UnknownSubsurface, new() },
+            { TextureType.UnknownSpecular, new() },
+            { TextureType.UnknownDetail, new() }
         };
 
         private static readonly Dictionary<string, HashSet<string>> TextureToSubgroupName = new(StringComparer.OrdinalIgnoreCase)
@@ -842,20 +881,57 @@ namespace SynthEBD
             {Gender.Female, new(StringComparer.OrdinalIgnoreCase) { "femalehead.dds", "femalehead_sk.dds", "femalehead_s.dds", "femalebody_1.dds", "femalebody_msn.dds", "femalebody_1_s.dds", "femalehands_1.dds", "femalehands_1_msn.dds", "femalehands_1_sk.dds", "femalehands_1_s.dds", "femalebody_1_feet.dds", "femalebody_1_msn_feet.dds", "femalebody_1_feet_sk.dds", "femalebody_1_feet_s.dds", "femalebody_etc_v2_1.dds", "femalebody_etc_v2_1_msn.dds", "femalebody_etc_v2_1_s.dds", "femalebody_etc_v2_1_sk.dds" } }
         };
 
-        private static List<string> GetMatchingFiles(IEnumerable<string> files, HashSet<string> fileNames)
+        private static List<string> GetMatchingFiles(IEnumerable<string> files, HashSet<string> fileNamesToMatch)
         {
             List<string> matchingFilePaths = new List<string>();
 
             foreach (string filePath in files)
             {
                 string fileName = Path.GetFileName(filePath);
-                if (fileNames.Contains(fileName, StringComparer.OrdinalIgnoreCase))
+                if (fileNamesToMatch.Contains(fileName, StringComparer.OrdinalIgnoreCase))
                 {
                     matchingFilePaths.Add(filePath);
                 }
             }
 
             return matchingFilePaths;
+        }
+
+        private static Dictionary<TextureType, List<string>> GetMatchingUnknownFiles(IEnumerable<string> unknownFiles) // expects a list of files which have already been pre-sorted as uncategorized
+        {
+            Dictionary<TextureType, List<string>> unknownsCategorized = new()
+            {
+                { TextureType.UnknownDiffuse, new() },
+                { TextureType.UnknownNormal, new() },
+                { TextureType.UnknownSpecular, new() },
+                { TextureType.UnknownSubsurface, new() },
+                { TextureType.UnknownDetail, new() }
+            };
+
+            foreach (var file in unknownFiles)
+            {
+                if (file.EndsWith("_msn.dds", StringComparison.OrdinalIgnoreCase))
+                {
+                    unknownsCategorized[TextureType.UnknownNormal].Add(file);
+                }
+                else if (file.EndsWith("_sk.dds", StringComparison.OrdinalIgnoreCase))
+                {
+                    unknownsCategorized[TextureType.UnknownSubsurface].Add(file);
+                }
+                else if (file.EndsWith("_s.dds", StringComparison.OrdinalIgnoreCase))
+                {
+                    unknownsCategorized[TextureType.UnknownSpecular].Add(file);
+                }
+                else if (file.Contains("HeadDetail", StringComparison.OrdinalIgnoreCase))
+                {
+                    unknownsCategorized[TextureType.UnknownDetail].Add(file);
+                }
+                else
+                {
+                    unknownsCategorized[TextureType.UnknownDiffuse].Add(file);
+                }
+            }
+            return unknownsCategorized;
         }
 
         private static string CapitalizeWordsPreserveCapitalized(string input)
@@ -1122,6 +1198,11 @@ namespace SynthEBD
         EtcDiffuse,
         EtcNormal,
         EtcSubsurface,
-        EtcSpecular
+        EtcSpecular,
+        UnknownDiffuse,
+        UnknownNormal,
+        UnknownSubsurface,
+        UnknownSpecular,
+        UnknownDetail
     }
 }
