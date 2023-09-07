@@ -12,12 +12,20 @@
         <local:ConfigDrafterVisibilityConverterArchive x:Key="ArchiveVisibilityConverter" />
         <local:ConfigDrafterVisibilityConverterDirectory x:Key="DirectoryVisibilityConverter" />
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
-        <local:BoolToSolidColorBrushConverter x:Key="BoolToBrushConverter">
+        <local:BoolToSolidColorBrushConverter x:Key="BoolToBrushConverter_Multiplets">
             <local:BoolToSolidColorBrushConverter.TrueColor>
                 <SolidColorBrush Color="White"/>
             </local:BoolToSolidColorBrushConverter.TrueColor>
             <local:BoolToSolidColorBrushConverter.FalseColor>
                 <SolidColorBrush Color="DarkOrange"/>
+            </local:BoolToSolidColorBrushConverter.FalseColor>
+        </local:BoolToSolidColorBrushConverter>
+        <local:BoolToSolidColorBrushConverter x:Key="BoolToBrushConverter_Unmatched">
+            <local:BoolToSolidColorBrushConverter.TrueColor>
+                <SolidColorBrush Color="DarkOrange"/>
+            </local:BoolToSolidColorBrushConverter.TrueColor>
+            <local:BoolToSolidColorBrushConverter.FalseColor>
+                <SolidColorBrush Color="White"/>
             </local:BoolToSolidColorBrushConverter.FalseColor>
         </local:BoolToSolidColorBrushConverter>
     </Window.Resources>
@@ -200,7 +208,7 @@
                                                             <ColumnDefinition Width="auto"/>
                                                         </Grid.ColumnDefinitions>
 
-                                                        <TextBox Grid.Column="0" Text="{Binding Content}" HorizontalScrollBarVisibility="Visible" IsReadOnly="True" Foreground="{Binding IsSelected, Converter={StaticResource BoolToBrushConverter}}"/>
+                                                        <TextBox Grid.Column="0" Text="{Binding Content}" HorizontalScrollBarVisibility="Visible" IsReadOnly="True" Foreground="{Binding IsSelected, Converter={StaticResource BoolToBrushConverter_Multiplets}}"/>
                                                         <CheckBox Grid.Column="1" IsChecked="{Binding IsSelected}" Margin="5 0 0 0"/>
                                                     </Grid>
                                                 </DataTemplate>
@@ -217,7 +225,37 @@
         </Expander>
 
         <Expander Header="SynthEBD could not determine what to do with these texture files" Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding HasUnmatchedTextures, Converter={StaticResource BoolToVis}}" Name="UnusedTexturesExpander">
-            <TextBox Text="{Binding UnmatchedTextures, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" MaxHeight="250" Foreground="White"/>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="auto"/>
+                </Grid.RowDefinitions>
+                
+                <TextBlock Grid.Row="0" Text="Any textures selected here will be imported as Uncategorized. You will need to drag and drop them to the appropriate top level subgroup." Foreground="White" />
+                <ScrollViewer  Grid.Row="1">
+                    <ItemsControl ItemsSource="{Binding UnmatchedTextures}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBox Grid.Column="0" Text="{Binding Content}" HorizontalScrollBarVisibility="Visible" IsReadOnly="True" Foreground="{Binding IsSelected, Converter={StaticResource BoolToBrushConverter_Unmatched}}"/>
+                                    <CheckBox Grid.Column="1" IsChecked="{Binding IsSelected}" Margin="5 0 0 0"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+                <StackPanel Grid.Row="2" Orientation="Horizontal">
+                    <TextBlock Text="Select" Foreground="White" VerticalAlignment="Center" />
+                    <Button Margin="5 0 5 0" Content="All" Foreground="Aquamarine" Command="{Binding SelectAllUncategorizedButton}" ToolTip="Import all uncategorized textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" />
+                    <Button Content="None" Foreground="Firebrick" Command="{Binding DeselectAllUncategorizedButton}" ToolTip="Do not import any uncategorized textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" />
+                </StackPanel>
+            </Grid>
         </Expander>
     </Grid>
 </Window>

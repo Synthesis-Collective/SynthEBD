@@ -62,7 +62,7 @@ namespace SynthEBD
         public string DraftConfigFromTextures(VM_AssetPack config, List<string> categorizedTexturePaths, List<string> uncategorizedTexturePaths, List<string> ignoredTexturePaths, List<string> rootFolderPaths, bool rootPathsHavePrefix, bool autoApplyNames, bool autoApplyRules, bool autoApplyLinkage)
         {
             var validCategorizedTexturePaths = categorizedTexturePaths.Where(x => !ignoredTexturePaths.Contains(x)).ToList();
-            var validUncategorizedTexturePaths = GetMatchingUnknownFiles(uncategorizedTexturePaths.Where(x => !ignoredTexturePaths.Contains(x)));
+            var validUncategorizedTexturePaths = GetMatchingUnknownFiles(uncategorizedTexturePaths.Where(uPath => !ignoredTexturePaths.Where(iPath => uPath.EndsWith(iPath)).Any())); // EndsWith rather than Contains because uPaths are full paths from drive root while iPaths have the root folder paths pre-trimmed
 
             // check file path validity if not using mod manager
             if (rootPathsHavePrefix)
@@ -162,9 +162,9 @@ namespace SynthEBD
         public void CreateSubgroupsFromPaths(List<string> paths, List<string> rootFolderPaths, bool rootPathsHavePrefix, VM_SubgroupPlaceHolder topLevelPlaceHolder, VM_AssetPack config)
         {
             // special handling if there's only one matching texture
-            if (paths.Count == 1 && GetMatchingRootFolder(rootFolderPaths, paths.First(), rootPathsHavePrefix, out var rootFolderPath))
+            if (paths.Count == 1)
             {
-                var newPath = new FilePathReplacement() { Source = paths.First().Replace(rootFolderPath, string.Empty).TrimStart(Path.DirectorySeparatorChar) };
+                var newPath = new FilePathReplacement() { Source = RemoveRootFolder(paths.First(), rootFolderPaths, rootPathsHavePrefix) };
                 if (FilePathDestinationMap.FileNameToDestMap.ContainsKey(Path.GetFileName(paths.First())))
                 {
                     newPath.Destination = FilePathDestinationMap.FileNameToDestMap[Path.GetFileName(paths.First())];
@@ -196,7 +196,7 @@ namespace SynthEBD
                     var parentPlaceHolder = LastParentPlaceHolders[pathGroup.First()];
                     var texturesInGroup = paths.Where(x => x.StartsWith(pathGroup.Key + Path.DirectorySeparatorChar)).ToArray(); // match directory separator as well to avoid erroneously adding textures from "\textures\example" into the group from "textures\exam"
 
-                    if (paths.Contains(pathGroup.Key) && GetMatchingRootFolder(rootFolderPaths, pathGroup.Key, rootPathsHavePrefix, out rootFolderPath))// this is the file itself
+                    if (paths.Contains(pathGroup.Key))// this is the file itself
                     {
                         var fileName = Path.GetFileName(pathGroup.Key);
 
@@ -214,7 +214,7 @@ namespace SynthEBD
 
                         newPlaceHolder.AssociatedModel.Paths.Add(new FilePathReplacement()
                         {
-                            Source = pathGroup.Key.Replace(rootFolderPath, string.Empty).TrimStart(Path.DirectorySeparatorChar),
+                            Source = RemoveRootFolder(pathGroup.Key, rootFolderPaths, rootPathsHavePrefix),
                             Destination = destination
                         });
                         paths.Remove(pathGroup.Key);
@@ -244,6 +244,14 @@ namespace SynthEBD
         private Dictionary<string, VM_SubgroupPlaceHolder> LastParentPlaceHolders { get; set; } = new();
         private Dictionary<string, IGrouping<string, string>> LastParentGroupings { get; set; } = new();
 
+        public string RemoveRootFolder(string path, List<string> rootFolders, bool trimPrefix)
+        {
+            if (GetMatchingRootFolder(rootFolders, path, trimPrefix, out string rootFolderPath))
+            {
+                return path.Replace(rootFolderPath, string.Empty).TrimStart(Path.DirectorySeparatorChar);
+            }
+            return path;
+        }
         private bool GetMatchingRootFolder(List<string> rootFolders, string path, bool trimPrefix, out string match)
         {
             foreach (var candidate in rootFolders)

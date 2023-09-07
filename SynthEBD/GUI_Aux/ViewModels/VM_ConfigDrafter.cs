@@ -40,6 +40,7 @@ public class VM_ConfigDrafter : VM
 
         _categorizePaths = () =>
         {
+            UnmatchedTextures.Clear();
             if (ValidateExistingDirectories())
             {
                 var searchDirs = SelectedTextureFolders.Select(x => x.DirPath).ToList();
@@ -48,10 +49,33 @@ public class VM_ConfigDrafter : VM
                 if (_uncategorizedTexturePaths.Any())
                 {
                     HasUnmatchedTextures = true;
-                    UnmatchedTextures = string.Join(Environment.NewLine, _uncategorizedTexturePaths);
+                    foreach (var path in _uncategorizedTexturePaths)
+                    {
+                        UnmatchedTextures.Add(new(_configDrafter.RemoveRootFolder(path, searchDirs, !IsUsingModManager), UnmatchedTextures));
+                    }
                 }
             }
         };
+
+        SelectAllUncategorizedButton = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                foreach (var path in UnmatchedTextures)
+                {
+                    path.IsSelected = true;
+                }
+            });
+
+        DeselectAllUncategorizedButton = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                foreach (var path in UnmatchedTextures)
+                {
+                    path.IsSelected = false;
+                }
+            });
 
         duplicateCheckProgress = new(report =>
         {
@@ -86,7 +110,7 @@ public class VM_ConfigDrafter : VM
                    {
                        if (multiplet.FilePaths[i].IsSelected)
                        {
-                           IgnoredDuplicatePaths.Add(multiplet.FilePaths[i].Content);
+                           IgnoredPaths.Add(multiplet.FilePaths[i].Content);
                            multiplet.FilePaths.RemoveAt(i);
                            i--;
                        }
@@ -102,14 +126,13 @@ public class VM_ConfigDrafter : VM
 
                 if (ValidateExistingDirectories())
                 {
-                    var searchDirs = SelectedTextureFolders.Select(x => x.DirPath).ToList();
-                    var texturePaths = _configDrafter.GetDDSFiles(searchDirs);
-                    var status = _configDrafter.DraftConfigFromTextures(CurrentConfig, _categorizedTexturePaths, _uncategorizedTexturePaths, IgnoredDuplicatePaths, SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, AutoApplyNames, AutoApplyRules, AutoApplyLinkage);
+                    Noggog.ListExt.AddRange(IgnoredPaths, UnmatchedTextures.Where(x => !x.IsSelected).Select(x => x.Content).ToArray());
+                    var status = _configDrafter.DraftConfigFromTextures(CurrentConfig, _categorizedTexturePaths, _uncategorizedTexturePaths, IgnoredPaths, SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, AutoApplyNames, AutoApplyRules, AutoApplyLinkage);
 
                     if (status == _configDrafter.SuccessString)
                     {
                         CurrentConfig.GroupName = GeneratedModName.IsNullOrWhitespace() ? "New Asset Pack" : GeneratedModName;
-                        HasEtcTextures = texturePaths.Where(x => x.Contains("femalebody_etc_v2_1", StringComparison.OrdinalIgnoreCase)).Any();
+                        HasEtcTextures = _categorizedTexturePaths.Where(x => x.Contains("femalebody_etc_v2_1", StringComparison.OrdinalIgnoreCase)).Any();
                         NotYetDrafted = false;
                     }
                     else
@@ -186,11 +209,13 @@ public class VM_ConfigDrafter : VM
     public ObservableCollection<VM_DrafterArchiveContainer> SelectedFileArchives { get; set; } = new();
     public ObservableCollection<VM_SelectableDirectoryWrapper> SelectedTextureFolders { get; set; } = new();
 
-    public string UnmatchedTextures { get; set; }
+    public ObservableCollection<VM_SimpleSelectableCollectionMemberString> UnmatchedTextures { get; set; } = new();
     public bool HasUnmatchedTextures { get; set; } = false;
     private List<string> _categorizedTexturePaths;
     private List<string> _uncategorizedTexturePaths;
     private Action _categorizePaths { get; }
+    public RelayCommand SelectAllUncategorizedButton { get; }
+    public RelayCommand DeselectAllUncategorizedButton { get; }
 
     public bool HasEtcTextures { get; set; } = false;
     public DrafterBodyType SelectedBodyType { get; set; }
@@ -199,7 +224,7 @@ public class VM_ConfigDrafter : VM
     public ObservableCollection<VM_FileDuplicateContainer> MultipletTextureGroups { get; set; } = new();
     public bool HasMultiplets { get; set; } = false;
 
-    private List<string> IgnoredDuplicatePaths { get; set; } = new();
+    private List<string> IgnoredPaths { get; set; } = new();
     public RelayCommand RemoveDuplicatesButton { get; }
 
     public string CurrentlyHashingFile { get; set; } = String.Empty;
@@ -242,14 +267,17 @@ public class VM_ConfigDrafter : VM
         {
             SelectedTextureFolders.Add(new(SelectedTextureFolders, _categorizePaths));
         }
+        else
+        {
+            _categorizePaths();
+        }
 
-        UnmatchedTextures = "";
-        HasUnmatchedTextures = false;
         HasEtcTextures = false;
         HasMultiplets = false;
         HashingProgressCurrent = 0;
         CurrentlyHashingFile = String.Empty;
         NotYetDrafted = true;
+        IgnoredPaths.Clear();
     }
 
     private bool ValidateExistingDirectories()
@@ -404,7 +432,7 @@ public class VM_ConfigDrafter : VM
 
             if (multiplet.FilePaths.Any())
             {
-                multiplet.RemoveRootPath(SelectedTextureFolders.Select(x => x.DirPath).ToList());
+                multiplet.RemoveRootPath(SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, _configDrafter);
                 _configDrafter.ChooseLeastSpecificPath(multiplet.FilePaths); // uncheck the best candidate
                 multipletTextureGroups.Add(multiplet);
             }
@@ -433,17 +461,11 @@ public class VM_FileDuplicateContainer : VM
     public string FileName { get; set; }
     public ObservableCollection<VM_SimpleSelectableCollectionMemberString> FilePaths { get; set; } = new();
 
-    public void RemoveRootPath(List<string> rootPaths)
+    public void RemoveRootPath(List<string> rootPaths, bool trimPrefix, ConfigDrafter configDrafter)
     {
         foreach (var path in FilePaths)
         {
-            foreach (var root in rootPaths)
-            {
-                if (path.Content.Contains(root))
-                {
-                    path.Content = path.Content.Replace(root, "").TrimStart(Path.DirectorySeparatorChar);
-                }
-            }
+            path.Content = configDrafter.RemoveRootFolder(path.Content, rootPaths, trimPrefix);
         }
     }
 }
