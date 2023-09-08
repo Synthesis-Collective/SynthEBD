@@ -156,6 +156,8 @@ namespace SynthEBD
 
             CheckNordNamesRecursive(topLevelPlaceHolder);
 
+            PopNordAndVampireSubgroupsUp(topLevelPlaceHolder);
+
             SortSubgroupsRecursive(topLevelPlaceHolder);
         }
 
@@ -660,7 +662,7 @@ namespace SynthEBD
                 }
             }
 
-            if (subgroup.AssociatedModel.Name == "Default")
+            if (subgroup.AssociatedModel.Name == DefaultSubgroupName)
             {
                 subgroup.AssociatedModel.AllowedRaceGroupings.Add("Humanoid Playable Non-Vampire");
             }
@@ -1181,6 +1183,55 @@ namespace SynthEBD
             {
                 CheckNordNamesRecursive(sg);
             }
+        }
+
+        public bool PopNordAndVampireSubgroupsUp(VM_SubgroupPlaceHolder subgroup) // A frequent pattern of the auto-naming algorithm is creating "Nord" subgroups containing a DefaultSubgroupName subgroup for actual nords and a Vampire subgroup for vampires. This function flattens them into their parent
+        {
+            bool currentSubgroupRemoved = false;
+            if (subgroup.ParentSubgroup != null && subgroup.Subgroups.Count == 2 && subgroup.Subgroups.Where(x => x.AssociatedModel.Name == DefaultSubgroupName).Any() && subgroup.Subgroups.Where(x => x.AssociatedModel.Name == "Vampire").Any())
+            {
+                var nordGroup = subgroup.Subgroups.Where(x => x.AssociatedModel.Name == DefaultSubgroupName).FirstOrDefault();
+                var vampireGroup = subgroup.Subgroups.Where(x => x.AssociatedModel.Name == "Vampire").FirstOrDefault();
+                
+                nordGroup.AssociatedModel.DisallowedRaces.Clear();
+                nordGroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey);
+
+                vampireGroup.AssociatedModel.AllowedRaces = new();
+                vampireGroup.AssociatedModel.AllowedRaceGroupings.Clear();
+                vampireGroup.AssociatedModel.AllowedRaceGroupings.Add(DefaultRaceGroupings.HumanoidYoungVampire.Label);
+
+
+                if (subgroup.ParentSubgroup.ParentSubgroup != null)
+                {
+                    nordGroup.ParentSubgroup = subgroup.ParentSubgroup.ParentSubgroup;
+                }
+                subgroup.ParentSubgroup.Subgroups.Add(nordGroup);
+                subgroup.Subgroups.Remove(nordGroup);
+                UpdateSubgroupName(nordGroup, "Nord");  // updates ID as well as name
+
+                if (subgroup.ParentSubgroup.ParentSubgroup != null)
+                {
+                    vampireGroup.ParentSubgroup = subgroup.ParentSubgroup.ParentSubgroup;
+                }
+                subgroup.ParentSubgroup.Subgroups.Add(vampireGroup);
+                subgroup.Subgroups.Remove(vampireGroup);
+                UpdateSubgroupName(vampireGroup, "Vampire"); // updates ID as well as name
+
+                if (!subgroup.Subgroups.Any() && !subgroup.AssociatedModel.Paths.Any())
+                {
+                    subgroup.ParentSubgroup.Subgroups.Remove(subgroup);
+                    currentSubgroupRemoved = true;
+                }
+            }
+
+            for (int i = 0; i < subgroup.Subgroups.Count; i++)
+            {
+                if (PopNordAndVampireSubgroupsUp(subgroup.Subgroups[i]))
+                {
+                    i--;
+                }
+            }
+            return currentSubgroupRemoved;
         }
     }
 
