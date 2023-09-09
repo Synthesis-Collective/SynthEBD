@@ -15,6 +15,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <Grid.ColumnDefinitions>
@@ -63,6 +64,12 @@
             <Button Command="{Binding LinkToThis}" Foreground="MediumPurple" Margin="10 0 0 0" ToolTip="Add this Subgroup the the selected Subgroups' Required lists" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Link These To</Button>
             <Button Command="{Binding LinkWholeGroup}" Foreground="MediumPurple" Margin="10 0 0 0" ToolTip="Add all selected Subgroups + this Subgroup to each other's Required lists" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Link Group Reciprocally</Button>
             <Button Command="{Binding Close}" Foreground="Firebrick" Margin="10 0 0 0" ToolTip="Return without making changes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Close</Button>
+        </StackPanel>
+        
+        <StackPanel Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="4" Orientation="Horizontal">
+            <Button Command="{Binding UnlinkThisFrom}" Foreground="Firebrick" ToolTip="Remove the selected Subgroups to this Subgroup's Required list" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Unlink From These</Button>
+            <Button Command="{Binding UnlinkFromThis}" Foreground="Firebrick" Margin="10 0 0 0" ToolTip="Remove this Subgroup the the selected Subgroups' Required lists" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Unlink These From</Button>
+            <Button Command="{Binding UnlinkWholeGroup}" Foreground="Firebrick" Margin="10 0 0 0" ToolTip="Remove all selected Subgroups + this Subgroup to each other's Required lists" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Unlink Group Reciprocally</Button>
         </StackPanel>
     </Grid>
 </Window>

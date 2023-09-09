@@ -48,15 +48,34 @@ namespace SynthEBD
                 }
             );
 
+            UnlinkThisFrom = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x => {
+                    _targetSubgroup.RequiredSubgroups.RemoveWhere(x => CollectedSubgroups.Select(y => y.ID).Contains(x.ID));
+                    window.Close();
+                }
+            );
+
             LinkToThis = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
                     foreach (var sg in CollectedSubgroups)
                     {
-                        if (!sg.RequiredSubgroups.Contains(_targetSubgroup.ID))
+                        if (!sg.AssociatedModel.RequiredSubgroups.Contains(_targetSubgroup.ID))
                         {
-                            sg.RequiredSubgroups.Add(_targetSubgroup.ID);
+                            sg.AssociatedModel.RequiredSubgroups.Add(_targetSubgroup.ID);
                         }
+                    }
+                    window.Close();
+                }
+            );
+
+            UnlinkFromThis = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x => {
+                    foreach (var sg in CollectedSubgroups)
+                    {
+                        sg.AssociatedModel.RequiredSubgroups.RemoveWhere(x => x == _targetSubgroup.ID);
                     }
                     window.Close();
                 }
@@ -67,7 +86,7 @@ namespace SynthEBD
                 execute: x => {
                     var wholeSet = new List<AssetPack.Subgroup>();
                     wholeSet.Add(_targetSubgroup.AssociatedPlaceHolder.AssociatedModel);
-                    wholeSet.AddRange(CollectedSubgroups);
+                    wholeSet.AddRange(CollectedSubgroups.Select(x => x.AssociatedModel));
 
                     foreach (var sg in wholeSet)
                     {
@@ -94,6 +113,18 @@ namespace SynthEBD
                 }
             );
 
+            UnlinkWholeGroup = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x => {
+                    _targetSubgroup.RequiredSubgroups.RemoveWhere(x => CollectedSubgroups.Select(y => y.ID).Contains(x.ID));
+                    foreach (var sg in CollectedSubgroups)
+                    {
+                        sg.AssociatedModel.RequiredSubgroups.RemoveWhere(x => CollectedSubgroups.And(_targetSubgroup.AssociatedPlaceHolder).Select(y => y.ID).Contains(x));
+                    }
+                    window.Close();
+                }
+            );
+
             Close = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
@@ -113,11 +144,14 @@ namespace SynthEBD
         public bool IDallowPartial { get; set; } = false;
         public bool NameAllowPartial { get; set; } = false;
 
-        public ObservableCollection<AssetPack.Subgroup> CollectedSubgroups { get; set; } = new(); // does not include _targetSubgroup
+        public ObservableCollection<VM_SubgroupPlaceHolder> CollectedSubgroups { get; set; } = new(); // does not include _targetSubgroup
 
         public RelayCommand LinkThisTo { get; }
         public RelayCommand LinkToThis { get; }
         public RelayCommand LinkWholeGroup { get; }
+        public RelayCommand UnlinkThisFrom { get; }
+        public RelayCommand UnlinkFromThis { get; }
+        public RelayCommand UnlinkWholeGroup { get; }
         public RelayCommand Close { get; }
 
         private void CollectMatchingSubgroups()
@@ -141,7 +175,7 @@ namespace SynthEBD
         {
             if (bSubgroupMatches(subgroup.AssociatedModel))
             {
-                CollectedSubgroups.Add(subgroup.AssociatedModel);
+                CollectedSubgroups.Add(subgroup);
                 return;
             }
             foreach (var sg in subgroup.Subgroups)
