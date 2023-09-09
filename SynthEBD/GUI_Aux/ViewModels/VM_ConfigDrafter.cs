@@ -168,6 +168,8 @@ public class VM_ConfigDrafter : VM
 
                         SelectedFileArchives.Clear();
                         SelectedSource = DrafterTextureSource.Directories;
+
+                        _categorizePaths();
                     }
                 }
             });
