@@ -511,7 +511,7 @@ namespace SynthEBD
                             break;
                         case "woodelfmale":
                             UpdateSubgroupName(subgroup, "Wood Elf");
-                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.WolfRace.FormKey);
+                            subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.WoodElfRace.FormKey);
                             break;
                         case "woodelffemale":
                             UpdateSubgroupName(subgroup, "Wood Elf");
