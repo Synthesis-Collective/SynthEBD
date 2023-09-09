@@ -3,6 +3,7 @@ using Microsoft.Build.Logging.StructuredLogger;
 using Mutagen.Bethesda.Fallout4;
 using Mutagen.Bethesda.Plugins;
 using Noggog;
+using ReactiveUI;
 using System;
 using System.Collections.Generic;
 using System.DirectoryServices.ActiveDirectory;
@@ -75,6 +76,8 @@ namespace SynthEBD
                     }
                 }
             }
+
+            ClearEmptyTopLevels(config); // this is hacky, but prevents a hard to track down bug where certain textures are sent to the default "First Subgroup"
 
             // detect gender
             var fileNames = validCategorizedTexturePaths.Select(x => x.Split(Path.DirectorySeparatorChar).Last()).ToList();
@@ -157,6 +160,11 @@ namespace SynthEBD
             CheckNordNamesRecursive(topLevelPlaceHolder);
 
             PopNordAndVampireSubgroupsUp(topLevelPlaceHolder);
+
+            if (textureType == TextureType.HeadDetail && config.Gender == Gender.Female)
+            {
+                FixFemaleHeadComplexionNesting(topLevelPlaceHolder);
+            }
 
             SortSubgroupsRecursive(topLevelPlaceHolder);
         }
@@ -1272,21 +1280,10 @@ namespace SynthEBD
                 vampireGroup.AssociatedModel.AllowedRaceGroupings.Clear();
                 vampireGroup.AssociatedModel.AllowedRaceGroupings.Add(DefaultRaceGroupings.HumanoidYoungVampire.Label);
 
-
-                if (subgroup.ParentSubgroup.ParentSubgroup != null)
-                {
-                    nordGroup.ParentSubgroup = subgroup.ParentSubgroup.ParentSubgroup;
-                }
-                subgroup.ParentSubgroup.Subgroups.Add(nordGroup);
-                subgroup.Subgroups.Remove(nordGroup);
+                MoveSubgroupTo(nordGroup, subgroup.ParentSubgroup);
                 UpdateSubgroupName(nordGroup, "Nord");  // updates ID as well as name
 
-                if (subgroup.ParentSubgroup.ParentSubgroup != null)
-                {
-                    vampireGroup.ParentSubgroup = subgroup.ParentSubgroup.ParentSubgroup;
-                }
-                subgroup.ParentSubgroup.Subgroups.Add(vampireGroup);
-                subgroup.Subgroups.Remove(vampireGroup);
+                MoveSubgroupTo(vampireGroup, subgroup.ParentSubgroup);
                 UpdateSubgroupName(vampireGroup, "Vampire"); // updates ID as well as name
 
                 if (!subgroup.Subgroups.Any() && !subgroup.AssociatedModel.Paths.Any())
@@ -1304,6 +1301,50 @@ namespace SynthEBD
                 }
             }
             return currentSubgroupRemoved;
+        }
+
+        public bool FixFemaleHeadComplexionNesting(VM_SubgroupPlaceHolder subgroup) // only to be called on complexion texture types for female NPCs (issue caused by blankdetailmap being in "male" directory while other textures are in the "female" directory)
+        {
+            for (int i = 0; i < subgroup.Subgroups.Count; i++)
+            {
+                if(FixFemaleHeadComplexionNesting(subgroup.Subgroups[i]))
+                {
+                    subgroup.Subgroups.RemoveAt(i);
+                    i--;
+                }
+            }
+
+            if (subgroup.ParentSubgroup != null && subgroup.AssociatedModel.Name == DefaultSubgroupName && subgroup.Subgroups.Any())
+            {
+                for (int i = 0; i < subgroup.Subgroups.Count; i++)
+                {
+                    var sg = subgroup.Subgroups[i];
+                    if (!subgroup.ParentSubgroup.Subgroups.Where(x => x.AssociatedModel.Name == sg.AssociatedModel.Name).Any())
+                    {
+                        MoveSubgroupTo(sg, subgroup.ParentSubgroup);
+                        i--;
+                    }
+                }
+
+                if (!subgroup.Subgroups.Any())
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void MoveSubgroupTo(VM_SubgroupPlaceHolder subgroup, VM_SubgroupPlaceHolder newParentSubgroup)
+        {
+            if (subgroup.ParentSubgroup != null)
+            {
+                subgroup.ParentSubgroup.Subgroups.Remove(subgroup); // remove subgroup from its parent subgroup's branch
+            }
+
+            subgroup.ParentSubgroup = newParentSubgroup; // assign new parent to subgroup
+            newParentSubgroup.Subgroups.Add(subgroup); // add subgroup to new parent's branch
+            UpdateSubgroupIDsRecursive(subgroup); // make sure all IDs are renamed to reflect the new parent
         }
     }
 
