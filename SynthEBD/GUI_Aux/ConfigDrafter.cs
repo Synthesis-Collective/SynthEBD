@@ -1243,7 +1243,8 @@ namespace SynthEBD
         public bool PopNordAndVampireSubgroupsUp(VM_SubgroupPlaceHolder subgroup) // A frequent pattern of the auto-naming algorithm is creating "Nord" subgroups containing a DefaultSubgroupName subgroup for actual nords and a Vampire subgroup for vampires. This function flattens them into their parent
         {
             bool currentSubgroupRemoved = false;
-            if (subgroup.ParentSubgroup != null && 
+            if (subgroup.AssociatedModel.Name == "Nord" &&
+                subgroup.ParentSubgroup != null && 
                 subgroup.Subgroups.Count == 2 && 
                 subgroup.Subgroups.Where(x => x.AssociatedModel.Name == DefaultSubgroupName).Any() && 
                 subgroup.Subgroups.Where(x => x.AssociatedModel.Name == "Vampire").Any() &&
