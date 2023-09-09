@@ -388,6 +388,12 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         }
         return false;
     }
+    public List<VM_SubgroupPlaceHolder> GetParents()
+    {
+        List<VM_SubgroupPlaceHolder> parents = new();
+        GetParents(parents);
+        return parents;
+    }
 
     public void GetParents(List<VM_SubgroupPlaceHolder> parents)
     {

@@ -34,7 +34,7 @@ namespace SynthEBD
             ImportFromGeneral = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => {
-                    RaceGroupings.AddRange(generalSettingsVM().RaceGroupingEditor.RaceGroupings.Where(x => !RaceGroupings.Select(x => x.Label).Contains(x.Label)).Select(x => x.Copy(this)));
+                    ImportFromGeneralSettings();
                 }
             );
         }
@@ -66,6 +66,11 @@ namespace SynthEBD
         public List<RaceGrouping> DumpToModel()
         {
             return RaceGroupings.Select(x => x.DumpViewModelToModel()).ToList();
+        }
+
+        public void ImportFromGeneralSettings()
+        {
+            RaceGroupings.AddRange(_generalSettingsVM().RaceGroupingEditor.RaceGroupings.Where(x => !RaceGroupings.Select(x => x.Label).Contains(x.Label)).Select(x => x.Copy(this)));
         }
     }
 }

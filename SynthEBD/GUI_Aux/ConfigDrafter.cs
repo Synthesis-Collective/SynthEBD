@@ -97,7 +97,7 @@ namespace SynthEBD
                     case TextureType.UnknownNormal: texturePaths = validUncategorizedTexturePaths[TextureType.UnknownNormal]; break;
                     case TextureType.UnknownSubsurface: texturePaths = validUncategorizedTexturePaths[TextureType.UnknownSubsurface]; break;
                     case TextureType.UnknownSpecular: texturePaths = validUncategorizedTexturePaths[TextureType.UnknownSpecular]; break;
-                    case TextureType.UnknownDetail: texturePaths = validUncategorizedTexturePaths[TextureType.UnknownDetail]; break;
+                    case TextureType.UnknownComplexion: texturePaths = validUncategorizedTexturePaths[TextureType.UnknownComplexion]; break;
                     default: texturePaths = GetMatchingFiles(validCategorizedTexturePaths, TypeToFileNames[textureType]); break;
                 }
                 if (texturePaths.Any())
@@ -756,7 +756,7 @@ namespace SynthEBD
             { TextureType.UnknownNormal, ("UN", "Unknown Normals") },
             { TextureType.UnknownSubsurface, ("US", "Unknown Subsurface") },
             { TextureType.UnknownSpecular, ("USp", "Unknown Specular") },
-            { TextureType.UnknownDetail, ("UDe", "Unknown Head Detail") }
+            { TextureType.UnknownComplexion, ("UC", "Unknown Complexion") }
         };
 
         private static readonly Dictionary<TextureType, HashSet<string>> TypeToFileNames = new()
@@ -786,7 +786,7 @@ namespace SynthEBD
             { TextureType.UnknownNormal, new() },
             { TextureType.UnknownSubsurface, new() },
             { TextureType.UnknownSpecular, new() },
-            { TextureType.UnknownDetail, new() }
+            { TextureType.UnknownComplexion, new() }
         };
 
         private static readonly Dictionary<string, HashSet<string>> TextureToSubgroupName = new(StringComparer.OrdinalIgnoreCase)
@@ -915,7 +915,7 @@ namespace SynthEBD
                 { TextureType.UnknownNormal, new() },
                 { TextureType.UnknownSpecular, new() },
                 { TextureType.UnknownSubsurface, new() },
-                { TextureType.UnknownDetail, new() }
+                { TextureType.UnknownComplexion, new() }
             };
 
             foreach (var file in unknownFiles)
@@ -934,7 +934,7 @@ namespace SynthEBD
                 }
                 else if (file.Contains("HeadDetail", StringComparison.OrdinalIgnoreCase))
                 {
-                    unknownsCategorized[TextureType.UnknownDetail].Add(file);
+                    unknownsCategorized[TextureType.UnknownComplexion].Add(file);
                 }
                 else
                 {
@@ -1169,7 +1169,7 @@ namespace SynthEBD
                     }
                 }
 
-                if (!hasOtherRacialSubgroups)
+                if (!hasOtherRacialSubgroups && ParentSubgroupsPermitRace(subgroup, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey))
                 {
                     UpdateSubgroupName(subgroup, subgroup.AssociatedModel.Name.Replace("Nord", DefaultSubgroupName, StringComparison.OrdinalIgnoreCase));
                     if (subgroup.AssociatedModel.AllowedRaces.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey))
@@ -1185,10 +1185,63 @@ namespace SynthEBD
             }
         }
 
+        private bool ParentSubgroupsPermitRace(VM_SubgroupPlaceHolder subgroup, FormKey raceFormKey)
+        {
+            var parents = subgroup.GetParents();
+
+            foreach (var parent in parents)
+            {
+                if (parent.AssociatedModel.AllowedRaces.Any() && !parent.AssociatedModel.AllowedRaces.Contains(raceFormKey))
+                {
+                    return false;
+                }
+                if (parent.AssociatedModel.DisallowedRaces.Contains(raceFormKey))
+                {
+                    return false;
+                }
+
+                if (parent.AssociatedModel.AllowedRaceGroupings.Any())
+                {
+                    bool raceMatchedByAnyGrouping = false;
+                    foreach (var arg in parent.AssociatedModel.AllowedRaceGroupings)
+                    {
+                        var correspondingGroup = subgroup.ParentAssetPack.RaceGroupingEditor.RaceGroupings.Where(x => x.Label == arg).FirstOrDefault();
+                        if (correspondingGroup != null && correspondingGroup.Races.Contains(raceFormKey))
+                        {
+                            raceMatchedByAnyGrouping = true;
+                            break;
+                        }
+                    }
+                    if (!raceMatchedByAnyGrouping)
+                    {
+                        return false;
+                    }
+                }
+
+                if (parent.AssociatedModel.DisallowedRaceGroupings.Any())
+                {
+                    foreach (var drg in parent.AssociatedModel.DisallowedRaceGroupings)
+                    {
+                        var correspondingGroup = subgroup.ParentAssetPack.RaceGroupingEditor.RaceGroupings.Where(x => x.Label == drg).FirstOrDefault();
+                        if (correspondingGroup != null && correspondingGroup.Races.Contains(raceFormKey))
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+
         public bool PopNordAndVampireSubgroupsUp(VM_SubgroupPlaceHolder subgroup) // A frequent pattern of the auto-naming algorithm is creating "Nord" subgroups containing a DefaultSubgroupName subgroup for actual nords and a Vampire subgroup for vampires. This function flattens them into their parent
         {
             bool currentSubgroupRemoved = false;
-            if (subgroup.ParentSubgroup != null && subgroup.Subgroups.Count == 2 && subgroup.Subgroups.Where(x => x.AssociatedModel.Name == DefaultSubgroupName).Any() && subgroup.Subgroups.Where(x => x.AssociatedModel.Name == "Vampire").Any())
+            if (subgroup.ParentSubgroup != null && 
+                subgroup.Subgroups.Count == 2 && 
+                subgroup.Subgroups.Where(x => x.AssociatedModel.Name == DefaultSubgroupName).Any() && 
+                subgroup.Subgroups.Where(x => x.AssociatedModel.Name == "Vampire").Any() &&
+                ParentSubgroupsPermitRace(subgroup, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey) &&
+                ParentSubgroupsPermitRace(subgroup, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRaceVampire.FormKey)) // probably don't need to check the other vampire races
             {
                 var nordGroup = subgroup.Subgroups.Where(x => x.AssociatedModel.Name == DefaultSubgroupName).FirstOrDefault();
                 var vampireGroup = subgroup.Subgroups.Where(x => x.AssociatedModel.Name == "Vampire").FirstOrDefault();
@@ -1262,6 +1315,6 @@ namespace SynthEBD
         UnknownNormal,
         UnknownSubsurface,
         UnknownSpecular,
-        UnknownDetail
+        UnknownComplexion
     }
 }

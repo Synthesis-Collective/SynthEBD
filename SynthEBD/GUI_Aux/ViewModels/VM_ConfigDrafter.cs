@@ -127,11 +127,21 @@ public class VM_ConfigDrafter : VM
                 if (ValidateExistingDirectories())
                 {
                     Noggog.ListExt.AddRange(IgnoredPaths, UnmatchedTextures.Where(x => !x.IsSelected).Select(x => x.Content).ToArray());
+
+                    if (!CurrentConfig.RaceGroupingEditor.RaceGroupings.Any())
+                    {
+                        CurrentConfig.RaceGroupingEditor.ImportFromGeneralSettings();
+                    }
+
                     var status = _configDrafter.DraftConfigFromTextures(CurrentConfig, _categorizedTexturePaths, _uncategorizedTexturePaths, IgnoredPaths, SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, AutoApplyNames, AutoApplyRules, AutoApplyLinkage);
 
                     if (status == _configDrafter.SuccessString)
                     {
                         CurrentConfig.GroupName = GeneratedModName.IsNullOrWhitespace() ? "New Asset Pack" : GeneratedModName;
+                        if (SelectedFileArchives.Any())
+                        {
+                            CurrentConfig.ShortName = SelectedFileArchives.First().Prefix;
+                        }
                         HasEtcTextures = _categorizedTexturePaths.Where(x => x.Contains("femalebody_etc_v2_1", StringComparison.OrdinalIgnoreCase)).Any();
                         NotYetDrafted = false;
                     }
