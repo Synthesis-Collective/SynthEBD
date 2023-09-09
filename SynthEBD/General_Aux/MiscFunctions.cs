@@ -1,3 +1,5 @@
+using Noggog;
+
 namespace SynthEBD;
 
 public class MiscFunctions
@@ -24,5 +26,33 @@ public class MiscFunctions
             return Source;
 
         return Source.Remove(place, Find.Length).Insert(place, Replace);
+    }
+
+    public static string MakeAlphanumeric(string input)
+    {
+        string output = string.Empty;
+        foreach (var c in input)
+        {
+            if (char.IsLetterOrDigit(c))
+            {
+                output += c;
+            }
+        }
+        return output;
+    }
+
+    public static string MakeXMLtagCompatible(string input)
+    {
+        if (input.IsNullOrWhitespace())
+        {
+            return "_";
+        }
+
+        if (char.IsDigit(input.First()))
+        {
+            input = "_" + input;
+        }
+
+        return input.Replace(' ', '_');
     }
 }

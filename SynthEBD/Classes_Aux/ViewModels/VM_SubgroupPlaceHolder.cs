@@ -136,8 +136,7 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         if (skipLayers <= 0)
         {
             List<string> ids = new();
-            List<VM_SubgroupPlaceHolder> parents = new();
-            GetParents(parents);
+            List<VM_SubgroupPlaceHolder> parents = GetParents();
 
             parents.Reverse();
             for (int i = 0; i < parents.Count; i++)
@@ -154,7 +153,7 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
                 }
             }
 
-            //get abbreviate for current subgroup name
+            //get abbreviation for current subgroup name
             if (Name.IsNullOrWhitespace())
             {
                 ids.Add("New");
@@ -267,6 +266,8 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
                 {
                     newID = IncrementID(newID);
                 }
+
+                newID = MiscFunctions.MakeXMLtagCompatible(newID);
                 count++;
             }
             else

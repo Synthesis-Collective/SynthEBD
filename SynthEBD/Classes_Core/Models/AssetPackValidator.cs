@@ -112,7 +112,7 @@ public class AssetPackValidator
         }
         if (!ValidateID(subgroup.ID))
         {
-            subErrors.Add("ID must be alphanumeric or .");
+            subErrors.Add("ID must be XML tag-compatible");
             isValid = false;
         }
             
@@ -277,13 +277,7 @@ public class AssetPackValidator
 
     private bool ValidateID(string id)
     {
-        string tmp = id.Replace(".", "");
-        if (tmp.All(char.IsLetterOrDigit))
-        {
-            return true;
-        }
-        else
-        { return false; }
+        return id == MiscFunctions.MakeXMLtagCompatible(id);
     }
 
     private bool ValidateReplacer(AssetReplacerGroup group, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, List<string> errors, List<ModKey> associatedBSAmodKeys)
