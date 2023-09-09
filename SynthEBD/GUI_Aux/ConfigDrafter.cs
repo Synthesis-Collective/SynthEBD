@@ -447,9 +447,12 @@ namespace SynthEBD
                         case "male":
                             switch (fileName)
                             {
-                                case "malehead_msn.dds":
-                                    UpdateSubgroupName(subgroup, "Nord");
-                                    subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey);
+                                case "malehead_msn.dds": // occasionall used as generic by some config authors, so check race compatibility
+                                    if (ParentSubgroupsPermitRace(subgroup, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey))
+                                    {
+                                        UpdateSubgroupName(subgroup, "Nord");
+                                        subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey);
+                                    }
                                     break;
                                 case "maleheadvampire_msn.dds":
                                     UpdateSubgroupName(subgroup, "Vampire");
@@ -461,8 +464,12 @@ namespace SynthEBD
                             switch (fileName)
                             {
                                 case "femalehead_msn.dds":
-                                    UpdateSubgroupName(subgroup, "Nord");
-                                    subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey);
+                                    // occasionall used as generic by some config authors, so check race compatibility
+                                    if (ParentSubgroupsPermitRace(subgroup, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey))
+                                    {
+                                        UpdateSubgroupName(subgroup, "Nord");
+                                        subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey);
+                                    }
                                     break;
                                 case "femaleheadvampire_msn.dds":
                                     UpdateSubgroupName(subgroup, "Vampire");
@@ -622,7 +629,7 @@ namespace SynthEBD
         private void AddRulesBySubgroupName(VM_SubgroupPlaceHolder subgroup)
         {
             var raceFormKey = GetRaceFormKeyFromName(subgroup.AssociatedModel.Name);
-            if (raceFormKey != null && !subgroup.AssociatedModel.AllowedRaces.Contains(raceFormKey.Value))
+            if (raceFormKey != null && !subgroup.AssociatedModel.AllowedRaces.Contains(raceFormKey.Value) && ParentSubgroupsPermitRace(subgroup, raceFormKey.Value))
             {
                 subgroup.AssociatedModel.AllowedRaces.Add(raceFormKey.Value);
             }
