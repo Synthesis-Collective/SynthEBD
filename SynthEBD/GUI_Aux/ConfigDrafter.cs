@@ -453,7 +453,7 @@ namespace SynthEBD
                                     break;
                                 case "maleheadvampire_msn.dds":
                                     UpdateSubgroupName(subgroup, "Vampire");
-                                    subgroup.AssociatedModel.AllowedRaceGroupings.Add("Humanoid Young Vampire");
+                                    subgroup.AssociatedModel.AllowedRaceGroupings.Add(DefaultRaceGroupings.HumanoidYoungVampire.Label);
                                     break;
                             }
                             break;
@@ -466,7 +466,7 @@ namespace SynthEBD
                                     break;
                                 case "femaleheadvampire_msn.dds":
                                     UpdateSubgroupName(subgroup, "Vampire");
-                                    subgroup.AssociatedModel.AllowedRaceGroupings.Add("Humanoid Young Vampire");
+                                    subgroup.AssociatedModel.AllowedRaceGroupings.Add(DefaultRaceGroupings.HumanoidYoungVampire.Label);
                                     break;
                                 case "astridhead_msn.dds":
                                     UpdateSubgroupName(subgroup, "Astrid");
@@ -658,13 +658,13 @@ namespace SynthEBD
                 }
                 if (!parentRaceSpecified) // if none of the subgroups above the current subgroup imply a specific race, let this Vampire subgroup go to any humanoid vampires. 
                 {
-                    subgroup.AssociatedModel.AllowedRaceGroupings.Add("Humanoid Vampire");
+                    subgroup.AssociatedModel.AllowedRaceGroupings.Add(DefaultRaceGroupings.HumanoidYoungVampire.Label);
                 }
             }
 
             if (subgroup.AssociatedModel.Name == DefaultSubgroupName)
             {
-                subgroup.AssociatedModel.AllowedRaceGroupings.Add("Humanoid Playable Non-Vampire");
+                subgroup.AssociatedModel.AllowedRaceGroupings.Add(DefaultRaceGroupings.HumanoidPlayableNonVampire.Label);
             }
 
             // special handling for Elder NPCs (technically not applying rules by name, but not worth adding a whole separate function just for this)
