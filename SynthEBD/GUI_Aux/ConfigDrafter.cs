@@ -359,6 +359,7 @@ namespace SynthEBD
             subgroup.Name = name;
             subgroup.AutoGenerateID(false, 0);
             subgroup.AssociatedModel.ID = subgroup.ID;
+            UpdateSubgroupIDsRecursive(subgroup);
         }
 
         private void ReplaceTextureNamesRecursive(VM_SubgroupPlaceHolder subgroup, TextureType type, VM_AssetPack config)
@@ -1189,6 +1190,16 @@ namespace SynthEBD
             foreach (var sg in subgroup.Subgroups)
             {
                 CheckNordNamesRecursive(sg);
+            }
+        }
+
+        public void UpdateSubgroupIDsRecursive(VM_SubgroupPlaceHolder subgroup)
+        {
+            subgroup.AutoGenerateID(false, 0);
+            subgroup.AssociatedModel.ID = subgroup.ID;
+            foreach (var sg in subgroup.Subgroups)
+            {
+                UpdateSubgroupIDsRecursive(sg);
             }
         }
 
