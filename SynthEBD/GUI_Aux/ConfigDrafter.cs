@@ -641,6 +641,10 @@ namespace SynthEBD
             if (raceFormKey != null && !subgroup.AssociatedModel.AllowedRaces.Contains(raceFormKey.Value) && ParentSubgroupsPermitRace(subgroup, raceFormKey.Value))
             {
                 subgroup.AssociatedModel.AllowedRaces.Add(raceFormKey.Value);
+                if (raceFormKey == Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey)
+                {
+                    subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRaceVampire.FormKey);
+                }
             }
 
             if (subgroup.AssociatedModel.Name.Contains("Vampire", StringComparison.OrdinalIgnoreCase)) // complex handling
@@ -674,7 +678,14 @@ namespace SynthEBD
                 }
                 if (!parentRaceSpecified) // if none of the subgroups above the current subgroup imply a specific race, let this Vampire subgroup go to any humanoid vampires. 
                 {
-                    subgroup.AssociatedModel.AllowedRaceGroupings.Add(DefaultRaceGroupings.HumanoidYoungVampire.Label);
+                    if (HasElderParentSubgroups(subgroup))
+                    {
+                        subgroup.AssociatedModel.AllowedRaceGroupings.Add(DefaultRaceGroupings.HumanoidVampire.Label);
+                    }
+                    else
+                    {
+                        subgroup.AssociatedModel.AllowedRaceGroupings.Add(DefaultRaceGroupings.HumanoidYoungVampire.Label);
+                    }
                 }
             }
 
@@ -1278,7 +1289,14 @@ namespace SynthEBD
 
                 vampireGroup.AssociatedModel.AllowedRaces = new();
                 vampireGroup.AssociatedModel.AllowedRaceGroupings.Clear();
-                vampireGroup.AssociatedModel.AllowedRaceGroupings.Add(DefaultRaceGroupings.HumanoidYoungVampire.Label);
+                if (HasElderParentSubgroups(vampireGroup))
+                {
+                    vampireGroup.AssociatedModel.AllowedRaceGroupings.Add(DefaultRaceGroupings.HumanoidVampire.Label);
+                }
+                else
+                {
+                    vampireGroup.AssociatedModel.AllowedRaceGroupings.Add(DefaultRaceGroupings.HumanoidYoungVampire.Label);
+                }
 
                 MoveSubgroupTo(nordGroup, subgroup.ParentSubgroup);
                 UpdateSubgroupName(nordGroup, "Nord");  // updates ID as well as name
@@ -1301,6 +1319,19 @@ namespace SynthEBD
                 }
             }
             return currentSubgroupRemoved;
+        }
+
+        private bool HasElderParentSubgroups(VM_SubgroupPlaceHolder subgroup)
+        {
+            var parents = subgroup.GetParents();
+            foreach (var p in parents)
+            {
+                if(p.AssociatedModel.Name.Contains("Elder", StringComparison.OrdinalIgnoreCase) || p.AssociatedModel.Name.Equals("Old", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public bool FixFemaleHeadComplexionNesting(VM_SubgroupPlaceHolder subgroup) // only to be called on complexion texture types for female NPCs (issue caused by blankdetailmap being in "male" directory while other textures are in the "female" directory)
