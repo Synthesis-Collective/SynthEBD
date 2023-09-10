@@ -288,6 +288,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 if (!success)
                 {
                     _logger.CallTimedLogErrorWithStatusUpdateAsync(GroupName + " could not be reloaded from drive.", ErrorType.Error, 3);
+                    return;
                 }
 
                 var reloadedVM = _selfFactory(reloaded);
