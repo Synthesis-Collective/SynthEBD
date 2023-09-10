@@ -54,6 +54,10 @@ public class VM_ConfigDrafter : VM
                         UnmatchedTextures.Add(new(_configDrafter.RemoveRootFolder(path, searchDirs, !IsUsingModManager), UnmatchedTextures));
                     }
                 }
+                else
+                {
+                    HasUnmatchedTextures = false;
+                }
             }
         };
 
@@ -223,8 +227,8 @@ public class VM_ConfigDrafter : VM
 
     public ObservableCollection<VM_SimpleSelectableCollectionMemberString> UnmatchedTextures { get; set; } = new();
     public bool HasUnmatchedTextures { get; set; } = false;
-    private List<string> _categorizedTexturePaths;
-    private List<string> _uncategorizedTexturePaths;
+    private List<string> _categorizedTexturePaths = new();
+    private List<string> _uncategorizedTexturePaths = new();
     private Action _categorizePaths { get; }
     public RelayCommand SelectAllUncategorizedButton { get; }
     public RelayCommand DeselectAllUncategorizedButton { get; }
@@ -278,6 +282,10 @@ public class VM_ConfigDrafter : VM
         if (!SelectedTextureFolders.Any())
         {
             SelectedTextureFolders.Add(new(SelectedTextureFolders, _categorizePaths));
+            _categorizedTexturePaths.Clear();
+            _uncategorizedTexturePaths.Clear();
+            UnmatchedTextures.Clear();
+            HasUnmatchedTextures = false;
         }
         else
         {
@@ -535,6 +543,7 @@ public class VM_SelectableDirectoryWrapper : VM
             execute: _ =>
             {
                 _parentCollection.Remove(this);
+                categorizePaths();
             });
     }
 
