@@ -738,11 +738,41 @@ namespace SynthEBD
                 {
                     if (subgroupName.Contains(name, StringComparison.OrdinalIgnoreCase))
                     {
+                        //Special check for "Older" which contains "Old"
+                        if (name.Equals("Old", StringComparison.OrdinalIgnoreCase) && !ContainsWholeWord(subgroupName, name, true))
+                        {
+                            continue;
+                        }
+
                         return entry.Key;
                     }
                 }
             }
             return null;
+        }
+
+        private bool ContainsWholeWord(string text, string matchStr, bool caseInvariant)
+        {
+            var words = text.Split(' ');
+            foreach (var word in words.Where(x => !x.IsNullOrWhitespace()).ToArray())
+            {
+                switch(caseInvariant)
+                {
+                    case true:
+                        if(word.Equals(matchStr, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return true;
+                        }
+                        break;
+                    case false:
+                        if (word == matchStr)
+                        {
+                            return true;
+                        }
+                        break;
+                }
+            }
+            return false;
         }
 
         private void AddAttributeGroup(VM_SubgroupPlaceHolder subgroup, VM_AttributeGroup group)
