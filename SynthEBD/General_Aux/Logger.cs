@@ -626,6 +626,29 @@ public static string GetNPCLogReportingString(INpcGetter npc)
             return fk.ToString();
         }
 
+        // specific races whose display names aren't the same as their "real" names
+        if (fk.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DA13AfflictedRace))
+        {
+            return "Afflicted";
+        }
+        else if (fk.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRaceAstrid))
+        {
+            return "Astrid Race";
+        }
+        else if (fk.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dawnguard.Race.SnowElfRace))
+        {
+            return "Snow Elf";
+        }
+        else if (fk.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dawnguard.Race.DLC1NordRace))
+        {
+            return "Nord (Dawnguard)";
+        }
+        else if (fk.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Race.DLC2MiraakRace))
+        {
+            return "Nord (Miraak)";
+        }
+
+        // general handling
         if (lk.TryResolve<IRaceGetter>(fk, out var raceGetter))
         {
             var edid = EditorIDHandler.GetEditorIDSafely(raceGetter);
