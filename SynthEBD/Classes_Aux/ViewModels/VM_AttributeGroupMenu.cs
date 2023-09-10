@@ -28,21 +28,7 @@ public class VM_AttributeGroupMenu : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                var alreadyContainedGroups = Groups.Select(x => x.Label).ToHashSet();
-                foreach (var attGroup in GeneralSettingsAttributes.Groups)
-                {
-                    if (!alreadyContainedGroups.Contains(attGroup.Label))
-                    {
-                        Groups.Add(attGroup.Copy(this));
-                    }
-                    else
-                    { // overwrite existing definitions
-                        var existingGroup = Groups.Where(x => x.Label == attGroup.Label).First();
-                        existingGroup.Attributes.Clear();
-                        var tempGroup = attGroup.Copy(this);
-                        existingGroup.Attributes.AddRange(tempGroup.Attributes);
-                    }
-                }
+                ImportFromGeneralSettings();
             }
         );
 
@@ -118,6 +104,25 @@ public class VM_AttributeGroupMenu : VM
             if (model.Attributes.Any())
             {
                 models.Add(model);
+            }
+        }
+    }
+
+    public void ImportFromGeneralSettings()
+    {
+        var alreadyContainedGroups = Groups.Select(x => x.Label).ToHashSet();
+        foreach (var attGroup in GeneralSettingsAttributes.Groups)
+        {
+            if (!alreadyContainedGroups.Contains(attGroup.Label))
+            {
+                Groups.Add(attGroup.Copy(this));
+            }
+            else
+            { // overwrite existing definitions
+                var existingGroup = Groups.Where(x => x.Label == attGroup.Label).First();
+                existingGroup.Attributes.Clear();
+                var tempGroup = attGroup.Copy(this);
+                existingGroup.Attributes.AddRange(tempGroup.Attributes);
             }
         }
     }

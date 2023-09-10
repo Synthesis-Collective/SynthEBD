@@ -137,6 +137,11 @@ public class VM_ConfigDrafter : VM
                         CurrentConfig.RaceGroupingEditor.ImportFromGeneralSettings();
                     }
 
+                    if (!CurrentConfig.AttributeGroupMenu.Groups.Any())
+                    {
+                        CurrentConfig.AttributeGroupMenu.ImportFromGeneralSettings();
+                    }    
+
                     var status = _configDrafter.DraftConfigFromTextures(CurrentConfig, _categorizedTexturePaths, _uncategorizedTexturePaths, IgnoredPaths, SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, AutoApplyNames, AutoApplyRules, AutoApplyLinkage);
 
                     if (status == _configDrafter.SuccessString)
