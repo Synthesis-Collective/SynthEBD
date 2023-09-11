@@ -146,8 +146,11 @@ public class VM_ConfigDrafter : VM
 
                     if (status == _configDrafter.SuccessString)
                     {
-                        CurrentConfig.GroupName = GeneratedModName.IsNullOrWhitespace() ? "New Asset Pack" : GeneratedModName;
-                        if (SelectedFileArchives.Any())
+                        if (CurrentConfig.GroupName.IsNullOrWhitespace() || CurrentConfig.GroupName == VM_AssetPack._defaultGroupName)
+                        {
+                            CurrentConfig.GroupName = GeneratedModName.IsNullOrWhitespace() ? "New Asset Pack" : GeneratedModName;
+                        }
+                        if (SelectedFileArchives.Any() && (CurrentConfig.ShortName.IsNullOrWhitespace() || CurrentConfig.ShortName == VM_AssetPack._defaultPrefix))
                         {
                             CurrentConfig.ShortName = SelectedFileArchives.First().Prefix;
                         }

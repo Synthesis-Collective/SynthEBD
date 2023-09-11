@@ -363,8 +363,10 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     }
 
     public AssetPack AssociatedModel { get; }
-    public string GroupName { get; set; } = "New Asset Pack";
-    public string ShortName { get; set; } = "NAP";
+    public static string _defaultGroupName = "New Asset Pack";
+    public string GroupName { get; set; } = _defaultGroupName;
+    public static string _defaultPrefix = "NAP";
+    public string ShortName { get; set; } = _defaultPrefix;
     public AssetPackType ConfigType { get; set; } = AssetPackType.Primary;
     public Gender Gender { get; set; } = Gender.Male;
     public bool DisplayAlerts { get; set; } = true;
