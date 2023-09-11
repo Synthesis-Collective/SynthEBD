@@ -196,7 +196,7 @@ namespace SynthEBD
             for (int currentPathStage = 0; currentPathStage < longestPath; currentPathStage++)
             {
                 var pathGroups = paths.GroupBy(x => string.Join(Path.DirectorySeparatorChar, x.Split(Path.DirectorySeparatorChar).ToList().GetRange(0, currentPathStage + 1))).ToArray();
-                if (pathGroups.Count() == 1)
+                if (pathGroups.Count() == 1 && !paths.Contains(pathGroups.First().Key))
                 {
                     continue;
                 }
