@@ -1,5 +1,8 @@
 using Mutagen.Bethesda.Plugins;
+using Noggog;
+using Synthesis.Bethesda.Execution.Patchers.Solution;
 using System.Diagnostics.CodeAnalysis;
+using static SynthEBD.Patcher;
 
 namespace SynthEBD;
 
@@ -36,7 +39,7 @@ public class CombinationLog
         AssignedReplacerCombinations = new Dictionary<string, List<CombinationInfo>>();
     }
 
-    public void WriteToFile()
+    public void WriteToFile(CategorizedFlattenedAssetPacks assetPacks)
     {
         if (!_patcherState.TexMeshSettings.bGenerateAssignmentLog) { return; }
         string outputFile = System.IO.Path.Combine(_paths.LogFolderPath, _logger.PatcherExecutionStart.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture), "Generated Combinations.txt");
@@ -44,6 +47,9 @@ public class CombinationLog
         _logger.LogMessage("Writing combination log to " + outputFile);
 
         List<string> output = new List<string>();
+
+        output.Add("----------------Assignment Statistics:----------------" + Environment.NewLine);
+        output.AddRange(FormatAssetPackStats(assetPacks));
 
         output.Add("----------------Primary Combinations:----------------" + Environment.NewLine);
         FormatCombinationInfoOutput(AssignedPrimaryCombinations, output);
@@ -55,6 +61,31 @@ public class CombinationLog
         FormatCombinationInfoOutput(AssignedReplacerCombinations, output);
 
         Task.Run(() => PatcherIO.WriteTextFile(outputFile, output, _logger));
+    }
+
+    public List<string> FormatAssetPackStats(CategorizedFlattenedAssetPacks assetPacks)
+    {
+        List<string> output = new();
+        foreach (var ap in assetPacks.PrimaryMale.And(assetPacks.MixInFemale).And(assetPacks.PrimaryFemale).And(assetPacks.MixInFemale))
+        {
+            output.AddRange(FormatAssetPackStats(ap));
+        }
+        return output;
+    }
+
+    public List<string> FormatAssetPackStats(FlattenedAssetPack ap)
+    {
+        List<string> output = new();
+        output.Add("\t" + ap.GroupName);
+        foreach (var subgroupPos in ap.Subgroups)
+        {
+            foreach (var subgroup in subgroupPos)
+            {
+                output.Add("\t\t" + subgroup.Id + " " + subgroup.Name + ": " + subgroup.AssignmentCount.ToString());
+            }
+        }
+        output.Add("");
+        return output;
     }
 
     public void FormatCombinationInfoOutput(Dictionary<string, List<CombinationInfo>> combinationInfo, List<string> fileContents)
@@ -161,6 +192,12 @@ public class CombinationLog
                     currentCombinationRecord.AssignedRecords.Add(recordInfo);
                     currentCombinationRecord.AssignedFormKeys.Add(recordInfo.FormKey);
                 }
+            }
+
+            combination.AssetPack.AssignmentCount++;
+            foreach (var subgroup in combination.ContainedSubgroups)
+            {
+                subgroup.AssignmentCount++;
             }
         }
     }

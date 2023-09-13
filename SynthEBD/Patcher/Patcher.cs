@@ -318,9 +318,9 @@ public class Patcher
             _vanillaBodyPathSetter.SetVanillaBodyMeshPaths(outputMod, allNPCs);
         }
 
-        if (_patcherState.GeneralSettings.bChangeMeshesOrTextures && _patcherState.TexMeshSettings.bGenerateAssignmentLog)
+        if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)
         {
-            _combinationLog.WriteToFile();
+            _combinationLog.WriteToFile(availableAssetPacks);
         }
 
         if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen)

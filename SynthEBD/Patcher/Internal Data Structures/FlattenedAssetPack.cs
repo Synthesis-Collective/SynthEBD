@@ -69,6 +69,7 @@ public class FlattenedAssetPack
     public string ReplacerName { get; set; } = ""; // only used when Type == ReplacerVirtual
     public int MatchedWholeConfigForceIfs { get; set; } = 0;
     public FlattenedSubgroup DistributionRules { get; set; } // "virtual" subgroup
+    public int AssignmentCount { get; set; } = 0; // for logging
 
     public enum AssetPackType
     {

@@ -73,6 +73,8 @@ public class FlattenedSubgroup : IProbabilityWeighted
     // used during combination generation
     public FlattenedAssetPack ParentAssetPack { get; set; }
     public int ForceIfMatchCount { get; set; } = 0;
+    // used for logging
+    public int AssignmentCount { get; set; } = 0;
 
     public static void FlattenSubgroups(Subgroup toFlatten, FlattenedSubgroup parent, List<FlattenedSubgroup> bottomLevelSubgroups, List<RaceGrouping> raceGroupingList, string parentAssetPackName, int topLevelIndex, List<Subgroup> subgroupHierarchy, FlattenedAssetPack parentAssetPack, DictionaryMapper dictionaryMapper, PatcherState patcherState)
     {
