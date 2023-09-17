@@ -245,13 +245,13 @@ public class AssetSelector
             {
                 iterationInfo.ChosenSeed = ChooseForceIfSubgroup(iterationInfo.AvailableSeeds);
                 iterationInfo.ChosenAssetPack = iterationInfo.ChosenSeed.ParentAssetPack.ShallowCopy();
-                _logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.Id + " in " + iterationInfo.ChosenAssetPack.GroupName + " because it had the most matched ForceIf attributes (" + iterationInfo.ChosenSeed.ForceIfMatchCount + ").", false, npcInfo);
+                _logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack.GroupName + " because it had the most matched ForceIf attributes (" + iterationInfo.ChosenSeed.ForceIfMatchCount + ").", false, npcInfo);
             }
             else
             {
                 iterationInfo.ChosenSeed = (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(iterationInfo.AvailableSeeds);
                 iterationInfo.ChosenAssetPack = iterationInfo.ChosenSeed.ParentAssetPack.ShallowCopy();
-                _logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.Id + " in " + iterationInfo.ChosenAssetPack.GroupName + " at random", false, npcInfo);
+                _logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack.GroupName + " at random", false, npcInfo);
             }
 
             _logger.OpenReportSubsection("Seed-" + iterationInfo.ChosenSeed.Id.Replace('.', '_'), npcInfo);
@@ -321,12 +321,12 @@ public class AssetSelector
             if (iterationInfo.ChosenAssetPack.Subgroups[i][0].ForceIfMatchCount > 0)
             {
                 nextSubgroup = ChooseForceIfSubgroup(iterationInfo.ChosenAssetPack.Subgroups[i]);
-                _logger.LogReport("Chose next subgroup: " + nextSubgroup.Id + " at position " + i + " because it had the most matched ForceIf Attributes (" + nextSubgroup.ForceIfMatchCount + ")." + Environment.NewLine, false, npcInfo);
+                _logger.LogReport("Chose next subgroup: " + nextSubgroup.GetDetailedID_NameString(true) + " at position " + i + " because it had the most matched ForceIf Attributes (" + nextSubgroup.ForceIfMatchCount + ")." + Environment.NewLine, false, npcInfo);
             }
             else
             {
                 nextSubgroup = (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(iterationInfo.ChosenAssetPack.Subgroups[i]);
-                _logger.LogReport("Chose next subgroup: " + nextSubgroup.Id + " at position " + i + " at random." + Environment.NewLine, false, npcInfo);
+                _logger.LogReport("Chose next subgroup: " + nextSubgroup.GetDetailedID_NameString(true) + " at position " + i + " at random." + Environment.NewLine, false, npcInfo);
             }
             #endregion
 
@@ -372,6 +372,10 @@ public class AssetSelector
         generatedCombination.Signature = generatedSignature;
 
         _logger.LogReport("Successfully generated combination: " + generatedSignature, false, npcInfo);
+        foreach(var subgroup in generatedCombination.ContainedSubgroups)
+        {
+            _logger.LogReport(subgroup.ContainedSubgroupNames.First() + ": " + subgroup.GetNestedNameString(true), false, npcInfo);
+        }
         GenerateDescriptorLog(generatedCombination, npcInfo);
         _logger.CloseReportSubsectionsToParentOf("CombinationGeneration", npcInfo);
         return generatedCombination;
@@ -680,7 +684,7 @@ public class AssetSelector
                             }
                         }
                     }
-                    subgroupsByPositionLog.Add(i + ": [" + string.Join(", ", candidatePack.Subgroups[i].Select(x => x.Id)) + "]");
+                    subgroupsByPositionLog.Add(i + " (" + candidatePack.Subgroups[i].First().ContainedSubgroupNames.First() + "): [" + string.Join(", ", candidatePack.Subgroups[i].Select(x => x.Id + " (" + x.Name + ")")) + "]");
                 }
             }
             if (isValid)
@@ -835,7 +839,7 @@ public class AssetSelector
     /// <returns></returns>
     private bool SubgroupValidForCurrentNPC(FlattenedSubgroup subgroup, NPCInfo npcInfo, AssetPackAssignmentMode mode, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, BodySlideSetting assignedBodySlide)
     {
-        var reportString = subgroup.GetReportString();
+        var reportString = "Subgroup " + subgroup.GetDetailedID_NameString(false);
         if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.SubgroupIDs.Contains(subgroup.Id))
         {
             _logger.LogReport(reportString + "is valid because it is specifically assigned by user.", false, npcInfo);

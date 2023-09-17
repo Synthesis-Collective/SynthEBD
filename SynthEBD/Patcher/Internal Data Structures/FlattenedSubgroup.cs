@@ -76,6 +76,29 @@ public class FlattenedSubgroup : IProbabilityWeighted
     // used for logging
     public int AssignmentCount { get; set; } = 0;
 
+    public string GetNestedNameString(bool ignoreTopLevel)
+    {
+        List<string> names = new();
+        for (int i = 0; i < ContainedSubgroupNames.Count; i++)
+        {
+            if (ignoreTopLevel && i == 0)
+            {
+                if (ContainedSubgroupNames.Count == 1)
+                {
+                    names.Add("Top Level");
+                }
+                continue;
+            }
+            names.Add(ContainedSubgroupNames[i]);
+        }
+        return string.Join("/", names);
+    }
+
+    public string GetDetailedID_NameString(bool ignoreTopLevel)
+    {
+        return Id + " (" + GetNestedNameString(ignoreTopLevel) + ")";
+    }
+
     public static void FlattenSubgroups(Subgroup toFlatten, FlattenedSubgroup parent, List<FlattenedSubgroup> bottomLevelSubgroups, List<RaceGrouping> raceGroupingList, string parentAssetPackName, int topLevelIndex, List<Subgroup> subgroupHierarchy, FlattenedAssetPack parentAssetPack, DictionaryMapper dictionaryMapper, PatcherState patcherState)
     {
         if (toFlatten.Enabled == false) { return; }
