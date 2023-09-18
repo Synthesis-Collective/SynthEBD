@@ -64,6 +64,9 @@ public class Settings_OBody
                     var presetName = "";
                     foreach (var preset in presets.Elements())
                     {
+                        presetName = preset.Attribute("name").Value.ToString();
+                        CurrentlyExistingBodySlides.Add(presetName);
+
                         var groups = preset.Elements("Group");
                         if (groups == null) { continue; }
 
@@ -71,10 +74,6 @@ public class Settings_OBody
                         foreach (var group in groups)
                         {
                             var groupName = group.Attribute("name").Value.ToString();
-                            presetName = preset.Attribute("name").Value.ToString();
-
-                            CurrentlyExistingBodySlides.Add(presetName);
-
                             if (MaleSliderGroups.Contains(groupName))
                             {
                                 currentBodySlides = BodySlidesMale;
@@ -90,38 +89,70 @@ public class Settings_OBody
                         }
                         if (!genderFound) { continue; }
 
-                        if (currentBodySlides.Where(x => x.ReferencedBodySlide == presetName).Any()) // skip already loaded presets
-                        {
-                            continue;
-                        }
+                        BodySlideSetting currentPreset = currentBodySlides.Where(x => x.ReferencedBodySlide == presetName).FirstOrDefault();
 
-                        BodySlideSetting newPreset = new BodySlideSetting();
-                        newPreset.Label = presetName;
-                        newPreset.ReferencedBodySlide = presetName;
-
-                        if (newPreset.Label.Contains("Zero for OBody", StringComparison.OrdinalIgnoreCase) ||
-                            newPreset.Label.Contains("Zeroed Sliders", StringComparison.OrdinalIgnoreCase) ||
-                            newPreset.Label.Contains("Clothes", StringComparison.OrdinalIgnoreCase) ||
-                            newPreset.Label.Contains("Outfit", StringComparison.OrdinalIgnoreCase) ||
-                            newPreset.Label.Contains("Refit ", StringComparison.OrdinalIgnoreCase))
+                        if (currentPreset == null)
                         {
-                            newPreset.AllowRandom = false;
-                            newPreset.HideInMenu = true;
-                        }
+                            BodySlideSetting newPreset = new BodySlideSetting();
+                            newPreset.Label = presetName;
+                            newPreset.ReferencedBodySlide = presetName;
 
-                        if (defaultAnnotationDict.ContainsKey(presetName))
-                        {
-                            foreach (var annotation in defaultAnnotationDict[presetName])
+                            if (newPreset.Label.Contains("Zero for OBody", StringComparison.OrdinalIgnoreCase) ||
+                                newPreset.Label.Contains("Zeroed Sliders", StringComparison.OrdinalIgnoreCase) ||
+                                newPreset.Label.Contains("Clothes", StringComparison.OrdinalIgnoreCase) ||
+                                newPreset.Label.Contains("Outfit", StringComparison.OrdinalIgnoreCase) ||
+                                newPreset.Label.Contains("Refit ", StringComparison.OrdinalIgnoreCase))
                             {
-                                var descriptor = templateDescriptors.Where(x => x.ID.ToString().Equals(annotation, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
-                                if (descriptor != null)
+                                newPreset.AllowRandom = false;
+                                newPreset.HideInMenu = true;
+                            }
+
+                            if (defaultAnnotationDict.ContainsKey(presetName))
+                            {
+                                foreach (var annotation in defaultAnnotationDict[presetName])
                                 {
-                                    newPreset.BodyShapeDescriptors.Add(descriptor.ID);
+                                    var descriptor = templateDescriptors.Where(x => x.ID.ToString().Equals(annotation, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+                                    if (descriptor != null)
+                                    {
+                                        newPreset.BodyShapeDescriptors.Add(descriptor.ID);
+                                    }
+                                }
+                            }
+
+                            currentBodySlides.Add(newPreset);
+                            currentPreset = newPreset;
+                        }
+
+                        var sliders = preset.Elements("SetSlider");
+                        foreach (var slider in sliders)
+                        {
+                            var sliderName = slider.Attribute("name");
+                            var size = slider.Attribute("size");
+                            var value = slider.Attribute("value");
+
+                            if (sliderName != null && size != null && value != null && int.TryParse(value.Value, out int iValue))
+                            {
+                                BodySlideSlider currentSlider;
+                                if (currentPreset.SliderValues.ContainsKey(sliderName.Value))
+                                {
+                                    currentSlider = currentPreset.SliderValues[sliderName.Value];
+                                }
+                                else
+                                {
+                                    currentSlider = new() { SliderName = sliderName.Value };
+                                    currentPreset.SliderValues.Add(sliderName.Value, currentSlider);
+                                }
+                                
+                                if (size.Value.Equals("big", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    currentSlider.Big = iValue;
+                                }
+                                else if (size.Value.Equals("small", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    currentSlider.Small = iValue;
                                 }
                             }
                         }
-
-                        currentBodySlides.Add(newPreset);
                     }
                 }
                 catch
@@ -277,4 +308,15 @@ public class BodySlideSetting : IProbabilityWeighted
 
     [JsonIgnore]
     public int MatchedForceIfCount { get; set; } = 0;
+
+    [JsonIgnore]
+    public Dictionary<string, BodySlideSlider> SliderValues { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+}
+
+[DebuggerDisplay("SliderName: {Small} / {Big}")]
+public class BodySlideSlider
+{
+    public string SliderName { get; set; }
+    public int Big { get; set; }
+    public int Small { get; set; }
 }
