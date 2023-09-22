@@ -1,0 +1,32 @@
+<UserControl x:Class="SynthEBD.UC_SliderClassificationRule"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+             xmlns:local="clr-namespace:SynthEBD"
+             d:DataContext="{d:DesignInstance Type=local:VM_SliderClassificationRule}"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+        </Grid.ColumnDefinitions>
+
+        <ComboBox Grid.Row="0" Grid.Column="0" MinWidth="150" ItemsSource="{Binding AvaliableSliderNames}" SelectedItem="{Binding SliderName}"/>
+        <ComboBox Grid.Row="0" Grid.Column="1" MinWidth="75" SelectedValue="{Binding SliderType}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:BodySliderType}}}" IsSynchronizedWithCurrentItem="True"/>
+        <ComboBox Grid.Row="0" Grid.Column="2" MinWidth="50" ItemsSource="{Binding ComparatorOptions}" SelectedItem="{Binding Comparator}"/>
+        <xctk:IntegerUpDown Grid.Row="0" Grid.Column="3" Value="{Binding Value}" Foreground="White" MinWidth="25" Margin="10 0 0 0"/>
+        <Button Grid.Row="0" Grid.Column="4" Content="x" VerticalAlignment="Center" Command="{Binding DeleteMe}" Foreground="Firebrick"/>
+        <Button Grid.Row="0" Grid.Column="5" Content="AND" Foreground="MediumPurple" Command="{Binding AddANDRule}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+    </Grid>
+</UserControl>

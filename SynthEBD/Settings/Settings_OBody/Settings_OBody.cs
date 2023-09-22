@@ -1,5 +1,6 @@
 using Mutagen.Bethesda.Plugins;
 using Newtonsoft.Json;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Xml.Linq;
 using Z.Expressions.Compiler;
@@ -35,6 +36,7 @@ public class Settings_OBody
     public bool bUseVerboseScripts { get; set; } = false;
     public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
     public int HIMBOAnnotationVersion { get; set; } = 0; // increment as necessary to update HIMBO versions
+    public Dictionary<string, SliderClassificationRulesByBodyType> BodySlideClassificationRules { get; set; } = new(); // key is Slider Group (e.g. CBBE, UNP, etc)
 
     [JsonIgnore]
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new();
@@ -61,10 +63,11 @@ public class Settings_OBody
                     var presets = presetFile.Element("SliderPresets");
                     if (presets == null) { continue; }
 
-                    var presetName = "";
                     foreach (var preset in presets.Elements())
                     {
-                        presetName = preset.Attribute("name").Value.ToString();
+                        var presetName = preset.Attribute("name").Value.ToString();
+                        var groupName = "";
+
                         CurrentlyExistingBodySlides.Add(presetName);
 
                         var groups = preset.Elements("Group");
@@ -73,7 +76,7 @@ public class Settings_OBody
                         bool genderFound = false;
                         foreach (var group in groups)
                         {
-                            var groupName = group.Attribute("name").Value.ToString();
+                            groupName = group.Attribute("name").Value.ToString();
                             if (MaleSliderGroups.Contains(groupName))
                             {
                                 currentBodySlides = BodySlidesMale;
@@ -122,6 +125,8 @@ public class Settings_OBody
                             currentBodySlides.Add(newPreset);
                             currentPreset = newPreset;
                         }
+
+                        currentPreset.SliderGroup = groupName;
 
                         var sliders = preset.Elements("SetSlider");
                         foreach (var slider in sliders)
@@ -310,6 +315,9 @@ public class BodySlideSetting : IProbabilityWeighted
     public int MatchedForceIfCount { get; set; } = 0;
 
     [JsonIgnore]
+    public string SliderGroup { get; set; }
+
+    [JsonIgnore]
     public Dictionary<string, BodySlideSlider> SliderValues { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
@@ -319,4 +327,47 @@ public class BodySlideSlider
     public string SliderName { get; set; }
     public int Big { get; set; }
     public int Small { get; set; }
+}
+
+
+[DebuggerDisplay("{DescriptorName} Rules: {AnnotationRules.Count} / {Big}")]
+public class SliderClassificationRulesByBodyType
+{
+    public string BodyTypeGroup { get; set; }
+    public List<DescriptorClassificationRuleSet> DescriptorClassifiers { get; set; } = new();
+}
+
+
+public class DescriptorClassificationRuleSet
+{
+    public string DescriptorCategory { get; set; }
+    public string DefaultDescriptorValue { get; set; }
+    public List<DescriptorAssignmentRuleSet> RuleList { get; set; } = new();
+}
+
+public class DescriptorAssignmentRuleSet
+{
+    public string SelectedDescriptorValue { get; set; }
+    public List<AndGatedSliderRuleGroup> RuleListORlogic { get; set; } = new();
+}
+
+public class AndGatedSliderRuleGroup
+{
+    public List<SliderClassificationRule> RuleListANDlogic { get; set; } = new();
+}
+
+[DebuggerDisplay("{SliderName} ({SliderType}) {Comparator} {Value}")]
+public class SliderClassificationRule
+{
+    public string SliderName { get; set; }
+    public string Comparator { get; set; }
+    public int Value { get; set; }
+    public BodySliderType SliderType { get; set; }
+}
+
+public enum BodySliderType
+{
+    Either,
+    Small,
+    Big
 }
