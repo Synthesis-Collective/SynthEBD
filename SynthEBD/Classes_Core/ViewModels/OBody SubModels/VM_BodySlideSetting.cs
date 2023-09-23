@@ -106,6 +106,7 @@ public class VM_BodySlideSetting : VM
 
     public string Label { get; set; } = "";
     public string ReferencedBodySlide { get; set; } = "";
+    public string SliderGroup { get; set; } = "";
     public string Notes { get; set; } = "";
     public VM_BodyShapeDescriptorSelectionMenu DescriptorsSelectionMenu { get; set; }
     public ObservableCollection<FormKey> AllowedRaces { get; set; } = new();
@@ -125,6 +126,7 @@ public class VM_BodySlideSetting : VM
     private static string LockOnLabel = "Unlock";
     private static string LockOffLabel = "Lock";
     public string LockLabel { get; set; } = LockOnLabel;
+    public ObservableCollection<string> SliderValues { get; set; } = new();
 
     public VM_BodySlidePlaceHolder AssociatedPlaceHolder { get; }
     public ILinkCache lk { get; private set; }
@@ -158,8 +160,6 @@ public class VM_BodySlideSetting : VM
         clonePlaceHolder.ParentCollection.Insert(lastClonePosition + 1, clonePlaceHolder);
         return cloneViewModel;
     }
-
-
 
     public void UnlockReference()
     {
@@ -215,6 +215,7 @@ public class VM_BodySlideSetting : VM
         {
             ReferencedBodySlide = Label;
         }
+        SliderGroup = model.SliderGroup;
         Notes = model.Notes;
         DescriptorsSelectionMenu.CopyInFromHashSet(model.BodyShapeDescriptors);
         AllowedRaces.AddRange(model.AllowedRaces);
@@ -256,6 +257,12 @@ public class VM_BodySlideSetting : VM
         else
         {
             HideButtonText = "Hide";
+        }
+
+        SliderValues.Clear();
+        foreach (var slider in model.SliderValues.Values)
+        {
+            SliderValues.Add(slider.SliderName + " [Small: " + slider.Small + "] | [Big: " + slider.Big + "]");
         }
     }
 

@@ -37,6 +37,7 @@ public class Settings_OBody
     public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
     public int HIMBOAnnotationVersion { get; set; } = 0; // increment as necessary to update HIMBO versions
     public Dictionary<string, SliderClassificationRulesByBodyType> BodySlideClassificationRules { get; set; } = new(); // key is Slider Group (e.g. CBBE, UNP, etc)
+    public bool AutoApplyMissingAnnotations { get; set; } = true;
 
     [JsonIgnore]
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new();

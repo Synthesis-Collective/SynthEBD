@@ -198,10 +198,8 @@ public class Patcher
         BodyGenConfigs copiedBodyGenConfigs = JSONhandler<BodyGenConfigs>.Deserialize(JSONhandler<BodyGenConfigs>.Serialize(_patcherState.BodyGenConfigs, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
         if (!serializationSuccess) { _logger.LogMessage("Error serializing BodyGen configs. Exception: " + serializatonException); _logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
         if (!deserializationSuccess) { _logger.LogMessage("Error deserializing BodyGen configs. Exception: " + deserializationException); _logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
-        Settings_OBody copiedOBodySettings = JSONhandler<Settings_OBody>.Deserialize(JSONhandler<Settings_OBody>.Serialize(_patcherState.OBodySettings, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
-        if (!serializationSuccess) { _logger.LogMessage("Error serializing OBody Settings. Exception: " + serializatonException); _logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
-        if (!deserializationSuccess) { _logger.LogMessage("Error deserializing OBody Settings. Exception: " + deserializationException); _logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
-        copiedOBodySettings.CurrentlyExistingBodySlides = _patcherState.OBodySettings.CurrentlyExistingBodySlides; // JSONIgnored so doesn't get serialized/deserialized
+
+        Settings_OBody copiedOBodySettings = _patcherState.OBodySettings.DeepCopyByExpressionTree(); // can't copy via json because some needed properties are JSONignored.
 
         if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
         {
@@ -216,6 +214,11 @@ public class Patcher
             copiedOBodySettings.BodySlidesMale = copiedOBodySettings.BodySlidesMale.Where(x => copiedOBodySettings.CurrentlyExistingBodySlides.Contains(x.ReferencedBodySlide)).ToList();
             _oBodyPreprocessing.CompilePresetRaces(copiedOBodySettings);
             _oBodyPreprocessing.CompileRulesRaces(copiedOBodySettings);
+
+            if (copiedOBodySettings.AutoApplyMissingAnnotations)
+            {
+                BodySlideAnnotator.AnnotateBodySlides(copiedOBodySettings.BodySlidesMale.And(copiedOBodySettings.BodySlidesFemale).ToList(), copiedOBodySettings.BodySlideClassificationRules, false);
+            }
 
             BodySlideTracker = new Dictionary<FormKey, string>();
 

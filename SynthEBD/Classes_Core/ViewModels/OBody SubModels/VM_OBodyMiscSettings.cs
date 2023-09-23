@@ -55,6 +55,7 @@ public class VM_OBodyMiscSettings : VM
     public RelayCommand AddMaleSliderGroup { get; set; }
     public RelayCommand AddFemaleSliderGroup { get; set; }
     public bool ShowAutoBodySelectionMode { get; set; }
+    public bool AutoApplyMissingAnnotations { get; set; } = true;
 
     public VM_OBodyMiscSettings GetViewModelFromModel(Settings_OBody model)
     {
@@ -71,6 +72,7 @@ public class VM_OBodyMiscSettings : VM
         }
         viewModel.UseVerboseScripts = model.bUseVerboseScripts;
         viewModel.AutoBodySelectionMode = model.AutoBodySelectionMode;
+        viewModel.AutoApplyMissingAnnotations = model.AutoApplyMissingAnnotations;
         return viewModel;
     }
 
@@ -80,5 +82,6 @@ public class VM_OBodyMiscSettings : VM
         model.FemaleSliderGroups = FemaleBodySlideGroups.Select(x => x.Content).ToHashSet();
         model.bUseVerboseScripts = UseVerboseScripts;
         model.AutoBodySelectionMode = AutoBodySelectionMode;
+        model.AutoApplyMissingAnnotations = AutoApplyMissingAnnotations;
     }
 }
