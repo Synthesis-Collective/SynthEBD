@@ -10,7 +10,12 @@ namespace SynthEBD;
 
 public class BodySlideAnnotator
 {
-    public static void AnnotateBodySlides(List<BodySlideSetting> bodySlides, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules, bool overwriteExistingAnnotations)
+    private readonly Logger _logger;
+    public BodySlideAnnotator(Logger logger)
+    {
+        _logger = logger;
+    }
+    public void AnnotateBodySlides(List<BodySlideSetting> bodySlides, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules, bool overwriteExistingAnnotations)
     {
         var toAnnotate = new List<BodySlideSetting>();
         if (overwriteExistingAnnotations)
@@ -31,7 +36,7 @@ public class BodySlideAnnotator
         }
     }
 
-    private static void AnnotateBodySlide(BodySlideSetting bodySlide, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules)
+    private void AnnotateBodySlide(BodySlideSetting bodySlide, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules)
     {
         if (bodySlideClassificationRules.ContainsKey(bodySlide.SliderGroup))
         {
@@ -42,25 +47,29 @@ public class BodySlideAnnotator
         }
     }
 
-    private static void ApplyDescriptorCategoryRuleSet(BodySlideSetting bodySlide, DescriptorClassificationRuleSet ruleSet)
+    private void ApplyDescriptorCategoryRuleSet(BodySlideSetting bodySlide, DescriptorClassificationRuleSet ruleSet)
     {
         bool ruleApplied = false;
         foreach (var rule in ruleSet.RuleList)
         {
             if (EvaluateDescriptorValueRule(bodySlide, rule))
             {
-                bodySlide.BodyShapeDescriptors.Add(new() { Category = ruleSet.DescriptorCategory, Value = rule.SelectedDescriptorValue });
+                var descriptorSignature = new BodyShapeDescriptor.LabelSignature() { Category = ruleSet.DescriptorCategory, Value = rule.SelectedDescriptorValue };
+                bodySlide.BodyShapeDescriptors.Add(descriptorSignature);
+                _logger.LogMessage("BodySlide Preset " + bodySlide.Label + " annotated as " + descriptorSignature.ToString());
                 ruleApplied = true;
             }
         }
 
         if (!ruleApplied && !ruleSet.DefaultDescriptorValue.IsNullOrWhitespace())
         {
-            bodySlide.BodyShapeDescriptors.Add(new() { Category = ruleSet.DescriptorCategory, Value = ruleSet.DefaultDescriptorValue });
+            var descriptorSignature = new BodyShapeDescriptor.LabelSignature() { Category = ruleSet.DescriptorCategory, Value = ruleSet.DefaultDescriptorValue };
+            bodySlide.BodyShapeDescriptors.Add(descriptorSignature);
+            _logger.LogMessage("BodySlide Preset " + bodySlide.Label + " annotated as (default) " + descriptorSignature.ToString());
         }
     }
 
-    private static bool EvaluateDescriptorValueRule(BodySlideSetting bodySlide, DescriptorAssignmentRuleSet ruleList)
+    private bool EvaluateDescriptorValueRule(BodySlideSetting bodySlide, DescriptorAssignmentRuleSet ruleList)
     {
         foreach (var ruleGroup in ruleList.RuleListORlogic)
         {
@@ -72,7 +81,7 @@ public class BodySlideAnnotator
         return false;
     }
 
-    private static bool EvaluateAndGatedRuleList(BodySlideSetting bodySlide, AndGatedSliderRuleGroup ruleGroup)
+    private bool EvaluateAndGatedRuleList(BodySlideSetting bodySlide, AndGatedSliderRuleGroup ruleGroup)
     {
         if (!ruleGroup.RuleListANDlogic.Any())
         {
@@ -90,7 +99,7 @@ public class BodySlideAnnotator
         return true;
     }
 
-    private static bool EvaluateRule(BodySlideSetting bodySlide, SliderClassificationRule rule)
+    private bool EvaluateRule(BodySlideSetting bodySlide, SliderClassificationRule rule)
     {
         if (bodySlide.SliderValues.ContainsKey(rule.SliderName))
         {
@@ -106,7 +115,7 @@ public class BodySlideAnnotator
         return false;
     }
 
-    private static bool EvaluateExpression(int sliderValue, int thresholdValue, string comparator)
+    private bool EvaluateExpression(int sliderValue, int thresholdValue, string comparator)
     {
         switch (comparator)
         {

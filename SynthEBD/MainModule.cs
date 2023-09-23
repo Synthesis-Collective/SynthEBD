@@ -95,6 +95,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<AttributeMatcher>().AsSelf().SingleInstance();
         builder.RegisterType<RecordIntellisense>().AsSelf().SingleInstance();
         builder.RegisterType<AssetPackValidator>().AsSelf().SingleInstance();
+        builder.RegisterType<BodySlideAnnotator>().AsSelf().SingleInstance();
 
         //Patcher components
         builder.RegisterType<AssetAndBodyShapeSelector>().AsSelf().SingleInstance();
