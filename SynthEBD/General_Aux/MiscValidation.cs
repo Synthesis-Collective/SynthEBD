@@ -391,6 +391,11 @@ public class MiscValidation
 
     public bool VerifyBodySlideAnnotations(Settings_OBody obodySettings)
     {
+        if (obodySettings.AutoApplyMissingAnnotations)
+        {
+            return true;
+        }
+
         List<string> bsMissingDescriptors = new List<string>();
         GetMissingBodySlideAnnotations(obodySettings.BodySlidesMale, obodySettings.CurrentlyExistingBodySlides, bsMissingDescriptors);
         GetMissingBodySlideAnnotations(obodySettings.BodySlidesFemale, obodySettings.CurrentlyExistingBodySlides, bsMissingDescriptors);
