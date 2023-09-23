@@ -285,6 +285,10 @@ public class VM_BodySlideSetting : VM
         model.ProbabilityWeighting = ProbabilityWeighting;
         model.WeightRange = WeightRange.Clone();
         model.HideInMenu = AssociatedPlaceHolder.IsHidden;
+
+        // also copy JSonIgnored values because they're needed by the patcher or if returning to this VM
+        model.SliderGroup = AssociatedPlaceHolder.AssociatedModel.SliderGroup;
+        model.SliderValues = new(AssociatedPlaceHolder.AssociatedModel.SliderValues);
         return model;
     }
 }
