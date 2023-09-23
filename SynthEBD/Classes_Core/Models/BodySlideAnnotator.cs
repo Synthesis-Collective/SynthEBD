@@ -36,14 +36,16 @@ public class BodySlideAnnotator
         }
     }
 
-    private void AnnotateBodySlide(BodySlideSetting bodySlide, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules)
+    public void AnnotateBodySlide(BodySlideSetting bodySlide, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules)
     {
-        if (bodySlideClassificationRules.ContainsKey(bodySlide.SliderGroup))
+        if (bodySlide == null || bodySlideClassificationRules == null || bodySlide.SliderGroup == null || bodySlide.SliderValues == null || !bodySlideClassificationRules.ContainsKey(bodySlide.SliderGroup))
         {
-            foreach (var ruleSet in bodySlideClassificationRules[bodySlide.SliderGroup].DescriptorClassifiers)
-            {
-                ApplyDescriptorCategoryRuleSet(bodySlide, ruleSet);
-            }
+            return;
+        }
+
+        foreach (var ruleSet in bodySlideClassificationRules[bodySlide.SliderGroup].DescriptorClassifiers)
+        {
+            ApplyDescriptorCategoryRuleSet(bodySlide, ruleSet);
         }
     }
 

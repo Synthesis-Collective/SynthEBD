@@ -14,17 +14,22 @@ namespace SynthEBD
     [DebuggerDisplay("{Label}")]
     public class VM_BodySlidePlaceHolder : VM
     {
-        private PatcherState _patcherState;
+        private readonly PatcherState _patcherState;
+        private readonly VM_SettingsOBody _obodyVM;
+        private readonly BodySlideAnnotator _bodySlideAnnotator;
         public delegate VM_BodySlidePlaceHolder Factory(BodySlideSetting model, ObservableCollection<VM_BodySlidePlaceHolder> parentCollection);
 
-        public VM_BodySlidePlaceHolder(BodySlideSetting model, ObservableCollection<VM_BodySlidePlaceHolder> parentCollection, PatcherState patcherState, VM_SettingsOBody oBodySettingsVM)
+        public VM_BodySlidePlaceHolder(BodySlideSetting model, ObservableCollection<VM_BodySlidePlaceHolder> parentCollection, PatcherState patcherState, VM_SettingsOBody oBodySettingsVM, BodySlideAnnotator bodySlideAnnotator)
         {
             _patcherState = patcherState;
+            _obodyVM = oBodySettingsVM;
+            _bodySlideAnnotator = bodySlideAnnotator;
 
             AssociatedModel = model;
             Label = model.Label;
             ParentCollection = parentCollection;
 
+            InitializeAutoAnnotation();
             InitializeBorderColor();
 
             this.WhenAnyValue(x => x.AssociatedViewModel.Label).Subscribe(y => Label = y).DisposeWith(this);
@@ -58,11 +63,28 @@ namespace SynthEBD
         public VM_BodySlideSetting? AssociatedViewModel { get; set; }
         public ObservableCollection<VM_BodySlidePlaceHolder> ParentCollection { get; set; }
 
+        public void InitializeAutoAnnotation()
+        {
+            if (_obodyVM.MiscUI.AutoApplyMissingAnnotations && !AssociatedModel.BodyShapeDescriptors.Any())
+            {
+                _bodySlideAnnotator.AnnotateBodySlide(AssociatedModel, _patcherState.OBodySettings.BodySlideClassificationRules);
+
+                if (AssociatedModel.BodyShapeDescriptors.Any())
+                {
+                    AssociatedModel.AutoAnnotated = true;
+                }
+            }
+        }
+
         public void InitializeBorderColor()
         {
             if (!_patcherState.OBodySettings.CurrentlyExistingBodySlides.Contains(AssociatedModel.ReferencedBodySlide))
             {
                 BorderColor = CommonColors.Red;
+            }
+            else if (AssociatedModel.AutoAnnotated)
+            {
+                BorderColor = CommonColors.MediumPurple;
             }
             else if (!AssociatedModel.BodyShapeDescriptors.Any())
             {

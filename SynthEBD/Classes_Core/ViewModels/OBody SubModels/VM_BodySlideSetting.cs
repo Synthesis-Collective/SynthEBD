@@ -17,6 +17,7 @@ public class VM_BodySlideSetting : VM
     private IEnvironmentStateProvider _environmentProvider;
     public VM_SettingsOBody ParentMenuVM;
     private readonly VM_NPCAttributeCreator _attributeCreator;
+    private readonly BodySlideAnnotator _bodySlideAnnotator;
     private readonly VM_BodyShapeDescriptorCreationMenu _bodyShapeDescriptors;
     private readonly ObservableCollection<VM_RaceGrouping> _raceGroupingVMs;
     private readonly VM_BodySlidePlaceHolder.Factory _placeHolderFactory;
@@ -24,7 +25,7 @@ public class VM_BodySlideSetting : VM
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
 
     public delegate VM_BodySlideSetting Factory(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
-    public VM_BodySlideSetting(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_BodySlidePlaceHolder.Factory placeHolderFactory)
+    public VM_BodySlideSetting(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, BodySlideAnnotator bodySlideAnnotator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_BodySlidePlaceHolder.Factory placeHolderFactory)
     {
         ParentMenuVM = oBodySettingsVM;
 
@@ -33,6 +34,7 @@ public class VM_BodySlideSetting : VM
 
         _environmentProvider = environmentProvider;
         _attributeCreator = attributeCreator;
+        _bodySlideAnnotator = bodySlideAnnotator;
         _bodyShapeDescriptors = oBodySettingsVM.DescriptorUI;
         _raceGroupingVMs = raceGroupingVMs;
         _selfFactory = selfFactory;
@@ -40,6 +42,8 @@ public class VM_BodySlideSetting : VM
         _descriptorSelectionFactory = descriptorSelectionFactory;
 
         DescriptorsSelectionMenu = _descriptorSelectionFactory(_bodyShapeDescriptors, raceGroupingVMs, oBodySettingsVM, false, DescriptorMatchMode.Any);
+        DescriptorsSelectionMenu.AutoSelected = associatedPlaceHolder.AssociatedModel.AutoAnnotated; // if true will be set to false as soon as user makes a selection
+
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
@@ -149,6 +153,7 @@ public class VM_BodySlideSetting : VM
     public static SolidColorBrush BorderColorUnannotated = CommonColors.Yellow;
     public static SolidColorBrush BorderColorValid = CommonColors.LightGreen;
     public static SolidColorBrush BorderColorHidden = CommonColors.LightSlateGrey;
+    public static SolidColorBrush BorderColorAutoAnnotated = CommonColors.MediumPurple;
 
     public VM_BodySlideSetting Clone()
     {
@@ -191,6 +196,13 @@ public class VM_BodySlideSetting : VM
         {
             BorderColor = BorderColorHidden;
         }
+        else if (DescriptorsSelectionMenu.AutoSelected && DescriptorsSelectionMenu.IsAnnotated())
+        {
+            BorderColor = BorderColorAutoAnnotated;
+            StatusHeader = "Note:";
+            StatusText = "Bodyslide has been automatically annotated";
+            ShowStatus = true;
+        }
         else if(!DescriptorsSelectionMenu.IsAnnotated())
         {
             BorderColor = BorderColorUnannotated;
@@ -203,7 +215,7 @@ public class VM_BodySlideSetting : VM
             BorderColor = BorderColorValid;
             StatusHeader = string.Empty;
             StatusText = string.Empty;
-            ShowStatus = false;
+            ShowStatus = false;   
         }
     }
 
@@ -217,7 +229,21 @@ public class VM_BodySlideSetting : VM
         }
         SliderGroup = model.SliderGroup;
         Notes = model.Notes;
+
+        bool autoAnnotated = model.AutoAnnotated;
+        if (ParentMenuVM.MiscUI.AutoApplyMissingAnnotations && !model.BodyShapeDescriptors.Any())
+        {
+            _bodySlideAnnotator.AnnotateBodySlide(model, ParentMenuVM.AnnotatorUI.DumpToModel());
+            autoAnnotated = true;
+        }
+
         DescriptorsSelectionMenu.CopyInFromHashSet(model.BodyShapeDescriptors);
+
+        if (autoAnnotated)
+        {
+            DescriptorsSelectionMenu.AutoSelected = true;
+        }
+
         AllowedRaces.AddRange(model.AllowedRaces);
         AllowedRaceGroupings.CopyInRaceGroupingsByLabel(model.AllowedRaceGroupings, _raceGroupingVMs);
         foreach (var grouping in AllowedRaceGroupings.RaceGroupingSelections)
@@ -272,7 +298,10 @@ public class VM_BodySlideSetting : VM
         model.Label = Label;
         model.ReferencedBodySlide = ReferencedBodySlide;
         model.Notes = Notes;
-        model.BodyShapeDescriptors = DescriptorsSelectionMenu.DumpToHashSet();
+        if (!DescriptorsSelectionMenu.AutoSelected) // don't save auto-generated descriptors. They will be recalculated upon next load (potentially with updated rules), unless the users makes a manual selection
+        {
+            model.BodyShapeDescriptors = DescriptorsSelectionMenu.DumpToHashSet();
+        }
         model.AllowedRaces = AllowedRaces.ToHashSet();
         model.AllowedRaceGroupings = AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
         model.DisallowedRaces = DisallowedRaces.ToHashSet();
@@ -289,6 +318,7 @@ public class VM_BodySlideSetting : VM
         // also copy JSonIgnored values because they're needed by the patcher or if returning to this VM
         model.SliderGroup = AssociatedPlaceHolder.AssociatedModel.SliderGroup;
         model.SliderValues = new(AssociatedPlaceHolder.AssociatedModel.SliderValues);
+        model.AutoAnnotated = DescriptorsSelectionMenu.AutoSelected;
         return model;
     }
 }

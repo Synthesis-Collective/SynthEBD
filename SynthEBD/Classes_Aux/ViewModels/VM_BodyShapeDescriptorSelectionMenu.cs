@@ -40,7 +40,14 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
             .ToObservableChangeSet()
             .Transform(x =>
                 x.WhenAnyObservable(y => y.NeedsRefresh)
-                .Subscribe(_ => BuildHeader())
+                .Subscribe(_ => 
+                { 
+                    if (!_initializing)
+                    {
+                        AutoSelected = false;
+                    }
+                    BuildHeader();
+                })
                 .DisposeWith(this))
             .DisposeMany() // Dispose subscriptions related to removed attributes
             .Subscribe()  // Execute my instructions
@@ -55,6 +62,8 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
     public VM_BodyShapeDescriptorShellSelector CurrentlyDisplayedShell { get; set; }
     public bool ShowMatchMode { get; set; } = false;
     public DescriptorMatchMode MatchMode { get; set; } = DescriptorMatchMode.All;
+    public bool AutoSelected { get; set; } = false;
+    private bool _initializing { get; set; } = false;
 
     public HashSet<BodyShapeDescriptor.LabelSignature> BackupStash { get; set; } = new(); // if a descriptor is present in the model but not present in the corresponding UI, stash here to write back to the model
 
@@ -123,6 +132,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
 
     public void CopyInFromHashSet(HashSet<BodyShapeDescriptor.LabelSignature> bodyShapeDescriptors)
     {
+        _initializing = true;
         if (bodyShapeDescriptors != null)
         {
             foreach (var descriptor in bodyShapeDescriptors)
@@ -147,6 +157,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
                 }
             }
         }
+        _initializing = false;
     }
 
     public HashSet<BodyShapeDescriptor.LabelSignature> DumpToHashSet()

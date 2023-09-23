@@ -16,5 +16,6 @@ namespace SynthEBD
         public static SolidColorBrush LightSlateGrey = new SolidColorBrush(Colors.LightSlateGray);
         public static SolidColorBrush White = new SolidColorBrush(Colors.White);
         public static SolidColorBrush FireBrick = new SolidColorBrush(Colors.Firebrick);
+        public static SolidColorBrush MediumPurple = new SolidColorBrush(Colors.MediumPurple);
     }
 }
