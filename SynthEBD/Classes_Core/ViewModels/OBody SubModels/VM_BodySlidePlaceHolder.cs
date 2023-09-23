@@ -63,7 +63,7 @@ namespace SynthEBD
         public VM_BodySlideSetting? AssociatedViewModel { get; set; }
         public ObservableCollection<VM_BodySlidePlaceHolder> ParentCollection { get; set; }
 
-        public void InitializeAutoAnnotation()
+        private void InitializeAutoAnnotation()
         {
             if (_obodyVM.MiscUI.AutoApplyMissingAnnotations && !AssociatedModel.BodyShapeDescriptors.Any())
             {
@@ -80,19 +80,23 @@ namespace SynthEBD
         {
             if (!_patcherState.OBodySettings.CurrentlyExistingBodySlides.Contains(AssociatedModel.ReferencedBodySlide))
             {
-                BorderColor = CommonColors.Red;
+                BorderColor = VM_BodySlideSetting.BorderColorMissing;
+            }
+            else if (AssociatedModel.HideInMenu)
+            {
+                BorderColor = VM_BodySlideSetting.BorderColorHidden;
             }
             else if (AssociatedModel.AutoAnnotated)
             {
-                BorderColor = CommonColors.MediumPurple;
+                BorderColor = VM_BodySlideSetting.BorderColorAutoAnnotated;
             }
             else if (!AssociatedModel.BodyShapeDescriptors.Any())
             {
-                BorderColor = CommonColors.Yellow;
+                BorderColor = VM_BodySlideSetting.BorderColorUnannotated;
             }
             else
             {
-                BorderColor = CommonColors.Green;
+                BorderColor = VM_BodySlideSetting.BorderColorValid;
             }
         }
 

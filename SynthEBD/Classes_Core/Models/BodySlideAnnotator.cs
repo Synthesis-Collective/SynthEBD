@@ -17,7 +17,7 @@ public class BodySlideAnnotator
     }
     public void AnnotateBodySlides(List<BodySlideSetting> bodySlides, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules, bool overwriteExistingAnnotations)
     {
-        var toAnnotate = new List<BodySlideSetting>();
+        var toAnnotate = new List<BodySlideSetting>(bodySlides);
         if (overwriteExistingAnnotations)
         {
             foreach (var bs in toAnnotate)
@@ -60,6 +60,7 @@ public class BodySlideAnnotator
                 bodySlide.BodyShapeDescriptors.Add(descriptorSignature);
                 _logger.LogMessage("BodySlide Preset " + bodySlide.Label + " annotated as " + descriptorSignature.ToString());
                 ruleApplied = true;
+                bodySlide.AutoAnnotated = true;
             }
         }
 
@@ -68,6 +69,7 @@ public class BodySlideAnnotator
             var descriptorSignature = new BodyShapeDescriptor.LabelSignature() { Category = ruleSet.DescriptorCategory, Value = ruleSet.DefaultDescriptorValue };
             bodySlide.BodyShapeDescriptors.Add(descriptorSignature);
             _logger.LogMessage("BodySlide Preset " + bodySlide.Label + " annotated as (default) " + descriptorSignature.ToString());
+            bodySlide.AutoAnnotated = true;
         }
     }
 

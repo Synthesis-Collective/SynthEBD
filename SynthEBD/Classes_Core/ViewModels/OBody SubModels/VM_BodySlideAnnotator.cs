@@ -12,16 +12,24 @@ public class VM_BodySlideAnnotator : VM
     private readonly PatcherState _patcherState;
     private readonly VM_BodyShapeDescriptorCreationMenu _oBodyDescriptorMenu;
     private readonly VM_BodySlidesMenu _bodySlideMenu;
+    private readonly BodySlideAnnotator _bodySlideAnnotator;
+    private readonly Logger _logger;
 
     public delegate VM_BodySlideAnnotator Factory(VM_BodyShapeDescriptorCreationMenu oBodyDescriptorMenu, VM_BodySlidesMenu bodySlideMenu, VM_OBodyMiscSettings miscMenu);
-    public VM_BodySlideAnnotator(PatcherState patcherState, VM_BodyShapeDescriptorCreationMenu oBodyDescriptorMenu, VM_BodySlidesMenu bodySlideMenu, VM_OBodyMiscSettings miscMenu)
+    public VM_BodySlideAnnotator(PatcherState patcherState, VM_BodyShapeDescriptorCreationMenu oBodyDescriptorMenu, VM_BodySlidesMenu bodySlideMenu, VM_OBodyMiscSettings miscMenu, BodySlideAnnotator bodySlideAnnotator, Logger logger)
     {
         _patcherState = patcherState;
         _oBodyDescriptorMenu = oBodyDescriptorMenu;
         _bodySlideMenu = bodySlideMenu;
+        _bodySlideAnnotator = bodySlideAnnotator;
+        _logger = logger;
 
         SubscribedFemaleBodySlideGroups = miscMenu.FemaleBodySlideGroups;
-        SubscribedMaleBodySlideGroups = miscMenu.MaleBodySlideGroups;   
+        SubscribedMaleBodySlideGroups = miscMenu.MaleBodySlideGroups;
+
+        ApplyAnnotationsCommand = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => ApplyAnnotations());
     }
 
     public ObservableCollection<string> CurrentSliderGroups { get; set; } = new(); // CBBE, UNP, etc
@@ -35,6 +43,7 @@ public class VM_BodySlideAnnotator : VM
 
     public Dictionary<string, ObservableCollection<string>> SliderNamesByGroup { get; set; } = new();
     private List<SliderClassificationRulesByBodyType> _stashedUnloadedBodyTypeRules { get; set; } = new(); // for storing rules for descriptors that a user may have inadvertently removed
+    public RelayCommand ApplyAnnotationsCommand { get; }
 
     public void InitializeBodySlideInfo()
     {
@@ -76,16 +85,29 @@ public class VM_BodySlideAnnotator : VM
     {
         InitializeBodySlideInfo();
         _stashedUnloadedBodyTypeRules.Clear();
-        foreach (var rulesByBodyType in _patcherState.OBodySettings.BodySlideClassificationRules)
+
+        var bodyTypes = SliderNamesByGroup.Keys.ToHashSet().And(_patcherState.OBodySettings.BodySlideClassificationRules.Keys).Distinct().ToArray();
+
+        foreach (var bodyType in bodyTypes)
         {
-            var correspondingVM = AnnotationRules.Where(x => x.BodyTypeGroup == rulesByBodyType.Key).FirstOrDefault();
-            if (correspondingVM != null)
+            SliderClassificationRulesByBodyType rulesByBodyType;
+            if (_patcherState.OBodySettings.BodySlideClassificationRules.ContainsKey(bodyType))
             {
-                correspondingVM.CopyInFromModel(rulesByBodyType.Value);
+                rulesByBodyType = _patcherState.OBodySettings.BodySlideClassificationRules[bodyType];
             }
             else
             {
-                _stashedUnloadedBodyTypeRules.Add(rulesByBodyType.Value);
+                rulesByBodyType= new SliderClassificationRulesByBodyType();
+            }
+
+            var correspondingVM = AnnotationRules.Where(x => x.BodyTypeGroup == bodyType).FirstOrDefault();
+            if (correspondingVM != null)
+            {
+                correspondingVM.CopyInFromModel(rulesByBodyType);
+            }
+            else
+            {
+                _stashedUnloadedBodyTypeRules.Add(rulesByBodyType);
             }
         }
     }
@@ -98,6 +120,23 @@ public class VM_BodySlideAnnotator : VM
             bodySlideClassificationRules.Add(rule.BodyTypeGroup, rule.DumpToModel());
         }
         return bodySlideClassificationRules;
+    }
+
+    public void ApplyAnnotations()
+    {
+        var targetVMs = _bodySlideMenu.BodySlidesMale.And(_bodySlideMenu.BodySlidesFemale).Where(x => x.AssociatedModel.AutoAnnotated || !x.AssociatedModel.BodyShapeDescriptors.Any()).ToList();
+
+        _bodySlideAnnotator.AnnotateBodySlides(targetVMs.Select(x => x.AssociatedModel).ToList(), this.DumpToModel(), true);
+
+        foreach (var targetVM in targetVMs)
+        {
+            if (targetVM.AssociatedModel.BodyShapeDescriptors.Any())
+            {
+                targetVM.InitializeBorderColor();
+            }
+        }
+
+        _logger.CallTimedNotifyStatusUpdateAsync("Auto-Applied Annotations", 3, CommonColors.Yellow);
     }
 }
 
