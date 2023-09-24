@@ -114,12 +114,24 @@ namespace SynthEBD
         public bool SimulatePrimaryDistribution()
         {
             Clear();
-            if (PrimaryAPs is null || !PrimaryAPs.Any()) { return false; }
-            if (NPCformKey.IsNull) { return false; }
+            if (PrimaryAPs is null || !PrimaryAPs.Any()) {
+                CustomMessageBox.DisplayNotificationOK("Cannot Simulate Distribution", "No Primary Config Files are selected in the Active Config Files list");
+                return false; 
+            }
+            if (NPCformKey.IsNull) {
+                CustomMessageBox.DisplayNotificationOK("Cannot Simulate Distribution", "No NPC is selected");
+                return false; 
+            }
 
             NPCinfo = _npcInfoFactory(NPCgetter, new(), new());
 
             var flattenedAssetPacks = PrimaryAPs.Where(x => x.Gender == NPCinfo.Gender).Select(x => FlattenedAssetPack.FlattenAssetPack(x, _dictionaryMapper, _patcherState)).ToHashSet();
+
+            if (!flattenedAssetPacks.Any())
+            {
+                CustomMessageBox.DisplayNotificationOK("Cannot Simulate Distribution", "No Primary Config Files with the same gender as " + _logger.GetNPCLogNameString(NPCgetter) + " are selected in the Active Config Files list");
+                return false;
+            }
 
             var blockListNPCEntry = BlockListHandler.GetCurrentNPCBlockStatus(BlockList, NPCformKey);
             var blockListPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(BlockList, NPCformKey, _environmentProvider.LinkCache);
