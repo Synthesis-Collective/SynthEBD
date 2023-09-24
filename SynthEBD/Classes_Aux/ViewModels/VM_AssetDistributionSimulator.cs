@@ -65,8 +65,10 @@ namespace SynthEBD
             canExecute: _ => true,
             execute: _ =>
             {
-                SimulatePrimaryDistribution();
-                ShowFullReportVisible = true;
+                if (SimulatePrimaryDistribution())
+                {
+                    ShowFullReportVisible = true;
+                }
             });
 
             ShowFullReport = new RelayCommand(
@@ -109,11 +111,11 @@ namespace SynthEBD
             TextReport = string.Empty;
             ShowFullReportVisible = false;
         }
-        public void SimulatePrimaryDistribution()
+        public bool SimulatePrimaryDistribution()
         {
             Clear();
-            if (PrimaryAPs is null || !PrimaryAPs.Any()) { return; }
-            if (NPCformKey.IsNull) { return; }
+            if (PrimaryAPs is null || !PrimaryAPs.Any()) { return false; }
+            if (NPCformKey.IsNull) { return false; }
 
             NPCinfo = _npcInfoFactory(NPCgetter, new(), new());
 
@@ -165,6 +167,7 @@ namespace SynthEBD
             _patcherState.GeneralSettings.bEnableConsistency = backupConsistency;
 
             GenerateReport(combinations, flattenedAssetPacks, NPCinfo);
+            return true;
         }
 
         public void GenerateReport(HashSet<SubgroupCombination> combinations, HashSet<FlattenedAssetPack> available, NPCInfo npcInfo)
