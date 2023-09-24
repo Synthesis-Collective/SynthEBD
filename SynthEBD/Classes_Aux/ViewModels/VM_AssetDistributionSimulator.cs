@@ -210,7 +210,7 @@ namespace SynthEBD
                         var reportString = new VM_ReportCountableStringWrapper(sgString);
                         if (sgString.Count > 0) { reportString.TextColor = CommonColors.White; }
                         else { reportString.TextColor = CommonColors.FireBrick; }
-                        reportString.GetExplainStringSubgroup(npcInfo, ap.GroupName, subgroup.Id, subgroup.Name);
+                        reportString.GetExplainStringSubgroup(npcInfo, ap.GroupName, "Subgroup " + subgroup.GetDetailedID_NameString(false));
                         assetReport.SubgroupStrings.Add(reportString);
                     }
                 }
@@ -263,7 +263,7 @@ namespace SynthEBD
             public RelayCommand ExplainCommand { get; }
             public string ExplainStr { get; set; }
 
-            public void GetExplainStringSubgroup(NPCInfo npcInfo, string assetPackName, string subGroupID, string subgroupName)
+            public void GetExplainStringSubgroup(NPCInfo npcInfo, string assetPackName, string reportIDstring)
             {
                 var log = npcInfo.Report.RootElement.ToString();
 
@@ -278,8 +278,7 @@ namespace SynthEBD
                 string subgroupStrs = split2[0];
 
                 var subgroupStrArray = subgroupStrs.Split(Environment.NewLine).Where(x => !x.IsNullOrWhitespace()).ToArray();
-                string matchStr = "Subgroup" + subGroupID + "(" + subgroupName + ")"; // remove all white space to remain agnostic to formatting
-                ExplainStr = subgroupStrArray.Where(x => ReplaceWhitespace(x, string.Empty).StartsWith(ReplaceWhitespace(matchStr, string.Empty))).FirstOrDefault() ?? "No relevant information found";
+                ExplainStr = subgroupStrArray.Where(x => ReplaceWhitespace(x, string.Empty).StartsWith(ReplaceWhitespace(reportIDstring, string.Empty))).FirstOrDefault() ?? "No relevant information found";
             }
 
             //https://stackoverflow.com/questions/6219454/efficient-way-to-remove-all-whitespace-from-string
