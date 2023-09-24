@@ -107,6 +107,7 @@ namespace SynthEBD
         {
             AssetReports.Clear();
             TextReport = string.Empty;
+            ShowFullReportVisible = false;
         }
         public void SimulatePrimaryDistribution()
         {

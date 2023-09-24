@@ -37,7 +37,7 @@
             <Button VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding ShowFullReport}" Foreground="White" Margin="10 0 0 0"  Visibility="{Binding ShowFullReportVisible, Converter={StaticResource BoolToVis}}">Show Full Detail Report</Button>
         </StackPanel>
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Text="Report: " Foreground="GhostWhite"/>
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Report: " Foreground="GhostWhite" Visibility="{Binding ShowFullReportVisible, Converter={StaticResource BoolToVis}}"/>
         <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding TextReport}" Foreground="GhostWhite"/>
         <ScrollViewer Grid.Row="4" Grid.Column="1">
             <ItemsControl ItemsSource="{Binding AssetReports}">
