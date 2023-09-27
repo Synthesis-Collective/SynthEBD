@@ -204,6 +204,7 @@ public class AssetPackValidator
             }
         }
 
+        HashSet<string> existingDestinationPaths = new();
         foreach (var path in subgroup.Paths)
         {
             var fullPath = System.IO.Path.Combine(_environmentProvider.DataFolderPath, path.Source);
@@ -221,6 +222,13 @@ public class AssetPackValidator
                 subErrors.Add(pathError);
                 isValid = false;
             }
+
+            if (existingDestinationPaths.Contains(path.Destination))
+            {
+                subErrors.Add("Subgroup contains multiple Assets with the same Destination Path: " + path.Destination);
+                isValid = false;
+            }
+            existingDestinationPaths.Add(path.Destination);
 
             if (!isReplacer)
             {
