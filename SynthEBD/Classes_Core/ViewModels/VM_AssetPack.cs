@@ -463,7 +463,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         if (model.AssociatedBodyGenConfigName != "")
         {
-            switch(Gender)
+            switch(model.Gender) // use the model's gender because the VM's gender is intentionally set last to simplify subscriptions.
             {
                 case Gender.Female:
                     TrackedBodyGenConfig = CurrentBodyGenSettings.FemaleConfigs.Where(x => x.Label == model.AssociatedBodyGenConfigName).FirstOrDefault();
