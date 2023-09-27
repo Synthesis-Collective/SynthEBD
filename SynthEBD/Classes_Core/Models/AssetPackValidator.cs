@@ -96,6 +96,7 @@ public class AssetPackValidator
                 isValid = false;
             }
         }
+
         return isValid;
     }
 
@@ -270,6 +271,7 @@ public class AssetPackValidator
             var parentTopLevel = parent.Subgroups[topLevelIndex].ID + ": " + parent.Subgroups[topLevelIndex].Name;
             subErrors.Insert(0, "Subgroup " + subgroup.ID + ":" + subgroup.Name + " within Top Level Subgroup " + parentTopLevel + " (#" + (topLevelIndex + 1).ToString() + ")");
             errors.AddRange(subErrors);
+            errors.Add(Environment.NewLine);
         }
 
         foreach (var subSubgroup in subgroup.Subgroups)
