@@ -96,7 +96,12 @@ public class CombinationLog
             foreach (var combination in entry.Value.OrderBy(x => x.SubgroupIDs))
             {
                 fileContents.Add("\tCombination: " + combination.SubgroupIDs);
-                fileContents.Add("\t\tAssigned to NPCs:");
+                fileContents.Add("\t\tSubgroup Names: ");
+                foreach (var subgroupName in combination.SubgroupDeepNames)
+                {
+                    fileContents.Add("\t\t\t" + subgroupName);
+                }
+                fileContents.Add("\tAssigned to NPCs:");
                 foreach (var npcString in combination.NPCsAssignedTo)
                 {
                     fileContents.Add("\t\t\t" + npcString);
@@ -176,7 +181,7 @@ public class CombinationLog
             var currentCombinationRecord = currentAssetPackCombinations.Where(x => x.SubgroupIDs == currentSubgroupIDs).FirstOrDefault();
             if (currentCombinationRecord == null)
             {
-                currentCombinationRecord = new CombinationInfo() { SubgroupIDs = currentSubgroupIDs };
+                currentCombinationRecord = new CombinationInfo() { SubgroupIDs = currentSubgroupIDs, SubgroupDeepNames = combination.ContainedSubgroups.Select(x => x.ContainedSubgroupNames.First() + ": " + x.ContainedSubgroupNames.Last()).ToList() };
                 currentAssetPackCombinations.Add(currentCombinationRecord);
             }
 
@@ -206,6 +211,7 @@ public class CombinationLog
 public class CombinationInfo
 {
     public string SubgroupIDs { get; set; } = "";
+    public List<string> SubgroupDeepNames { get; set; } = new();
     public HashSet<GeneratedRecordInfo> AssignedRecords { get; set; } = new(new GeneratedRecordInfo.CombinationRecordComparer());
     public HashSet<string> NPCsAssignedTo { get; set; } = new();
     public HashSet<string> AssignedFormKeys { get; set; } = new(); // same data as AssignedRecords but easier to check against
