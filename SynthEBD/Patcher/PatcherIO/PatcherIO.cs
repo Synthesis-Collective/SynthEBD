@@ -94,22 +94,32 @@ public class PatcherIO
             logger.LogErrorWithStatusUpdate("Could not write output file to " + patchOutputPath, ErrorType.Error); 
         };
     }
-    public void TryCopyResourceFile(string sourcePath, string destPath, Logger logger)
+
+    public bool TryCopyResourceFile(string sourcePath, string destPath, Logger logger)
+    {
+        return TryCopyResourceFile(sourcePath, destPath, logger, out _);
+    }
+    public bool TryCopyResourceFile(string sourcePath, string destPath, Logger logger, out string errorStr)
     {
         if (!File.Exists(sourcePath))
         {
-            logger.LogErrorWithStatusUpdate("Could not find " + sourcePath, ErrorType.Error);
-            return;
+            errorStr = "Could not find " + sourcePath;
+            logger.LogErrorWithStatusUpdate(errorStr, ErrorType.Error);
+            return false;
         }
 
         try
         {
             PatcherIO.CreateDirectoryIfNeeded(destPath, PatcherIO.PathType.File);
             File.Copy(sourcePath, destPath, true);
+            errorStr = String.Empty;
+            return true;
         }
-        catch
+        catch (Exception e)
         {
             logger.LogErrorWithStatusUpdate("Could not copy " + sourcePath + "to " + destPath, ErrorType.Error);
+            errorStr = ExceptionLogger.GetExceptionStack(e);
+            return false;
         }
     }
 

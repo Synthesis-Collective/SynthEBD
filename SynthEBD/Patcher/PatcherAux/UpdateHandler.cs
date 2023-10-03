@@ -103,13 +103,9 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
 
             if (File.Exists(source) && !File.Exists(dest))
             {
-                try
+                if (!_patcherIO.TryCopyResourceFile(source, dest, _logger, out string errorStr))
                 {
-                    File.Copy(source, dest);
-                }
-                catch (Exception e)
-                {
-                    _logger.LogError("Failed to copy new record template during update." + Environment.NewLine + "Source: " + source + Environment.NewLine + "Destination: " + dest + Environment.NewLine + ExceptionLogger.GetExceptionStack(e));
+                    _logger.LogError("Failed to copy new record template during update." + Environment.NewLine + "Source: " + source + Environment.NewLine + "Destination: " + dest + Environment.NewLine + errorStr);
                 }
             }
         }
