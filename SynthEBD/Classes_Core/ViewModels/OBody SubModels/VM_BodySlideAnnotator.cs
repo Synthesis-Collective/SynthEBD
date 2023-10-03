@@ -119,6 +119,10 @@ public class VM_BodySlideAnnotator : VM
         {
             bodySlideClassificationRules.Add(rule.BodyTypeGroup, rule.DumpToModel());
         }
+        foreach (var stashedRule in _stashedUnloadedBodyTypeRules)
+        {
+            bodySlideClassificationRules.Add(stashedRule.BodyTypeGroup, stashedRule);
+        }
         return bodySlideClassificationRules;
     }
 
