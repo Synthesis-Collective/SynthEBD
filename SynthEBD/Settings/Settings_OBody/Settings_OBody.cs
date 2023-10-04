@@ -332,14 +332,14 @@ public class BodySlideSlider
 }
 
 
-[DebuggerDisplay("{DescriptorName} Rules: {AnnotationRules.Count} / {Big}")]
+[DebuggerDisplay("{BodyTypeGroup} Rules: {DescriptorClassifiers.Count}")]
 public class SliderClassificationRulesByBodyType
 {
     public string BodyTypeGroup { get; set; }
     public List<DescriptorClassificationRuleSet> DescriptorClassifiers { get; set; } = new();
 }
 
-
+[DebuggerDisplay("{DescriptorCategory}")]
 public class DescriptorClassificationRuleSet
 {
     public string DescriptorCategory { get; set; }
@@ -347,6 +347,7 @@ public class DescriptorClassificationRuleSet
     public List<DescriptorAssignmentRuleSet> RuleList { get; set; } = new();
 }
 
+[DebuggerDisplay("{SelectedDescriptorValue}")]
 public class DescriptorAssignmentRuleSet
 {
     public string SelectedDescriptorValue { get; set; }

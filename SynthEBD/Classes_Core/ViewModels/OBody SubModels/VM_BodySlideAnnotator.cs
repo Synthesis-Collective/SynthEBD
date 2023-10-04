@@ -3,6 +3,7 @@ using DynamicData.Binding;
 using Microsoft.CodeAnalysis;
 using Noggog;
 using System.Collections.ObjectModel;
+using System.Data;
 using System.Diagnostics;
 
 namespace SynthEBD;
@@ -117,11 +118,25 @@ public class VM_BodySlideAnnotator : VM
         Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules = new();
         foreach (var rule in AnnotationRules)
         {
-            bodySlideClassificationRules.Add(rule.BodyTypeGroup, rule.DumpToModel());
+            if (!bodySlideClassificationRules.ContainsKey(rule.BodyTypeGroup))
+            {
+                bodySlideClassificationRules.Add(rule.BodyTypeGroup, rule.DumpToModel());
+            }
+            else
+            {
+                _logger.LogError("Warning: Saving Body Slide Annotation Rules from UI: Body Type " + rule.BodyTypeGroup + " has multiple copies in UI");
+            }
         }
         foreach (var stashedRule in _stashedUnloadedBodyTypeRules)
         {
-            bodySlideClassificationRules.Add(stashedRule.BodyTypeGroup, stashedRule);
+            if (!bodySlideClassificationRules.ContainsKey(stashedRule.BodyTypeGroup))
+            {
+                bodySlideClassificationRules.Add(stashedRule.BodyTypeGroup, stashedRule);
+            }
+            else
+            {
+                _logger.LogError("Warning: Saving Body Slide Annotation Rules from Stashed Rules: Body Type " + stashedRule.BodyTypeGroup + " appears to already exist");
+            }
         }
         return bodySlideClassificationRules;
     }
