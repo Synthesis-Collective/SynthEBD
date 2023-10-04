@@ -151,7 +151,7 @@
                     <StackPanel Orientation="Horizontal">
                         <TextBlock>
                             <TextBlock.Text>
-                                <MultiBinding StringFormat="{}{0}:{1}">
+                                <MultiBinding StringFormat="{}{0}: {1}">
                                     <Binding Path="ID" />
                                     <Binding Path="Name" />
                                 </MultiBinding>
@@ -172,7 +172,7 @@
                     <StackPanel Orientation="Horizontal">
                         <TextBlock>
                             <TextBlock.Text>
-                                <MultiBinding StringFormat="{}{0}:{1}">
+                                <MultiBinding StringFormat="{}{0}: {1}">
                                     <Binding Path="ID" />
                                     <Binding Path="Name" />
                                 </MultiBinding>
