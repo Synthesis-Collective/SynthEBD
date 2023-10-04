@@ -207,8 +207,44 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
                 subgroup.AutoGenerateID(recursive, skipLayers);
             }
         }
+
+        string oldID = AssociatedModel.ID;
         AssociatedModel.ID = ID;
+
+        //update required and excluded subgroups in OTHER subgroups to keep up with this new ID
+        foreach (var subgroup in ParentAssetPack.Subgroups)
+        {
+            UpdateRequiredExcludedSubgroupIDs(subgroup, oldID, ID);
+        }
     }
+
+    private static void UpdateRequiredExcludedSubgroupIDs(VM_SubgroupPlaceHolder subgroup, string oldSubgroupID, string updatedSubgroupID)
+    {
+        var required = subgroup.AssociatedModel.RequiredSubgroups.ToList();
+        for (int i = 0; i < required.Count; i++)
+        {
+            if (required[i] == oldSubgroupID)
+            {
+                required[i] = updatedSubgroupID;
+            }
+        }
+        subgroup.AssociatedModel.RequiredSubgroups = required.ToHashSet();
+
+        var excluded = subgroup.AssociatedModel.ExcludedSubgroups.ToList();
+        for (int i = 0; i < excluded.Count; i++)
+        {
+            if (excluded[i] == oldSubgroupID)
+            {
+                excluded[i] = updatedSubgroupID;
+            }
+        }
+        subgroup.AssociatedModel.ExcludedSubgroups = excluded.ToHashSet();
+
+        foreach (var sg in subgroup.Subgroups)
+        {
+            UpdateRequiredExcludedSubgroupIDs(sg, oldSubgroupID, updatedSubgroupID);
+        }
+    }    
 
     public static string TrimTrailingNonAlphaNumeric(string s)
     {
@@ -596,6 +632,7 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         {
            AssociatedModel = AssociatedViewModel.DumpViewModelToModel();
         }
+        SaveToModel();
         var clonedModel = JSONhandler<AssetPack.Subgroup>.CloneViaJSON(AssociatedModel);
         return _selfFactory(clonedModel, this, parentAssetPack, parentCollection);
     }
