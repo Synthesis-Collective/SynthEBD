@@ -13,6 +13,7 @@
     <UserControl.Resources>
         <local:BodyGenVisibilityConverter x:Key="BGVisibilityConverter" />
         <local:BodySlideVisibilityConverter x:Key="BSVisibilityConverter" />
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
     </UserControl.Resources>
     
     <Grid>
@@ -62,7 +63,15 @@
         </StackPanel>
         
         <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Descriptive name for this asset group (for display only)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Name</TextBlock>
-        <TextBox Grid.Row="1" Grid.Column="1" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Name, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
+            <TextBox MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Name, UpdateSourceTrigger=PropertyChanged}"/>
+            <Button VerticalAlignment="Center" HorizontalAlignment="Left" Margin="5 0 0 0" Command="{Binding ToggleBulkRenameVisibility}" Foreground="MediumPurple" ToolTip="Show options for renaming all subgroups in this config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Batch Rename</Button>
+            <TextBlock Text="From: " VerticalAlignment="Center" Margin="5 0 0 0" Visibility="{Binding RenameVisible, Converter={StaticResource BoolToVis}}"/>
+            <TextBox MinWidth="50" HorizontalAlignment="Left" Margin="5 0 0 0" Text="{Binding Path=RenameFrom, UpdateSourceTrigger=PropertyChanged}" Visibility="{Binding RenameVisible, Converter={StaticResource BoolToVis}}"/>
+            <TextBlock Text="To: " VerticalAlignment="Center" Margin="5 0 0 0" Visibility="{Binding RenameVisible, Converter={StaticResource BoolToVis}}"/>
+            <TextBox MinWidth="50" HorizontalAlignment="Left" Margin="5 0 0 0" Text="{Binding Path=RenameTo, UpdateSourceTrigger=PropertyChanged}" Visibility="{Binding RenameVisible, Converter={StaticResource BoolToVis}}"/>
+            <Button VerticalAlignment="Center" HorizontalAlignment="Left" Margin="5 0 0 0" Command="{Binding ApplyBulkRename}" Foreground="Teal" ToolTip="Rename all subgroups as indicated" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding RenameVisible, Converter={StaticResource BoolToVis}}">Apply</Button>
+        </StackPanel>
 
         <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Notes about this subgroup (for information purposes only)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Notes</TextBlock>
         <TextBox Grid.Row="2" Grid.Column="1" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Foreground="White" Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" MaxHeight="50"/>

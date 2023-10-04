@@ -61,7 +61,8 @@ public class VM_Subgroup : VM, IDropTarget
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(SubscribedRaceGroupings);
 
-        //RefreshBodyGenDescriptors();
+        this.WhenAnyValue(x => x.Name).Subscribe(name => RenameFrom = name).DisposeWith(this);
+
         this.WhenAnyValue(x => x.ParentAssetPack.TrackedBodyGenConfig).Subscribe(_ => RefreshBodyGenDescriptors()).DisposeWith(this);
         AllowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.All);
         DisallowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.Any);
@@ -150,6 +151,30 @@ public class VM_Subgroup : VM, IDropTarget
                 window.ShowDialog();
             }
         );
+
+        ToggleBulkRenameVisibility = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: x => RenameVisible = !RenameVisible
+        );
+
+        ApplyBulkRename = new SynthEBD.RelayCommand(
+            canExecute: _ => true,
+            execute: x => {
+                if (RenameTo.IsNullOrWhitespace())
+                {
+                    CustomMessageBox.DisplayNotificationOK("Renaming Error", "Subgroup Names cannot be blank or empty");
+                }
+                else if (RenameFrom.Length == 0)
+                {
+                    CustomMessageBox.DisplayNotificationOK("Renaming Error", "Text to replace cannot be blank");
+                }
+                else
+                {
+                    int count = ParentAssetPack.BulkRenameSubgroups(RenameFrom, RenameTo);
+                    _logger.TimedNotifyStatusUpdate("Renamed " + count + " Subgroups from " + RenameFrom + " to " + RenameTo, ErrorType.Warning, 3);
+                }
+            }
+        );
     }
 
     public VM_SubgroupPlaceHolder AssociatedPlaceHolder { get; set; }
@@ -181,6 +206,10 @@ public class VM_Subgroup : VM, IDropTarget
     public ILinkCache LinkCache { get; private set; }
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
+    public string RenameFrom { get; set; } = string.Empty;
+    public string RenameTo { get; set; } = string.Empty;
+    public bool RenameVisible { get; set; } = false;
+
     public string TopLevelSubgroupID { get; set; }
     public RelayCommand AutoGenerateIDcommand { get; }
     public RelayCommand AutoGenerateID_Children_Command { get; }
@@ -192,6 +221,8 @@ public class VM_Subgroup : VM, IDropTarget
     public RelayCommand DeleteRequiredSubgroup { get; }
     public RelayCommand DeleteExcludedSubgroup { get; }
     public RelayCommand LinkRequiredSubgroups { get; }
+    public RelayCommand ToggleBulkRenameVisibility { get; }
+    public RelayCommand ApplyBulkRename { get; }
     public bool SetExplicitReferenceNPC { get; set; }
     public string RequiredSubgroupsLabel { get; set; } = "Drag subgroups here from the tree view";
     public string ExcludedSubgroupsLabel { get; set; } = "Drag subgroups here from the tree view";

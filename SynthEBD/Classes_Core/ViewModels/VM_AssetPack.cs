@@ -1438,6 +1438,41 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
         }
     }
+
+    public int BulkRenameSubgroups(string from, string to)
+    {
+        int renamedCount = 0;
+        foreach (var subgroup in Subgroups)
+        {
+            renamedCount += RenameSubgroupsRecursive(subgroup, from, to);
+        }
+        return renamedCount;
+    }
+
+    private int RenameSubgroupsRecursive(VM_SubgroupPlaceHolder subgroup, string from, string to)
+    {
+        int renamedCount = 0;
+        if (subgroup.Name.Contains(from))
+        {
+            subgroup.Name = subgroup.Name.Replace(from, to);
+            subgroup.AutoGenerateID(true, 0);
+            subgroup.AssociatedModel.Name = subgroup.Name;
+            subgroup.AssociatedModel.ID = subgroup.ID;
+            if (subgroup.AssociatedViewModel != null)
+            {
+                subgroup.AssociatedViewModel.Name = subgroup.Name;
+                subgroup.AssociatedViewModel.ID = subgroup.ID;
+            }
+            renamedCount++;
+        }
+
+        foreach (var sg in subgroup.Subgroups)
+        {
+            renamedCount += RenameSubgroupsRecursive(sg, from, to);
+        }
+
+        return renamedCount;
+    }
 }
 
 public interface IHasSubgroupViewModels
