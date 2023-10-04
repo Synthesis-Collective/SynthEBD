@@ -14,6 +14,7 @@ using System.Text.RegularExpressions;
 using static SynthEBD.VM_NPCAttribute;
 using System.Reactive.Linq;
 using System.Diagnostics;
+using System.Security.Cryptography;
 
 namespace SynthEBD;
 
@@ -85,6 +86,19 @@ public class VM_Subgroup : VM, IDropTarget
             PathsMenu = _filePathReplacementMenuFactory(this, SetExplicitReferenceNPC, parentAssetPack.RecordTemplateLinkCache);
             parentAssetPack.WhenAnyValue(x => x.RecordTemplateLinkCache).Subscribe(x => PathsMenu.ReferenceLinkCache = parentAssetPack.RecordTemplateLinkCache).DisposeWith(this);
         }
+
+        this.WhenAnyValue(vm => vm.ID)
+         .Buffer(2, 1)
+         .Select(b => (Previous: b[0], Current: b[1]))
+         .Subscribe(t => {
+             if (t.Previous != null && t.Previous != _defaultID)
+             {
+                 foreach (var subgroup in ParentAssetPack.Subgroups)
+                 {
+                     VM_SubgroupPlaceHolder.UpdateRequiredExcludedSubgroupIDs(subgroup, t.Previous, t.Current);
+                 }
+             }
+         }).DisposeWith(this);
 
         AutoGenerateIDcommand = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -178,7 +192,8 @@ public class VM_Subgroup : VM, IDropTarget
     }
 
     public VM_SubgroupPlaceHolder AssociatedPlaceHolder { get; set; }
-    public string ID { get; set; } = "";
+    private static string _defaultID = "";
+    public string ID { get; set; } = _defaultID;
     public string Name { get; set; } = "New";
     public bool Enabled { get; set; } = true;
     public bool DistributionEnabled { get; set; } = true;

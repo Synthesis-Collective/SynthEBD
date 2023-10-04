@@ -218,7 +218,7 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         }
     }
 
-    private static void UpdateRequiredExcludedSubgroupIDs(VM_SubgroupPlaceHolder subgroup, string oldSubgroupID, string updatedSubgroupID)
+    public static void UpdateRequiredExcludedSubgroupIDs(VM_SubgroupPlaceHolder subgroup, string oldSubgroupID, string updatedSubgroupID)
     {
         var required = subgroup.AssociatedModel.RequiredSubgroups.ToList();
         for (int i = 0; i < required.Count; i++)
