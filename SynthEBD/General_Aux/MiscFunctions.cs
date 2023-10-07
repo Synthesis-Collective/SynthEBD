@@ -43,6 +43,11 @@ public class MiscFunctions
 
     public static string MakeXMLtagCompatible(string input)
     {
+        if (input.Contains('+'))
+        {
+            input = input.Replace("+", "plus_");
+        }
+
         if (input.IsNullOrWhitespace())
         {
             return "_";
