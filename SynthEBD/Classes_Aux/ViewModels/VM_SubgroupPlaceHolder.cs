@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -57,7 +58,14 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
 
         DeleteMe = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => ParentCollection.Remove(this)
+            execute: _ => {
+                //remove this subgroup from the Required/Excluded lists of other subgroups
+                foreach (var subgroup in ParentAssetPack.Subgroups)
+                {
+                    DeleteFromRequiredExcludedSubgroupsLists(subgroup, ID);
+                }
+                ParentCollection.Remove(this);
+            }
         );
 
         AddSubgroup = new SynthEBD.RelayCommand(
@@ -244,7 +252,25 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         {
             UpdateRequiredExcludedSubgroupIDs(sg, oldSubgroupID, updatedSubgroupID);
         }
-    }    
+    }
+
+    private static void DeleteFromRequiredExcludedSubgroupsLists(VM_SubgroupPlaceHolder subgroup, string deleteID)
+    {
+        if (subgroup.AssociatedModel.RequiredSubgroups.Contains(deleteID))
+        {
+            subgroup.AssociatedModel.RequiredSubgroups.Remove(deleteID);
+        }
+
+        if (subgroup.AssociatedModel.ExcludedSubgroups.Contains(deleteID))
+        {
+            subgroup.AssociatedModel.ExcludedSubgroups.Remove(deleteID);
+        }
+
+        foreach (var sg in subgroup.Subgroups)
+        {
+            DeleteFromRequiredExcludedSubgroupsLists(sg, deleteID);
+        }
+    }
 
     public static string TrimTrailingNonAlphaNumeric(string s)
     {
