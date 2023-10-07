@@ -37,6 +37,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         UpdateV1012(_generalVM);
         UpdateV1013(_generalVM);
         UpdateV1013RecordTemplates();
+        UpdateV1016AttributeGroups();
     }
     private void UpdateAssetPacks(VM_SettingsTexMesh texMeshVM)
     {
@@ -111,6 +112,40 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         }
     }
 
+    private void UpdateV1016AttributeGroups()
+    {
+        if (!_patcherState.UpdateLog.Performed1_0_1_6AttributeUpdate)
+        {
+            var athleticGroup = _generalVM.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.MustBeAthletic.Label).FirstOrDefault();
+            UpdateV1016_Aux_AddFaction(athleticGroup);
+
+            var muscularGroup = _generalVM.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.MustBeMuscular.Label).FirstOrDefault();
+            UpdateV1016_Aux_AddFaction(muscularGroup);
+
+            _patcherState.UpdateLog.Performed1_0_1_6AttributeUpdate = true;
+        }
+    }
+
+    private void UpdateV1016_Aux_AddFaction(VM_AttributeGroup group)
+    {
+        if (group != null)
+        {
+            var defaultAtt = group.Attributes.Where(att => att.GroupedSubAttributes.Where(subAtt => subAtt.Type == NPCAttributeType.Faction).Any()).FirstOrDefault();
+            if (defaultAtt != null)
+            {
+                var factionSubAtt = defaultAtt.GroupedSubAttributes.Where(subAtt => subAtt.Type == NPCAttributeType.Faction).FirstOrDefault();
+                if (factionSubAtt != null && factionSubAtt.Attribute as VM_NPCAttributeFactions != null)
+                {
+                    var factionAtt = factionSubAtt.Attribute as VM_NPCAttributeFactions;
+                    if (!factionAtt.FactionFormKeys.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Faction.JobHousecarlFaction.FormKey))
+                    {
+                        factionAtt.FactionFormKeys.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Faction.JobHousecarlFaction.FormKey);
+                    }
+                }
+            }
+        }
+    }
+
     public Dictionary<string, string> V09PathReplacements { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         { "Diffuse", "Diffuse.RawPath" },
@@ -140,4 +175,5 @@ public class UpdateLog
     public bool Performed1_0_1_2Update { get; set; } = false;
     public bool Performed1_0_1_3Update { get; set; } = false;
     public bool Performed1_0_1_3RTUpdate { get; set; } = false;
+    public bool Performed1_0_1_6AttributeUpdate { get; set; } = false;
 }
