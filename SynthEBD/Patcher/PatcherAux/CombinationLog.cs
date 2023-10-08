@@ -81,7 +81,7 @@ public class CombinationLog
         {
             foreach (var subgroup in subgroupPos)
             {
-                output.Add("\t\t" + subgroup.Id + " " + subgroup.Name + ": " + subgroup.AssignmentCount.ToString());
+                output.Add("\t\t" + subgroup.Id + " " + subgroup.DeepNamesString + ": " + subgroup.AssignmentCount.ToString());
             }
         }
         output.Add("");
@@ -181,7 +181,7 @@ public class CombinationLog
             var currentCombinationRecord = currentAssetPackCombinations.Where(x => x.SubgroupIDs == currentSubgroupIDs).FirstOrDefault();
             if (currentCombinationRecord == null)
             {
-                currentCombinationRecord = new CombinationInfo() { SubgroupIDs = currentSubgroupIDs, SubgroupDeepNames = combination.ContainedSubgroups.Select(x => x.ContainedSubgroupNames.First() + ": " + x.ContainedSubgroupNames.Last()).ToList() };
+                currentCombinationRecord = new CombinationInfo() { SubgroupIDs = currentSubgroupIDs, SubgroupDeepNames = combination.ContainedSubgroups.Select(x => x.DeepNamesString).ToList() };
                 currentAssetPackCombinations.Add(currentCombinationRecord);
             }
 

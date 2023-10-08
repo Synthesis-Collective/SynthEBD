@@ -75,6 +75,7 @@ public class FlattenedSubgroup : IProbabilityWeighted
     public int ForceIfMatchCount { get; set; } = 0;
     // used for logging
     public int AssignmentCount { get; set; } = 0;
+    public string DeepNamesString => String.Join(" -> ", ContainedSubgroupNames);
 
     public string GetNestedNameString(bool ignoreTopLevel)
     {
