@@ -685,20 +685,19 @@ public class ConfigInstaller
 
     public string FindPathPrefix(string path, Manifest manifest)
     {
+        foreach (var additionalPrefix in manifest.DownloadInfo.Select(x => x.ExtractionSubPath).Where(x => !x.IsNullOrWhitespace()))
+        {
+            if (path.Contains(additionalPrefix))
+            {
+                return additionalPrefix;
+            }
+        }
+
         if (path.Contains(manifest.ConfigPrefix))
         {
             return manifest.ConfigPrefix;
         }
-        else
-        {
-            foreach (var additionalPrefix in manifest.DownloadInfo.Select(x => x.ExtractionSubPath).Where(x => !x.IsNullOrWhitespace()))
-            {
-                if (path.Contains(additionalPrefix))
-                {
-                    return additionalPrefix;
-                }
-            }
-        }
+
         return "";
     }
 
