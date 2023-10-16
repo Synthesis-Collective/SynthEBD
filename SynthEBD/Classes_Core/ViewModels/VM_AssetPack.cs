@@ -1322,7 +1322,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     {
         foreach (var subgroup in Subgroups)
         {
-            DeletedMissingDescriptors(subgroup.AssociatedModel, _patcherState.OBodySettings, TrackedBodyGenConfig.DumpViewModelToModel());
+            DeletedMissingDescriptors(subgroup.AssociatedModel, _patcherState.OBodySettings, TrackedBodyGenConfig?.DumpViewModelToModel() ?? new BodyGenConfig());
         }
         if (DisplayedSubgroup != null)
         {
@@ -1334,30 +1334,27 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
     private static void DeletedMissingDescriptors(Subgroup subgroup, Settings_OBody oBodySettings, BodyGenConfig? bodyGenConfig)
     {
-        if (bodyGenConfig != null)
+        var allowedDescriptorsBG = subgroup.AllowedBodyGenDescriptors.ToList();
+        for (int i = 0; i < allowedDescriptorsBG.Count; i++)
         {
-            var allowedDescriptorsBG = subgroup.AllowedBodyGenDescriptors.ToList();
-            for (int i = 0; i < allowedDescriptorsBG.Count; i++)
+            var descriptor = allowedDescriptorsBG[i];
+            if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors))
             {
-                var descriptor = allowedDescriptorsBG[i];
-                if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors))
-                {
-                    subgroup.AllowedBodyGenDescriptors.Remove(descriptor);
-                    allowedDescriptorsBG.RemoveAt(i);
-                    i--;
-                }
+                subgroup.AllowedBodyGenDescriptors.Remove(descriptor);
+                allowedDescriptorsBG.RemoveAt(i);
+                i--;
             }
+        }
 
-            var disallowedDescriptorsBG = subgroup.DisallowedBodyGenDescriptors.ToList();
-            for (int i = 0; i < disallowedDescriptorsBG.Count; i++)
+        var disallowedDescriptorsBG = subgroup.DisallowedBodyGenDescriptors.ToList();
+        for (int i = 0; i < disallowedDescriptorsBG.Count; i++)
+        {
+            var descriptor = disallowedDescriptorsBG[i];
+            if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors))
             {
-                var descriptor = disallowedDescriptorsBG[i];
-                if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors))
-                {
-                    subgroup.DisallowedBodyGenDescriptors.Remove(descriptor);
-                    disallowedDescriptorsBG.RemoveAt(i);
-                    i--;
-                }
+                subgroup.DisallowedBodyGenDescriptors.Remove(descriptor);
+                disallowedDescriptorsBG.RemoveAt(i);
+                i--;
             }
         }
 
