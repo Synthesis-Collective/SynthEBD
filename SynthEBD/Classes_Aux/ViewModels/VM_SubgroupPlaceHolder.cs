@@ -313,7 +313,7 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
                         appendCount++;
                         if (appendCount > 100)
                         {
-                            _logger.LogError("Could not auto-generated ID for subgroup " + newID);
+                            _logger.LogError("Could not auto-generate ID for subgroup " + newID);
                             break;
                         }
                     }
