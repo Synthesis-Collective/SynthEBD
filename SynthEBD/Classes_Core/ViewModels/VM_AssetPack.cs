@@ -325,6 +325,11 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
         );
 
+        ClearBodyGenButton = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => ClearBodyGen()
+        );
+
         ViewSubgroupEditor = new RelayCommand(
             canExecute: _ => true,
             execute:
@@ -404,6 +409,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public RelayCommand DiscardButton { get; }
     public RelayCommand CopyButton { get; }
     public RelayCommand SetDefaultTargetDestPaths { get; }
+    public RelayCommand ClearBodyGenButton { get; }
     public BodyShapeSelectionMode BodyShapeMode { get; set; }
     public AssetPackMenuVisibility DisplayedMenuType { get; set; } = AssetPackMenuVisibility.SubgroupEditor;
     public RelayCommand ViewSubgroupEditor { get; }
@@ -1469,6 +1475,35 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
 
         return renamedCount;
+    }
+
+    private void ClearBodyGen()
+    {
+        if (DisplayedSubgroup != null)
+        {
+            foreach (var x in DisplayedSubgroup.AllowedBodyGenDescriptors.DescriptorShells)
+            {
+                foreach (var y in x.DescriptorSelectors)
+                {
+                    y.IsSelected = false;
+                }
+            }
+
+            foreach (var x in DisplayedSubgroup.DisallowedBodyGenDescriptors.DescriptorShells)
+            {
+                foreach (var y in x.DescriptorSelectors)
+                {
+                    y.IsSelected = false;
+                }
+            }
+        }
+
+        foreach (var subgroup in Subgroups)
+        {
+            subgroup.ClearBodyGenRecursive();
+        }
+
+        TrackedBodyGenConfig = null;
     }
 }
 

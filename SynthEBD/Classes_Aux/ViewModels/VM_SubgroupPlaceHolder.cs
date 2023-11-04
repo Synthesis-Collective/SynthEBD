@@ -654,6 +654,16 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         return rulesSummary;
     }
 
+    public void ClearBodyGenRecursive()
+    {
+        AssociatedModel.AllowedBodyGenDescriptors.Clear();
+        AssociatedModel.DisallowedBodyGenDescriptors.Clear();
+        foreach (var subgroup in Subgroups)
+        {
+            subgroup.ClearBodyGenRecursive();
+        }
+    }
+
     public object Clone()
     {
         return Clone(ParentAssetPack, ParentCollection);
