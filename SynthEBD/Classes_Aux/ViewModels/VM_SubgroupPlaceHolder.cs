@@ -288,6 +288,7 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         bool isUniqueID = false;
         HashSet<string> previousSplitNames = new();
         int count = 0; // algorithm can hang if there is two subgroups exist whose IDs should be swapped. Snap out if hang is detected
+        string appendStr = string.Empty;
         while (!isUniqueID)
         {
             if (ParentAssetPack.ContainsSubgroupID(newID))
@@ -297,20 +298,25 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
                 {
                     newID = "New"; // don't think this should ever happen...
                 }
-                if (count > 100) // seems like a reasonable number of iterations
+                if (count < 100) // seems like a reasonable number of iterations
                 {
                     int appendCount = 1;
                     while (ParentAssetPack.ContainsSubgroupID(newID))
                     {
-                        newID = newID.Replace(lastID, lastID + "_" + appendCount.ToString());
+                        if (appendStr != string.Empty)
+                        {
+                            newID = newID.Remove(newID.Length - appendStr.Length, appendStr.Length);
+                        }
+
+                        appendStr = "_" + appendCount.ToString();
+                        newID = newID.Replace(lastID, lastID + appendStr);
                         appendCount++;
                         if (appendCount > 100)
                         {
-                            _logger.LogError("Could not auto-generated ID for subgroup " + newID);
+                            _logger.LogError("Could not auto-generate ID for subgroup " + newID);
                             break;
                         }
                     }
-                    break;
                 }
                 else if (lastID.Any() && CanSplitByLettersAndNumbers(newID, out string renamed1))
                 {
