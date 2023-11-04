@@ -8,10 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Mutagen.Bethesda.Json" Version="0.42.0" />
-    <PackageReference Include="Mutagen.Bethesda.Skyrim" Version="0.42.0" />
-    <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.42.0" />
-    <PackageReference Include="Noggog.Autofac" Version="2.60.0" />
+    <PackageReference Include="Mutagen.Bethesda.Json" Version="0.43.0.1-nightly-20231031-231689" />
+    <PackageReference Include="Mutagen.Bethesda.Skyrim" Version="0.43.0.1-nightly-20231031-231689" />
+    <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.43.0.1-nightly-20231031-231689" />
+    <PackageReference Include="Noggog.Autofac" Version="2.60.0.1-nightly-20231103-212929" />
   </ItemGroup>
 
   <ItemGroup>
