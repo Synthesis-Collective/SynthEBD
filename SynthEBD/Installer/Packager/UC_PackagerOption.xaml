@@ -28,13 +28,13 @@
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Name: " VerticalAlignment="Center" Foreground="White" ToolTip="The name of this installer branch" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name}" Foreground="LightBlue" BorderThickness="1" BorderBrush="WhiteSmoke"/>
+            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Foreground="LightBlue" BorderThickness="1" BorderBrush="WhiteSmoke"/>
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Description: " VerticalAlignment="Center" Foreground="White" ToolTip="Brief description of this branch" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Description}" Foreground="LightBlue" BorderThickness="1" BorderBrush="WhiteSmoke"/>
+            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}" Foreground="LightBlue" BorderThickness="1" BorderBrush="WhiteSmoke"/>
 
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Destination Folder Name: " VerticalAlignment="Center" Foreground="White" ToolTip="Name of the folder within MO2\mods or Vortex Staging Folder created by this config installer (will overwrite parent if not blank)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding DestinationModFolder}" Foreground="LightBlue" BorderThickness="1" BorderBrush="WhiteSmoke"/>
+            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding DestinationModFolder, UpdateSourceTrigger=PropertyChanged}" Foreground="LightBlue" BorderThickness="1" BorderBrush="WhiteSmoke"/>
 
             <TextBlock Grid.Row="3" Grid.Column="0" Text="Directory Routing: " VerticalAlignment="Center" Foreground="White" ToolTip="Used to determine which data subfolder files should be routed to" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
             <StackPanel Grid.Row="3" Grid.Column="1">
