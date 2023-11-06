@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -209,6 +209,7 @@
 
   <ItemGroup>
     <PackageReference Include="AlphaFS" Version="2.2.6" />
+    <PackageReference Include="DynamicExpresso.Core" Version="2.16.1" />
     <PackageReference Include="Extended.Wpf.Toolkit" Version="4.5.1" />
     <PackageReference Include="gong-wpf-dragdrop" Version="3.2.1" />
     <PackageReference Include="MaterialMessageBox" Version="4.0.2" />
@@ -223,7 +224,6 @@
     <PackageReference Include="Pfim" Version="0.11.2" />
     <PackageReference Include="PropertyChanged.Fody" Version="4.1.0" />
     <PackageReference Include="SharpCompress" Version="0.34.1" />
-    <PackageReference Include="Z.Expressions.Eval" Version="5.0.11" />
   </ItemGroup>
 
   <ItemGroup>

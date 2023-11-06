@@ -1,6 +1,5 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
-using Z.Expressions;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
@@ -8,6 +7,7 @@ using Mutagen.Bethesda.Plugins.Cache;
 using System.Linq.Expressions;
 using Loqui;
 using Mutagen.Bethesda.FormKeys.SkyrimSE;
+using DynamicExpresso;
 
 namespace SynthEBD;
 
@@ -628,6 +628,7 @@ public class RecordPathParser
         }
     }
 
+    private static string argumentPrefixIndicator = "ExpressoArgument";
     private static string FormatMatchConditionString(string matchConditionStr, List<ArrayPathCondition> arrayMatchConditions)
     {
         int argIndex = 0;
@@ -636,7 +637,7 @@ public class RecordPathParser
 
         foreach (var condition in arrayMatchConditions)
         {
-            string argStr = '{' + argIndex.ToString() + '}';
+            string argStr = argumentPrefixIndicator + argIndex.ToString();
 
             for (int i = 0; i < matchConditionStr.Length - condition.ReplacerTemplate.Length; i++)
             {
@@ -782,7 +783,7 @@ public class RecordPathParser
 
                 if (condition.SpecialHandling == ArrayPathCondition.SpecialHandlingType.PatchableRaces)
                 {
-                    matchConditionStr = matchConditionStr.Replace("PatchableRaces", '{' + patchableRaceArgIndex.ToString() + "}");
+                    matchConditionStr = matchConditionStr.Replace("PatchableRaces", argumentPrefixIndicator + patchableRaceArgIndex.ToString());
                     addPatchableRaceArg = true;
                     var raceGetter = (IFormKeyGetter)evalParameters[evalParameters.Count - 1];
                     evalParameters[evalParameters.Count - 1] = raceGetter.FormKey.ToLinkGetter<IRaceGetter>();
@@ -798,7 +799,7 @@ public class RecordPathParser
 
             try
             {
-                if (Eval.Execute<bool>(matchConditionStr, evalParameters.ToArray()))
+                if (ExpressoTryEvaluate("(" + matchConditionStr + ") == true", ArgumentsToExpressoFormat(evalParameters), out var expressoResult) && (bool)expressoResult == true)
                 {
                     outputObj = candidateObj;
                     indexInParent = i;
@@ -815,6 +816,36 @@ public class RecordPathParser
             }
         }
         return false;
+    }
+
+    public static List<(string, dynamic)> ArgumentsToExpressoFormat(List<dynamic> args) // converts a list of arguments to the format specified in the FormatMatchConditionString() function
+    {
+        List<(string, dynamic)> outputs = new();
+        for (int i = 0; i < args.Count; i++)
+        {
+            outputs.Add((argumentPrefixIndicator + i.ToString(), args[i]));
+        }
+        return outputs;
+    }
+
+    public bool ExpressoTryEvaluate(string expression, List<(string, dynamic)> arguments, out dynamic result)
+    {
+        Interpreter interpreter = new();
+        foreach (var arg in arguments)
+        {
+            interpreter.SetVariable(arg.Item1, arg.Item2);
+        }
+
+        try
+        {
+            result = interpreter.Eval(expression);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            result = ExceptionLogger.GetExceptionStack(ex);
+            return false;
+        }
     }
 
     private bool ChooseSelectedArrayObjects(IReadOnlyList<dynamic> variants, IMajorRecordGetter rootRecord, string matchConditionStr, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> matchedObjects)
@@ -899,7 +930,7 @@ public class RecordPathParser
 
             try
             {
-                if (Eval.Execute<bool>(matchConditionStr, evalParameters.ToArray()))
+                if (ExpressoTryEvaluate("(" + matchConditionStr + ") == true", ArgumentsToExpressoFormat(evalParameters), out var expressoResult) && (bool)expressoResult == true)
                 {
                     matchedObjects.Add(candidateObj);
                 }
