@@ -1,5 +1,4 @@
 using ControlzEx.Standard;
-using Microsoft.Build.Logging.StructuredLogger;
 using Mutagen.Bethesda.Fallout4;
 using Mutagen.Bethesda.Plugins;
 using Noggog;
