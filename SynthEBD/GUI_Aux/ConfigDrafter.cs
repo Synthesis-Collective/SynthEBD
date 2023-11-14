@@ -89,6 +89,8 @@ namespace SynthEBD
                 config.Gender = Gender.Male;
             }
 
+            config.SetDefaultRecordTemplate(); // if the imported textures are for female NPCs, this gets done automatically by the Rx subscription due to the gender change. However, if the imported textures are for male NPCs, there is no Rx trigger. Leaving this as an explicit call regardless of gender in case some future update changes the default config gender
+
             foreach (var type in Enum.GetValues(typeof(TextureType)))
             {
                 List<string> texturePaths = new();
