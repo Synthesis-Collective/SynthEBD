@@ -230,11 +230,11 @@ public class NPCAttributeClass : ITypedNPCAttribute
         {
             if (FormKeys.Any())
             {
-                return "Classes: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
+                return (Not ? "NOT " : "") + "Classes: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
             }
             else
             {
-                return "Classes: None";
+                return (Not ? "NOT " : "") + "Classes: None";
             }
         }
     }
@@ -309,7 +309,7 @@ public class NPCAttributeCustom : ITypedNPCAttribute
     {
         get
         {
-            return CustomType.ToString();
+            return (Not ? "NOT " : "") + CustomType.ToString();
         }
     }
 
@@ -417,11 +417,11 @@ public class NPCAttributeFactions : ITypedNPCAttribute
         {
             if (FormKeys.Any())
             {
-                return "Factions: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
+                return (Not ? "NOT " : "") + "Factions: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
             }
             else
             {
-                return "Factions: None";
+                return (Not ? "NOT " : "") + "Factions: None";
             }
         }
     }
@@ -496,11 +496,11 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
         {
             if (FormKeys.Any())
             {
-                return "Face Textures: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
+                return (Not ? "NOT " : "") + "Face Textures: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
             }
             else
             {
-                return "Face Textures: None";
+                return (Not ? "NOT " : "") + "Face Textures: None";
             }
         }
     }
@@ -570,11 +570,11 @@ public class NPCAttributeKeyword : ITypedNPCAttribute
         {
             if (FormKeys.Any())
             {
-                return "Keywords: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
+                return (Not ? "NOT " : "") + "Keywords: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
             }
             else
             {
-                return "Keywords: None";
+                return (Not ? "NOT " : "") + "Keywords: None";
             }
         }
     }
@@ -644,11 +644,11 @@ public class NPCAttributeRace : ITypedNPCAttribute
         {
             if (FormKeys.Any())
             {
-                return "Races: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
+                return (Not ? "NOT " : "") + "Races: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
             }
             else
             {
-                return "Races: None";
+                return (Not ? "NOT " : "") + "Races: None";
             }
         }
     }
@@ -729,7 +729,7 @@ public class NPCAttributeMisc : ITypedNPCAttribute
     {
         get
         {
-            return "Miscellaneous Attributes";
+            return (Not ? "NOT " : "") + "Miscellaneous Attributes";
         }
     }
 
@@ -841,11 +841,11 @@ public class NPCAttributeMod : ITypedNPCAttribute
         {
             if (ModKeys.Any())
             {
-                return "ModKeys: " + String.Join(", ", ModKeys.Select(x => x.ToString()));
+                return (Not ? "NOT " : "") + "ModKeys: " + String.Join(", ", ModKeys.Select(x => x.ToString()));
             }
             else
             {
-                return "ModKeys: None";
+                return (Not ? "NOT " : "") + "ModKeys: None";
             }
         }
     }
@@ -908,11 +908,11 @@ public class NPCAttributeNPC : ITypedNPCAttribute
         {
             if (FormKeys.Any())
             {
-                return "NPCs: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
+                return (Not ? "NOT " : "") + "NPCs: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
             }
             else
             {
-                return "NPCs: None";
+                return (Not ? "NOT " : "") + "NPCs: None";
             }
         }
     }
@@ -981,11 +981,11 @@ public class NPCAttributeVoiceType : ITypedNPCAttribute
         {
             if (FormKeys.Any())
             {
-                return "Voice Types: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
+                return (Not ? "NOT " : "") + "Voice Types: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
             }
             else
             {
-                return "Voice Types: None";
+                return (Not ? "NOT " : "") + "Voice Types: None";
             }
         }
     }
@@ -1055,11 +1055,11 @@ public class NPCAttributeGroup : ITypedNPCAttribute
         {
             if (SelectedLabels.Any())
             {
-                return "Selected Groups: " + String.Join(", ", SelectedLabels);
+                return (Not ? "NOT " : "") + "Selected Groups: " + String.Join(", ", SelectedLabels);
             }
             else
             {
-                return "Selected Groups: None";
+                return (Not ? "NOT " : "") + "Selected Groups: None";
             }
         }
     }

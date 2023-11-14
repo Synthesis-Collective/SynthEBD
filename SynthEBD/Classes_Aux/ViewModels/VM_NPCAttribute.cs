@@ -419,11 +419,11 @@ public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
         {
             if (VoiceTypeFormKeys.Any())
             {
-                return "Voice Types: " + String.Join(", ", VoiceTypeFormKeys.Select(x => x.ToString()));
+                return (ParentShell.Not ? "NOT " : "") + "Voice Types: " + String.Join(", ", VoiceTypeFormKeys.Select(x => x.ToString()));
             }
             else
             {
-                return "Voice Types: None";
+                return (ParentShell.Not ? "NOT " : "") + "Voice Types: None";
             }
         }
     }
@@ -474,11 +474,11 @@ public class VM_NPCAttributeClass : VM, ISubAttributeViewModel
         {
             if (ClassFormKeys.Any())
             {
-                return "Classes: " + String.Join(", ", ClassFormKeys.Select(x => x.ToString()));
+                return (ParentShell.Not ? "NOT " : "") + "Classes: " + String.Join(", ", ClassFormKeys.Select(x => x.ToString()));
             }
             else
             {
-                return "Classes: None";
+                return (ParentShell.Not ? "NOT " : "") + "Classes: None";
             }
         }
     }
@@ -570,7 +570,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
     {
         get
         {
-            return CustomType.ToString();
+            return (ParentShell.Not ? "NOT " : "") + CustomType.ToString();
         }
     }
 
@@ -740,11 +740,11 @@ public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
         {
             if (FactionFormKeys.Any())
             {
-                return "Factions: " + String.Join(", ", FactionFormKeys.Select(x => x.ToString()));
+                return (ParentShell.Not ? "NOT " : "") + "Factions: " + String.Join(", ", FactionFormKeys.Select(x => x.ToString()));
             }
             else
             {
-                return "Factions: None";
+                return (ParentShell.Not ? "NOT " : "") + "Factions: None";
             }
         }
     }
@@ -797,11 +797,11 @@ public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
         {
             if (FaceTextureFormKeys.Any())
             {
-                return "Face Textures: " + String.Join(", ", FaceTextureFormKeys.Select(x => x.ToString()));
+                return (ParentShell.Not ? "NOT " : "") + "Face Textures: " + String.Join(", ", FaceTextureFormKeys.Select(x => x.ToString()));
             }
             else
             {
-                return "Face Textures: None";
+                return (ParentShell.Not ? "NOT " : "") + "Face Textures: None";
             }
         }
     }
@@ -853,11 +853,11 @@ public class VM_NPCAttributeKeyword : VM, ISubAttributeViewModel
         {
             if (KeywordFormKeys.Any())
             {
-                return "Keywords: " + String.Join(", ", KeywordFormKeys.Select(x => x.ToString()));
+                return (ParentShell.Not ? "NOT " : "") + "Keywords: " + String.Join(", ", KeywordFormKeys.Select(x => x.ToString()));
             }
             else
             {
-                return "Keywords: None";
+                return (ParentShell.Not ? "NOT " : "") + "Keywords: None";
             }
         }
     }
@@ -908,11 +908,11 @@ public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
         {
             if (RaceFormKeys.Any())
             {
-                return "Races: " + String.Join(", ", RaceFormKeys.Select(x => x.ToString()));
+                return (ParentShell.Not ? "NOT " : "") + "Races: " + String.Join(", ", RaceFormKeys.Select(x => x.ToString()));
             }
             else
             {
-                return "Races: None";
+                return (ParentShell.Not ? "NOT " : "") + "Races: None";
             }
         }
     }
@@ -972,7 +972,7 @@ public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
     {
         get
         {
-            return "Miscellaneous Attributes";
+            return (ParentShell.Not ? "NOT " : "") + "Miscellaneous Attributes";
         }
     }
 
@@ -1057,11 +1057,11 @@ public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
         {
             if (ModKeys.Any())
             {
-                return "ModKeys: " + String.Join(", ", ModKeys.Select(x => x.ToString()));
+                return (ParentShell.Not ? "NOT " : "") + "ModKeys: " + String.Join(", ", ModKeys.Select(x => x.ToString()));
             }
             else
             {
-                return "ModKeys: None";
+                return (ParentShell.Not ? "NOT " : "") + "ModKeys: None";
             }
         }
     }
@@ -1120,11 +1120,11 @@ public class VM_NPCAttributeNPC : VM, ISubAttributeViewModel
         {
             if (NPCFormKeys.Any())
             {
-                return "NPCs: " + String.Join(", ", NPCFormKeys.Select(x => x.ToString()));
+                return (ParentShell.Not ? "NOT " : "") + "NPCs: " + String.Join(", ", NPCFormKeys.Select(x => x.ToString()));
             }
             else
             {
-                return "NPCs: None";
+                return (ParentShell.Not ? "NOT " : "") + "NPCs: None";
             }
         }
     }
@@ -1183,11 +1183,11 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
             var selected = SelectableAttributeGroups.Where(x => x.IsSelected).ToArray();
             if (selected.Any())
             {
-                return "Selected Groups: " + String.Join(", ", selected.Select(x => x.SubscribedAttributeGroup.Label));
+                return (ParentShell.Not ? "NOT " : "") + "Selected Groups: " + String.Join(", ", selected.Select(x => x.SubscribedAttributeGroup.Label));
             }
             else
             {
-                return "Selected Groups: None";
+                return (ParentShell.Not ? "NOT " : "") + "Selected Groups: None";
             }
         }
     }
