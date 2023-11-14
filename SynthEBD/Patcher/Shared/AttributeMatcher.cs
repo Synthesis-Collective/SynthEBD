@@ -233,13 +233,13 @@ public class AttributeMatcher
 
                 subAttributeMatchedWithNot = (subAttributeMatched && !subAttribute.Not) || (!subAttributeMatched && subAttribute.Not);
 
-                if (!subAttributeMatchedWithNot && subAttribute.ForceMode != AttributeForcing.ForceIf && (overrideForceIf == null || overrideForceIf.Value != AttributeForcing.ForceIf)) //  "ForceIf" mode does not cause attribute to fail matching because it implies the user does not want this sub-attribute to restrict distribute (otherwise it would be ForceIfAndRestrict) 
+                if (!subAttributeMatchedWithNot)
                 {
                     if (unmatchedLog.Any()) { unmatchedLog += " | "; }
-                    unmatchedLog += subAttribute.ToLogString(bDetailedAttributeLogging, _environmentProvider.LinkCache);
+                    unmatchedLog += subAttribute.ToLogString(bDetailedAttributeLogging, _environmentProvider.LinkCache);  //  Don't record ForceIf attributes as unmatched because 
                     break; // stop evaluating sub-attributes if one sub-attribute isn't matched
                 }
-                else if (subAttributeMatchedWithNot && (subAttribute.ForceMode == AttributeForcing.ForceIf || subAttribute.ForceMode == AttributeForcing.ForceIfAndRestrict || forceIfFromOverride)) 
+                else if (subAttributeMatchedWithNot && (subAttribute.ForceMode == AttributeForcing.ForceIf || subAttribute.ForceMode == AttributeForcing.ForceIfAndRestrict || forceIfFromOverride))
                 { 
                     currentAttributeForceIfWeight += subAttribute.Weighting * groupWeightingMultiplier; 
                 }
