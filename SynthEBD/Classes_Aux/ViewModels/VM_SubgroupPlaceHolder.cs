@@ -59,10 +59,14 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         DeleteMe = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => {
-                //remove this subgroup from the Required/Excluded lists of other subgroups
+                //remove this subgroup and child subgroups from the Required/Excluded lists of other subgroups
+                var IDsToRemove = GetChildren().Select(x => x.ID).And(ID).ToArray();
                 foreach (var subgroup in ParentAssetPack.Subgroups)
                 {
-                    DeleteFromRequiredExcludedSubgroupsLists(subgroup, ID);
+                    foreach (var id in IDsToRemove)
+                    {
+                        DeleteFromRequiredExcludedSubgroupsLists(subgroup, id);
+                    }
                 }
                 ParentCollection.Remove(this);
             }
