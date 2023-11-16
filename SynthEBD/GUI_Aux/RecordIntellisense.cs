@@ -1,5 +1,6 @@
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
+using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using ReactiveUI;
@@ -122,7 +123,7 @@ public class RecordIntellisense : VM
     {
         Type type = obj.GetType();
         //explicitly check for string because it is an IEnumerable but should not be treated as an array of chars
-        if (type == typeof(string)) { return false; }
+        if (type == typeof(string) || type.Name == "GenderedItem`1") { return false; }
 
         var properties = type.GetProperties();
         foreach (var property in properties)
