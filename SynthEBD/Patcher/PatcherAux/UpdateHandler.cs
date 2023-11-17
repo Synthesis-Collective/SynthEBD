@@ -98,6 +98,8 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
 
         var newTemplateNames = new string[] { "Record Templates - 3BA - pamonha.esp", "Record Templates - BHUNP - pamonha.esp" };
 
+        bool allCopied = true;
+
         foreach (var newPlugin in newTemplateNames)
         {
             var source = Path.Combine(defaultRecordTemplatesStartPath, newPlugin);
@@ -108,8 +110,14 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
                 if (!_patcherIO.TryCopyResourceFile(source, dest, _logger, out string errorStr))
                 {
                     _logger.LogError("Failed to copy new record template during update." + Environment.NewLine + "Source: " + source + Environment.NewLine + "Destination: " + dest + Environment.NewLine + errorStr);
+                    allCopied = false;
                 }
             }
+        }
+
+        if (allCopied)
+        {
+            _patcherState.UpdateLog.Performed1_0_1_3RTUpdate = true;
         }
     }
 
@@ -165,6 +173,10 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
             if (!_patcherIO.TryCopyResourceFile(source, dest, _logger, out string errorStr))
             {
                 _logger.LogError("Failed to copy new record template during update." + Environment.NewLine + "Source: " + source + Environment.NewLine + "Destination: " + dest + Environment.NewLine + errorStr);
+            }
+            else
+            {
+                _patcherState.UpdateLog.Performed1_0_1_8RTUpdate = true;
             }
         }
     }
