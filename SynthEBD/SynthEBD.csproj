@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -40,6 +40,7 @@
     <None Remove="InternalData\FirstLaunchResources\Default Config.json" />
     <None Remove="InternalData\FirstLaunchResources\Record Templates - 3BA - pamonha.esp" />
     <None Remove="InternalData\FirstLaunchResources\Record Templates - BHUNP - pamonha.esp" />
+    <None Remove="InternalData\FirstLaunchResources\Record Templates - The New Gentleman.esp" />
     <None Remove="InternalData\FirstLaunchResources\Record Templates.esp" />
     <None Remove="Record Templates\Record Templates.esp" />
     <None Remove="InternalData\7Zip\x64\7za.dll" />
@@ -107,6 +108,9 @@
     </Content>
     <Content Include="InternalData\FirstLaunchResources\Record Templates - BHUNP - pamonha.esp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="InternalData\FirstLaunchResources\Record Templates - The New Gentleman.esp">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="InternalData\FirstLaunchResources\Record Templates.esp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

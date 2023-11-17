@@ -38,6 +38,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         UpdateV1013(_generalVM);
         UpdateV1013RecordTemplates();
         UpdateV1016AttributeGroups();
+        UpdateV1018RecordTemplates();
     }
     private void UpdateAssetPacks(VM_SettingsTexMesh texMeshVM)
     {
@@ -146,6 +147,28 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         }
     }
 
+    private void UpdateV1018RecordTemplates()
+    {
+        if (_patcherState.UpdateLog.Performed1_0_1_8RTUpdate)
+        {
+            return;
+        }
+        string defaultRecordTemplatesStartPath = Path.Combine(_environmentProvider.InternalDataPath, "FirstLaunchResources");
+
+        var newPlugin = "Record Templates - The New Gentleman.esp";
+
+        var source = Path.Combine(defaultRecordTemplatesStartPath, newPlugin);
+        var dest = Path.Combine(_paths.RecordTemplatesDirPath, newPlugin);
+
+        if (File.Exists(source) && !File.Exists(dest))
+        {
+            if (!_patcherIO.TryCopyResourceFile(source, dest, _logger, out string errorStr))
+            {
+                _logger.LogError("Failed to copy new record template during update." + Environment.NewLine + "Source: " + source + Environment.NewLine + "Destination: " + dest + Environment.NewLine + errorStr);
+            }
+        }
+    }
+
     public Dictionary<string, string> V09PathReplacements { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         { "Diffuse", "Diffuse.RawPath" },
@@ -176,4 +199,5 @@ public class UpdateLog
     public bool Performed1_0_1_3Update { get; set; } = false;
     public bool Performed1_0_1_3RTUpdate { get; set; } = false;
     public bool Performed1_0_1_6AttributeUpdate { get; set; } = false;
+    public bool Performed1_0_1_8RTUpdate { get; set; } = false;
 }

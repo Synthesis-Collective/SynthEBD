@@ -142,7 +142,7 @@ public class VM_ConfigDrafter : VM
                         CurrentConfig.AttributeGroupMenu.ImportFromGeneralSettings();
                     }    
 
-                    var status = _configDrafter.DraftConfigFromTextures(CurrentConfig, _categorizedTexturePaths, _uncategorizedTexturePaths, IgnoredPaths, SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, AutoApplyNames, AutoApplyRules, AutoApplyLinkage);
+                    var status = _configDrafter.DraftConfigFromTextures(CurrentConfig, _categorizedTexturePaths, _uncategorizedTexturePaths, IgnoredPaths, SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, AutoApplyNames, AutoApplyRules, AutoApplyLinkage, out bool hasTNGTextures, out bool hasEtcTextures);
 
                     if (status == _configDrafter.SuccessString)
                     {
@@ -154,8 +154,9 @@ public class VM_ConfigDrafter : VM
                         {
                             CurrentConfig.ShortName = SelectedFileArchives.First().Prefix;
                         }
-                        HasEtcTextures = _categorizedTexturePaths.Where(x => x.Contains("femalebody_etc_v2_1", StringComparison.OrdinalIgnoreCase)).Any();
                         NotYetDrafted = false;
+                        HasEtcTextures = hasEtcTextures;
+                        HasTNGTextures = hasTNGTextures;
                     }
                     else
                     {
@@ -243,6 +244,7 @@ public class VM_ConfigDrafter : VM
 
     public bool HasEtcTextures { get; set; } = false;
     public DrafterBodyType SelectedBodyType { get; set; }
+    public bool HasTNGTextures { get; set; } = false;
 
     public IReactiveCommand CheckDuplicatesButton { get; }
     public ObservableCollection<VM_FileDuplicateContainer> MultipletTextureGroups { get; set; } = new();
@@ -301,6 +303,7 @@ public class VM_ConfigDrafter : VM
         }
 
         HasEtcTextures = false;
+        HasTNGTextures = false;
         HasMultiplets = false;
         HashingProgressCurrent = 0;
         CurrentlyHashingFile = String.Empty;

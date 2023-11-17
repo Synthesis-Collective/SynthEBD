@@ -271,12 +271,16 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                     switch (_configDrafter.SelectedBodyType)
                     {
                         case DrafterBodyType.CBBE_3BA:
-                            ApplyEtcRecordTemplate("000801:Record Templates - 3BA - pamonha.esp", "000803:Record Templates - 3BA - pamonha.esp", "000805:Record Templates - 3BA - pamonha.esp");
+                            ApplyCustomRecordTemplate("000801:Record Templates - 3BA - pamonha.esp", "000803:Record Templates - 3BA - pamonha.esp", "000805:Record Templates - 3BA - pamonha.esp", Gender.Female, VM_AdditionalRecordTemplate.AdditionalRacesPathsDefault);
                             break;
                         case DrafterBodyType.BHUNP:
-                            ApplyEtcRecordTemplate("000801:Record Templates - BHUNP - pamonha.esp", "000803:Record Templates - BHUNP - pamonha.esp", "000805:Record Templates - BHUNP - pamonha.esp");
+                            ApplyCustomRecordTemplate("000801:Record Templates - BHUNP - pamonha.esp", "000803:Record Templates - BHUNP - pamonha.esp", "000805:Record Templates - BHUNP - pamonha.esp", Gender.Female, VM_AdditionalRecordTemplate.AdditionalRacesPathsDefault);
                             break;
                     }
+                }
+                else if (_configDrafter.HasTNGTextures)
+                {
+                    ApplyCustomRecordTemplate("000800:Record Templates - The New Gentleman.esp", "000802:Record Templates - The New Gentleman.esp", "000804:Record Templates - The New Gentleman.esp", Gender.Male, VM_AdditionalRecordTemplate.AdditionalRacesPathsDefault.And(VM_AdditionalRecordTemplate.AdditionalRacesPathsTNG));
                 }
             }
         );
@@ -1394,17 +1398,17 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
     }
 
-    private void ApplyEtcRecordTemplate(string newDefaultTemplateFormKeyStr, string newKhajiitFormKeyStr, string newArgonianFormKeyStr)
+    private void ApplyCustomRecordTemplate(string newDefaultTemplateFormKeyStr, string newKhajiitFormKeyStr, string newArgonianFormKeyStr, Gender gender, IEnumerable<string> defaultAdditionalRacesPaths)
     {
-        if (RecordTemplateLinkCache.TryResolve<INpcGetter>(newDefaultTemplateFormKeyStr, out var default3BA))
+        if (RecordTemplateLinkCache.TryResolve<INpcGetter>(newDefaultTemplateFormKeyStr, out var defaultTemplate))
         {
-            DefaultTemplateFK = default3BA.FormKey;
+            DefaultTemplateFK = defaultTemplate.FormKey;
         }
-        else if (FormKey.TryFactory(newDefaultTemplateFormKeyStr, out var default3BAfk))
+        else if (FormKey.TryFactory(newDefaultTemplateFormKeyStr, out var defaultTemplatefk))
         {
-            DefaultTemplateFK = default3BAfk;
+            DefaultTemplateFK = defaultTemplatefk;
         }
-        foreach (var additionalArmaStr in VM_AdditionalRecordTemplate.AdditionalRacesPathsDefault)
+        foreach (var additionalArmaStr in defaultAdditionalRacesPaths)
         {
             if (!DefaultRecordTemplateAdditionalRacesPaths.Select(x => x.Content).Contains(additionalArmaStr))
             {
@@ -1412,11 +1416,11 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
         }
   
-        ApplyBeastTemplate(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace.FormKey, Gender.Female, newKhajiitFormKeyStr, new List<FormKey>() { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRaceVampire.FormKey }); //khajiit template
-        ApplyBeastTemplate(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey, Gender.Female, newArgonianFormKeyStr, new List<FormKey>() { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRaceVampire.FormKey }); //khajiit template
+        ApplyBeastTemplate(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace.FormKey, gender, newKhajiitFormKeyStr, new List<FormKey>() { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRaceVampire.FormKey }, defaultAdditionalRacesPaths); //khajiit template
+        ApplyBeastTemplate(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey, gender, newArgonianFormKeyStr, new List<FormKey>() { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRaceVampire.FormKey }, defaultAdditionalRacesPaths); //khajiit template
     }
 
-    private void ApplyBeastTemplate(FormKey defaultTemplateRaceFormKey, Gender gender, string newBeastFormKeyStr, List<FormKey> additionalRacesFormKeys)
+    private void ApplyBeastTemplate(FormKey defaultTemplateRaceFormKey, Gender gender, string newBeastFormKeyStr, List<FormKey> additionalRacesFormKeys, IEnumerable<string> defaultAdditionalRacesPaths)
     {
         var currentBeastTemplate = AdditionalRecordTemplateAssignments.Where(x =>
                 RecordTemplateLinkCache.TryResolve<INpcGetter>(x.TemplateNPC, out var templateNPCGetter) &&
@@ -1433,7 +1437,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         currentBeastTemplate.TemplateNPC = newBeastTemplateNPCFormKey;
 
         Noggog.ListExt.AddRange(currentBeastTemplate.RaceFormKeys, additionalRacesFormKeys.Where(x => !currentBeastTemplate.RaceFormKeys.Contains(x)));
-        foreach (var additionalArmaStr in VM_AdditionalRecordTemplate.AdditionalRacesPathsDefault.And(VM_AdditionalRecordTemplate.AdditionalRacesPathsBeast))
+        foreach (var additionalArmaStr in defaultAdditionalRacesPaths.And(VM_AdditionalRecordTemplate.AdditionalRacesPathsBeast))
         {
             if (!currentBeastTemplate.AdditionalRacesPaths.Select(x => x.Content).Contains(additionalArmaStr))
             {

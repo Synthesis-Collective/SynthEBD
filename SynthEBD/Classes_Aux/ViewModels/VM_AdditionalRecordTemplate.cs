@@ -67,4 +67,9 @@ public class VM_AdditionalRecordTemplate : VM
     {
         "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].AdditionalRaces"
     };
+
+    public static List<string> AdditionalRacesPathsTNG = new()
+    {
+        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag((BipedObjectFlag)4194304) && MatchRace(Race, AdditionalRaces, MatchDefault)].AdditionalRaces"
+    };
 }

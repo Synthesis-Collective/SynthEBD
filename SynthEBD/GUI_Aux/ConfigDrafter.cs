@@ -30,6 +30,7 @@ namespace SynthEBD
         }
 
         public string SuccessString = "Success";
+
         private const string DefaultSubgroupName = "Main";
 
         // returns all .dds file paths within rootFolderPaths
@@ -59,10 +60,13 @@ namespace SynthEBD
             return (categorizedFiles, unCategorizedFiles);
         }
 
-        public string DraftConfigFromTextures(VM_AssetPack config, List<string> categorizedTexturePaths, List<string> uncategorizedTexturePaths, List<string> ignoredTexturePaths, List<string> rootFolderPaths, bool rootPathsHavePrefix, bool autoApplyNames, bool autoApplyRules, bool autoApplyLinkage)
+        public string DraftConfigFromTextures(VM_AssetPack config, List<string> categorizedTexturePaths, List<string> uncategorizedTexturePaths, List<string> ignoredTexturePaths, List<string> rootFolderPaths, bool rootPathsHavePrefix, bool autoApplyNames, bool autoApplyRules, bool autoApplyLinkage, out bool hasTNGTextures, out bool hasEtcTextures)
         {
             var validCategorizedTexturePaths = categorizedTexturePaths.Where(x => !ignoredTexturePaths.Contains(x)).ToList();
             var validUncategorizedTexturePaths = GetMatchingUnknownFiles(uncategorizedTexturePaths.Where(uPath => !ignoredTexturePaths.Where(iPath => uPath.EndsWith(iPath)).Any())); // EndsWith rather than Contains because uPaths are full paths from drive root while iPaths have the root folder paths pre-trimmed
+            
+            hasTNGTextures = FilePathDestinationMap.HasTNGPaths(validCategorizedTexturePaths);
+            hasEtcTextures = FilePathDestinationMap.HasEtcPaths(validCategorizedTexturePaths);
 
             // check file path validity if not using mod manager
             if (rootPathsHavePrefix)
@@ -108,6 +112,11 @@ namespace SynthEBD
                 {
                     CreateSubgroupsByType(config, textureType, texturePaths, rootFolderPaths, rootPathsHavePrefix, autoApplyNames, autoApplyRules);
                 }
+            }
+
+            if (hasTNGTextures)
+            {
+                AddTNGmeshSubgroups(config);
             }
 
             if (autoApplyLinkage)
@@ -810,6 +819,10 @@ namespace SynthEBD
             { TextureType.EtcNormal, ("EN", "Etc Normals") },
             { TextureType.EtcSubsurface, ("ES", "Etc Subsurface") },
             { TextureType.EtcSpecular, ("ESp", "Etc Specular") },
+            { TextureType.TNGDiffuse, ("SD", "TNG Schlong Diffuse") },
+            { TextureType.TNGNormal, ("SN", "TNG Schlong Normals") },
+            { TextureType.TNGSubsurface, ("SS", "TNG Schlong Subsurface") },
+            { TextureType.TNGSpecular, ("SSp", "TNG Schlong Specular") },
             { TextureType.UnknownDiffuse, ("UD", "Unknown Diffuse") },
             { TextureType.UnknownNormal, ("UN", "Unknown Normals") },
             { TextureType.UnknownSubsurface, ("US", "Unknown Subsurface") },
@@ -840,6 +853,10 @@ namespace SynthEBD
             { TextureType.EtcNormal, new(StringComparer.OrdinalIgnoreCase) { "femalebody_etc_v2_1_msn.dds" } },
             { TextureType.EtcSubsurface, new(StringComparer.OrdinalIgnoreCase) { "femalebody_etc_v2_1_sk.dds" } },
             { TextureType.EtcSpecular, new(StringComparer.OrdinalIgnoreCase) { "femalebody_etc_v2_1_s.dds" } },
+            { TextureType.TNGDiffuse, new(StringComparer.OrdinalIgnoreCase) { "malegenitals_1.dds" } },
+            { TextureType.TNGNormal, new(StringComparer.OrdinalIgnoreCase) { "malegenitals_1_msn.dds" } },
+            { TextureType.TNGSubsurface, new(StringComparer.OrdinalIgnoreCase) { "malegenitals_1_sk.dds" } },
+            { TextureType.TNGSpecular, new(StringComparer.OrdinalIgnoreCase) { "malegenitals_1_s.dds" } },
             { TextureType.UnknownDiffuse, new() },
             { TextureType.UnknownNormal, new() },
             { TextureType.UnknownSubsurface, new() },
@@ -945,7 +962,7 @@ namespace SynthEBD
 
         private static readonly Dictionary<Gender, HashSet<string>> ExpectedFilesByGender = new()
         {
-            {Gender.Male, new(StringComparer.OrdinalIgnoreCase) { "malehead.dds", "malehead_sk.dds", "malehead_s.dds", "malebody_1.dds", "maleBody_1_msn.dds", "malebody_1_s.dds", "malehands_1.dds", "malehands_1_msn.dds", "malehands_1_sk.dds", "malehands_1_s.dds", "malebody_1_feet.dds", "malebody_1_msn_feet.dds", "malebody_1_feet_sk.dds", "malebody_1_feet_s.dds" } },
+            {Gender.Male, new(StringComparer.OrdinalIgnoreCase) { "malehead.dds", "malehead_sk.dds", "malehead_s.dds", "malebody_1.dds", "maleBody_1_msn.dds", "malebody_1_s.dds", "malehands_1.dds", "malehands_1_msn.dds", "malehands_1_sk.dds", "malehands_1_s.dds", "malebody_1_feet.dds", "malebody_1_msn_feet.dds", "malebody_1_feet_sk.dds", "malebody_1_feet_s.dds", "malegenitals_1.dds", "malegenitals_1_msn.dds", "malegenitals_1_sk.dds", "malegenitals_1_s.dds" } },
             {Gender.Female, new(StringComparer.OrdinalIgnoreCase) { "femalehead.dds", "femalehead_sk.dds", "femalehead_s.dds", "femalebody_1.dds", "femalebody_msn.dds", "femalebody_1_s.dds", "femalehands_1.dds", "femalehands_1_msn.dds", "femalehands_1_sk.dds", "femalehands_1_s.dds", "femalebody_1_feet.dds", "femalebody_1_msn_feet.dds", "femalebody_1_feet_sk.dds", "femalebody_1_feet_s.dds", "femalebody_etc_v2_1.dds", "femalebody_etc_v2_1_msn.dds", "femalebody_etc_v2_1_s.dds", "femalebody_etc_v2_1_sk.dds" } }
         };
 
@@ -1408,6 +1425,48 @@ namespace SynthEBD
             newParentSubgroup.Subgroups.Add(subgroup); // add subgroup to new parent's branch
             UpdateSubgroupIDsRecursive(subgroup); // make sure all IDs are renamed to reflect the new parent
         }
+
+        private void AddTNGmeshSubgroups(VM_AssetPack config)
+        {
+            VM_SubgroupPlaceHolder topLevelTNG = _subgroupPlaceHolderFactory(CreateSubgroupModel("SM", "TNG Schlong Mesh"), null, config, config.Subgroups);
+            config.Subgroups.Add(topLevelTNG);
+
+            VM_SubgroupPlaceHolder vectorPlexusRegular = _subgroupPlaceHolderFactory(CreateSubgroupModel("SM.VR", "VectorPlexus Regular"), topLevelTNG, config, topLevelTNG.Subgroups);
+            topLevelTNG.Subgroups.Add(vectorPlexusRegular);
+            vectorPlexusRegular.AssociatedModel.Paths.Add(new()
+            {
+                Source = "meshes\\actors\\character\\character assets\\TNG\\r_genitals_1.nif",
+                Destination = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag((BipedObjectFlag)4194304) && MatchRace(Race, AdditionalRaces, MatchDefault)].WorldModel.Male.File.RawPath"
+            });
+
+            VM_SubgroupPlaceHolder vectorPlexusMuscular = _subgroupPlaceHolderFactory(CreateSubgroupModel("SM.VM", "VectorPlexus Muscular"), topLevelTNG, config, topLevelTNG.Subgroups);
+            topLevelTNG.Subgroups.Add(vectorPlexusMuscular);
+            vectorPlexusMuscular.AssociatedModel.Paths.Add(new()
+            {
+                Source = "meshes\\actors\\character\\character assets\\TNG\\m_genitals_1.nif",
+                Destination = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag((BipedObjectFlag)4194304) && MatchRace(Race, AdditionalRaces, MatchDefault)].WorldModel.Male.File.RawPath"
+            });
+            vectorPlexusMuscular.AssociatedModel.AllowedAttributes.Add(new()
+            {
+                SubAttributes = new()
+                {
+                    new NPCAttributeGroup()
+                    {
+                        Type = NPCAttributeType.Group,
+                        ForceMode = AttributeForcing.Restrict,
+                        SelectedLabels = new() { DefaultAttributeGroups.MustBeMuscular.Label}
+                    }
+                }
+            });
+
+            VM_SubgroupPlaceHolder smurfAverage = _subgroupPlaceHolderFactory(CreateSubgroupModel("SM.SA", "Smurf Average"), topLevelTNG, config, topLevelTNG.Subgroups);
+            topLevelTNG.Subgroups.Add(smurfAverage);
+            smurfAverage.AssociatedModel.Paths.Add(new()
+            {
+                Source = "meshes\\actors\\character\\character assets\\TNG\\c_genitals_1.nif",
+                Destination = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag((BipedObjectFlag)4194304) && MatchRace(Race, AdditionalRaces, MatchDefault)].WorldModel.Male.File.RawPath"
+            });
+        }
     }
 
     public enum TextureType
@@ -1433,6 +1492,10 @@ namespace SynthEBD
         EtcNormal,
         EtcSubsurface,
         EtcSpecular,
+        TNGDiffuse,
+        TNGNormal,
+        TNGSubsurface,
+        TNGSpecular,
         UnknownDiffuse,
         UnknownNormal,
         UnknownSubsurface,
