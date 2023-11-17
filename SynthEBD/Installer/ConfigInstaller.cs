@@ -281,7 +281,10 @@ public class ConfigInstaller
 
                 if (!File.Exists(extractedFullPath))
                 {
-                    missingFiles.Add(assetPath);
+                    if (!manifest.IgnoreMissingSourceFiles.Contains(assetPath, StringComparer.OrdinalIgnoreCase))
+                    {
+                        missingFiles.Add(assetPath);
+                    }
                     continue;
                 }
 
@@ -317,10 +320,13 @@ public class ConfigInstaller
 
                 if (!File.Exists(extractedFullPath))
                 {
-                    missingFiles.Add(assetPath);
-                    if (extractedFullPath.Length > filePathLimit)
+                    if (!manifest.IgnoreMissingSourceFiles.Contains(assetPath, StringComparer.OrdinalIgnoreCase))
                     {
-                        triggerExtractionPathWarning = true;
+                        missingFiles.Add(assetPath);
+                        if (extractedFullPath.Length > filePathLimit)
+                        {
+                            triggerExtractionPathWarning = true;
+                        }
                     }
                     continue;
                 }

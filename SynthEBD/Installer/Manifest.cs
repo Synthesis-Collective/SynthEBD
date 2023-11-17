@@ -18,6 +18,7 @@ public class Manifest
     public HashSet<string> RecordTemplatePaths { get; set; } = new(); // legacy property to support original format
     public HashSet<string> BodyGenConfigPaths { get; set; } = new(); // legacy property to support original format
     public HashSet<Mutagen.Bethesda.Plugins.FormKey> AddPatchableRaces { get; set; } = new(); // not legacy, but using same pattern as other properties
+    public HashSet<string> IgnoreMissingSourceFiles { get; set; } = new(); // not legacy, but using same pattern as other properties
 
     public class Option
     {
@@ -29,6 +30,7 @@ public class Manifest
         public HashSet<DownloadInfoContainer> DownloadInfo { get; set; } = new();
         public Dictionary<string, string> FileExtensionMap { get; set; } = new(StringComparer.InvariantCultureIgnoreCase);
         public string OptionsDescription { get; set; } = "";
+        public HashSet<string> IgnoreMissingSourceFiles { get; set; } = new();
         public List<Option> Options { get; set; } = new();
         public string DestinationModFolder { get; set; } = ""; // overwrites main if populated
         public HashSet<Mutagen.Bethesda.Plugins.FormKey> AddPatchableRaces { get; set; } = new();

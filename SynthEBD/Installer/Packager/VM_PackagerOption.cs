@@ -25,6 +25,7 @@ namespace SynthEBD
         public ObservableCollection<VM_PackagerOption> Options { get; set; } = new();
         public string DestinationModFolder { get; set; } = "";
         public ObservableCollection<string[]> FileExtensionMap { get; set; } = new();
+        public ObservableCollection<VM_CollectionMemberString> IgnoreMissingSourceFiles { get; set; } = new();
         public RelayCommand AddNew { get; set; }
         public RelayCommand DeleteMe { get; set; }
         public RelayCommand AddFileExtensionMapping { get; set; }
@@ -33,6 +34,7 @@ namespace SynthEBD
         public RelayCommand AddBodyGenConfigFile { get; set; }
         public RelayCommand AddRecordTemplateFile { get; set; }
         public RelayCommand AddDownloadInfo { get; set; }
+        public RelayCommand AddIgnoredSourceFile { get; set; }
         public RelayCommand FindJSONFile { get; set; }
         public RelayCommand FindPluginFile { get; set; }
         public ObservableCollection<VM_PackagerOption> ParentCollection { get; set; }
@@ -104,6 +106,13 @@ namespace SynthEBD
                     DownloadInfo.Add(new VM_DownloadInfoContainer(this));
                 });
 
+            AddIgnoredSourceFile = new RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    IgnoreMissingSourceFiles.Add(new("", IgnoreMissingSourceFiles));
+                });
+
             FindJSONFile = new RelayCommand(
                 canExecute: _ => true,
                 execute: x =>
@@ -145,6 +154,7 @@ namespace SynthEBD
                 viewModel.Options.Add(VM_PackagerOption.GetViewModelFromModel(subOption, viewModel.Options, parentManifest, linkCache));
             }
             viewModel.AddPatchableRaces = new ObservableCollection<FormKey>(model.AddPatchableRaces);
+            viewModel.IgnoreMissingSourceFiles = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(model.IgnoreMissingSourceFiles);
 
             UpdatePathCollectionStatus(viewModel.AssetPackPaths, viewModel.ParentManifest.RootDirectory);
             UpdatePathCollectionStatus(viewModel.BodyGenConfigPaths, viewModel.ParentManifest.RootDirectory);
@@ -179,6 +189,7 @@ namespace SynthEBD
                 }
             }
             model.AddPatchableRaces = AddPatchableRaces.ToHashSet();
+            model.IgnoreMissingSourceFiles = IgnoreMissingSourceFiles.Select(x => x.Content).ToHashSet();
             foreach (var subOption in Options)
             {
                 model.Options.Add(subOption.DumpViewModelToModel());

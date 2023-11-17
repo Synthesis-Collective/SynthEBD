@@ -25,6 +25,7 @@
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Name: " VerticalAlignment="Center" Foreground="White" ToolTip="The name of this installer branch" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
@@ -107,10 +108,25 @@
             </ItemsControl>
 
             <StackPanel Grid.Row="9" Grid.Column="0" Orientation="Horizontal">
+                <TextBlock Text="Ignore Missing Source Files: " VerticalAlignment="Center" Foreground="White" ToolTip="Source file paths that are supposed to come from non-SynthEBD-managed mods" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                <Button Command="{Binding AddIgnoredSourceFile}" Foreground="LightGreen" HorizontalAlignment="Right">+</Button>
+            </StackPanel>
+            <ItemsControl Grid.Row="9" Grid.Column="1" ItemsSource="{Binding IgnoreMissingSourceFiles, UpdateSourceTrigger=Default}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBox Text="{Binding Content}" MinWidth="250"/>
+                            <Button Content="x" VerticalAlignment="Center" Command="{Binding DeleteCommand}" Foreground="Firebrick"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <StackPanel Grid.Row="10" Grid.Column="0" Orientation="Horizontal">
                 <TextBlock Text="Mod Downloads: " VerticalAlignment="Center" Foreground="White" ToolTip="Mods the user must download if this option is selected" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
                 <Button Command="{Binding AddDownloadInfo}" Foreground="LightGreen" HorizontalAlignment="Right">+</Button>
             </StackPanel>
-            <ItemsControl Grid.Row="9" Grid.Column="1" ItemsSource="{Binding DownloadInfo, UpdateSourceTrigger=Default}">
+            <ItemsControl Grid.Row="10" Grid.Column="1" ItemsSource="{Binding DownloadInfo, UpdateSourceTrigger=Default}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <local:UC_DownloadInfoContainer DataContext="{Binding}"/>

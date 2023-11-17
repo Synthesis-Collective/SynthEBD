@@ -192,6 +192,7 @@ public class VM_ConfigSelector : VM
             Manifest.BodyGenConfigPaths.UnionWith(selection.AssociatedModel.BodyGenConfigPaths);
             Manifest.DownloadInfo.UnionWith(selection.AssociatedModel.DownloadInfo);
             Manifest.AddPatchableRaces.UnionWith(selection.AssociatedModel.AddPatchableRaces);
+            Manifest.IgnoreMissingSourceFiles.UnionWith(selection.AssociatedModel.IgnoreMissingSourceFiles);
             if (!string.IsNullOrWhiteSpace(selection.AssociatedModel.DestinationModFolder))
             {
                 Manifest.DestinationModFolder = selection.AssociatedModel.DestinationModFolder;
