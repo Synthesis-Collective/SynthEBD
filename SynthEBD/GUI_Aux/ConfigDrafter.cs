@@ -15,6 +15,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using static Mutagen.Bethesda.Plugins.Binary.Processing.BinaryFileProcessor;
 using static SynthEBD.AssetPack;
+using static SynthEBD.FilePathDestinationMap;
 
 namespace SynthEBD
 {
@@ -65,8 +66,8 @@ namespace SynthEBD
             var validCategorizedTexturePaths = categorizedTexturePaths.Where(x => !ignoredTexturePaths.Contains(x)).ToList();
             var validUncategorizedTexturePaths = GetMatchingUnknownFiles(uncategorizedTexturePaths.Where(uPath => !ignoredTexturePaths.Where(iPath => uPath.EndsWith(iPath)).Any())); // EndsWith rather than Contains because uPaths are full paths from drive root while iPaths have the root folder paths pre-trimmed
             
-            hasTNGTextures = FilePathDestinationMap.HasTNGPaths(validCategorizedTexturePaths);
-            hasEtcTextures = FilePathDestinationMap.HasEtcPaths(validCategorizedTexturePaths);
+            hasTNGTextures = HasTNGPaths(validCategorizedTexturePaths);
+            hasEtcTextures = HasEtcPaths(validCategorizedTexturePaths);
 
             // check file path validity if not using mod manager
             if (rootPathsHavePrefix)
@@ -185,9 +186,9 @@ namespace SynthEBD
             if (paths.Count == 1)
             {
                 var newPath = new FilePathReplacement() { Source = RemoveRootFolder(paths.First(), rootFolderPaths, rootPathsHavePrefix) };
-                if (FilePathDestinationMap.FileNameToDestMap.ContainsKey(Path.GetFileName(paths.First())))
+                if (FileNameToDestMap.ContainsKey(Path.GetFileName(paths.First())))
                 {
-                    newPath.Destination = FilePathDestinationMap.FileNameToDestMap[Path.GetFileName(paths.First())];
+                    newPath.Destination = FileNameToDestMap[Path.GetFileName(paths.First())];
                 }
                 topLevelPlaceHolder.AssociatedModel.Paths.Add(newPath);
                 paths.Remove(paths.First());
@@ -227,9 +228,9 @@ namespace SynthEBD
 
                         // add file to the subgroup's texture list
                         var destination = "";
-                        if (FilePathDestinationMap.FileNameToDestMap.ContainsKey(fileName))
+                        if (FileNameToDestMap.ContainsKey(fileName))
                         {
-                            destination = FilePathDestinationMap.FileNameToDestMap[fileName];
+                            destination = FileNameToDestMap[fileName];
                         }
 
                         newPlaceHolder.AssociatedModel.Paths.Add(new FilePathReplacement()
@@ -466,14 +467,14 @@ namespace SynthEBD
                         case "male":
                             switch (fileName)
                             {
-                                case "malehead_msn.dds": // occasionall used as generic by some config authors, so check race compatibility
+                                case Source_HeadNormalMale: // occasionally used as generic by some config authors, so check race compatibility
                                     if (ParentSubgroupsPermitRace(subgroup, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey))
                                     {
                                         UpdateSubgroupName(subgroup, "Nord");
                                         subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey);
                                     }
                                     break;
-                                case "maleheadvampire_msn.dds":
+                                case Source_HeadNormalVampireMale:
                                     UpdateSubgroupName(subgroup, "Vampire");
                                     subgroup.AssociatedModel.AllowedRaceGroupings.Add(DefaultRaceGroupings.HumanoidYoungVampire.Label);
                                     break;
@@ -482,7 +483,7 @@ namespace SynthEBD
                         case "female":
                             switch (fileName)
                             {
-                                case "femalehead_msn.dds":
+                                case Source_HeadNormalFemaleAndKhajiitF:
                                     // occasionall used as generic by some config authors, so check race compatibility
                                     if (ParentSubgroupsPermitRace(subgroup, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey))
                                     {
@@ -490,11 +491,11 @@ namespace SynthEBD
                                         subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey);
                                     }
                                     break;
-                                case "femaleheadvampire_msn.dds":
+                                case Source_HeadNormalVampireFemale:
                                     UpdateSubgroupName(subgroup, "Vampire");
                                     subgroup.AssociatedModel.AllowedRaceGroupings.Add(DefaultRaceGroupings.HumanoidYoungVampire.Label);
                                     break;
-                                case "astridhead_msn.dds":
+                                case Source_HeadNormalAstrid:
                                     UpdateSubgroupName(subgroup, "Astrid");
                                     subgroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRaceAstrid.FormKey);
                                     break;
@@ -578,7 +579,7 @@ namespace SynthEBD
                 }
             }
 
-            if (fileName.Equals("maleheaddetail_age40.dds", StringComparison.OrdinalIgnoreCase) || fileName.Equals("femaleheaddetail_age40.dds", StringComparison.OrdinalIgnoreCase))
+            if (fileName.Equals(Source_HeadDetailAge40Male, StringComparison.OrdinalIgnoreCase) || fileName.Equals(Source_HeadDetailAge40Female, StringComparison.OrdinalIgnoreCase))
             {
                 var group = config.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.Age40.Label).FirstOrDefault();
                 if (group != null)
@@ -586,7 +587,7 @@ namespace SynthEBD
                     AddAttributeGroup(subgroup, group);
                 }
             }
-            else if (fileName.Equals("maleheaddetail_age50.dds", StringComparison.OrdinalIgnoreCase) || fileName.Equals("femaleheaddetail_age50.dds", StringComparison.OrdinalIgnoreCase))
+            else if (fileName.Equals(Source_HeadDetailAge50Male, StringComparison.OrdinalIgnoreCase) || fileName.Equals(Source_HeadDetailAge50Female, StringComparison.OrdinalIgnoreCase))
             {
                 var group = config.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.Age50.Label).FirstOrDefault();
                 if (group != null)
@@ -594,7 +595,7 @@ namespace SynthEBD
                     AddAttributeGroup(subgroup, group);
                 }
             }
-            else if (fileName.Equals("maleheaddetail_age40rough.dds", StringComparison.OrdinalIgnoreCase) || fileName.Equals("femaleheaddetail_age40rough.dds", StringComparison.OrdinalIgnoreCase))
+            else if (fileName.Equals(Source_HeadDetailAge40RoughMale, StringComparison.OrdinalIgnoreCase) || fileName.Equals(Source_HeadDetailAge40RoughFemale, StringComparison.OrdinalIgnoreCase))
             {
                 var group = config.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.Age40Rough.Label).FirstOrDefault();
                 if (group != null)
@@ -602,7 +603,7 @@ namespace SynthEBD
                     AddAttributeGroup(subgroup, group);
                 }
             }
-            else if (fileName.Equals("femaleheaddetail_rough.dds", StringComparison.OrdinalIgnoreCase))
+            else if (fileName.Equals(Source_HeadDetailRoughFemale, StringComparison.OrdinalIgnoreCase))
             {
                 var group = config.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.Rough01.Label).FirstOrDefault();
                 if (group != null)
@@ -610,7 +611,7 @@ namespace SynthEBD
                     AddAttributeGroup(subgroup, group);
                 }
             }
-            else if (fileName.Equals("maleheaddetail_rough01.dds", StringComparison.OrdinalIgnoreCase))
+            else if (fileName.Equals(Source_HeadDetailRough01Male, StringComparison.OrdinalIgnoreCase))
             {
                 var group = config.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.Rough01.Label).FirstOrDefault();
                 if (group != null)
@@ -618,7 +619,7 @@ namespace SynthEBD
                     AddAttributeGroup(subgroup, group);
                 }
             }
-            else if (fileName.Equals("maleheaddetail_rough02.dds", StringComparison.OrdinalIgnoreCase))
+            else if (fileName.Equals(Source_HeadDetailRough02Male, StringComparison.OrdinalIgnoreCase))
             {
                 var group = config.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.Rough02.Label).FirstOrDefault();
                 if (group != null)
@@ -626,7 +627,7 @@ namespace SynthEBD
                     AddAttributeGroup(subgroup, group);
                 }
             }
-            else if (fileName.Equals("femaleheaddetail_frekles.dds", StringComparison.OrdinalIgnoreCase))
+            else if (fileName.Equals(Source_HeadDetailFrecklesFemale, StringComparison.OrdinalIgnoreCase))
             {
                 var group = config.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.Freckles.Label).FirstOrDefault();
                 if (group != null)
@@ -832,31 +833,31 @@ namespace SynthEBD
 
         private static readonly Dictionary<TextureType, HashSet<string>> TypeToFileNames = new()
         {
-            { TextureType.HeadDiffuse, new(StringComparer.OrdinalIgnoreCase) { "malehead.dds", "maleheadvampire.dds", "maleheadafflicted.dds", "maleheadsnowelf.dds", "KhajiitMaleHead.dds", "ArgonianMaleHead.dds", "femalehead.dds", "femaleheadvampire.dds", "femaleheadafflicted.dds", "AstridHead.dds", "argonianfemalehead.dds" } },
-            { TextureType.HeadNormal, new(StringComparer.OrdinalIgnoreCase) { "malehead_msn.dds", "maleheadvampire_msn.dds", "maleheadorc_msn.dds", "KhajiitMaleHead_msn.dds", "ArgonianMaleHead_msn.dds", "femalehead_msn.dds", "femaleheadvampire_msn.dds", "femaleheadorc_msn.dds", "AstridHead_msn.dds", "argonianfemalehead_msn.dds" } },
-            { TextureType.HeadSubsurface, new(StringComparer.OrdinalIgnoreCase) { "malehead_sk.dds", "femalehead_sk.dds", "femaleheadvampire_sk.dds" } },
-            { TextureType.HeadSpecular, new(StringComparer.OrdinalIgnoreCase) { "malehead_s.dds", "khajiitmalehead_s.dds", "ArgonianMaleHead_s.dds", "femalehead_s.dds", "femaleheadvampire_s.dds", "AstridHead_s.dds", "argonianfemalehead_s.dds" } },
-            { TextureType.HeadDetail, new(StringComparer.OrdinalIgnoreCase) { "blankdetailmap.dds", "maleheaddetail_age40.dds", "maleheaddetail_age40rough.dds", "maleheaddetail_age50.dds", "maleheaddetail_rough01.dds", "maleheaddetail_rough02.dds", "KhajiitOld.dds", "ArgonianMaleHeadOld.dds", "femaleheaddetail_age40.dds", "femaleheaddetail_age50.dds", "femaleheaddetail_rough.dds", "femaleheaddetail_age40rough.dds", "femaleheaddetail_frekles.dds", "ArgonianFemaleHeadOld.dds" } },
-            { TextureType.BodyDiffuse, new(StringComparer.OrdinalIgnoreCase) { "malebody_1.dds", "malebodyafflicted.dds", "malebodysnowelf.dds", "bodymale.dds", "argonianmalebody.dds", "femalebody_1.dds", "femalebodyafflicted.dds", "AstridBody.dds", "femalebody.dds", "argonianfemalebody.dds" } },
-            { TextureType.BodyNormal, new(StringComparer.OrdinalIgnoreCase) { "maleBody_1_msn.dds", "bodymale_msn.dds", "argonianmalebody_msn.dds", "femaleBody_1_msn.dds", "AstridBody_msn.dds", "femalebody_msn.dds", "argonianfemalebody_msn.dds" } },
-            { TextureType.BodySubsurface, new(StringComparer.OrdinalIgnoreCase) { "malebody_1_sk.dds", "femalebody_1_sk.dds" } },
-            { TextureType.BodySpecular, new(StringComparer.OrdinalIgnoreCase) { "malebody_1_s.dds", "bodymale_s.dds", "argonianmalebody_s.dds", "femalebody_1_s.dds", "AstridBody_s.dds", "femalebody_s.dds", "argonianfemalebody_s.dds" } },
-            { TextureType.HandsDiffuse, new(StringComparer.OrdinalIgnoreCase) { "malehands_1.dds", "malehandsafflicted.dds", "malehandssnowelf.dds", "HandsMale.dds", "ArgonianMaleHands.dds", "femalehands_1.dds", "femalehandsafflicted.dds", "AstridHands.dds", "femalehands.dds",  "argonianfemalehands.dds"} },
-            { TextureType.HandsNormal, new(StringComparer.OrdinalIgnoreCase) { "malehands_1_msn.dds", "HandsMale_msn.dds", "ArgonianMaleHands_msn.dds", "femalehands_1_msn.dds", "AstridHands_msn.dds", "femalehands_msn.dds","argonianfemalehands_msn.dds" } },
-            { TextureType.HandsSubsurface, new(StringComparer.OrdinalIgnoreCase) { "malehands_1_sk.dds", "femalehands_1_sk.dds" } },
-            { TextureType.HandsSpecular, new(StringComparer.OrdinalIgnoreCase) { "malehands_1_s.dds", "handsmale_s.dds", "ArgonianMaleHands_s.dds", "femalehands_1_s.dds", "AstridHands_s.dds", "femalehands_s.dds", "argonianfemalehands_s.dds" } },
-            { TextureType.FeetDiffuse, new(StringComparer.OrdinalIgnoreCase) { "malebody_1_feet.dds", "femalebody_1_feet.dds" } },
-            { TextureType.FeetNormal, new(StringComparer.OrdinalIgnoreCase) { "malebody_1_msn_feet.dds", "femalebody_1_msn_feet.dds" } },
-            { TextureType.FeetSubsurface, new(StringComparer.OrdinalIgnoreCase) { "malebody_1_feet_sk.dds", "femalebody_1_feet_sk.dds" } },
-            { TextureType.FeetSpecular, new(StringComparer.OrdinalIgnoreCase) { "malebody_1_feet_s.dds", "femalebody_1_feet_s.dds" } },
-            { TextureType.EtcDiffuse, new(StringComparer.OrdinalIgnoreCase) { "femalebody_etc_v2_1.dds" } },
-            { TextureType.EtcNormal, new(StringComparer.OrdinalIgnoreCase) { "femalebody_etc_v2_1_msn.dds" } },
-            { TextureType.EtcSubsurface, new(StringComparer.OrdinalIgnoreCase) { "femalebody_etc_v2_1_sk.dds" } },
-            { TextureType.EtcSpecular, new(StringComparer.OrdinalIgnoreCase) { "femalebody_etc_v2_1_s.dds" } },
-            { TextureType.TNGDiffuse, new(StringComparer.OrdinalIgnoreCase) { "malegenitals_1.dds" } },
-            { TextureType.TNGNormal, new(StringComparer.OrdinalIgnoreCase) { "malegenitals_1_msn.dds" } },
-            { TextureType.TNGSubsurface, new(StringComparer.OrdinalIgnoreCase) { "malegenitals_1_sk.dds" } },
-            { TextureType.TNGSpecular, new(StringComparer.OrdinalIgnoreCase) { "malegenitals_1_s.dds" } },
+            { TextureType.HeadDiffuse, new(StringComparer.OrdinalIgnoreCase) { Source_HeadDiffuseMale, Source_HeadDiffuseVampireMale, Source_HeadDiffuseAfflictedMale, Source_HeadDiffuseSnowElfMale, Source_HeadDiffuseKhajiitMale, Source_HeadDiffuseArgonianMale, Source_HeadDiffuseFemaleAndKhajiitF, Source_HeadDiffuseVampireFemale, Source_HeadDiffuseAfflictedFemale, Source_HeadDiffuseAstrid, Source_HeadDiffuseArgonianFemale } },
+            { TextureType.HeadNormal, new(StringComparer.OrdinalIgnoreCase) { Source_HeadNormalMale, Source_HeadNormalVampireMale, Source_HeadNormalOrcMale, Source_HeadNormalKhajiitMale, Source_HeadNormalArgonianMale, Source_HeadNormalFemaleAndKhajiitF, Source_HeadNormalVampireFemale, Source_HeadNormalOrcFemale, Source_HeadNormalAstrid, Source_HeadNormalArgonianFemale } },
+            { TextureType.HeadSubsurface, new(StringComparer.OrdinalIgnoreCase) { Source_HeadSubsurfaceMale, Source_HeadSubsurfaceFemaleAndKhajiitF, Source_HeadSubsurfaceVampireFemale } },
+            { TextureType.HeadSpecular, new(StringComparer.OrdinalIgnoreCase) { Source_HeadSpecularMale, Source_HeadSpecularKhajiitMale, Source_HeadSpecularArgonianMale, Source_HeadSpecularFemaleAndKhajiitF, Source_HeadSpecularVampireFemale, Source_HeadSpecularAstrid, Source_HeadSpecularArgonianFemale } },
+            { TextureType.HeadDetail, new(StringComparer.OrdinalIgnoreCase) { Source_HeadDetailDefault, Source_HeadDetailAge40Male, Source_HeadDetailAge40RoughMale, Source_HeadDetailAge50Male, Source_HeadDetailRough01Male, Source_HeadDetailRough02Male, Source_HeadDetailKhajiitOldMale, Source_HeadDetailArgonianOldMale, Source_HeadDetailAge40Female, Source_HeadDetailAge50Female, Source_HeadDetailRoughFemale, Source_HeadDetailAge40RoughFemale, Source_HeadDetailFrecklesFemale, Source_HeadDetailArgonianOldFemale } },
+            { TextureType.BodyDiffuse, new(StringComparer.OrdinalIgnoreCase) { Source_TorsoDiffuseMale, Source_TorsoDiffuseAfflictedMale, Source_BodyDiffuseSnowElfMale, Source_TorsoDiffuseKhajiitMale, Source_TorsoDiffuseArgonianMale, Source_TorsoDiffuseFemale, Source_TorsoDiffuseAfflictedFemale, Source_BodyDiffuseAstrid, Source_TorsoDiffuseKhajiitFemale, Source_TorsoDiffuseArgonianFemale } },
+            { TextureType.BodyNormal, new(StringComparer.OrdinalIgnoreCase) { Source_TorsoNormalMale, Source_TorsoNormalKhajiitMale, Source_TorsoNormalArgonianMale, Source_TorsoNormalFemale, Source_BodyNormalAstrid, Source_TorsoNormalKhajiitFemale, Source_TorsoNormalArgonianFemale } },
+            { TextureType.BodySubsurface, new(StringComparer.OrdinalIgnoreCase) { Source_TorsoSubsurfaceMale, Source_TorsoSubsurfaceFemale, Source_TorsoSubsurfaceArgonianMale, Source_TorsoSubsurfaceKhajiitMale } },
+            { TextureType.BodySpecular, new(StringComparer.OrdinalIgnoreCase) { Source_TorsoSpecularMale, Source_TorsoSpecularKhajiitMale, Source_TorsoSpecularArgonianMale, Source_TorsoSpecularFemale, Source_BodySpecularAstrid, Source_TorsoSpecularKhajiitFemale, Source_TorsoSpecularArgonianFemale } },
+            { TextureType.HandsDiffuse, new(StringComparer.OrdinalIgnoreCase) { Source_HandsDiffuseMale, Source_HandsDiffuseAfflictedMale, Source_HandsDiffuseSnowElfMale, Source_HandsDiffuseKhajiitMale, Source_HandsDiffuseArgonianMale, Source_HandsDiffuseFemale, Source_HandsDiffuseAfflictedFemale, Source_HandsDiffuseAstrid, Source_HandsDiffuseKhajiitFemale, Source_HandsDiffuseArgonianFemale } },
+            { TextureType.HandsNormal, new(StringComparer.OrdinalIgnoreCase) { Source_HandsNormalMale, Source_HandsNormalKhajiitMale, Source_HandsNormalArgonianMale, Source_HandsNormalFemale, Source_HandsNormalAstrid, Source_HandsNormalKhajiitFemale, Source_HandsNormalArgonianFemale } },
+            { TextureType.HandsSubsurface, new(StringComparer.OrdinalIgnoreCase) { Source_HandsSubsurfaceMale, Source_HandsSubsurfaceFemale } },
+            { TextureType.HandsSpecular, new(StringComparer.OrdinalIgnoreCase) { Source_HandsSpecularMale, Source_HandsSpecularKhajiitMale, Source_HandsSpecularArgonianMale, Source_HandsSpecularFemale, Source_HandsSpecularAstrid, Source_HandsSpecularKhajiitFemale, Source_HandsSpecularArgonianFemale } },
+            { TextureType.FeetDiffuse, new(StringComparer.OrdinalIgnoreCase) { Source_FeetDiffuseMale, Source_FeetDiffuseFemale, Source_FeetDiffuseAfflictedMale, Source_FeetDiffuseAfflictedFemale, Source_FeetDiffuseKhajiitMale, Source_FeetDiffuseArgonianMale, Source_FeetDiffuseSnowElfMale } },
+            { TextureType.FeetNormal, new(StringComparer.OrdinalIgnoreCase) { Source_FeetNormalMale, Source_FeetNormalFemale } },
+            { TextureType.FeetSubsurface, new(StringComparer.OrdinalIgnoreCase) { Source_FeetSubsurfaceMale, Source_FeetSubsurfaceFemale, Source_FeetSubsurfaceKhajiitMale, Source_FeetSubsurfaceArgonianMale } },
+            { TextureType.FeetSpecular, new(StringComparer.OrdinalIgnoreCase) { Source_FeetSpecularMale, Source_FeetSpecularFemale, Source_FeetSpecularKhajiitMale, Source_FeetSpecularArgonianMale } },
+            { TextureType.EtcDiffuse, new(StringComparer.OrdinalIgnoreCase) { Source_EtcFemaleDiffuse } },
+            { TextureType.EtcNormal, new(StringComparer.OrdinalIgnoreCase) { Source_EtcFemaleNormal } },
+            { TextureType.EtcSubsurface, new(StringComparer.OrdinalIgnoreCase) { Source_EtcFemaleSubsurface } },
+            { TextureType.EtcSpecular, new(StringComparer.OrdinalIgnoreCase) { Source_EtcFemaleSpecular } },
+            { TextureType.TNGDiffuse, new(StringComparer.OrdinalIgnoreCase) { Source_TNGMaleDiffuse, Source_TNGMaleDiffuseAfflicted, Source_TNGMaleDiffuseArgonian, Source_TNGMaleDiffuseKhajiit, Source_TNGMaleDiffuseSnowElf } },
+            { TextureType.TNGNormal, new(StringComparer.OrdinalIgnoreCase) { Source_TNGMaleNormal, Source_TNGMaleNormalElder, Source_TNGMaleNormalArgonian,  Source_TNGMaleNormalKhajiit } },
+            { TextureType.TNGSubsurface, new(StringComparer.OrdinalIgnoreCase) { Source_TNGMaleSubsurface } },
+            { TextureType.TNGSpecular, new(StringComparer.OrdinalIgnoreCase) { Source_TNGMaleSpecular, Source_TNGMaleSpecularArgonian, Source_TNGMaleSpecularKhajiit } },
             { TextureType.UnknownDiffuse, new() },
             { TextureType.UnknownNormal, new() },
             { TextureType.UnknownSubsurface, new() },
@@ -866,22 +867,22 @@ namespace SynthEBD
 
         private static readonly Dictionary<string, HashSet<string>> TextureToSubgroupName = new(StringComparer.OrdinalIgnoreCase)
         {
-            { DefaultSubgroupName, new(StringComparer.OrdinalIgnoreCase) { "malehead.dds", "femalehead.dds", "malehead_sk.dds", "femalehead_sk.dds", "malehead_s.dds", "femalehead_s.dds", "blankdetailmap.dds", "malebody_1.dds", "femalebody_1.dds", "maleBody_1_msn.dds", "femalebody_msn.dds", "malebody_1_s.dds", "femalebody_1_s.dds", "malehands_1.dds" , "femalehands_1.dds", "malehands_1_msn.dds", "femalehands_1_msn.dds", "malehands_1_sk.dds", "femalehands_1_sk.dds", "malehands_1_s.dds", "femalehands_1_s.dds", "malebody_1_feet.dds", "femalebody_1_feet.dds", "malebody_1_msn_feet.dds", "femalebody_1_msn_feet.dds", "malebody_1_feet_sk.dds", "femalebody_1_feet_sk.dds", "malebody_1_feet_s.dds", "femalebody_1_feet_s.dds" } },
-            { "Vampire", new(StringComparer.OrdinalIgnoreCase) { "maleheadvampire.dds", "femaleheadvampire.dds", "maleheadvampire_msn.dds", "femaleheadvampire_sk.dds", "femaleheadvampire_s.dds" } },
-            { "Afflicted", new(StringComparer.OrdinalIgnoreCase) { "maleheadafflicted.dds", "femaleheadafflicted.dds", "malebodyafflicted.dds", "femalebodyafflicted.dds", "malehandsafflicted.dds", "femalehandsafflicted.dds", "malebodyafflicted_feet.dds", "femalebodyafflicted_feet.dds" } },
-            { "Snow Elf", new(StringComparer.OrdinalIgnoreCase) { "maleheadsnowelf.dds", "malebodysnowelf.dds", "malehandssnowelf.dds", "malebodysnowelf_feet.dds", "femalebodysnowelf_feet.dds" } },
-            { "Khajiit", new(StringComparer.OrdinalIgnoreCase) { "KhajiitMaleHead.dds", "bodymale.dds", "femalebody.dds", "HandsMale.dds", "femalehands.dds", "HandsMale_msn.dds", "femalehands_msn.dds", "handsmale_s.dds", "femalehands_s.dds" } },
-            { "Khajiit Old", new(StringComparer.OrdinalIgnoreCase) { "KhajiitOld.dds" } },
-            { "Argonian", new(StringComparer.OrdinalIgnoreCase) { "ArgonianMaleHead.dds", "argonianfemalehead.dds", "ArgonianMaleHead_s.dds" , "argonianfemalehead_s.dds", "argonianmalebody.dds", "argonianfemalebody.dds", "argonianmalebody_msn.dds", "argonianfemalebody_msn.dds", "argonianmalebody_s.dds", "femalebody_s.dds", "ArgonianMaleHands.dds", "argonianfemalehands.dds", "ArgonianMaleHands_msn.dds", "argonianfemalehands_msn.dds", "ArgonianMaleHands_s.dds", "argonianfemalehands_s.dds" } },
-            { "Argonian Old", new(StringComparer.OrdinalIgnoreCase) { "ArgonianMaleHeadOld.dds", "ArgonianFemaleHeadOld.dds" } },
-            { "Astrid", new(StringComparer.OrdinalIgnoreCase) { "AstridHead.dds", "AstridHead_msn.dds", "AstridHead_s.dds", "AstridBody.dds", "AstridBody_msn.dds", "AstridBody_s.dds", "AstridHands.dds" } },
-            { "Age 40", new(StringComparer.OrdinalIgnoreCase) { "maleheaddetail_age40.dds", "femaleheaddetail_age40.dds" } },
-            { "Age 40 Rough", new(StringComparer.OrdinalIgnoreCase) { "maleheaddetail_age40rough.dds", "femaleheaddetail_age40rough.dds" } },
-            { "Age 50", new(StringComparer.OrdinalIgnoreCase) { "maleheaddetail_age50.dds", "femaleheaddetail_age50.dds" } },
-            { "Rough", new(StringComparer.OrdinalIgnoreCase) { "femaleheaddetail_rough.dds" } },
-            { "Rough1", new(StringComparer.OrdinalIgnoreCase) { "maleheaddetail_rough01.dds" } },
-            { "Rough2", new(StringComparer.OrdinalIgnoreCase) { "maleheaddetail_rough02.dds" } },
-            { "Freckles", new(StringComparer.OrdinalIgnoreCase) { "femaleheaddetail_frekles.dds" } }
+            { DefaultSubgroupName, new(StringComparer.OrdinalIgnoreCase) { Source_HeadDiffuseMale, Source_HeadDiffuseFemaleAndKhajiitF, Source_HeadSubsurfaceMale, Source_HeadSubsurfaceFemaleAndKhajiitF, Source_HeadSpecularMale, Source_HeadSpecularFemaleAndKhajiitF, Source_HeadDetailDefault, Source_TorsoDiffuseMale, Source_TorsoDiffuseFemale, Source_TorsoNormalMale, Source_TorsoNormalFemale, Source_TorsoSpecularMale, Source_TorsoSpecularFemale, Source_TorsoSubsurfaceMale, Source_TorsoSubsurfaceFemale, Source_HandsDiffuseMale, Source_HandsDiffuseFemale, Source_HandsNormalMale, Source_HandsNormalFemale, Source_HandsSubsurfaceMale, Source_HandsSubsurfaceFemale, Source_HandsSpecularMale, Source_HandsSpecularFemale, Source_FeetDiffuseMale, Source_FeetDiffuseFemale, Source_FeetNormalMale, Source_FeetNormalFemale, Source_FeetSubsurfaceMale, Source_FeetSubsurfaceFemale, Source_FeetSpecularMale, Source_FeetSpecularFemale } },
+            { "Vampire", new(StringComparer.OrdinalIgnoreCase) { Source_HeadDiffuseVampireMale, Source_HeadDiffuseVampireFemale, Source_HeadNormalVampireMale, Source_HeadNormalVampireFemale, Source_HeadSubsurfaceVampireFemale, Source_HeadSpecularVampireFemale } },
+            { "Afflicted", new(StringComparer.OrdinalIgnoreCase) { Source_HeadDiffuseAfflictedMale, Source_HeadDiffuseAfflictedFemale, Source_TorsoDiffuseAfflictedMale, Source_TorsoDiffuseAfflictedFemale, Source_HandsDiffuseAfflictedMale, Source_HandsDiffuseAfflictedFemale, Source_FeetDiffuseAfflictedMale, Source_FeetDiffuseAfflictedFemale } },
+            { "Snow Elf", new(StringComparer.OrdinalIgnoreCase) { Source_HeadDiffuseSnowElfMale, Source_BodyDiffuseSnowElfMale, Source_HandsDiffuseSnowElfMale, Source_FeetDiffuseSnowElfMale } },
+            { "Khajiit", new(StringComparer.OrdinalIgnoreCase) { Source_HeadDiffuseKhajiitMale, Source_TorsoDiffuseKhajiitMale, Source_TorsoDiffuseKhajiitFemale, Source_TorsoNormalKhajiitMale, Source_TorsoNormalKhajiitFemale, Source_TorsoSpecularKhajiitMale, Source_TorsoSpecularKhajiitFemale, Source_HandsDiffuseKhajiitMale, Source_HandsDiffuseKhajiitFemale, Source_HandsNormalKhajiitMale, Source_HandsNormalKhajiitFemale, Source_HandsSpecularKhajiitMale, Source_HandsSpecularKhajiitFemale, Source_FeetDiffuseKhajiitMale, Source_FeetSpecularKhajiitMale, Source_FeetSubsurfaceKhajiitMale } },
+            { "Khajiit Old", new(StringComparer.OrdinalIgnoreCase) { Source_HeadDetailKhajiitOldMale } },
+            { "Argonian", new(StringComparer.OrdinalIgnoreCase) { Source_HeadDiffuseArgonianMale, Source_TorsoDiffuseArgonianMale, Source_TorsoDiffuseArgonianFemale, Source_TorsoNormalArgonianMale, Source_TorsoNormalArgonianFemale, Source_TorsoSpecularArgonianMale, Source_TorsoSpecularArgonianFemale, Source_HandsDiffuseArgonianMale, Source_HandsDiffuseArgonianFemale, Source_HandsNormalArgonianMale, Source_HandsNormalArgonianFemale, Source_HandsSpecularArgonianMale, Source_HandsSpecularArgonianFemale, Source_FeetDiffuseArgonianMale, Source_FeetSpecularArgonianMale, Source_FeetSubsurfaceArgonianMale } },
+            { "Argonian Old", new(StringComparer.OrdinalIgnoreCase) { Source_HeadDetailArgonianOldMale, Source_HeadDetailArgonianOldFemale } },
+            { "Astrid", new(StringComparer.OrdinalIgnoreCase) { Source_HeadDiffuseAstrid, Source_HeadNormalAstrid, Source_HeadSpecularAstrid, Source_BodyDiffuseAstrid, Source_BodyNormalAstrid, Source_BodySpecularAstrid, Source_HandsDiffuseAstrid, Source_HandsNormalAstrid, Source_HandsSpecularAstrid } },
+            { "Age 40", new(StringComparer.OrdinalIgnoreCase) { Source_HeadDetailAge40Male, Source_HeadDetailAge40Female } },
+            { "Age 40 Rough", new(StringComparer.OrdinalIgnoreCase) { Source_HeadDetailAge40RoughMale, Source_HeadDetailAge40RoughFemale } },
+            { "Age 50", new(StringComparer.OrdinalIgnoreCase) { Source_HeadDetailAge50Male, Source_HeadDetailAge50Female } },
+            { "Rough", new(StringComparer.OrdinalIgnoreCase) { Source_HeadDetailRoughFemale } },
+            { "Rough1", new(StringComparer.OrdinalIgnoreCase) { Source_HeadDetailRough01Male } },
+            { "Rough2", new(StringComparer.OrdinalIgnoreCase) { Source_HeadDetailRough02Male } },
+            { "Freckles", new(StringComparer.OrdinalIgnoreCase) { Source_HeadDetailFrecklesFemale } }
         };
 
         private static readonly Dictionary<FormKey, HashSet<string>> RaceFormKeyToRaceString = new()
@@ -962,8 +963,8 @@ namespace SynthEBD
 
         private static readonly Dictionary<Gender, HashSet<string>> ExpectedFilesByGender = new()
         {
-            {Gender.Male, new(StringComparer.OrdinalIgnoreCase) { "malehead.dds", "malehead_sk.dds", "malehead_s.dds", "malebody_1.dds", "maleBody_1_msn.dds", "malebody_1_s.dds", "malehands_1.dds", "malehands_1_msn.dds", "malehands_1_sk.dds", "malehands_1_s.dds", "malebody_1_feet.dds", "malebody_1_msn_feet.dds", "malebody_1_feet_sk.dds", "malebody_1_feet_s.dds", "malegenitals_1.dds", "malegenitals_1_msn.dds", "malegenitals_1_sk.dds", "malegenitals_1_s.dds" } },
-            {Gender.Female, new(StringComparer.OrdinalIgnoreCase) { "femalehead.dds", "femalehead_sk.dds", "femalehead_s.dds", "femalebody_1.dds", "femalebody_msn.dds", "femalebody_1_s.dds", "femalehands_1.dds", "femalehands_1_msn.dds", "femalehands_1_sk.dds", "femalehands_1_s.dds", "femalebody_1_feet.dds", "femalebody_1_msn_feet.dds", "femalebody_1_feet_sk.dds", "femalebody_1_feet_s.dds", "femalebody_etc_v2_1.dds", "femalebody_etc_v2_1_msn.dds", "femalebody_etc_v2_1_s.dds", "femalebody_etc_v2_1_sk.dds" } }
+            {Gender.Male, new(StringComparer.OrdinalIgnoreCase) { Source_BodyDiffuseSnowElfMale, Source_FeetDiffuseAfflictedMale, Source_FeetDiffuseArgonianMale, Source_FeetDiffuseKhajiitMale, Source_FeetDiffuseSnowElfMale, Source_FeetNormalMale, Source_FeetSpecularArgonianMale, Source_FeetSpecularKhajiitMale, Source_FeetSpecularMale, Source_FeetSubsurfaceArgonianMale, Source_FeetSubsurfaceKhajiitMale, Source_FeetSubsurfaceMale, Source_HandsDiffuseAfflictedMale, Source_HandsDiffuseArgonianMale, Source_HandsDiffuseKhajiitMale, Source_HandsDiffuseMale, Source_HandsDiffuseSnowElfMale, Source_HandsNormalArgonianMale, Source_HandsNormalKhajiitMale, Source_HandsNormalMale, Source_HandsSpecularArgonianMale, Source_HandsSpecularKhajiitMale, Source_HandsSpecularMale, Source_HandsSubsurfaceMale, Source_HeadDetailAge40Male, Source_HeadDetailAge40RoughMale, Source_HeadDetailAge50Male, Source_HeadDetailArgonianOldMale, Source_HeadDetailKhajiitOldMale, Source_HeadDetailRough01Male, Source_HeadDetailRough02Male, Source_HeadDiffuseAfflictedMale, Source_HeadDiffuseArgonianMale, Source_HeadDiffuseKhajiitMale, Source_HeadDiffuseMale, Source_HeadDiffuseSnowElfMale, Source_HeadDiffuseVampireMale, Source_HeadNormalArgonianMale, Source_HeadNormalKhajiitMale, Source_HeadNormalMale, Source_HeadNormalOrcMale, Source_HeadNormalVampireMale, Source_HeadSpecularArgonianMale, Source_HeadSpecularKhajiitMale, Source_HeadSpecularMale, Source_HeadSubsurfaceMale, Source_TNGMaleDiffuse, Source_TNGMaleDiffuseAfflicted, Source_TNGMaleDiffuseArgonian, Source_TNGMaleDiffuseKhajiit, Source_TNGMaleDiffuseSnowElf, Source_TNGMaleNormal, Source_TNGMaleNormalArgonian, Source_TNGMaleNormalElder, Source_TNGMaleNormalKhajiit, Source_TNGMaleSpecular, Source_TNGMaleSpecularArgonian, Source_TNGMaleSpecularKhajiit, Source_TNGMaleSubsurface, Source_TorsoDiffuseAfflictedMale, Source_TorsoDiffuseArgonianMale, Source_TorsoDiffuseKhajiitMale, Source_TorsoDiffuseMale, Source_TorsoNormalArgonianMale, Source_TorsoNormalKhajiitMale, Source_TorsoNormalMale, Source_TorsoSpecularArgonianMale, Source_TorsoSpecularKhajiitMale, Source_TorsoSpecularMale, Source_TorsoSubsurfaceArgonianMale, Source_TorsoSubsurfaceKhajiitMale, Source_TorsoSubsurfaceMale } },
+            {Gender.Female, new(StringComparer.OrdinalIgnoreCase) { Source_BodyDiffuseAstrid, Source_BodyNormalAstrid, Source_BodySpecularAstrid, Source_EtcFemaleDiffuse, Source_EtcFemaleNormal, Source_EtcFemaleSpecular, Source_EtcFemaleSubsurface, Source_FeetDiffuseAfflictedFemale, Source_FeetDiffuseFemale, Source_FeetNormalFemale, Source_FeetSpecularFemale, Source_FeetSubsurfaceFemale, Source_HandsDiffuseAfflictedFemale, Source_HandsDiffuseArgonianFemale, Source_HandsDiffuseFemale, Source_HandsDiffuseKhajiitFemale, Source_HandsNormalArgonianFemale, Source_HandsNormalAstrid, Source_HandsNormalFemale, Source_HandsNormalKhajiitFemale, Source_HandsSpecularArgonianFemale, Source_HandsSpecularAstrid, Source_HandsSpecularFemale, Source_HandsSpecularKhajiitFemale, Source_HandsSubsurfaceFemale, Source_HeadDetailAge40Female, Source_HeadDetailAge40RoughFemale, Source_HeadDetailAge50Female, Source_HeadDetailArgonianOldFemale, Source_HeadDetailFrecklesFemale, Source_HeadDetailRoughFemale, Source_HeadDiffuseAfflictedFemale, Source_HeadDiffuseArgonianFemale, Source_HeadDiffuseAstrid, Source_HeadDiffuseFemaleAndKhajiitF, Source_HeadDiffuseVampireFemale, Source_HeadNormalArgonianFemale, Source_HeadNormalAstrid, Source_HeadNormalFemaleAndKhajiitF, Source_HeadNormalOrcFemale, Source_HeadNormalVampireFemale, Source_HeadSpecularArgonianFemale, Source_HeadSpecularAstrid, Source_HeadSpecularFemaleAndKhajiitF, Source_HeadSpecularVampireFemale, Source_HeadSubsurfaceFemaleAndKhajiitF, Source_HeadSubsurfaceVampireFemale, Source_TorsoDiffuseAfflictedFemale, Source_TorsoDiffuseArgonianFemale, Source_TorsoDiffuseFemale, Source_TorsoDiffuseKhajiitFemale, Source_TorsoNormalArgonianFemale, Source_TorsoNormalFemale, Source_TorsoNormalKhajiitFemale, Source_TorsoSpecularArgonianFemale, Source_TorsoSpecularFemale, Source_TorsoSpecularKhajiitFemale, Source_TorsoSubsurfaceFemale} }
         };
 
         private static List<string> GetMatchingFiles(IEnumerable<string> files, HashSet<string> fileNamesToMatch)
@@ -1119,14 +1120,14 @@ namespace SynthEBD
 
                 switch (firstPath.Destination)
                 {
-                    case FilePathDestinationMap.Dest_TorsoFemaleDiffuse: feetPath.Destination = FilePathDestinationMap.Dest_FeetFemaleDiffuse; break;
-                    case FilePathDestinationMap.Dest_TorsoFemaleNormal: feetPath.Destination = FilePathDestinationMap.Dest_FeetFemaleNormal; break;
-                    case FilePathDestinationMap.Dest_TorsoFemaleSubsurface: feetPath.Destination = FilePathDestinationMap.Dest_FeetFemaleSubsurface; break;
-                    case FilePathDestinationMap.Dest_TorsoFemaleSpecular: feetPath.Destination = FilePathDestinationMap.Dest_FeetFemaleSpecular; break;
-                    case FilePathDestinationMap.Dest_TorsoMaleDiffuse: feetPath.Destination = FilePathDestinationMap.Dest_FeetMaleDiffuse; break;
-                    case FilePathDestinationMap.Dest_TorsoMaleNormal: feetPath.Destination = FilePathDestinationMap.Dest_FeetMaleNormal; break;
-                    case FilePathDestinationMap.Dest_TorsoMaleSubsurface: feetPath.Destination = FilePathDestinationMap.Dest_FeetMaleSubsurface; break;
-                    case FilePathDestinationMap.Dest_TorsoMaleSpecular: feetPath.Destination = FilePathDestinationMap.Dest_FeetMaleSpecular; break;
+                    case Dest_TorsoFemaleDiffuse: feetPath.Destination = Dest_FeetFemaleDiffuse; break;
+                    case Dest_TorsoFemaleNormal: feetPath.Destination = Dest_FeetFemaleNormal; break;
+                    case Dest_TorsoFemaleSubsurface: feetPath.Destination = Dest_FeetFemaleSubsurface; break;
+                    case Dest_TorsoFemaleSpecular: feetPath.Destination = Dest_FeetFemaleSpecular; break;
+                    case Dest_TorsoMaleDiffuse: feetPath.Destination = Dest_FeetMaleDiffuse; break;
+                    case Dest_TorsoMaleNormal: feetPath.Destination = Dest_FeetMaleNormal; break;
+                    case Dest_TorsoMaleSubsurface: feetPath.Destination = Dest_FeetMaleSubsurface; break;
+                    case Dest_TorsoMaleSpecular: feetPath.Destination = Dest_FeetMaleSpecular; break;
                     default: feetMatched = false; break;
                 }
 
@@ -1142,14 +1143,14 @@ namespace SynthEBD
 
                     switch (firstPath.Destination)
                     {
-                        case FilePathDestinationMap.Dest_TorsoFemaleDiffuse: tailPath.Destination = FilePathDestinationMap.Dest_TailFemaleDiffuse; break;
-                        case FilePathDestinationMap.Dest_TorsoFemaleNormal: tailPath.Destination = FilePathDestinationMap.Dest_TailFemaleNormal; break;
-                        case FilePathDestinationMap.Dest_TorsoFemaleSubsurface: tailPath.Destination = FilePathDestinationMap.Dest_TailFemaleSubsurface; break;
-                        case FilePathDestinationMap.Dest_TorsoFemaleSpecular: tailPath.Destination = FilePathDestinationMap.Dest_TailFemaleSpecular; break;
-                        case FilePathDestinationMap.Dest_TorsoMaleDiffuse: tailPath.Destination = FilePathDestinationMap.Dest_TailMaleDiffuse; break;
-                        case FilePathDestinationMap.Dest_TorsoMaleNormal: tailPath.Destination = FilePathDestinationMap.Dest_TailMaleNormal; break;
-                        case FilePathDestinationMap.Dest_TorsoMaleSubsurface: tailPath.Destination = FilePathDestinationMap.Dest_TailMaleSubsurface; break;
-                        case FilePathDestinationMap.Dest_TorsoMaleSpecular: tailPath.Destination = FilePathDestinationMap.Dest_TailMaleSpecular; break;
+                        case Dest_TorsoFemaleDiffuse: tailPath.Destination = Dest_TailFemaleDiffuse; break;
+                        case Dest_TorsoFemaleNormal: tailPath.Destination = Dest_TailFemaleNormal; break;
+                        case Dest_TorsoFemaleSubsurface: tailPath.Destination = Dest_TailFemaleSubsurface; break;
+                        case Dest_TorsoFemaleSpecular: tailPath.Destination = Dest_TailFemaleSpecular; break;
+                        case Dest_TorsoMaleDiffuse: tailPath.Destination = Dest_TailMaleDiffuse; break;
+                        case Dest_TorsoMaleNormal: tailPath.Destination = Dest_TailMaleNormal; break;
+                        case Dest_TorsoMaleSubsurface: tailPath.Destination = Dest_TailMaleSubsurface; break;
+                        case Dest_TorsoMaleSpecular: tailPath.Destination = Dest_TailMaleSpecular; break;
                         default: tailMatched = false; break;
                     }
 
@@ -1204,10 +1205,10 @@ namespace SynthEBD
                 var secondPath = new FilePathReplacement() { Source = firstPath.Source };
                 switch(type)
                 {
-                    case TextureType.EtcDiffuse: secondPath.Destination = FilePathDestinationMap.Dest_EtcFemaleDiffuseSecondary; break;
-                    case TextureType.EtcNormal: secondPath.Destination = FilePathDestinationMap.Dest_EtcFemaleNormalSecondary; break;
-                    case TextureType.EtcSubsurface: secondPath.Destination = FilePathDestinationMap.Dest_EtcFemaleSubsurfaceSecondary; break;
-                    case TextureType.EtcSpecular: secondPath.Destination = FilePathDestinationMap.Dest_EtcFemaleSpecularSecondary; break;
+                    case TextureType.EtcDiffuse: secondPath.Destination = Dest_EtcFemaleDiffuseSecondary; break;
+                    case TextureType.EtcNormal: secondPath.Destination = Dest_EtcFemaleNormalSecondary; break;
+                    case TextureType.EtcSubsurface: secondPath.Destination = Dest_EtcFemaleSubsurfaceSecondary; break;
+                    case TextureType.EtcSpecular: secondPath.Destination = Dest_EtcFemaleSpecularSecondary; break;
                 }
                 subgroup.AssociatedModel.Paths.Add(secondPath);
             }

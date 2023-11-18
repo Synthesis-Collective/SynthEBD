@@ -16,6 +16,7 @@ using Noggog.WPF;
 using DynamicData;
 using System.Reactive.Linq;
 using System.Diagnostics;
+using static SynthEBD.FilePathDestinationMap;
 using SynthEBD;
 
 namespace SynthEBD;
@@ -912,21 +913,21 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         var pathsNeedingTails = new HashSet<string>()
         {
             //male khajiit
-            "bodymale.dds",
-            "bodymale_msn.dds",
-            "bodymale_s.dds",
+            Source_TorsoDiffuseKhajiitMale,
+            Source_TorsoNormalKhajiitMale,
+            Source_TorsoSpecularKhajiitMale,
             //male argonian
-            "argonianmalebody.dds",
-            "argonianmalebody_msn.dds", 
-            "argonianmalebody_s.dds",
+            Source_TorsoDiffuseArgonianMale,
+            Source_TorsoNormalArgonianMale,
+            Source_TorsoSpecularArgonianMale,
             //female khajiit
-            "femalebody.dds", 
-            "femalebody_msn.dds", 
-            "femalebody_s.dds",
+            Source_TorsoDiffuseKhajiitFemale,
+            Source_TorsoNormalKhajiitFemale,
+            Source_TorsoSpecularKhajiitFemale,
             //female argonian
-            "argonianfemalebody.dds", 
-            "argonianfemalebody_msn.dds",
-            "argonianfemalebody_s.dds",
+            Source_TorsoDiffuseArgonianFemale,
+            Source_TorsoNormalArgonianFemale,
+            Source_TorsoSpecularArgonianFemale,
         };
 
         foreach (var path in subgroup.AssociatedModel.Paths.Where(x => pathsNeedingTails.Contains(Path.GetFileName(x.Source), StringComparer.OrdinalIgnoreCase)).ToArray())
