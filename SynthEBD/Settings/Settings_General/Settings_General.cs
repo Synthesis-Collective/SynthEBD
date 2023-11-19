@@ -244,6 +244,8 @@ public class Settings_General
     public bool bUseDetailedReportSelection { get; set; } = false;
     public DetailedReportNPCSelector DetailedReportSelector { get; set; } = new();
     public bool bFilterNPCsByArmature { get; set; } = true;
+    public bool bShowTroubleshootingSettings { get; set; } = false;
+    public bool bTroubleShootingWarningDisplayed { get; set; } = false;
 }
 
 public enum BodyShapeSelectionMode

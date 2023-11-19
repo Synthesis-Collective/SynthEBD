@@ -68,6 +68,8 @@ public class VM_SettingsTexMesh : VM
 
         AssetPacks.ToObservableChangeSet().Subscribe(_ => RefreshDisplayedAssetPackString()).DisposeWith(this);
 
+        general.WhenAnyValue(x => x.bShowTroubleshootingSettings).Subscribe(x => bShowTroubleshootingSettings = x).DisposeWith(this);
+
         AddStrippedWNAM = new RelayCommand(
             canExecute: _ => true,
             execute: _ => StrippedSkinWNAMs.Add(new VM_CollectionMemberString("", StrippedSkinWNAMs))
@@ -75,7 +77,8 @@ public class VM_SettingsTexMesh : VM
 
         ImportStrippedWNAMsFromMod = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => {
+            execute: _ =>
+            {
                 var mod = _environmentProvider.LoadOrder.PriorityOrder.Where(x => x.ModKey == SelectedStrippedWNAMmodKey).FirstOrDefault()?.Mod ?? null;
                 List<string> noEditorIDs = new();
                 StrippedSkinWNAMsHistory.Add(new(StrippedSkinWNAMs)); // shallow copy
@@ -108,7 +111,8 @@ public class VM_SettingsTexMesh : VM
 
         UndoImportStrippedWNAMsFromMod = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { 
+            execute: _ =>
+            {
                 var lastHistory = StrippedSkinWNAMsHistory.LastOrDefault();
                 if (lastHistory != null)
                 {
@@ -334,6 +338,7 @@ public class VM_SettingsTexMesh : VM
     public VM_AssetOrderingMenu AssetOrderingMenu { get; set; }
 
     private List<ObservableCollection<VM_CollectionMemberString>> StrippedSkinWNAMsHistory = new();
+    public bool bShowTroubleshootingSettings { get; set; } = false;
 
     public bool ValidateAllConfigs(BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, out List<string> errors)
     {
@@ -501,8 +506,8 @@ public class VM_SettingsTexMesh : VM
                 Environment.NewLine + "Do you want to update them for compatibility with the current SynthEBD version?" +
                 Environment.NewLine + string.Join(Environment.NewLine, toUpdate.Select(x => x.GroupName)) +
                 Environment.NewLine + Environment.NewLine + "Press Yes unless you know what you're doing or SynthEBD may not be able to use these config files.";
-            
-            if(CustomMessageBox.DisplayNotificationYesNo("Config File Update", messageStr))
+
+            if (CustomMessageBox.DisplayNotificationYesNo("Config File Update", messageStr))
             {
                 foreach (var ap in toUpdate)
                 {
@@ -510,5 +515,214 @@ public class VM_SettingsTexMesh : VM
                 }
             }
         }
+    }
+
+    public List<string> ResetTroubleShootingToDefault(bool preparationMode)
+    {
+        var changes = new List<string>();
+
+        if (!bChangeNPCTextures)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Allow config files to change NPC textures: False --> True");
+            }
+            else
+            {
+                bChangeNPCTextures = true;
+            }
+        }
+
+        if (!bChangeNPCMeshes)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Allow config files to change NPC meshes: False --> True");
+            }
+            else
+            {
+                bChangeNPCMeshes = true;
+            }
+        }
+
+        if (!bChangeNPCHeadParts)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Allow config files to change NPC head parts: False --> True");
+            }
+            else
+            {
+                bChangeNPCHeadParts = true;
+            }
+        }
+
+        HashSet<string> defaultSkinReplacements = _patcherState.TexMeshSettings.GetDefaultValue("StrippedSkinWNAMs");
+
+        foreach (var skinEditorID in defaultSkinReplacements)
+        {
+            if (!StrippedSkinWNAMs.Select(x => x.Content).Contains(skinEditorID))
+            {
+                if (preparationMode)
+                {
+                    changes.Add("Total Skin Replacements: Add \"" + skinEditorID + "\"");
+                }
+                else
+                {
+                    StrippedSkinWNAMs.Add(new(skinEditorID, StrippedSkinWNAMs));
+                }
+            }
+        }
+
+        for (int i = 0; i < StrippedSkinWNAMs.Count; i++)
+        {
+            if (!defaultSkinReplacements.Contains(StrippedSkinWNAMs[i].Content))
+            {
+                if (preparationMode)
+                {
+                    changes.Add("Total Skin Replacements: Remove \"" + StrippedSkinWNAMs[i].Content + "\"");
+                }
+                else
+                {
+                    StrippedSkinWNAMs.RemoveAt(i);
+                    i--;
+                }
+            }
+        }
+
+        if (!bEasyNPCCompatibilityMode)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Easy NPC Compatibility Mode: False --> True");
+            }
+            else
+            {
+                bEasyNPCCompatibilityMode = true;
+            }
+        }
+
+        if (!bApplyFixedScripts)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Fix EBD Script: False --> True");
+            }
+            else
+            {
+                bApplyFixedScripts = true;
+            }
+        }
+
+        if (bLegacyEBDMode)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Use Original EBD Script: True --> False");
+            }
+            else
+            {
+                bLegacyEBDMode = false;
+            }
+        }
+
+        List<string> defaultRefreshTriggers = _patcherState.TexMeshSettings.GetDefaultValue("TriggerEvents");
+
+        foreach (var name in defaultRefreshTriggers)
+        {
+            if (!TriggerEvents.Select(x => x.Content).Contains(name))
+            {
+                if (preparationMode)
+                {
+                    changes.Add("Face Texture Refresh Triggers: Add \"" + name + "\"");
+                }
+                else
+                {
+                    TriggerEvents.Add(new(name, TriggerEvents));
+                }
+            }
+        }
+
+        for (int i = 0; i < TriggerEvents.Count; i++)
+        {
+            if (!defaultRefreshTriggers.Contains(TriggerEvents[i].Content))
+            {
+                if (preparationMode)
+                {
+                    changes.Add("Face Texture Refresh Triggers: Remove \"" + TriggerEvents[i].Content + "\"");
+                }
+                else
+                {
+                    TriggerEvents.RemoveAt(i);
+                    i--;
+                }
+            }
+        }
+
+        if (bNewEBDModeVerbose)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Face Textre Script Verbose Mode: True --> False");
+            }
+            else
+            {
+                bNewEBDModeVerbose = false;
+            }
+        }
+
+        if (!bCacheRecords)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Cache Generated Records: False --> True");
+            }
+            else
+            {
+                bCacheRecords = true;
+            }
+        }
+
+        if (!bPatchSkinAltTextures)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Match NPC Skin Alternate Textures: False --> True");
+            }
+            else
+            {
+                bPatchSkinAltTextures = true;
+            }
+        }
+
+        if (!bPatchArmors)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Match NPC Armor Textures: False --> True");
+            }
+            else
+            {
+                bPatchArmors = true;
+            }
+        }
+
+        List<TrimPath> defaultTrimPaths = _patcherState.TexMeshSettings.GetDefaultValue("TrimPaths");
+        foreach (var trimPath in defaultTrimPaths)
+        {
+            if (!TrimPaths.Where(x => x.PathToTrim == trimPath.PathToTrim && x.Extension == trimPath.Extension).Any())
+            {
+                if (preparationMode)
+                {
+                    changes.Add("Asset Path Trimming: Add [" + trimPath.PathToTrim + ": " + trimPath.Extension + "]");
+                }
+                else
+                {
+                    TrimPaths.Add(new() { Extension = trimPath.Extension, PathToTrim = trimPath.PathToTrim});
+                }
+            }
+        }
+
+        return changes;
     }
 }

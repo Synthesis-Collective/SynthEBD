@@ -10,6 +10,7 @@
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <local:BoolToGridRowHeightConverter x:Key="GridHeightToggler"/>
     </UserControl.Resources>
     
     <Grid>
@@ -24,7 +25,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
+            <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 

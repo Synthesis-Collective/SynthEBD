@@ -17,6 +17,7 @@ public class VM_OBodyMiscSettings : VM
         _generalSettingsVM = generalSettingsVM;
 
         generalSettingsVM.WhenAnyValue(x => x.BSSelectionMode).Subscribe(x => ShowAutoBodySelectionMode = x == BodySlideSelectionMode.AutoBody).DisposeWith(this);
+        generalSettingsVM.WhenAnyValue(x => x.bShowTroubleshootingSettings).Subscribe(x => bShowTroubleshootingSettings = x).DisposeWith(this);
 
         AddMaleSliderGroup = new RelayCommand(
             canExecute: _ => true,
@@ -56,6 +57,7 @@ public class VM_OBodyMiscSettings : VM
     public RelayCommand AddFemaleSliderGroup { get; set; }
     public bool ShowAutoBodySelectionMode { get; set; }
     public bool AutoApplyMissingAnnotations { get; set; } = true;
+    public bool bShowTroubleshootingSettings { get; set; } = false;
 
     public VM_OBodyMiscSettings GetViewModelFromModel(Settings_OBody model)
     {
@@ -83,5 +85,24 @@ public class VM_OBodyMiscSettings : VM
         model.bUseVerboseScripts = UseVerboseScripts;
         model.AutoBodySelectionMode = AutoBodySelectionMode;
         model.AutoApplyMissingAnnotations = AutoApplyMissingAnnotations;
+    }
+
+    public List<string> ResetTroubleShootingToDefault(bool preparationMode)
+    {
+        var changes = new List<string>();
+
+        if (UseVerboseScripts)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Use Verbose Scripts: True --> False");
+            }
+            else
+            {
+                UseVerboseScripts = false;
+            }
+        }
+
+        return changes;
     }
 }

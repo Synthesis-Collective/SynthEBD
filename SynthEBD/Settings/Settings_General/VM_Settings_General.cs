@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Reactive.Linq;
+using Microsoft.CodeAnalysis.VisualBasic.Syntax;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
@@ -36,7 +37,10 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         PatcherState patcherState,
         IEnvironmentStateProvider environmentProvider,
         FirstLaunch firstLaunch,
-        SynthEBDPaths paths)
+        SynthEBDPaths paths,
+        Func<VM_SettingsTexMesh> getTexMesh,
+        Func<VM_SettingsOBody> getOBody
+        )
     {
         _environmentProvider = environmentProvider;
         IsStandalone = environmentProvider.RunMode == EnvironmentMode.Standalone;
@@ -160,6 +164,45 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
             }
         );
 
+        ToggleTroubleShootingSettingsDisplay = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                if (bShowTroubleshootingSettings)
+                {
+                    bShowTroubleshootingSettings = false;
+                    TroubleShootingSettingsToggleLabel = _troubleShootingSettingsShowText;
+                }
+                else if (_bTroubleshootingWarningDisplayed || CustomMessageBox.DisplayNotificationYesNo("Are you sure?", "These settings are only meant for troubleshooting. Do not change them unless you know what you're doing or have been instructed to do so."))
+                {
+                    bShowTroubleshootingSettings = true;
+                    _bTroubleshootingWarningDisplayed = true;
+                    TroubleShootingSettingsToggleLabel = _troubleShootingSettingsHideText;
+                }
+            }
+        );
+
+        ResetTroubleShootingToDefaultCommand = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                var changes = ResetTroubleShootingToDefault(true);
+                changes.AddRange(getTexMesh().ResetTroubleShootingToDefault(true));
+                changes.AddRange(getOBody().MiscUI.ResetTroubleShootingToDefault(true));
+
+                if (!changes.Any())
+                {
+                    CustomMessageBox.DisplayNotificationOK("Reverting Settings", "All troubleshooting settings are already at their default values.");
+                }
+                else if (CustomMessageBox.DisplayNotificationYesNo("Are you sure?", string.Join(Environment.NewLine, changes)))
+                {
+                    ResetTroubleShootingToDefault(false);
+                    getTexMesh().ResetTroubleShootingToDefault(false);
+                    getOBody().MiscUI.ResetTroubleShootingToDefault(false);
+                }
+            }
+        );
+
         this.WhenAnyValue(x => x._bFirstRun).Subscribe(x =>
         {
             if (x)
@@ -235,6 +278,13 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public RelayCommand ClearPortableSettingsFolder { get; }
     public bool IsStandalone { get; set; }
     public bool bFilterNPCsByArmature { get; set; } = true;
+    public bool bShowTroubleshootingSettings { get; set; } = false;
+    private bool _bTroubleshootingWarningDisplayed { get; set; } = false;
+    public RelayCommand ToggleTroubleShootingSettingsDisplay { get; }
+    public RelayCommand ResetTroubleShootingToDefaultCommand { get; }
+    public string TroubleShootingSettingsToggleLabel { get; set; } = _troubleShootingSettingsShowText;
+    private const string _troubleShootingSettingsShowText = "Show Troubleshooting Settings";
+    private const string _troubleShootingSettingsHideText = "Hide Troubleshooting Settings";
 
     public void CopyInFromModel(Settings_General model, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, ILinkCache linkCache)
     {
@@ -275,6 +325,12 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         DetailedReportSelector.CopyInFromModel(model.DetailedReportSelector);
         bFilterNPCsByArmature = model.bFilterNPCsByArmature;
         Close7ZipWhenFinished = model.Close7ZipWhenFinished;
+        bShowTroubleshootingSettings = model.bShowTroubleshootingSettings;
+        _bTroubleshootingWarningDisplayed = model.bTroubleShootingWarningDisplayed;
+        if (bShowTroubleshootingSettings)
+        {
+            TroubleShootingSettingsToggleLabel = _troubleShootingSettingsHideText;
+        }
         IsCurrentlyLoading = false;
         _logger.LogStartupEventEnd("Loading General Settings UI");
     }
@@ -321,6 +377,144 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.DetailedReportSelector = DetailedReportSelector.DumpToModel();
         model.bFilterNPCsByArmature = bFilterNPCsByArmature;
         model.Close7ZipWhenFinished = Close7ZipWhenFinished;
+        model.bShowTroubleshootingSettings = bShowTroubleshootingSettings;
+        model.bTroubleShootingWarningDisplayed = _bTroubleshootingWarningDisplayed;
         return model;
+    }
+
+    private List<string> ResetTroubleShootingToDefault(bool preparationMode)
+    {
+        var changes = new List<string>();
+
+        if (!ExcludePlayerCharacter)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Exclude Player Character: False --> True");
+            }
+            else
+            {
+                ExcludePlayerCharacter = true;
+            }
+        }
+
+        if (!ExcludePresets)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Exclude Racemenu Presets: False --> True");
+            }
+            else
+            {
+                ExcludePresets = true;
+            }
+        }
+
+        if (!bFilterNPCsByArmature)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Exclude Partially Skinned NPCs: False --> True");
+            }
+            else
+            {
+                bFilterNPCsByArmature = true;
+            }
+        }
+
+        if (!bLinkNPCsWithSameName)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Link NPCs with Same Name: False --> True");
+            }
+            else
+            {
+                bLinkNPCsWithSameName = true;
+            }
+        }
+
+        List<string> defaultLinkedNPCExclusions = _patcherState.GeneralSettings.GetDefaultValue("LinkedNPCNameExclusions");
+
+        foreach (var name in defaultLinkedNPCExclusions)
+        {
+            if (!LinkedNameExclusions.Select(x => x.Content).Contains(name))
+            {
+                if (preparationMode)
+                {
+                    changes.Add("Linked NPC Name Exclusions: Add \"" + name + "\"");
+                }
+                else
+                {
+                    LinkedNameExclusions.Add(new(name, LinkedNameExclusions));
+                }
+            }
+        }
+
+        for (int i = 0; i < LinkedNameExclusions.Count; i++)
+        {
+            if (!defaultLinkedNPCExclusions.Contains(LinkedNameExclusions[i].Content))
+            {
+                if (preparationMode)
+                {
+                    changes.Add("Linked NPC Name Exclusions: Remove \"" + LinkedNameExclusions[i].Content + "\"");
+                }
+                else
+                {
+                    LinkedNameExclusions.RemoveAt(i);
+                    i--;
+                }
+            }
+        }
+
+        if (bVerboseModeAssetsNoncompliant)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Verbose Mode for Conflict NPCs: True --> False");
+            }
+            else
+            {
+                bVerboseModeAssetsNoncompliant = false;
+            }
+        }
+
+        if (bVerboseModeAssetsAll)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Verbose Mode for All NPCs: True --> False");
+            }
+            else
+            {
+                bVerboseModeAssetsAll = false;
+            }
+        }
+
+        if (DisableValidation)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Disable Pre-run Validation: True --> False");
+            }
+            else
+            {
+                DisableValidation = false;
+            }
+        }
+
+        if (!Close7ZipWhenFinished)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Close Archive Extractor When Done: False --> True");
+            }
+            else
+            {
+                Close7ZipWhenFinished = true;
+            }
+        }
+
+        return changes;
     }
 }

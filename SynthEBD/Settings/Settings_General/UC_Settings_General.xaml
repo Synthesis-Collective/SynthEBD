@@ -24,35 +24,34 @@
                 <!-- Do not add last column to SharedSizeGroup: * behaves like auto: https://stackoverflow.com/questions/4664008/grids-sharedsizegroup-and-sizing -->
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
-                <RowDefinition Height="{Binding IsStandalone, Converter={StaticResource GridHeightToggler}}"/>
+                <RowDefinition Height="{Binding IsStandalone, Converter={StaticResource GridHeightToggler}}" x:Name="row0"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"  x:Name="row5"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}" />
+                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
+                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"  x:Name="row10"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
+                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
+                <RowDefinition Height="auto" x:Name="row15"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <!--10-->
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
+                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"   x:Name="row20"/>
+                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <!--20-->
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="{Binding bUseDetailedReportSelection, Converter={StaticResource GridHeightToggler}}"/>
-                <RowDefinition Height="auto"/>
+                <RowDefinition Height="{Binding bUseDetailedReportSelection, Converter={StaticResource GridHeightToggler}}" x:Name="row25"/>
+                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
+                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
@@ -224,10 +223,10 @@
                 <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding verboseModeNPClist}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys, Mode=OneWay}" />
             </Expander>
 
-            <TextBlock Grid.Column="0" Grid.Row="23" ToolTip="Show attribute names instead of FormKeys in Verbose Logs (significantly slower)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Verbose Mode Detailed Attributes</TextBlock>
+            <TextBlock Grid.Column="0" Grid.Row="23" ToolTip="Show attribute names instead of FormKeys in Verbose Logs (significantly slows down patching)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Verbose Mode Detailed Attributes</TextBlock>
             <CheckBox Grid.Column="2" Grid.Row="23" IsChecked="{Binding Path=VerboseModeDetailedAttributes, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Column="0" Grid.Row="24" ToolTip="Perform detailed logging based on advanced criteria per-NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Advanced Selection Criteria for NPC Logging</TextBlock>
+            <TextBlock Grid.Column="0" Grid.Row="24" ToolTip="Perform detailed logging based on advanced criteria per-NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Verbose Mode Advanced Selector</TextBlock>
             <CheckBox Grid.Column="2" Grid.Row="24" IsChecked="{Binding Path=bUseDetailedReportSelection, Mode=TwoWay}"></CheckBox>
 
             <local:UC_DetailedReportNPCSelector Grid.Column="2" Grid.Row="25" DataContext="{Binding DetailedReportSelector}" />
@@ -237,6 +236,9 @@
 
             <TextBlock Grid.Column="0" Grid.Row="27" ToolTip="Uncheck this if you are having problems with SynthEBD's archive extraction and want the window to stay open to see what the issue is." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Close Archive Extractor When Done</TextBlock>
             <CheckBox Grid.Column="2" Grid.Row="27" IsChecked="{Binding Path=Close7ZipWhenFinished, Mode=TwoWay}"></CheckBox>
+
+            <Button Grid.Column="0" Grid.Row="28" VerticalAlignment="Bottom" HorizontalAlignment="Left" Command="{Binding ToggleTroubleShootingSettingsDisplay}"  Foreground="MediumPurple" Content="{Binding TroubleShootingSettingsToggleLabel}"/>
+            <Button Grid.Column="2" Grid.Row="28" VerticalAlignment="Bottom" HorizontalAlignment="Left" Command="{Binding ResetTroubleShootingToDefaultCommand}"  Foreground="MediumPurple" Content="Reset Troubleshooting Settings to Defaults"/>
         </Grid>
     </ScrollViewer>
 </UserControl>
