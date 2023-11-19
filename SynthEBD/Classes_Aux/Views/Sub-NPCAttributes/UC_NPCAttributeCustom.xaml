@@ -1,8 +1,9 @@
-﻿<UserControl x:Class="SynthEBD.UC_NPCAttributeCustom"
+<UserControl x:Class="SynthEBD.UC_NPCAttributeCustom"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
              xmlns:local="clr-namespace:SynthEBD"
              d:DataContext="{d:DesignInstance Type=local:VM_NPCAttributeCustom}"
@@ -43,8 +44,14 @@
                 <ComboBox Grid.Row="0" Grid.Column="3" SelectedValue="{Binding ValueFKtype}" SelectedValuePath="Value" DisplayMemberPath="Key" ItemsSource="{Binding ValueGetterTypes}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding Path=ShowValueFormKeyPicker, Converter={StaticResource BoolToVis}}" />
 
                 <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center">Condition</TextBlock>
-                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding IntellisensedPath, UpdateSourceTrigger=PropertyChanged}"/>
-                <ComboBox Template="{DynamicResource IntelliPathComboBox}" Grid.Row="1" Grid.Column="1" Width="25" HorizontalAlignment="Right" SelectedValue="{Binding ChosenPathSuggestion}" ItemsSource="{Binding PathSuggestions}" DisplayMemberPath="DispString"  ScrollViewer.HorizontalScrollBarVisibility="auto"/>
+                <local:TextBoxCaretIndexable Grid.Row="1" Grid.Column="1" Text="{Binding IntellisensedPath, UpdateSourceTrigger=PropertyChanged}" CaretPosition="{Binding IntellisensedPathCaretPosition, Mode=TwoWay}"/>
+                <ComboBox Template="{DynamicResource IntelliPathComboBox}" Grid.Row="1" Grid.Column="1" Width="25" HorizontalAlignment="Right" SelectedValue="{Binding ChosenPathSuggestion}" ItemsSource="{Binding PathSuggestions}" DisplayMemberPath="DispString"  ScrollViewer.HorizontalScrollBarVisibility="auto">
+                    <i:Interaction.Triggers>
+                        <i:EventTrigger EventName="DropDownOpened">
+                            <i:InvokeCommandAction Command="{Binding IntellisenseManualRefreshCommand}"/>
+                        </i:EventTrigger>
+                    </i:Interaction.Triggers>
+                </ComboBox>
                 <ComboBox Grid.Row="1" Grid.Column="2" SelectedValue="{Binding ChosenComparator}" ItemsSource="{Binding Comparators}" IsSynchronizedWithCurrentItem="True"/>
                 <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding ValueStr, UpdateSourceTrigger=PropertyChanged}" Visibility="{Binding Path=ShowValueTextField, Converter={StaticResource BoolToVis}}"/>
                 <TextBlock Grid.Row="1" Grid.Column="3" VerticalAlignment="Center" Visibility="{Binding Path=ShowValueFormKeyPicker, Converter={StaticResource BoolToVis}}">Select record below</TextBlock>

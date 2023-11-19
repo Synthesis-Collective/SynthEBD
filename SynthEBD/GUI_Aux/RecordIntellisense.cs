@@ -17,6 +17,8 @@ public interface IImplementsRecordIntellisense
     public ObservableCollection<RecordIntellisense.PathSuggestion> PathSuggestions { get; set; }
     public FormKey ReferenceNPCFormKey { get; set; }
     public string IntellisensedPath { get; set; }
+    public int IntellisensedPathCaretPosition { get; set; }
+    public int IntellisenseManualRefreshTrigger { get; set; }
     public ILinkCache LinkCache { get; }
 }
 public class RecordIntellisense : VM
@@ -30,8 +32,10 @@ public class RecordIntellisense : VM
     }
     public void InitializeSubscriptions(IImplementsRecordIntellisense parent)
     {
+        parent.IntellisenseManualRefreshTrigger = 1;
         parent.WhenAnyValue(x => x.ReferenceNPCFormKey).Subscribe(x => RefreshPathSuggestions(parent)).DisposeWith(this);
         parent.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => RefreshPathSuggestions(parent)).DisposeWith(this);
+        parent.WhenAnyValue(x => x.IntellisenseManualRefreshTrigger).Subscribe(x => RefreshPathSuggestions(parent)).DisposeWith(this);
         parent.WhenAnyValue(vm => vm.ChosenPathSuggestion).Skip(1).WhereNotNull().Subscribe(pathSuggestion => UpdatePath(parent)).DisposeWith(this);
     }
     public void RefreshPathSuggestions(IImplementsRecordIntellisense parent)
@@ -39,6 +43,17 @@ public class RecordIntellisense : VM
         parent.ChosenPathSuggestion = null; // clear this now to avoid the previous chosen path suggestion being added by the Subscription due to the current PathSuggestions being modified
 
         var tmpPath = parent.IntellisensedPath.Replace("[*]", "[0]"); // evaluate the first member of any collection to determine subpaths
+
+        if (parent.IntellisensedPathCaretPosition > 0 && parent.IntellisensedPathCaretPosition < parent.IntellisensedPath.Length)
+        {
+            var substring = GetWidestScopeSubstring(parent.IntellisensedPath, parent.IntellisensedPathCaretPosition, out int closingBracketPos);
+            if (substring.IsNullOrWhitespace() && closingBracketPos > 0)
+            {
+                tmpPath = parent.IntellisensedPath.Substring(0, closingBracketPos + 1);
+            }    
+        }
+
+        tmpPath = tmpPath.Replace("[]", "[0]"); // evaluate the first member of any collection to determine subpaths
 
         if (tmpPath.EndsWith('.'))
         {
@@ -71,6 +86,65 @@ public class RecordIntellisense : VM
         }
 
         parent.PathSuggestions = new ObservableCollection<PathSuggestion>(newSuggestions.OrderBy(x => x.DispString));
+    }
+
+    static string GetWidestScopeSubstring(string input, int startIndex, out int closingBracketIndex)
+    {
+        //startIndex += 1; // adjust to account for cursor position being within bracket
+        closingBracketIndex = -1;
+
+        while (startIndex >= 0 && input[startIndex] != '[')
+        {
+            startIndex -= 1;
+        }
+
+        var debugStartIndexChar = input[startIndex];
+
+        if (startIndex < 0 || startIndex >= input.Length || input[startIndex] != '[')
+        {
+            // Invalid starting index or no opening bracket at the starting index
+            return string.Empty;
+        }
+
+        int bracketCount = 0;
+        int endIndex = startIndex;
+
+        // Find the matching closing bracket for the starting bracket
+        while (endIndex < input.Length)
+        {
+            var debugEndIndexChar = input[endIndex];
+            if (input[endIndex] == '[')
+            {
+                bracketCount++;
+            }
+            else if (input[endIndex] == ']')
+            {
+                bracketCount--;
+                if (bracketCount == 0)
+                {
+                    // Found the matching closing bracket
+                    closingBracketIndex = endIndex;
+                    break;
+                }
+            }
+
+            endIndex++;
+
+            if (bracketCount == 0)
+            {
+                // Exit the loop if the closing bracket is found
+                break;
+            }
+        }
+
+        if (bracketCount != 0)
+        {
+            // Unmatched brackets
+            return string.Empty;
+        }
+
+        // Extract the substring between the starting and ending brackets
+        return input.Substring(startIndex + 1, endIndex - startIndex - 1);
     }
 
     public class PathSuggestion
@@ -139,13 +213,21 @@ public class RecordIntellisense : VM
     public void UpdatePath(IImplementsRecordIntellisense parent)
     {
         if (parent.ChosenPathSuggestion is null || parent.ChosenPathSuggestion.DispString == "") { return; }
-        if (parent.IntellisensedPath.Length > 0 && !parent.IntellisensedPath.EndsWith('.'))
+
+        var insertionPos = parent.IntellisensedPathCaretPosition;
+
+        if (insertionPos == 0)
         {
-            parent.IntellisensedPath += "." + parent.ChosenPathSuggestion.SubPath;
+            insertionPos = parent.IntellisensedPath.Length;
+        }
+
+        if (parent.IntellisensedPath.Length > 0 && parent.IntellisensedPath[insertionPos - 1] != '.' && parent.IntellisensedPath[insertionPos - 1] != '[')
+        {
+            parent.IntellisensedPath = parent.IntellisensedPath.Insert(insertionPos, "." + parent.ChosenPathSuggestion.SubPath);
         }
         else
         {
-            parent.IntellisensedPath += parent.ChosenPathSuggestion.SubPath;
+            parent.IntellisensedPath = parent.IntellisensedPath.Insert(insertionPos, parent.ChosenPathSuggestion.SubPath);
         }
 
         if (parent.LinkCache.TryResolve<INpcGetter>(parent.ReferenceNPCFormKey, out var referenceNPC) && _recordPathParser.GetObjectAtPath(referenceNPC, referenceNPC, parent.IntellisensedPath, new Dictionary<string, dynamic>(), parent.LinkCache, true, _logger.GetNPCLogNameString(referenceNPC), out var subObj))

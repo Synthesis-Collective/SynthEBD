@@ -101,6 +101,13 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
             }
         );
 
+        IntellisenseManualRefreshCommand = new RelayCommand(
+            canExecute: _ => true,
+            execute: x => {
+                IntellisenseManualRefreshTrigger *= -1;
+            }
+        );
+
         ParentMenu = parentMenu;
 
         this.WhenAnyValue(x => x.Source).Subscribe(x =>
@@ -123,7 +130,9 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 
     public string Source { get; set; } = "";
     public string IntellisensedPath { get; set; } = "";
-
+    public int IntellisensedPathCaretPosition { get; set; } = 0;
+    public int IntellisenseManualRefreshTrigger { get; set; } = 1;
+    public RelayCommand IntellisenseManualRefreshCommand { get; }
     public bool SourceExists { get; set; } = false;
     public bool DestinationExists { get; set; } = false;
 

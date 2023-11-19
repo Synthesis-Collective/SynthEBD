@@ -524,6 +524,13 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
 
         _recordIntellisense.InitializeSubscriptions(this);
 
+        IntellisenseManualRefreshCommand = new RelayCommand(
+            canExecute: _ => true,
+            execute: x => {
+                IntellisenseManualRefreshTrigger *= -1;
+            }
+        );
+
         this.WhenAnyValue(x => x.CustomType).Subscribe(x => UpdateValueDisplay()).DisposeWith(this);
 
         this.WhenAnyValue(x => x.ValueFKtype).Subscribe(x => UpdateFormKeyPickerRecordType()).DisposeWith(this);
@@ -534,7 +541,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
 
         this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => Evaluate()).DisposeWith(this);
         this.WhenAnyValue(x => x.ReferenceNPCFormKey).Subscribe(x => Evaluate()).DisposeWith(this);
-        
+
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => LinkCache = x)
             .DisposeWith(this);
@@ -542,6 +549,9 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
 
     public CustomAttributeType CustomType { get; set; } = CustomAttributeType.Text;
     public string IntellisensedPath { get; set; } = "";
+    public int IntellisensedPathCaretPosition { get; set;} = 0;
+    public int IntellisenseManualRefreshTrigger { get; set; } = 1;
+    public RelayCommand IntellisenseManualRefreshCommand { get; }
     public string ValueStr { get; set; } = "";
     public ObservableCollection<FormKey> ValueFKs { get; set; } = new();
     public SortedDictionary<string, Type> ValueGetterTypes { get; set; } = new();
