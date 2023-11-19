@@ -32,6 +32,14 @@ public class VM_SettingsModManager : VM
         {
             UpdatePatcherSettings();
         }).DisposeWith(this);
+
+        this.WhenAnyValue(x => x.TempFolder).Subscribe(folder =>
+        {
+            if (folder.Length > 100)
+            {
+                CustomMessageBox.DisplayNotificationOK("Warning", "Your SynthEBD Temp Folder is currently buried very deep: the folder path is " + folder.Length + " characters long. This can cause issues during config file installation. It is recommended that you change the Temp Folder in the Mod Manager Integration menu to a less deep folder.");
+            }
+        }).DisposeWith(this);
     }
 
     public ModManager ModManagerType { get; set; } = ModManager.None;
