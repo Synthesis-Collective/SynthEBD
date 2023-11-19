@@ -161,11 +161,13 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="auto"/>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="auto"/>
             </Grid.ColumnDefinitions>
 
             <Button Content="Check for Duplicate Textures" Foreground="MediumPurple" Command="{Binding CheckDuplicatesButton}" Grid.Column="0" Visibility="{Binding NotYetDrafted, Converter={StaticResource BoolToVis}}" ToolTip="Some mod authors package multiple replicates of the same texture to make FOMOD generation easier. Removing these replicates can simplify management of your config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
             <ProgressBar Value="{Binding HashingProgressCurrent}" Maximum="{Binding HashingProgressMax}" Foreground="White" Background="Transparent" BorderThickness="0" Grid.Column="1" />
             <TextBlock Text="{Binding CurrentlyHashingFile}" Grid.Column="1" Foreground="White" HorizontalAlignment="Center"/>
+            <Button Content="Show Printable Duplicates List" Foreground="MediumPurple" Command="{Binding ShowDuplicatesPopupButton}" Grid.Column="2" Visibility="{Binding HasMultiplets, Converter={StaticResource BoolToVis}}" ToolTip="Show popup window with a list of duplicate texture groups that you can copy and refer to later" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
         </Grid>
 
         <Separator Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3"/>

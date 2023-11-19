@@ -122,6 +122,28 @@ public class VM_ConfigDrafter : VM
                }
            });
 
+        ShowDuplicatesPopupButton = new RelayCommand(
+           canExecute: _ => true,
+           execute: _ =>
+           {
+               List<string> toShow = new();
+               foreach (var multiplet in MultipletTextureGroups)
+               {
+                   toShow.Add(multiplet.FileName);
+                   foreach (var file in multiplet.FilePaths)
+                   {
+                       string toAppend = "\t" + file.Content;
+                       if (!file.IsSelected)
+                       {
+                           toAppend += " [KEEP]";
+                       }
+                       toShow.Add(toAppend);
+                   }
+                   toShow.Add("");
+               }
+
+               CustomMessageBox.DisplayNotificationOK("Press the white button to copy list", string.Join(Environment.NewLine, toShow));
+           });
 
         DraftConfigButton = ReactiveCommand.CreateFromTask(
             execute: async _ =>
@@ -252,6 +274,7 @@ public class VM_ConfigDrafter : VM
 
     private List<string> IgnoredPaths { get; set; } = new();
     public RelayCommand RemoveDuplicatesButton { get; }
+    public RelayCommand ShowDuplicatesPopupButton { get; }
 
     public string CurrentlyHashingFile { get; set; } = String.Empty;
     public int HashingProgressCurrent { get; set; } = 0;
@@ -432,7 +455,7 @@ public class VM_ConfigDrafter : VM
         }
         return destinationDirs;
     }
-
+    // 
     private async Task<ObservableCollection<VM_FileDuplicateContainer>> ComputeFileDuplicates(List<string> texturePaths, IProgress<(int, int,string)> progress)
     {
         ObservableCollection<VM_FileDuplicateContainer> multipletTextureGroups = new();
@@ -444,29 +467,33 @@ public class VM_ConfigDrafter : VM
 
         foreach (var fileGrouping in texturesByFileName)
         {
-            var multiplet = new VM_FileDuplicateContainer();
-            multiplet.FileName = fileGrouping.Key;
-
             progress.Report((currentGroupingIndex, maxGroupings, fileGrouping.Key));
 
-            var checksumGrouping = fileGrouping.GroupBy(x => CalculateMD5(x));
-            foreach (var entry in checksumGrouping)
+            var checksumGroupings = fileGrouping.GroupBy(x => CalculateMD5(x)).ToArray();
+            int groupCount = 0;
+            foreach (var sharedChecksumGroup in checksumGroupings.Where(group => group.Count() > 1).ToArray())
             {
-                if (entry.Count() > 1)
+                groupCount++;
+
+                var multiplet = new VM_FileDuplicateContainer();
+                multiplet.FileName = fileGrouping.Key;
+                if (checksumGroupings.Count() > 1)
                 {
-                    foreach (var filePath in entry)
-                    {
-                        multiplet.FilePaths.Add(new(filePath, multiplet.FilePaths) { IsSelected = true });
-                    }
+                    multiplet.FileName += " (Group " + groupCount + ")";
+                }
+
+                foreach (var filePath in sharedChecksumGroup)
+                {
+                    multiplet.FilePaths.Add(new(filePath, multiplet.FilePaths) { IsSelected = true });
+                }
+                if (multiplet.FilePaths.Any())
+                {
+                    multiplet.RemoveRootPath(SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, _configDrafter);
+                    _configDrafter.ChooseLeastSpecificPath(multiplet.FilePaths); // uncheck the best candidate
+                    multipletTextureGroups.Add(multiplet);
                 }
             }
-
-            if (multiplet.FilePaths.Any())
-            {
-                multiplet.RemoveRootPath(SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, _configDrafter);
-                _configDrafter.ChooseLeastSpecificPath(multiplet.FilePaths); // uncheck the best candidate
-                multipletTextureGroups.Add(multiplet);
-            }
+            
             currentGroupingIndex++;
         }
 
