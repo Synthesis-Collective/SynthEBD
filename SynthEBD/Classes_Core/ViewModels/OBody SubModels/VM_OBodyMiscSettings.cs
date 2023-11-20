@@ -16,7 +16,21 @@ public class VM_OBodyMiscSettings : VM
         _raceMenuHandler = raceMenuHandler;
         _generalSettingsVM = generalSettingsVM;
 
-        generalSettingsVM.WhenAnyValue(x => x.BSSelectionMode).Subscribe(x => ShowAutoBodySelectionMode = x == BodySlideSelectionMode.AutoBody).DisposeWith(this);
+        generalSettingsVM.WhenAnyValue(x => x.BSSelectionMode).Subscribe(mode => {
+            
+            switch(mode)
+            {
+                case BodySlideSelectionMode.OBody:
+                    ShowOBodySelectionMode = true;
+                    ShowAutoBodySelectionMode = false;
+                    break;
+                case BodySlideSelectionMode.AutoBody:
+                    ShowAutoBodySelectionMode = true;
+                    ShowOBodySelectionMode = false;
+                    break;
+            }
+        }).DisposeWith(this);
+
         generalSettingsVM.WhenAnyValue(x => x.bShowTroubleshootingSettings).Subscribe(x => bShowTroubleshootingSettings = x).DisposeWith(this);
 
         AddMaleSliderGroup = new RelayCommand(
@@ -51,11 +65,13 @@ public class VM_OBodyMiscSettings : VM
     public ObservableCollection<VM_CollectionMemberString> FemaleBodySlideGroups { get; set; } = new();
     public bool UseVerboseScripts { get; set; } = false;
     public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
+    public OBodySelectionMode OBodySelectionMode { get; set; } = OBodySelectionMode.Native;
     public RelayCommand SetRaceMenuINI { get; set; }
 
     public RelayCommand AddMaleSliderGroup { get; set; }
     public RelayCommand AddFemaleSliderGroup { get; set; }
     public bool ShowAutoBodySelectionMode { get; set; }
+    public bool ShowOBodySelectionMode { get; set; }
     public bool AutoApplyMissingAnnotations { get; set; } = true;
     public bool bShowTroubleshootingSettings { get; set; } = false;
 

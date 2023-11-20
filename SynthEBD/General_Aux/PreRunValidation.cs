@@ -82,6 +82,11 @@ namespace SynthEBD
                         {
                             valid = false;
                         }
+
+                        if (_patcherState.OBodySettings.OBodySelectionMode == OBodySelectionMode.Native && !_miscValidation.VerifyOBodyTemplateJsonExits(_environmentProvider.DataFolderPath))
+                        {
+                            valid = false;
+                        }
                     }
                     else if (_patcherState.GeneralSettings.BSSelectionMode == BodySlideSelectionMode.AutoBody)
                     {

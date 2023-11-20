@@ -98,6 +98,20 @@ public class MiscValidation
         return verified;
     }
 
+    public bool VerifyOBodyTemplateJsonExits(DirectoryPath dataFolderPath)
+    {
+        bool verified = true;
+
+        var expectedPath = Path.Combine(dataFolderPath, "SKSE", "Plugins", "OBody_presetDistributionConfig.json");
+        if (!File.Exists(expectedPath))
+        {
+            _logger.LogMessage("Could not find OBody_presetDistributionConfig.json from OBody at " + expectedPath);
+            verified = false;
+        }
+
+        return verified;
+    }
+
     public bool VerifyAutoBodyInstalled(DirectoryPath dataFolderPath)
     {
         bool verified = true;

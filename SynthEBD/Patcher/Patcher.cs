@@ -228,6 +228,11 @@ public class Patcher
             {
                 _oBodyWriter.ClearOutputForIniMode();
             }
+            else if (_patcherState.GeneralSettings.BSSelectionMode == BodySlideSelectionMode.OBody && _patcherState.OBodySettings.OBodySelectionMode == OBodySelectionMode.Native)
+            {
+                _updateHandler.CleanSPIDiniOBody();
+                gEnableBodySlideScript.Data = 0;
+            }
             else
             {
                 //OBodyWriter.WriteBodySlideSPIDIni(bodySlideAssignmentSpell, copiedOBodySettings, outputMod);
@@ -337,6 +342,10 @@ public class Patcher
             if (_patcherState.GeneralSettings.BSSelectionMode == BodySlideSelectionMode.AutoBody && _patcherState.OBodySettings.AutoBodySelectionMode == AutoBodySelectionMode.INI)
             {
                 _oBodyWriter.WriteAssignmentIni();
+            }
+            else if (_patcherState.GeneralSettings.BSSelectionMode == BodySlideSelectionMode.OBody && _patcherState.OBodySettings.OBodySelectionMode == OBodySelectionMode.Native)
+            {
+                _oBodyWriter.WriteNativeAssignmentDictionary();
             }
             else
             {

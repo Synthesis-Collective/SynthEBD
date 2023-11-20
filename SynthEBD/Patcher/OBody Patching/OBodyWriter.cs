@@ -1,7 +1,9 @@
+using DynamicData;
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.FormKeys.SkyrimSE;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
+using Newtonsoft.Json.Linq;
 using System.IO;
 
 namespace SynthEBD;
@@ -13,13 +15,15 @@ public class OBodyWriter
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly PatcherIO _patcherIO;
-    public OBodyWriter(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
+    private readonly Converters _converters;
+    public OBodyWriter(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO, Converters converters)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _logger = logger;
         _paths = paths;
         _patcherIO = patcherIO;
+        _converters = converters;
     }
 
     public Spell CreateOBodyAssignmentSpell(ISkyrimMod outputMod, GlobalShort gBodySlideVerboseMode)
@@ -248,6 +252,76 @@ public class OBodyWriter
                     _logger.LogErrorWithStatusUpdate("Could not delete file at " + path, ErrorType.Warning);
                 }
             }
+        }
+    }
+
+    public void WriteNativeAssignmentDictionary()
+    {
+        if (Patcher.BodySlideTracker.Count == 0)
+        {
+            _logger.LogMessage("No BodySlides were assigned to any NPCs");
+            return;
+        }
+
+        var templatePath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "OBody_presetDistributionConfig.json");
+        var templateJson = JSONhandler<dynamic>.LoadJSONFile(templatePath, out bool success, out string exceptionStr);
+
+        if (!success)
+        {
+            _logger.LogError("Could not open OBody_presetDistributionConfig.json for editing. The following error was encountered: " + Environment.NewLine + exceptionStr);
+            return;
+        }
+
+        Dictionary<string, Dictionary<string, List<string>>> npcFormIDAssignments = new();
+        try
+        {
+            npcFormIDAssignments = templateJson.npcFormID.ToObject<Dictionary<string, Dictionary<string, List<string>>>>();
+        }
+        catch
+        {
+            _logger.LogError("Error parsing OBody_presetDistributionConfig.json");
+            return;
+        }
+
+        npcFormIDAssignments.Clear();
+
+        var npcsGroupedByModKey = Patcher.BodySlideTracker.GroupBy(x => x.Key.ModKey.ToString()).ToArray();
+
+        foreach (var modGroup in npcsGroupedByModKey)
+        {
+            Dictionary<string, List<string>> modEntry = new();
+
+            npcFormIDAssignments.Add(modGroup.Key, modEntry);
+
+            foreach (var entry in modGroup)
+            {
+                if (_converters.TryFormKeyStringToFormIDString(entry.Key.ToString(), out string formID))
+                {
+                    modEntry.Add(formID, new List<string>() { entry.Value });
+                }
+                else
+                {
+                    _logger.LogError("Cannot obtain FormID for FormKey " + entry.Key.ToString());
+                }
+            }
+        }
+
+        templateJson.npcFormID = JObject.FromObject(npcFormIDAssignments);
+
+
+        string outputStr = JSONhandler<dynamic>.Serialize(templateJson, out success, out string exception);
+
+        var destPath = Path.Combine(_paths.OutputDataFolder, "SKSE", "Plugins", "OBody_presetDistributionConfig.json");
+
+        try
+        {
+            _logger.LogMessage("Writing BodySlide Assignments to " + destPath);
+            PatcherIO.CreateDirectoryIfNeeded(destPath, PatcherIO.PathType.File);
+            File.WriteAllText(destPath, outputStr);
+        }
+        catch
+        {
+            _logger.LogErrorWithStatusUpdate("Could not write BodySlide assignments to " + destPath, ErrorType.Error);
         }
     }
 }

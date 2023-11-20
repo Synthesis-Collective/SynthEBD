@@ -13,6 +13,12 @@ public enum AutoBodySelectionMode
     JSON
 }
 
+public enum OBodySelectionMode
+{
+    Native,
+    Script
+}
+
 public class Settings_OBody
 {
     public List<BodySlideSetting> BodySlidesMale { get; set; } = new();
@@ -34,6 +40,7 @@ public class Settings_OBody
     public HashSet<string> MaleSliderGroups { get; set; } = new();
     public HashSet<string> FemaleSliderGroups { get; set; } = new();
     public bool bUseVerboseScripts { get; set; } = false;
+    public OBodySelectionMode OBodySelectionMode { get; set; } = OBodySelectionMode.Native;
     public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
     public int HIMBOAnnotationVersion { get; set; } = 0; // increment as necessary to update HIMBO versions
     public Dictionary<string, SliderClassificationRulesByBodyType> BodySlideClassificationRules { get; set; } = new(); // key is Slider Group (e.g. CBBE, UNP, etc)
